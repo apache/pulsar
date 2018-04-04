@@ -22,7 +22,9 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
+
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 import java.util.EnumSet;
 
@@ -50,9 +52,6 @@ import org.mockito.ArgumentMatcher;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 
 @Test
 public class PulsarAdminToolTest {
@@ -534,18 +533,6 @@ public class PulsarAdminToolTest {
         topics.run(split("list-in-bundle myprop/clust/ns1 --bundle 0x23d70a30_0x26666658"));
         verify(mockTopics).getListInBundle("myprop/clust/ns1", "0x23d70a30_0x26666658");
 
-    }
-
-    @Test
-    void tool() throws Exception {
-        java.util.Properties properties = new java.util.Properties();
-        properties.setProperty("serviceUrl", "http://api.messaging.use.example.com:8080");
-        PulsarAdminTool tool = new PulsarAdminTool(properties);
-
-        assertEquals(tool.run(new String[0]), false);
-        assertEquals(tool.run(split("clusters list")), false);
-        assertEquals(tool.run(split("invalid")), false);
-        assertEquals(tool.run(split("--help")), false);
     }
 
     String[] split(String s) {

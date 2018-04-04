@@ -90,24 +90,20 @@ public class WebService implements AutoCloseable {
         connectors.add(connector);
 
         if (pulsar.getConfiguration().isTlsEnabled()) {
-            SslContextFactory sslCtxFactory = new SslContextFactory();
-
             try {
-                sslCtxFactory.setSslContext(
-                        SecurityUtility.createSslContext(
-                            pulsar.getConfiguration().isTlsAllowInsecureConnection(),
-                            pulsar.getConfiguration().getTlsTrustCertsFilePath(),
-                            pulsar.getConfiguration().getTlsCertificateFilePath(),
-                            pulsar.getConfiguration().getTlsKeyFilePath()));
+                SslContextFactory sslCtxFactory = SecurityUtility.createSslContextFactory(
+                        pulsar.getConfiguration().isTlsAllowInsecureConnection(),
+                        pulsar.getConfiguration().getTlsTrustCertsFilePath(),
+                        pulsar.getConfiguration().getTlsCertificateFilePath(),
+                        pulsar.getConfiguration().getTlsKeyFilePath(),
+                        pulsar.getConfiguration().getTlsRequireTrustedClientCertOnConnect());
+                ServerConnector tlsConnector = new PulsarServerConnector(server, 1, 1, sslCtxFactory);
+                tlsConnector.setPort(pulsar.getConfiguration().getWebServicePortTls());
+                tlsConnector.setHost(pulsar.getBindAddress());
+                connectors.add(tlsConnector);
             } catch (GeneralSecurityException e) {
                 throw new PulsarServerException(e);
             }
-
-            sslCtxFactory.setWantClientAuth(true);
-            ServerConnector tlsConnector = new PulsarServerConnector(server, 1, 1, sslCtxFactory);
-            tlsConnector.setPort(pulsar.getConfiguration().getWebServicePortTls());
-            tlsConnector.setHost(pulsar.getBindAddress());
-            connectors.add(tlsConnector);
         }
 
         // Limit number of concurrent HTTP connections to avoid getting out of file descriptors

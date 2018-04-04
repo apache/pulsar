@@ -28,7 +28,7 @@
       <div class="card-header" role="tab" id="heading-{{ slug }}">
         <h5>
           <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-{{ slug }}"{% if false %} aria-exanded="true"{% endif %} aria-controls="collapse-{{ slug }}">
-            {{ group.title }}
+            {{ group.title }}{% if group.preview %} <span class="badge badge-warning">Preview</span>{% endif %}
           </a>
         </h5>
       </div>

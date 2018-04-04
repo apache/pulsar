@@ -25,8 +25,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
+import com.google.common.hash.Hashing;
 
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.broker.PulsarService;
@@ -43,8 +42,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.hash.Hashing;
-
 public class ResourceQuotaCacheTest {
 
     private PulsarService pulsar;
@@ -52,14 +49,12 @@ public class ResourceQuotaCacheTest {
     private LocalZooKeeperCacheService localCache;
     private NamespaceBundleFactory bundleFactory;
     private OrderedScheduler executor;
-    private ScheduledExecutorService scheduledExecutor;
 
     @BeforeMethod
     public void setup() throws Exception {
         pulsar = mock(PulsarService.class);
         executor = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("test").build();
-        scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
-        zkCache = new LocalZooKeeperCache(MockZooKeeper.newInstance(), executor, scheduledExecutor);
+        zkCache = new LocalZooKeeperCache(MockZooKeeper.newInstance(), executor);
         localCache = new LocalZooKeeperCacheService(zkCache, null);
 
         // set mock pulsar localzkcache
@@ -77,7 +72,6 @@ public class ResourceQuotaCacheTest {
     @AfterMethod
     public void teardown() {
         executor.shutdown();
-        scheduledExecutor.shutdown();
     }
 
     @Test

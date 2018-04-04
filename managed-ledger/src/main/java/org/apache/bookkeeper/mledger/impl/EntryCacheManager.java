@@ -109,7 +109,7 @@ public class EntryCacheManager {
 
         // Trigger a single eviction in background. While the eviction is running we stop inserting entries in the cache
         if (currentSize > evictionTriggerThreshold && evictionInProgress.compareAndSet(false, true)) {
-            mlFactory.executor.execute(safeRun(() -> {
+            mlFactory.scheduledExecutor.execute(safeRun(() -> {
                 // Trigger a new cache eviction cycle to bring the used memory below the cacheEvictionWatermark
                 // percentage limit
                 long sizeToEvict = currentSize - (long) (maxSize * cacheEvictionWatermak);

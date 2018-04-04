@@ -214,7 +214,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
             producer.send(new byte[80]);
         }
 
-        // consumer should not have received all publihsed message due to message-rate throttling
+        // consumer should not have received all published message due to message-rate throttling
         Assert.assertTrue(totalReceived.get() < messageRate * 2);
 
         consumer.close();
@@ -763,7 +763,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
             producer.send(new byte[80]);
         }
 
-        // consumer should not have received all publihsed message due to message-rate throttling
+        // consumer should not have received all published message due to message-rate throttling
         Assert.assertTrue(totalReceived.get() < messageRate * 2);
 
         consumer.close();
@@ -847,7 +847,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    private void deactiveCursors(ManagedLedgerImpl ledger) throws Exception {
+    protected void deactiveCursors(ManagedLedgerImpl ledger) throws Exception {
         Field statsUpdaterField = BrokerService.class.getDeclaredField("statsUpdater");
         statsUpdaterField.setAccessible(true);
         ScheduledExecutorService statsUpdater = (ScheduledExecutorService) statsUpdaterField

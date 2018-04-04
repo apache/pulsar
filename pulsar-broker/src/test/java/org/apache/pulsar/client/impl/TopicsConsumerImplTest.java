@@ -116,10 +116,10 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
             .receiverQueueSize(4)
             .subscribe();
-        assertTrue(consumer instanceof TopicsConsumerImpl);
+        assertTrue(consumer instanceof MultiTopicsConsumerImpl);
 
-        List<String> topics = ((TopicsConsumerImpl<byte[]>) consumer).getPartitionedTopics();
-        List<ConsumerImpl<byte[]>> consumers = ((TopicsConsumerImpl) consumer).getConsumers();
+        List<String> topics = ((MultiTopicsConsumerImpl<byte[]>) consumer).getPartitionedTopics();
+        List<ConsumerImpl<byte[]>> consumers = ((MultiTopicsConsumerImpl) consumer).getConsumers();
 
         topics.forEach(topic -> log.info("topic: {}", topic));
         consumers.forEach(c -> log.info("consumer: {}", c.getTopic()));
@@ -127,7 +127,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         IntStream.range(0, 6).forEach(index ->
             assertTrue(topics.get(index).equals(consumers.get(index).getTopic())));
 
-        assertTrue(((TopicsConsumerImpl<byte[]>) consumer).getTopics().size() == 3);
+        assertTrue(((MultiTopicsConsumerImpl<byte[]>) consumer).getTopics().size() == 3);
 
         consumer.unsubscribe();
         consumer.close();
@@ -167,7 +167,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
             .receiverQueueSize(4)
             .subscribe();
-        assertTrue(consumer instanceof TopicsConsumerImpl);
+        assertTrue(consumer instanceof MultiTopicsConsumerImpl);
 
         // 3. producer publish messages
         for (int i = 0; i < totalMessages / 3; i++) {
@@ -228,7 +228,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
             .receiverQueueSize(4)
             .subscribe();
-        assertTrue(consumer instanceof TopicsConsumerImpl);
+        assertTrue(consumer instanceof MultiTopicsConsumerImpl);
 
         // Asynchronously produce messages
         List<Future<MessageId>> futures = Lists.newArrayList();
@@ -307,7 +307,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
             .receiverQueueSize(4)
             .subscribe();
-        assertTrue(consumer instanceof TopicsConsumerImpl);
+        assertTrue(consumer instanceof MultiTopicsConsumerImpl);
 
         // 3. producer publish messages
         for (int i = 0; i < totalMessages / 3; i++) {
@@ -323,7 +323,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             log.debug("Consumer received : " + new String(message.getData()));
             message = consumer.receive(500, TimeUnit.MILLISECONDS);
         }
-        long size = ((TopicsConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().size();
+        long size = ((MultiTopicsConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().size();
         log.debug(key + " Unacked Message Tracker size is " + size);
         assertEquals(size, totalMessages);
 
@@ -338,7 +338,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             message = consumer.receive(500, TimeUnit.MILLISECONDS);
         } while (message != null);
 
-        size = ((TopicsConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().size();
+        size = ((MultiTopicsConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().size();
         log.debug(key + " Unacked Message Tracker size is " + size);
         assertEquals(size, 0);
         assertEquals(hSet.size(), totalMessages);
@@ -361,14 +361,14 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             consumer.acknowledge(message);
             message = consumer.receive(100, TimeUnit.MILLISECONDS);
         }
-        size = ((TopicsConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().size();
+        size = ((MultiTopicsConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().size();
         log.debug(key + " Unacked Message Tracker size is " + size);
         assertEquals(size, 0);
         assertEquals(received, totalMessages);
 
         // 8. Simulate ackTimeout
-        ((TopicsConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().toggle();
-        ((TopicsConsumerImpl<byte[]>) consumer).getConsumers().forEach(c -> c.getUnAckedMessageTracker().toggle());
+        ((MultiTopicsConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().toggle();
+        ((MultiTopicsConsumerImpl<byte[]>) consumer).getConsumers().forEach(c -> c.getUnAckedMessageTracker().toggle());
 
         // 9. producer publish more messages
         for (int i = 0; i < totalMessages / 3; i++) {
@@ -384,7 +384,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             log.debug("Consumer received : " + data);
             message = consumer.receive(100, TimeUnit.MILLISECONDS);
         }
-        size = ((TopicsConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().size();
+        size = ((MultiTopicsConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().size();
         log.debug(key + " Unacked Message Tracker size is " + size);
         assertEquals(size, 30);
 
@@ -402,7 +402,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             message = consumer.receive(100, TimeUnit.MILLISECONDS);
         }
         assertEquals(redelivered, 30);
-        size =  ((TopicsConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().size();
+        size =  ((MultiTopicsConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().size();
         log.info(key + " Unacked Message Tracker size is " + size);
         assertEquals(size, 0);
 
@@ -447,7 +447,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
             .receiverQueueSize(4)
             .subscribe();
-        assertTrue(consumer instanceof TopicsConsumerImpl);
+        assertTrue(consumer instanceof MultiTopicsConsumerImpl);
 
         // 3. producer publish messages
         for (int i = 0; i < totalMessages / 3; i++) {
@@ -468,7 +468,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         assertEquals(messageSet, totalMessages);
 
         // 4, unsubscribe topic3
-        CompletableFuture<Void> unsubFuture = ((TopicsConsumerImpl<byte[]>) consumer).unsubscribeAsync(topicName3);
+        CompletableFuture<Void> unsubFuture = ((MultiTopicsConsumerImpl<byte[]>) consumer).unsubscribeAsync(topicName3);
         unsubFuture.get();
 
         // 5. producer publish messages
@@ -491,15 +491,15 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         assertEquals(messageSet, totalMessages * 2 / 3);
 
         // 7. use getter to verify internal topics number after un-subscribe topic3
-        List<String> topics = ((TopicsConsumerImpl<byte[]>) consumer).getPartitionedTopics();
-        List<ConsumerImpl<byte[]>> consumers = ((TopicsConsumerImpl) consumer).getConsumers();
+        List<String> topics = ((MultiTopicsConsumerImpl<byte[]>) consumer).getPartitionedTopics();
+        List<ConsumerImpl<byte[]>> consumers = ((MultiTopicsConsumerImpl) consumer).getConsumers();
 
         assertEquals(topics.size(), 3);
         assertEquals(consumers.size(), 3);
-        assertTrue(((TopicsConsumerImpl<byte[]>) consumer).getTopics().size() == 2);
+        assertTrue(((MultiTopicsConsumerImpl<byte[]>) consumer).getTopics().size() == 2);
 
         // 8. re-subscribe topic3
-        CompletableFuture<Void> subFuture = ((TopicsConsumerImpl<byte[]>)consumer).subscribeAsync(topicName3);
+        CompletableFuture<Void> subFuture = ((MultiTopicsConsumerImpl<byte[]>)consumer).subscribeAsync(topicName3);
         subFuture.get();
 
         // 9. producer publish messages
@@ -522,12 +522,12 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         assertEquals(messageSet, totalMessages);
 
         // 11. use getter to verify internal topics number after subscribe topic3
-        topics = ((TopicsConsumerImpl<byte[]>) consumer).getPartitionedTopics();
-        consumers = ((TopicsConsumerImpl) consumer).getConsumers();
+        topics = ((MultiTopicsConsumerImpl<byte[]>) consumer).getPartitionedTopics();
+        consumers = ((MultiTopicsConsumerImpl) consumer).getConsumers();
 
         assertEquals(topics.size(), 6);
         assertEquals(consumers.size(), 6);
-        assertTrue(((TopicsConsumerImpl<byte[]>) consumer).getTopics().size() == 3);
+        assertTrue(((MultiTopicsConsumerImpl<byte[]>) consumer).getTopics().size() == 3);
 
         consumer.unsubscribe();
         consumer.close();

@@ -92,6 +92,9 @@ public class PerformanceConsumer {
         @Parameter(names = { "-q", "--receiver-queue-size" }, description = "Size of the receiver queue")
         public int receiverQueueSize = 1000;
 
+        @Parameter(names = { "--acks-delay-millis" }, description = "Acknowlegments grouping delay in millis")
+        public int acknowledgmentsGroupingDelayMillis = 100;
+
         @Parameter(names = { "-c",
                 "--max-connections" }, description = "Max number of TCP connections to a single broker")
         public int maxConnections = 100;
@@ -249,6 +252,7 @@ public class PerformanceConsumer {
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer() //
                 .messageListener(listener) //
                 .receiverQueueSize(arguments.receiverQueueSize) //
+                .acknowledmentGroupTime(arguments.acknowledgmentsGroupingDelayMillis, TimeUnit.MILLISECONDS) //
                 .subscriptionType(arguments.subscriptionType);
 
         if (arguments.encKeyName != null) {

@@ -32,19 +32,20 @@ groups:
 
 - title: Pulsar Functions
   dir: functions
+  new: true
   docs:
+  - title: Pulsar Functions overview
+    endpoint: overview
   - title: Getting started with Pulsar Functions
     endpoint: quickstart
-  #- title: Pulsar Functions overview
-  #  endpoint: overview
-  #- title: The Pulsar Functions API
-  #  endpoint: api
-  #- title: Deploying Pulsar Functions
-  #  endpoint: deployment
-  #- title: Processing guarantees
-  #  endpoint: guarantees
-  #- title: Metrics and stats for Pulsar Functions
-  #  endpoint: metrics-and-stats
+  - title: The Pulsar Functions API
+    endpoint: api
+  - title: Deploying Pulsar Functions
+    endpoint: deployment
+  - title: Processing guarantees
+    endpoint: guarantees
+  - title: Metrics for Pulsar Functions
+    endpoint: metrics
 
 - title: Deployment
   dir: deployment

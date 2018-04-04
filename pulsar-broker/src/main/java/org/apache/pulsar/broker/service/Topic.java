@@ -111,6 +111,8 @@ public interface Topic {
 
     boolean isEncryptionRequired();
 
+    boolean isReplicated();
+
     BacklogQuota getBacklogQuota();
 
     void updateRates(NamespaceStats nsStats, NamespaceBundleStats currentBundleStats,

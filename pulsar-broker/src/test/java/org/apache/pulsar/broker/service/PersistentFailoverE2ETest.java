@@ -44,6 +44,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -135,12 +136,12 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         TestConsumerStateEventListener listener1 = new TestConsumerStateEventListener();
         TestConsumerStateEventListener listener2 = new TestConsumerStateEventListener();
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Failover);
+                .acknowledmentGroupTime(0, TimeUnit.SECONDS).subscriptionType(SubscriptionType.Failover);
 
 
         // 1. two consumers on the same subscription
         ConsumerBuilder<byte[]> consumerBulder1 = consumerBuilder.clone().consumerName("1")
-                .consumerEventListener(listener1);
+                .consumerEventListener(listener1).acknowledmentGroupTime(0, TimeUnit.SECONDS);
         Consumer<byte[]> consumer1 = consumerBulder1.subscribe();
         Consumer<byte[]> consumer2 = consumerBuilder.clone().consumerName("2").consumerEventListener(listener2)
                 .subscribe();
@@ -323,12 +324,10 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         final String subName = "sub1";
         final int numMsgs = 100;
         Set<String> uniqueMessages = new HashSet<>();
-
         admin.persistentTopics().createPartitionedTopic(topicName, numPartitions);
 
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Failover);
-
 
         // 1. two consumers on the same subscription
         ActiveInactiveListenerEvent listener1 = new ActiveInactiveListenerEvent();
@@ -374,7 +373,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
             }
             totalMessages++;
             consumer1.acknowledge(msg);
-            MessageIdImpl msgId = (MessageIdImpl) msg.getMessageId();
+            MessageIdImpl msgId = (MessageIdImpl) (((TopicMessageImpl)msg).getInnerMessageId());
             receivedPtns.add(msgId.getPartitionIndex());
         }
 
@@ -391,7 +390,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
             }
             totalMessages++;
             consumer2.acknowledge(msg);
-            MessageIdImpl msgId = (MessageIdImpl) msg.getMessageId();
+            MessageIdImpl msgId = (MessageIdImpl) (((TopicMessageImpl)msg).getInnerMessageId());
             receivedPtns.add(msgId.getPartitionIndex());
         }
         assertTrue(Sets.difference(listener1.inactivePtns, receivedPtns).isEmpty());

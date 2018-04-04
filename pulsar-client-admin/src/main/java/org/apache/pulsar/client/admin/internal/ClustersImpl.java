@@ -39,11 +39,10 @@ import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 public class ClustersImpl extends BaseResource implements Clusters {
 
     private final WebTarget adminClusters;
-    //private final WebTarget clusters;
 
     public ClustersImpl(WebTarget web, Authentication auth) {
         super(auth);
-        adminClusters = web.path("/admin/clusters");
+        adminClusters = web.path("/admin/v2/clusters");
     }
 
     @Override
