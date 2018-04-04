@@ -1077,8 +1077,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             if (pubStats != null) {
                 rStat.msgRateIn = pubStats.msgRateIn;
                 rStat.msgThroughputIn = pubStats.msgThroughputIn;
-                rStat.inboundConnection = pubStats.address;
-                rStat.inboundConnectedSince = pubStats.connectedSince;
+                rStat.inboundConnection = pubStats.getAddress();
+                rStat.inboundConnectedSince = pubStats.getConnectedSince();
             }
 
             topicStats.aggMsgRateOut += rStat.msgRateOut;
@@ -1152,10 +1152,10 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
                     // Populate consumer specific stats here
                     topicStatsStream.startObject();
-                    topicStatsStream.writePair("address", consumerStats.address);
+                    topicStatsStream.writePair("address", consumerStats.getAddress());
                     topicStatsStream.writePair("consumerName", consumerStats.consumerName);
                     topicStatsStream.writePair("availablePermits", consumerStats.availablePermits);
-                    topicStatsStream.writePair("connectedSince", consumerStats.connectedSince);
+                    topicStatsStream.writePair("connectedSince", consumerStats.getConnectedSince());
                     topicStatsStream.writePair("msgRateOut", consumerStats.msgRateOut);
                     topicStatsStream.writePair("msgThroughputOut", consumerStats.msgThroughputOut);
                     topicStatsStream.writePair("msgRateRedeliver", consumerStats.msgRateRedeliver);
@@ -1165,8 +1165,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                         topicStatsStream.writePair("blockedConsumerOnUnackedMsgs",
                                 consumerStats.blockedConsumerOnUnackedMsgs);
                     }
-                    if (consumerStats.clientVersion != null) {
-                        topicStatsStream.writePair("clientVersion", consumerStats.clientVersion);
+                    if (consumerStats.getClientVersion() != null) {
+                        topicStatsStream.writePair("clientVersion", consumerStats.getClientVersion());
                     }
                     topicStatsStream.endObject();
                 }
@@ -1270,8 +1270,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             if (pubStats != null) {
                 replicatorStats.msgRateIn = pubStats.msgRateIn;
                 replicatorStats.msgThroughputIn = pubStats.msgThroughputIn;
-                replicatorStats.inboundConnection = pubStats.address;
-                replicatorStats.inboundConnectedSince = pubStats.connectedSince;
+                replicatorStats.inboundConnection = pubStats.getAddress();
+                replicatorStats.inboundConnectedSince = pubStats.getConnectedSince();
             }
 
             stats.msgRateOut += replicatorStats.msgRateOut;
