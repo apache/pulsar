@@ -669,7 +669,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
         Producer<byte[]> producer = producerBuilder.create();
 
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic);
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) topicRef.getManagedLedger();
         Field cacheField = ManagedLedgerImpl.class.getDeclaredField("entryCache");
         cacheField.setAccessible(true);
@@ -771,7 +771,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
         Producer<byte[]> producer = producerBuilder.create();
 
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic);
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) topicRef.getManagedLedger();
 
         // reflection to set/get cache-backlog fields value:

@@ -314,7 +314,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         properties.put("foobar", 0xdeadbeefdecaL);
         reader.acknowledgeCumulativeAsync(lastMessageId, properties).get();
 
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic);
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
         ManagedLedger ledger = topicRef.getManagedLedger();
         for (int i = 0; i < 30; i++) {
             if (ledger.openCursor(subscription).getProperties().get("foobar") == Long.valueOf(0xdeadbeefdecaL)) {

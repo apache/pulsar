@@ -108,7 +108,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         admin.namespaces().createNamespace(namespace);
         // create producer and topic
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName).get();
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
         // (1) verify message-rate is -1 initially
         Assert.assertEquals(topic.getDispatchRateLimiter().getDispatchRateOnMsg(), -1);
 
@@ -178,7 +178,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
         // create producer and topic
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName).get();
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
         boolean isMessageRateUpdate = false;
         int retry = 5;
         for (int i = 0; i < retry; i++) {
@@ -254,7 +254,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         admin.namespaces().createNamespace(namespace);
         // create producer and topic
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName).get();
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
         int numMessages = 500;
 
         final AtomicInteger totalReceived = new AtomicInteger(0);
@@ -314,7 +314,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
         // create producer and topic
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName).get();
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
         boolean isMessageRateUpdate = false;
         int retry = 5;
         for (int i = 0; i < retry; i++) {
@@ -385,7 +385,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
         // create producer and topic
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName).get();
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
         boolean isMessageRateUpdate = false;
         int retry = 5;
         for (int i = 0; i < retry; i++) {
@@ -448,7 +448,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
         // create producer and topic
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName).get();
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
         boolean isMessageRateUpdate = false;
         int retry = 5;
         for (int i = 0; i < retry; i++) {
@@ -528,7 +528,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         admin.namespaces().createNamespace(namespace);
         // create producer and topic
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName).get();
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
         int numMessages = 500;
 
         final AtomicInteger totalReceived = new AtomicInteger(0);
@@ -581,7 +581,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
         // create producer and topic
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName).get();
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
         boolean isMessageRateUpdate = false;
         int retry = 5;
         for (int i = 0; i < retry; i++) {
@@ -658,7 +658,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         // create producer and topic
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName).get();
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
         boolean isMessageRateUpdate = false;
         int retry = 5;
         for (int i = 0; i < retry; i++) {
@@ -727,7 +727,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
                 Boolean.TRUE.toString());
         // create producer and topic
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName).get();
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
         boolean isUpdated = false;
         int retry = 5;
         for (int i = 0; i < retry; i++) {
@@ -810,7 +810,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         admin.namespaces().createNamespace(namespace);
         // create producer and topic
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName1).create();
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName1).get();
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName1).get();
 
         // (1) Update dispatch rate on cluster-config update
         Assert.assertEquals(clusterMessageRate, topic.getDispatchRateLimiter().getDispatchRateOnMsg());
@@ -838,7 +838,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         // (5) Namespace throttling is disabled so, new topic should take cluster throttling limit
         Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicName2).create();
-        PersistentTopic topic2 = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName2).get();
+        PersistentTopic topic2 = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName2).get();
         Assert.assertEquals(clusterMessageRate, topic2.getDispatchRateLimiter().getDispatchRateOnMsg());
 
         producer.close();

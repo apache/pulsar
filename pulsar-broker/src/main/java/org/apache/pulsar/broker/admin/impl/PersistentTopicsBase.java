@@ -1122,21 +1122,12 @@ public class PersistentTopicsBase extends AdminResource {
      * Get the Topic object reference from the Pulsar broker
      */
     private Topic getTopicReference(TopicName topicName) {
-        try {
-            Topic topic = pulsar().getBrokerService().getTopicReference(topicName.toString());
-            checkNotNull(topic);
-            return topic;
-        } catch (Exception e) {
-            throw new RestException(Status.NOT_FOUND, "Topic not found");
-        }
+        return pulsar().getBrokerService().getTopicIfExists(topicName.toString()).join()
+                .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Topic not found"));
     }
 
     private Topic getOrCreateTopic(TopicName topicName) {
-        try {
-            return pulsar().getBrokerService().getTopic(topicName.toString()).get();
-        } catch (InterruptedException | ExecutionException e) {
-           throw new RestException(e);
-        }
+        return pulsar().getBrokerService().getOrCreateTopic(topicName.toString()).join();
     }
 
     /**

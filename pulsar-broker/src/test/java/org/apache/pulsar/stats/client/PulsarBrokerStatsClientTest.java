@@ -122,7 +122,7 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
             }
         }
 
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName).get();
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
         PersistentTopicInternalStats internalStats = topic.getInternalStats();
         CursorStats cursor = internalStats.cursors.get(subscriptionName);
         assertEquals(cursor.numberOfEntriesSinceFirstNotAckedMessage, numberOfMsgs);
