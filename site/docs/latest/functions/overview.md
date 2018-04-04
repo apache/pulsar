@@ -43,6 +43,14 @@ Pulsar Functions could be described as
 * [Lambda](https://aws.amazon.com/lambda/)-style functions that are
 * specifically designed to use Pulsar as a message bus
 
+## Programming model
+
+The core programming model behind Pulsar Functions is very simple:
+
+* Functions receive messages from one or more **input {% popover topics %}**
+
+![Pulsar Functions core programming model](/img/pulsar-functions-overview.png)
+
 ## Command-line interface {#cli}
 
 Pulsar Functions are managed using the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) CLI tool (in particular the [`functions`](../../reference/CliTools#pulsar-admin-functions) command). Here's an example command that would run a function in [local run mode](#local-run):
