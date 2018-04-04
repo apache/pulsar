@@ -88,6 +88,12 @@ You can also mix and match configuration methods by specifying some function att
 
 Pulsar Functions can currently be written in [Java](../../functions/api#java) and [Python](../../functions/api#python). Support for additional languages is coming soon.
 
+## The Pulsar Functions API {#api}
+
+* Type safe (bytes versus specific types)
+* SerDe (built-in vs. custom)
+* Pulsar messages are always just bytes, but Pulsar Functions handles data types for you *unless* you need custom types
+
 ## Function context {#context}
 
 Each Pulsar Function created using the [Pulsar Functions SDK](#sdk) has access to a context object that both provides:
@@ -95,7 +101,10 @@ Each Pulsar Function created using the [Pulsar Functions SDK](#sdk) has access t
 1. A wide variety of information about the function, including:
   * The name of the function
   * The {% popover tenant %} and {% popover namespace %} of the function
-  * [User-supplied configuration]() values
+  * [User-supplied configuration](#user-config) values
+2. Special functionality, including:
+  * The ability to produce [logs](#logging) to a specified logging topic
+  * The ability to produce [metrics](#metrics)
 
 ### Language-native functions {#native}
 
@@ -103,7 +112,7 @@ Both Java and Python support writing "native" functions, i.e. Pulsar Functions w
 
 The benefit of native functions is that they don't have any dependencies beyond what's already available in Java/Python "out of the box." The downside is that they don't provide access to the function's [context](#context)
 
-### The Pulsar Functions SDK {#sdk}
+## The Pulsar Functions SDK {#sdk}
 
 If you'd like a Pulsar Function to have access to a [context object](#context), you can use the Pulsar Functions SDK, available for both [Java](../api#java-sdk) and [Pythnon](../api#python-sdk).
 
