@@ -208,7 +208,8 @@ public class MessageIdTest extends BrokerTestBase {
         Assert.assertEquals(messageIds.size(), numberOfMessages, "Not all messages published successfully");
 
         for (int i = 0; i < numberOfMessages; i++) {
-            MessageId messageId = consumer.receive().getMessageId();
+            MessageId topicMessageId = consumer.receive().getMessageId();
+            MessageId messageId = ((TopicMessageIdImpl)topicMessageId).getInnerMessageId();
             log.info("Message ID Received = " + messageId);
             Assert.assertTrue(messageIds.remove(messageId), "Failed to receive Message");
         }
@@ -247,7 +248,9 @@ public class MessageIdTest extends BrokerTestBase {
         Assert.assertEquals(messageIds.size(), numberOfMessages, "Not all messages published successfully");
 
         for (int i = 0; i < numberOfMessages; i++) {
-            Assert.assertTrue(messageIds.remove(consumer.receive().getMessageId()), "Failed to receive Message");
+            MessageId topicMessageId = consumer.receive().getMessageId();
+            MessageId messageId = ((TopicMessageIdImpl)topicMessageId).getInnerMessageId();
+            Assert.assertTrue(messageIds.remove(messageId), "Failed to receive Message");
         }
         log.info("Message IDs = " + messageIds);
         Assert.assertEquals(messageIds.size(), 0, "Not all messages received successfully");
