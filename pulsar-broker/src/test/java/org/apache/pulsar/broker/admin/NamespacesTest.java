@@ -371,7 +371,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertEquals(
                 namespaces.getNamespaceReplicationClusters(this.testGlobalNamespaces.get(0).getProperty(),
                         this.testGlobalNamespaces.get(0).getCluster(), this.testGlobalNamespaces.get(0).getLocalName()),
-                Lists.newArrayList());
+                Sets.newHashSet());
 
         namespaces.setNamespaceReplicationClusters(this.testGlobalNamespaces.get(0).getProperty(),
                 this.testGlobalNamespaces.get(0).getCluster(), this.testGlobalNamespaces.get(0).getLocalName(),
