@@ -45,6 +45,7 @@ import org.apache.bookkeeper.clients.config.StorageClientSettings;
 import org.apache.bookkeeper.clients.utils.NetUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminWithFunctions;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
@@ -456,7 +457,7 @@ public class CmdFunctions extends CmdBase {
                 throw new RuntimeException("Missing arguments");
             }
 
-            String serviceUrl = ((PulsarAdminWithFunctions) admin).getClientConf().getServiceUrl();
+            String serviceUrl = admin.getServiceUrl();
             if (brokerServiceUrl != null) {
                 serviceUrl = brokerServiceUrl;
             }
@@ -634,9 +635,9 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
-    public CmdFunctions(PulsarAdmin admin) {
+    public CmdFunctions(PulsarAdmin admin) throws PulsarClientException {
         super("functions", admin);
-        this.fnAdmin = (PulsarAdminWithFunctions) admin;
+        this.fnAdmin = new PulsarAdminWithFunctions(admin.getServiceUrl(), admin.getClientConfigData());
         localRunner = new LocalRunner();
         creater = new CreateFunction();
         deleter = new DeleteFunction();

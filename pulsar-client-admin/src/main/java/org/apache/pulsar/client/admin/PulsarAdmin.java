@@ -71,7 +71,7 @@ public class PulsarAdmin implements Closeable {
     private final PersistentTopics persistentTopics;
     private final NonPersistentTopics nonPersistentTopics;
     private final ResourceQuotas resourceQuotas;
-
+	private final ClientConfigurationData clientConfigData;
     private final Client client;
     private final String serviceUrl;
     private final Lookup lookups;
@@ -103,8 +103,9 @@ public class PulsarAdmin implements Closeable {
         return new PulsarAdminBuilderImpl();
     }
 
-    public PulsarAdmin(String serviceUrl, ClientConfigurationData pulsarConfig) throws PulsarClientException {
-        this.auth = pulsarConfig != null ? pulsarConfig.getAuthentication() : new AuthenticationDisabled();
+    public PulsarAdmin(String serviceUrl, ClientConfigurationData clientConfigData) throws PulsarClientException {
+    	this.clientConfigData = clientConfigData;
+        this.auth = clientConfigData != null ? clientConfigData.getAuthentication() : new AuthenticationDisabled();
         LOG.debug("created: serviceUrl={}, authMethodName={}", serviceUrl,
                 auth != null ? auth.getAuthMethodName() : null);
 
@@ -120,22 +121,22 @@ public class PulsarAdmin implements Closeable {
         ClientBuilder clientBuilder = ClientBuilder.newBuilder().withConfig(httpConfig)
                 .register(JacksonConfigurator.class).register(JacksonFeature.class);
 
-        boolean useTls = pulsarConfig.getServiceUrl().startsWith("https://");
+        boolean useTls = clientConfigData.getServiceUrl().startsWith("https://");
 
-        if (pulsarConfig != null && useTls) {
+        if (clientConfigData != null && useTls) {
             try {
                 SSLContext sslCtx = null;
 
                 X509Certificate trustCertificates[] = SecurityUtility
-                        .loadCertificatesFromPemFile(pulsarConfig.getTlsTrustCertsFilePath());
+                        .loadCertificatesFromPemFile(clientConfigData.getTlsTrustCertsFilePath());
 
                 // Set private key and certificate if available
                 AuthenticationDataProvider authData = auth.getAuthData();
                 if (authData.hasDataForTls()) {
-                    sslCtx = SecurityUtility.createSslContext(pulsarConfig.isTlsAllowInsecureConnection(),
+                    sslCtx = SecurityUtility.createSslContext(clientConfigData.isTlsAllowInsecureConnection(),
                             trustCertificates, authData.getTlsCertificates(), authData.getTlsPrivateKey());
                 } else {
-                    sslCtx = SecurityUtility.createSslContext(pulsarConfig.isTlsAllowInsecureConnection(),
+                    sslCtx = SecurityUtility.createSslContext(clientConfigData.isTlsAllowInsecureConnection(),
                             trustCertificates);
                 }
 
@@ -312,6 +313,13 @@ public class PulsarAdmin implements Closeable {
     public String getServiceUrl() {
         return serviceUrl;
     }
+    
+    /**
+     * @return the client Configuration Data that is being used
+     */
+    public ClientConfigurationData getClientConfigData() {
+		return clientConfigData;
+	}
 
     /**
      * Close the Pulsar admin client to release all the resources
