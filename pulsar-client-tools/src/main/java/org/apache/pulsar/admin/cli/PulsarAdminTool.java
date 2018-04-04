@@ -76,7 +76,7 @@ public class PulsarAdminTool {
         commandMap.put("persistent", CmdPersistentTopics.class);
         commandMap.put("non-persistent", CmdNonPersistentTopics.class);
         commandMap.put("resource-quotas", CmdResourceQuotas.class);
-        // commandMap.put("functions", CmdFunctions.class);
+        commandMap.put("functions", CmdFunctions.class);
     }
 
     private void setupCommands(Function<PulsarAdminBuilder, ? extends PulsarAdmin> adminFactory) {
