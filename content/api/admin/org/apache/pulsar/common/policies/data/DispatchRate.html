@@ -129,11 +129,11 @@ extends Object</pre>
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code>long</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/DispatchRate.html#dispatchThrottlingRatePerTopicInByte">dispatchThrottlingRatePerTopicInByte</a></span></code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/DispatchRate.html#dispatchThrottlingRateInByte">dispatchThrottlingRateInByte</a></span></code>&nbsp;</td>
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><code>int</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/DispatchRate.html#dispatchThrottlingRatePerTopicInMsg">dispatchThrottlingRatePerTopicInMsg</a></span></code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/DispatchRate.html#dispatchThrottlingRateInMsg">dispatchThrottlingRateInMsg</a></span></code>&nbsp;</td>
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code>int</code></td>
@@ -157,8 +157,8 @@ extends Object</pre>
 <td class="colOne"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/DispatchRate.html#DispatchRate--">DispatchRate</a></span>()</code>&nbsp;</td>
 </tr>
 <tr class="rowColor">
-<td class="colOne"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/DispatchRate.html#DispatchRate-int-long-int-">DispatchRate</a></span>(int&nbsp;dispatchThrottlingRatePerTopicInMsg,
-            long&nbsp;dispatchThrottlingRatePerTopicInByte,
+<td class="colOne"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/DispatchRate.html#DispatchRate-int-long-int-">DispatchRate</a></span>(int&nbsp;dispatchThrottlingRateInMsg,
+            long&nbsp;dispatchThrottlingRateInByte,
             int&nbsp;ratePeriodInSecond)</code>&nbsp;</td>
 </tr>
 </table>
@@ -210,22 +210,22 @@ extends Object</pre>
 <!--   -->
 </a>
 <h3>Field Detail</h3>
-<a name="dispatchThrottlingRatePerTopicInMsg">
+<a name="dispatchThrottlingRateInMsg">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
-<h4>dispatchThrottlingRatePerTopicInMsg</h4>
-<pre>public&nbsp;int dispatchThrottlingRatePerTopicInMsg</pre>
+<h4>dispatchThrottlingRateInMsg</h4>
+<pre>public&nbsp;int dispatchThrottlingRateInMsg</pre>
 </li>
 </ul>
-<a name="dispatchThrottlingRatePerTopicInByte">
+<a name="dispatchThrottlingRateInByte">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
-<h4>dispatchThrottlingRatePerTopicInByte</h4>
-<pre>public&nbsp;long dispatchThrottlingRatePerTopicInByte</pre>
+<h4>dispatchThrottlingRateInByte</h4>
+<pre>public&nbsp;long dispatchThrottlingRateInByte</pre>
 </li>
 </ul>
 <a name="ratePeriodInSecond">
@@ -260,8 +260,8 @@ extends Object</pre>
 <ul class="blockListLast">
 <li class="blockList">
 <h4>DispatchRate</h4>
-<pre>public&nbsp;DispatchRate(int&nbsp;dispatchThrottlingRatePerTopicInMsg,
-                    long&nbsp;dispatchThrottlingRatePerTopicInByte,
+<pre>public&nbsp;DispatchRate(int&nbsp;dispatchThrottlingRateInMsg,
+                    long&nbsp;dispatchThrottlingRateInByte,
                     int&nbsp;ratePeriodInSecond)</pre>
 </li>
 </ul>

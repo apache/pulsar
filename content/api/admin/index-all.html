@@ -106,6 +106,10 @@
 <dd>
 <div class="block">Address of this publisher</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdminBuilder.html#allowTlsInsecureConnection-boolean-">allowTlsInsecureConnection(boolean)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdminBuilder.html" title="interface in org.apache.pulsar.client.admin">PulsarAdminBuilder</a></dt>
+<dd>
+<div class="block">Configure whether the Pulsar admin client accept untrusted TLS certificate from broker <i>(default: false)</i></div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/Policies.html#antiAffinityGroup">antiAffinityGroup</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/Policies.html" title="class in org.apache.pulsar.common.policies.data">Policies</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/impl/NamespaceIsolationPolicies.html#assignBroker-NamespaceName-org.apache.pulsar.common.policies.data.BrokerStatus-java.util.SortedSet-java.util.SortedSet-java.util.SortedSet-">assignBroker(NamespaceName, BrokerStatus, SortedSet&lt;BrokerStatus&gt;, SortedSet&lt;BrokerStatus&gt;, SortedSet&lt;BrokerStatus&gt;)</a></span> - Method in class org.apache.pulsar.common.policies.impl.<a href="org/apache/pulsar/common/policies/impl/NamespaceIsolationPolicies.html" title="class in org.apache.pulsar.common.policies.impl">NamespaceIsolationPolicies</a></dt>
@@ -117,6 +121,18 @@
 <dt><a href="org/apache/pulsar/common/policies/data/AuthAction.html" title="enum in org.apache.pulsar.common.policies.data"><span class="typeNameLink">AuthAction</span></a> - Enum in <a href="org/apache/pulsar/common/policies/data/package-summary.html">org.apache.pulsar.common.policies.data</a></dt>
 <dd>
 <div class="block">Authorization action for Pulsar policies</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdminBuilder.html#authentication-java.lang.String-java.lang.String-">authentication(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdminBuilder.html" title="interface in org.apache.pulsar.client.admin">PulsarAdminBuilder</a></dt>
+<dd>
+<div class="block">Set the authentication provider to use in the Pulsar client instance.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdminBuilder.html#authentication-java.lang.String-java.util.Map-">authentication(String, Map&lt;String, String&gt;)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdminBuilder.html" title="interface in org.apache.pulsar.client.admin">PulsarAdminBuilder</a></dt>
+<dd>
+<div class="block">Set the authentication provider to use in the Pulsar client instance.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdminBuilder.html#authentication-Authentication-">authentication(Authentication)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdminBuilder.html" title="interface in org.apache.pulsar.client.admin">PulsarAdminBuilder</a></dt>
+<dd>
+<div class="block">Set the authentication provider to use in the Pulsar admin instance.</div>
 </dd>
 <dt><a href="org/apache/pulsar/common/policies/data/AuthPolicies.html" title="class in org.apache.pulsar.common.policies.data"><span class="typeNameLink">AuthPolicies</span></a> - Class in <a href="org/apache/pulsar/common/policies/data/package-summary.html">org.apache.pulsar.common.policies.data</a></dt>
 <dd>&nbsp;</dd>
@@ -210,6 +226,12 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/BrokerStatus.html#BrokerStatus-java.lang.String-boolean-int-">BrokerStatus(String, boolean, int)</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/BrokerStatus.html" title="class in org.apache.pulsar.common.policies.data">BrokerStatus</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdminBuilder.html#build--">build()</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdminBuilder.html" title="interface in org.apache.pulsar.client.admin">PulsarAdminBuilder</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdmin.html#builder--">builder()</a></span> - Static method in class org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin">PulsarAdmin</a></dt>
+<dd>
+<div class="block">Creates a builder to construct an instance of <a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin"><code>PulsarAdmin</code></a>.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/LocalPolicies.html#bundles">bundles</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/LocalPolicies.html" title="class in org.apache.pulsar.common.policies.data">LocalPolicies</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/Policies.html#bundles">bundles</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/Policies.html" title="class in org.apache.pulsar.common.policies.data">Policies</a></dt>
@@ -251,6 +273,10 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PublisherStats.html#clientVersion">clientVersion</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PublisherStats.html" title="class in org.apache.pulsar.common.policies.data">PublisherStats</a></dt>
 <dd>
 <div class="block">Client library version</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdminBuilder.html#clone--">clone()</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdminBuilder.html" title="interface in org.apache.pulsar.client.admin">PulsarAdminBuilder</a></dt>
+<dd>
+<div class="block">Create a copy of the current client builder.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdmin.html#close--">close()</a></span> - Method in class org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin">PulsarAdmin</a></dt>
 <dd>
@@ -464,9 +490,9 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/DispatchRate.html#DispatchRate-int-long-int-">DispatchRate(int, long, int)</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/DispatchRate.html" title="class in org.apache.pulsar.common.policies.data">DispatchRate</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/DispatchRate.html#dispatchThrottlingRatePerTopicInByte">dispatchThrottlingRatePerTopicInByte</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/DispatchRate.html" title="class in org.apache.pulsar.common.policies.data">DispatchRate</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/DispatchRate.html#dispatchThrottlingRateInByte">dispatchThrottlingRateInByte</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/DispatchRate.html" title="class in org.apache.pulsar.common.policies.data">DispatchRate</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/DispatchRate.html#dispatchThrottlingRatePerTopicInMsg">dispatchThrottlingRatePerTopicInMsg</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/DispatchRate.html" title="class in org.apache.pulsar.common.policies.data">DispatchRate</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/DispatchRate.html#dispatchThrottlingRateInMsg">dispatchThrottlingRateInMsg</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/DispatchRate.html" title="class in org.apache.pulsar.common.policies.data">DispatchRate</a></dt>
 <dd>&nbsp;</dd>
 </dl>
 <a name="I:E">
@@ -914,6 +940,10 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdminException.html#getStatusCode--">getStatusCode()</a></span> - Method in exception org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#getSubscriptionDispatchRate-java.lang.String-">getSubscriptionDispatchRate(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
+<dd>
+<div class="block">Get subscription-message-dispatch-rate (subscriptions under this namespace can dispatch this many messages per second)</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#getSubscriptions-java.lang.String-">getSubscriptions(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
 <dd>
 <div class="block">Get the list of subscriptions.</div>
@@ -1391,25 +1421,35 @@
 <dd>
 <div class="block">Pulsar client admin API client.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdmin.html#PulsarAdmin-java.lang.String-ClientConfigurationData-">PulsarAdmin(String, ClientConfigurationData)</a></span> - Constructor for class org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin">PulsarAdmin</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdmin.html#PulsarAdmin-java.net.URL-ClientConfiguration-">PulsarAdmin(URL, ClientConfiguration)</a></span> - Constructor for class org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin">PulsarAdmin</a></dt>
 <dd>
-<div class="block">Construct a new Pulsar Admin client object.</div>
-</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdmin.html#PulsarAdmin-java.net.URL-ClientConfigurationData-">PulsarAdmin(URL, ClientConfigurationData)</a></span> - Constructor for class org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin">PulsarAdmin</a></dt>
-<dd>
-<div class="block">Construct a new Pulsar Admin client object.</div>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment">Since 2.0. Use <a href="org/apache/pulsar/client/admin/PulsarAdmin.html#builder--"><code>PulsarAdmin.builder()</code></a> to construct a new <a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin"><code>PulsarAdmin</code></a> instance.</span></div>
+</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdmin.html#PulsarAdmin-java.net.URL-Authentication-">PulsarAdmin(URL, Authentication)</a></span> - Constructor for class org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin">PulsarAdmin</a></dt>
 <dd>
-<div class="block">Construct a new Pulsar Admin client object.</div>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment">Since 2.0. Use <a href="org/apache/pulsar/client/admin/PulsarAdmin.html#builder--"><code>PulsarAdmin.builder()</code></a> to construct a new <a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin"><code>PulsarAdmin</code></a> instance.</span></div>
+</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdmin.html#PulsarAdmin-java.net.URL-java.lang.String-java.lang.String-">PulsarAdmin(URL, String, String)</a></span> - Constructor for class org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin">PulsarAdmin</a></dt>
 <dd>
-<div class="block">Construct a new Pulsar Admin client object.</div>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment">Since 2.0. Use <a href="org/apache/pulsar/client/admin/PulsarAdmin.html#builder--"><code>PulsarAdmin.builder()</code></a> to construct a new <a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin"><code>PulsarAdmin</code></a> instance.</span></div>
+</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdmin.html#PulsarAdmin-java.net.URL-java.lang.String-java.util.Map-">PulsarAdmin(URL, String, Map&lt;String, String&gt;)</a></span> - Constructor for class org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin">PulsarAdmin</a></dt>
 <dd>
-<div class="block">Construct a new Pulsar Admin client object.</div>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment">Since 2.0. Use <a href="org/apache/pulsar/client/admin/PulsarAdmin.html#builder--"><code>PulsarAdmin.builder()</code></a> to construct a new <a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin"><code>PulsarAdmin</code></a> instance.</span></div>
+</div>
+</dd>
+<dt><a href="org/apache/pulsar/client/admin/PulsarAdminBuilder.html" title="interface in org.apache.pulsar.client.admin"><span class="typeNameLink">PulsarAdminBuilder</span></a> - Interface in <a href="org/apache/pulsar/client/admin/package-summary.html">org.apache.pulsar.client.admin</a></dt>
+<dd>
+<div class="block">Builder class for a <a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin"><code>PulsarAdmin</code></a> instance.</div>
 </dd>
 <dt><a href="org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin"><span class="typeNameLink">PulsarAdminException</span></a> - Exception in <a href="org/apache/pulsar/client/admin/package-summary.html">org.apache.pulsar.client.admin</a></dt>
 <dd>&nbsp;</dd>
@@ -1549,6 +1589,10 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdminException.ServerSideErrorException.html#ServerSideErrorException-ServerErrorException-">ServerSideErrorException(ServerErrorException)</a></span> - Constructor for exception org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdminException.ServerSideErrorException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.ServerSideErrorException</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdminBuilder.html#serviceHttpUrl-java.lang.String-">serviceHttpUrl(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdminBuilder.html" title="interface in org.apache.pulsar.client.admin">PulsarAdminBuilder</a></dt>
+<dd>
+<div class="block">Set the Pulsar service HTTP URL for the admin endpoint (eg.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/BrokerStatus.html#setActive-boolean-">setActive(boolean)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/BrokerStatus.html" title="class in org.apache.pulsar.common.policies.data">BrokerStatus</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PropertyAdmin.html#setAdminRoles-java.util.List-">setAdminRoles(List&lt;String&gt;)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PropertyAdmin.html" title="class in org.apache.pulsar.common.policies.data">PropertyAdmin</a></dt>
@@ -1667,6 +1711,10 @@
 <dd>
 <div class="block">Set the given subscription auth mode on all topics on a namespace</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#setSubscriptionDispatchRate-java.lang.String-org.apache.pulsar.common.policies.data.DispatchRate-">setSubscriptionDispatchRate(String, DispatchRate)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
+<dd>
+<div class="block">Set subscription-message-dispatch-rate (subscriptions under this namespace can dispatch this many messages per second)</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/impl/NamespaceIsolationPolicyImpl.html#shouldFailover-java.util.SortedSet-">shouldFailover(SortedSet&lt;BrokerStatus&gt;)</a></span> - Method in class org.apache.pulsar.common.policies.impl.<a href="org/apache/pulsar/common/policies/impl/NamespaceIsolationPolicyImpl.html" title="class in org.apache.pulsar.common.policies.impl">NamespaceIsolationPolicyImpl</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/impl/NamespaceIsolationPolicyImpl.html#shouldFailover-int-">shouldFailover(int)</a></span> - Method in class org.apache.pulsar.common.policies.impl.<a href="org/apache/pulsar/common/policies/impl/NamespaceIsolationPolicyImpl.html" title="class in org.apache.pulsar.common.policies.impl">NamespaceIsolationPolicyImpl</a></dt>
@@ -1741,6 +1789,8 @@
 <dd>
 <div class="block">Subscription authorization for Pulsar policies</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/Policies.html#subscriptionDispatchRate">subscriptionDispatchRate</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/Policies.html" title="class in org.apache.pulsar.common.policies.data">Policies</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html#subscriptions">subscriptions</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentTopicStats</a></dt>
 <dd>
 <div class="block">Map of subscriptions with their individual statistics</div>
@@ -1769,6 +1819,10 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentOfflineTopicStats.LedgerDetails.html#timestamp">timestamp</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentOfflineTopicStats.LedgerDetails.html" title="class in org.apache.pulsar.common.policies.data">PersistentOfflineTopicStats.LedgerDetails</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdminBuilder.html#tlsTrustCertsFilePath-java.lang.String-">tlsTrustCertsFilePath(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdminBuilder.html" title="interface in org.apache.pulsar.client.admin">PulsarAdminBuilder</a></dt>
+<dd>
+<div class="block">Set the path to the trusted TLS certificate file</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentOfflineTopicStats.html#topicName">topicName</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentOfflineTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentOfflineTopicStats</a></dt>
 <dd>
 <div class="block">offline topic name</div>
