@@ -27,8 +27,10 @@ import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +41,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
@@ -190,7 +193,7 @@ public class NonPersistentTopic implements Topic {
 
         // retain data for sub/replication because io-thread will release actual payload
         data.retain(2);
-        this.executor.submitOrdered(topic, SafeRun.safeRun(() -> {
+        this.executor.executeOrdered(topic, SafeRun.safeRun(() -> {
             subscriptions.forEach((name, subscription) -> {
                 ByteBuf duplicateBuffer = data.retainedDuplicate();
                 Entry entry = create(0L, 0L, duplicateBuffer);
@@ -210,7 +213,7 @@ public class NonPersistentTopic implements Topic {
             }
         }));
 
-        this.executor.submitOrdered(topic, SafeRun.safeRun(() -> {
+        this.executor.executeOrdered(topic, SafeRun.safeRun(() -> {
             replicators.forEach((name, replicator) -> {
                 ByteBuf duplicateBuffer = data.retainedDuplicate();
                 Entry entry = create(0L, 0L, duplicateBuffer);
@@ -487,7 +490,7 @@ public class NonPersistentTopic implements Topic {
 
         FutureUtil.waitForAll(futures).thenRun(() -> {
             log.info("[{}] Topic closed", topic);
-            brokerService.pulsar().getExecutor().submit(() -> brokerService.removeTopicFromCache(topic));
+            brokerService.pulsar().getExecutor().execute(() -> brokerService.removeTopicFromCache(topic));
             closeFuture.complete(null);
         }).exceptionally(exception -> {
             log.error("[{}] Error closing topic", topic, exception);
@@ -956,6 +959,11 @@ public class NonPersistentTopic implements Topic {
     @Override
     public boolean isEncryptionRequired() {
         return isEncryptionRequired;
+    }
+
+    @Override
+    public boolean isReplicated() {
+        return replicators.size() > 1;
     }
 
     @Override

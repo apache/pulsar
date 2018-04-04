@@ -25,6 +25,8 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -78,11 +80,16 @@ public class ProxyService implements Closeable {
 
     private LocalZooKeeperConnectionService localZooKeeperConnectionService;
 
+    protected final AtomicReference<Semaphore> lookupRequestSemaphore;
+
     private static final int numThreads = Runtime.getRuntime().availableProcessors();
 
     public ProxyService(ProxyConfiguration proxyConfig) throws IOException {
         checkNotNull(proxyConfig);
         this.proxyConfig = proxyConfig;
+
+        this.lookupRequestSemaphore = new AtomicReference<Semaphore>(
+                new Semaphore(proxyConfig.getMaxConcurrentLookupRequests(), false));
 
         String hostname;
         try {
@@ -93,7 +100,7 @@ public class ProxyService implements Closeable {
         this.serviceUrl = String.format("pulsar://%s:%d/", hostname, proxyConfig.getServicePort());
         this.serviceUrlTls = String.format("pulsar://%s:%d/", hostname, proxyConfig.getServicePortTls());
 
-        this.acceptorGroup  = EventLoopUtil.newEventLoopGroup(1, acceptorThreadFactory);
+        this.acceptorGroup = EventLoopUtil.newEventLoopGroup(1, acceptorThreadFactory);
         this.workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, workersThreadFactory);
 
         ClientConfigurationData clientConf = new ClientConfigurationData();
@@ -216,6 +223,10 @@ public class ProxyService implements Closeable {
 
     public void setConfigurationCacheService(ConfigurationCacheService configurationCacheService) {
         this.configurationCacheService = configurationCacheService;
+    }
+
+    public Semaphore getLookupRequestSemaphore() {
+        return lookupRequestSemaphore.get();
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(ProxyService.class);

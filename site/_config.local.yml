@@ -19,5 +19,3 @@
 
 destination: generated
 baseurl: ""
-include:
-- docs/example.md

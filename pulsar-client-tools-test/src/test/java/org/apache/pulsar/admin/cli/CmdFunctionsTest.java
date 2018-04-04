@@ -103,7 +103,7 @@ public class CmdFunctionsTest {
         this.admin = mock(PulsarAdminWithFunctions.class);
         this.functions = mock(Functions.class);
         when(admin.functions()).thenReturn(functions);
-        when(admin.getServiceUrl()).thenReturn(URI.create("http://localhost:1234").toURL());
+        when(admin.getServiceUrl()).thenReturn("http://localhost:1234");
         when(admin.getClientConf()).thenReturn(new ClientConfigurationData());
         this.cmd = new CmdFunctions(admin);
 

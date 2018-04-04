@@ -64,6 +64,7 @@ import org.apache.bookkeeper.mledger.impl.MetaStore.Stat;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.apache.zookeeper.KeeperException.Code;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
@@ -409,11 +410,29 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         stopBookKeeper();
         assertEquals(entries.size(), 1);
 
+        // Mark-delete should succeed if BK is down
+        cursor.markDelete(entries.get(0).getPosition());
+
+        entries.forEach(e -> e.release());
+    }
+
+    @Test(timeOut = 20000)
+    void markDeleteWithZKErrors() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedCursor cursor = ledger.openCursor("c1");
+        ledger.addEntry("dummy-entry-1".getBytes(Encoding));
+        List<Entry> entries = cursor.readEntries(100);
+
+        assertEquals(entries.size(), 1);
+
+        stopBookKeeper();
+        stopZooKeeper();
+
         try {
             cursor.markDelete(entries.get(0).getPosition());
-            fail("call should have failed");
-        } catch (ManagedLedgerException e) {
-            // ok
+            fail("Should have failed");
+        } catch (Exception e) {
+            // Expected
         }
 
         entries.forEach(e -> e.release());
@@ -1022,6 +1041,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ManagedLedger ledger = factory.open("my_test_ledger");
 
         bkc.failAfter(1, BKException.Code.NotEnoughBookiesException);
+        zkc.failNow(Code.SESSIONEXPIRED);
         try {
             ledger.openCursor("c1");
             fail("should have failed");

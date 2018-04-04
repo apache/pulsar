@@ -36,14 +36,10 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.test.PortManager;
-import org.apache.pulsar.broker.PulsarServerException;
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadBalancerTest;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
@@ -100,7 +96,7 @@ public class SLAMonitoringTest {
             pulsarServices[i].start();
 
             brokerUrls[i] = new URL("http://127.0.0.1" + ":" + brokerWebServicePorts[i]);
-            pulsarAdmins[i] = new PulsarAdmin(brokerUrls[i], (Authentication) null);
+            pulsarAdmins[i] = PulsarAdmin.builder().serviceHttpUrl(brokerUrls[i].toString()).build();
         }
 
         Thread.sleep(100);
@@ -116,8 +112,8 @@ public class SLAMonitoringTest {
     private void createProperty(PulsarAdmin pulsarAdmin)
             throws PulsarClientException, MalformedURLException, PulsarAdminException {
         ClusterData clusterData = new ClusterData();
-        clusterData.setServiceUrl(pulsarAdmin.getServiceUrl().toString());
-        pulsarAdmins[0].clusters().updateCluster("my-cluster", clusterData);
+        clusterData.setServiceUrl(pulsarAdmin.getServiceUrl());
+        pulsarAdmins[0].clusters().createCluster("my-cluster", clusterData);
         Set<String> allowedClusters = new HashSet<>();
         allowedClusters.add("my-cluster");
         PropertyAdmin adminConfig = new PropertyAdmin();

@@ -47,6 +47,12 @@ public class ConsumerConfiguration implements Serializable {
     private final ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
 
     private boolean initializeSubscriptionOnLatest = true;
+
+    public ConsumerConfiguration() {
+        // Disable acknowledgment grouping when using v1 API
+        conf.setAcknowledgementsGroupTimeMicros(0);
+    }
+
     /**
      * @return the configured timeout in milliseconds for unacked messages.
      */
@@ -340,8 +346,8 @@ public class ConsumerConfiguration implements Serializable {
     public ConsumerConfigurationData<byte[]> getConfigurationData() {
         return conf;
     }
-    
-     /** 
+
+     /**
      * @param subscriptionInitialPosition the initial position at which to set
      * set cursor  when subscribing to the topic first time
      * Default is {@value InitialPosition.Latest}
@@ -349,12 +355,12 @@ public class ConsumerConfiguration implements Serializable {
     public ConsumerConfiguration setSubscriptionInitialPosition(SubscriptionInitialPosition subscriptionInitialPosition) {
         conf.setSubscriptionInitialPosition(subscriptionInitialPosition);
         return this;
-    }   
+    }
 
-    /** 
+    /**
      * @return the configured {@link subscriptionInitailPosition} for the consumer
      */
     public SubscriptionInitialPosition getSubscriptionInitialPosition(){
         return conf.getSubscriptionInitialPosition();
-    }   
+    }
 }

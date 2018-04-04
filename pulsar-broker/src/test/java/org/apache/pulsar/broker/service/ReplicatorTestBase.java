@@ -33,7 +33,6 @@ import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
@@ -137,7 +136,7 @@ public class ReplicatorTestBase {
 
         url1 = new URL("http://localhost:" + webServicePort1);
         urlTls1 = new URL("https://localhost:" + webServicePortTls1);
-        admin1 = new PulsarAdmin(url1, (Authentication) null);
+        admin1 = PulsarAdmin.builder().serviceHttpUrl(url1.toString()).build();
 
         // Start region 2
 
@@ -171,7 +170,7 @@ public class ReplicatorTestBase {
 
         url2 = new URL("http://localhost:" + webServicePort2);
         urlTls2 = new URL("https://localhost:" + webServicePortTls2);
-        admin2 = new PulsarAdmin(url2, (Authentication) null);
+        admin2 = PulsarAdmin.builder().serviceHttpUrl(url2.toString()).build();
 
         // Start region 3
 
@@ -204,14 +203,14 @@ public class ReplicatorTestBase {
 
         url3 = new URL("http://localhost:" + webServicePort3);
         urlTls3 = new URL("https://localhost:" + webServicePortTls3);
-        admin3 = new PulsarAdmin(url3, (Authentication) null);
+        admin3 = PulsarAdmin.builder().serviceHttpUrl(url3.toString()).build();
 
         // Provision the global namespace
-        admin1.clusters().updateCluster("r1", new ClusterData(url1.toString(), urlTls1.toString(),
+        admin1.clusters().createCluster("r1", new ClusterData(url1.toString(), urlTls1.toString(),
                 pulsar1.getBrokerServiceUrl(), pulsar1.getBrokerServiceUrlTls()));
-        admin1.clusters().updateCluster("r2", new ClusterData(url2.toString(), urlTls2.toString(),
+        admin1.clusters().createCluster("r2", new ClusterData(url2.toString(), urlTls2.toString(),
                 pulsar2.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrlTls()));
-        admin1.clusters().updateCluster("r3", new ClusterData(url3.toString(), urlTls3.toString(),
+        admin1.clusters().createCluster("r3", new ClusterData(url3.toString(), urlTls3.toString(),
                 pulsar3.getBrokerServiceUrl(), pulsar3.getBrokerServiceUrlTls()));
 
         admin1.clusters().createCluster("global", new ClusterData("http://global:8080", "https://global:8443"));
