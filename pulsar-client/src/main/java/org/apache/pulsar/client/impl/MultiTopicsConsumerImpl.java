@@ -480,6 +480,15 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         internalConsumerConfig.setReceiverQueueSize(conf.getReceiverQueueSize());
         internalConsumerConfig.setSubscriptionType(conf.getSubscriptionType());
         internalConsumerConfig.setConsumerName(consumerName);
+        internalConsumerConfig.setAcknowledgementsGroupTimeMicros(conf.getAcknowledgementsGroupTimeMicros());
+        internalConsumerConfig.setPriorityLevel(conf.getPriorityLevel());
+        internalConsumerConfig.setProperties(conf.getProperties());
+        internalConsumerConfig.setReadCompacted(conf.isReadCompacted());
+
+        if (null != conf.getConsumerEventListener()) {
+            internalConsumerConfig.setConsumerEventListener(conf.getConsumerEventListener());
+        }
+
         if (conf.getCryptoKeyReader() != null) {
             internalConsumerConfig.setCryptoKeyReader(conf.getCryptoKeyReader());
             internalConsumerConfig.setCryptoFailureAction(conf.getCryptoFailureAction());
@@ -758,12 +767,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             consumers.values().stream().filter(consumer1 -> {
                 String consumerTopicName = consumer1.getTopic();
                 if (TopicName.get(consumerTopicName).getPartitionedTopicName().equals(topicName)) {
+                    toCloseNum.incrementAndGet();
                     return true;
                 } else {
                     return false;
                 }
-            }).forEach(consumer2 -> {
-                toCloseNum.incrementAndGet();
+            }).collect(Collectors.toList()).forEach(consumer2 -> {
                 consumer2.closeAsync().whenComplete((r, ex) -> {
                     consumer2.subscribeFuture().completeExceptionally(error);
                     allTopicPartitionsNumber.decrementAndGet();
