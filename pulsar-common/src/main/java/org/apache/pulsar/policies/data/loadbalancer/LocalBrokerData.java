@@ -108,7 +108,7 @@ public class LocalBrokerData extends JSONWritable implements LoadManagerReport {
 
     /**
      * Using the system resource usage and bundle stats acquired from the Pulsar client, update this LocalBrokerData.
-     * 
+     *
      * @param systemResourceUsage
      *            System resource usage (cpu, memory, and direct memory).
      * @param bundleStats
@@ -123,7 +123,7 @@ public class LocalBrokerData extends JSONWritable implements LoadManagerReport {
 
     /**
      * Using another LocalBrokerData, update this.
-     * 
+     *
      * @param other
      *            LocalBrokerData to update from.
      */
@@ -196,10 +196,20 @@ public class LocalBrokerData extends JSONWritable implements LoadManagerReport {
     }
 
     public double getMaxResourceUsage() {
-        return Math
-                .max(Math.max(Math.max(cpu.percentUsage(), memory.percentUsage()),
-                        Math.max(directMemory.percentUsage(), bandwidthIn.percentUsage())), bandwidthOut.percentUsage())
-                / 100;
+        return max(cpu.percentUsage(), memory.percentUsage(), directMemory.percentUsage(), bandwidthIn.percentUsage(),
+                bandwidthOut.percentUsage()) / 100;
+    }
+
+    private static float max(float...args) {
+        float max = Float.NEGATIVE_INFINITY;
+
+        for (float d : args) {
+            if (d > max) {
+                max = d;
+            }
+        }
+
+        return max;
     }
 
     public String getLoadReportType() {
@@ -392,7 +402,7 @@ public class LocalBrokerData extends JSONWritable implements LoadManagerReport {
     public String getPulsarServiceUrlTls() {
         return pulsarServiceUrlTls;
     }
-    
+
     @Override
     public boolean isPersistentTopicsEnabled() {
         return persistentTopicsEnabled;
