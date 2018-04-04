@@ -480,6 +480,15 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         internalConsumerConfig.setReceiverQueueSize(conf.getReceiverQueueSize());
         internalConsumerConfig.setSubscriptionType(conf.getSubscriptionType());
         internalConsumerConfig.setConsumerName(consumerName);
+        internalConsumerConfig.setAcknowledgementsGroupTimeMicros(conf.getAcknowledgementsGroupTimeMicros());
+        internalConsumerConfig.setPriorityLevel(conf.getPriorityLevel());
+        internalConsumerConfig.setProperties(conf.getProperties());
+        internalConsumerConfig.setReadCompacted(conf.isReadCompacted());
+
+        if (null != conf.getConsumerEventListener()) {
+            internalConsumerConfig.setConsumerEventListener(conf.getConsumerEventListener());
+        }
+
         if (conf.getCryptoKeyReader() != null) {
             internalConsumerConfig.setCryptoKeyReader(conf.getCryptoKeyReader());
             internalConsumerConfig.setCryptoFailureAction(conf.getCryptoFailureAction());
