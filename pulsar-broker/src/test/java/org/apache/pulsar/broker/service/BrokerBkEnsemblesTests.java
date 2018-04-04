@@ -54,7 +54,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 /**
@@ -100,7 +99,7 @@ public class BrokerBkEnsemblesTests {
 
             admin.clusters().createCluster("usc", new ClusterData(adminUrl.toString()));
             admin.properties().createProperty("prop",
-                    new PropertyAdmin(Lists.newArrayList("appid1"), Sets.newHashSet("usc")));
+                    new PropertyAdmin(Sets.newHashSet("appid1"), Sets.newHashSet("usc")));
         } catch (Throwable t) {
             LOG.error("Error setting up broker test", t);
             Assert.fail("Broker test setup failed");

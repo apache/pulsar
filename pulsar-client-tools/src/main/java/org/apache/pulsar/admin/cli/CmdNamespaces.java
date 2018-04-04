@@ -36,6 +36,7 @@ import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.CommaParameterSplitter;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 @Parameters(commandDescription = "Operations about namespaces")
 public class CmdNamespaces extends CmdBase {
@@ -182,7 +183,7 @@ public class CmdNamespaces extends CmdBase {
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             List<String> clusters = Lists.newArrayList(clusterIds.split(","));
-            admin.namespaces().setNamespaceReplicationClusters(namespace, clusters);
+            admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(clusters));
         }
     }
 

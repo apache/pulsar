@@ -532,7 +532,7 @@ public class NonPersistentTopic implements Topic {
 
         Set<String> configuredClusters;
         if (policies.replication_clusters != null) {
-            configuredClusters = Sets.newTreeSet(policies.replication_clusters);
+            configuredClusters = policies.replication_clusters;
         } else {
             configuredClusters = Collections.emptySet();
         }

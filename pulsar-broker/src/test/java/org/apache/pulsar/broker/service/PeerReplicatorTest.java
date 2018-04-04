@@ -86,8 +86,8 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         admin1.namespaces().createNamespace(namespace1);
         admin1.namespaces().createNamespace(namespace2);
         // add replication cluster
-        admin1.namespaces().setNamespaceReplicationClusters(namespace1, Lists.newArrayList("r1"));
-        admin1.namespaces().setNamespaceReplicationClusters(namespace2, Lists.newArrayList("r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace1, Sets.newHashSet("r1"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace2, Sets.newHashSet("r2"));
         admin1.clusters().updatePeerClusterNames("r3", null);
         // disable tls as redirection url is prepared according tls configuration
         pulsar1.getConfiguration().setTlsEnabled(false);
