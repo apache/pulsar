@@ -51,8 +51,8 @@ The core programming model behind Pulsar Functions is very simple:
   * Apply some processing logic to the input and write output to:
     * An **output topic** in Pulsar
     * [Apache BookKeeper](#state-storage)
-  * Write logs to a **log topic**
-  * Increment a [distributed counter](#counters)
+  * Write logs to a **log topic** (potentially for debugging purposes)
+  * Increment a [counter](#counters)
 
 ![Pulsar Functions core programming model](/img/pulsar-functions-overview.png)
 
@@ -61,6 +61,8 @@ The core programming model behind Pulsar Functions is very simple:
 If you were to implement the classic word count example using Pulsar Functions, it might look something like this:
 
 ![Pulsar Functions word count example](/img/pulsar-functions-word-count.png)
+
+Here, sentences are produced on the `sentences` topic. The Pulsar Function listens on that topic and whenever a message arrives it splits the sentence up into individual words and increments a [counter](#counters) for each word every time that word is encountered. The value of that counter is then available to all [instances](#parallelism) of the function.
 
 If you were writing the function in [Java](../api#java) using the [Pulsar Functions SDK for Java](../api#java-sdk), you could write the function like this...
 
@@ -76,7 +78,10 @@ public class WordCountFunction implements Function<String, Void> {
     // This function is invoked every time a message is published to the input topic
     @Override
     public Void process(String input, Context context) {
-        Arrays.asList(input.split(" ")).forEach(word -> context.incrCounter(word, 1));
+        Arrays.asList(input.split(" ")).forEach(word -> {
+            String counterKey = word.toLowerCase();
+            context.incrCounter(counterKey, 1)
+        });
         return null;
     }
 }
