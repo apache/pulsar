@@ -129,8 +129,8 @@ groups:
   - title: Apache Storm
     endpoint: PulsarStorm
 
-- title: Advanced
-  dir: advanced
+- title: Cookbooks
+  dir: cookbooks
   docs:
   - title: Partitioned topics
     endpoint: PartitionedTopics
@@ -138,6 +138,8 @@ groups:
     endpoint: RetentionExpiry
   - title: Encryption
     endpoint: Encryption
+  - title: Using Pulsar as a message queue
+    endpoint: message-queue
 
 - title: Developing Pulsar
   dir: project
