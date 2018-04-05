@@ -98,10 +98,10 @@ public class Producer {
         this.metadata = metadata != null ? metadata : Collections.emptyMap();
 
         this.stats = isNonPersistentTopic ? new NonPersistentPublisherStats() : new PublisherStats();
-        stats.address = cnx.clientAddress().toString();
-        stats.connectedSince = DateFormatter.now();
-        stats.clientVersion = cnx.getClientVersion();
-        stats.producerName = producerName;
+        stats.setAddress(cnx.clientAddress().toString());
+        stats.setConnectedSince(DateFormatter.now());
+        stats.setClientVersion(cnx.getClientVersion());
+        stats.setProducerName(producerName);
         stats.producerId = producerId;
         stats.metadata = this.metadata;
 

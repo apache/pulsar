@@ -35,6 +35,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -206,7 +207,7 @@ public class PersistentTopicTest {
         }).when(mlFactoryMock).asyncOpen(anyString(), any(ManagedLedgerConfig.class), any(OpenLedgerCallback.class),
                 anyObject());
 
-        CompletableFuture<Void> future = brokerService.getTopic(topicName).thenAccept(topic -> {
+        CompletableFuture<Void> future = brokerService.getOrCreateTopic(topicName).thenAccept(topic -> {
             assertTrue(topic.toString().contains(topicName));
         }).exceptionally((t) -> {
             fail("should not fail");
@@ -237,7 +238,7 @@ public class PersistentTopicTest {
         }).when(mlFactoryMock).asyncOpen(anyString(), any(ManagedLedgerConfig.class), any(OpenLedgerCallback.class),
                 anyObject());
 
-        CompletableFuture<Topic> future = brokerService.getTopic(jinxedTopicName);
+        CompletableFuture<Topic> future = brokerService.getOrCreateTopic(jinxedTopicName);
 
         // wait for completion
         try {
@@ -713,15 +714,15 @@ public class PersistentTopicTest {
     @Test
     public void testDeleteTopic() throws Exception {
         // create topic
-        PersistentTopic topic = (PersistentTopic) brokerService.getTopic(successTopicName).get();
+        PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
 
         String role = "appid1";
         // 1. delete inactive topic
         topic.delete().get();
-        assertNull(brokerService.getTopicReference(successTopicName));
+        assertFalse(brokerService.getTopicReference(successTopicName).isPresent());
 
         // 2. delete topic with producer
-        topic = (PersistentTopic) brokerService.getTopic(successTopicName).get();
+        topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
         Producer producer = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name",
                 role, false, null, SchemaVersion.Latest);
         topic.addProducer(producer);
@@ -744,7 +745,7 @@ public class PersistentTopicTest {
     @Test
     public void testDeleteAndUnsubscribeTopic() throws Exception {
         // create topic
-        final PersistentTopic topic = (PersistentTopic) brokerService.getTopic(successTopicName).get();
+        final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
         CommandSubscribe cmd = CommandSubscribe.newBuilder().setConsumerId(1).setTopic(successTopicName)
                 .setSubscription(successSubName).setRequestId(1).setSubType(SubType.Exclusive).build();
 
@@ -798,7 +799,7 @@ public class PersistentTopicTest {
     // @Test
     public void testConcurrentTopicAndSubscriptionDelete() throws Exception {
         // create topic
-        final PersistentTopic topic = (PersistentTopic) brokerService.getTopic(successTopicName).get();
+        final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
         CommandSubscribe cmd = CommandSubscribe.newBuilder().setConsumerId(1).setTopic(successTopicName)
                 .setSubscription(successSubName).setRequestId(1).setSubType(SubType.Exclusive).build();
 
@@ -856,7 +857,7 @@ public class PersistentTopicTest {
 
     @Test
     public void testDeleteTopicRaceConditions() throws Exception {
-        PersistentTopic topic = (PersistentTopic) brokerService.getTopic(successTopicName).get();
+        PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
 
         // override ledger deletion callback to slow down deletion
         doAnswer(new Answer<Object>() {

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker;
 
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 import com.google.common.collect.Lists;
@@ -42,6 +43,8 @@ import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
+import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.compaction.TwoPhaseCompactor;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
@@ -60,6 +63,8 @@ import org.apache.pulsar.broker.stats.MetricsGenerator;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.web.WebService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.configuration.VipStatus;
 import org.apache.pulsar.common.naming.TopicName;
@@ -103,6 +108,8 @@ public class PulsarService implements AutoCloseable {
     private ZooKeeperCache localZkCache;
     private GlobalZooKeeperCache globalZkCache;
     private LocalZooKeeperConnectionService localZooKeeperConnectionProvider;
+    private Compactor compactor;
+
     private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(20,
             new DefaultThreadFactory("pulsar"));
     private final ScheduledExecutorService cacheExecutor = Executors.newScheduledThreadPool(10,
@@ -110,11 +117,13 @@ public class PulsarService implements AutoCloseable {
     private final OrderedExecutor orderedExecutor = OrderedExecutor.newBuilder().numThreads(8).name("pulsar-ordered")
             .build();
     private final ScheduledExecutorService loadManagerExecutor;
+    private ScheduledExecutorService compactorExecutor;
     private ScheduledFuture<?> loadReportTask = null;
     private ScheduledFuture<?> loadSheddingTask = null;
     private ScheduledFuture<?> loadResourceQuotaTask = null;
     private final AtomicReference<LoadManager> loadManager = new AtomicReference<>();
     private PulsarAdmin adminClient = null;
+    private PulsarClient client = null;
     private ZooKeeperClientFactory zkClientFactory = null;
     private final String bindAddress;
     private final String advertisedAddress;
@@ -218,7 +227,16 @@ public class PulsarService implements AutoCloseable {
                 adminClient = null;
             }
 
+            if (client != null) {
+                client.close();
+                client = null;
+            }
+
             nsservice = null;
+
+            if (compactorExecutor != null) {
+                compactorExecutor.shutdown();
+            }
 
             // executor is not initialized in mocks even when real close method is called
             // guard against null executors
@@ -505,7 +523,7 @@ public class PulsarService implements AutoCloseable {
                 try {
                     TopicName topicName = TopicName.get(topic);
                     if (bundle.includes(topicName)) {
-                        CompletableFuture<Topic> future = brokerService.getTopic(topic);
+                        CompletableFuture<Topic> future = brokerService.getOrCreateTopic(topic);
                         if (future != null) {
                             persistentTopics.add(future);
                         }
@@ -630,6 +648,47 @@ public class PulsarService implements AutoCloseable {
 
     public BookKeeperClientFactory getBookKeeperClientFactory() {
         return new BookKeeperClientFactoryImpl();
+    }
+
+    protected synchronized ScheduledExecutorService getCompactorExecutor() {
+        if (this.compactorExecutor == null) {
+            compactorExecutor = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("compaction"));
+        }
+        return this.compactorExecutor;
+    }
+
+    public synchronized Compactor getCompactor() throws PulsarServerException {
+        if (this.compactor == null) {
+            try {
+                this.compactor = new TwoPhaseCompactor(this.getConfiguration(),
+                                                       getClient(), getBookKeeperClient(),
+                                                       getCompactorExecutor());
+            } catch (Exception e) {
+                throw new PulsarServerException(e);
+            }
+        }
+        return this.compactor;
+    }
+
+    public synchronized PulsarClient getClient() throws PulsarServerException {
+        if (this.client == null) {
+            try {
+                ClientBuilder builder = PulsarClient.builder()
+                    .serviceUrl(this.getConfiguration().isTlsEnabled()
+                                ? this.brokerServiceUrlTls : this.brokerServiceUrl)
+                    .enableTls(this.getConfiguration().isTlsEnabled())
+                    .allowTlsInsecureConnection(this.getConfiguration().isTlsAllowInsecureConnection())
+                    .tlsTrustCertsFilePath(this.getConfiguration().getTlsCertificateFilePath());
+                if (isNotBlank(this.getConfiguration().getBrokerClientAuthenticationPlugin())) {
+                    builder.authentication(this.getConfiguration().getBrokerClientAuthenticationPlugin(),
+                                           this.getConfiguration().getBrokerClientAuthenticationParameters());
+                }
+                this.client = builder.build();
+            } catch (Exception e) {
+                throw new PulsarServerException(e);
+            }
+        }
+        return this.client;
     }
 
     public synchronized PulsarAdmin getAdminClient() throws PulsarServerException {
