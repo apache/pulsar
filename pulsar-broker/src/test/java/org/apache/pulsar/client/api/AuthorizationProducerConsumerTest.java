@@ -67,8 +67,6 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         superUserRoles.add("superUser");
         conf.setSuperUserRoles(superUserRoles);
 
-        conf.setBrokerClientAuthenticationPlugin(TestAuthenticationProvider.class.getName());
-
         Set<String> providers = new HashSet<>();
         providers.add(TestAuthenticationProvider.class.getName());
         conf.setAuthenticationProviders(providers);
