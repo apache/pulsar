@@ -45,6 +45,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
 import org.apache.zookeeper.CreateMode;
@@ -190,6 +191,10 @@ public abstract class MockedPulsarServiceBaseTest {
         conf.setAuthorizationEnabled(true);
         pulsar.start();
         conf.setAuthorizationEnabled(isAuthorizationEnabled);
+
+        Compactor spiedCompactor = spy(pulsar.getCompactor());
+        doReturn(spiedCompactor).when(pulsar).getCompactor();
+
         return pulsar;
     }
 
