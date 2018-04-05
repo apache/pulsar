@@ -802,7 +802,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         BrokerService service = spy(pulsar.getBrokerService());
         // create topic will fail to get managedLedgerConfig
         CompletableFuture<ManagedLedgerConfig> failedManagedLedgerConfig = new CompletableFuture<>();
-        failedManagedLedgerConfig.complete(null);
+        failedManagedLedgerConfig.complete(new ManagedLedgerConfig());
         doReturn(failedManagedLedgerConfig).when(service).getManagedLedgerConfig(anyObject());
 
         CompletableFuture<Void> topicCreation = new CompletableFuture<Void>();
@@ -830,7 +830,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         } catch (TimeoutException | InterruptedException e) {
             fail("there is a dead-lock and it should have been prevented");
         } catch (ExecutionException e) {
-            assertTrue(e.getCause() instanceof PersistenceException);
+            assertEquals(e.getCause().getClass(), PersistenceException.class);
         } finally {
             executor.shutdownNow();
             ledgers.clear();

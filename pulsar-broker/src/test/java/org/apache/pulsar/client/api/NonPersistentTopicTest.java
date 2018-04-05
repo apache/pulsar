@@ -657,9 +657,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             } catch (Exception e) {
                 // Ok
             }
-            NonPersistentTopic topicRef = (NonPersistentTopic) pulsar.getBrokerService().getTopicReference(topicName)
-                    .get();
-            assertNull(topicRef);
+            assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
 
         } finally {
             conf.setEnableNonPersistentTopics(defaultENableNonPersistentTopic);
@@ -693,8 +691,8 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             } catch (Exception e) {
                 // Ok
             }
-            NonPersistentTopic topicRef = (NonPersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
-            assertNull(topicRef);
+
+            assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
         } finally {
             conf.setEnableNonPersistentTopics(defaultENableNonPersistentTopic);
         }
@@ -748,9 +746,8 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             } catch (Exception e) {
                 // Ok
             }
-            NonPersistentTopic topicRef = (NonPersistentTopic) pulsar.getBrokerService().getTopicReference(topicName)
-                    .get();
-            assertNull(topicRef);
+
+            assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
 
         } finally {
             conf.setEnablePersistentTopics(defaultEnablePersistentTopic);

@@ -395,7 +395,7 @@ public class ServerCnxTest {
         channel.writeInbound(clientCommand);
 
         assertTrue(getResponse() instanceof CommandError);
-        assertNull(brokerService.getTopicReference(failTopicName));
+        assertFalse(pulsar.getBrokerService().getTopicReference(failTopicName).isPresent());
 
         channel.finish();
         assertEquals(topicRef.getProducers().size(), 0);
@@ -443,7 +443,7 @@ public class ServerCnxTest {
         CommandError errorResponse = (CommandError) response;
         assertEquals(errorResponse.getError(), ServerError.ServiceNotReady);
 
-        assertNull(brokerService.getTopicReference(nonOwnedTopicName));
+        assertFalse(pulsar.getBrokerService().getTopicReference(nonOwnedTopicName).isPresent());
 
         channel.finish();
     }

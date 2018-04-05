@@ -432,7 +432,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         consumer.close();
 
         topicRef.close().get();
-        assertNull(pulsar.getBrokerService().getTopicReference(topicName));
+        assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
     }
 
     @Test
@@ -542,28 +542,28 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         producer.close();
 
-        assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
+        assertTrue(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
         runGC();
-        assertNull(pulsar.getBrokerService().getTopicReference(topicName));
+        assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
 
         // 2. Topic is not GCed with live connection
         String subName = "sub1";
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
 
         runGC();
-        assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
+        assertTrue(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
 
         // 3. Topic with subscription is not GCed even with no connections
         consumer.close();
 
         runGC();
-        assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
+        assertTrue(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
 
         // 4. Topic can be GCed after unsubscribe
         admin.persistentTopics().deleteSubscription(topicName, subName);
 
         runGC();
-        assertNull(pulsar.getBrokerService().getTopicReference(topicName));
+        assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
     }
 
     /**
@@ -607,7 +607,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         admin.persistentTopics().deleteSubscription(topicName, subName);
 
         runGC();
-        assertNull(pulsar.getBrokerService().getTopicReference(topicName));
+        assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
     }
 
     /**
@@ -650,7 +650,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         admin.persistentTopics().deleteSubscription(topicName, subName);
 
         runGC();
-        assertNull(pulsar.getBrokerService().getTopicReference(topicName));
+        assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
     }
 
     @Test
