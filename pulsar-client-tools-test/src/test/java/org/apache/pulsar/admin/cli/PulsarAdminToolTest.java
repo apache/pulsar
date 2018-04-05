@@ -190,12 +190,12 @@ public class PulsarAdminToolTest {
         properties.run(split("list"));
         verify(mockProperties).getProperties();
 
-        PropertyAdmin propertyAdmin = new PropertyAdmin(Lists.newArrayList("role1", "role2"), Sets.newHashSet("use"));
+        PropertyAdmin propertyAdmin = new PropertyAdmin(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use"));
 
         properties.run(split("create property --admin-roles role1,role2 --allowed-clusters use"));
         verify(mockProperties).createProperty("property", propertyAdmin);
 
-        propertyAdmin = new PropertyAdmin(Lists.newArrayList("role1", "role2"), Sets.newHashSet("usw"));
+        propertyAdmin = new PropertyAdmin(Sets.newHashSet("role1", "role2"), Sets.newHashSet("usw"));
 
         properties.run(split("update property --admin-roles role1,role2 --allowed-clusters usw"));
         verify(mockProperties).updateProperty("property", propertyAdmin);
@@ -247,7 +247,7 @@ public class PulsarAdminToolTest {
 
         namespaces.run(split("set-clusters myprop/clust/ns1 -c use,usw,usc"));
         verify(mockNamespaces).setNamespaceReplicationClusters("myprop/clust/ns1",
-                Lists.newArrayList("use", "usw", "usc"));
+                Sets.newHashSet("use", "usw", "usc"));
 
         namespaces.run(split("get-clusters myprop/clust/ns1"));
         verify(mockNamespaces).getNamespaceReplicationClusters("myprop/clust/ns1");

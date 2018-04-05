@@ -437,8 +437,8 @@ public class ServerCnx extends PulsarHandler {
         commandConsumerStatsResponseBuilder.setAvailablePermits(consumerStats.availablePermits);
         commandConsumerStatsResponseBuilder.setUnackedMessages(consumerStats.unackedMessages);
         commandConsumerStatsResponseBuilder.setBlockedConsumerOnUnackedMsgs(consumerStats.blockedConsumerOnUnackedMsgs);
-        commandConsumerStatsResponseBuilder.setAddress(consumerStats.address);
-        commandConsumerStatsResponseBuilder.setConnectedSince(consumerStats.connectedSince);
+        commandConsumerStatsResponseBuilder.setAddress(consumerStats.getAddress());
+        commandConsumerStatsResponseBuilder.setConnectedSince(consumerStats.getConnectedSince());
 
         Subscription subscription = consumer.getSubscription();
         commandConsumerStatsResponseBuilder.setMsgBacklog(subscription.getNumberOfEntriesInBacklog());
@@ -621,7 +621,7 @@ public class ServerCnx extends PulsarHandler {
                             }
                         }
 
-                        service.getTopic(topicName.toString())
+                        service.getOrCreateTopic(topicName.toString())
                                 .thenCompose(topic -> topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
                                                                       subType, priorityLevel, consumerName, isDurable,
                                                                       startMessageId, metadata, readCompacted, initialPosition))
@@ -809,7 +809,7 @@ public class ServerCnx extends PulsarHandler {
 
                         log.info("[{}][{}] Creating producer. producerId={}", remoteAddress, topicName, producerId);
 
-                        service.getTopic(topicName.toString()).thenAccept((Topic topic) -> {
+                        service.getOrCreateTopic(topicName.toString()).thenAccept((Topic topic) -> {
                             // Before creating producer, check if backlog quota exceeded
                             // on topic
                             if (topic.isBacklogQuotaExceeded(producerName)) {

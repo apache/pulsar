@@ -370,7 +370,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         verify(properties, times(1)).validateSuperUserAccess();
 
         Set<String> allowedClusters = Sets.newHashSet();
-        PropertyAdmin propertyAdmin = new PropertyAdmin(Lists.newArrayList("role1", "role2"), allowedClusters);
+        PropertyAdmin propertyAdmin = new PropertyAdmin(Sets.newHashSet("role1", "role2"), allowedClusters);
         properties.createProperty("test-property", propertyAdmin);
         verify(properties, times(2)).validateSuperUserAccess();
 
@@ -380,7 +380,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertEquals(properties.getPropertyAdmin("test-property"), propertyAdmin);
         verify(properties, times(4)).validateSuperUserAccess();
 
-        PropertyAdmin newPropertyAdmin = new PropertyAdmin(Lists.newArrayList("role1", "other-role"), allowedClusters);
+        PropertyAdmin newPropertyAdmin = new PropertyAdmin(Sets.newHashSet("role1", "other-role"), allowedClusters);
         properties.updateProperty("test-property", newPropertyAdmin);
         verify(properties, times(5)).validateSuperUserAccess();
 
@@ -478,7 +478,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         // Create a namespace to test deleting a non-empty property
         clusters.createCluster("use", new ClusterData());
-        newPropertyAdmin = new PropertyAdmin(Lists.newArrayList("role1", "other-role"), Sets.newHashSet("use"));
+        newPropertyAdmin = new PropertyAdmin(Sets.newHashSet("role1", "other-role"), Sets.newHashSet("use"));
         properties.createProperty("my-property", newPropertyAdmin);
 
         namespaces.createNamespace("my-property", "use", "my-namespace", new BundlesData());
