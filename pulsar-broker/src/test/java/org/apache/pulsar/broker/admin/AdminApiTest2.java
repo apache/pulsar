@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.admin;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -327,7 +328,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-sub").subscribe();
 
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName).get();
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) topic.getManagedLedger();
         ManagedCursorImpl cursor = (ManagedCursorImpl) managedLedger.getCursors().iterator().next();
 
@@ -364,31 +365,29 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         producer.close();
 
-        Topic topic = pulsar.getBrokerService().getTopicReference(topicName);
-        assertNotNull(topic);
+        Topic topic = pulsar.getBrokerService().getTopicIfExists(topicName).join().get();
         final boolean isPersistentTopic = topic instanceof PersistentTopic;
 
         // (1) unload the topic
         unloadTopic(topicName, isPersistentTopic);
-        topic = pulsar.getBrokerService().getTopicReference(topicName);
-        // topic must be removed
-        assertNull(topic);
+
+        // topic must be removed from map
+        assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
 
         // recreation of producer will load the topic again
         producer = pulsarClient.newProducer().topic(topicName).create();
-        topic = pulsar.getBrokerService().getTopicReference(topicName);
+        topic = pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topic);
         // unload the topic
         unloadTopic(topicName, isPersistentTopic);
         // producer will retry and recreate the topic
         for (int i = 0; i < 5; i++) {
-            topic = pulsar.getBrokerService().getTopicReference(topicName);
-            if (topic == null || i != 4) {
+            if (!pulsar.getBrokerService().getTopicReference(topicName).isPresent() || i != 4) {
                 Thread.sleep(200);
             }
         }
         // topic should be loaded by this time
-        topic = pulsar.getBrokerService().getTopicReference(topicName);
+        topic = pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topic);
     }
 
@@ -715,7 +714,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         }
 
         for (int i = 0; i < totalTopics; i++) {
-            Topic topic = pulsar.getBrokerService().getTopicReference(topicName + i);
+            Topic topic = pulsar.getBrokerService().getTopicReference(topicName + i).get();
             assertNotNull(topic);
         }
 

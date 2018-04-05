@@ -212,7 +212,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         Producer<byte[]> producer = client1.newProducer().topic(topicName.toString()).create();
         producer.close();
 
-        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName.toString()).get();
+        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getOrCreateTopic(topicName.toString()).get();
 
         PulsarClientImpl pulsarClient = spy((PulsarClientImpl) pulsar1.getBrokerService().getReplicationClient("r3"));
         final Method startRepl = PersistentTopic.class.getDeclaredMethod("startReplicator", String.class);
@@ -488,7 +488,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         // Produce from cluster1 and consume from the rest
         producer1.produce(2);
         producer1.close();
-        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopicReference(dest.toString());
+        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopicReference(dest.toString()).get();
         PersistentReplicator replicator = (PersistentReplicator) topic.getReplicators()
                 .get(topic.getReplicators().keys().get(0));
         replicator.skipMessages(2);
@@ -513,7 +513,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         // Produce from cluster1 and consume from the rest
         producer1.produce(2);
         producer1.close();
-        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopicReference(dest.toString());
+        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopicReference(dest.toString()).get();
         PersistentReplicator replicator = (PersistentReplicator) spy(
                 topic.getReplicators().get(topic.getReplicators().keys().get(0)));
         replicator.readEntriesFailed(new ManagedLedgerException.InvalidCursorPositionException("failed"), null);
@@ -656,7 +656,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         final String topicName = "persistent://pulsar/global/ns/repltopicbatch";
         final TopicName dest = TopicName.get(topicName);
         MessageProducer producer1 = new MessageProducer(url1, dest);
-        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopicReference(topicName);
+        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopicReference(topicName).get();
         final String replicatorClusterName = topic.getReplicators().keys().get(0);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) topic.getManagedLedger();
         CountDownLatch latch = new CountDownLatch(1);
@@ -697,7 +697,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         final String topicName = "persistent://pulsar/global/ns/repltopicbatch";
         final TopicName dest = TopicName.get(topicName);
         MessageProducer producer1 = new MessageProducer(url1, dest);
-        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopicReference(topicName);
+        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopicReference(topicName).get();
         final String replicatorClusterName = topic.getReplicators().keys().get(0);
         Replicator replicator = topic.getPersistentReplicator(replicatorClusterName);
         pulsar2.close();
@@ -741,7 +741,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
             MessageConsumer consumer2 = new MessageConsumer(url2, dest);
 
             // Replicator for r1 -> r2
-            PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopicReference(dest.toString());
+            PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopicReference(dest.toString()).get();
             Replicator replicator = topic.getPersistentReplicator("r2");
 
             // Produce 1 message in r1. This message will be replicated immediately into r2 and it will become part of
@@ -802,7 +802,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         MessageConsumer consumer2 = new MessageConsumer(url2, dest);
 
         // Replicator for r1 -> r2
-        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopicReference(dest.toString());
+        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopicReference(dest.toString()).get();
         PersistentReplicator replicator = (PersistentReplicator) topic.getPersistentReplicator("r2");
 
         // close the cursor
@@ -901,7 +901,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         // persistent topic test
         try {
-            brokerService.getTopic(persistentTopicName).get();
+            brokerService.getOrCreateTopic(persistentTopicName).get();
             if (isPartitionedTopic) {
                 fail("Topic creation fails with partitioned topic as replicator init fails");
             }
@@ -914,7 +914,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         // non-persistent topic test
         try {
-            brokerService.getTopic(nonPersistentTopicName).get();
+            brokerService.getOrCreateTopic(nonPersistentTopicName).get();
             if (isPartitionedTopic) {
                 fail("Topic creation fails with partitioned topic as replicator init fails");
             }

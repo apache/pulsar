@@ -535,7 +535,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
                     .subscriptionType(SubscriptionType.Shared).subscribe();
             Thread.sleep(timeWaitToSync);
 
-            PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+            PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
             assertNotNull(topicRef);
 
             rolloverPerIntervalStats();
