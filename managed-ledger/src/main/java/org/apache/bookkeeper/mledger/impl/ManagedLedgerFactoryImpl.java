@@ -342,7 +342,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     @Override
     public void asyncGetManagedLedgerInfo(String name, ManagedLedgerInfoCallback callback, Object ctx) {
-        store.getManagedLedgerInfo(name, new MetaStoreCallback<MLDataFormats.ManagedLedgerInfo>() {
+        store.getManagedLedgerInfo(name, false /* createIfMissing */,
+                new MetaStoreCallback<MLDataFormats.ManagedLedgerInfo>() {
             @Override
             public void operationComplete(MLDataFormats.ManagedLedgerInfo pbInfo, Stat stat) {
                 ManagedLedgerInfo info = new ManagedLedgerInfo();
