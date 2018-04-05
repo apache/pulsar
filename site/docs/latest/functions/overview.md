@@ -239,26 +239,43 @@ public class ConfigMapFunction implements Function<String, Void> {
 }
 ```
 
-## Distributed counters {#counters}
+## Counters {#counters}
 
-Pulsar Functions created using the [Pulsar Functions SDK](#sdk) can increment system-level **distributed counters**. Counters can be incremented by key and are accessible to all Pulsar Functions. You could thus have multiple functions incrementing, for example, a `total-score` or `website-hits` counter.
+Pulsar Functions created using the [Pulsar Functions SDK](#sdk) can increment and access **counters** on a per-key basis (thus a Pulsar Function could increment, for example, a `website-visits` counter as well as a `login-attempts` counter).
 
-This Java function, for example, implements the classic "word count" function using distributed counters:
+Pulsar counters are distinguished by:
+
+* Tenant
+* Namespace
+* Function
+* Key
+
+This Java function, for example, implements the classic "word count" function using counters:
 
 ```java
 public class WordCountFunction implements PulsarFunction<String, Void> {
     @Override
     public Void process(String input, Context context) {
-        List<String> words = Arrays.asList(input.split("\\."));
-        words.forEach(word -> context.incrCounter(word, 1));
+        Arrays.asList(input.split("\\.")).forEach(word -> context.incrCounter(word.toLowerCase(), 1));
         return null;
     }
 }
 ```
 
-Here, each incoming string is split into individual words. Each word is then used as the key for a counter
+Here, each incoming string is split into individual words. Each word is then used as the key for a counter that is incremented by 1.
 
-The value of counters can then be obtained via the [`querystate`](../../reference/CliTools#pulsar-admin-functions-querystate) line.
+The value of counters can then be obtained via the [`querystate`](../../reference/CliTools#pulsar-admin-functions-querystate) command. Here's an example:
+
+```bash
+$ bin/pulsar-admin functions querystate \
+  --tenant sample \
+  --namespace ns1 \
+  --name counter-func \
+  --key "fabulous" \
+  --watch
+```
+
+This command would listen for changes in the `fabulous` counter of the word count function (each time the word "fabulous" is in a sentence passed to the function, that counter will be incremented).
 
 ## Metrics
 
