@@ -636,8 +636,8 @@ public class NamespaceService {
             if (t != null) {
                 // retry several times on BadVersion
                 if ((t instanceof ServerMetadataException) && (counter.decrementAndGet() >= 0)) {
-                    pulsar.getOrderedExecutor().submit(
-                        () -> splitAndOwnBundleOnceAndRetry(bundle, unload, counter, unloadFuture));
+                    pulsar.getOrderedExecutor()
+                            .execute(() -> splitAndOwnBundleOnceAndRetry(bundle, unload, counter, unloadFuture));
                 } else {
                     // Retry enough, or meet other exception
                     String msg2 = format(" %s not success update nsBundles, counter %d, reason %s",

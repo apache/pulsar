@@ -176,22 +176,12 @@ public final class Utils {
     }
 
     public static PulsarAdmin getPulsarAdminClient(String pulsarWebServiceUrl) {
-        URL url = null;
         try {
-            url = new URL(pulsarWebServiceUrl);
-        } catch (MalformedURLException e) {
-            log.error("Error when parsing pulsar web service url", e);
-            throw new RuntimeException(e);
-        }
-
-        PulsarAdmin admin = null;
-        try {
-            admin = new PulsarAdmin(url, new org.apache.pulsar.client.api.ClientConfiguration());
+            return PulsarAdmin.builder().serviceHttpUrl(pulsarWebServiceUrl).build();
         } catch (PulsarClientException e) {
             log.error("Error creating pulsar admin client", e);
             throw new RuntimeException(e);
         }
-        return admin;
     }
 
     public static String getFullyQualifiedInstanceId(Function.Instance instance) {

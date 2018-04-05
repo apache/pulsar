@@ -34,7 +34,6 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 
 import com.google.common.collect.Maps;
@@ -80,10 +79,10 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     // Constructor for incoming message
-    MessageImpl(MessageIdData messageId, MessageMetadata msgMetadata, ByteBuf payload, int partitionIndex,
-                ClientCnx cnx, Schema<T> schema) {
+    MessageImpl(MessageIdImpl messageId, MessageMetadata msgMetadata, ByteBuf payload, ClientCnx cnx,
+            Schema<T> schema) {
         this.msgMetadataBuilder = MessageMetadata.newBuilder(msgMetadata);
-        this.messageId = new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), partitionIndex);
+        this.messageId = messageId;
         this.cnx = cnx;
 
         // Need to make a copy since the passed payload is using a ref-count buffer that we don't know when could

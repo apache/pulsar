@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
-import java.util.HashMap;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
+
 import java.util.Map;
 import java.util.TreeSet;
 
@@ -61,7 +63,7 @@ public abstract class DeviationShedder implements LoadSheddingStrategy {
     /**
      * Recommend that all of the returned bundles be unloaded based on observing excessive standard deviations according
      * to some metric.
-     * 
+     *
      * @param loadData
      *            The load data to used to make the unloading decision.
      * @param conf
@@ -69,8 +71,8 @@ public abstract class DeviationShedder implements LoadSheddingStrategy {
      * @return A map from all selected bundles to the brokers on which they reside.
      */
     @Override
-    public Map<String, String> findBundlesForUnloading(final LoadData loadData, final ServiceConfiguration conf) {
-        final Map<String, String> result = new HashMap<>();
+    public Multimap<String, String> findBundlesForUnloading(final LoadData loadData, final ServiceConfiguration conf) {
+        final Multimap<String, String> result = ArrayListMultimap.create();
         bundleTreeSetCache.clear();
         metricTreeSetCache.clear();
         double sum = 0;

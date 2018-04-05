@@ -34,10 +34,10 @@ groups:
   dir: functions
   new: true
   docs:
+  - title: Pulsar Functions overview
+    endpoint: overview
   - title: Getting started with Pulsar Functions
     endpoint: quickstart
-  #- title: Pulsar Functions overview
-  #  endpoint: overview
   - title: The Pulsar Functions API
     endpoint: api
   - title: Deploying Pulsar Functions

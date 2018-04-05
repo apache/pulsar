@@ -304,7 +304,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
                 .batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS).batchingMaxMessages(20).create();
 
         // update consumer's version to incompatible batch-message version = Version.V3
-        Topic topic = pulsar.getBrokerService().getTopic(topicName).get();
+        Topic topic = pulsar.getBrokerService().getOrCreateTopic(topicName).get();
         org.apache.pulsar.broker.service.Consumer brokerConsumer = topic.getSubscriptions().get(subscriptionName)
                 .getConsumers().get(0);
         Field cnxField = org.apache.pulsar.broker.service.Consumer.class.getDeclaredField("cnx");
@@ -440,7 +440,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         received.clear();
 
         log.info("reset cursor to " + timestamp + " for topic " + topicName.toString() + " for subs " + subsId);
-        log.info("issuing admin operation on " + admin.getServiceUrl().toString());
+        log.info("issuing admin operation on " + admin.getServiceUrl());
         List<String> subList = admin.persistentTopics().getSubscriptions(topicName.toString());
         for (String subs : subList) {
             log.info("got sub " + subs);

@@ -713,7 +713,7 @@ public class V1_ProducerConsumerTest extends ProducerConsumerBase {
         final String topic = "persistent://my-property/use/my-ns/" + topicName;
         Producer producer = pulsarClient.createProducer(topic, producerConf);
 
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic);
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) topicRef.getManagedLedger();
         Field cacheField = ManagedLedgerImpl.class.getDeclaredField("entryCache");
         cacheField.setAccessible(true);
@@ -816,7 +816,7 @@ public class V1_ProducerConsumerTest extends ProducerConsumerBase {
         Consumer subscriber2 = pulsarClient.subscribe("persistent://my-property/use/my-ns/" + topicName, sub2, conf);
         Producer producer = pulsarClient.createProducer(topic, producerConf);
 
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic);
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) topicRef.getManagedLedger();
 
         // reflection to set/get cache-backlog fields value:

@@ -19,42 +19,22 @@
 package org.apache.pulsar.client.admin;
 
 import org.apache.pulsar.client.admin.internal.FunctionsImpl;
-import org.apache.pulsar.client.api.*;
-
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.net.URL;
-
 
 /**
  * Pulsar client admin client with functions support.
  */
 public class PulsarAdminWithFunctions extends PulsarAdmin {
-    private static final Logger LOG = LoggerFactory.getLogger(PulsarAdminWithFunctions.class);
 
     private final Functions functions;
     private final ClientConfigurationData clientConf;
 
-    /**
-     * Construct a new Pulsar Admin client object.
-     * <p>
-     * This client object can be used to perform many subsquent API calls
-     *
-     * @param serviceUrl
-     *            the Pulsar service URL (eg. "http://my-broker.example.com:8080")
-     * @param pulsarConfig
-     *            the ClientConfiguration object to be used to talk with Pulsar
-     */
-    public PulsarAdminWithFunctions(URL serviceUrl, ClientConfigurationData pulsarConfig) throws PulsarClientException {
+    public PulsarAdminWithFunctions(String serviceUrl, ClientConfigurationData pulsarConfig)
+            throws PulsarClientException {
         super(serviceUrl, pulsarConfig);
         this.functions = new FunctionsImpl(root, auth);
         this.clientConf = pulsarConfig;
-    }
-
-    public ClientConfigurationData getClientConf() {
-        return clientConf;
     }
 
     /**

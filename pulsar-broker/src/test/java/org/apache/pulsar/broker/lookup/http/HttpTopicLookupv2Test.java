@@ -60,6 +60,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 /**
  * HTTP lookup unit tests.
@@ -183,7 +184,7 @@ public class HttpTopicLookupv2Test {
         doReturn(Optional.of(policies1)).when(policiesCache)
                 .get(AdminResource.path(POLICIES, property, cluster, ns1));
         Policies policies2 = new Policies();
-        policies2.replication_clusters = Lists.newArrayList("invalid-localCluster");
+        policies2.replication_clusters = Sets.newHashSet("invalid-localCluster");
         doReturn(Optional.of(policies2)).when(policiesCache)
                 .get(AdminResource.path(POLICIES, property, cluster, ns2));
 
