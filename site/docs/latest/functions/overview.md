@@ -55,6 +55,14 @@ $ bin/pulsar-functions localrun \
   --className org.apache.pulsar.functions.api.examples.ExclamationFunction
 ```
 
+## Fully Qualified Function Name (FQFN) {#fqfn}
+
+Each Pulsar Function has a **Fully Qualified Function Name** (FQFN) that consists of three elements: the function's {% popover tenant %}, {% popover namespace %}, and function name. FQFN's look like this:
+
+{% include fqfn.html tenant="tenant" namespace="namespace" name="name" %}
+
+FQFNs enable you to, for example, create multiple functions with the same name provided that they're in different namespaces.
+
 ## Configuration
 
 Pulsar Functions can be configured in two ways:
