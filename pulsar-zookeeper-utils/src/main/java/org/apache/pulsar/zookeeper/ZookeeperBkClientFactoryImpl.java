@@ -23,21 +23,21 @@ import static org.apache.bookkeeper.util.SafeRunnable.safeRun;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
-import org.apache.bookkeeper.common.util.OrderedScheduler;
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.zookeeper.BoundExponentialBackoffRetryPolicy;
 import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.ZooKeeper.States;
 
-import lombok.extern.slf4j.Slf4j;
-
 @Slf4j
 public class ZookeeperBkClientFactoryImpl implements ZooKeeperClientFactory {
 
-    private final OrderedScheduler executor;
+    private final OrderedExecutor executor;
 
-    public ZookeeperBkClientFactoryImpl(OrderedScheduler executor) {
+    public ZookeeperBkClientFactoryImpl(OrderedExecutor executor) {
         this.executor = executor;
     }
 
@@ -45,7 +45,7 @@ public class ZookeeperBkClientFactoryImpl implements ZooKeeperClientFactory {
     public CompletableFuture<ZooKeeper> create(String serverList, SessionType sessionType, int zkSessionTimeoutMillis) {
         CompletableFuture<ZooKeeper> future = new CompletableFuture<>();
 
-        executor.submit(safeRun(() -> {
+        executor.execute(safeRun(() -> {
             try {
                 ZooKeeper zk = ZooKeeperClient.newBuilder().connectString(serverList)
                         .sessionTimeoutMs(zkSessionTimeoutMillis)

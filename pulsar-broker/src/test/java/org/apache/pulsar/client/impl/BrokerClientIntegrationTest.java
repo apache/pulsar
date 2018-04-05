@@ -304,7 +304,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
                 .batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS).batchingMaxMessages(20).create();
 
         // update consumer's version to incompatible batch-message version = Version.V3
-        Topic topic = pulsar.getBrokerService().getTopic(topicName).get();
+        Topic topic = pulsar.getBrokerService().getOrCreateTopic(topicName).get();
         org.apache.pulsar.broker.service.Consumer brokerConsumer = topic.getSubscriptions().get(subscriptionName)
                 .getConsumers().get(0);
         Field cnxField = org.apache.pulsar.broker.service.Consumer.class.getDeclaredField("cnx");

@@ -1,7 +1,7 @@
 ---
 title: Getting started with Pulsar Functions
 lead: Write and run your first Pulsar Function in just a few steps
-new: true
+preview: true
 ---
 
 This tutorial will walk you through running a {% popover standalone %} Pulsar {% popover cluster %} on your machine and then running your first Pulsar Functions using that cluster. The first function will run in local run mode (outside your Pulsar {% popover cluster %}), while the second will run in cluster mode (inside your cluster).

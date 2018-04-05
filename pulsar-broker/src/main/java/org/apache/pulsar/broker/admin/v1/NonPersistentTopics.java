@@ -18,7 +18,16 @@
  */
 package org.apache.pulsar.broker.admin.v1;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import com.google.common.collect.Lists;
+
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
+
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.Encoded;
@@ -31,15 +40,14 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
 
-import com.google.common.collect.Lists;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.Constants;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
@@ -48,15 +56,6 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
-
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 /**
  */
@@ -255,12 +254,7 @@ public class NonPersistentTopics extends PersistentTopics {
     }
 
     private Topic getTopicReference(TopicName topicName) {
-        try {
-            Topic topic = pulsar().getBrokerService().getTopicReference(topicName.toString());
-            checkNotNull(topic);
-            return topic;
-        } catch (Exception e) {
-            throw new RestException(Status.NOT_FOUND, "Topic not found");
-        }
+        return pulsar().getBrokerService().getTopicIfExists(topicName.toString()).join()
+                .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Topic not found"));
     }
 }

@@ -193,7 +193,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public void setNamespaceReplicationClusters(String namespace, List<String> clusterIds) throws PulsarAdminException {
+    public void setNamespaceReplicationClusters(String namespace, Set<String> clusterIds) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "replication");
