@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.broker.admin.v2;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
 
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.Encoded;
@@ -42,12 +44,6 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
 
 /**
  */
@@ -148,12 +144,7 @@ public class NonPersistentTopics extends PersistentTopics {
     }
 
     private Topic getTopicReference(TopicName topicName) {
-        try {
-            Topic topic = pulsar().getBrokerService().getTopicReference(topicName.toString());
-            checkNotNull(topic);
-            return topic;
-        } catch (Exception e) {
-            throw new RestException(Status.NOT_FOUND, "Topic not found");
-        }
+        return pulsar().getBrokerService().getTopicIfExists(topicName.toString()).join()
+                .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Topic not found"));
     }
 }

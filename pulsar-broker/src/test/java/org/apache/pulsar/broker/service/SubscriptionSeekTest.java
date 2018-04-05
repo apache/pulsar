@@ -60,7 +60,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName("my-subscription").receiverQueueSize(0).subscribe();
 
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
         assertEquals(topicRef.getProducers().size(), 1);
         assertEquals(topicRef.getSubscriptions().size(), 1);

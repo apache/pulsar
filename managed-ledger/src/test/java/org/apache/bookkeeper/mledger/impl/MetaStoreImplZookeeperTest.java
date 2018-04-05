@@ -85,7 +85,7 @@ public class MetaStoreImplZookeeperTest extends MockedBookKeeperTestCase {
 
         final CountDownLatch latch = new CountDownLatch(1);
 
-        store.getManagedLedgerInfo("my_test", new MetaStoreCallback<MLDataFormats.ManagedLedgerInfo>() {
+        store.getManagedLedgerInfo("my_test", false, new MetaStoreCallback<MLDataFormats.ManagedLedgerInfo>() {
             public void operationFailed(MetaStoreException e) {
                 // Ok
                 latch.countDown();
@@ -131,7 +131,7 @@ public class MetaStoreImplZookeeperTest extends MockedBookKeeperTestCase {
 
         zkc.failAfter(1, Code.CONNECTIONLOSS);
 
-        store.getManagedLedgerInfo("my_test", new MetaStoreCallback<MLDataFormats.ManagedLedgerInfo>() {
+        store.getManagedLedgerInfo("my_test", false, new MetaStoreCallback<MLDataFormats.ManagedLedgerInfo>() {
             public void operationFailed(MetaStoreException e) {
                 // Ok
                 latch.countDown();
@@ -189,7 +189,7 @@ public class MetaStoreImplZookeeperTest extends MockedBookKeeperTestCase {
 
         final CountDownLatch latch = new CountDownLatch(1);
 
-        store.getManagedLedgerInfo("my_test", new MetaStoreCallback<ManagedLedgerInfo>() {
+        store.getManagedLedgerInfo("my_test", false, new MetaStoreCallback<ManagedLedgerInfo>() {
             public void operationFailed(MetaStoreException e) {
                 fail("should have succeeded");
             }

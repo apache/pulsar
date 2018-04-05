@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.bookkeeper.common.util.OrderedExecutor;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.BadVersionException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
@@ -128,36 +129,48 @@ public class MetaStoreImplZookeeper implements MetaStore {
     }
 
     @Override
-    public void getManagedLedgerInfo(final String ledgerName, final MetaStoreCallback<ManagedLedgerInfo> callback) {
+    public void getManagedLedgerInfo(final String ledgerName, boolean createIfMissing,
+            final MetaStoreCallback<ManagedLedgerInfo> callback) {
         // Try to get the content or create an empty node
         zk.getData(prefix + ledgerName, false,
                 (rc, path, ctx, readData, stat) -> executor.executeOrdered(ledgerName, safeRun(() -> {
-            if (rc == Code.OK.intValue()) {
-                try {
-                    ManagedLedgerInfo info = parseManagedLedgerInfo(readData);
-                    info = updateMLInfoTimestamp(info);
-                    callback.operationComplete(info, new ZKStat(stat));
-                } catch (ParseException | InvalidProtocolBufferException e) {
-                    callback.operationFailed(new MetaStoreException(e));
-                }
-            } else if (rc == Code.NONODE.intValue()) {
-                log.info("Creating '{}{}'", prefix, ledgerName);
+                    if (rc == Code.OK.intValue()) {
+                        try {
+                            ManagedLedgerInfo info = parseManagedLedgerInfo(readData);
+                            info = updateMLInfoTimestamp(info);
+                            callback.operationComplete(info, new ZKStat(stat));
+                        } catch (ParseException | InvalidProtocolBufferException e) {
+                            callback.operationFailed(new MetaStoreException(e));
+                        }
+                    } else if (rc == Code.NONODE.intValue()) {
+                        // Z-node doesn't exist
+                        if (createIfMissing) {
+                            log.info("Creating '{}{}'", prefix, ledgerName);
 
-                StringCallback createcb = (rc1, path1, ctx1, name) -> {
-                    if (rc1 == Code.OK.intValue()) {
-                        ManagedLedgerInfo info = ManagedLedgerInfo.getDefaultInstance();
-                        callback.operationComplete(info, new ZKStat());
+                            StringCallback createcb = (rc1, path1, ctx1, name) -> {
+                                if (rc1 == Code.OK.intValue()) {
+                                    ManagedLedgerInfo info = ManagedLedgerInfo.getDefaultInstance();
+                                    callback.operationComplete(info, new ZKStat());
+                                } else {
+                                    callback.operationFailed(
+                                            new MetaStoreException(KeeperException.create(Code.get(rc1))));
+                                }
+                            };
+
+                            ZkUtils.asyncCreateFullPathOptimistic(zk, prefix + ledgerName, new byte[0], Acl,
+                                    CreateMode.PERSISTENT, createcb, null);
+                        } else {
+                            // Tried to open a managed ledger but it doesn't exist and we shouldn't creating it at this
+                            // point
+
+                            callback.operationFailed(new ManagedLedgerException.MetadataNotFoundException(
+                                    KeeperException.create(Code.get(rc))));
+                        }
                     } else {
-                        callback.operationFailed(new MetaStoreException(KeeperException.create(Code.get(rc1))));
+                        // Other ZK error
+                        callback.operationFailed(new MetaStoreException(KeeperException.create(Code.get(rc))));
                     }
-                };
-
-                ZkUtils.asyncCreateFullPathOptimistic(zk, prefix + ledgerName, new byte[0], Acl, CreateMode.PERSISTENT,
-                        createcb, null);
-            } else {
-                callback.operationFailed(new MetaStoreException(KeeperException.create(Code.get(rc))));
-            }
-        })), null);
+                })), null);
     }
 
     @Override
