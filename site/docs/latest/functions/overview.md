@@ -321,9 +321,11 @@ public class ConfigMapFunction implements Function<String, Void> {
 }
 ```
 
-### Function triggering
+### Triggering Pulsar Functions {#triggering}
 
 Pulsar Functions running in [cluster mode](#cluster-mode) can be [triggered](../deployment#triggering) via the [command line](#cli). With triggering you can easily pass a specific value to a function and get the function's return value *without* needing to worry about creating a client, sending a message to the right input topic, etc. Triggering can be very useful for---but is by no means limited to---testing and debugging purposes.
+
+{% include admonition.html type="info" content="Triggering a function is ultimately no different from invoking a function by producing a message on one of the function's input topics. The [`pulsar-admin functions trigger`](../../CliTools#pulsar-admin-functions-trigger) command is essentially a convenient mechanism for sending messages to functions without needing to use the [`pulsar-client`](../../CliTools#pulsar-client) tool or a language-specific client library." %}
 
 Let's take an example Pulsar Function written in Python (using the [native interface](../api#python-native)) that simply reverses string inputs:
 
