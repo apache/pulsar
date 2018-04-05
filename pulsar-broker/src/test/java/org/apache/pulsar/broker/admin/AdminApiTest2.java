@@ -54,6 +54,7 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
@@ -62,6 +63,7 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -88,7 +90,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         // Setup namespaces
         admin.clusters().createCluster("use", new ClusterData("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT));
-        PropertyAdmin propertyAdmin = new PropertyAdmin(Lists.newArrayList("role1", "role2"), Sets.newHashSet("use"));
+        PropertyAdmin propertyAdmin = new PropertyAdmin(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use"));
         admin.properties().createProperty("prop-xyz", propertyAdmin);
         admin.namespaces().createNamespace("prop-xyz/use/ns1");
     }
@@ -599,7 +601,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         final String property = "peer-prop";
         Set<String> allowedClusters = Sets.newHashSet("us-west1", "us-west2", "us-west3", "us-west4", "us-east1",
                 "us-east2");
-        PropertyAdmin propConfig = new PropertyAdmin(Lists.newArrayList("test"), allowedClusters);
+        PropertyAdmin propConfig = new PropertyAdmin(Sets.newHashSet("test"), allowedClusters);
         admin.properties().createProperty(property, propConfig);
 
         final String namespace = property + "/global/conflictPeer";
@@ -611,11 +613,11 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
                 Lists.newArrayList("us-west2", "us-west3"));
 
         // (1) no conflicting peer
-        List<String> clusterIds = Lists.newArrayList("us-east1", "us-east2");
+        Set<String> clusterIds = Sets.newHashSet("us-east1", "us-east2");
         admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
 
         // (2) conflicting peer
-        clusterIds = Lists.newArrayList("us-west2", "us-west3", "us-west1");
+        clusterIds = Sets.newHashSet("us-west2", "us-west3", "us-west1");
         try {
             admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
             fail("Peer-cluster can't coexist in replication cluster list");
@@ -623,11 +625,11 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
             // Ok
         }
 
-        clusterIds = Lists.newArrayList("us-west2", "us-west3");
+        clusterIds = Sets.newHashSet("us-west2", "us-west3");
         // no peer coexist in replication clusters
         admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
 
-        clusterIds = Lists.newArrayList("us-west1", "us-west4");
+        clusterIds = Sets.newHashSet("us-west1", "us-west4");
         // no peer coexist in replication clusters
         admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
     }
@@ -721,5 +723,50 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         assertEquals(topicsInNs.size(), totalTopics);
         topicsInNs.removeAll(topicNames);
         assertEquals(topicsInNs.size(), 0);
+    }
+
+    @Test
+    public void testPublishConsumerStats() throws Exception {
+        final String topicName = "statTopic";
+        final String subscriberName = topicName + "-my-sub-1";
+        final String topic = "persistent://prop-xyz/use/ns1/" + topicName;
+        final String producerName = "myProducer";
+
+        URL pulsarUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
+
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).build();
+        Consumer<byte[]> consumer = client.newConsumer().topic(topic).subscriptionName(subscriberName)
+                .subscriptionType(SubscriptionType.Shared).subscribe();
+        Producer<byte[]> producer = client.newProducer().topic(topic).producerName(producerName).create();
+
+        retryStrategically((test) -> {
+            PersistentTopicStats stats;
+            try {
+                stats = admin.persistentTopics().getStats(topic);
+                return stats.publishers.size() > 0 && stats.subscriptions.get(subscriberName) != null
+                        && stats.subscriptions.get(subscriberName).consumers.size() > 0;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 5, 200);
+
+        PersistentTopicStats topicStats = admin.persistentTopics().getStats(topic);
+        assertEquals(topicStats.publishers.size(), 1);
+        assertNotNull(topicStats.publishers.get(0).getAddress());
+        assertNotNull(topicStats.publishers.get(0).getClientVersion());
+        assertNotNull(topicStats.publishers.get(0).getConnectedSince());
+        assertNotNull(topicStats.publishers.get(0).getProducerName());
+        assertEquals(topicStats.publishers.get(0).getProducerName(), producerName);
+
+        SubscriptionStats subscriber = topicStats.subscriptions.get(subscriberName);
+        assertNotNull(subscriber);
+        assertEquals(subscriber.consumers.size(), 1);
+        ConsumerStats consumerStats = subscriber.consumers.get(0);
+        assertNotNull(consumerStats.getAddress());
+        assertNotNull(consumerStats.getClientVersion());
+        assertNotNull(consumerStats.getConnectedSince());
+
+        producer.close();
+        consumer.close();
     }
 }

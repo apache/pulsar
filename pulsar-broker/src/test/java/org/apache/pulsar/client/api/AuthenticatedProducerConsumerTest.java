@@ -18,8 +18,19 @@
  */
 package org.apache.pulsar.client.api;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
+
+import java.net.URI;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+
+import javax.ws.rs.InternalServerErrorException;
+
 import org.apache.pulsar.broker.authentication.AuthenticationProviderBasic;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -37,13 +48,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import javax.ws.rs.InternalServerErrorException;
-import java.net.URI;
-import java.util.*;
-import java.util.concurrent.TimeUnit;
-
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.spy;
+import com.google.common.collect.Sets;
 
 public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(AuthenticatedProducerConsumerTest.class);
@@ -164,7 +169,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         internalSetup(authTls);
 
         admin.properties().createProperty("my-property",
-                new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("use")));
+                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
         admin.namespaces().createNamespace("my-property/use/my-ns");
 
         testSyncProducerAndConsumer(batchMessageDelayMs);
@@ -180,7 +185,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         internalSetup(authPassword);
 
         admin.properties().createProperty("my-property",
-                new PropertyAdmin(Lists.newArrayList(), Sets.newHashSet("use")));
+                new PropertyAdmin(Sets.newHashSet(), Sets.newHashSet("use")));
         admin.namespaces().createNamespace("my-property/use/my-ns");
 
         testSyncProducerAndConsumer(batchMessageDelayMs);
@@ -196,7 +201,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         internalSetup(authPassword);
 
         admin.properties().createProperty("my-property",
-                new PropertyAdmin(Lists.newArrayList(), Sets.newHashSet("use")));
+                new PropertyAdmin(Sets.newHashSet(), Sets.newHashSet("use")));
         admin.namespaces().createNamespace("my-property/use/my-ns");
 
         testSyncProducerAndConsumer(batchMessageDelayMs);
@@ -218,7 +223,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         admin.clusters().createCluster("use", new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
                 "pulsar://localhost:" + BROKER_PORT, "pulsar+ssl://localhost:" + BROKER_PORT_TLS));
         admin.properties().createProperty("my-property",
-                new PropertyAdmin(Lists.newArrayList("anonymousUser"), Sets.newHashSet("use")));
+                new PropertyAdmin(Sets.newHashSet("anonymousUser"), Sets.newHashSet("use")));
 
         // make a PulsarAdmin instance as "anonymousUser" for http request
         admin.close();
@@ -297,7 +302,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         admin.clusters().createCluster("use", new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
                 "pulsar://localhost:" + BROKER_PORT, "pulsar+ssl://localhost:" + BROKER_PORT_TLS));
         admin.properties().createProperty("my-property",
-                new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("use")));
+                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
         String namespace = "my-property/use/my-ns";
         admin.namespaces().createNamespace(namespace);
 

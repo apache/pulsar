@@ -900,4 +900,13 @@ public interface PersistentTopics {
      *            reset subscription to messageId (or previous nearest messageId if given messageId is not valid)
      */
     CompletableFuture<Void> resetCursorAsync(String topic, String subName, MessageId messageId);
+
+    /**
+     * Trigger compaction to run for a topic. A single topic can only have one instance of compaction
+     * running at any time. Any attempt to trigger another will be met with a ConflictException.
+     *
+     * @param topic
+     *            The topic on which to trigger compaction
+     */
+    void triggerCompaction(String topic) throws PulsarAdminException;
 }

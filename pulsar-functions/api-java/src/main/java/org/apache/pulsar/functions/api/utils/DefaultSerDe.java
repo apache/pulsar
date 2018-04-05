@@ -59,6 +59,8 @@ public class DefaultSerDe implements SerDe<Object> {
             return Double.valueOf(data);
         } else if (type.equals(Long.class)) {
             return Long.valueOf(data);
+        } else if (type.equals(Boolean.class)) {
+            return Boolean.valueOf(data);
         } else if (type.equals(String.class)) {
             return data;
         } else if (type.equals(Short.class)) {
@@ -82,6 +84,8 @@ public class DefaultSerDe implements SerDe<Object> {
             return ((Double) input).toString().getBytes(StandardCharsets.UTF_8);
         } else if (type.equals(Long.class)) {
             return ((Long) input).toString().getBytes(StandardCharsets.UTF_8);
+        } else if (type.equals(Boolean.class)) {
+            return ((Boolean) input).toString().getBytes(StandardCharsets.UTF_8);
         } else if (type.equals(String.class)) {
             return ((String) input).getBytes(StandardCharsets.UTF_8);
         } else if (type.equals(Short.class)) {
