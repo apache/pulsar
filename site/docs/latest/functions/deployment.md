@@ -104,7 +104,7 @@ $ bin/pulsar-admin functions update \
   --functionConfigFile function-config.yaml
 ```
 
-## Triggering functions
+## Triggering functions {#triggering}
 
 Whether a Pulsar Function is running in [local run](#local-run) or [cluster](#cluster-mode), you can **trigger** the function at any time using the command line. Triggering a function means that you send a message with a specific value to the function.
 

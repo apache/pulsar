@@ -167,7 +167,7 @@ Pulsar Functions can currently be written in [Java](../../functions/api#java) an
 * SerDe (built-in vs. custom)
 * Pulsar messages are always just bytes, but Pulsar Functions handles data types for you *unless* you need custom types
 
-## Function context {#context}
+### Function context {#context}
 
 Each Pulsar Function created using the [Pulsar Functions SDK](#sdk) has access to a context object that both provides:
 
@@ -320,6 +320,31 @@ public class ConfigMapFunction implements Function<String, Void> {
     }
 }
 ```
+
+### Function triggering
+
+Pulsar Functions running in [cluster mode](#cluster-mode) can be [triggered](../deployment#triggering) via the [command line](#cli). With triggering you can easily pass a specific value to a function and get the function's return value *without* needing to worry about creating a client, sending a message to the right input topic, etc. Triggering can be very useful for---but is by no means limited to---testing and debugging purposes.
+
+Let's take an example Pulsar Function written in Python (using the [native interface](../api#python-native)) that simply reverses string inputs:
+
+```python
+def process(input):
+    return input[::-1]
+```
+
+If that function were running in a Pulsar cluster, it could be triggered like this:
+
+```bash
+$ bin/pulsar-admin functions trigger \
+  --tenant sample \
+  --namespace ns1 \
+  --name reverse-func \
+  --triggerValue "snoitcnuf raslup ot emoclew"
+```
+
+That should return `welcome to pulsar functions` as the console output.
+
+{% include admonition.html type="success" content="Instead of passing in a string via the CLI, you can also trigger a Pulsar Function with the contents of a file using the `--triggerFile` flag." %}
 
 ## Processing guarantees {#guarantees}
 
