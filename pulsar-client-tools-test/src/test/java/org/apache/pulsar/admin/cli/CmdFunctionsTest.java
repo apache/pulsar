@@ -246,6 +246,7 @@ public class CmdFunctionsTest {
                 "--inputs", inputTopicName,
                 "--output", outputTopicName,
                 "--fqfn", fqfn,
+                "--jar", "SomeJar.jar",
                 "--className", DummyFunction.class.getName(),
         });
 
