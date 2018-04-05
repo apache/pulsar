@@ -230,7 +230,7 @@ public class PulsarStandaloneStarter {
 
             if (!admin.properties().getProperties().contains(property)) {
                 admin.properties().createProperty(property,
-                        new PropertyAdmin(Lists.newArrayList(config.getSuperUserRoles()), Sets.newHashSet(cluster)));
+                        new PropertyAdmin(Sets.newHashSet(config.getSuperUserRoles()), Sets.newHashSet(cluster)));
             }
 
             if (!admin.namespaces().getNamespaces(property).contains(namespace)) {

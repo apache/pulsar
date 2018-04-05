@@ -53,6 +53,16 @@ public class DefaultSerDeTest {
     }
 
     @Test
+    public void testBooleanSerDe() {
+        DefaultSerDe serializer = new DefaultSerDe(Boolean.class);
+        DefaultSerDe deserializer = new DefaultSerDe(Boolean.class);
+        Boolean input = Boolean.TRUE;
+        byte[] output = serializer.serialize(input);
+        Boolean result = (Boolean) deserializer.deserialize(output);
+        assertEquals(result, input);
+    }
+    
+    @Test
     public void testDoubleSerDe() {
         DefaultSerDe serializer = new DefaultSerDe(Double.class);
         DefaultSerDe deserializer = new DefaultSerDe(Double.class);
