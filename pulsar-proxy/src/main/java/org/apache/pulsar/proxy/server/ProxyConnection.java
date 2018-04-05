@@ -40,8 +40,6 @@ import org.slf4j.LoggerFactory;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandler;
-import io.netty.channel.ChannelPipeline;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.FutureListener;
@@ -87,6 +85,10 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             .build("pulsar_proxy_new_connections", "Counter of connections being opened in the proxy").create()
             .register();
 
+    static final Counter rejectedConnections = Counter
+            .build("pulsar_proxy_rejected_connections", "Counter for connections rejected due to throttling").create()
+            .register();
+    
     public ProxyConnection(ProxyService proxyService) {
         super(30, TimeUnit.SECONDS);
         this.service = proxyService;
@@ -98,10 +100,8 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
         super.channelRegistered(ctx);
         activeConnections.inc();
         if (activeConnections.get() > service.getConfiguration().getMaxConcurrentInboundConnections()) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("[{}] Too many connection opened {}", remoteAddress, activeConnections.get());
-            }
             ctx.close();
+            rejectedConnections.inc();
             return;
         }
     }

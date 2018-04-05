@@ -52,9 +52,9 @@ import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.admin.v1.BrokerStats;
 import org.apache.pulsar.broker.admin.v1.Brokers;
 import org.apache.pulsar.broker.admin.v1.Clusters;
-import org.apache.pulsar.broker.admin.v1.Properties;
 import org.apache.pulsar.broker.admin.v1.Namespaces;
 import org.apache.pulsar.broker.admin.v1.PersistentTopics;
+import org.apache.pulsar.broker.admin.v1.Properties;
 import org.apache.pulsar.broker.admin.v1.ResourceQuotas;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
@@ -204,10 +204,10 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
     @Test
     void clusters() throws Exception {
-        assertEquals(clusters.getClusters(), Lists.newArrayList(configClusterName));
+        assertEquals(clusters.getClusters(), Lists.newArrayList());
         verify(clusters, never()).validateSuperUserAccess();
 
-        clusters.updateCluster("use", new ClusterData("http://broker.messaging.use.example.com"));
+        clusters.createCluster("use", new ClusterData("http://broker.messaging.use.example.com"));
         verify(clusters, times(1)).validateSuperUserAccess();
         // ensure to read from ZooKeeper directly
         clusters.clustersListCache().clear();
@@ -358,7 +358,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         verify(properties, times(1)).validateSuperUserAccess();
 
         Set<String> allowedClusters = Sets.newHashSet();
-        PropertyAdmin propertyAdmin = new PropertyAdmin(Lists.newArrayList("role1", "role2"), allowedClusters);
+        PropertyAdmin propertyAdmin = new PropertyAdmin(Sets.newHashSet("role1", "role2"), allowedClusters);
         properties.createProperty("test-property", propertyAdmin);
         verify(properties, times(2)).validateSuperUserAccess();
 
@@ -368,7 +368,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertEquals(properties.getPropertyAdmin("test-property"), propertyAdmin);
         verify(properties, times(4)).validateSuperUserAccess();
 
-        PropertyAdmin newPropertyAdmin = new PropertyAdmin(Lists.newArrayList("role1", "other-role"), allowedClusters);
+        PropertyAdmin newPropertyAdmin = new PropertyAdmin(Sets.newHashSet("role1", "other-role"), allowedClusters);
         properties.updateProperty("test-property", newPropertyAdmin);
         verify(properties, times(5)).validateSuperUserAccess();
 
@@ -465,8 +465,8 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertEquals(properties.getProperties(), Lists.newArrayList());
 
         // Create a namespace to test deleting a non-empty property
-        clusters.updateCluster("use", new ClusterData());
-        newPropertyAdmin = new PropertyAdmin(Lists.newArrayList("role1", "other-role"), Sets.newHashSet("use"));
+        clusters.createCluster("use", new ClusterData());
+        newPropertyAdmin = new PropertyAdmin(Sets.newHashSet("role1", "other-role"), Sets.newHashSet("use"));
         properties.createProperty("my-property", newPropertyAdmin);
 
         namespaces.createNamespace("my-property", "use", "my-namespace", new BundlesData());
@@ -492,7 +492,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
     @Test
     void brokers() throws Exception {
-        clusters.updateCluster("use", new ClusterData("http://broker.messaging.use.example.com",
+        clusters.createCluster("use", new ClusterData("http://broker.messaging.use.example.com",
                 "https://broker.messaging.use.example.com:4443"));
 
         URI requestUri = new URI(

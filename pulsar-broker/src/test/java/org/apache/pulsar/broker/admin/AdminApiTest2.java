@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.admin;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -54,6 +55,7 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
@@ -62,6 +64,7 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -88,7 +91,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         // Setup namespaces
         admin.clusters().createCluster("use", new ClusterData("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT));
-        PropertyAdmin propertyAdmin = new PropertyAdmin(Lists.newArrayList("role1", "role2"), Sets.newHashSet("use"));
+        PropertyAdmin propertyAdmin = new PropertyAdmin(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use"));
         admin.properties().createProperty("prop-xyz", propertyAdmin);
         admin.namespaces().createNamespace("prop-xyz/use/ns1");
     }
@@ -325,7 +328,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-sub").subscribe();
 
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName).get();
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) topic.getManagedLedger();
         ManagedCursorImpl cursor = (ManagedCursorImpl) managedLedger.getCursors().iterator().next();
 
@@ -362,31 +365,29 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         producer.close();
 
-        Topic topic = pulsar.getBrokerService().getTopicReference(topicName);
-        assertNotNull(topic);
+        Topic topic = pulsar.getBrokerService().getTopicIfExists(topicName).join().get();
         final boolean isPersistentTopic = topic instanceof PersistentTopic;
 
         // (1) unload the topic
         unloadTopic(topicName, isPersistentTopic);
-        topic = pulsar.getBrokerService().getTopicReference(topicName);
-        // topic must be removed
-        assertNull(topic);
+
+        // topic must be removed from map
+        assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
 
         // recreation of producer will load the topic again
         producer = pulsarClient.newProducer().topic(topicName).create();
-        topic = pulsar.getBrokerService().getTopicReference(topicName);
+        topic = pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topic);
         // unload the topic
         unloadTopic(topicName, isPersistentTopic);
         // producer will retry and recreate the topic
         for (int i = 0; i < 5; i++) {
-            topic = pulsar.getBrokerService().getTopicReference(topicName);
-            if (topic == null || i != 4) {
+            if (!pulsar.getBrokerService().getTopicReference(topicName).isPresent() || i != 4) {
                 Thread.sleep(200);
             }
         }
         // topic should be loaded by this time
-        topic = pulsar.getBrokerService().getTopicReference(topicName);
+        topic = pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topic);
     }
 
@@ -599,7 +600,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         final String property = "peer-prop";
         Set<String> allowedClusters = Sets.newHashSet("us-west1", "us-west2", "us-west3", "us-west4", "us-east1",
                 "us-east2");
-        PropertyAdmin propConfig = new PropertyAdmin(Lists.newArrayList("test"), allowedClusters);
+        PropertyAdmin propConfig = new PropertyAdmin(Sets.newHashSet("test"), allowedClusters);
         admin.properties().createProperty(property, propConfig);
 
         final String namespace = property + "/global/conflictPeer";
@@ -611,11 +612,11 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
                 Lists.newArrayList("us-west2", "us-west3"));
 
         // (1) no conflicting peer
-        List<String> clusterIds = Lists.newArrayList("us-east1", "us-east2");
+        Set<String> clusterIds = Sets.newHashSet("us-east1", "us-east2");
         admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
 
         // (2) conflicting peer
-        clusterIds = Lists.newArrayList("us-west2", "us-west3", "us-west1");
+        clusterIds = Sets.newHashSet("us-west2", "us-west3", "us-west1");
         try {
             admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
             fail("Peer-cluster can't coexist in replication cluster list");
@@ -623,11 +624,11 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
             // Ok
         }
 
-        clusterIds = Lists.newArrayList("us-west2", "us-west3");
+        clusterIds = Sets.newHashSet("us-west2", "us-west3");
         // no peer coexist in replication clusters
         admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
 
-        clusterIds = Lists.newArrayList("us-west1", "us-west4");
+        clusterIds = Sets.newHashSet("us-west1", "us-west4");
         // no peer coexist in replication clusters
         admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
     }
@@ -636,7 +637,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     public void clusterFailureDomain() throws PulsarAdminException {
 
         final String cluster = pulsar.getConfiguration().getClusterName();
-        admin.clusters().updateCluster(cluster,
+        admin.clusters().createCluster(cluster,
                 new ClusterData(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls()));
         // create
         FailureDomain domain = new FailureDomain();
@@ -713,7 +714,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         }
 
         for (int i = 0; i < totalTopics; i++) {
-            Topic topic = pulsar.getBrokerService().getTopicReference(topicName + i);
+            Topic topic = pulsar.getBrokerService().getTopicReference(topicName + i).get();
             assertNotNull(topic);
         }
 
@@ -721,5 +722,50 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         assertEquals(topicsInNs.size(), totalTopics);
         topicsInNs.removeAll(topicNames);
         assertEquals(topicsInNs.size(), 0);
+    }
+
+    @Test
+    public void testPublishConsumerStats() throws Exception {
+        final String topicName = "statTopic";
+        final String subscriberName = topicName + "-my-sub-1";
+        final String topic = "persistent://prop-xyz/use/ns1/" + topicName;
+        final String producerName = "myProducer";
+
+        URL pulsarUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
+
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).build();
+        Consumer<byte[]> consumer = client.newConsumer().topic(topic).subscriptionName(subscriberName)
+                .subscriptionType(SubscriptionType.Shared).subscribe();
+        Producer<byte[]> producer = client.newProducer().topic(topic).producerName(producerName).create();
+
+        retryStrategically((test) -> {
+            PersistentTopicStats stats;
+            try {
+                stats = admin.persistentTopics().getStats(topic);
+                return stats.publishers.size() > 0 && stats.subscriptions.get(subscriberName) != null
+                        && stats.subscriptions.get(subscriberName).consumers.size() > 0;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 5, 200);
+
+        PersistentTopicStats topicStats = admin.persistentTopics().getStats(topic);
+        assertEquals(topicStats.publishers.size(), 1);
+        assertNotNull(topicStats.publishers.get(0).getAddress());
+        assertNotNull(topicStats.publishers.get(0).getClientVersion());
+        assertNotNull(topicStats.publishers.get(0).getConnectedSince());
+        assertNotNull(topicStats.publishers.get(0).getProducerName());
+        assertEquals(topicStats.publishers.get(0).getProducerName(), producerName);
+
+        SubscriptionStats subscriber = topicStats.subscriptions.get(subscriberName);
+        assertNotNull(subscriber);
+        assertEquals(subscriber.consumers.size(), 1);
+        ConsumerStats consumerStats = subscriber.consumers.get(0);
+        assertNotNull(consumerStats.getAddress());
+        assertNotNull(consumerStats.getClientVersion());
+        assertNotNull(consumerStats.getConnectedSince());
+
+        producer.close();
+        consumer.close();
     }
 }

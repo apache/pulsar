@@ -146,6 +146,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // default message-byte dispatch-throttling
     @FieldContext(dynamic = true)
     private long dispatchThrottlingRatePerTopicInByte = 0;
+    // Default number of message dispatching throttling-limit for a subscription.
+    // Using a value of 0, is disabling.
+    @FieldContext(dynamic = true)
+    private int dispatchThrottlingRatePerSubscriptionInMsg = 0;
+    // Default number of message-bytes dispatching throttling-limit for a subscription.
+    // Using a value of 0, is disabling.
+    @FieldContext(dynamic = true)
+    private long dispatchThrottlingRatePerSubscribeInByte = 0;
     // Default dispatch-throttling is disabled for consumers which already caught-up with published messages and
     // don't have backlog. This enables dispatch-throttling for non-backlog consumers as well.
     @FieldContext(dynamic = true)
@@ -357,7 +365,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean loadBalancerSheddingEnabled = true;
     // Load shedding interval. Broker periodically checks whether some traffic should be offload from some over-loaded
     // broker to other under-loaded brokers
-    private int loadBalancerSheddingIntervalMinutes = 5;
+    private int loadBalancerSheddingIntervalMinutes = 1;
     // Prevent the same topics to be shed and moved to other broker more that
     // once within this timeframe
     private long loadBalancerSheddingGracePeriodMinutes = 30;
@@ -367,7 +375,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Usage threshold to allocate max number of topics to broker
     @FieldContext(dynamic = true)
     private int loadBalancerBrokerMaxTopics = 50000;
+
     // Usage threshold to determine a broker as over-loaded
+    @FieldContext(dynamic = true)
     private int loadBalancerBrokerOverloadedThresholdPercentage = 85;
     // Interval to flush dynamic resource quota to ZooKeeper
     private int loadBalancerResourceQuotaUpdateIntervalMinutes = 15;
@@ -703,6 +713,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setDispatchThrottlingRatePerTopicInByte(long dispatchThrottlingRatePerTopicInByte) {
         this.dispatchThrottlingRatePerTopicInByte = dispatchThrottlingRatePerTopicInByte;
+    }
+
+    public int getDispatchThrottlingRatePerSubscriptionInMsg() {
+        return dispatchThrottlingRatePerSubscriptionInMsg;
+    }
+
+    public void setDispatchThrottlingRatePerSubscriptionInMsg(int dispatchThrottlingRatePerSubscriptionInMsg) {
+        this.dispatchThrottlingRatePerSubscriptionInMsg = dispatchThrottlingRatePerSubscriptionInMsg;
+    }
+
+    public long getDispatchThrottlingRatePerSubscribeInByte() {
+        return dispatchThrottlingRatePerSubscribeInByte;
+    }
+
+    public void setDispatchThrottlingRatePerSubscribeInByte(long dispatchThrottlingRatePerSubscribeInByte) {
+        this.dispatchThrottlingRatePerSubscribeInByte = dispatchThrottlingRatePerSubscribeInByte;
     }
 
     public boolean isDispatchThrottlingOnNonBacklogConsumerEnabled() {
@@ -1503,7 +1529,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public void setTlsCiphers(Set<String> tlsCiphers) {
         this.tlsCiphers = tlsCiphers;
     }
-    
+
     public boolean getTlsRequireTrustedClientCertOnConnect() {
         return tlsRequireTrustedClientCertOnConnect;
     }

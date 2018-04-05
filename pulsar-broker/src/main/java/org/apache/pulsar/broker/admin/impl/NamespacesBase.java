@@ -141,7 +141,7 @@ public abstract class NamespacesBase extends AdminResource {
                 if (policies.replication_clusters.size() == 1
                         && !policies.replication_clusters.contains(config().getClusterName())) {
                     // the only replication cluster is other cluster, redirect
-                    String replCluster = policies.replication_clusters.get(0);
+                    String replCluster = Lists.newArrayList(policies.replication_clusters).get(0);
                     ClusterData replClusterData = clustersCache().get(AdminResource.path("clusters", replCluster))
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                                     "Cluster " + replCluster + " does not exist"));
@@ -242,7 +242,7 @@ public abstract class NamespacesBase extends AdminResource {
                 if (policies.replication_clusters.size() == 1
                         && !policies.replication_clusters.contains(config().getClusterName())) {
                     // the only replication cluster is other cluster, redirect
-                    String replCluster = policies.replication_clusters.get(0);
+                    String replCluster = Lists.newArrayList(policies.replication_clusters).get(0);
                     ClusterData replClusterData = clustersCache().get(AdminResource.path("clusters", replCluster))
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                                     "Cluser " + replCluster + " does not exist"));
@@ -346,7 +346,7 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected List<String> internalGetNamespaceReplicationClusters() {
+    protected Set<String> internalGetNamespaceReplicationClusters() {
         if (!namespaceName.isGlobal()) {
             throw new RestException(Status.PRECONDITION_FAILED,
                     "Cannot get the replication clusters for a non-global namespace");
@@ -388,7 +388,7 @@ public abstract class NamespacesBase extends AdminResource {
             // Force to read the data s.t. the watch to the cache content is setup.
             policiesNode = policiesCache().getWithStat(path(POLICIES, namespaceName.toString())).orElseThrow(
                     () -> new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist"));
-            policiesNode.getKey().replication_clusters = clusterIds;
+            policiesNode.getKey().replication_clusters = replicationClusterSet;
 
             // Write back the new policies into zookeeper
             globalZk().setData(path(POLICIES, namespaceName.toString()),
@@ -630,6 +630,56 @@ public abstract class NamespacesBase extends AdminResource {
         } else {
             throw new RestException(Status.NOT_FOUND,
                     "Dispatch-rate is not configured for cluster " + pulsar().getConfiguration().getClusterName());
+        }
+    }
+
+    protected void internalSetSubscriptionDispatchRate(DispatchRate dispatchRate) {
+        log.info("[{}] Set namespace subscription dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
+        validateSuperUserAccess();
+
+        Entry<Policies, Stat> policiesNode = null;
+
+        try {
+            final String path = path(POLICIES, namespaceName.toString());
+            // Force to read the data s.t. the watch to the cache content is setup.
+            policiesNode = policiesCache().getWithStat(path).orElseThrow(
+                () -> new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist"));
+            policiesNode.getKey().subscriptionDispatchRate.put(pulsar().getConfiguration().getClusterName(), dispatchRate);
+
+            // Write back the new policies into zookeeper
+            globalZk().setData(path, jsonMapper().writeValueAsBytes(policiesNode.getKey()),
+                policiesNode.getValue().getVersion());
+            policiesCache().invalidate(path);
+
+            log.info("[{}] Successfully updated the subscriptionDispatchRate for cluster on namespace {}", clientAppId(),
+                namespaceName);
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to update the subscriptionDispatchRate for cluster on namespace {}: does not exist",
+                clientAppId(), namespaceName);
+            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+        } catch (KeeperException.BadVersionException e) {
+            log.warn(
+                "[{}] Failed to update the subscriptionDispatchRate for cluster on namespace {} expected policy node version={} : concurrent modification",
+                clientAppId(), namespaceName, policiesNode.getValue().getVersion());
+
+            throw new RestException(Status.CONFLICT, "Concurrent modification");
+        } catch (Exception e) {
+            log.error("[{}] Failed to update the subscriptionDispatchRate for cluster on namespace {}", clientAppId(),
+                namespaceName, e);
+            throw new RestException(e);
+        }
+    }
+
+    protected DispatchRate internalGetSubscriptionDispatchRate() {
+        validateAdminAccessOnProperty(namespaceName.getProperty());
+
+        Policies policies = getNamespacePolicies(namespaceName);
+        DispatchRate dispatchRate = policies.subscriptionDispatchRate.get(pulsar().getConfiguration().getClusterName());
+        if (dispatchRate != null) {
+            return dispatchRate;
+        } else {
+            throw new RestException(Status.NOT_FOUND,
+                "Subscription-Dispatch-rate is not configured for cluster " + pulsar().getConfiguration().getClusterName());
         }
     }
 

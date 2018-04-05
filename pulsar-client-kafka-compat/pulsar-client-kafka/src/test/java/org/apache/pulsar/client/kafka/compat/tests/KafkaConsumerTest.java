@@ -249,6 +249,7 @@ public class KafkaConsumerTest extends BrokerTestBase {
         props.put("enable.auto.commit", "false");
         props.put("key.deserializer", StringDeserializer.class.getName());
         props.put("value.deserializer", StringDeserializer.class.getName());
+        props.put("pulsar.consumer.acknowledgments.group.time.millis", "0");
 
         Consumer<String, String> consumer = new PulsarKafkaConsumer<>(props);
         consumer.subscribe(Arrays.asList(topic));
@@ -305,6 +306,7 @@ public class KafkaConsumerTest extends BrokerTestBase {
         props.put("enable.auto.commit", "false");
         props.put("key.deserializer", StringDeserializer.class.getName());
         props.put("value.deserializer", StringDeserializer.class.getName());
+        props.put("pulsar.consumer.acknowledgments.group.time.millis", "0");
 
         Consumer<String, String> consumer = new PulsarKafkaConsumer<>(props);
         consumer.subscribe(Arrays.asList(topic));

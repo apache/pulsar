@@ -38,7 +38,6 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
@@ -94,7 +93,7 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
         String proxyAuthParams = "authParam:proxy";
 
         admin.properties().createProperty("my-property",
-                new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("use")));
+                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
         admin.namespaces().createNamespace(namespaceName);
         admin.namespaces().grantPermissionOnNamespace(namespaceName, "proxy",
                 Sets.newHashSet(AuthAction.consume, AuthAction.produce));
@@ -135,10 +134,8 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
 
     private void createAdminClient() throws PulsarClientException {
         String adminAuthParams = "authParam:admin";
-        org.apache.pulsar.client.api.ClientConfiguration clientConf = new org.apache.pulsar.client.api.ClientConfiguration();
-        clientConf.setAuthentication(BasicAuthentication.class.getName(), adminAuthParams);
-
-        admin = spy(new PulsarAdmin(brokerUrl, clientConf));
+        admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
+                .authentication(BasicAuthentication.class.getName(), adminAuthParams).build());
     }
 
     private PulsarClient createPulsarClient(String proxyServiceUrl, String authParams) throws PulsarClientException {

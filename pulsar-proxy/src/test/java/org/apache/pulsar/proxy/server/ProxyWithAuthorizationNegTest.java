@@ -47,7 +47,6 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import org.testng.collections.Maps;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
@@ -161,7 +160,7 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
         String namespaceName = "my-property/proxy-authorization-neg/my-ns";
 
         admin.properties().createProperty("my-property",
-                new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("proxy-authorization-neg")));
+                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("proxy-authorization-neg")));
         admin.namespaces().createNamespace(namespaceName);
 
         admin.namespaces().grantPermissionOnNamespace(namespaceName, "Proxy", Sets.newHashSet(AuthAction.produce));
@@ -220,16 +219,10 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
         Map<String, String> authParams = Maps.newHashMap();
         authParams.put("tlsCertFile", TLS_SUPERUSER_CLIENT_CERT_FILE_PATH);
         authParams.put("tlsKeyFile", TLS_SUPERUSER_CLIENT_KEY_FILE_PATH);
-        Authentication authTls = new AuthenticationTls();
-        authTls.configure(authParams);
-        org.apache.pulsar.client.api.ClientConfiguration clientConf = new org.apache.pulsar.client.api.ClientConfiguration();
-        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
-        clientConf.setTlsTrustCertsFilePath(TLS_BROKER_TRUST_CERT_FILE_PATH);
-        clientConf.setTlsAllowInsecureConnection(true);
-        clientConf.setAuthentication(authTls);
-        clientConf.setUseTls(true);
 
-        admin = spy(new PulsarAdmin(brokerUrlTls, clientConf));
+        admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrlTls.toString())
+                .tlsTrustCertsFilePath(TLS_BROKER_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(true)
+                .authentication(AuthenticationTls.class.getName(), authParams).build());
     }
 
     @SuppressWarnings("deprecation")

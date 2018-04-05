@@ -52,6 +52,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.admin.ZkAdminPaths;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
@@ -464,7 +465,9 @@ public class PersistentTopicsBase extends AdminResource {
     protected void internalDeleteTopic(boolean authoritative) {
         validateAdminOperationOnTopic(authoritative);
         Topic topic = getTopicReference(topicName);
-        if (topicName.isGlobal()) {
+
+        // v2 topics have a global name so check if the topic is replicated.
+        if (topic.isReplicated()) {
             // Delete is disallowed on global topic
             log.error("[{}] Delete topic is forbidden on global namespace {}", clientAppId(), topicName);
             throw new RestException(Status.FORBIDDEN, "Delete forbidden on global namespace");
@@ -1070,6 +1073,19 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
+    protected void internalTriggerCompaction(boolean authoritative) {
+        validateAdminOperationOnTopic(authoritative);
+
+        PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
+        try {
+            topic.triggerCompaction();
+        } catch (AlreadyRunningException e) {
+            throw new RestException(Status.CONFLICT, e.getMessage());
+        } catch (Exception e) {
+            throw new RestException(e);
+        }
+    }
+
     public static CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(PulsarService pulsar,
             String clientAppId, AuthenticationDataSource authenticationData, TopicName topicName) {
         CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
@@ -1120,21 +1136,12 @@ public class PersistentTopicsBase extends AdminResource {
      * Get the Topic object reference from the Pulsar broker
      */
     private Topic getTopicReference(TopicName topicName) {
-        try {
-            Topic topic = pulsar().getBrokerService().getTopicReference(topicName.toString());
-            checkNotNull(topic);
-            return topic;
-        } catch (Exception e) {
-            throw new RestException(Status.NOT_FOUND, "Topic not found");
-        }
+        return pulsar().getBrokerService().getTopicIfExists(topicName.toString()).join()
+                .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Topic not found"));
     }
 
     private Topic getOrCreateTopic(TopicName topicName) {
-        try {
-            return pulsar().getBrokerService().getTopic(topicName.toString()).get();
-        } catch (InterruptedException | ExecutionException e) {
-           throw new RestException(e);
-        }
+        return pulsar().getBrokerService().getOrCreateTopic(topicName.toString()).join();
     }
 
     /**

@@ -30,7 +30,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -48,7 +47,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
@@ -92,11 +90,11 @@ public class BacklogQuotaManagerTest {
             pulsar.start();
 
             adminUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
-            admin = new PulsarAdmin(adminUrl, (Authentication) null);
+            admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl.toString()).build();;
 
-            admin.clusters().updateCluster("usc", new ClusterData(adminUrl.toString()));
+            admin.clusters().createCluster("usc", new ClusterData(adminUrl.toString()));
             admin.properties().createProperty("prop",
-                    new PropertyAdmin(Lists.newArrayList("appid1"), Sets.newHashSet("usc")));
+                    new PropertyAdmin(Sets.newHashSet("appid1"), Sets.newHashSet("usc")));
             admin.namespaces().createNamespace("prop/usc/ns-quota");
             admin.namespaces().createNamespace("prop/usc/quotahold");
             admin.namespaces().createNamespace("prop/usc/quotaholdasync");

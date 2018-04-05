@@ -75,7 +75,7 @@ public class ResendRequestTest extends BrokerTestBase {
         // 1. producer connect
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
         assertEquals(topicRef.getProducers().size(), 1);
 
@@ -160,7 +160,7 @@ public class ResendRequestTest extends BrokerTestBase {
         final int totalMessages = 10;
         // 1. producer connect
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
         assertEquals(topicRef.getProducers().size(), 1);
 
@@ -240,13 +240,14 @@ public class ResendRequestTest extends BrokerTestBase {
         final int totalMessages = 10;
         // 1. producer connect
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
         assertEquals(topicRef.getProducers().size(), 1);
 
         // 2. Create consumer
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)
-                .subscriptionName(subscriptionName).receiverQueueSize(10).subscriptionType(SubscriptionType.Failover);
+                .subscriptionName(subscriptionName).receiverQueueSize(10).subscriptionType(SubscriptionType.Failover)
+                .acknowledmentGroupTime(0, TimeUnit.SECONDS);
         Consumer<byte[]> consumer1 = consumerBuilder.clone().consumerName("consumer-1").subscribe();
         Consumer<byte[]> consumer2 = consumerBuilder.clone().consumerName("consumer-2").subscribe();
 
@@ -356,7 +357,7 @@ public class ResendRequestTest extends BrokerTestBase {
         // 1. producer connect
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
         assertEquals(topicRef.getProducers().size(), 1);
 
@@ -645,7 +646,7 @@ public class ResendRequestTest extends BrokerTestBase {
         final int totalMessages = 10;
         // 1. producer connect
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
         assertEquals(topicRef.getProducers().size(), 1);
 

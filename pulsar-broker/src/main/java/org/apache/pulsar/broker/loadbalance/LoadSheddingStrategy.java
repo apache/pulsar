@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
-import java.util.Map;
+import com.google.common.collect.Multimap;
 
 import org.apache.pulsar.broker.ServiceConfiguration;
 
@@ -29,12 +29,12 @@ public interface LoadSheddingStrategy {
 
     /**
      * Recommend that all of the returned bundles be unloaded.
-     * 
+     *
      * @param loadData
      *            The load data to used to make the unloading decision.
      * @param conf
      *            The service configuration.
      * @return A map from all selected bundles to the brokers on which they reside.
      */
-    Map<String, String> findBundlesForUnloading(LoadData loadData, ServiceConfiguration conf);
+    Multimap<String, String> findBundlesForUnloading(LoadData loadData, ServiceConfiguration conf);
 }

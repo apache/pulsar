@@ -24,6 +24,9 @@ configs:
 - name: enableNonPersistentTopics
   default: 'true'
   description: Whether non-persistent topics are enabled on the broker
+- name: functionsWorkerEnabled
+  description: Whether the Pulsar Functions worker service is enabled in the broker
+  default: 'false'
 - name: zookeeperServers
   default: ''
   description: Zookeeper quorum connection string

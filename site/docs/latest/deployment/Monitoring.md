@@ -23,14 +23,11 @@ title: Monitoring
 
 -->
 
-There are different ways to monitor a Pulsar cluster, exposing both metrics relative to the
-usage of topics and the overall health of the individual components of the cluster.
+There are different ways to monitor a Pulsar cluster, exposing both metrics relative to the usage of topics and the overall health of the individual components of the cluster.
 
 ## Collecting metrics
 
 ### Broker stats
-
-The [`pulsar-admin`](../../reference/CliTools#pulsar-admin) tool
 
 Pulsar {% popover broker %} metrics can be collected from brokers and exported in JSON format. There are two main types of metrics:
 

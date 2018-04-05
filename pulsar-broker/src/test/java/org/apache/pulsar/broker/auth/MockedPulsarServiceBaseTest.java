@@ -45,6 +45,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
 import org.apache.zookeeper.CreateMode;
@@ -131,7 +132,7 @@ public abstract class MockedPulsarServiceBaseTest {
         brokerUrl = new URL("http://" + pulsar.getAdvertisedAddress() + ":" + BROKER_WEBSERVICE_PORT);
         brokerUrlTls = new URL("https://" + pulsar.getAdvertisedAddress() + ":" + BROKER_WEBSERVICE_PORT_TLS);
 
-        admin = spy(new PulsarAdmin(brokerUrl, (Authentication) null));
+        admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString()).build());
     }
 
     protected final void internalCleanup() throws Exception {
@@ -190,6 +191,10 @@ public abstract class MockedPulsarServiceBaseTest {
         conf.setAuthorizationEnabled(true);
         pulsar.start();
         conf.setAuthorizationEnabled(isAuthorizationEnabled);
+
+        Compactor spiedCompactor = spy(pulsar.getCompactor());
+        doReturn(spiedCompactor).when(pulsar).getCompactor();
+
         return pulsar;
     }
 

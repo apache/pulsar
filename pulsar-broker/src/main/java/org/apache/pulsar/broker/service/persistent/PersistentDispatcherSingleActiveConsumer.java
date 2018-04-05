@@ -52,6 +52,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
     private final PersistentTopic topic;
     private final ManagedCursor cursor;
     private final String name;
+    private DispatchRateLimiter dispatchRateLimiter;
 
     private boolean havePendingRead = false;
 
@@ -70,6 +71,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         this.cursor = cursor;
         this.readBatchSize = MaxReadBatchSize;
         this.serviceConfig = topic.getBrokerService().pulsar().getConfiguration();
+        this.dispatchRateLimiter = null;
     }
 
     protected void scheduleReadOnActiveConsumer() {
@@ -201,6 +203,11 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                     // acquire message-dispatch permits for already delivered messages
                     if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
                         topic.getDispatchRateLimiter().tryDispatchPermit(totalMessagesSent, totalBytesSent);
+
+                        if (dispatchRateLimiter == null) {
+                            dispatchRateLimiter = new DispatchRateLimiter(topic, name);
+                        }
+                        dispatchRateLimiter.tryDispatchPermit(totalMessagesSent, totalBytesSent);
                     }
                     // Schedule a new read batch operation only after the previous batch has been written to the socket
                     synchronized (PersistentDispatcherSingleActiveConsumer.this) {
@@ -307,13 +314,13 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
             // active-cursor reads message from cache rather from bookkeeper (2) if topic has reached message-rate
             // threshold: then schedule the read after MESSAGE_RATE_BACKOFF_MS
             if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
-                DispatchRateLimiter rateLimiter = topic.getDispatchRateLimiter();
-                if (rateLimiter.isDispatchRateLimitingEnabled()) {
-                    if (!rateLimiter.hasMessageDispatchPermit()) {
+                DispatchRateLimiter topicRateLimiter = topic.getDispatchRateLimiter();
+                if (topicRateLimiter.isDispatchRateLimitingEnabled()) {
+                    if (!topicRateLimiter.hasMessageDispatchPermit()) {
                         if (log.isDebugEnabled()) {
-                            log.debug("[{}] message-read exceeded message-rate {}/{}, schedule after a {}", name,
-                                    rateLimiter.getDispatchRateOnMsg(), rateLimiter.getDispatchRateOnByte(),
-                                    MESSAGE_RATE_BACKOFF_MS);
+                            log.debug("[{}] message-read exceeded topic message-rate {}/{}, schedule after a {}", name,
+                                topicRateLimiter.getDispatchRateOnMsg(), topicRateLimiter.getDispatchRateOnByte(),
+                                MESSAGE_RATE_BACKOFF_MS);
                         }
                         topic.getBrokerService().executor().schedule(() -> {
                             Consumer currentConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
@@ -321,19 +328,49 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                                 readMoreEntries(currentConsumer);
                             } else {
                                 if (log.isDebugEnabled()) {
-                                    log.info("[{}] Skipping read retry: Current Consumer {}, havePendingRead {}",
-                                            topic.getName(), currentConsumer, havePendingRead);
+                                    log.debug("[{}] Skipping read retry for topic: Current Consumer {}, havePendingRead {}",
+                                        topic.getName(), currentConsumer, havePendingRead);
                                 }
                             }
                         }, MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
                         return;
                     } else {
                         // if dispatch-rate is in msg then read only msg according to available permit
-                        long availablePermitsOnMsg = rateLimiter.getAvailableDispatchRateLimitOnMsg();
+                        long availablePermitsOnMsg = topicRateLimiter.getAvailableDispatchRateLimitOnMsg();
                         if (availablePermitsOnMsg > 0) {
                             messagesToRead = Math.min(messagesToRead, (int) availablePermitsOnMsg);
                         }
+                    }
+                }
 
+                if (dispatchRateLimiter == null) {
+                    dispatchRateLimiter = new DispatchRateLimiter(topic, name);
+                }
+                if (dispatchRateLimiter.isDispatchRateLimitingEnabled()) {
+                    if (!dispatchRateLimiter.hasMessageDispatchPermit()) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] message-read exceeded subscription message-rate {}/{}, schedule after a {}", name,
+                                dispatchRateLimiter.getDispatchRateOnMsg(), dispatchRateLimiter.getDispatchRateOnByte(),
+                                MESSAGE_RATE_BACKOFF_MS);
+                        }
+                        topic.getBrokerService().executor().schedule(() -> {
+                            Consumer currentConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
+                            if (currentConsumer != null && !havePendingRead) {
+                                readMoreEntries(currentConsumer);
+                            } else {
+                                if (log.isDebugEnabled()) {
+                                    log.debug("[{}] Skipping read retry: Current Consumer {}, havePendingRead {}",
+                                        topic.getName(), currentConsumer, havePendingRead);
+                                }
+                            }
+                        }, MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
+                        return;
+                    } else {
+                        // if dispatch-rate is in msg then read only msg according to available permit
+                        long subPermitsOnMsg = dispatchRateLimiter.getAvailableDispatchRateLimitOnMsg();
+                        if (subPermitsOnMsg > 0) {
+                            messagesToRead = Math.min(messagesToRead, (int) subPermitsOnMsg);
+                        }
                     }
                 }
             }
@@ -400,6 +437,14 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
             }
         }, waitTimeMillis, TimeUnit.MILLISECONDS);
 
+    }
+
+    public DispatchRateLimiter getDispatchRateLimiter() {
+        if ((serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) &&
+            (dispatchRateLimiter == null)) {
+            dispatchRateLimiter = new DispatchRateLimiter(topic, name);
+        }
+        return dispatchRateLimiter;
     }
 
     @Override

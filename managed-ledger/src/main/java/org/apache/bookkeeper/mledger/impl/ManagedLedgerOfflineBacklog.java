@@ -141,7 +141,7 @@ public class ManagedLedgerOfflineBacklog {
         BookKeeper bk = factory.getBookKeeper();
         final CountDownLatch mlMetaCounter = new CountDownLatch(1);
 
-        store.getManagedLedgerInfo(managedLedgerName,
+        store.getManagedLedgerInfo(managedLedgerName, false /* createIfMissing */,
                 new MetaStore.MetaStoreCallback<MLDataFormats.ManagedLedgerInfo>() {
                     @Override
                     public void operationComplete(MLDataFormats.ManagedLedgerInfo mlInfo, MetaStore.Stat version) {

@@ -32,5 +32,5 @@ public class SchemaData {
     private final String user;
     private final byte[] data;
     @Builder.Default
-    public final Map<String, String> props = new HashMap<>();
+    private Map<String, String> props = new HashMap<>();
 }

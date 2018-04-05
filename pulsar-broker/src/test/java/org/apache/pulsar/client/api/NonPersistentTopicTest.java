@@ -426,7 +426,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
                 .subscriptionType(SubscriptionType.Shared).subscriptionName(subName).subscribe();
         Thread.sleep(timeWaitToSync);
 
-        NonPersistentTopic topicRef = (NonPersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+        NonPersistentTopic topicRef = (NonPersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
 
         rolloverPerIntervalStats(pulsar);
@@ -501,7 +501,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
             // Replicator for r1 -> r2,r3
             NonPersistentTopic topicRef = (NonPersistentTopic) replication.pulsar1.getBrokerService()
-                    .getTopicReference(globalTopicName);
+                    .getTopicReference(globalTopicName).get();
             NonPersistentReplicator replicatorR2 = (NonPersistentReplicator) topicRef.getPersistentReplicator("r2");
             NonPersistentReplicator replicatorR3 = (NonPersistentReplicator) topicRef.getPersistentReplicator("r3");
             assertNotNull(topicRef);
@@ -657,8 +657,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             } catch (Exception e) {
                 // Ok
             }
-            NonPersistentTopic topicRef = (NonPersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
-            assertNull(topicRef);
+            assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
 
         } finally {
             conf.setEnableNonPersistentTopics(defaultENableNonPersistentTopic);
@@ -692,8 +691,8 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             } catch (Exception e) {
                 // Ok
             }
-            NonPersistentTopic topicRef = (NonPersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
-            assertNull(topicRef);
+
+            assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
         } finally {
             conf.setEnableNonPersistentTopics(defaultENableNonPersistentTopic);
         }
@@ -747,8 +746,8 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             } catch (Exception e) {
                 // Ok
             }
-            NonPersistentTopic topicRef = (NonPersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
-            assertNull(topicRef);
+
+            assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
 
         } finally {
             conf.setEnablePersistentTopics(defaultEnablePersistentTopic);
@@ -795,7 +794,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             }
             latch.await();
 
-            NonPersistentTopic topic = (NonPersistentTopic) pulsar.getBrokerService().getTopic(topicName).get();
+            NonPersistentTopic topic = (NonPersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
             pulsar.getBrokerService().updateRates();
             NonPersistentTopicStats stats = topic.getStats();
             NonPersistentPublisherStats npStats = stats.getPublishers().get(0);
@@ -887,7 +886,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             ns1 = pulsar1.getBrokerService();
 
             url1 = new URL("http://127.0.0.1:" + webServicePort1);
-            admin1 = new PulsarAdmin(url1, (Authentication) null);
+            admin1 = PulsarAdmin.builder().serviceHttpUrl(url1.toString()).build();
 
             // Start region 2
 
@@ -913,7 +912,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             ns2 = pulsar2.getBrokerService();
 
             url2 = new URL("http://127.0.0.1:" + webServicePort2);
-            admin2 = new PulsarAdmin(url2, (Authentication) null);
+            admin2 = PulsarAdmin.builder().serviceHttpUrl(url2.toString()).build();
 
             // Start region 3
 
@@ -938,22 +937,22 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             ns3 = pulsar3.getBrokerService();
 
             url3 = new URL("http://127.0.0.1:" + webServicePort3);
-            admin3 = new PulsarAdmin(url3, (Authentication) null);
+            admin3 = PulsarAdmin.builder().serviceHttpUrl(url3.toString()).build();
 
             // Provision the global namespace
-            admin1.clusters().updateCluster("r1", new ClusterData(url1.toString(), null, pulsar1.getBrokerServiceUrl(),
+            admin1.clusters().createCluster("r1", new ClusterData(url1.toString(), null, pulsar1.getBrokerServiceUrl(),
                     pulsar1.getBrokerServiceUrlTls()));
-            admin1.clusters().updateCluster("r2", new ClusterData(url2.toString(), null, pulsar2.getBrokerServiceUrl(),
+            admin1.clusters().createCluster("r2", new ClusterData(url2.toString(), null, pulsar2.getBrokerServiceUrl(),
                     pulsar1.getBrokerServiceUrlTls()));
-            admin1.clusters().updateCluster("r3", new ClusterData(url3.toString(), null, pulsar3.getBrokerServiceUrl(),
+            admin1.clusters().createCluster("r3", new ClusterData(url3.toString(), null, pulsar3.getBrokerServiceUrl(),
                     pulsar1.getBrokerServiceUrlTls()));
 
             admin1.clusters().createCluster("global", new ClusterData("http://global:8080"));
             admin1.properties().createProperty("pulsar", new PropertyAdmin(
-                    Lists.newArrayList("appid1", "appid2", "appid3"), Sets.newHashSet("r1", "r2", "r3")));
+                    Sets.newHashSet("appid1", "appid2", "appid3"), Sets.newHashSet("r1", "r2", "r3")));
             admin1.namespaces().createNamespace("pulsar/global/ns");
             admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns",
-                    Lists.newArrayList("r1", "r2", "r3"));
+                    Sets.newHashSet("r1", "r2", "r3"));
 
             assertEquals(admin2.clusters().getCluster("r1").getServiceUrl(), url1.toString());
             assertEquals(admin2.clusters().getCluster("r2").getServiceUrl(), url2.toString());

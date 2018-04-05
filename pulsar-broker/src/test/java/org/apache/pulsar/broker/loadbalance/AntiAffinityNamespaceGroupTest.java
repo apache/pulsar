@@ -132,7 +132,7 @@ public class AntiAffinityNamespaceGroupTest {
 
         primaryHost = String.format("%s:%d", "localhost", PRIMARY_BROKER_WEBSERVICE_PORT);
         url1 = new URL("http://127.0.0.1" + ":" + PRIMARY_BROKER_WEBSERVICE_PORT);
-        admin1 = new PulsarAdmin(url1, (Authentication) null);
+        admin1 = PulsarAdmin.builder().serviceHttpUrl(url1.toString()).build();
 
         // Start broker 2
         ServiceConfiguration config2 = new ServiceConfiguration();
@@ -149,7 +149,7 @@ public class AntiAffinityNamespaceGroupTest {
         pulsar2.start();
 
         url2 = new URL("http://127.0.0.1" + ":" + SECONDARY_BROKER_WEBSERVICE_PORT);
-        admin2 = new PulsarAdmin(url2, (Authentication) null);
+        admin2 = PulsarAdmin.builder().serviceHttpUrl(url2.toString()).build();
 
         primaryLoadManager = (ModularLoadManagerImpl) getField(pulsar1.getLoadManager().get(), "loadManager");
         secondaryLoadManager = (ModularLoadManagerImpl) getField(pulsar2.getLoadManager().get(), "loadManager");
@@ -217,7 +217,7 @@ public class AntiAffinityNamespaceGroupTest {
 
         pulsar1.getConfiguration().setFailureDomainsEnabled(true);
         admin1.properties().createProperty("my-property",
-                new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("use")));
+                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
 
         for (int i = 0; i < totalNamespaces; i++) {
             final String ns = namespace + i;
@@ -313,7 +313,7 @@ public class AntiAffinityNamespaceGroupTest {
         final String bundle = "/0x00000000_0xffffffff";
 
         admin1.properties().createProperty("my-property",
-                new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("use")));
+                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
 
         for (int i = 0; i < totalNamespaces; i++) {
             final String ns = namespace + i;
@@ -449,7 +449,7 @@ public class AntiAffinityNamespaceGroupTest {
         final String bundle = "/0x00000000_0xffffffff";
 
         admin1.properties().createProperty("my-property",
-                new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("use")));
+                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
 
         for (int i = 0; i < totalNamespaces; i++) {
             final String ns = namespace + i;
@@ -502,7 +502,7 @@ public class AntiAffinityNamespaceGroupTest {
         final String bundle = "0x00000000_0xffffffff";
 
         admin1.properties().createProperty("my-property",
-                new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("use")));
+                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
 
         for (int i = 0; i < totalNamespaces; i++) {
             final String ns = namespace + i;

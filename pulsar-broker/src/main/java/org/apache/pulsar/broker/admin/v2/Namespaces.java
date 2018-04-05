@@ -184,7 +184,7 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
             @ApiResponse(code = 412, message = "Namespace is not global") })
-    public List<String> getNamespaceReplicationClusters(@PathParam("property") String property,
+    public Set<String> getNamespaceReplicationClusters(@PathParam("property") String property,
             @PathParam("namespace") String namespace) {
         validateAdminAccessOnProperty(property);
         validateNamespaceName(property, namespace);
@@ -317,6 +317,28 @@ public class Namespaces extends NamespacesBase {
             @PathParam("namespace") String namespace) {
         validateNamespaceName(property, namespace);
         return internalGetDispatchRate();
+    }
+
+    @POST
+    @Path("/{property}/{namespace}/subscriptionDispatchRate")
+    @ApiOperation(value = "Set Subscription dispatch-rate throttling for all topics of the namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    public void setSubscriptionDispatchRate(@PathParam("property") String property,
+                                            @PathParam("namespace") String namespace,
+                                            DispatchRate dispatchRate) {
+        validateNamespaceName(property, namespace);
+        internalSetSubscriptionDispatchRate(dispatchRate);
+    }
+
+    @GET
+    @Path("/{property}/{namespace}/subscriptionDispatchRate")
+    @ApiOperation(value = "Get Subscription dispatch-rate configured for the namespace, -1 represents not configured yet")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+        @ApiResponse(code = 404, message = "Namespace does not exist") })
+    public DispatchRate getSubscriptionDispatchRate(@PathParam("property") String property,
+                                                    @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, namespace);
+        return internalGetSubscriptionDispatchRate();
     }
 
     @GET

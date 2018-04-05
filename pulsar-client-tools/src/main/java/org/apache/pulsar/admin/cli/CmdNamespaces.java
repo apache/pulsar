@@ -36,6 +36,7 @@ import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.CommaParameterSplitter;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 @Parameters(commandDescription = "Operations about namespaces")
 public class CmdNamespaces extends CmdBase {
@@ -182,7 +183,7 @@ public class CmdNamespaces extends CmdBase {
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             List<String> clusters = Lists.newArrayList(clusterIds.split(","));
-            admin.namespaces().setNamespaceReplicationClusters(namespace, clusters);
+            admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(clusters));
         }
     }
 
@@ -416,6 +417,43 @@ public class CmdNamespaces extends CmdBase {
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             print(admin.namespaces().getDispatchRate(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Set subscription message-dispatch-rate for all subscription of the namespace")
+    private class SetSuscriptionDispatchRate extends CliCommand {
+        @Parameter(description = "property/cluster/namespace/\n", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--sub-msg-dispatch-rate",
+            "-md" }, description = "message-dispatch-rate (default -1 will be overwrite if not passed)\n", required = false)
+        private int msgDispatchRate = -1;
+
+        @Parameter(names = { "--byte-dispatch-rate",
+            "-bd" }, description = "byte-dispatch-rate (default -1 will be overwrite if not passed)\n", required = false)
+        private long byteDispatchRate = -1;
+
+        @Parameter(names = { "--dispatch-rate-period",
+            "-dt" }, description = "dispatch-rate-period in second type (default 1 second will be overwrite if not passed)\n", required = false)
+        private int dispatchRatePeriodSec = 1;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().setSubscriptionDispatchRate(namespace,
+                new DispatchRate(msgDispatchRate, byteDispatchRate, dispatchRatePeriodSec));
+        }
+    }
+
+    @Parameters(commandDescription = "Get subscription configured message-dispatch-rate for all topics of the namespace (Disabled if value < 0)")
+    private class GetSubscriptionDispatchRate extends CliCommand {
+        @Parameter(description = "property/cluster/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(admin.namespaces().getSubscriptionDispatchRate(namespace));
         }
     }
 

@@ -39,7 +39,6 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -55,7 +54,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 /**
@@ -97,11 +95,11 @@ public class BrokerBkEnsemblesTests {
             pulsar.start();
 
             adminUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
-            admin = new PulsarAdmin(adminUrl, (Authentication) null);
+            admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl.toString()).build();
 
-            admin.clusters().updateCluster("usc", new ClusterData(adminUrl.toString()));
+            admin.clusters().createCluster("usc", new ClusterData(adminUrl.toString()));
             admin.properties().createProperty("prop",
-                    new PropertyAdmin(Lists.newArrayList("appid1"), Sets.newHashSet("usc")));
+                    new PropertyAdmin(Sets.newHashSet("appid1"), Sets.newHashSet("usc")));
         } catch (Throwable t) {
             LOG.error("Error setting up broker test", t);
             Assert.fail("Broker test setup failed");
@@ -162,7 +160,7 @@ public class BrokerBkEnsemblesTests {
             consumer.acknowledge(msg);
         }
 
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topic1).get();
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topic1).get();
         ManagedCursorImpl cursor = (ManagedCursorImpl) topic.getManagedLedger().getCursors().iterator().next();
         retryStrategically((test) -> cursor.getState().equals("Open"), 5, 100);
 
@@ -197,7 +195,7 @@ public class BrokerBkEnsemblesTests {
         }
 
         // (5) Broker should create new cursor-ledger and remove old cursor-ledger
-        topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topic1).get();
+        topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topic1).get();
         final ManagedCursorImpl cursor1 = (ManagedCursorImpl) topic.getManagedLedger().getCursors().iterator().next();
         retryStrategically((test) -> cursor1.getState().equals("Open"), 5, 100);
         long newCursorLedgerId = cursor1.getCursorLedger();
@@ -245,7 +243,7 @@ public class BrokerBkEnsemblesTests {
         Consumer<byte[]> consumer = client.newConsumer().topic(topic1).subscriptionName("my-subscriber-name")
                 .receiverQueueSize(5).subscribe();
 
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topic1).get();
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topic1).get();
         ManagedLedgerImpl ml = (ManagedLedgerImpl) topic.getManagedLedger();
         ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().iterator().next();
         Field configField = ManagedCursorImpl.class.getDeclaredField("config");

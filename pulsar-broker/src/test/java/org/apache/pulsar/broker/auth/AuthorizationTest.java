@@ -65,8 +65,8 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null), false);
 
-        admin.clusters().updateCluster("c1", new ClusterData());
-        admin.properties().createProperty("p1", new PropertyAdmin(Lists.newArrayList("role1"), Sets.newHashSet("c1")));
+        admin.clusters().createCluster("c1", new ClusterData());
+        admin.properties().createProperty("p1", new PropertyAdmin(Sets.newHashSet("role1"), Sets.newHashSet("c1")));
         waitForChange();
         admin.namespaces().createNamespace("p1/c1/ns1");
         waitForChange();
