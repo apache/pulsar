@@ -47,7 +47,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
@@ -95,7 +94,7 @@ public class BacklogQuotaManagerTest {
 
             admin.clusters().createCluster("usc", new ClusterData(adminUrl.toString()));
             admin.properties().createProperty("prop",
-                    new PropertyAdmin(Lists.newArrayList("appid1"), Sets.newHashSet("usc")));
+                    new PropertyAdmin(Sets.newHashSet("appid1"), Sets.newHashSet("usc")));
             admin.namespaces().createNamespace("prop/usc/ns-quota");
             admin.namespaces().createNamespace("prop/usc/quotahold");
             admin.namespaces().createNamespace("prop/usc/quotaholdasync");

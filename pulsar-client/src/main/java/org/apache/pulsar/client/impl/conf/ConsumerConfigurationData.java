@@ -27,6 +27,8 @@ import java.io.Serializable;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
+
 import lombok.Data;
 
 import java.util.regex.Pattern;
@@ -56,6 +58,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private ConsumerEventListener consumerEventListener;
 
     private int receiverQueueSize = 1000;
+
+    private long acknowledgementsGroupTimeMicros = TimeUnit.MILLISECONDS.toMicros(100);
 
     private int maxTotalReceiverQueueSizeAcrossPartitions = 50000;
 

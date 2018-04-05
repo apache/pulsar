@@ -67,8 +67,6 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         superUserRoles.add("superUser");
         conf.setSuperUserRoles(superUserRoles);
 
-        conf.setBrokerClientAuthenticationPlugin(TestAuthenticationProvider.class.getName());
-
         Set<String> providers = new HashSet<>();
         providers.add(TestAuthenticationProvider.class.getName());
         conf.setAuthenticationProviders(providers);
@@ -117,7 +115,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
                 .authentication(authenticationInvalidRole).build();
 
         admin.properties().createProperty("my-property",
-                new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("use")));
+                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
         admin.namespaces().createNamespace("my-property/use/my-ns");
 
         // (1) Valid Producer and consumer creation
@@ -166,7 +164,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).authentication(authentication).build();
 
         admin.properties().createProperty("prop-prefix",
-                new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("use")));
+                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
         admin.namespaces().createNamespace("prop-prefix/use/ns");
 
         // (1) Valid subscription name will be approved by authorization service

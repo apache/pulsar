@@ -117,7 +117,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
     // @Test
     public void testConcurrentTopicAndSubscriptionDelete() throws Exception {
         // create topic
-        final PersistentTopic topic = (PersistentTopic) brokerService.getTopic(successTopicName).get();
+        final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
         PulsarApi.CommandSubscribe cmd = PulsarApi.CommandSubscribe.newBuilder().setConsumerId(1)
                 .setTopic(successTopicName).setSubscription(successSubName).setRequestId(1)
                 .setSubType(PulsarApi.CommandSubscribe.SubType.Exclusive).build();
@@ -175,7 +175,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
     // @Test
     public void testConcurrentTopicGCAndSubscriptionDelete() throws Exception {
         // create topic
-        final PersistentTopic topic = (PersistentTopic) brokerService.getTopic(successTopicName).get();
+        final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
         PulsarApi.CommandSubscribe cmd = PulsarApi.CommandSubscribe.newBuilder().setConsumerId(1)
                 .setTopic(successTopicName).setSubscription(successSubName).setRequestId(1)
                 .setSubType(PulsarApi.CommandSubscribe.SubType.Exclusive).build();
@@ -237,7 +237,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
     // @Test
     public void testConcurrentTopicDeleteAndUnsubscribe() throws Exception {
         // create topic
-        final PersistentTopic topic = (PersistentTopic) brokerService.getTopic(successTopicName).get();
+        final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
         PulsarApi.CommandSubscribe cmd = PulsarApi.CommandSubscribe.newBuilder().setConsumerId(1)
                 .setTopic(successTopicName).setSubscription(successSubName).setRequestId(1)
                 .setSubType(PulsarApi.CommandSubscribe.SubType.Exclusive).build();
@@ -295,7 +295,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
     // @Test
     public void testConcurrentTopicDeleteAndSubsUnsubscribe() throws Exception {
         // create topic
-        final PersistentTopic topic = (PersistentTopic) brokerService.getTopic(successTopicName).get();
+        final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
         PulsarApi.CommandSubscribe cmd = PulsarApi.CommandSubscribe.newBuilder().setConsumerId(1)
                 .setTopic(successTopicName).setSubscription(successSubName).setRequestId(1)
                 .setSubType(PulsarApi.CommandSubscribe.SubType.Exclusive).build();

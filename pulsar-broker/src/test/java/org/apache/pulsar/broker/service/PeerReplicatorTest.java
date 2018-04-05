@@ -86,8 +86,8 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         admin1.namespaces().createNamespace(namespace1);
         admin1.namespaces().createNamespace(namespace2);
         // add replication cluster
-        admin1.namespaces().setNamespaceReplicationClusters(namespace1, Lists.newArrayList("r1"));
-        admin1.namespaces().setNamespaceReplicationClusters(namespace2, Lists.newArrayList("r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace1, Sets.newHashSet("r1"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace2, Sets.newHashSet("r2"));
         admin1.clusters().updatePeerClusterNames("r3", null);
         // disable tls as redirection url is prepared according tls configuration
         pulsar1.getConfiguration().setTlsEnabled(false);
@@ -117,7 +117,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         // set peer-clusters : r3->r1
         admin1.clusters().updatePeerClusterNames("r3", Sets.newLinkedHashSet(Lists.newArrayList("r1")));
         Producer<byte[]> producer = client3.newProducer().topic(topic1).create();
-        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopic(topic1).get();
+        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getOrCreateTopic(topic1).get();
         assertNotNull(topic);
         pulsar1.getBrokerService().updateRates();
         // get stats for topic1 using cluster-r3's admin3
@@ -132,7 +132,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         // set peer-clusters : r3->r2
         admin2.clusters().updatePeerClusterNames("r3", Sets.newLinkedHashSet(Lists.newArrayList("r2")));
         producer = client3.newProducer().topic(topic2).create();
-        topic = (PersistentTopic) pulsar2.getBrokerService().getTopic(topic2).get();
+        topic = (PersistentTopic) pulsar2.getBrokerService().getOrCreateTopic(topic2).get();
         assertNotNull(topic);
         pulsar2.getBrokerService().updateRates();
         // get stats for topic1 using cluster-r3's admin3

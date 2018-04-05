@@ -161,13 +161,13 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
             .subscribe();
 
         // 4. verify consumer get methods, to get right number of partitions and topics.
-        assertSame(pattern, ((PatternTopicsConsumerImpl<?>) consumer).getPattern());
-        List<String> topics = ((PatternTopicsConsumerImpl<?>) consumer).getPartitionedTopics();
-        List<ConsumerImpl<byte[]>> consumers = ((PatternTopicsConsumerImpl<byte[]>) consumer).getConsumers();
+        assertSame(pattern, ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern());
+        List<String> topics = ((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics();
+        List<ConsumerImpl<byte[]>> consumers = ((PatternMultiTopicsConsumerImpl<byte[]>) consumer).getConsumers();
 
         assertEquals(topics.size(), 6);
         assertEquals(consumers.size(), 6);
-        assertEquals(((PatternTopicsConsumerImpl<?>) consumer).getTopics().size(), 3);
+        assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getTopics().size(), 3);
 
         topics.forEach(topic -> log.debug("topic: {}", topic));
         consumers.forEach(c -> log.debug("consumer: {}", c.getTopic()));
@@ -175,7 +175,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         IntStream.range(0, topics.size()).forEach(index ->
             assertTrue(topics.get(index).equals(consumers.get(index).getTopic())));
 
-        ((PatternTopicsConsumerImpl<?>) consumer).getTopics().forEach(topic -> log.debug("getTopics topic: {}", topic));
+        ((PatternMultiTopicsConsumerImpl<?>) consumer).getTopics().forEach(topic -> log.debug("getTopics topic: {}", topic));
 
         // 5. produce data
         for (int i = 0; i < totalMessages / 3; i++) {
@@ -235,8 +235,8 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         List<String> oldNames = Lists.newArrayList(topicName1, topicName2, topicName3, topicName4);
         List<String> newNames = Lists.newArrayList(topicName3, topicName4, topicName5, topicName6);
 
-        List<String> addedNames = PatternTopicsConsumerImpl.topicsListsMinus(newNames, oldNames);
-        List<String> removedNames = PatternTopicsConsumerImpl.topicsListsMinus(oldNames, newNames);
+        List<String> addedNames = PatternMultiTopicsConsumerImpl.topicsListsMinus(newNames, oldNames);
+        List<String> removedNames = PatternMultiTopicsConsumerImpl.topicsListsMinus(oldNames, newNames);
 
         assertTrue(addedNames.size() == 2 &&
             addedNames.contains(topicName5) &&
@@ -246,21 +246,21 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
             removedNames.contains(topicName2));
 
         // totally 2 different list, should return content of first lists.
-        List<String> addedNames2 = PatternTopicsConsumerImpl.topicsListsMinus(addedNames, removedNames);
+        List<String> addedNames2 = PatternMultiTopicsConsumerImpl.topicsListsMinus(addedNames, removedNames);
         assertTrue(addedNames2.size() == 2 &&
             addedNames2.contains(topicName5) &&
             addedNames2.contains(topicName6));
 
         // 2 same list, should return empty list.
-        List<String> addedNames3 = PatternTopicsConsumerImpl.topicsListsMinus(addedNames, addedNames);
+        List<String> addedNames3 = PatternMultiTopicsConsumerImpl.topicsListsMinus(addedNames, addedNames);
         assertEquals(addedNames3.size(), 0);
 
         // empty list minus: addedNames2.size = 2, addedNames3.size = 0
-        List<String> addedNames4 = PatternTopicsConsumerImpl.topicsListsMinus(addedNames2, addedNames3);
+        List<String> addedNames4 = PatternMultiTopicsConsumerImpl.topicsListsMinus(addedNames2, addedNames3);
         assertTrue(addedNames4.size() == addedNames2.size());
         addedNames4.forEach(name -> assertTrue(addedNames2.contains(name)));
 
-        List<String> addedNames5 = PatternTopicsConsumerImpl.topicsListsMinus(addedNames3, addedNames2);
+        List<String> addedNames5 = PatternMultiTopicsConsumerImpl.topicsListsMinus(addedNames3, addedNames2);
         assertEquals(addedNames5.size(), 0);
     }
 
@@ -290,10 +290,10 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
             .subscribe();
 
         // 3. verify consumer get methods, to get 0 number of partitions and topics.
-        assertSame(pattern, ((PatternTopicsConsumerImpl<?>) consumer).getPattern());
-        assertEquals(((PatternTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 0);
-        assertEquals(((PatternTopicsConsumerImpl<?>) consumer).getConsumers().size(), 0);
-        assertEquals(((PatternTopicsConsumerImpl<?>) consumer).getTopics().size(), 0);
+        assertSame(pattern, ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern());
+        assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 0);
+        assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getConsumers().size(), 0);
+        assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getTopics().size(), 0);
 
         // 4. create producer
         String messagePredicate = "my-message-" + key + "-";
@@ -310,15 +310,15 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         // 5. call recheckTopics to subscribe each added topics above
         log.debug("recheck topics change");
-        PatternTopicsConsumerImpl<byte[]> consumer1 = ((PatternTopicsConsumerImpl<byte[]>) consumer);
+        PatternMultiTopicsConsumerImpl<byte[]> consumer1 = ((PatternMultiTopicsConsumerImpl<byte[]>) consumer);
         consumer1.run(consumer1.getRecheckPatternTimeout());
         Thread.sleep(100);
 
         // 6. verify consumer get methods, to get number of partitions and topics, value 6=1+2+3.
-        assertSame(pattern, ((PatternTopicsConsumerImpl<?>) consumer).getPattern());
-        assertEquals(((PatternTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 6);
-        assertEquals(((PatternTopicsConsumerImpl<?>) consumer).getConsumers().size(), 6);
-        assertEquals(((PatternTopicsConsumerImpl<?>) consumer).getTopics().size(), 3);
+        assertSame(pattern, ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern());
+        assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 6);
+        assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getConsumers().size(), 6);
+        assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getTopics().size(), 3);
 
 
         // 7. produce data
@@ -384,13 +384,13 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
             .receiverQueueSize(4)
             .subscribe();
 
-        assertTrue(consumer instanceof PatternTopicsConsumerImpl);
+        assertTrue(consumer instanceof PatternMultiTopicsConsumerImpl);
 
         // 4. verify consumer get methods, to get 6 number of partitions and topics: 6=1+2+3
-        assertSame(pattern, ((PatternTopicsConsumerImpl<?>) consumer).getPattern());
-        assertEquals(((PatternTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 6);
-        assertEquals(((PatternTopicsConsumerImpl<?>) consumer).getConsumers().size(), 6);
-        assertEquals(((PatternTopicsConsumerImpl<?>) consumer).getTopics().size(), 3);
+        assertSame(pattern, ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern());
+        assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 6);
+        assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getConsumers().size(), 6);
+        assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getTopics().size(), 3);
 
         // 5. produce data to topic 1,2,3; verify should receive all the message
         for (int i = 0; i < totalMessages / 3; i++) {
@@ -419,12 +419,12 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         // 7. call recheckTopics to subscribe each added topics above, verify topics number: 10=1+2+3+4
         log.debug("recheck topics change");
-        PatternTopicsConsumerImpl<byte[]> consumer1 = ((PatternTopicsConsumerImpl<byte[]>) consumer);
+        PatternMultiTopicsConsumerImpl<byte[]> consumer1 = ((PatternMultiTopicsConsumerImpl<byte[]>) consumer);
         consumer1.run(consumer1.getRecheckPatternTimeout());
         Thread.sleep(100);
-        assertEquals(((PatternTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 10);
-        assertEquals(((PatternTopicsConsumerImpl<?>) consumer).getConsumers().size(), 10);
-        assertEquals(((PatternTopicsConsumerImpl<?>) consumer).getTopics().size(), 4);
+        assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 10);
+        assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getConsumers().size(), 10);
+        assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getTopics().size(), 4);
 
         // 8. produce data to topic3 and topic4, verify should receive all the message
         for (int i = 0; i < totalMessages / 2; i++) {
@@ -487,13 +487,13 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
             .receiverQueueSize(4)
             .subscribe();
 
-        assertTrue(consumer instanceof PatternTopicsConsumerImpl);
+        assertTrue(consumer instanceof PatternMultiTopicsConsumerImpl);
 
         // 4. verify consumer get methods, to get 0 number of partitions and topics: 6=1+2+3
-        assertSame(pattern, ((PatternTopicsConsumerImpl<?>) consumer).getPattern());
-        assertEquals(((PatternTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 6);
-        assertEquals(((PatternTopicsConsumerImpl<?>) consumer).getConsumers().size(), 6);
-        assertEquals(((PatternTopicsConsumerImpl<?>) consumer).getTopics().size(), 3);
+        assertSame(pattern, ((PatternMultiTopicsConsumerImpl<?>) consumer).getPattern());
+        assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 6);
+        assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getConsumers().size(), 6);
+        assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getTopics().size(), 3);
 
         // 5. produce data to topic 1,2,3; verify should receive all the message
         for (int i = 0; i < totalMessages / 3; i++) {
@@ -521,12 +521,12 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         // 7. call recheckTopics to unsubscribe topic 1,3 , verify topics number: 2=6-1-3
         log.debug("recheck topics change");
-        PatternTopicsConsumerImpl<byte[]> consumer1 = ((PatternTopicsConsumerImpl<byte[]>) consumer);
+        PatternMultiTopicsConsumerImpl<byte[]> consumer1 = ((PatternMultiTopicsConsumerImpl<byte[]>) consumer);
         consumer1.run(consumer1.getRecheckPatternTimeout());
         Thread.sleep(100);
-        assertEquals(((PatternTopicsConsumerImpl<byte[]>) consumer).getPartitionedTopics().size(), 2);
-        assertEquals(((PatternTopicsConsumerImpl<byte[]>) consumer).getConsumers().size(), 2);
-        assertEquals(((PatternTopicsConsumerImpl<byte[]>) consumer).getTopics().size(), 1);
+        assertEquals(((PatternMultiTopicsConsumerImpl<byte[]>) consumer).getPartitionedTopics().size(), 2);
+        assertEquals(((PatternMultiTopicsConsumerImpl<byte[]>) consumer).getConsumers().size(), 2);
+        assertEquals(((PatternMultiTopicsConsumerImpl<byte[]>) consumer).getTopics().size(), 1);
 
         // 8. produce data to topic2, verify should receive all the message
         for (int i = 0; i < totalMessages; i++) {

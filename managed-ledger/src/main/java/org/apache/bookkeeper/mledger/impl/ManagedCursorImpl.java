@@ -37,6 +37,7 @@ import com.google.common.collect.Sets;
 import com.google.common.collect.TreeRangeSet;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.protobuf.InvalidProtocolBufferException;
+
 import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.List;
@@ -51,6 +52,7 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
+
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
 import org.apache.bookkeeper.client.AsyncCallback.DeleteCallback;
 import org.apache.bookkeeper.client.BKException;
@@ -847,7 +849,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         final PositionImpl newPosition = (PositionImpl) newPos;
 
         // order trim and reset operations on a ledger
-        ledger.getExecutor().submitOrdered(ledger.getName(), safeRun(() -> {
+        ledger.getExecutor().executeOrdered(ledger.getName(), safeRun(() -> {
             if (ledger.isValidPosition(newPosition) || newPosition.equals(PositionImpl.earliest)
                     || newPosition.equals(PositionImpl.latest)) {
                 internalResetCursor(newPosition, callback);
@@ -1923,7 +1925,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         bookkeeper.asyncCreateLedger(config.getMetadataEnsemblesize(), config.getMetadataWriteQuorumSize(),
                 config.getMetadataAckQuorumSize(), config.getDigestType(), config.getPassword(), (rc, lh, ctx) -> {
-                    ledger.getExecutor().submit(safeRun(() -> {
+                    ledger.getExecutor().execute(safeRun(() -> {
                         ledger.mbean.endCursorLedgerCreateOp();
                         if (rc != BKException.Code.OK) {
                             log.warn("[{}] Error creating ledger for cursor {}: {}", ledger.getName(), name,

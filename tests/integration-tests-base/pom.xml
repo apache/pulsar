@@ -95,6 +95,14 @@
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-surefire-plugin</artifactId>
             <configuration>
+              <properties>
+                <property>
+                  <name>listener</name>
+                  <!-- AnnotationListener breaks arquillian, so don't use it //-->
+                  <value>org.apache.pulsar.tests.PulsarTestListener</value>
+                </property>
+              </properties>
+
               <argLine>-Xmx2G -XX:MaxDirectMemorySize=8G
               -Dio.netty.leakDetectionLevel=advanced
               </argLine>
