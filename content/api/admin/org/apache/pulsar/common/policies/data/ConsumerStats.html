@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":10};
+var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -128,66 +128,48 @@ extends Object</pre>
 <th class="colLast" scope="col">Field and Description</th>
 </tr>
 <tr class="altColor">
-<td class="colFirst"><code>String</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/ConsumerStats.html#address">address</a></span></code>
-<div class="block">Address of this consumer</div>
-</td>
-</tr>
-<tr class="rowColor">
 <td class="colFirst"><code>int</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/ConsumerStats.html#availablePermits">availablePermits</a></span></code>
 <div class="block">Number of available message permits for the consumer</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/ConsumerStats.html#blockedConsumerOnUnackedMsgs">blockedConsumerOnUnackedMsgs</a></span></code>
 <div class="block">Flag to verify if consumer is blocked due to reaching threshold of unacked messages</div>
 </td>
 </tr>
-<tr class="rowColor">
-<td class="colFirst"><code>String</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/ConsumerStats.html#clientVersion">clientVersion</a></span></code>
-<div class="block">Client library version</div>
-</td>
-</tr>
 <tr class="altColor">
-<td class="colFirst"><code>String</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/ConsumerStats.html#connectedSince">connectedSince</a></span></code>
-<div class="block">Timestamp of connection</div>
-</td>
-</tr>
-<tr class="rowColor">
 <td class="colFirst"><code>String</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/ConsumerStats.html#consumerName">consumerName</a></span></code>
 <div class="block">Name of the consumer</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>Map&lt;String,String&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/ConsumerStats.html#metadata">metadata</a></span></code>
 <div class="block">Metadata (key/value strings) associated with this consumer</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>double</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/ConsumerStats.html#msgRateOut">msgRateOut</a></span></code>
 <div class="block">Total rate of messages delivered to the consumer.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>double</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/ConsumerStats.html#msgRateRedeliver">msgRateRedeliver</a></span></code>
 <div class="block">Total rate of messages redelivered by this consumer.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>double</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/ConsumerStats.html#msgThroughputOut">msgThroughputOut</a></span></code>
 <div class="block">Total throughput delivered to the consumer.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>int</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/ConsumerStats.html#unackedMessages">unackedMessages</a></span></code>
 <div class="block">Number of unacknowledged messages for the consumer</div>
@@ -228,6 +210,30 @@ extends Object</pre>
 <tr id="i0" class="altColor">
 <td class="colFirst"><code><a href="../../../../../../org/apache/pulsar/common/policies/data/ConsumerStats.html" title="class in org.apache.pulsar.common.policies.data">ConsumerStats</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/ConsumerStats.html#add-org.apache.pulsar.common.policies.data.ConsumerStats-">add</a></span>(<a href="../../../../../../org/apache/pulsar/common/policies/data/ConsumerStats.html" title="class in org.apache.pulsar.common.policies.data">ConsumerStats</a>&nbsp;stats)</code>&nbsp;</td>
+</tr>
+<tr id="i1" class="rowColor">
+<td class="colFirst"><code>String</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/ConsumerStats.html#getAddress--">getAddress</a></span>()</code>&nbsp;</td>
+</tr>
+<tr id="i2" class="altColor">
+<td class="colFirst"><code>String</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/ConsumerStats.html#getClientVersion--">getClientVersion</a></span>()</code>&nbsp;</td>
+</tr>
+<tr id="i3" class="rowColor">
+<td class="colFirst"><code>String</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/ConsumerStats.html#getConnectedSince--">getConnectedSince</a></span>()</code>&nbsp;</td>
+</tr>
+<tr id="i4" class="altColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/ConsumerStats.html#setAddress-java.lang.String-">setAddress</a></span>(String&nbsp;address)</code>&nbsp;</td>
+</tr>
+<tr id="i5" class="rowColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/ConsumerStats.html#setClientVersion-java.lang.String-">setClientVersion</a></span>(String&nbsp;clientVersion)</code>&nbsp;</td>
+</tr>
+<tr id="i6" class="altColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/ConsumerStats.html#setConnectedSince-java.lang.String-">setConnectedSince</a></span>(String&nbsp;connectedSince)</code>&nbsp;</td>
 </tr>
 </table>
 <ul class="blockList">
@@ -321,36 +327,6 @@ extends Object</pre>
 <div class="block">Flag to verify if consumer is blocked due to reaching threshold of unacked messages</div>
 </li>
 </ul>
-<a name="address">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>address</h4>
-<pre>public&nbsp;String address</pre>
-<div class="block">Address of this consumer</div>
-</li>
-</ul>
-<a name="connectedSince">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>connectedSince</h4>
-<pre>public&nbsp;String connectedSince</pre>
-<div class="block">Timestamp of connection</div>
-</li>
-</ul>
-<a name="clientVersion">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>clientVersion</h4>
-<pre>public&nbsp;String clientVersion</pre>
-<div class="block">Client library version</div>
-</li>
-</ul>
 <a name="metadata">
 <!--   -->
 </a>
@@ -389,10 +365,64 @@ extends Object</pre>
 <a name="add-org.apache.pulsar.common.policies.data.ConsumerStats-">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>add</h4>
 <pre>public&nbsp;<a href="../../../../../../org/apache/pulsar/common/policies/data/ConsumerStats.html" title="class in org.apache.pulsar.common.policies.data">ConsumerStats</a>&nbsp;add(<a href="../../../../../../org/apache/pulsar/common/policies/data/ConsumerStats.html" title="class in org.apache.pulsar.common.policies.data">ConsumerStats</a>&nbsp;stats)</pre>
+</li>
+</ul>
+<a name="getAddress--">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getAddress</h4>
+<pre>public&nbsp;String&nbsp;getAddress()</pre>
+</li>
+</ul>
+<a name="setAddress-java.lang.String-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>setAddress</h4>
+<pre>public&nbsp;void&nbsp;setAddress(String&nbsp;address)</pre>
+</li>
+</ul>
+<a name="getConnectedSince--">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getConnectedSince</h4>
+<pre>public&nbsp;String&nbsp;getConnectedSince()</pre>
+</li>
+</ul>
+<a name="setConnectedSince-java.lang.String-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>setConnectedSince</h4>
+<pre>public&nbsp;void&nbsp;setConnectedSince(String&nbsp;connectedSince)</pre>
+</li>
+</ul>
+<a name="getClientVersion--">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getClientVersion</h4>
+<pre>public&nbsp;String&nbsp;getClientVersion()</pre>
+</li>
+</ul>
+<a name="setClientVersion-java.lang.String-">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>setClientVersion</h4>
+<pre>public&nbsp;void&nbsp;setClientVersion(String&nbsp;clientVersion)</pre>
 </li>
 </ul>
 </li>

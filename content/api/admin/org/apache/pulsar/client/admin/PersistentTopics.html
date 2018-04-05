@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6,"i20":6,"i21":6,"i22":6,"i23":6,"i24":6,"i25":6,"i26":6,"i27":6,"i28":6,"i29":6,"i30":6,"i31":6,"i32":6,"i33":6,"i34":6,"i35":6,"i36":6,"i37":6,"i38":6,"i39":6,"i40":6,"i41":6,"i42":6,"i43":6,"i44":6,"i45":6};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6,"i20":6,"i21":6,"i22":6,"i23":6,"i24":6,"i25":6,"i26":6,"i27":6,"i28":6,"i29":6,"i30":6,"i31":6,"i32":6,"i33":6,"i34":6,"i35":6,"i36":6,"i37":6,"i38":6,"i39":6,"i40":6,"i41":6,"i42":6,"i43":6,"i44":6,"i45":6,"i46":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -411,24 +411,30 @@ var activeTableTab = "activeTableTab";
 </tr>
 <tr id="i42" class="altColor">
 <td class="colFirst"><code>void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PersistentTopics.html#triggerCompaction-java.lang.String-">triggerCompaction</a></span>(String&nbsp;topic)</code>
+<div class="block">Trigger compaction to run for a topic.</div>
+</td>
+</tr>
+<tr id="i43" class="rowColor">
+<td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PersistentTopics.html#unload-java.lang.String-">unload</a></span>(String&nbsp;topic)</code>
 <div class="block">Unload a topic.</div>
 </td>
 </tr>
-<tr id="i43" class="rowColor">
+<tr id="i44" class="altColor">
 <td class="colFirst"><code>CompletableFuture&lt;Void&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PersistentTopics.html#unloadAsync-java.lang.String-">unloadAsync</a></span>(String&nbsp;topic)</code>
 <div class="block">Unload a topic asynchronously.</div>
 </td>
 </tr>
-<tr id="i44" class="altColor">
+<tr id="i45" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PersistentTopics.html#updatePartitionedTopic-java.lang.String-int-">updatePartitionedTopic</a></span>(String&nbsp;topic,
                       int&nbsp;numPartitions)</code>
 <div class="block">Update number of partitions of a non-global partitioned topic.</div>
 </td>
 </tr>
-<tr id="i45" class="rowColor">
+<tr id="i46" class="altColor">
 <td class="colFirst"><code>CompletableFuture&lt;Void&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PersistentTopics.html#updatePartitionedTopicAsync-java.lang.String-int-">updatePartitionedTopicAsync</a></span>(String&nbsp;topic,
                            int&nbsp;numPartitions)</code>
@@ -1546,7 +1552,7 @@ var activeTableTab = "activeTableTab";
 <a name="resetCursorAsync-java.lang.String-java.lang.String-MessageId-">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>resetCursorAsync</h4>
 <pre>CompletableFuture&lt;Void&gt;&nbsp;resetCursorAsync(String&nbsp;topic,
@@ -1558,6 +1564,24 @@ var activeTableTab = "activeTableTab";
 <dd><code>topic</code> - topic name</dd>
 <dd><code>subName</code> - Subscription name</dd>
 <dd><code>MessageId</code> - reset subscription to messageId (or previous nearest messageId if given messageId is not valid)</dd>
+</dl>
+</li>
+</ul>
+<a name="triggerCompaction-java.lang.String-">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>triggerCompaction</h4>
+<pre>void&nbsp;triggerCompaction(String&nbsp;topic)
+                throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<div class="block">Trigger compaction to run for a topic. A single topic can only have one instance of compaction
+ running at any time. Any attempt to trigger another will be met with a ConflictException.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>topic</code> - The topic on which to trigger compaction</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code></dd>
 </dl>
 </li>
 </ul>

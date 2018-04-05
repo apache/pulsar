@@ -383,8 +383,8 @@ var activeTableTab = "activeTableTab";
 </tr>
 <tr id="i40" class="altColor">
 <td class="colFirst"><code>void</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#setNamespaceReplicationClusters-java.lang.String-java.util.List-">setNamespaceReplicationClusters</a></span>(String&nbsp;namespace,
-                               List&lt;String&gt;&nbsp;clusterIds)</code>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#setNamespaceReplicationClusters-java.lang.String-java.util.Set-">setNamespaceReplicationClusters</a></span>(String&nbsp;namespace,
+                               Set&lt;String&gt;&nbsp;clusterIds)</code>
 <div class="block">Set the replication clusters for a namespace.</div>
 </td>
 </tr>
@@ -825,14 +825,14 @@ List&lt;String&gt;&nbsp;getNamespaces(String&nbsp;property,
 </dl>
 </li>
 </ul>
-<a name="setNamespaceReplicationClusters-java.lang.String-java.util.List-">
+<a name="setNamespaceReplicationClusters-java.lang.String-java.util.Set-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>setNamespaceReplicationClusters</h4>
 <pre>void&nbsp;setNamespaceReplicationClusters(String&nbsp;namespace,
-                                     List&lt;String&gt;&nbsp;clusterIds)
+                                     Set&lt;String&gt;&nbsp;clusterIds)
                               throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
 <div class="block">Set the replication clusters for a namespace.
  <p>

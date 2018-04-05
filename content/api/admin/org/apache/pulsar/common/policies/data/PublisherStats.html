@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":10};
+var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -132,57 +132,33 @@ extends Object</pre>
 <th class="colLast" scope="col">Field and Description</th>
 </tr>
 <tr class="altColor">
-<td class="colFirst"><code>String</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PublisherStats.html#address">address</a></span></code>
-<div class="block">Address of this publisher</div>
-</td>
-</tr>
-<tr class="rowColor">
 <td class="colFirst"><code>double</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PublisherStats.html#averageMsgSize">averageMsgSize</a></span></code>
 <div class="block">Average message size published by this publisher</div>
 </td>
 </tr>
-<tr class="altColor">
-<td class="colFirst"><code>String</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PublisherStats.html#clientVersion">clientVersion</a></span></code>
-<div class="block">Client library version</div>
-</td>
-</tr>
 <tr class="rowColor">
-<td class="colFirst"><code>String</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PublisherStats.html#connectedSince">connectedSince</a></span></code>
-<div class="block">Timestamp of connection</div>
-</td>
-</tr>
-<tr class="altColor">
 <td class="colFirst"><code>Map&lt;String,String&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PublisherStats.html#metadata">metadata</a></span></code>
 <div class="block">Metadata (key/value strings) associated with this publisher</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>double</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PublisherStats.html#msgRateIn">msgRateIn</a></span></code>
 <div class="block">Total rate of messages published by this publisher.</div>
 </td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>double</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PublisherStats.html#msgThroughputIn">msgThroughputIn</a></span></code>
 <div class="block">Total throughput of messages published by this publisher.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>long</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PublisherStats.html#producerId">producerId</a></span></code>
 <div class="block">Id of this publisher</div>
-</td>
-</tr>
-<tr class="altColor">
-<td class="colFirst"><code>String</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PublisherStats.html#producerName">producerName</a></span></code>
-<div class="block">Producer name</div>
 </td>
 </tr>
 </table>
@@ -220,6 +196,38 @@ extends Object</pre>
 <tr id="i0" class="altColor">
 <td class="colFirst"><code><a href="../../../../../../org/apache/pulsar/common/policies/data/PublisherStats.html" title="class in org.apache.pulsar.common.policies.data">PublisherStats</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PublisherStats.html#add-org.apache.pulsar.common.policies.data.PublisherStats-">add</a></span>(<a href="../../../../../../org/apache/pulsar/common/policies/data/PublisherStats.html" title="class in org.apache.pulsar.common.policies.data">PublisherStats</a>&nbsp;stats)</code>&nbsp;</td>
+</tr>
+<tr id="i1" class="rowColor">
+<td class="colFirst"><code>String</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PublisherStats.html#getAddress--">getAddress</a></span>()</code>&nbsp;</td>
+</tr>
+<tr id="i2" class="altColor">
+<td class="colFirst"><code>String</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PublisherStats.html#getClientVersion--">getClientVersion</a></span>()</code>&nbsp;</td>
+</tr>
+<tr id="i3" class="rowColor">
+<td class="colFirst"><code>String</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PublisherStats.html#getConnectedSince--">getConnectedSince</a></span>()</code>&nbsp;</td>
+</tr>
+<tr id="i4" class="altColor">
+<td class="colFirst"><code>String</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PublisherStats.html#getProducerName--">getProducerName</a></span>()</code>&nbsp;</td>
+</tr>
+<tr id="i5" class="rowColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PublisherStats.html#setAddress-java.lang.String-">setAddress</a></span>(String&nbsp;address)</code>&nbsp;</td>
+</tr>
+<tr id="i6" class="altColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PublisherStats.html#setClientVersion-java.lang.String-">setClientVersion</a></span>(String&nbsp;clientVersion)</code>&nbsp;</td>
+</tr>
+<tr id="i7" class="rowColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PublisherStats.html#setConnectedSince-java.lang.String-">setConnectedSince</a></span>(String&nbsp;connectedSince)</code>&nbsp;</td>
+</tr>
+<tr id="i8" class="altColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PublisherStats.html#setProducerName-java.lang.String-">setProducerName</a></span>(String&nbsp;producerName)</code>&nbsp;</td>
 </tr>
 </table>
 <ul class="blockList">
@@ -283,46 +291,6 @@ extends Object</pre>
 <div class="block">Id of this publisher</div>
 </li>
 </ul>
-<a name="producerName">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>producerName</h4>
-<pre>public&nbsp;String producerName</pre>
-<div class="block">Producer name</div>
-</li>
-</ul>
-<a name="address">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>address</h4>
-<pre>public&nbsp;String address</pre>
-<div class="block">Address of this publisher</div>
-</li>
-</ul>
-<a name="connectedSince">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>connectedSince</h4>
-<pre>public&nbsp;String connectedSince</pre>
-<div class="block">Timestamp of connection</div>
-</li>
-</ul>
-<a name="clientVersion">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>clientVersion</h4>
-<pre>public&nbsp;String clientVersion</pre>
-<div class="block">Client library version</div>
-</li>
-</ul>
 <a name="metadata">
 <!--   -->
 </a>
@@ -361,10 +329,82 @@ extends Object</pre>
 <a name="add-org.apache.pulsar.common.policies.data.PublisherStats-">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>add</h4>
 <pre>public&nbsp;<a href="../../../../../../org/apache/pulsar/common/policies/data/PublisherStats.html" title="class in org.apache.pulsar.common.policies.data">PublisherStats</a>&nbsp;add(<a href="../../../../../../org/apache/pulsar/common/policies/data/PublisherStats.html" title="class in org.apache.pulsar.common.policies.data">PublisherStats</a>&nbsp;stats)</pre>
+</li>
+</ul>
+<a name="getProducerName--">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getProducerName</h4>
+<pre>public&nbsp;String&nbsp;getProducerName()</pre>
+</li>
+</ul>
+<a name="setProducerName-java.lang.String-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>setProducerName</h4>
+<pre>public&nbsp;void&nbsp;setProducerName(String&nbsp;producerName)</pre>
+</li>
+</ul>
+<a name="getAddress--">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getAddress</h4>
+<pre>public&nbsp;String&nbsp;getAddress()</pre>
+</li>
+</ul>
+<a name="setAddress-java.lang.String-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>setAddress</h4>
+<pre>public&nbsp;void&nbsp;setAddress(String&nbsp;address)</pre>
+</li>
+</ul>
+<a name="getConnectedSince--">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getConnectedSince</h4>
+<pre>public&nbsp;String&nbsp;getConnectedSince()</pre>
+</li>
+</ul>
+<a name="setConnectedSince-java.lang.String-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>setConnectedSince</h4>
+<pre>public&nbsp;void&nbsp;setConnectedSince(String&nbsp;connectedSince)</pre>
+</li>
+</ul>
+<a name="getClientVersion--">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getClientVersion</h4>
+<pre>public&nbsp;String&nbsp;getClientVersion()</pre>
+</li>
+</ul>
+<a name="setClientVersion-java.lang.String-">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>setClientVersion</h4>
+<pre>public&nbsp;void&nbsp;setClientVersion(String&nbsp;clientVersion)</pre>
 </li>
 </ul>
 </li>
