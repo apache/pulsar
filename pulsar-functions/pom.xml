@@ -33,6 +33,7 @@
 
   <modules>
     <module>proto</module>
+    <module>proto-shaded</module>
     <module>api-java</module>
     <module>utils</module>
     <module>metrics</module>
