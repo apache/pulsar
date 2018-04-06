@@ -73,7 +73,10 @@ public class ResendRequestTest extends BrokerTestBase {
         HashSet<String> messageDataHashSet = new HashSet<String>();
 
         // 1. producer connect
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
@@ -159,7 +162,10 @@ public class ResendRequestTest extends BrokerTestBase {
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 10;
         // 1. producer connect
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
         assertEquals(topicRef.getProducers().size(), 1);
@@ -239,7 +245,10 @@ public class ResendRequestTest extends BrokerTestBase {
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 10;
         // 1. producer connect
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
         assertEquals(topicRef.getProducers().size(), 1);
@@ -355,7 +364,10 @@ public class ResendRequestTest extends BrokerTestBase {
         final int totalMessages = 10;
 
         // 1. producer connect
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
@@ -414,7 +426,9 @@ public class ResendRequestTest extends BrokerTestBase {
 
         // 1. producer connect
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
+            .create();
 
         // 2. Create consumer
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
@@ -468,7 +482,8 @@ public class ResendRequestTest extends BrokerTestBase {
 
         // 1. producer connect
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
 
         // 2. Create consumer
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)
@@ -564,7 +579,9 @@ public class ResendRequestTest extends BrokerTestBase {
 
         // 1. producer connect
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
+            .create();
 
         // 2. Create consumer
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)
@@ -645,7 +662,10 @@ public class ResendRequestTest extends BrokerTestBase {
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 10;
         // 1. producer connect
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
         assertEquals(topicRef.getProducers().size(), 1);

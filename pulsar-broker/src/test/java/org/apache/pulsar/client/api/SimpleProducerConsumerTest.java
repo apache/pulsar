@@ -591,16 +591,22 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         final String topic = "persistent://my-property/use/my-ns/bigMsg";
 
         // (a) non-batch msg with compression
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).compressionType(CompressionType.LZ4)
-                .create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .compressionType(CompressionType.LZ4)
+            .create();
         Message<byte[]> message = MessageBuilder.create().setContent(new byte[PulsarDecoder.MaxMessageSize + 1])
                 .build();
         producer.send(message);
         producer.close();
 
         // (b) batch-msg
-        producer = pulsarClient.newProducer().topic(topic).enableBatching(true).compressionType(CompressionType.LZ4)
-                .create();
+        producer = pulsarClient.newProducer().topic(topic)
+            .enableBatching(true)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .compressionType(CompressionType.LZ4)
+            .create();
         message = MessageBuilder.create().setContent(new byte[PulsarDecoder.MaxMessageSize + 1]).build();
         try {
             producer.send(message);
@@ -911,7 +917,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         final int totalMsg = 100;
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1")
-                .create();
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
         for (int i = 0; i < totalMsg; i++) {
             final String message = "my-message-" + i;
             Message<byte[]> msg = MessageBuilder.create().setContent(message.getBytes()).build();
@@ -1294,7 +1302,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                     .subscriptionType(SubscriptionType.Shared).acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
             Producer<byte[]> producer = pulsarClient.newProducer()
-                    .topic("persistent://my-property/use/my-ns/unacked-topic").create();
+                .topic("persistent://my-property/use/my-ns/unacked-topic")
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
             // (1) Produced Messages
             for (int i = 0; i < totalProducedMsgs; i++) {
@@ -1423,6 +1434,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 producerBuidler.enableBatching(true);
                 producerBuidler.batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS);
                 producerBuidler.batchingMaxMessages(5);
+            } else {
+                producerBuidler.enableBatching(false);
             }
 
             Producer<byte[]> producer = producerBuidler.create();
@@ -1868,7 +1881,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Consumer<byte[]> c1 = consumerBuilder.subscribe();
         Consumer<byte[]> c2 = consumerBuilder.subscribe();
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2")
-                .create();
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
         List<Future<MessageId>> futures = Lists.newArrayList();
 
         // Asynchronously produce messages
@@ -2274,8 +2289,12 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         // 2. Producer with valid key name
         Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic("persistent://my-property/use/myenc-ns/myenc-topic1").addEncryptionKey("client-rsa.pem")
-                .cryptoKeyReader(new EncKeyReader()).create();
+            .topic("persistent://my-property/use/myenc-ns/myenc-topic1")
+            .addEncryptionKey("client-rsa.pem")
+            .cryptoKeyReader(new EncKeyReader())
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
 
         for (int i = 0; i < totalMsg; i++) {
             String message = "my-message-" + i;

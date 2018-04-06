@@ -65,7 +65,10 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         final int totalMessages = 10;
 
         // 1. producer connect
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
 
         // 2. Create consumer
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
@@ -120,7 +123,10 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         final int totalMessages = 10;
 
         // 1. producer connect
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
 
         // 2. Create consumer
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
@@ -168,7 +174,9 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
 
         // 1. producer connect
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
+            .create();
 
         // 2. Create consumer
         Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
@@ -255,7 +263,9 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
 
         // 1. producer connect
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
+            .create();
 
         // 2. Create consumer
         Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
@@ -344,7 +354,10 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         final int totalMessages = 3;
 
         // 1. producer connect
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
 
         // 2. Create consumer
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)

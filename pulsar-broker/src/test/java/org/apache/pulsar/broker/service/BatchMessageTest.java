@@ -41,6 +41,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -531,10 +532,16 @@ public class BatchMessageTest extends BrokerTestBase {
         consumer.close();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-                .batchingMaxPublishDelay(5, TimeUnit.SECONDS).batchingMaxMessages(numMsgsInBatch).enableBatching(true)
-                .create();
+            .batchingMaxPublishDelay(5, TimeUnit.SECONDS)
+            .batchingMaxMessages(numMsgsInBatch)
+            .enableBatching(true)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
         // create producer to publish non batch messages
-        Producer<byte[]> noBatchProducer = pulsarClient.newProducer().topic(topicName).create();
+        Producer<byte[]> noBatchProducer = pulsarClient.newProducer().topic(topicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
 
         List<CompletableFuture<MessageId>> sendFutureList = Lists.newArrayList();
         for (int i = 0; i < numMsgs / 2; i++) {
