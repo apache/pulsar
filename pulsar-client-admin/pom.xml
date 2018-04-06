@@ -46,15 +46,15 @@
       <version>${project.version}</version>
     </dependency>
 
-	<dependency>
+    <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-functions-proto-shaded</artifactId>
       <version>${project.version}</version>
       <exclusions>
-      	<exclusion>
-      		<groupId>*</groupId>
-      		<artifactId>*</artifactId>
-      	</exclusion>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
     

@@ -21,6 +21,8 @@ package org.apache.pulsar.functions.instance;
 import lombok.Getter;
 import lombok.Setter;
 import net.jodah.typetools.TypeResolver;
+
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.SerDe;
@@ -47,13 +49,14 @@ public class JavaInstanceRunnableTest {
         }
     }
 
-    private static InstanceConfig createInstanceConfig(boolean addCustom, String outputSerde) {
+    private static InstanceConfig createInstanceConfig(boolean addCustom, String outputSerde, String inputSerde) {
         FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
         if (!addCustom) {
             functionConfigBuilder.addInputs("TEST");
         } else {
-            functionConfigBuilder.putCustomSerdeInputs("TEST", IntegerSerDe.class.getName());
+            functionConfigBuilder.putCustomSerdeInputs("TEST", inputSerde);
         }
+        functionConfigBuilder.addInputs("TEST");
         if (outputSerde != null) {
             functionConfigBuilder.setOutputSerdeClassName(outputSerde);
         }
@@ -63,8 +66,8 @@ public class JavaInstanceRunnableTest {
         return instanceConfig;
     }
 
-    private JavaInstanceRunnable createRunnable(boolean addCustom, String outputSerde) throws Exception {
-        InstanceConfig config = createInstanceConfig(addCustom, outputSerde);
+    private JavaInstanceRunnable createRunnable(boolean addCustom, String outputSerde, String inputSerde) throws Exception {
+        InstanceConfig config = createInstanceConfig(addCustom, outputSerde, inputSerde);
         JavaInstanceRunnable javaInstanceRunnable = new JavaInstanceRunnable(
                 config, null, null, null, null);
         return javaInstanceRunnable;
@@ -122,7 +125,7 @@ public class JavaInstanceRunnableTest {
     @Test
     public void testVoidInputClasses() {
         try {
-            JavaInstanceRunnable runnable = createRunnable(false, DefaultSerDe.class.getName());
+            JavaInstanceRunnable runnable = createRunnable(false, DefaultSerDe.class.getName(), IntegerSerDe.class.getName());
             Method method = makeAccessible(runnable);
             VoidInputHandler pulsarFunction = new VoidInputHandler();
             ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
@@ -142,7 +145,7 @@ public class JavaInstanceRunnableTest {
     @Test
     public void testVoidOutputClasses() {
         try {
-            JavaInstanceRunnable runnable = createRunnable(false, DefaultSerDe.class.getName());
+            JavaInstanceRunnable runnable = createRunnable(false, DefaultSerDe.class.getName(), IntegerSerDe.class.getName());
             Method method = makeAccessible(runnable);
             ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
             VoidOutputHandler pulsarFunction = new VoidOutputHandler();
@@ -159,7 +162,7 @@ public class JavaInstanceRunnableTest {
     @Test
     public void testInconsistentInputType() {
         try {
-            JavaInstanceRunnable runnable = createRunnable(true, DefaultSerDe.class.getName());
+            JavaInstanceRunnable runnable = createRunnable(true, DefaultSerDe.class.getName(), IntegerSerDe.class.getName());
             Method method = makeAccessible(runnable);
             ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
             Function function = (Function<String, String>) (input, context) -> input + "-lambda";
@@ -179,7 +182,7 @@ public class JavaInstanceRunnableTest {
     @Test
     public void testDefaultSerDe() {
         try {
-            JavaInstanceRunnable runnable = createRunnable(false, null);
+            JavaInstanceRunnable runnable = createRunnable(false, null, IntegerSerDe.class.getName());
             Method method = makeAccessible(runnable);
             ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
             Function function = (Function<String, String>) (input, context) -> input + "-lambda";
@@ -198,7 +201,7 @@ public class JavaInstanceRunnableTest {
     @Test
     public void testExplicitDefaultSerDe() {
         try {
-            JavaInstanceRunnable runnable = createRunnable(false, DefaultSerDe.class.getName());
+            JavaInstanceRunnable runnable = createRunnable(false, DefaultSerDe.class.getName(), IntegerSerDe.class.getName());
             Method method = makeAccessible(runnable);
             ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
             Function function = (Function<String, String>) (input, context) -> input + "-lambda";
@@ -210,12 +213,31 @@ public class JavaInstanceRunnableTest {
     }
 
     /**
+     * Verify that Explicit setting of Non-Default Serializer works fine.
+     */
+    @Test
+    public void testExplicitNonDefaultSerDe() {
+        try {
+            JavaInstanceRunnable runnable = createRunnable(true, DefaultSerDe.class.getName(),
+                    CustomTestDataSerDe.class.getName());
+            Method method = makeAccessible(runnable);
+            ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
+            Function function = (Function<TestData, String>) (input, context) -> input + "-lambda";
+            Class<?>[] typeArgs = TypeResolver.resolveRawArguments(Function.class, function.getClass());
+            method.invoke(runnable, typeArgs, clsLoader);
+        } catch (Exception ex) {
+            assertTrue(false);
+        }
+    }
+    
+    /**
      * Verify that function output type should be consistent with output serde type.
      */
     @Test
     public void testInconsistentOutputType() {
         try {
-            JavaInstanceRunnable runnable = createRunnable(false, IntegerSerDe.class.getName());
+            JavaInstanceRunnable runnable = createRunnable(false, IntegerSerDe.class.getName(),
+                    IntegerSerDe.class.getName());
             Method method = makeAccessible(runnable);
             ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
             Function function = (Function<String, String>) (input, context) -> input + "-lambda";
@@ -229,5 +251,29 @@ public class JavaInstanceRunnableTest {
         }
     }
 
+    static class CustomTestDataSerDe implements SerDe<TestData> {
+        @Override
+        public TestData deserialize(byte[] input) {
+            try {
+                return ObjectMapperFactory.getThreadLocal().readValue(input, TestData.class);
+            } catch (Exception e) {
+                String data = new String(input);
+                throw new IllegalArgumentException("invalid topic data " + data, e);
+            }
+        }
+
+        @Override
+        public byte[] serialize(TestData input) {
+            try {
+                return ObjectMapperFactory.getThreadLocal().writeValueAsBytes(input);
+            } catch (Exception e) {
+                throw new IllegalArgumentException("invalid topic data " + input, e);
+            }
+        }
+    }
+
+    static class TestData {
+        public String test;
+    }
 
 }
