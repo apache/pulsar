@@ -387,7 +387,7 @@ public class CmdFunctions extends CmdBase {
 
         private void parseFullyQualifiedFunctionName(String fqfn, FunctionConfig.Builder functionConfigBuilder) {
             String[] args = fqfn.split("/");
-            if (args.length < 3) {
+            if (args.length != 3) {
                 throw new RuntimeException("Fully qualified function names must be of the form tenant/namespace/name");
             } else {
                 functionConfigBuilder.setTenant(args[0]);
@@ -725,7 +725,7 @@ public class CmdFunctions extends CmdBase {
     TriggerFunction getTriggerer() {
         return triggerer;
     }
-    
+
     private static FunctionConfig.Builder loadConfig(File file) throws IOException {
         String json = FunctionConfigUtils.convertYamlToJson(file);
         FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
