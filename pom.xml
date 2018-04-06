@@ -103,6 +103,8 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-log4j2-appender</module>
     <!-- functions related modules -->
     <module>pulsar-functions</module>
+    <!-- connector related modules -->
+    <module>pulsar-connect</module>
   </modules>
 
   <issueManagement>
