@@ -33,7 +33,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 
 String SERVICE_URL = "pulsar://localhost:6650";
 String TOPIC = "persistent://sample/standalone/ns1/mq-topic-1";
-String subscription = "";
+String subscription = "sub-1";
 
 PulsarClient client = PulsarClient.builder()
         .serviceUrl(SERVICE_URL)
