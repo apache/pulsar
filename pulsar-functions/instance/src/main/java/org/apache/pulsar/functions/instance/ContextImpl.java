@@ -185,6 +185,11 @@ class ContextImpl implements Context {
     }
 
     @Override
+    public Map<String, String> getUserConfigMap() {
+        return config.getFunctionConfig().getUserConfigMap();
+    }
+
+    @Override
     public void incrCounter(String key, long amount) {
         if (null != stateContext) {
             stateContext.incr(key, amount);

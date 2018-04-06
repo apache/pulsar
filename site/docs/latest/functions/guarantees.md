@@ -10,7 +10,7 @@ Delivery semantics | Description
 :------------------|:-------
 **At-most-once** delivery | Each message that is sent to the function will most likely be processed but also may not be (hence the "at most")
 **At-least-once** delivery | Each message that is sent to the function could be processed more than once (hence the "at least")
-**Effectively-once** delivery | Each message that is sent to the function will have one output associated with it. The function may be invoked more than once, perhaps due to some kind of system failure, but the function will produce one effect for each incoming message.
+**Effectively-once** delivery | Each message that is sent to the function will have one output associated with it
 
 ## Applying processing guarantees to a function
 

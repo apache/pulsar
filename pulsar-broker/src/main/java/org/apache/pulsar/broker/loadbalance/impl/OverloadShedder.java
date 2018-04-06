@@ -23,9 +23,9 @@ import com.google.common.collect.Multimap;
 
 import java.util.Map;
 
-import org.apache.bookkeeper.mledger.util.Pair;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.mutable.MutableDouble;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.BundleData;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.TimeAverageMessageData;
@@ -101,18 +101,18 @@ public class OverloadShedder implements LoadSheddingStrategy {
                     BundleData bundleData = e.getValue();
                     TimeAverageMessageData shortTermData = bundleData.getShortTermData();
                     double throughput = shortTermData.getMsgThroughputIn() + shortTermData.getMsgThroughputOut();
-                    return Pair.create(bundle, throughput);
+                    return Pair.of(bundle, throughput);
                 }).filter(e -> {
                     // Only consider bundles that were not already unloaded recently
-                    return !recentlyUnloadedBundles.containsKey(e.first);
+                    return !recentlyUnloadedBundles.containsKey(e.getLeft());
                 }).sorted((e1, e2) -> {
                     // Sort by throughput in reverse order
-                    return Double.compare(e2.second, e1.second);
+                    return Double.compare(e2.getRight(), e1.getRight());
                 }).forEach(e -> {
                     if (trafficMarkedToOffload.doubleValue() < minimumThroughputToOffload
                             || atLeastOneBundleSelected.isFalse()) {
-                       selectedBundlesCache.put(broker, e.first);
-                       trafficMarkedToOffload.add(e.second);
+                       selectedBundlesCache.put(broker, e.getLeft());
+                       trafficMarkedToOffload.add(e.getRight());
                        atLeastOneBundleSelected.setTrue();
                    }
                 });

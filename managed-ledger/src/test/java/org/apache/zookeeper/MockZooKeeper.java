@@ -33,7 +33,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
-import org.apache.bookkeeper.mledger.util.Pair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.zookeeper.AsyncCallback.Children2Callback;
 import org.apache.zookeeper.AsyncCallback.ChildrenCallback;
 import org.apache.zookeeper.AsyncCallback.DataCallback;
@@ -146,15 +146,15 @@ public class MockZooKeeper extends ZooKeeper {
             }
 
             if (createMode == CreateMode.EPHEMERAL_SEQUENTIAL || createMode == CreateMode.PERSISTENT_SEQUENTIAL) {
-                byte[] parentData = tree.get(parent).first;
-                int parentVersion = tree.get(parent).second;
+                byte[] parentData = tree.get(parent).getLeft();
+                int parentVersion = tree.get(parent).getRight();
                 path = path + parentVersion;
 
                 // Update parent version
-                tree.put(parent, Pair.create(parentData, parentVersion + 1));
+                tree.put(parent, Pair.of(parentData, parentVersion + 1));
             }
 
-            tree.put(path, Pair.create(data, 0));
+            tree.put(path, Pair.of(data, 0));
 
             final Set<Watcher> toNotifyCreate = Sets.newHashSet();
             toNotifyCreate.addAll(watchers.get(path));
@@ -218,7 +218,7 @@ public class MockZooKeeper extends ZooKeeper {
                 mutex.unlock();
                 cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null);
             } else {
-                tree.put(path, Pair.create(data, 0));
+                tree.put(path, Pair.of(data, 0));
                 mutex.unlock();
                 cb.processResult(0, path, ctx, null);
 
@@ -250,9 +250,9 @@ public class MockZooKeeper extends ZooKeeper {
                     watchers.put(path, watcher);
                 }
                 if (stat != null) {
-                    stat.setVersion(value.second);
+                    stat.setVersion(value.getRight());
                 }
-                return value.first;
+                return value.getLeft();
             }
         } finally {
             mutex.unlock();
@@ -283,8 +283,8 @@ public class MockZooKeeper extends ZooKeeper {
                 cb.processResult(KeeperException.Code.NoNode, path, ctx, null, null);
             } else {
                 Stat stat = new Stat();
-                stat.setVersion(value.second);
-                cb.processResult(0, path, ctx, value.first, stat);
+                stat.setVersion(value.getRight());
+                cb.processResult(0, path, ctx, value.getLeft(), stat);
             }
         });
     }
@@ -314,9 +314,9 @@ public class MockZooKeeper extends ZooKeeper {
                 }
 
                 Stat stat = new Stat();
-                stat.setVersion(value.second);
+                stat.setVersion(value.getRight());
                 mutex.unlock();
-                cb.processResult(0, path, ctx, value.first, stat);
+                cb.processResult(0, path, ctx, value.getLeft(), stat);
             }
         });
     }
@@ -482,7 +482,7 @@ public class MockZooKeeper extends ZooKeeper {
 
             if (tree.containsKey(path)) {
                 Stat stat = new Stat();
-                stat.setVersion(tree.get(path).second);
+                stat.setVersion(tree.get(path).getRight());
                 return stat;
             } else {
                 return null;
@@ -507,7 +507,7 @@ public class MockZooKeeper extends ZooKeeper {
 
             if (tree.containsKey(path)) {
                 Stat stat = new Stat();
-                stat.setVersion(tree.get(path).second);
+                stat.setVersion(tree.get(path).getRight());
                 return stat;
             } else {
                 return null;
@@ -603,7 +603,7 @@ public class MockZooKeeper extends ZooKeeper {
                 throw new KeeperException.NoNodeException();
             }
 
-            int currentVersion = tree.get(path).second;
+            int currentVersion = tree.get(path).getRight();
 
             // Check version
             if (version != -1 && version != currentVersion) {
@@ -612,7 +612,7 @@ public class MockZooKeeper extends ZooKeeper {
 
             newVersion = currentVersion + 1;
             log.debug("[{}] Updating -- current version: {}", path, currentVersion);
-            tree.put(path, Pair.create(data, newVersion));
+            tree.put(path, Pair.of(data, newVersion));
 
             toNotify.addAll(watchers.get(path));
             watchers.removeAll(path);
@@ -658,7 +658,7 @@ public class MockZooKeeper extends ZooKeeper {
                 return;
             }
 
-            int currentVersion = tree.get(path).second;
+            int currentVersion = tree.get(path).getRight();
 
             // Check version
             if (version != -1 && version != currentVersion) {
@@ -670,7 +670,7 @@ public class MockZooKeeper extends ZooKeeper {
 
             int newVersion = currentVersion + 1;
             log.debug("[{}] Updating -- current version: {}", path, currentVersion);
-            tree.put(path, Pair.create(data, newVersion));
+            tree.put(path, Pair.of(data, newVersion));
             Stat stat = new Stat();
             stat.setVersion(newVersion);
 
@@ -705,7 +705,7 @@ public class MockZooKeeper extends ZooKeeper {
             }
 
             if (version != -1) {
-                int currentVersion = tree.get(path).second;
+                int currentVersion = tree.get(path).getRight();
                 if (version != currentVersion) {
                     throw new KeeperException.BadVersionException(path);
                 }
@@ -776,7 +776,7 @@ public class MockZooKeeper extends ZooKeeper {
                 cb.processResult(KeeperException.Code.NOTEMPTY.intValue(), path, ctx);
             } else {
                 if (version != -1) {
-                    int currentVersion = tree.get(path).second;
+                    int currentVersion = tree.get(path).getRight();
                     if (version != currentVersion) {
                         cb.processResult(KeeperException.Code.BADVERSION.intValue(), path, ctx);
                         return;
