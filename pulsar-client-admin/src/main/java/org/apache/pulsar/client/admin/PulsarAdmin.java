@@ -33,6 +33,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.internal.BrokerStatsImpl;
 import org.apache.pulsar.client.admin.internal.BrokersImpl;
 import org.apache.pulsar.client.admin.internal.ClustersImpl;
+import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.client.admin.internal.JacksonConfigurator;
 import org.apache.pulsar.client.admin.internal.LookupImpl;
 import org.apache.pulsar.client.admin.internal.NamespacesImpl;
@@ -76,6 +77,7 @@ public class PulsarAdmin implements Closeable {
     private final Client client;
     private final String serviceUrl;
     private final Lookup lookups;
+    private final Functions functions;
     protected final WebTarget root;
     protected final Authentication auth;
 
@@ -170,6 +172,7 @@ public class PulsarAdmin implements Closeable {
         this.nonPersistentTopics = new NonPersistentTopicsImpl(root, auth);
         this.resourceQuotas = new ResourceQuotasImpl(root, auth);
         this.lookups = new LookupImpl(root, auth, useTls);
+        this.functions = new FunctionsImpl(root, auth);
     }
 
     /**
@@ -303,6 +306,14 @@ public class PulsarAdmin implements Closeable {
         return lookups;
     }
 
+    /**
+     * 
+     * @return the functions management object
+     */
+    public Functions functions() {
+        return functions;
+    }
+    
     /**
      * @return the broker statics
      */
