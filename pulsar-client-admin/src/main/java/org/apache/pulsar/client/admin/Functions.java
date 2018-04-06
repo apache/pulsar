@@ -21,8 +21,8 @@ package org.apache.pulsar.client.admin;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
-import org.apache.pulsar.functions.proto.Function.FunctionConfig;
-import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
+import org.apache.pulsar.functions.shaded.proto.Function.FunctionConfig;
+import org.apache.pulsar.functions.shaded.proto.InstanceCommunication.FunctionStatusList;
 
 import java.util.List;
 

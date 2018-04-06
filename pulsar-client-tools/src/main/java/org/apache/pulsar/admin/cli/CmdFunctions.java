@@ -22,21 +22,15 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.Parameters;
-import com.beust.jcommander.converters.StringConverter;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonParser;
-import com.google.gson.reflect.TypeToken;
-import org.apache.pulsar.functions.shaded.io.netty.buffer.ByteBuf;
-import org.apache.pulsar.functions.shaded.io.netty.buffer.ByteBufUtil;
-import org.apache.pulsar.functions.shaded.io.netty.buffer.Unpooled;
+import java.io.File;
+import java.io.IOException;
+import java.lang.reflect.Type;
 import java.net.MalformedURLException;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-import net.jodah.typetools.TypeResolver;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
 import org.apache.bookkeeper.api.StorageClient;
 import org.apache.bookkeeper.api.kv.Table;
 import org.apache.bookkeeper.api.kv.result.KeyValue;
@@ -44,16 +38,19 @@ import org.apache.bookkeeper.clients.StorageClientBuilder;
 import org.apache.bookkeeper.clients.config.StorageClientSettings;
 import org.apache.bookkeeper.clients.utils.NetUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminWithFunctions;
+import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.functions.api.Function;
+import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
-import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.runtime.ProcessRuntimeFactory;
-import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
+import org.apache.pulsar.functions.shaded.io.netty.buffer.ByteBuf;
+import org.apache.pulsar.functions.shaded.io.netty.buffer.ByteBufUtil;
+import org.apache.pulsar.functions.shaded.io.netty.buffer.Unpooled;
+import org.apache.pulsar.functions.shaded.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.Reflections;
 
@@ -66,11 +63,23 @@ import java.util.Map;
 import java.util.UUID;
 import org.apache.pulsar.functions.utils.Utils;
 
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.Parameters;
+import com.beust.jcommander.converters.StringConverter;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonParser;
+import com.google.gson.reflect.TypeToken;
+
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+import net.jodah.typetools.TypeResolver;
+
 @Slf4j
 @Parameters(commandDescription = "Interface for managing Pulsar Functions (lightweight, Lambda-style compute processes that work with Pulsar)")
 public class CmdFunctions extends CmdBase {
 
-    private final PulsarAdminWithFunctions fnAdmin;
     private final LocalRunner localRunner;
     private final CreateFunction creater;
     private final DeleteFunction deleter;
@@ -176,7 +185,7 @@ public class CmdFunctions extends CmdBase {
 
             // Initialize config builder either from a supplied YAML config file or from scratch
             if (null != fnConfigFile) {
-                functionConfigBuilder = FunctionConfigUtils.loadConfig(new File(fnConfigFile));
+                functionConfigBuilder = loadConfig(new File(fnConfigFile));
             } else {
                 functionConfigBuilder = FunctionConfig.newBuilder();
             }
@@ -477,7 +486,7 @@ public class CmdFunctions extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            if (!FunctionConfigUtils.areAllRequiredFieldsPresent(functionConfig)) {
+            if (!areAllRequiredFieldsPresent(functionConfig)) {
                 throw new RuntimeException("Missing arguments");
             }
 
@@ -493,7 +502,7 @@ public class CmdFunctions extends CmdBase {
                 List<RuntimeSpawner> spawners = new LinkedList<>();
                 for (int i = 0; i < functionConfig.getParallelism(); ++i) {
                     InstanceConfig instanceConfig = new InstanceConfig();
-                    instanceConfig.setFunctionConfig(functionConfig);
+                    instanceConfig.setFunctionConfig(convert(functionConfig));
                     // TODO: correctly implement function version and id
                     instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
                     instanceConfig.setFunctionId(UUID.randomUUID().toString());
@@ -522,16 +531,17 @@ public class CmdFunctions extends CmdBase {
 
             }
         }
+
     }
 
     @Parameters(commandDescription = "Create a Pulsar Function in cluster mode (i.e. deploy it on a Pulsar cluster)")
     class CreateFunction extends FunctionConfigCommand {
         @Override
         void runCmd() throws Exception {
-            if (!FunctionConfigUtils.areAllRequiredFieldsPresent(functionConfig)) {
+            if (!areAllRequiredFieldsPresent(functionConfig)) {
                 throw new RuntimeException("Missing arguments");
             }
-            fnAdmin.functions().createFunction(functionConfig, userCodeFile);
+            admin.functions().createFunction(functionConfig, userCodeFile);
             print("Created successfully");
         }
     }
@@ -540,7 +550,7 @@ public class CmdFunctions extends CmdBase {
     class GetFunction extends FunctionCommand {
         @Override
         void runCmd() throws Exception {
-            String json = Utils.printJson(fnAdmin.functions().getFunction(tenant, namespace, functionName));
+            String json = Utils.printJson(admin.functions().getFunction(tenant, namespace, functionName));
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             System.out.println(gson.toJson(new JsonParser().parse(json)));
         }
@@ -550,7 +560,7 @@ public class CmdFunctions extends CmdBase {
     class GetFunctionStatus extends FunctionCommand {
         @Override
         void runCmd() throws Exception {
-            String json = Utils.printJson(fnAdmin.functions().getFunctionStatus(tenant, namespace, functionName));
+            String json = Utils.printJson(admin.functions().getFunctionStatus(tenant, namespace, functionName));
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             System.out.println(gson.toJson(new JsonParser().parse(json)));
         }
@@ -560,7 +570,7 @@ public class CmdFunctions extends CmdBase {
     class DeleteFunction extends FunctionCommand {
         @Override
         void runCmd() throws Exception {
-            fnAdmin.functions().deleteFunction(tenant, namespace, functionName);
+            admin.functions().deleteFunction(tenant, namespace, functionName);
             print("Deleted successfully");
         }
     }
@@ -569,10 +579,10 @@ public class CmdFunctions extends CmdBase {
     class UpdateFunction extends FunctionConfigCommand {
         @Override
         void runCmd() throws Exception {
-            if (!FunctionConfigUtils.areAllRequiredFieldsPresent(functionConfig)) {
+            if (!areAllRequiredFieldsPresent(functionConfig)) {
                 throw new RuntimeException("Missing arguments");
             }
-            fnAdmin.functions().updateFunction(functionConfig, userCodeFile);
+            admin.functions().updateFunction(functionConfig, userCodeFile);
             print("Updated successfully");
         }
     }
@@ -581,7 +591,7 @@ public class CmdFunctions extends CmdBase {
     class ListFunctions extends NamespaceCommand {
         @Override
         void runCmd() throws Exception {
-            print(fnAdmin.functions().getFunctions(tenant, namespace));
+            print(admin.functions().getFunctions(tenant, namespace));
         }
     }
 
@@ -654,18 +664,13 @@ public class CmdFunctions extends CmdBase {
             if (triggerFile == null && triggerValue == null) {
                 throw new RuntimeException("Either a trigger value or a trigger filepath needs to be specified");
             }
-            String retval = fnAdmin.functions().triggerFunction(tenant, namespace, functionName, triggerValue, triggerFile);
+            String retval = admin.functions().triggerFunction(tenant, namespace, functionName, triggerValue, triggerFile);
             System.out.println(retval);
         }
     }
 
     public CmdFunctions(PulsarAdmin admin) throws PulsarClientException {
         super("functions", admin);
-        if (admin instanceof PulsarAdminWithFunctions) {
-            this.fnAdmin = (PulsarAdminWithFunctions) admin;
-        } else {
-            this.fnAdmin = new PulsarAdminWithFunctions(admin.getServiceUrl(), admin.getClientConfigData());
-        }
         localRunner = new LocalRunner();
         creater = new CreateFunction();
         deleter = new DeleteFunction();
@@ -727,5 +732,26 @@ public class CmdFunctions extends CmdBase {
     @VisibleForTesting
     TriggerFunction getTriggerer() {
         return triggerer;
+    }
+    
+    private static FunctionConfig.Builder loadConfig(File file) throws IOException {
+        String json = FunctionConfigUtils.convertYamlToJson(file);
+        FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
+        Utils.mergeJson(json, functionConfigBuilder);
+        return functionConfigBuilder;
+    }
+
+    public static boolean areAllRequiredFieldsPresent(FunctionConfig functionConfig) {
+        return functionConfig.getTenant() != null && functionConfig.getNamespace() != null
+                && functionConfig.getName() != null && functionConfig.getClassName() != null
+                && (functionConfig.getInputsCount() > 0 || functionConfig.getCustomSerdeInputsCount() > 0)
+                && functionConfig.getParallelism() > 0;
+    }
+
+    private org.apache.pulsar.functions.proto.Function.FunctionConfig convert(FunctionConfig functionConfig)
+            throws IOException {
+        org.apache.pulsar.functions.proto.Function.FunctionConfig.Builder functionConfigBuilder = org.apache.pulsar.functions.proto.Function.FunctionConfig.newBuilder();
+        Utils.mergeJson(FunctionsImpl.printJson(functionConfig), functionConfigBuilder);
+        return functionConfigBuilder.build();
     }
 }
