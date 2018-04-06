@@ -16,30 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.api;
+package org.apache.pulsar.common.schema;
 
-import org.apache.pulsar.common.schema.SchemaInfo;
+import lombok.Builder;
+import lombok.Data;
 
-public interface Schema<T> {
-    byte[] encode(T message);
-    T decode(byte[] bytes);
-
-    SchemaInfo getSchemaInfo();
-
-    Schema<byte[]> IDENTITY = new Schema<byte[]>() {
-        @Override
-        public byte[] encode(byte[] message) {
-            return message;
-        }
-
-        @Override
-        public byte[] decode(byte[] bytes) {
-            return bytes;
-        }
-
-        @Override
-        public SchemaInfo getSchemaInfo() {
-            return null;
-        }
-    };
+@Data
+@Builder
+public class PostSchemaResponse {
+    private SchemaVersion version;
 }
