@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.AuthMethod;
 import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
@@ -75,7 +76,6 @@ import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.schema.SchemaVersion;
-import org.apache.pulsar.common.util.collections.Pair;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 
@@ -527,8 +527,8 @@ public class Commands {
 
         int entriesCount = entries.size();
         for (int i = 0; i < entriesCount; i++) {
-            long ledgerId = entries.get(i).getFirst();
-            long entryId = entries.get(i).getSecond();
+            long ledgerId = entries.get(i).getLeft();
+            long entryId = entries.get(i).getRight();
 
             MessageIdData.Builder messageIdDataBuilder = MessageIdData.newBuilder();
             messageIdDataBuilder.setLedgerId(ledgerId);
