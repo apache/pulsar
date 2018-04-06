@@ -86,7 +86,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.Ledge
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo;
 import org.apache.bookkeeper.mledger.util.CallbackMutex;
 import org.apache.bookkeeper.mledger.util.Futures;
-import org.apache.bookkeeper.mledger.util.Pair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
@@ -1445,7 +1445,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     void discardEntriesFromCache(ManagedCursorImpl cursor, PositionImpl newPosition) {
         Pair<PositionImpl, PositionImpl> pair = activeCursors.cursorUpdated(cursor, newPosition);
         if (pair != null) {
-            entryCache.invalidateEntries(pair.second);
+            entryCache.invalidateEntries(pair.getRight());
         }
     }
 
@@ -1457,8 +1457,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
 
-        PositionImpl previousSlowestReader = pair.first;
-        PositionImpl currentSlowestReader = pair.second;
+        PositionImpl previousSlowestReader = pair.getLeft();
+        PositionImpl currentSlowestReader = pair.getRight();
 
         if (previousSlowestReader.compareTo(currentSlowestReader) == 0) {
             // The slowest consumer has not changed position. Nothing to do right now
@@ -2041,7 +2041,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             // Ensure no entry was written while reading the two values
         } while (pos.compareTo(lastConfirmedEntry) != 0);
 
-        return Pair.create(pos, count);
+        return Pair.of(pos, count);
     }
 
     /**
@@ -2055,9 +2055,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         do {
             pos = getFirstPosition();
             lastPositionAndCounter = getLastPositionAndCounter();
-            count = lastPositionAndCounter.second - getNumberOfEntries(Range.openClosed(pos, lastPositionAndCounter.first));
-        } while (pos.compareTo(getFirstPosition()) != 0 || lastPositionAndCounter.first.compareTo(getLastPosition()) != 0);
-        return Pair.create(pos, count);
+            count = lastPositionAndCounter.getRight() - getNumberOfEntries(Range.openClosed(pos, lastPositionAndCounter.getLeft()));
+        } while (pos.compareTo(getFirstPosition()) != 0 || lastPositionAndCounter.getLeft().compareTo(getLastPosition()) != 0);
+        return Pair.of(pos, count);
     }
 
     public void activateCursor(ManagedCursor cursor) {
