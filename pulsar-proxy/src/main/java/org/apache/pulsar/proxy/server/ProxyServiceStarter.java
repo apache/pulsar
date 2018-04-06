@@ -25,6 +25,9 @@ import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.slf4j.bridge.SLF4JBridgeHandler.install;
 import static org.slf4j.bridge.SLF4JBridgeHandler.removeHandlersForRootLogger;
 
+import com.google.common.collect.Lists;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.slf4j.Logger;
@@ -121,7 +124,11 @@ public class ProxyServiceStarter {
         server.addServlet("/metrics", new ServletHolder(MetricsServlet.class));
         server.addRestResources("/", VipStatus.class.getPackage().getName(),
                 VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath());
-        server.addServlet("/admin", new ServletHolder(new AdminProxyHandler(config)));
+
+        AdminProxyHandler adminProxyHandler = new AdminProxyHandler(config);
+        Pair<String, Object> preserveHost = ImmutablePair.of("preserveHost", Boolean.TRUE);
+        server.addServlet("/admin", new ServletHolder(adminProxyHandler), Lists.newArrayList(preserveHost));
+        server.addServlet("/lookup", new ServletHolder(adminProxyHandler));
 
         // start web-service
         server.start();

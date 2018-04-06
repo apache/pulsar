@@ -20,11 +20,13 @@ package org.apache.pulsar.proxy.server;
 
 import java.net.URI;
 import java.security.GeneralSecurityException;
+import java.util.Collections;
 import java.util.List;
 import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.eclipse.jetty.server.Handler;
@@ -96,8 +98,15 @@ public class WebServer {
     }
 
     public void addServlet(String path, ServletHolder servletHolder) {
+        addServlet(path, servletHolder, Collections.emptyList());
+    }
+
+    public void addServlet(String path, ServletHolder servletHolder, List<Pair<String, Object>> attributes) {
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.addServlet(servletHolder, path);
+        for (Pair<String, Object> attribute : attributes) {
+            context.setAttribute(attribute.getLeft(), attribute.getRight());
+        }
         handlers.add(context);
     }
 

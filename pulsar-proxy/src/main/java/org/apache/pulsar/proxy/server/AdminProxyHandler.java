@@ -9,17 +9,17 @@ import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.proxy.ProxyServlet;
+import org.eclipse.jetty.proxy.AsyncProxyServlet;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class AdminProxyHandler extends ProxyServlet.Transparent {
+class AdminProxyHandler extends AsyncProxyServlet.Transparent {
     private static final Logger LOG = LoggerFactory.getLogger(AdminProxyHandler.class);
 
     private final ProxyConfiguration config;
 
-    public AdminProxyHandler(ProxyConfiguration config) {
+    AdminProxyHandler(ProxyConfiguration config) {
         this.config = config;
     }
 
@@ -60,6 +60,7 @@ class AdminProxyHandler extends ProxyServlet.Transparent {
 
                     SslContextFactory contextFactory = new SslContextFactory();
                     contextFactory.setSslContext(sslCtx);
+
                     return new HttpClient(contextFactory);
                 } catch (Exception e) {
                     try {
