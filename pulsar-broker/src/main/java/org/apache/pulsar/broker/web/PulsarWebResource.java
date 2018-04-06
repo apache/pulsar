@@ -607,7 +607,7 @@ public abstract class PulsarWebResource {
         return validationFuture;
     }
 
-    private static ClusterData getOwnerFromPeerClusterList(PulsarService pulsar, List<String> replicationClusters) {
+    private static ClusterData getOwnerFromPeerClusterList(PulsarService pulsar, Set<String> replicationClusters) {
         String currentCluster = pulsar.getConfiguration().getClusterName();
         if (replicationClusters == null || replicationClusters.isEmpty() || isBlank(currentCluster)) {
             return null;
@@ -619,9 +619,8 @@ public abstract class PulsarWebResource {
             if (!cluster.isPresent() || cluster.get().getPeerClusterNames() == null) {
                 return null;
             }
-            Set<String> replicationClusterSet = Sets.newHashSet(replicationClusters);
             for (String peerCluster : cluster.get().getPeerClusterNames()) {
-                if (replicationClusterSet.contains(peerCluster)) {
+                if (replicationClusters.contains(peerCluster)) {
                     return pulsar.getConfigurationCache().clustersCache().get(path("clusters", peerCluster))
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                                     "Peer cluster " + peerCluster + " data not found"));

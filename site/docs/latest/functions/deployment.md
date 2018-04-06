@@ -1,7 +1,7 @@
 ---
 title: Deploying and managing Pulsar Functions
-lead: Something or other
-new: true
+lead: A guide to Pulsar Functions from an operational perspective
+preview: true
 ---
 
 At the moment, there are two deployment modes available for Pulsar Functions:
@@ -65,8 +65,6 @@ $ bin/pulsar-admin functions update \
   --inputs persistent://sample/standalone/ns1/new-input-topic \
   --output persistent://sample/standalone/ns1/new-output-topic
 ```
-
-{% include admonition.html type="info" content="Something" %}
 
 ### Parallelism
 

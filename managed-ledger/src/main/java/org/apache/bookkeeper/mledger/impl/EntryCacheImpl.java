@@ -188,7 +188,7 @@ public class EntryCacheImpl implements EntryCache {
                     manager.mlFactoryMBean.recordCacheMiss(1, returnEntry.getLength());
                     ml.mbean.addReadEntriesSample(1, returnEntry.getLength());
 
-                    ml.getExecutor().submitOrdered(ml.getName(), safeRun(() -> {
+                    ml.getExecutor().executeOrdered(ml.getName(), safeRun(() -> {
                         callback.readEntryComplete(returnEntry, obj);
                     }));
                 } else {
@@ -254,7 +254,7 @@ public class EntryCacheImpl implements EntryCache {
 
                 checkNotNull(ml.getName());
                 checkNotNull(ml.getExecutor());
-                ml.getExecutor().submitOrdered(ml.getName(), safeRun(() -> {
+                ml.getExecutor().executeOrdered(ml.getName(), safeRun(() -> {
                     // We got the entries, we need to transform them to a List<> type
                     long totalSize = 0;
                     final List<EntryImpl> entriesToReturn = Lists.newArrayListWithExpectedSize(entriesToRead);

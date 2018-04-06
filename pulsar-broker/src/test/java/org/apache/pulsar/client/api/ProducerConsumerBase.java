@@ -27,7 +27,6 @@ import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 public abstract class ProducerConsumerBase extends MockedPulsarServiceBaseTest {
@@ -41,7 +40,7 @@ public abstract class ProducerConsumerBase extends MockedPulsarServiceBaseTest {
     public void producerBaseSetup() throws Exception {
         admin.clusters().createCluster("use", new ClusterData("http://127.0.0.1:" + BROKER_WEBSERVICE_PORT));
         admin.properties().createProperty("my-property",
-                new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("use")));
+                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
         admin.namespaces().createNamespace("my-property/use/my-ns");
     }
 
@@ -54,4 +53,5 @@ public abstract class ProducerConsumerBase extends MockedPulsarServiceBaseTest {
         // Make sure that there are no duplicates
         Assert.assertTrue(messagesReceived.add(receivedMessage), "Received duplicate message " + receivedMessage);
     }
+    
 }

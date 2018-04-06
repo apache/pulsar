@@ -31,20 +31,16 @@ import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 
-import org.apache.pulsar.functions.shaded.io.netty.buffer.ByteBuf;
-import org.apache.pulsar.functions.shaded.io.netty.buffer.ByteBufUtil;
 import java.io.File;
-import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+
 import org.apache.bookkeeper.api.StorageClient;
 import org.apache.bookkeeper.api.kv.Table;
 import org.apache.bookkeeper.clients.StorageClientBuilder;
 import org.apache.bookkeeper.clients.config.StorageClientSettings;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
-import java.util.HashMap;
-import java.util.Map;
-
-import com.google.gson.Gson;
 import org.apache.pulsar.admin.cli.CmdFunctions.CreateFunction;
 import org.apache.pulsar.admin.cli.CmdFunctions.DeleteFunction;
 import org.apache.pulsar.admin.cli.CmdFunctions.GetFunction;
@@ -52,12 +48,14 @@ import org.apache.pulsar.admin.cli.CmdFunctions.ListFunctions;
 import org.apache.pulsar.admin.cli.CmdFunctions.LocalRunner;
 import org.apache.pulsar.admin.cli.CmdFunctions.UpdateFunction;
 import org.apache.pulsar.client.admin.Functions;
-import org.apache.pulsar.client.admin.PulsarAdminWithFunctions;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
-import org.apache.pulsar.functions.proto.Function.FunctionConfig;
+import org.apache.pulsar.functions.shaded.proto.Function.FunctionConfig;
+import org.apache.pulsar.functions.shaded.io.netty.buffer.ByteBuf;
+import org.apache.pulsar.functions.shaded.io.netty.buffer.ByteBufUtil;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
@@ -66,6 +64,8 @@ import org.testng.IObjectFactory;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
+
+import com.google.gson.Gson;
 
 /**
  * Unit test of {@link CmdFunctions}.
@@ -81,7 +81,7 @@ public class CmdFunctionsTest {
 
     private static final String TEST_NAME = "test_name";
 
-    private PulsarAdminWithFunctions admin;
+    private PulsarAdmin admin;
     private Functions functions;
     private CmdFunctions cmd;
 
@@ -100,11 +100,11 @@ public class CmdFunctionsTest {
 
     @BeforeMethod
     public void setup() throws Exception {
-        this.admin = mock(PulsarAdminWithFunctions.class);
+        this.admin = mock(PulsarAdmin.class);
         this.functions = mock(Functions.class);
         when(admin.functions()).thenReturn(functions);
-        when(admin.getServiceUrl()).thenReturn(URI.create("http://localhost:1234").toURL());
-        when(admin.getClientConf()).thenReturn(new ClientConfigurationData());
+        when(admin.getServiceUrl()).thenReturn("http://localhost:1234");
+        when(admin.getClientConfigData()).thenReturn(new ClientConfigurationData());
         this.cmd = new CmdFunctions(admin);
 
         // mock reflections

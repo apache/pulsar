@@ -32,6 +32,7 @@ import org.apache.bookkeeper.client.BookKeeper.DigestType;
 @Beta
 public class ManagedLedgerConfig {
 
+    private boolean createIfMissing = true;
     private int maxUnackedRangesToPersist = 10000;
     private int maxUnackedRangesToPersistInZk = 1000;
     private int maxEntriesPerLedger = 50000;
@@ -53,6 +54,15 @@ public class ManagedLedgerConfig {
 
     private DigestType digestType = DigestType.CRC32C;
     private byte[] password = "".getBytes(Charsets.UTF_8);
+
+    public boolean isCreateIfMissing() {
+        return createIfMissing;
+    }
+
+    public ManagedLedgerConfig setCreateIfMissing(boolean createIfMissing) {
+        this.createIfMissing = createIfMissing;
+        return this;
+    }
 
     /**
      * @return the maxEntriesPerLedger

@@ -61,7 +61,7 @@ public class ChecksumTest extends BrokerTestBase {
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
 
         ManagedLedger ledger = topic.getManagedLedger();
         ManagedCursor cursor = ledger.openCursor("test");

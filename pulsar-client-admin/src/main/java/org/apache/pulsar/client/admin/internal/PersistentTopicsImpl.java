@@ -711,6 +711,18 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
         return future;
     }
 
+    @Override
+    public void triggerCompaction(String topic)
+            throws PulsarAdminException {
+        try {
+            TopicName tn = validateTopic(topic);
+            request(topicPath(tn, "compaction"))
+                .put(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
     private WebTarget namespacePath(NamespaceName namespace, String... parts) {
         final WebTarget base = namespace.isV2() ? adminV2PersistentTopics : adminPersistentTopics;
         WebTarget namespacePath = base.path(namespace.toString());

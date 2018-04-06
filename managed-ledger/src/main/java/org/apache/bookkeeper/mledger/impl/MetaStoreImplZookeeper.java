@@ -20,11 +20,17 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 
+import com.google.common.base.Charsets;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.TextFormat;
+import com.google.protobuf.TextFormat.ParseException;
+
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.bookkeeper.common.util.OrderedScheduler;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.BadVersionException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
@@ -40,11 +46,6 @@ import org.apache.zookeeper.data.ACL;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Charsets;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.TextFormat;
-import com.google.protobuf.TextFormat.ParseException;
-
 @SuppressWarnings("checkstyle:javadoctype")
 public class MetaStoreImplZookeeper implements MetaStore {
 
@@ -55,7 +56,7 @@ public class MetaStoreImplZookeeper implements MetaStore {
     private static final String prefix = prefixName + "/";
 
     private final ZooKeeper zk;
-    private final OrderedScheduler executor;
+    private final OrderedExecutor executor;
 
     private static class ZKStat implements Stat {
         private final int version;
@@ -90,7 +91,7 @@ public class MetaStoreImplZookeeper implements MetaStore {
         }
     }
 
-    public MetaStoreImplZookeeper(ZooKeeper zk, OrderedScheduler executor)
+    public MetaStoreImplZookeeper(ZooKeeper zk, OrderedExecutor executor)
             throws Exception {
         this.zk = zk;
         this.executor = executor;
@@ -128,35 +129,48 @@ public class MetaStoreImplZookeeper implements MetaStore {
     }
 
     @Override
-    public void getManagedLedgerInfo(final String ledgerName, final MetaStoreCallback<ManagedLedgerInfo> callback) {
+    public void getManagedLedgerInfo(final String ledgerName, boolean createIfMissing,
+            final MetaStoreCallback<ManagedLedgerInfo> callback) {
         // Try to get the content or create an empty node
-        zk.getData(prefix + ledgerName, false, (rc, path, ctx, readData, stat) -> executor.submit(safeRun(() -> {
-            if (rc == Code.OK.intValue()) {
-                try {
-                    ManagedLedgerInfo info = parseManagedLedgerInfo(readData);
-                    info = updateMLInfoTimestamp(info);
-                    callback.operationComplete(info, new ZKStat(stat));
-                } catch (ParseException | InvalidProtocolBufferException e) {
-                    callback.operationFailed(new MetaStoreException(e));
-                }
-            } else if (rc == Code.NONODE.intValue()) {
-                log.info("Creating '{}{}'", prefix, ledgerName);
+        zk.getData(prefix + ledgerName, false,
+                (rc, path, ctx, readData, stat) -> executor.executeOrdered(ledgerName, safeRun(() -> {
+                    if (rc == Code.OK.intValue()) {
+                        try {
+                            ManagedLedgerInfo info = parseManagedLedgerInfo(readData);
+                            info = updateMLInfoTimestamp(info);
+                            callback.operationComplete(info, new ZKStat(stat));
+                        } catch (ParseException | InvalidProtocolBufferException e) {
+                            callback.operationFailed(new MetaStoreException(e));
+                        }
+                    } else if (rc == Code.NONODE.intValue()) {
+                        // Z-node doesn't exist
+                        if (createIfMissing) {
+                            log.info("Creating '{}{}'", prefix, ledgerName);
 
-                StringCallback createcb = (rc1, path1, ctx1, name) -> {
-                    if (rc1 == Code.OK.intValue()) {
-                        ManagedLedgerInfo info = ManagedLedgerInfo.getDefaultInstance();
-                        callback.operationComplete(info, new ZKStat());
+                            StringCallback createcb = (rc1, path1, ctx1, name) -> {
+                                if (rc1 == Code.OK.intValue()) {
+                                    ManagedLedgerInfo info = ManagedLedgerInfo.getDefaultInstance();
+                                    callback.operationComplete(info, new ZKStat());
+                                } else {
+                                    callback.operationFailed(
+                                            new MetaStoreException(KeeperException.create(Code.get(rc1))));
+                                }
+                            };
+
+                            ZkUtils.asyncCreateFullPathOptimistic(zk, prefix + ledgerName, new byte[0], Acl,
+                                    CreateMode.PERSISTENT, createcb, null);
+                        } else {
+                            // Tried to open a managed ledger but it doesn't exist and we shouldn't creating it at this
+                            // point
+
+                            callback.operationFailed(new ManagedLedgerException.MetadataNotFoundException(
+                                    KeeperException.create(Code.get(rc))));
+                        }
                     } else {
-                        callback.operationFailed(new MetaStoreException(KeeperException.create(Code.get(rc1))));
+                        // Other ZK error
+                        callback.operationFailed(new MetaStoreException(KeeperException.create(Code.get(rc))));
                     }
-                };
-
-                ZkUtils.asyncCreateFullPathOptimistic(zk, prefix + ledgerName, new byte[0], Acl, CreateMode.PERSISTENT,
-                        createcb, null);
-            } else {
-                callback.operationFailed(new MetaStoreException(KeeperException.create(Code.get(rc))));
-            }
-        })), null);
+                })), null);
     }
 
     @Override
@@ -171,7 +185,7 @@ public class MetaStoreImplZookeeper implements MetaStore {
         byte[] serializedMlInfo = mlInfo.toByteArray(); // Binary format
 
         zk.setData(prefix + ledgerName, serializedMlInfo, zkStat.getVersion(),
-                (rc, path, zkCtx, stat1) -> executor.submit(safeRun(() -> {
+                (rc, path, zkCtx, stat1) -> executor.executeOrdered(ledgerName, safeRun(() -> {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] UpdateLedgersIdsCallback.processResult rc={} newVersion={}", ledgerName,
                                 Code.get(rc), stat != null ? stat.getVersion() : "null");
@@ -195,7 +209,8 @@ public class MetaStoreImplZookeeper implements MetaStore {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Get cursors list", ledgerName);
         }
-        zk.getChildren(prefix + ledgerName, false, (rc, path, ctx, children, stat) -> executor.submit(safeRun(() -> {
+        zk.getChildren(prefix + ledgerName, false,
+                (rc, path, ctx, children, stat) -> executor.executeOrdered(ledgerName, safeRun(() -> {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] getConsumers complete rc={} children={}", ledgerName, Code.get(rc), children);
             }
@@ -219,7 +234,7 @@ public class MetaStoreImplZookeeper implements MetaStore {
             log.debug("Reading from {}", path);
         }
 
-        zk.getData(path, false, (rc, path1, ctx, data, stat) -> executor.submit(safeRun(() -> {
+        zk.getData(path, false, (rc, path1, ctx, data, stat) -> executor.executeOrdered(ledgerName, safeRun(() -> {
             if (rc != Code.OK.intValue()) {
                 callback.operationFailed(new MetaStoreException(KeeperException.create(Code.get(rc))));
             } else {
@@ -251,7 +266,7 @@ public class MetaStoreImplZookeeper implements MetaStore {
                 log.debug("[{}] Creating consumer {} on meta-data store with {}", ledgerName, cursorName, info);
             }
             zk.create(path, content, Acl, CreateMode.PERSISTENT,
-                    (rc, path1, ctx, name) -> executor.submit(safeRun(() -> {
+                    (rc, path1, ctx, name) -> executor.executeOrdered(ledgerName, safeRun(() -> {
                         if (rc != Code.OK.intValue()) {
                             log.warn("[{}] Error creating cosumer {} node on meta-data store with {}: ", ledgerName,
                                     cursorName, info, Code.get(rc));
@@ -269,7 +284,8 @@ public class MetaStoreImplZookeeper implements MetaStore {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Updating consumer {} on meta-data store with {}", ledgerName, cursorName, info);
             }
-            zk.setData(path, content, zkStat.getVersion(), (rc, path1, ctx, stat1) -> executor.submit(safeRun(() -> {
+            zk.setData(path, content, zkStat.getVersion(),
+                    (rc, path1, ctx, stat1) -> executor.executeOrdered(ledgerName, safeRun(() -> {
                 if (rc == Code.BADVERSION.intValue()) {
                     callback.operationFailed(new BadVersionException(KeeperException.create(Code.get(rc))));
                 } else if (rc != Code.OK.intValue()) {
@@ -285,7 +301,8 @@ public class MetaStoreImplZookeeper implements MetaStore {
     public void asyncRemoveCursor(final String ledgerName, final String consumerName,
             final MetaStoreCallback<Void> callback) {
         log.info("[{}] Remove consumer={}", ledgerName, consumerName);
-        zk.delete(prefix + ledgerName + "/" + consumerName, -1, (rc, path, ctx) -> executor.submit(safeRun(() -> {
+        zk.delete(prefix + ledgerName + "/" + consumerName, -1,
+                (rc, path, ctx) -> executor.executeOrdered(ledgerName, safeRun(() -> {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] zk delete done. rc={}", ledgerName, consumerName, Code.get(rc));
             }
@@ -300,7 +317,7 @@ public class MetaStoreImplZookeeper implements MetaStore {
     @Override
     public void removeManagedLedger(String ledgerName, MetaStoreCallback<Void> callback) {
         log.info("[{}] Remove ManagedLedger", ledgerName);
-        zk.delete(prefix + ledgerName, -1, (rc, path, ctx) -> executor.submit(safeRun(() -> {
+        zk.delete(prefix + ledgerName, -1, (rc, path, ctx) -> executor.executeOrdered(ledgerName, safeRun(() -> {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] zk delete done. rc={}", ledgerName, Code.get(rc));
             }

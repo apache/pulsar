@@ -104,7 +104,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         BrokerService service = pulsar.getBrokerService();
 
         final CountDownLatch latch1 = new CountDownLatch(1);
-        service.getTopic(topic).thenAccept(t -> {
+        service.getOrCreateTopic(topic).thenAccept(t -> {
             latch1.countDown();
             fail("should fail as NS is not owned");
         }).exceptionally(exception -> {
@@ -117,7 +117,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         admin.lookups().lookupTopic(topic);
 
         final CountDownLatch latch2 = new CountDownLatch(1);
-        service.getTopic(topic).thenAccept(t -> {
+        service.getOrCreateTopic(topic).thenAccept(t -> {
             try {
                 assertNotNull(service.getTopicReference(topic));
             } catch (Exception e) {
@@ -140,10 +140,11 @@ public class BrokerServiceTest extends BrokerTestBase {
         PersistentTopicStats stats;
         SubscriptionStats subStats;
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                .acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
 
         rolloverPerIntervalStats();
@@ -174,7 +175,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertTrue(stats.publishers.get(0).msgRateIn > 0.0);
         assertTrue(stats.publishers.get(0).msgThroughputIn > 0.0);
         assertTrue(stats.publishers.get(0).averageMsgSize > 0.0);
-        assertNotNull(stats.publishers.get(0).clientVersion);
+        assertNotNull(stats.publishers.get(0).getClientVersion());
 
         // aggregated publish stats
         assertEquals(stats.msgRateIn, stats.publishers.get(0).msgRateIn);
@@ -191,7 +192,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertEquals(subStats.msgThroughputOut, subStats.consumers.get(0).msgThroughputOut);
         assertEquals(stats.msgRateOut, subStats.consumers.get(0).msgRateOut);
         assertEquals(stats.msgThroughputOut, subStats.consumers.get(0).msgThroughputOut);
-        assertNotNull(subStats.consumers.get(0).clientVersion);
+        assertNotNull(subStats.consumers.get(0).getClientVersion());
 
         Message<byte[]> msg;
         for (int i = 0; i < 10; i++) {
@@ -217,10 +218,10 @@ public class BrokerServiceTest extends BrokerTestBase {
         SubscriptionStats subStats;
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Shared).subscribe();
+                .subscriptionType(SubscriptionType.Shared).acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
 
         rolloverPerIntervalStats();
@@ -722,7 +723,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         pulsar.getNamespaceService().getOwnershipCache().updateBundleState(bundle, false);
 
         // try to create topic which should fail as bundle is disable
-        CompletableFuture<Topic> futureResult = pulsar.getBrokerService().createPersistentTopic(topicName);
+        CompletableFuture<Topic> futureResult = pulsar.getBrokerService().loadOrCreatePersistentTopic(topicName, true);
 
         try {
             futureResult.get();
@@ -765,7 +766,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         // create topic async and wait on the future completion
         executor.submit(() -> {
-            service.getTopic(deadLockTestTopic).thenAccept(topic -> topicCreation.complete(null)).exceptionally(e -> {
+            service.getOrCreateTopic(deadLockTestTopic).thenAccept(topic -> topicCreation.complete(null)).exceptionally(e -> {
                 topicCreation.completeExceptionally(e.getCause());
                 return null;
             });
@@ -801,7 +802,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         BrokerService service = spy(pulsar.getBrokerService());
         // create topic will fail to get managedLedgerConfig
         CompletableFuture<ManagedLedgerConfig> failedManagedLedgerConfig = new CompletableFuture<>();
-        failedManagedLedgerConfig.complete(null);
+        failedManagedLedgerConfig.complete(new ManagedLedgerConfig());
         doReturn(failedManagedLedgerConfig).when(service).getManagedLedgerConfig(anyObject());
 
         CompletableFuture<Void> topicCreation = new CompletableFuture<Void>();
@@ -817,7 +818,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         // create topic async and wait on the future completion
         executor.submit(() -> {
-            service.getTopic(deadLockTestTopic).thenAccept(topic -> topicCreation.complete(null)).exceptionally(e -> {
+            service.getOrCreateTopic(deadLockTestTopic).thenAccept(topic -> topicCreation.complete(null)).exceptionally(e -> {
                 topicCreation.completeExceptionally(e.getCause());
                 return null;
             });
@@ -829,7 +830,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         } catch (TimeoutException | InterruptedException e) {
             fail("there is a dead-lock and it should have been prevented");
         } catch (ExecutionException e) {
-            assertTrue(e.getCause() instanceof PersistenceException);
+            assertEquals(e.getCause().getClass(), PersistenceException.class);
         } finally {
             executor.shutdownNow();
             ledgers.clear();
