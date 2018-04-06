@@ -92,6 +92,9 @@ class ContextImpl(pulsar.Context):
       return str(self.instance_config.function_config.userConfig[key])
     else:
       return None
+  
+  def get_user_config_map(self):
+    return self.instance_config.function_config.userConfig
 
   def record_metric(self, metric_name, metric_value):
     if not metric_name in self.accumulated_metrics:
