@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":10,"i1":10,"i2":9,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10};
+var methods = {"i0":10,"i1":10,"i2":9,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10,"i13":10};
 var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -233,34 +233,38 @@ implements Closeable</pre>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdmin.html#clusters--">clusters</a></span>()</code>&nbsp;</td>
 </tr>
 <tr id="i5" class="rowColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/admin/Functions.html" title="interface in org.apache.pulsar.client.admin">Functions</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdmin.html#functions--">functions</a></span>()</code>&nbsp;</td>
+</tr>
+<tr id="i6" class="altColor">
 <td class="colFirst"><code>ClientConfigurationData</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdmin.html#getClientConfigData--">getClientConfigData</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i6" class="altColor">
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code>String</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdmin.html#getServiceUrl--">getServiceUrl</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i8" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/admin/Lookup.html" title="interface in org.apache.pulsar.client.admin">Lookup</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdmin.html#lookups--">lookups</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i8" class="altColor">
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdmin.html#namespaces--">namespaces</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i9" class="rowColor">
+<tr id="i10" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html" title="interface in org.apache.pulsar.client.admin">NonPersistentTopics</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdmin.html#nonPersistentTopics--">nonPersistentTopics</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i10" class="altColor">
+<tr id="i11" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdmin.html#persistentTopics--">persistentTopics</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i11" class="rowColor">
+<tr id="i12" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/admin/Properties.html" title="interface in org.apache.pulsar.client.admin">Properties</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdmin.html#properties--">properties</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i12" class="altColor">
+<tr id="i13" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/admin/ResourceQuotas.html" title="interface in org.apache.pulsar.client.admin">ResourceQuotas</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdmin.html#resourceQuotas--">resourceQuotas</a></span>()</code>&nbsp;</td>
 </tr>
@@ -542,6 +546,19 @@ public&nbsp;PulsarAdmin(URL&nbsp;serviceUrl,
 <dl>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>does a looks up for the broker serving the topic</dd>
+</dl>
+</li>
+</ul>
+<a name="functions--">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>functions</h4>
+<pre>public&nbsp;<a href="../../../../../org/apache/pulsar/client/admin/Functions.html" title="interface in org.apache.pulsar.client.admin">Functions</a>&nbsp;functions()</pre>
+<dl>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>the functions management object</dd>
 </dl>
 </li>
 </ul>

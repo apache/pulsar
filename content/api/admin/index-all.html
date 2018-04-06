@@ -318,6 +318,10 @@
 <dd>
 <div class="block">Create a domain into cluster</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Functions.html#createFunction-FunctionConfig-java.lang.String-">createFunction(FunctionConfig, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Functions.html" title="interface in org.apache.pulsar.client.admin">Functions</a></dt>
+<dd>
+<div class="block">Create a new function.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#createNamespace-java.lang.String-int-">createNamespace(String, int)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
 <dd>
 <div class="block">Create a new namespace.</div>
@@ -417,6 +421,10 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Clusters.html#deleteFailureDomain-java.lang.String-java.lang.String-">deleteFailureDomain(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Clusters.html" title="interface in org.apache.pulsar.client.admin">Clusters</a></dt>
 <dd>
 <div class="block">Delete a domain in cluster</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Functions.html#deleteFunction-java.lang.String-java.lang.String-java.lang.String-">deleteFunction(String, String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Functions.html" title="interface in org.apache.pulsar.client.admin">Functions</a></dt>
+<dd>
+<div class="block">Delete an existing function</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#deleteNamespace-java.lang.String-">deleteNamespace(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
 <dd>
@@ -566,6 +574,12 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/AutoFailoverPolicyType.html#fromString-java.lang.String-">fromString(String)</a></span> - Static method in enum org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/AutoFailoverPolicyType.html" title="enum in org.apache.pulsar.common.policies.data">AutoFailoverPolicyType</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/client/admin/Functions.html" title="interface in org.apache.pulsar.client.admin"><span class="typeNameLink">Functions</span></a> - Interface in <a href="org/apache/pulsar/client/admin/package-summary.html">org.apache.pulsar.client.admin</a></dt>
+<dd>
+<div class="block">Admin interface for function management.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdmin.html#functions--">functions()</a></span> - Method in class org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin">PulsarAdmin</a></dt>
+<dd>&nbsp;</dd>
 </dl>
 <a name="I:G">
 <!--   -->
@@ -673,6 +687,18 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Clusters.html#getFailureDomains-java.lang.String-">getFailureDomains(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Clusters.html" title="interface in org.apache.pulsar.client.admin">Clusters</a></dt>
 <dd>
 <div class="block">Get all registered domains in cluster</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Functions.html#getFunction-java.lang.String-java.lang.String-java.lang.String-">getFunction(String, String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Functions.html" title="interface in org.apache.pulsar.client.admin">Functions</a></dt>
+<dd>
+<div class="block">Get the configuration for the specified function.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Functions.html#getFunctions-java.lang.String-java.lang.String-">getFunctions(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Functions.html" title="interface in org.apache.pulsar.client.admin">Functions</a></dt>
+<dd>
+<div class="block">Get the list of functions.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Functions.html#getFunctionStatus-java.lang.String-java.lang.String-java.lang.String-">getFunctionStatus(String, String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Functions.html" title="interface in org.apache.pulsar.client.admin">Functions</a></dt>
+<dd>
+<div class="block">Gets the current status of a function.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdminException.html#getHttpError--">getHttpError()</a></span> - Method in exception org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></dt>
 <dd>&nbsp;</dd>
@@ -1869,6 +1895,10 @@
 <dd>
 <div class="block">Trigger compaction to run for a topic.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Functions.html#triggerFunction-java.lang.String-java.lang.String-java.lang.String-java.lang.String-java.lang.String-">triggerFunction(String, String, String, String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Functions.html" title="interface in org.apache.pulsar.client.admin">Functions</a></dt>
+<dd>
+<div class="block">Triggers the function by writing to the input topic.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html#type">type</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">SubscriptionStats</a></dt>
 <dd>
 <div class="block">whether this subscription is Exclusive or Shared or Failover</div>
@@ -1934,6 +1964,10 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Clusters.html#updateFailureDomain-java.lang.String-java.lang.String-org.apache.pulsar.common.policies.data.FailureDomain-">updateFailureDomain(String, String, FailureDomain)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Clusters.html" title="interface in org.apache.pulsar.client.admin">Clusters</a></dt>
 <dd>
 <div class="block">Update a domain into cluster</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Functions.html#updateFunction-FunctionConfig-java.lang.String-">updateFunction(FunctionConfig, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Functions.html" title="interface in org.apache.pulsar.client.admin">Functions</a></dt>
+<dd>
+<div class="block">Update the configuration for a function.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Clusters.html#updateNamespaceIsolationPolicy-java.lang.String-java.lang.String-org.apache.pulsar.common.policies.data.NamespaceIsolationData-">updateNamespaceIsolationPolicy(String, String, NamespaceIsolationData)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Clusters.html" title="interface in org.apache.pulsar.client.admin">Clusters</a></dt>
 <dd>
