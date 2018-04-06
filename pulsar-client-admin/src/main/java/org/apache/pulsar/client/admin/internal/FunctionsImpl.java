@@ -23,12 +23,15 @@ import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.policies.data.*;
-import org.apache.pulsar.functions.proto.Function.FunctionConfig;
-import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
-import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.functions.shaded.proto.Function.FunctionConfig;
+import org.apache.pulsar.functions.shaded.proto.InstanceCommunication.FunctionStatusList;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.glassfish.jersey.media.multipart.file.FileDataBodyPart;
+
+import org.apache.pulsar.functions.shaded.com.google.protobuf.MessageOrBuilder;
+import org.apache.pulsar.functions.shaded.com.google.protobuf.AbstractMessage.Builder;
+import org.apache.pulsar.functions.shaded.com.google.protobuf.util.JsonFormat;
 
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.client.Entity;
@@ -37,6 +40,7 @@ import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.File;
+import java.io.IOException;
 import java.util.List;
 
 @Slf4j
@@ -72,7 +76,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
             }
             String jsonResponse = response.readEntity(String.class);
             FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
-            Utils.mergeJson(jsonResponse, functionConfigBuilder);
+            mergeJson(jsonResponse, functionConfigBuilder);
             return functionConfigBuilder.build();
         } catch (Exception e) {
             throw getApiException(e);
@@ -89,7 +93,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
             }
             String jsonResponse = response.readEntity(String.class);
             FunctionStatusList.Builder functionStatusBuilder = FunctionStatusList.newBuilder();
-            Utils.mergeJson(jsonResponse, functionStatusBuilder);
+            mergeJson(jsonResponse, functionStatusBuilder);
             return functionStatusBuilder.build();
         } catch (Exception e) {
             throw getApiException(e);
@@ -104,7 +108,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
             mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
 
             mp.bodyPart(new FormDataBodyPart("functionConfig",
-                Utils.printJson(functionConfig),
+                printJson(functionConfig),
                 MediaType.APPLICATION_JSON_TYPE));
             request(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace()).path(functionConfig.getName()))
                     .post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
@@ -131,7 +135,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
                 mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
             }
             mp.bodyPart(new FormDataBodyPart("functionConfig",
-                Utils.printJson(functionConfig),
+                printJson(functionConfig),
                 MediaType.APPLICATION_JSON_TYPE));
             request(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace()).path(functionConfig.getName()))
                     .put(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
@@ -158,5 +162,13 @@ public class FunctionsImpl extends BaseResource implements Functions {
         } catch (Exception e) {
             throw getApiException(e);
         }
+    }
+    
+    public static void mergeJson(String json, Builder builder) throws IOException {
+        JsonFormat.parser().merge(json, builder);
+    }
+    
+    public static String printJson(MessageOrBuilder msg) throws IOException {
+        return JsonFormat.printer().print(msg);
     }
 }

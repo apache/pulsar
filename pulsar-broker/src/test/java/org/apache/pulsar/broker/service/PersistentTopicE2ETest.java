@@ -28,6 +28,7 @@ import static org.testng.Assert.fail;
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -94,7 +95,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         // 1. producer connect
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
         assertEquals(topicRef.getProducers().size(), 1);
 
@@ -123,7 +124,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         // 1. client connect
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
 
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         PersistentSubscription subRef = topicRef.getSubscription(subName);
 
         assertNotNull(topicRef);
@@ -209,7 +210,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
                 .receiverQueueSize(recvQueueSize).subscribe();
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
         PersistentSubscription subRef = topicRef.getSubscription(subName);
         assertNotNull(subRef);
@@ -261,7 +262,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
             consumer.acknowledge(msg);
         }
 
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
 
         // (3) Get Entry cache
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) topicRef.getManagedLedger();
@@ -331,7 +332,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         barrier.await();
 
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         PersistentSubscription subRef = topicRef.getSubscription(subName);
 
         // 1. cumulatively all threads drain the backlog
@@ -352,7 +353,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
 
         ExecutorService executor = Executors.newCachedThreadPool();
@@ -414,7 +415,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
         PersistentSubscription subRef = topicRef.getSubscription(subName);
         assertNotNull(subRef);
@@ -431,7 +432,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         consumer.close();
 
         topicRef.close().get();
-        assertNull(pulsar.getBrokerService().getTopicReference(topicName));
+        assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
     }
 
     @Test
@@ -481,7 +482,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         // 1. client connect
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
 
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         PersistentSubscription subRef = topicRef.getSubscription(subName);
 
         assertNotNull(topicRef);
@@ -541,28 +542,28 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         producer.close();
 
-        assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
+        assertTrue(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
         runGC();
-        assertNull(pulsar.getBrokerService().getTopicReference(topicName));
+        assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
 
         // 2. Topic is not GCed with live connection
         String subName = "sub1";
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
 
         runGC();
-        assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
+        assertTrue(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
 
         // 3. Topic with subscription is not GCed even with no connections
         consumer.close();
 
         runGC();
-        assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
+        assertTrue(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
 
         // 4. Topic can be GCed after unsubscribe
         admin.persistentTopics().deleteSubscription(topicName, subName);
 
         runGC();
-        assertNull(pulsar.getBrokerService().getTopicReference(topicName));
+        assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
     }
 
     /**
@@ -606,7 +607,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         admin.persistentTopics().deleteSubscription(topicName, subName);
 
         runGC();
-        assertNull(pulsar.getBrokerService().getTopicReference(topicName));
+        assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
     }
 
     /**
@@ -649,7 +650,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         admin.persistentTopics().deleteSubscription(topicName, subName);
 
         runGC();
-        assertNull(pulsar.getBrokerService().getTopicReference(topicName));
+        assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
     }
 
     @Test
@@ -666,7 +667,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
 
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         PersistentSubscription subRef = topicRef.getSubscription(subName);
 
         consumer.close();
@@ -709,7 +710,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
 
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         PersistentSubscription subRef = topicRef.getSubscription(subName);
 
         assertTrue(subRef.getDispatcher().isConsumerConnected());
@@ -744,7 +745,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         Consumer<byte[]> consumer2 = null;
         Consumer<byte[]> consumer3 = null;
 
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         PersistentSubscription subRef = topicRef.getSubscription(subName);
 
         // 1. shared consumer on an exclusive sub fails
@@ -844,7 +845,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         // 1. producer connect
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
         assertEquals(topicRef.getProducers().size(), 1);
 
@@ -1020,7 +1021,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
                 .create();
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-sub").subscribe();
 
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
         assertEquals(topicRef.getProducers().size(), 1);
 
@@ -1193,7 +1194,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
                 .subscriptionType(SubscriptionType.Shared).receiverQueueSize(1).subscribe();
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topicRef);
         PersistentSubscription subRef = topicRef.getSubscription(subName);
         PersistentDispatcherMultipleConsumers dispatcher = (PersistentDispatcherMultipleConsumers) subRef
@@ -1270,5 +1271,28 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         Producer<byte[]> p2 = producerBuilder.create();
 
         p2.close();
+    }
+
+    @Test
+    public void testGetOrCreateTopic() throws Exception {
+        String topicName = "persistent://prop/use/ns-abc/testGetOrCreateTopic";
+
+        admin.lookups().lookupTopic(topicName);
+        Topic topic = pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        assertNotNull(topic);
+
+        Optional<Topic> t = pulsar.getBrokerService().getTopicReference(topicName);
+        assertTrue(t.isPresent());
+    }
+
+    @Test
+    public void testGetTopicIfExists() throws Exception {
+        String topicName = "persistent://prop/use/ns-abc/testGetTopicIfExists";
+        admin.lookups().lookupTopic(topicName);
+        Optional<Topic> topic = pulsar.getBrokerService().getTopicIfExists(topicName).join();
+        assertFalse(topic.isPresent());
+
+        Optional<Topic> t = pulsar.getBrokerService().getTopicReference(topicName);
+        assertFalse(t.isPresent());
     }
 }

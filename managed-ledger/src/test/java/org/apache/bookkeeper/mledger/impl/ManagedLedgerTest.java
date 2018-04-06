@@ -18,13 +18,20 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.testng.Assert.*;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import com.google.common.base.Charsets;
 import com.google.common.collect.Sets;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.Unpooled;
+
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -41,6 +48,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
+
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -56,6 +64,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
@@ -1460,7 +1469,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // from the list of ledgers
         final CountDownLatch counter = new CountDownLatch(1);
         final MetaStore store = factory.getMetaStore();
-        store.getManagedLedgerInfo("my_test_ledger", new MetaStoreCallback<ManagedLedgerInfo>() {
+        store.getManagedLedgerInfo("my_test_ledger", false, new MetaStoreCallback<ManagedLedgerInfo>() {
             @Override
             public void operationComplete(ManagedLedgerInfo result, Stat version) {
                 // Update the list
@@ -1756,7 +1765,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         CountDownLatch l1 = new CountDownLatch(1);
 
         // obtain the ledger info
-        store.getManagedLedgerInfo("backward_test_ledger", new MetaStoreCallback<ManagedLedgerInfo>() {
+        store.getManagedLedgerInfo("backward_test_ledger", false, new MetaStoreCallback<ManagedLedgerInfo>() {
             @Override
             public void operationComplete(ManagedLedgerInfo result, Stat version) {
                 storedMLInfo[0] = result;
@@ -2183,5 +2192,26 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         ledger.close();
 
+    }
+
+    @Test
+    public void testManagedLedgerAutoCreate() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig().setCreateIfMissing(true);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("test", config);
+        assertNotNull(ledger);
+    }
+
+    @Test
+    public void testManagedLedgerWithoutAutoCreate() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig().setCreateIfMissing(false);
+
+        try {
+            factory.open("testManagedLedgerWithoutAutoCreate", config);
+            fail("should have thrown ManagedLedgerNotFoundException");
+        } catch (ManagedLedgerNotFoundException e) {
+            // Expected
+        }
+
+        assertFalse(factory.getManagedLedgers().containsKey("testManagedLedgerWithoutAutoCreate"));
     }
 }

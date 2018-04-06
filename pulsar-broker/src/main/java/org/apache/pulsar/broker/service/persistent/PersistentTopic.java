@@ -52,9 +52,11 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
@@ -162,6 +164,9 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     public static final int MESSAGE_RATE_BACKOFF_MS = 1000;
 
     private final MessageDeduplication messageDeduplication;
+
+    private static final long COMPACTION_NEVER_RUN = -0xfebecffeL;
+    CompletableFuture<Long> currentCompaction = CompletableFuture.completedFuture(COMPACTION_NEVER_RUN);
     final CompactedTopic compactedTopic;
 
     // Whether messages published must be encrypted or not in this topic
@@ -1077,8 +1082,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             if (pubStats != null) {
                 rStat.msgRateIn = pubStats.msgRateIn;
                 rStat.msgThroughputIn = pubStats.msgThroughputIn;
-                rStat.inboundConnection = pubStats.address;
-                rStat.inboundConnectedSince = pubStats.connectedSince;
+                rStat.inboundConnection = pubStats.getAddress();
+                rStat.inboundConnectedSince = pubStats.getConnectedSince();
             }
 
             topicStats.aggMsgRateOut += rStat.msgRateOut;
@@ -1152,10 +1157,10 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
                     // Populate consumer specific stats here
                     topicStatsStream.startObject();
-                    topicStatsStream.writePair("address", consumerStats.address);
+                    topicStatsStream.writePair("address", consumerStats.getAddress());
                     topicStatsStream.writePair("consumerName", consumerStats.consumerName);
                     topicStatsStream.writePair("availablePermits", consumerStats.availablePermits);
-                    topicStatsStream.writePair("connectedSince", consumerStats.connectedSince);
+                    topicStatsStream.writePair("connectedSince", consumerStats.getConnectedSince());
                     topicStatsStream.writePair("msgRateOut", consumerStats.msgRateOut);
                     topicStatsStream.writePair("msgThroughputOut", consumerStats.msgThroughputOut);
                     topicStatsStream.writePair("msgRateRedeliver", consumerStats.msgRateRedeliver);
@@ -1165,8 +1170,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                         topicStatsStream.writePair("blockedConsumerOnUnackedMsgs",
                                 consumerStats.blockedConsumerOnUnackedMsgs);
                     }
-                    if (consumerStats.clientVersion != null) {
-                        topicStatsStream.writePair("clientVersion", consumerStats.clientVersion);
+                    if (consumerStats.getClientVersion() != null) {
+                        topicStatsStream.writePair("clientVersion", consumerStats.getClientVersion());
                     }
                     topicStatsStream.endObject();
                 }
@@ -1270,8 +1275,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             if (pubStats != null) {
                 replicatorStats.msgRateIn = pubStats.msgRateIn;
                 replicatorStats.msgThroughputIn = pubStats.msgThroughputIn;
-                replicatorStats.inboundConnection = pubStats.address;
-                replicatorStats.inboundConnectedSince = pubStats.connectedSince;
+                replicatorStats.inboundConnection = pubStats.getAddress();
+                replicatorStats.inboundConnectedSince = pubStats.getConnectedSince();
             }
 
             stats.msgRateOut += replicatorStats.msgRateOut;
@@ -1606,6 +1611,15 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     @Override
     public Position getLastMessageId() {
         return ledger.getLastConfirmedEntry();
+    }
+
+    public synchronized void triggerCompaction()
+            throws PulsarServerException, AlreadyRunningException {
+        if (currentCompaction.isDone()) {
+            currentCompaction = brokerService.pulsar().getCompactor().compact(topic);
+        } else {
+            throw new AlreadyRunningException("Compaction already in progress");
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentTopic.class);

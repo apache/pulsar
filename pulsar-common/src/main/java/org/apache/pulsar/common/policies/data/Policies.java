@@ -21,7 +21,9 @@ package org.apache.pulsar.common.policies.data;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
+import com.google.common.collect.Sets;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -29,7 +31,7 @@ import com.google.common.collect.Maps;
 public class Policies {
 
     public final AuthPolicies auth_policies = new AuthPolicies();
-    public List<String> replication_clusters = Lists.newArrayList();
+    public Set<String> replication_clusters = Sets.newHashSet();
     public BundlesData bundles = defaultBundle();
     public Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlog_quota_map = Maps.newHashMap();
     public Map<String, DispatchRate> clusterDispatchRate = Maps.newHashMap();

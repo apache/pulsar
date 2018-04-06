@@ -914,7 +914,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 id = new MessageIdImpl(id.getLedgerId(), id.getEntryId(), getPartitionIndex());
             }
             if (partitionIndex != -1) {
-                // we should no longer track this message, PartitionedConsumerImpl will take care from now onwards
+                // we should no longer track this message, TopicsConsumer will take care from now onwards
                 unAckedMessageTracker.remove(id);
             } else {
                 unAckedMessageTracker.add(id);

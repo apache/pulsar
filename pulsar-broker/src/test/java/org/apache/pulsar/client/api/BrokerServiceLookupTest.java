@@ -97,7 +97,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
 
@@ -234,7 +233,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         admin.clusters().createCluster(newCluster,
                 new ClusterData("http://127.0.0.1:" + BROKER_WEBSERVICE_PORT, null, broker2ServiceUrl, null));
         admin.properties().createProperty(property,
-                new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet(newCluster)));
+                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(newCluster)));
         admin.namespaces().createNamespace(property + "/" + newCluster + "/my-ns");
 
         PulsarService pulsar2 = startBroker(conf2);
@@ -1023,7 +1022,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         admin.clusters().createCluster(cluster,
                 new ClusterData("http://127.0.0.1:" + BROKER_WEBSERVICE_PORT, null, null, null));
         admin.properties().createProperty(property,
-                new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet(cluster)));
+                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
         admin.namespaces().createNamespace(property + "/" + cluster + "/" + namespace);
         admin.persistentTopics().createPartitionedTopic(dest.toString(), totalPartitions);
 
