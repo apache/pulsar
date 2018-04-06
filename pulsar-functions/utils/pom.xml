@@ -45,6 +45,10 @@
         </exclusion>
         <exclusion>
           <groupId>org.apache.pulsar</groupId>
+          <artifactId>pulsar-functions-proto</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.pulsar</groupId>
           <artifactId>pulsar-client-original</artifactId>
         </exclusion>
         <exclusion>
