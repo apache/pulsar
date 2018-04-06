@@ -420,4 +420,19 @@ public class PersistentTopics extends PersistentTopicsBase {
         validateTopicName(property, cluster, namespace, encodedTopic);
         return internalTerminate(authoritative);
     }
+
+    @PUT
+    @Path("/{property}/{cluster}/{namespace}/{topic}/compaction")
+    @ApiOperation(value = "Trigger a compaction operation on a topic.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
+                            @ApiResponse(code = 404, message = "Topic does not exist"),
+                            @ApiResponse(code = 409, message = "Compaction already running")})
+   public void compact(@PathParam("property") String property, @PathParam("cluster") String cluster,
+                       @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
+                       @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(property, cluster, namespace, encodedTopic);
+        internalTriggerCompaction(authoritative);
+    }
+
 }

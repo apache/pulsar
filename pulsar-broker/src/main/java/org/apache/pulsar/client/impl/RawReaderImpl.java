@@ -99,7 +99,7 @@ public class RawReaderImpl implements RawReader {
         final BlockingQueue<RawMessageAndCnx> incomingRawMessages;
         final Queue<CompletableFuture<RawMessage>> pendingRawReceives;
 
-        RawConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData conf,
+        RawConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<byte[]> conf,
                 CompletableFuture<Consumer<byte[]>> consumerFuture) {
             super(client, conf.getSingleTopic(), conf, client.externalExecutorProvider().getExecutor(), -1,
                     consumerFuture, SubscriptionMode.Durable, MessageId.earliest, Schema.IDENTITY);

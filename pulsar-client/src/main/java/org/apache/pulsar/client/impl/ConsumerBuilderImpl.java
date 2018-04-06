@@ -183,6 +183,13 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
+    public ConsumerBuilder<T> acknowledmentGroupTime(long delay, TimeUnit unit) {
+        checkArgument(delay >= 0);
+        conf.setAcknowledgementsGroupTimeMicros(unit.toMicros(delay));
+        return this;
+    }
+
+    @Override
     public ConsumerBuilder<T> consumerName(String consumerName) {
         conf.setConsumerName(consumerName);
         return this;

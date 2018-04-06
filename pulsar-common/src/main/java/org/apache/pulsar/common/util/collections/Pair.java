@@ -16,14 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.admin;
+package org.apache.pulsar.common.util.collections;
 
-import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
-import org.apache.pulsar.client.api.PulsarClientException;
+import lombok.Value;
 
-public class PulsarAdminWithFunctionsBuilderImpl extends PulsarAdminBuilderImpl {
-    @Override
-    public PulsarAdmin build() throws PulsarClientException {
-        return new PulsarAdminWithFunctions(conf.getServiceUrl(), conf);
-    }
+/**
+ * Basic holder of a pair of values.
+ *
+ * Use as: <br/>
+ * <pre><code>
+ * Pair&lt;String, String&gt; p = Pair.of("a", "b");
+ * p.getFirst();
+ * p.getSecond();
+ * </code></pre>
+ */
+@Value(staticConstructor = "of")
+public class Pair<X, Y> {
+    private final X first;
+    private final Y second;
 }

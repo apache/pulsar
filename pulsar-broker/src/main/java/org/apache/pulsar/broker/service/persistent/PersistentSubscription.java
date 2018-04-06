@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import com.google.common.base.MoreObjects;
+
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -55,8 +57,6 @@ import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.utils.CopyOnWriteArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.base.MoreObjects;
 
 public class PersistentSubscription implements Subscription {
     protected final PersistentTopic topic;
@@ -176,17 +176,23 @@ public class PersistentSubscription implements Subscription {
     }
 
     @Override
-    public void acknowledgeMessage(PositionImpl position, AckType ackType, Map<String,Long> properties) {
+    public void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String,Long> properties) {
         if (ackType == AckType.Cumulative) {
+            if (positions.size() != 1) {
+                log.warn("[{}][{}] Invalid cumulative ack received with multiple message ids", topicName, subName);
+                return;
+            }
+
+            Position position = positions.get(0);
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Cumulative ack on {}", topicName, subName, position);
             }
             cursor.asyncMarkDelete(position, properties, markDeleteCallback, position);
         } else {
             if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Individual ack on {}", topicName, subName, position);
+                log.debug("[{}][{}] Individual acks on {}", topicName, subName, positions);
             }
-            cursor.asyncDelete(position, deleteCallback, position);
+            cursor.asyncDelete(positions, deleteCallback, positions);
         }
 
         if (topic.getManagedLedger().isTerminated() && cursor.getNumberOfEntriesInBacklog() == 0) {
@@ -215,10 +221,9 @@ public class PersistentSubscription implements Subscription {
 
     private final DeleteCallback deleteCallback = new DeleteCallback() {
         @Override
-        public void deleteComplete(Object ctx) {
-            PositionImpl pos = (PositionImpl) ctx;
+        public void deleteComplete(Object position) {
             if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Deleted message at {}", topicName, subName, pos);
+                log.debug("[{}][{}] Deleted message at {}", topicName, subName, position);
             }
         }
 

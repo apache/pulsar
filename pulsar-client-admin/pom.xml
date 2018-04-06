@@ -46,6 +46,18 @@
       <version>${project.version}</version>
     </dependency>
 
+	<dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-functions-proto-shaded</artifactId>
+      <version>${project.version}</version>
+      <exclusions>
+      	<exclusion>
+      		<groupId>*</groupId>
+      		<artifactId>*</artifactId>
+      	</exclusion>
+      </exclusions>
+    </dependency>
+    
     <dependency>
       <groupId>org.glassfish.jersey.core</groupId>
       <artifactId>jersey-client</artifactId>

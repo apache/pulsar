@@ -25,7 +25,6 @@ import static org.testng.Assert.fail;
 
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -118,7 +117,7 @@ public class SLAMonitoringTest {
         allowedClusters.add("my-cluster");
         PropertyAdmin adminConfig = new PropertyAdmin();
         adminConfig.setAllowedClusters(allowedClusters);
-        List<String> adminRoles = new ArrayList<>();
+        Set<String> adminRoles = new HashSet<>();
         adminRoles.add("");
         adminConfig.setAdminRoles(adminRoles);
         pulsarAdmin.properties().createProperty("sla-monitor", adminConfig);

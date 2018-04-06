@@ -65,7 +65,7 @@ public class CmdProperties extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String property = getOneArgument(params);
-            PropertyAdmin propertyAdmin = new PropertyAdmin(adminRoles, Sets.newHashSet(allowedClusters));
+            PropertyAdmin propertyAdmin = new PropertyAdmin(Sets.newHashSet(adminRoles), Sets.newHashSet(allowedClusters));
             admin.properties().createProperty(property, propertyAdmin);
         }
     }
@@ -86,7 +86,7 @@ public class CmdProperties extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String property = getOneArgument(params);
-            PropertyAdmin propertyAdmin = new PropertyAdmin(adminRoles, Sets.newHashSet(allowedClusters));
+            PropertyAdmin propertyAdmin = new PropertyAdmin(Sets.newHashSet(adminRoles), Sets.newHashSet(allowedClusters));
             admin.properties().updateProperty(property, propertyAdmin);
         }
     }
