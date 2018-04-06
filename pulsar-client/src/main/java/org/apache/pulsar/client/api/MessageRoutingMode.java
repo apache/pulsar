@@ -18,6 +18,25 @@
  */
 package org.apache.pulsar.client.api;
 
+/**
+ * Default routing mode for messages to partition.
+ *
+ * This logic is applied when the application is not setting a key {@link MessageBuilder#setKey(String)} on a particular
+ * message.
+ */
 public enum MessageRoutingMode {
-    SinglePartition, RoundRobinPartition, CustomPartition
+    /**
+     * The producer will chose one single partition and publish all the messages into that partition.
+     */
+    SinglePartition,
+
+    /**
+     * Publish messages across all partitions in round-robin.
+     */
+    RoundRobinPartition,
+
+    /**
+     * Use custom message router implemenation that will be called to determine the partition for a particular message.
+     */
+    CustomPartition
 }

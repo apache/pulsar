@@ -20,6 +20,12 @@ package org.apache.pulsar.zookeeper;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.Sets;
+
 import java.nio.file.Paths;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.Map.Entry;
@@ -29,14 +35,12 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.apache.bookkeeper.util.OrderedSafeExecutor;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.util.SafeRunnable;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
@@ -48,14 +52,6 @@ import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
-import com.github.benmanes.caffeine.cache.Caffeine;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.collect.Sets;
-
-import io.netty.util.concurrent.DefaultThreadFactory;
 
 /**
  * Per ZK client ZooKeeper cache supporting ZNode data and children list caches. A cache entry is identified, accessed
@@ -84,19 +80,18 @@ public abstract class ZooKeeperCache implements Watcher {
     protected final AsyncLoadingCache<String, Entry<Object, Stat>> dataCache;
     protected final Cache<String, Set<String>> childrenCache;
     protected final Cache<String, Boolean> existsCache;
-    private final OrderedSafeExecutor executor;
-    private final ScheduledExecutorService scheduledExecutor;
-    private boolean shouldShutdownExecutor = false;
+    private final OrderedExecutor executor;
+    private final OrderedExecutor backgroundExecutor = OrderedExecutor.newBuilder().name("zk-cache-background").numThreads(2).build();
+    private boolean shouldShutdownExecutor;
     public static final int cacheTimeOutInSec = 30;
 
     protected AtomicReference<ZooKeeper> zkSession = new AtomicReference<ZooKeeper>(null);
 
-    public ZooKeeperCache(ZooKeeper zkSession, OrderedSafeExecutor executor, ScheduledExecutorService scheduledExecutor) {
+    public ZooKeeperCache(ZooKeeper zkSession, OrderedExecutor executor) {
         checkNotNull(executor);
-        checkNotNull(scheduledExecutor);
         this.executor = executor;
-        this.scheduledExecutor = scheduledExecutor;
         this.zkSession.set(zkSession);
+        this.shouldShutdownExecutor = false;
 
         this.dataCache = Caffeine.newBuilder().expireAfterAccess(1, TimeUnit.HOURS)
                 .buildAsync((key, executor1) -> null);
@@ -106,8 +101,7 @@ public abstract class ZooKeeperCache implements Watcher {
     }
 
     public ZooKeeperCache(ZooKeeper zkSession) {
-        this(zkSession, new OrderedSafeExecutor(1, "zk-cache-executor"),
-                Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("zk-cache-callback-executor")));
+        this(zkSession, OrderedExecutor.newBuilder().name("zk-cache-callback-executor").build());
         this.shouldShutdownExecutor = true;
     }
 
@@ -132,7 +126,7 @@ public abstract class ZooKeeperCache implements Watcher {
                     LOG.debug("Submitting reload cache task to the executor for path: {}, updater: {}", path, updater);
                 }
                 try {
-                    executor.submitOrdered(path, new SafeRunnable() {
+                    executor.executeOrdered(path, new SafeRunnable() {
                         @Override
                         public void safeRun() {
                             updater.reloadCache(path);
@@ -181,7 +175,7 @@ public abstract class ZooKeeperCache implements Watcher {
     }
 
     public void asyncInvalidate(String path) {
-        scheduledExecutor.submit(() -> invalidate(path));
+        backgroundExecutor.execute(() -> invalidate(path));
     }
 
     public void invalidate(final String path) {
@@ -233,6 +227,27 @@ public abstract class ZooKeeperCache implements Watcher {
      */
     public <T> Optional<T> getData(final String path, final Deserializer<T> deserializer) throws Exception {
         return getData(path, this, deserializer).map(e -> e.getKey());
+    }
+
+    public <T> Optional<Entry<T, Stat>> getEntry(final String path, final Deserializer<T> deserializer) throws Exception {
+        return getData(path, this, deserializer);
+    }
+
+    public <T> CompletableFuture<Optional<Entry<T, Stat>>> getEntryAsync(final String path, final Deserializer<T> deserializer) {
+        CompletableFuture<Optional<Entry<T, Stat>>> future = new CompletableFuture<>();
+        getDataAsync(path, this, deserializer)
+            .thenAccept(future::complete)
+            .exceptionally(ex -> {
+                asyncInvalidate(path);
+                if (ex.getCause() instanceof NoNodeException) {
+                    future.complete(Optional.empty());
+                } else {
+                    future.completeExceptionally(ex.getCause());
+                }
+
+                return null;
+            });
+        return future;
     }
 
     public <T> CompletableFuture<Optional<T>> getDataAsync(final String path, final Deserializer<T> deserializer) {
@@ -301,27 +316,27 @@ public abstract class ZooKeeperCache implements Watcher {
             // Broker doesn't restart on global-zk session lost: so handling unexpected exception
             try {
                 this.zkSession.get().getData(path, watcher, (rc, path1, ctx, content, stat) -> {
-                    Executor exec = scheduledExecutor != null ? scheduledExecutor : executor;
                     if (rc == Code.OK.intValue()) {
                         try {
                             T obj = deserializer.deserialize(path, content);
                             // avoid using the zk-client thread to process the result
-                            exec.execute(() -> zkFuture.complete(new SimpleImmutableEntry<Object, Stat>(obj, stat)));
+                            executor.execute(
+                                    () -> zkFuture.complete(new SimpleImmutableEntry<Object, Stat>(obj, stat)));
                         } catch (Exception e) {
-                            exec.execute(() -> zkFuture.completeExceptionally(e));
+                            executor.execute(() -> zkFuture.completeExceptionally(e));
                         }
                     } else if (rc == Code.NONODE.intValue()) {
                         // Return null values for missing z-nodes, as this is not "exceptional" condition
-                        exec.execute(() -> zkFuture.complete(null));
+                        executor.execute(() -> zkFuture.complete(null));
                     } else {
-                        exec.execute(() -> zkFuture.completeExceptionally(KeeperException.create(rc)));
+                        executor.execute(() -> zkFuture.completeExceptionally(KeeperException.create(rc)));
                     }
-                }, null);                
+                }, null);
             } catch (Exception e) {
                 LOG.warn("Failed to access zkSession for {} {}", path, e.getMessage(), e);
                 zkFuture.completeExceptionally(e);
             }
-            
+
             return zkFuture;
         }).thenAccept(result -> {
             if (result != null) {
@@ -405,11 +420,12 @@ public abstract class ZooKeeperCache implements Watcher {
             }
         }
     }
-    
+
     public void stop() {
         if (shouldShutdownExecutor) {
             this.executor.shutdown();
-            this.scheduledExecutor.shutdown();
         }
+
+        this.backgroundExecutor.shutdown();
     }
 }

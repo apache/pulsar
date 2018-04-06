@@ -22,7 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.fail;
 
-import org.apache.pulsar.common.naming.DestinationDomain;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.testng.annotations.Test;
 
@@ -53,14 +53,14 @@ public class NamespaceNameTest {
         }
 
         try {
-            NamespaceName.get("property.namespace:destination");
+            NamespaceName.get("property.namespace:topic");
             fail("Should have raised exception");
         } catch (IllegalArgumentException e) {
             // Ok
         }
 
         try {
-            NamespaceName.get("property/cluster/namespace/destination");
+            NamespaceName.get("property/cluster/namespace/topic");
             fail("Should have raised exception");
         } catch (IllegalArgumentException e) {
             // Ok
@@ -82,13 +82,13 @@ public class NamespaceNameTest {
                 "persistent://prop/cluster/ns/ds");
 
         try {
-            NamespaceName.get("prop/cluster/ns").getDestinationName(null, "ds");
+            NamespaceName.get("prop/cluster/ns").getTopicName(null, "ds");
             fail("Should have raised exception");
         } catch (IllegalArgumentException e) {
             // Ok
         }
 
-        assertEquals(NamespaceName.get("prop/cluster/ns").getDestinationName(DestinationDomain.persistent, "ds"),
+        assertEquals(NamespaceName.get("prop/cluster/ns").getTopicName(TopicDomain.persistent, "ds"),
                 "persistent://prop/cluster/ns/ds");
         assertEquals(NamespaceName.get("prop/cluster/ns"), NamespaceName.get("prop/cluster/ns"));
         assertEquals(NamespaceName.get("prop/cluster/ns").toString(), "prop/cluster/ns");

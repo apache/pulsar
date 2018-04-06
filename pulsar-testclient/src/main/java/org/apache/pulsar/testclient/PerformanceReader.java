@@ -29,15 +29,14 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 
-import org.apache.pulsar.client.api.ClientConfiguration;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
-import org.apache.pulsar.client.api.ReaderConfiguration;
+import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.ReaderListener;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,7 +66,7 @@ public class PerformanceReader {
         public List<String> topic;
 
         @Parameter(names = { "-t", "--num-topics" }, description = "Number of topics")
-        public int numDestinations = 1;
+        public int numTopics = 1;
 
         @Parameter(names = { "-r", "--rate" }, description = "Simulate a slow message reader (rate in msg/s)")
         public double rate = 0;
@@ -169,11 +168,11 @@ public class PerformanceReader {
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();
         log.info("Starting Pulsar performance reader with config: {}", w.writeValueAsString(arguments));
 
-        final DestinationName prefixTopicName = DestinationName.get(arguments.topic.get(0));
+        final TopicName prefixTopicName = TopicName.get(arguments.topic.get(0));
 
         final RateLimiter limiter = arguments.rate > 0 ? RateLimiter.create(arguments.rate) : null;
 
-        ReaderListener listener = (reader, msg) -> {
+        ReaderListener<byte[]> listener = (reader, msg) -> {
             messagesReceived.increment();
             bytesReceived.add(msg.getData().length);
 
@@ -182,21 +181,21 @@ public class PerformanceReader {
             }
         };
 
-        ClientConfiguration clientConf = new ClientConfiguration();
-        clientConf.setConnectionsPerBroker(arguments.maxConnections);
-        clientConf.setStatsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS);
-        clientConf.setIoThreads(Runtime.getRuntime().availableProcessors());
-        if (isNotBlank(arguments.authPluginClassName)) {
-            clientConf.setAuthentication(arguments.authPluginClassName, arguments.authParams);
-        }
-        clientConf.setUseTls(arguments.useTls);
-        clientConf.setTlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
-        PulsarClient pulsarClient = new PulsarClientImpl(arguments.serviceURL, clientConf);
+        ClientBuilder clientBuilder = PulsarClient.builder() //
+                .serviceUrl(arguments.serviceURL) //
+                .connectionsPerBroker(arguments.maxConnections) //
+                .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS) //
+                .ioThreads(Runtime.getRuntime().availableProcessors()) //
+                .enableTls(arguments.useTls) //
+                .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
 
-        List<CompletableFuture<Reader>> futures = Lists.newArrayList();
-        ReaderConfiguration readerConfig = new ReaderConfiguration();
-        readerConfig.setReaderListener(listener);
-        readerConfig.setReceiverQueueSize(arguments.receiverQueueSize);
+        if (isNotBlank(arguments.authPluginClassName)) {
+            clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
+        }
+
+        PulsarClient pulsarClient = clientBuilder.build();
+
+        List<CompletableFuture<Reader<byte[]>>> futures = Lists.newArrayList();
 
         MessageId startMessageId;
         if ("earliest".equals(arguments.startMessageId)) {
@@ -208,16 +207,21 @@ public class PerformanceReader {
             startMessageId = new MessageIdImpl(Long.parseLong(parts[0]), Long.parseLong(parts[1]), -1);
         }
 
-        for (int i = 0; i < arguments.numDestinations; i++) {
-            final DestinationName destinationName = (arguments.numDestinations == 1) ? prefixTopicName
-                    : DestinationName.get(String.format("%s-%d", prefixTopicName, i));
+        ReaderBuilder<byte[]> readerBuilder = pulsarClient.newReader() //
+                .readerListener(listener) //
+                .receiverQueueSize(arguments.receiverQueueSize) //
+                .startMessageId(startMessageId);
 
-            futures.add(pulsarClient.createReaderAsync(destinationName.toString(), startMessageId, readerConfig));
+        for (int i = 0; i < arguments.numTopics; i++) {
+            final TopicName topicName = (arguments.numTopics == 1) ? prefixTopicName
+                    : TopicName.get(String.format("%s-%d", prefixTopicName, i));
+
+            futures.add(readerBuilder.clone().topic(topicName.toString()).createAsync());
         }
 
         FutureUtil.waitForAll(futures).get();
 
-        log.info("Start reading from {} topics", arguments.numDestinations);
+        log.info("Start reading from {} topics", arguments.numTopics);
 
         long oldTime = System.nanoTime();
 

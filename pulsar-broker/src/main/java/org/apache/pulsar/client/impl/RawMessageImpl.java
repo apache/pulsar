@@ -19,10 +19,10 @@
 package org.apache.pulsar.client.impl;
 
 import java.io.IOException;
+import io.netty.buffer.Unpooled;
 
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.RawMessage;
-import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
@@ -36,7 +36,7 @@ public class RawMessageImpl implements RawMessage {
     private static final Logger log = LoggerFactory.getLogger(RawMessageImpl.class);
 
     private final MessageIdData id;
-    private final ByteBuf headersAndPayload;
+    private ByteBuf headersAndPayload;
 
     public RawMessageImpl(MessageIdData id, ByteBuf headersAndPayload) {
         this.id = id;
@@ -62,6 +62,7 @@ public class RawMessageImpl implements RawMessage {
     @Override
     public void close() {
         headersAndPayload.release();
+        headersAndPayload = Unpooled.EMPTY_BUFFER;
     }
 
     @Override

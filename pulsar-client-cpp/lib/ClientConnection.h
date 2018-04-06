@@ -111,10 +111,10 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
 
     Future<Result, ClientConnectionWeakPtr> getCloseFuture();
 
-    void newTopicLookup(const std::string& destinationName, bool authoritative, const uint64_t requestId,
+    void newTopicLookup(const std::string& topicName, bool authoritative, const uint64_t requestId,
                         LookupDataResultPromisePtr promise);
 
-    void newPartitionedMetadataLookup(const std::string& destinationName, const uint64_t requestId,
+    void newPartitionedMetadataLookup(const std::string& topicName, const uint64_t requestId,
                                       LookupDataResultPromisePtr promise);
 
     void sendCommand(const SharedBuffer& cmd);

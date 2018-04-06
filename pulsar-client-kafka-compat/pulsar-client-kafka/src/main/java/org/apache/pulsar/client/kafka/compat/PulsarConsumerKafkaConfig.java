@@ -19,32 +19,40 @@
 package org.apache.pulsar.client.kafka.compat;
 
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 
-import org.apache.pulsar.client.api.ConsumerConfiguration;
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.PulsarClient;
 
 public class PulsarConsumerKafkaConfig {
 
     /// Config variables
     public static final String CONSUMER_NAME = "pulsar.consumer.name";
     public static final String RECEIVER_QUEUE_SIZE = "pulsar.consumer.receiver.queue.size";
+    public static final String ACKNOWLEDGEMENTS_GROUP_TIME_MILLIS = "pulsar.consumer.acknowledgments.group.time.millis";
     public static final String TOTAL_RECEIVER_QUEUE_SIZE_ACROSS_PARTITIONS = "pulsar.consumer.total.receiver.queue.size.across.partitions";
 
-    public static ConsumerConfiguration getConsumerConfiguration(Properties properties) {
-        ConsumerConfiguration conf = new ConsumerConfiguration();
+    public static ConsumerBuilder<byte[]> getConsumerBuilder(PulsarClient client, Properties properties) {
+        ConsumerBuilder<byte[]> consumerBuilder = client.newConsumer();
 
         if (properties.containsKey(CONSUMER_NAME)) {
-            conf.setConsumerName(properties.getProperty(CONSUMER_NAME));
+            consumerBuilder.consumerName(properties.getProperty(CONSUMER_NAME));
         }
 
         if (properties.containsKey(RECEIVER_QUEUE_SIZE)) {
-            conf.setReceiverQueueSize(Integer.parseInt(properties.getProperty(RECEIVER_QUEUE_SIZE)));
+            consumerBuilder.receiverQueueSize(Integer.parseInt(properties.getProperty(RECEIVER_QUEUE_SIZE)));
         }
 
         if (properties.containsKey(TOTAL_RECEIVER_QUEUE_SIZE_ACROSS_PARTITIONS)) {
-            conf.setMaxTotalReceiverQueueSizeAcrossPartitions(
+            consumerBuilder.maxTotalReceiverQueueSizeAcrossPartitions(
                     Integer.parseInt(properties.getProperty(TOTAL_RECEIVER_QUEUE_SIZE_ACROSS_PARTITIONS)));
         }
 
-        return conf;
+        if (properties.containsKey(ACKNOWLEDGEMENTS_GROUP_TIME_MILLIS)) {
+            consumerBuilder.acknowledmentGroupTime(
+                    Long.parseLong(properties.getProperty(ACKNOWLEDGEMENTS_GROUP_TIME_MILLIS)), TimeUnit.MILLISECONDS);
+        }
+
+        return consumerBuilder;
     }
 }

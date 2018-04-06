@@ -30,10 +30,10 @@ The current version of the Java client is **{{ site.current_version }}**.
 
 Javadoc for the Pulsar client is divided up into two domains, by package:
 
-Package | Description
-:-------|:-----------
-[`org.apache.pulsar.client.api`](/api/client) | The {% popover producer %} and {% popover consumer %} API
-[`org.apache.pulsar.client.admin`](/api/admin) | The Java [admin API](../../admin-api/overview)
+Package | Description | Maven Artifact
+:-------|:------------|:--------------
+[`org.apache.pulsar.client.api`](/api/client) | The {% popover producer %} and {% popover consumer %} API | [org.apache.pulsar:pulsar-client:{{ site.current_version }}](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C{{ site.current_version }}%7Cjar)
+[`org.apache.pulsar.client.admin`](/api/admin) | The Java [admin API](../../admin-api/overview) | [org.apache.pulsar:pulsar-client-admin:{{ site.current_version }}](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-admin%7C{{ site.current_version }}%7Cjar)
 
 This document will focus only on the client API for producing and consuming messages on Pulsar {% popover topics %}. For a guide to using the Java admin client, see [The Pulsar admin interface](../../admin-api/overview).
 
@@ -79,10 +79,15 @@ You can instantiate a {% javadoc PulsarClient client org.apache.pulsar.client.ap
 
 ```java
 String pulsarBrokerRootUrl = "pulsar://localhost:6650";
-PulsarClient client = PulsarClient.create(pulsarBrokerRootUrl);
+PulsarClient client = PulsarClient.builder()
+        .serviceUrl(pulsarBrokerRootUrl)
+        .build();
 ```
 
-This `PulsarClient` object will use the default configuration. See the Javadoc for {% javadoc ClientConfiguration client org.apache.pulsar.client.api.ClientConfiguration %} to see how to provide a non-default configuration.
+{% include admonition.html type='info' title='Default broker URLs for standalone clusters' content="
+If you're running a cluster in [standalone mode](../../getting-started/LocalCluster), the broker will be available at the `pulsar://localhost:6650` URL by default." %}
+
+Check out the Javadoc for the {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %} class for a full listing of configurable parameters.
 
 {% include admonition.html type="info" content="
 In addition to client-level configuration, you can also apply [producer](#configuring-producers)- and [consumer](#configuring-consumers)-specific configuration, as you'll see in the sections below.
@@ -90,21 +95,14 @@ In addition to client-level configuration, you can also apply [producer](#config
 
 ## Producers
 
-In Pulsar, {% popover producers %} write {% popover messages %} to {% popover topics %}. You can instantiate a new {% popover producer %} by first instantiating a {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %}, passing it a URL for a Pulsar {% popover broker %}.
-
-```java
-String pulsarBrokerRootUrl = "pulsar://localhost:6650";
-PulsarClient client = PulsarClient.create(pulsarBrokerRootUrl);
-```
-
-{% include admonition.html type='info' title='Default broker URLs for standalone clusters' content="
-If you're running a cluster in [standalone mode](../../getting-started/LocalCluster), the broker will be available at the `pulsar://localhost:6650` URL by default." %}
-
-Once you've instantiated a {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %} object, you can create a {% javadoc Producer client org.apache.pulsar.client.api.Producer %} for a {% popover topic %}.
+In Pulsar, {% popover producers %} write {% popover messages %} to {% popover topics %}. Once you've instantiated a {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %} object (as in the section [above](#client-configuration)), you can create a {% javadoc Producer client org.apache.pulsar.client.api.Producer %} for a specific Pulsar {% popover topic %}.
 
 ```java
 String topic = "persistent://sample/standalone/ns1/my-topic";
-Producer producer = client.createProducer(topic);
+
+Producer producer = client.newProducer()
+        .topic(topic)
+        .create();
 ```
 
 You can then send messages to the broker and topic you specified:
@@ -112,7 +110,10 @@ You can then send messages to the broker and topic you specified:
 ```java
 // Publish 10 messages to the topic
 for (int i = 0; i < 10; i++) {
-    producer.send("my-message".getBytes());
+    Message<byte[]> msg = MessageBuilder.create()
+            .setContent(String.format("Message number %d", i).getBytes())
+            .build();
+    producer.send(msg);
 }
 ```
 
@@ -137,14 +138,15 @@ clioent.asyncClose();
 
 ### Configuring producers
 
-If you instantiate a `Producer` object specifying only a topic name, as in the example above, the producer will use the default configuration. To use a non-default configuration, you can instantiate the `Producer` with a {% javadoc ProducerConfiguration client org.apache.pulsar.client.api.ProducerConfiguration %} object as well. Here's an example configuration:
+If you instantiate a `Producer` object specifying only a topic name, as in the example above, the producer will use the default configuration. To use a non-default configuration, there's a variety of configurable parameters that you can set. For a full listing, see the Javadoc for the {% javadoc ProducerBuilder client org.apache.pulsar.client.api.ProducerBuilder %} class. Here's an example:
 
 ```java
-PulsarClient client = PulsarClient.create(pulsarBrokerRootUrl);
-ProducerConfiguration config = new ProducerConfiguration();
-config.setBatchingEnabled(true);
-config.setSendTimeout(10, TimeUnit.SECONDS);
-Producer producer = client.createProducer(topic, config);
+Producer producer = client.newProducer()
+        .topic(topic)
+        .enableBatching(true)
+        .sendTimeout(10, TimeUnit.SECONDS)
+        .producerName("my-producer")
+        .create();
 ```
 
 ### Message routing
@@ -165,42 +167,45 @@ Async send operations return a {% javadoc MessageId client org.apache.pulsar.cli
 
 ## Consumers
 
-In Pulsar, {% popover consumers %} subscribe to {% popover topics %} and handle {% popover messages %} that {% popover producers %} publish to those topics. You can instantiate a new {% popover consumer %} by first instantiating a {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %}, passing it a URL for a Pulsar {% popover broker %} (we'll use the `client` object from the producer example above).
+In Pulsar, {% popover consumers %} subscribe to {% popover topics %} and handle {% popover messages %} that {% popover producers %} publish to those topics. You can instantiate a new {% popover consumer %} by first instantiating a {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %} object and passing it a URL for a Pulsar {% popover broker %} (as [above](#client-configuration)).
 
-Once you've instantiated a {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %} object, you can create a {% javadoc Consumer client org.apache.pulsar.client.api.Consumer %} for a {% popover topic %}. You also need to supply a {% popover subscription %} name.
+Once you've instantiated a {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %} object, you can create a {% javadoc Consumer client org.apache.pulsar.client.api.Consumer %} by specifying a {% popover topic %} and a [subscription](../../getting-started/ConceptsAndArchitecture#subscription-modes).
 
 ```java
 String topic = "persistent://sample/standalone/ns1/my-topic"; // from above
 String subscription = "my-subscription";
-Consumer consumer = client.subscribe(topic, subscription);
+Consumer consumer = client.newConsumer()
+        .subscriptionName("my-subscription-1")
+        .subscribe();
 ```
 
-You can then use the `receive` method to listen for messages on the topic. This `while` loop sets up a long-running listener for the `persistent://sample/standalone/ns1/my-topic` topic, prints the contents of any message that's received, and then {% popover acknowledges %} that the message has been processed:
+The `subscribe` method will automatically subscribe the consumer to the specified topic and subscription. One way to make the consumer listen on the topic is to set up a `while` loop. In this example loop, the consumer listens for messages, prints the contents of any message that's received, and then {% popover acknowledges %} that the message has been processed:
 
 ```java
 while (true) {
   // Wait for a message
   Message msg = consumer.receive();
 
-  System.out.println("Received message: " + msg.getData());
+  System.out.printf("Message received: %s", new String(msg.getData()));
 
-  // Acknowledge the message so that it can be deleted by broker
+  // Acknowledge the message so that it can be deleted by the message broker
   consumer.acknowledge(msg);
 }
 ```
 
 ### Configuring consumers
 
-If you instantiate a `Consumer` object specifying only a topic and subscription name, as in the example above, the consumer will use the default configuration. To use a non-default configuration, you can instantiate the `Consumer` with a {% javadoc ConsumerConfiguration client org.apache.pulsar.client.api.ConsumerConfiguration %} object as well.
+If you instantiate a `Consumer` object specifying only a topic and subscription name, as in the example above, the consumer will use the default configuration. To use a non-default configuration, there's a variety of configurable parameters that you can set. For a full listing, see the Javadoc for the {% javadoc ConsumerBuilder client org.apache.pulsar.client.api.ConsumerBuilder %} class. Here's an example:
 
 Here's an example configuration:
 
 ```java
-PulsarClient client = PulsarClient.create(pulsarBrokerRootUrl);
-ConsumerConfiguration config = new ConsumerConfiguration();
-config.setSubscriptionType(SubscriptionType.Shared);
-config.setReceiverQueueSize(10);
-Consumer consumer = client.createConsumer(topic, config);
+Consumer consumer = client.newConsumer()
+        .topic(topic)
+        .subscriptionName(subscription)
+        .ackTimeout(10, TimeUnit.SECONDS)
+        .subscriptionType(SubscriptionType.Exclusive)
+        .subscribe();
 ```
 
 ### Async receive
@@ -213,7 +218,69 @@ Here's an example:
 CompletableFuture<Message> asyncMessage = consumer.receiveAsync();
 ```
 
-Async receive operations return a {% javadoc Message client org.apache.pulsar.client.api.Message %} wrapped in a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture).
+Async receive operations return a {% javadoc Message client org.apache.pulsar.client.api.Message %} wrapped inside of a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture).
+
+### Multi-topic subscriptions
+
+In addition to subscribing a consumer to a single Pulsar topic, you can also subscribe to multiple topics simultaneously using [multi-topic subscriptions](../../getting-started/ConceptsAndArchitecture#multi-topic-subscriptions). To use multi-topic subscriptions you can supply either a regular expression (regex) or a `List` of topics. If you select topics via regex, all topics must be within the same Pulsar {% popover namespace %}.
+
+Here are some examples:
+
+```java
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.PulsarClient;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.regex.Pattern;
+
+ConsumerBuilder bldr = pulsarClient.newConsumer()
+        .subscriptionName(subscription);
+
+// Subscribe to all topics in a namespace
+Pattern allTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/.*");
+Consumer allTopicsConsumer = bldr
+        .topicsPattern(allTopicsInNamespace)
+        .subscribe();
+
+// Subscribe to a subsets of topics in a namespace, based on regex
+Pattern someTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/foo.*");
+Consumer allTopicsConsumer = bldr
+        .topicsPattern(someTopicsInNamespace)
+        .subscribe();
+```
+
+You can also subscribe to an explicit list of topics (across namespaces if you wish):
+
+```java
+List<String> topics = Arrays.asList(
+        "persistent://sample/standalone/ns1/topic-1",
+        "persistent://sample/standalone/ns2/topic-2",
+        "persistent://sample/standalone/ns3/topic-3"
+);
+
+Consumer multiTopicConsumer = bldr
+        .topics(topics)
+        .subscribe();
+
+// Alternatively:
+Consumer multiTopicConsumer = bldr
+        .topics(
+            "persistent://sample/standalone/ns1/topic-1",
+            "persistent://sample/standalone/ns2/topic-2",
+            "persistent://sample/standalone/ns3/topic-3"
+        )
+        .subscribe();
+```
+
+You can also subscribe to multiple topics asynchronously using the `subscribeAsync` method rather than the synchronous `subscribe` method. Here's an example:
+
+```java
+Pattern allTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/.*");
+CompletableFuture<Consumer> consumer = bldr
+        .topics(topics)
+        .subscribeAsync();
+```
 
 ## Reader interface
 
@@ -225,7 +292,10 @@ Here's an example:
 ReaderConfiguration conf = new ReaderConfiguration();
 byte[] msgIdBytes = // Some message ID byte array
 MessageId id = MessageId.fromByteArray(msgIdBytes);
-Reader reader = pulsarClient.createReader(topic, id, conf);
+Reader reader = pulsarClient.newReader()
+        .topic(topic)
+        .startMessageId(id)
+        .create();
 
 while (true) {
     Message message = reader.readNext();
@@ -248,16 +318,19 @@ To use [TLS](../../admin/Authz#tls-client-auth), you need to set TLS to `true` u
 Here's an example configuration:
 
 ```java
-ClientConfiguration conf = new ClientConfiguration();
-conf.setUseTls(true);
-conf.setTlsTrustCertsFilePath("/path/to/cacert.pem");
-
 Map<String, String> authParams = new HashMap<>();
 authParams.put("tlsCertFile", "/path/to/client-cert.pem");
 authParams.put("tlsKeyFile", "/path/to/client-key.pem");
-conf.setAuthentication(AuthenticationTls.class.getName(), authParams);
 
-PulsarClient client = PulsarClient.create("pulsar+ssl://my-broker.com:6651", conf);
+Authentication tlsAuth = AuthenticationFactory
+        .create(AuthenticationTls.class.getName(), authParams);
+
+PulsarClient client = PulsarClient.builder()
+        .serviceUrl("pulsar+ssl://my-broker.com:6651")
+        .enableTls(true)
+        .tlsTrustCertsFilePath("/path/to/cacert.pem")
+        .authentication(tlsAuth)
+        .build();
 ```
 
 ### Athenz
@@ -272,23 +345,22 @@ To use [Athenz](../../admin/Authz#athenz) as an authentication provider, you nee
 You can also set an optional `keyId`. Here's an example configuration:
 
 ```java
-ClientConfiguration conf = new ClientConfiguration();
-
-// Enable TLS
-conf.setUseTls(true);
-conf.setTlsTrustCertsFilePath("/path/to/cacert.pem");
-
-// Set Athenz auth plugin and its parameters
 Map<String, String> authParams = new HashMap<>();
 authParams.put("tenantDomain", "shopping"); // Tenant domain name
 authParams.put("tenantService", "some_app"); // Tenant service name
 authParams.put("providerDomain", "pulsar"); // Provider domain name
 authParams.put("privateKey", "file:///path/to/private.pem"); // Tenant private key path
 authParams.put("keyId", "v1"); // Key id for the tenant private key (optional, default: "0")
-conf.setAuthentication(AuthenticationAthenz.class.getName(), authParams);
 
-PulsarClient client = PulsarClient.create(
-        "pulsar+ssl://my-broker.com:6651", conf);
+Authentication athenzAuth = AuthenticationFactory
+        .create(AuthenticationAthenz.class.getName(), authParams);
+
+PulsarClient client = PulsarClient.builder()
+        .serviceUrl("pulsar+ssl://my-broker.com:6651")
+        .enableTls(true)
+        .tlsTrustCertsFilePath("/path/to/cacert.pem")
+        .authentication(athenzAuth)
+        .build();
 ```
 
 {% include admonition.html type="info" title="Supported pattern formats"

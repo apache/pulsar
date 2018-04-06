@@ -21,6 +21,7 @@ package org.apache.pulsar.zookeeper;
 import java.io.File;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.assertFalse;
 import org.testng.annotations.AfterMethod;
@@ -39,6 +40,21 @@ public class LocalBookkeeperEnsembleTest {
 
     @AfterMethod
     void teardown() throws Exception {
+    }
+
+    @Test
+    void testAdvertisedAddress() throws Exception {
+        final int numBk = 1;
+        final int zkPort = PortManager.nextFreePort();
+        final int bkPort = PortManager.nextFreePort();
+
+        LocalBookkeeperEnsemble ensemble = new LocalBookkeeperEnsemble(
+            numBk, zkPort, bkPort, null, null, true, "127.0.0.2");
+        ensemble.startStandalone();
+
+        assertNotNull(ensemble.getZkClient().exists("/ledgers/available/127.0.0.2:" + bkPort, false));
+
+        ensemble.stop();
     }
 
     @Test

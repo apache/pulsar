@@ -18,13 +18,20 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.testng.Assert.*;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import com.google.common.base.Charsets;
 import com.google.common.collect.Sets;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.Unpooled;
+
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -41,6 +48,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
+
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -56,6 +64,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
@@ -66,6 +75,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.Ledge
 import org.apache.bookkeeper.mledger.util.Pair;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.common.api.ByteBufPair;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 import org.apache.zookeeper.CreateMode;
@@ -1459,7 +1469,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // from the list of ledgers
         final CountDownLatch counter = new CountDownLatch(1);
         final MetaStore store = factory.getMetaStore();
-        store.getManagedLedgerInfo("my_test_ledger", new MetaStoreCallback<ManagedLedgerInfo>() {
+        store.getManagedLedgerInfo("my_test_ledger", false, new MetaStoreCallback<ManagedLedgerInfo>() {
             @Override
             public void operationComplete(ManagedLedgerInfo result, Stat version) {
                 // Update the list
@@ -1755,7 +1765,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         CountDownLatch l1 = new CountDownLatch(1);
 
         // obtain the ledger info
-        store.getManagedLedgerInfo("backward_test_ledger", new MetaStoreCallback<ManagedLedgerInfo>() {
+        store.getManagedLedgerInfo("backward_test_ledger", false, new MetaStoreCallback<ManagedLedgerInfo>() {
             @Override
             public void operationComplete(ManagedLedgerInfo result, Stat version) {
                 storedMLInfo[0] = result;
@@ -2152,4 +2162,56 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         return ByteBufPair.coalesce(ByteBufPair.get(headers, payload));
     }
 
+    @Test
+    public void testConsumerSubscriptionInitializePosition() throws Exception{
+        final int MAX_ENTRY_PER_LEDGER = 2;
+        ManagedLedgerConfig config = new ManagedLedgerConfig().setMaxEntriesPerLedger(MAX_ENTRY_PER_LEDGER);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("lastest_earliest_ledger", config);
+
+        final int totalInsertedEntries = 20;
+        for (int i = 0; i < totalInsertedEntries; i++) {
+            String content = "entry" + i; // 5 bytes
+            ledger.addEntry(content.getBytes());
+        }
+        // Open Cursor also adds cursor into activeCursor-container
+        ManagedCursor latestCursor = ledger.openCursor("c1", InitialPosition.Latest);
+        ManagedCursor earliestCursor = ledger.openCursor("c2", InitialPosition.Earliest);
+
+        // Since getReadPosition returns the next position, we decrease the entryId by 1
+        PositionImpl p1 = (PositionImpl) latestCursor.getReadPosition();
+        PositionImpl p2 = (PositionImpl) earliestCursor.getReadPosition();
+
+        Pair<PositionImpl, Long> latestPositionAndCounter = ledger.getLastPositionAndCounter();
+        Pair<PositionImpl, Long> earliestPositionAndCounter = ledger.getFirstPositionAndCounter();
+
+        assertEquals(latestPositionAndCounter.first.getNext(), p1);
+        assertEquals(earliestPositionAndCounter.first.getNext(), p2);
+
+        assertEquals(latestPositionAndCounter.second.longValue(), totalInsertedEntries);
+        assertEquals(earliestPositionAndCounter.second.longValue(), totalInsertedEntries - earliestCursor.getNumberOfEntriesInBacklog());
+
+        ledger.close();
+
+    }
+
+    @Test
+    public void testManagedLedgerAutoCreate() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig().setCreateIfMissing(true);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("test", config);
+        assertNotNull(ledger);
+    }
+
+    @Test
+    public void testManagedLedgerWithoutAutoCreate() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig().setCreateIfMissing(false);
+
+        try {
+            factory.open("testManagedLedgerWithoutAutoCreate", config);
+            fail("should have thrown ManagedLedgerNotFoundException");
+        } catch (ManagedLedgerNotFoundException e) {
+            // Expected
+        }
+
+        assertFalse(factory.getManagedLedgers().containsKey("testManagedLedgerWithoutAutoCreate"));
+    }
 }

@@ -50,12 +50,25 @@ public class ManagedLedgerException extends Exception {
         }
     }
 
+    public static class MetadataNotFoundException extends MetaStoreException {
+        public MetadataNotFoundException(Exception e) {
+            super(e);
+        }
+    }
+
+
     public static class ManagedLedgerFencedException extends ManagedLedgerException {
         public ManagedLedgerFencedException() {
             super(new Exception("Attempted to use a fenced managed ledger"));
         }
 
         public ManagedLedgerFencedException(Exception e) {
+            super(e);
+        }
+    }
+
+    public static class ManagedLedgerNotFoundException extends ManagedLedgerException {
+        public ManagedLedgerNotFoundException(Exception e) {
             super(e);
         }
     }

@@ -103,6 +103,9 @@ import _pulsar
 
 from _pulsar import Result, CompressionType, ConsumerType, PartitionsRoutingMode  # noqa: F401
 
+from functions.function import Function
+from functions.context import Context
+from functions.serde import SerDe, IdentitySerDe, PickleSerDe
 
 class MessageId:
     """
@@ -432,7 +435,8 @@ class Client:
     def create_reader(self, topic, start_message_id,
                       reader_listener=None,
                       receiver_queue_size=1000,
-                      reader_name=None
+                      reader_name=None,
+                      subscription_role_prefix=None
                       ):
         """
         Create a reader on a particular topic
@@ -476,11 +480,14 @@ class Client:
           memory utilization.
         * `reader_name`:
           Sets the reader name.
+        * `subscription_role_prefix`:
+          Sets the subscription role prefix.
         """
         _check_type(str, topic, 'topic')
         _check_type(_pulsar.MessageId, start_message_id, 'start_message_id')
         _check_type(int, receiver_queue_size, 'receiver_queue_size')
         _check_type_or_none(str, reader_name, 'reader_name')
+        _check_type_or_none(str, subscription_role_prefix, 'subscription_role_prefix')
 
         conf = _pulsar.ReaderConfiguration()
         if reader_listener:
@@ -488,6 +495,8 @@ class Client:
         conf.receiver_queue_size(receiver_queue_size)
         if reader_name:
             conf.reader_name(reader_name)
+        if subscription_role_prefix:
+            conf.subscription_role_prefix(subscription_role_prefix)
         c = Reader()
         c._reader = self._client.create_reader(topic, start_message_id, conf)
         c._client = self
@@ -553,13 +562,13 @@ class Producer:
           A dict of application-defined string properties.
         * `partition_key`:
           Sets the partition key for message routing. A hash of this key is used
-          to determine the message's destination partition.
+          to determine the message's topic partition.
         * `sequence_id`:
           Specify a custom sequence id for the message being published.
         * `replication_clusters`:
           Override namespace replication clusters. Note that it is the caller's
           responsibility to provide valid cluster names and that all clusters
-          have been previously configured as destinations. Given an empty list,
+          have been previously configured as topics. Given an empty list,
           the message will replicate according to the namespace configuration.
         * `disable_replication`:
           Do not replicate this message.
@@ -603,12 +612,12 @@ class Producer:
           A dict of application0-defined string properties.
         * `partition_key`:
           Sets the partition key for the message routing. A hash of this key is
-          used to determine the message's destination partition.
+          used to determine the message's topic partition.
         * `sequence_id`:
           Specify a custom sequence id for the message being published.
         * `replication_clusters`: Override namespace replication clusters. Note
           that it is the caller's responsibility to provide valid cluster names
-          and that all clusters have been previously configured as destinations.
+          and that all clusters have been previously configured as topics.
           Given an empty list, the message will replicate per the namespace
           configuration.
         * `disable_replication`:
@@ -636,7 +645,7 @@ class Producer:
         mb = _pulsar.MessageBuilder()
         mb.content(content)
         if properties:
-            for k, v in properties:
+            for k, v in properties.items():
                 mb.property(k, v)
         if partition_key:
             mb.partition_key(partition_key)

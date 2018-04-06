@@ -25,40 +25,44 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.CryptoKeyReader;
+import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
-import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.util.FutureUtil;
 
-@SuppressWarnings("deprecation")
-public class ProducerBuilderImpl implements ProducerBuilder {
+import lombok.NonNull;
+
+public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     private static final long serialVersionUID = 1L;
 
     private final PulsarClientImpl client;
-    private String topicName;
-    private final ProducerConfiguration conf;
+    private final ProducerConfigurationData conf;
+    private final Schema<T> schema;
 
-    ProducerBuilderImpl(PulsarClientImpl client) {
+    ProducerBuilderImpl(PulsarClientImpl client, Schema<T> schema) {
+        this(client, new ProducerConfigurationData(), schema);
+    }
+
+    private ProducerBuilderImpl(PulsarClientImpl client, ProducerConfigurationData conf, Schema<T> schema) {
         this.client = client;
-        this.conf = new ProducerConfiguration();
+        this.conf = conf;
+        this.schema = schema;
     }
 
     @Override
-    public ProducerBuilder clone() {
-        try {
-            return (ProducerBuilder) super.clone();
-        } catch (CloneNotSupportedException e) {
-            throw new RuntimeException("Failed to clone ProducerBuilderImpl");
-        }
+    public ProducerBuilder<T> clone() {
+        return new ProducerBuilderImpl<>(client, conf.clone(), schema);
     }
 
     @Override
-    public Producer create() throws PulsarClientException {
+    public Producer<T> create() throws PulsarClientException {
         try {
             return createAsync().get();
         } catch (ExecutionException e) {
@@ -75,120 +79,132 @@ public class ProducerBuilderImpl implements ProducerBuilder {
     }
 
     @Override
-    public CompletableFuture<Producer> createAsync() {
-        if (topicName == null) {
+    public CompletableFuture<Producer<T>> createAsync() {
+        if (conf.getTopicName() == null) {
             return FutureUtil
                     .failedFuture(new IllegalArgumentException("Topic name must be set on the producer builder"));
         }
 
-        return client.createProducerAsync(topicName, conf);
+        return client.createProducerAsync(conf, schema);
     }
 
     @Override
-    public ProducerBuilder topic(String topicName) {
-        this.topicName = topicName;
+    public ProducerBuilder<T> topic(String topicName) {
+        conf.setTopicName(topicName);
         return this;
     }
 
     @Override
-    public ProducerBuilder producerName(String producerName) {
+    public ProducerBuilder<T> producerName(@NonNull String producerName) {
         conf.setProducerName(producerName);
         return this;
     }
 
     @Override
-    public ProducerBuilder sendTimeout(int sendTimeout, TimeUnit unit) {
-        conf.setSendTimeout(sendTimeout, unit);
+    public ProducerBuilder<T> sendTimeout(int sendTimeout, @NonNull TimeUnit unit) {
+        if (sendTimeout < 0) {
+            throw new IllegalArgumentException("sendTimeout needs to be >= 0");
+        }
+        conf.setSendTimeoutMs(unit.toMillis(sendTimeout));
         return this;
     }
 
     @Override
-    public ProducerBuilder maxPendingMessages(int maxPendingMessages) {
+    public ProducerBuilder<T> maxPendingMessages(int maxPendingMessages) {
+        if (maxPendingMessages <= 0) {
+            throw new IllegalArgumentException("maxPendingMessages needs to be > 0");
+        }
         conf.setMaxPendingMessages(maxPendingMessages);
         return this;
     }
 
     @Override
-    public ProducerBuilder maxPendingMessagesAcrossPartitions(int maxPendingMessagesAcrossPartitions) {
+    public ProducerBuilder<T> maxPendingMessagesAcrossPartitions(int maxPendingMessagesAcrossPartitions) {
         conf.setMaxPendingMessagesAcrossPartitions(maxPendingMessagesAcrossPartitions);
         return this;
     }
 
     @Override
-    public ProducerBuilder blockIfQueueFull(boolean blockIfQueueFull) {
+    public ProducerBuilder<T> blockIfQueueFull(boolean blockIfQueueFull) {
         conf.setBlockIfQueueFull(blockIfQueueFull);
         return this;
     }
 
     @Override
-    public ProducerBuilder messageRoutingMode(MessageRoutingMode messageRouteMode) {
-        conf.setMessageRoutingMode(ProducerConfiguration.MessageRoutingMode.valueOf(messageRouteMode.toString()));
+    public ProducerBuilder<T> messageRoutingMode(@NonNull MessageRoutingMode messageRouteMode) {
+        conf.setMessageRoutingMode(messageRouteMode);
         return this;
     }
 
     @Override
-    public ProducerBuilder compressionType(CompressionType compressionType) {
+    public ProducerBuilder<T> compressionType(@NonNull CompressionType compressionType) {
         conf.setCompressionType(compressionType);
         return this;
     }
 
     @Override
-    public ProducerBuilder messageRouter(MessageRouter messageRouter) {
-        conf.setMessageRouter(messageRouter);
+    public ProducerBuilder<T> hashingScheme(@NonNull HashingScheme hashingScheme) {
+        conf.setHashingScheme(hashingScheme);
         return this;
     }
 
     @Override
-    public ProducerBuilder enableBatching(boolean batchMessagesEnabled) {
+    public ProducerBuilder<T> messageRouter(@NonNull MessageRouter messageRouter) {
+        conf.setCustomMessageRouter(messageRouter);
+        return this;
+    }
+
+    @Override
+    public ProducerBuilder<T> enableBatching(boolean batchMessagesEnabled) {
         conf.setBatchingEnabled(batchMessagesEnabled);
         return this;
     }
 
     @Override
-    public ProducerBuilder cryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
+    public ProducerBuilder<T> cryptoKeyReader(@NonNull CryptoKeyReader cryptoKeyReader) {
         conf.setCryptoKeyReader(cryptoKeyReader);
         return this;
     }
 
     @Override
-    public ProducerBuilder addEncryptionKey(String key) {
-        conf.addEncryptionKey(key);
+    public ProducerBuilder<T> addEncryptionKey(@NonNull String key) {
+        conf.getEncryptionKeys().add(key);
         return this;
     }
 
     @Override
-    public ProducerBuilder cryptoFailureAction(ProducerCryptoFailureAction action) {
+    public ProducerBuilder<T> cryptoFailureAction(@NonNull ProducerCryptoFailureAction action) {
         conf.setCryptoFailureAction(action);
         return this;
     }
 
     @Override
-    public ProducerBuilder batchingMaxPublishDelay(long batchDelay, TimeUnit timeUnit) {
-        conf.setBatchingMaxPublishDelay(batchDelay, timeUnit);
+    public ProducerBuilder<T> batchingMaxPublishDelay(long batchDelay, @NonNull TimeUnit timeUnit) {
+        conf.setBatchingMaxPublishDelayMicros(timeUnit.toMicros(batchDelay));
         return this;
     }
 
     @Override
-    public ProducerBuilder batchingMaxMessages(int batchMessagesMaxMessagesPerBatch) {
+    public ProducerBuilder<T> batchingMaxMessages(int batchMessagesMaxMessagesPerBatch) {
         conf.setBatchingMaxMessages(batchMessagesMaxMessagesPerBatch);
         return this;
     }
 
     @Override
-    public ProducerBuilder initialSequenceId(long initialSequenceId) {
+    public ProducerBuilder<T> initialSequenceId(long initialSequenceId) {
         conf.setInitialSequenceId(initialSequenceId);
         return this;
     }
 
     @Override
-    public ProducerBuilder property(String key, String value) {
-        conf.setProperty(key, value);
+    public ProducerBuilder<T> property(@NonNull String key, @NonNull String value) {
+        conf.getProperties().put(key, value);
         return this;
     }
 
     @Override
-    public ProducerBuilder properties(Map<String, String> properties) {
-        conf.setProperties(properties);
+    public ProducerBuilder<T> properties(@NonNull Map<String, String> properties) {
+        conf.getProperties().putAll(properties);
         return this;
     }
 }

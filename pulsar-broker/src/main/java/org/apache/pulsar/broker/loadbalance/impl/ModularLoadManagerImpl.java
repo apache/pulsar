@@ -22,6 +22,11 @@ import static org.apache.pulsar.broker.admin.AdminResource.jsonMapper;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.web.PulsarWebResource.path;
 
+import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
+
+import io.netty.util.concurrent.DefaultThreadFactory;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -56,6 +61,7 @@ import org.apache.pulsar.broker.loadbalance.LoadSheddingStrategy;
 import org.apache.pulsar.broker.loadbalance.ModularLoadManager;
 import org.apache.pulsar.broker.loadbalance.ModularLoadManagerStrategy;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.BrokerTopicLoadingPredicate;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
@@ -78,10 +84,6 @@ import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.Maps;
-
-import io.netty.util.concurrent.DefaultThreadFactory;
 
 public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCacheListener<LocalBrokerData> {
     private static final Logger log = LoggerFactory.getLogger(ModularLoadManagerImpl.class);
@@ -192,7 +194,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         filterPipeline = new ArrayList<>();
         loadData = new LoadData();
         loadSheddingPipeline = new ArrayList<>();
-        loadSheddingPipeline.add(new OverloadShedder(conf));
+        loadSheddingPipeline.add(new OverloadShedder());
         preallocatedBundleToBroker = new ConcurrentHashMap<>();
         scheduler = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-modular-load-manager"));
         this.brokerToFailureDomainMap = Maps.newHashMap();
@@ -583,28 +585,27 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                 - TimeUnit.MINUTES.toMillis(conf.getLoadBalancerSheddingGracePeriodMinutes());
         final Map<String, Long> recentlyUnloadedBundles = loadData.getRecentlyUnloadedBundles();
         recentlyUnloadedBundles.keySet().removeIf(e -> recentlyUnloadedBundles.get(e) < timeout);
-        for (LoadSheddingStrategy strategy : loadSheddingPipeline) {
-            final Map<String, String> bundlesToUnload = strategy.findBundlesForUnloading(loadData, conf);
-            if (bundlesToUnload != null && !bundlesToUnload.isEmpty()) {
-                try {
-                    for (Map.Entry<String, String> entry : bundlesToUnload.entrySet()) {
-                        final String broker = entry.getKey();
-                        final String bundle = entry.getValue();
 
-                        final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
-                        final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
-                        if(!shouldAntiAffinityNamespaceUnload(namespaceName, bundleRange, broker)) {
-                            continue;
-                        }
-                        log.info("Unloading bundle: {} from broker {}", bundle, broker);
+        for (LoadSheddingStrategy strategy : loadSheddingPipeline) {
+            final Multimap<String, String> bundlesToUnload = strategy.findBundlesForUnloading(loadData, conf);
+
+            bundlesToUnload.asMap().forEach((broker, bundles) -> {
+                bundles.forEach(bundle -> {
+                    final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
+                    final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
+                    if (!shouldAntiAffinityNamespaceUnload(namespaceName, bundleRange, broker)) {
+                        return;
+                    }
+
+                    log.info("[Overload shedder] Unloading bundle: {} from broker {}", bundle, broker);
+                    try {
                         pulsar.getAdminClient().namespaces().unloadNamespaceBundle(namespaceName, bundleRange);
                         loadData.getRecentlyUnloadedBundles().put(bundle, System.currentTimeMillis());
+                    } catch (PulsarServerException | PulsarAdminException e) {
+                        log.warn("Error when trying to perform load shedding on {} for broker {}", bundle, broker, e);
                     }
-                } catch (Exception e) {
-                    log.warn("Error when trying to perform load shedding", e);
-                }
-                return;
-            }
+                });
+            });
         }
     }
 

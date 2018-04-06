@@ -22,6 +22,21 @@ package pulsar.proto;
 option java_package = "org.apache.pulsar.common.api.proto";
 option optimize_for = LITE_RUNTIME;
 
+message Schema {
+	enum Type {
+		Json = 1;
+		Protobuf = 2;
+		Thrift = 3;
+		Avro = 4;
+	}
+
+    required string name = 1;
+    required bytes version = 2;
+    required bytes schema_data = 3;
+	required Type type = 4;
+    repeated KeyValue properties = 5;
+}
+
 message MessageIdData {
 	required uint64 ledgerId = 1;
 	required uint64 entryId  = 2;
@@ -81,6 +96,7 @@ message MessageMetadata {
 	optional string encryption_algo = 14;
 	// Additional parameters required by encryption
 	optional bytes encryption_param = 15;
+	optional bytes schema_version = 16;
 }
 
 
@@ -88,6 +104,7 @@ message SingleMessageMetadata {
 	repeated KeyValue properties    = 1;
 	optional string partition_key   = 2;
 	required int32 payload_size	= 3;
+        optional bool compacted_out     = 4 [default = false];
 }
 
 enum ServerError {
@@ -136,7 +153,8 @@ enum ProtocolVersion {
 	v10 = 10;// Added proxy to broker
 	v11 = 11;// C++ consumers before this version are not correctly handling the checksum field
 	v12 = 12;// Added get topic's last messageId from broker
-                 // Added CommandActiveConsumerChange
+			 // Added CommandActiveConsumerChange
+			 // Added CommandGetTopicsOfNamespace
 }
 
 message CommandConnect {
@@ -196,6 +214,15 @@ message CommandSubscribe {
     repeated KeyValue metadata = 10;
 
     optional bool read_compacted = 11;
+
+	optional Schema schema = 12;
+	enum InitialPosition {
+		Latest   = 0;
+		Earliest = 1;
+	}
+	// Signal wthether the subscription will initialize on latest
+	// or not -- earliest
+	optional InitialPosition initialPosition = 13 [default = Latest];
 }
 
 message CommandPartitionedTopicMetadata {
@@ -274,6 +301,8 @@ message CommandProducer {
 
     /// Add optional metadata key=value to this producer
     repeated KeyValue metadata    = 6;
+
+	optional Schema schema = 7;
 }
 
 message CommandSend {
@@ -308,7 +337,9 @@ message CommandAck {
 
 	required uint64 consumer_id       = 1;
 	required AckType ack_type         = 2;
-	required MessageIdData message_id = 3;
+
+	// In case of individual acks, the client can pass a list of message ids
+	repeated MessageIdData message_id = 3;
 
 	// Acks can contain a flag to indicate the consumer
 	// received an invalid message that got discarded
@@ -322,7 +353,7 @@ message CommandAck {
 	}
 
 	optional ValidationError validation_error = 4;
-        repeated KeyLongValue properties = 5;
+	repeated KeyLongValue properties = 5;
 }
 
 // changes on active consumer
@@ -376,6 +407,7 @@ message CommandRedeliverUnacknowledgedMessages {
 
 message CommandSuccess {
 	required uint64 request_id = 1;
+	optional Schema schema = 2;
 }
 
 /// Response from CommandProducer
@@ -386,6 +418,7 @@ message CommandProducerSuccess {
 	// The last sequence id that was stored by this producer in the previous session
 	// This will only be meaningful if deduplication has been enabled.
 	optional int64  last_sequence_id = 3 [default = -1];
+	optional bytes schema_version = 4;
 }
 
 message CommandError {
@@ -461,6 +494,16 @@ message CommandGetLastMessageIdResponse {
 	required uint64 request_id  = 2;
 }
 
+message CommandGetTopicsOfNamespace {
+	required uint64 request_id	= 1;
+	required string namespace	= 2;
+}
+
+message CommandGetTopicsOfNamespaceResponse {
+	required uint64 request_id	= 1;
+	repeated string topics 		= 2;
+}
+
 message BaseCommand {
 	enum Type {
 		CONNECT     = 2;
@@ -508,8 +551,13 @@ message BaseCommand {
 		GET_LAST_MESSAGE_ID = 29;
 		GET_LAST_MESSAGE_ID_RESPONSE = 30;
 
-                ACTIVE_CONSUMER_CHANGE = 31;
+		ACTIVE_CONSUMER_CHANGE = 31;
+
+
+		GET_TOPICS_OF_NAMESPACE 			= 32;
+		GET_TOPICS_OF_NAMESPACE_RESPONSE 	= 33;
 	}
+
 
 	required Type type = 1;
 
@@ -553,6 +601,9 @@ message BaseCommand {
 	optional CommandGetLastMessageId getLastMessageId = 29;
 	optional CommandGetLastMessageIdResponse getLastMessageIdResponse = 30;
 
-        optional CommandActiveConsumerChange active_consumer_change = 31;
+	optional CommandActiveConsumerChange active_consumer_change = 31;
+
+	optional CommandGetTopicsOfNamespace getTopicsOfNamespace = 32;
+	optional CommandGetTopicsOfNamespaceResponse getTopicsOfNamespaceResponse = 33;
 
 }

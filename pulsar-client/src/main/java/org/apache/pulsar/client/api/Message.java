@@ -1,3 +1,4 @@
+
 /**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -25,7 +26,7 @@ import java.util.Map;
  *
  *
  */
-public interface Message {
+public interface Message<T> {
 
     /**
      * Return the properties attached to the message.
@@ -61,6 +62,8 @@ public interface Message {
      * @return the byte array with the message payload
      */
     byte[] getData();
+
+    T getValue();
 
     /**
      * Get the unique message ID associated with this message.

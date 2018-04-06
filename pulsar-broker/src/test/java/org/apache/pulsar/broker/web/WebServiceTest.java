@@ -40,12 +40,12 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 
 import org.apache.bookkeeper.test.PortManager;
+import org.apache.pulsar.broker.MockedBookKeeperClientFactory;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
-import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.util.SecurityUtility;
@@ -259,6 +259,7 @@ public class WebServiceTest {
         config.setZookeeperServers("localhost:2181");
         pulsar = spy(new PulsarService(config));
         doReturn(new MockedZooKeeperClientFactoryImpl()).when(pulsar).getZooKeeperClientFactory();
+        doReturn(new MockedBookKeeperClientFactory()).when(pulsar).getBookKeeperClientFactory();
         pulsar.start();
 
         try {
@@ -268,23 +269,19 @@ public class WebServiceTest {
         pulsar.getZkClient().create("/minApiVersion", minApiVersion.getBytes(), null, CreateMode.PERSISTENT);
 
         String serviceUrl = BROKER_URL_BASE;
-        ClientConfiguration clientConfig = new ClientConfiguration();
 
+        PulsarAdminBuilder adminBuilder = PulsarAdmin.builder();
         if (enableTls && enableAuth) {
             serviceUrl = BROKER_URL_BASE_TLS;
 
             Map<String, String> authParams = new HashMap<>();
             authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
             authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
-            Authentication auth = new AuthenticationTls();
-            auth.configure(authParams);
 
-            clientConfig.setAuthentication(auth);
-            clientConfig.setUseTls(true);
-            clientConfig.setTlsAllowInsecureConnection(true);
+            adminBuilder.authentication(AuthenticationTls.class.getName(), authParams).allowTlsInsecureConnection(true);
         }
 
-        PulsarAdmin pulsarAdmin = new PulsarAdmin(new URL(serviceUrl), clientConfig);
+        PulsarAdmin pulsarAdmin = adminBuilder.serviceHttpUrl(serviceUrl).build();
 
         try {
             pulsarAdmin.clusters().createCluster(config.getClusterName(),

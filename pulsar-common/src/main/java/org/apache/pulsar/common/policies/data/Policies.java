@@ -21,7 +21,9 @@ package org.apache.pulsar.common.policies.data;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
+import com.google.common.collect.Sets;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -29,10 +31,11 @@ import com.google.common.collect.Maps;
 public class Policies {
 
     public final AuthPolicies auth_policies = new AuthPolicies();
-    public List<String> replication_clusters = Lists.newArrayList();
+    public Set<String> replication_clusters = Sets.newHashSet();
     public BundlesData bundles = defaultBundle();
     public Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlog_quota_map = Maps.newHashMap();
     public Map<String, DispatchRate> clusterDispatchRate = Maps.newHashMap();
+    public Map<String, DispatchRate> subscriptionDispatchRate = Maps.newHashMap();
     public PersistencePolicies persistence = null;
 
     // If set, it will override the broker settings for enabling deduplication
@@ -50,6 +53,10 @@ public class Policies {
     public boolean encryption_required = false;
     public SubscriptionAuthMode subscription_auth_mode = SubscriptionAuthMode.None;
 
+    public int max_producers_per_topic = 0;
+    public int max_consumers_per_topic = 0;
+    public int max_consumers_per_subscription = 0;
+
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof Policies) {
@@ -65,7 +72,10 @@ public class Policies {
                     && Objects.equals(retention_policies, other.retention_policies)
                     && Objects.equals(encryption_required, other.encryption_required)
                     && Objects.equals(subscription_auth_mode, other.subscription_auth_mode)
-                    && Objects.equals(antiAffinityGroup, other.antiAffinityGroup);
+                    && Objects.equals(antiAffinityGroup, other.antiAffinityGroup)
+                    && max_producers_per_topic == other.max_producers_per_topic
+                    && max_consumers_per_topic == other.max_consumers_per_topic
+                    && max_consumers_per_subscription == other.max_consumers_per_subscription;
         }
 
         return false;
@@ -92,6 +102,9 @@ public class Policies {
                 .add("message_ttl_in_seconds", message_ttl_in_seconds).add("retention_policies", retention_policies)
                 .add("deleted", deleted)
                 .add("encryption_required", encryption_required)
-                .add("subscription_auth_mode", subscription_auth_mode).toString();
+                .add("subscription_auth_mode", subscription_auth_mode)
+                .add("max_producers_per_topic", max_producers_per_topic)
+                .add("max_consumers_per_topic", max_consumers_per_topic)
+                .add("max_consumers_per_subscription", max_consumers_per_topic).toString();
     }
 }

@@ -33,21 +33,16 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import com.google.common.hash.Hashing;
+
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.bookkeeper.util.OrderedSafeExecutor;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
-import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
-import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.broker.namespace.OwnedBundle;
-import org.apache.pulsar.broker.namespace.OwnershipCache;
-import org.apache.pulsar.broker.namespace.ServiceUnitZkUtils;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
@@ -63,8 +58,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.hash.Hashing;
-
 public class OwnershipCacheTest {
 
     private PulsarService pulsar;
@@ -75,8 +68,7 @@ public class OwnershipCacheTest {
     private NamespaceBundleFactory bundleFactory;
     private NamespaceService nsService;
     private BrokerService brokerService;
-    private OrderedSafeExecutor executor;
-    private ScheduledExecutorService scheduledExecutor;
+    private OrderedScheduler executor;
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -84,15 +76,14 @@ public class OwnershipCacheTest {
         selfBrokerUrl = "tcp://localhost:" + port;
         pulsar = mock(PulsarService.class);
         config = mock(ServiceConfiguration.class);
-        executor = new OrderedSafeExecutor(1, "test");
-        scheduledExecutor = Executors.newScheduledThreadPool(2);
-        zkCache = new LocalZooKeeperCache(MockZooKeeper.newInstance(), executor, scheduledExecutor);
+        executor = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("test").build();
+        zkCache = new LocalZooKeeperCache(MockZooKeeper.newInstance(), executor);
         localCache = spy(new LocalZooKeeperCacheService(zkCache, null));
         ZooKeeperDataCache<LocalPolicies> poilciesCache = mock(ZooKeeperDataCache.class);
         when(pulsar.getLocalZkCacheService()).thenReturn(localCache);
         when(localCache.policiesCache()).thenReturn(poilciesCache);
         doNothing().when(poilciesCache).registerListener(any());
-        
+
         bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
         nsService = mock(NamespaceService.class);
         brokerService = mock(BrokerService.class);
@@ -111,7 +102,6 @@ public class OwnershipCacheTest {
     @AfterMethod
     public void teardown() throws Exception {
         executor.shutdown();
-        scheduledExecutor.shutdown();
     }
 
     @Test

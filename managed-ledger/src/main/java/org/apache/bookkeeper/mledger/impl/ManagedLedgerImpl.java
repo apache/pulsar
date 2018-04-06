@@ -20,7 +20,6 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.Math.min;
-import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLedgerException;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 
 import com.google.common.collect.BoundType;
@@ -29,29 +28,33 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Range;
 import com.google.common.util.concurrent.RateLimiter;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
-import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
@@ -67,8 +70,10 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.BadVersionException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerTerminatedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.MetadataNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.ManagedLedgerMXBean;
@@ -82,11 +87,11 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo;
 import org.apache.bookkeeper.mledger.util.CallbackMutex;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.mledger.util.Pair;
-import org.apache.bookkeeper.util.OrderedSafeExecutor;
-import org.apache.bookkeeper.util.UnboundArrayBlockingQueue;
 import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
+import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -186,8 +191,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             AtomicReferenceFieldUpdater.newUpdater(ManagedLedgerImpl.class, State.class, "state");
     private volatile State state = null;
 
-    private final ScheduledExecutorService scheduledExecutor;
-    private final OrderedSafeExecutor executor;
+    private final OrderedScheduler scheduledExecutor;
+    private final OrderedExecutor executor;
     final ManagedLedgerFactoryImpl factory;
     protected final ManagedLedgerMBeanImpl mbean;
 
@@ -195,12 +200,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * Queue of pending entries to be added to the managed ledger. Typically entries are queued when a new ledger is
      * created asynchronously and hence there is no ready ledger to write into.
      */
-    final Queue<OpAddEntry> pendingAddEntries = new UnboundArrayBlockingQueue<>();
+    final GrowableArrayBlockingQueue<OpAddEntry> pendingAddEntries = new GrowableArrayBlockingQueue<>();
 
     // //////////////////////////////////////////////////////////////////////
 
     public ManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
-            ManagedLedgerConfig config, ScheduledExecutorService scheduledExecutor, OrderedSafeExecutor orderedExecutor,
+            ManagedLedgerConfig config, OrderedScheduler scheduledExecutor, OrderedExecutor orderedExecutor,
             final String name) {
         this.factory = factory;
         this.bookKeeper = bookKeeper;
@@ -228,7 +233,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         log.info("Opening managed ledger {}", name);
 
         // Fetch the list of existing ledgers in the managed ledger
-        store.getManagedLedgerInfo(name, new MetaStoreCallback<ManagedLedgerInfo>() {
+        store.getManagedLedgerInfo(name, config.isCreateIfMissing(), new MetaStoreCallback<ManagedLedgerInfo>() {
             @Override
             public void operationComplete(ManagedLedgerInfo mlInfo, Stat stat) {
                 ledgersStat = stat;
@@ -246,7 +251,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 if (ledgers.size() > 0) {
                     final long id = ledgers.lastKey();
                     OpenCallback opencb = (rc, lh, ctx1) -> {
-                        executor.submitOrdered(name, safeRun(() -> {
+                        executor.executeOrdered(name, safeRun(() -> {
                             mbean.endDataLedgerOpenOp();
                             if (log.isDebugEnabled()) {
                                 log.debug("[{}] Opened ledger {}: ", name, id, BKException.getMessage(rc));
@@ -281,7 +286,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             @Override
             public void operationFailed(MetaStoreException e) {
-                callback.initializeFailed(new ManagedLedgerException(e));
+                if (e instanceof MetadataNotFoundException) {
+                    callback.initializeFailed(new ManagedLedgerNotFoundException(e));
+                } else {
+                    callback.initializeFailed(new ManagedLedgerException(e));
+                }
             }
         });
     }
@@ -334,7 +343,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         mbean.startDataLedgerCreateOp();
         bookKeeper.asyncCreateLedger(config.getEnsembleSize(), config.getWriteQuorumSize(), config.getAckQuorumSize(),
                 config.getDigestType(), config.getPassword(), (rc, lh, ctx) -> {
-                    executor.submitOrdered(name, safeRun(() -> {
+                    executor.executeOrdered(name, safeRun(() -> {
                         mbean.endDataLedgerCreateOp();
                         if (rc != BKException.Code.OK) {
                             callback.initializeFailed(createManagedLedgerException(rc));
@@ -352,7 +361,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         // Save it back to ensure all nodes exist
                         store.asyncUpdateLedgerIds(name, getManagedLedgerInfo(), ledgersStat, storeLedgersCb);
                     }));
-                }, null);
+                }, null, Collections.emptyMap());
     }
 
     private void initializeCursors(final ManagedLedgerInitializeLedgerCallback callback) {
@@ -512,7 +521,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 this.lastLedgerCreationInitiationTimestamp = System.nanoTime();
                 mbean.startDataLedgerCreateOp();
                 bookKeeper.asyncCreateLedger(config.getEnsembleSize(), config.getWriteQuorumSize(),
-                        config.getAckQuorumSize(), config.getDigestType(), config.getPassword(), this, ctx);
+                        config.getAckQuorumSize(), config.getDigestType(), config.getPassword(), this, ctx,
+                        Collections.emptyMap());
             }
         } else {
             checkArgument(state == State.LedgerOpened, "ledger=%s is not opened", state);
@@ -542,7 +552,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
-    public ManagedCursor openCursor(String cursorName) throws InterruptedException, ManagedLedgerException {
+    public ManagedCursor openCursor(String cursorName) throws InterruptedException, ManagedLedgerException{
+        return openCursor(cursorName, InitialPosition.Latest);
+    }
+
+    @Override
+    public ManagedCursor openCursor(String cursorName, InitialPosition initialPosition) throws InterruptedException, ManagedLedgerException {
         final CountDownLatch counter = new CountDownLatch(1);
         class Result {
             ManagedCursor cursor = null;
@@ -550,7 +565,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         final Result result = new Result();
 
-        asyncOpenCursor(cursorName, new OpenCursorCallback() {
+        asyncOpenCursor(cursorName, initialPosition, new OpenCursorCallback() {
             @Override
             public void openCursorComplete(ManagedCursor cursor, Object ctx) {
                 result.cursor = cursor;
@@ -578,9 +593,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
-    public synchronized void asyncOpenCursor(final String cursorName, final OpenCursorCallback callback,
-            final Object ctx) {
+    public synchronized void asyncOpenCursor(final String cursorName, final OpenCursorCallback callback, Object ctx){
+        this.asyncOpenCursor(cursorName, InitialPosition.Latest, callback, ctx);
+    }
 
+    @Override
+    public synchronized void asyncOpenCursor(final String cursorName, final InitialPosition initialPosition, final OpenCursorCallback callback, final Object ctx){
         try {
             checkManagedLedgerIsOpen();
             checkFenced();
@@ -620,7 +638,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 log.info("[{}] Opened new cursor: {}", name, cursor);
                 cursor.setActive();
                 // Update the ack position (ignoring entries that were written while the cursor was being created)
-                cursor.initializeCursorPosition(getLastPositionAndCounter());
+                cursor.initializeCursorPosition(initialPosition == InitialPosition.Latest ? getLastPositionAndCounter() : getFirstPositionAndCounter());
 
                 synchronized (this) {
                     cursors.add(cursor);
@@ -1168,7 +1186,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         // Process all the pending addEntry requests
-        for (OpAddEntry op : pendingAddEntries) {
+        for (OpAddEntry op : pendingAddEntries.toList()) {
             op.setLedger(currentLedger);
             ++currentLedgerEntries;
             currentLedgerSize += op.data.readableBytes();
@@ -1238,7 +1256,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             this.lastLedgerCreationInitiationTimestamp = System.nanoTime();
             mbean.startDataLedgerCreateOp();
             bookKeeper.asyncCreateLedger(config.getEnsembleSize(), config.getWriteQuorumSize(),
-                    config.getAckQuorumSize(), config.getDigestType(), config.getPassword(), this, null);
+                    config.getAckQuorumSize(), config.getDigestType(), config.getPassword(), this, null,
+                    Collections.emptyMap());
         }
     }
 
@@ -1305,7 +1324,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             mbean.startDataLedgerOpenOp();
             bookKeeper.asyncOpenLedger(ledgerId, config.getDigestType(), config.getPassword(),
                     (int rc, LedgerHandle lh, Object ctx) -> {
-                        executor.submit(safeRun(() -> {
+                        executor.executeOrdered(name, safeRun(() -> {
                             mbean.endDataLedgerOpenOp();
                             if (rc != BKException.Code.OK) {
                                 // Remove the ledger future from cache to give chance to reopen it later
@@ -1470,12 +1489,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 break;
             }
 
-            executor.submit(safeRun(() -> waitingCursor.notifyEntriesAvailable()));
+            executor.execute(safeRun(() -> waitingCursor.notifyEntriesAvailable()));
         }
     }
 
     private void trimConsumedLedgersInBackground() {
-        executor.submitOrdered(name, safeRun(() -> {
+        executor.executeOrdered(name, safeRun(() -> {
             internalTrimConsumedLedgers();
         }));
     }
@@ -2025,6 +2044,22 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return Pair.create(pos, count);
     }
 
+    /**
+     * Get the first position written in the managed ledger, alongside with the associated counter
+     */
+    Pair<PositionImpl, Long> getFirstPositionAndCounter() {
+        PositionImpl pos;
+        long count;
+        Pair<PositionImpl, Long> lastPositionAndCounter;
+
+        do {
+            pos = getFirstPosition();
+            lastPositionAndCounter = getLastPositionAndCounter();
+            count = lastPositionAndCounter.second - getNumberOfEntries(Range.openClosed(pos, lastPositionAndCounter.first));
+        } while (pos.compareTo(getFirstPosition()) != 0 || lastPositionAndCounter.first.compareTo(getLastPosition()) != 0);
+        return Pair.create(pos, count);
+    }
+
     public void activateCursor(ManagedCursor cursor) {
         if (activeCursors.get(cursor.getName()) == null) {
             activeCursors.add(cursor);
@@ -2083,11 +2118,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return ledgers;
     }
 
-    ScheduledExecutorService getScheduledExecutor() {
+    OrderedScheduler getScheduledExecutor() {
         return scheduledExecutor;
     }
 
-    OrderedSafeExecutor getExecutor() {
+    OrderedExecutor getExecutor() {
         return executor;
     }
 

@@ -33,7 +33,7 @@ public interface TupleToMessageMapper extends Serializable {
      * @param tuple
      * @return
      */
-    public Message toMessage(Tuple tuple);
+    public Message<byte[]> toMessage(Tuple tuple);
 
     /**
      * Declare the output schema for the bolt.

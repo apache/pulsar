@@ -51,7 +51,7 @@ BINDIR=`dirname "$0"`
 BK_HOME=`cd $BINDIR/..;pwd`
 
 DEFAULT_CONF=$BK_HOME/conf/bookkeper.conf
-DEFAULT_LOG_CONF=$BK_HOME/conf/log4j.properties
+DEFAULT_LOG_CONF=$BK_HOME/conf/log4j2.yaml
 
 source $BK_HOME/conf/bkenv.sh
 
@@ -146,7 +146,7 @@ COMMAND=$1
 shift
 
 if [ $COMMAND == "shell" ]; then
-    DEFAULT_LOG_CONF=$BK_HOME/conf/log4j.shell.properties
+    DEFAULT_LOG_CONF=$BK_HOME/conf/log4j2.yaml
 fi
 
 if [ -z "$BOOKIE_CONF" ]; then
@@ -159,7 +159,7 @@ fi
 
 BOOKIE_CLASSPATH="$BOOKIE_JAR:$BOOKIE_CLASSPATH:$BOOKIE_EXTRA_CLASSPATH"
 BOOKIE_CLASSPATH="`dirname $BOOKIE_LOG_CONF`:$BOOKIE_CLASSPATH"
-OPTS="$OPTS -Dlog4j.configuration=`basename $BOOKIE_LOG_CONF`"
+OPTS="$OPTS -Dlog4j.configurationFile=`basename $BOOKIE_LOG_CONF`"
 
 OPTS="-cp $BOOKIE_CLASSPATH $OPTS"
 
@@ -169,12 +169,12 @@ OPTS="$OPTS $BOOKIE_EXTRA_OPTS"
 OPTS="$OPTS -Djava.net.preferIPv4Stack=true"
 
 # log directory & file
-BOOKIE_ROOT_LOGGER=${BOOKIE_ROOT_LOGGER:-"INFO,CONSOLE"}
+BOOKIE_LOG_APPENDER=${BOOKIE_LOG_APPENDER:-"Console"}
 BOOKIE_LOG_DIR=${BOOKIE_LOG_DIR:-"$BK_HOME/logs"}
 BOOKIE_LOG_FILE=${BOOKIE_LOG_FILE:-"bookkeeper-server.log"}
 
 #Configure log configuration system properties
-OPTS="$OPTS -Dbookkeeper.root.logger=$BOOKIE_ROOT_LOGGER"
+OPTS="$OPTS -Dpulsar.log.appender=$BOOKIE_LOG_APPENDER"
 OPTS="$OPTS -Dbookkeeper.log.dir=$BOOKIE_LOG_DIR"
 OPTS="$OPTS -Dbookkeeper.log.file=$BOOKIE_LOG_FILE"
 

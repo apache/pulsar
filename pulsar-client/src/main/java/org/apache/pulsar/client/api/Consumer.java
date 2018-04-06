@@ -22,14 +22,10 @@ import java.io.Closeable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.pulsar.client.impl.ConsumerStats;
-
 /**
  * An interface that abstracts behavior of Pulsar's consumer.
- *
- *
  */
-public interface Consumer extends Closeable {
+public interface Consumer<T> extends Closeable {
 
     /**
      * Get a topic for the consumer
@@ -72,7 +68,7 @@ public interface Consumer extends Closeable {
      * @throws PulsarClientException.InvalidConfigurationException
      *             if a message listener was defined in the configuration
      */
-    Message receive() throws PulsarClientException;
+    Message<T> receive() throws PulsarClientException;
 
     /**
      * Receive a single message
@@ -86,7 +82,7 @@ public interface Consumer extends Closeable {
      *
      * @return {@link CompletableFuture}<{@link Message}> will be completed when message is available
      */
-    CompletableFuture<Message> receiveAsync();
+    CompletableFuture<Message<T>> receiveAsync();
 
     /**
      * Receive a single message
@@ -102,7 +98,7 @@ public interface Consumer extends Closeable {
      * @throws PulsarClientException.InvalidConfigurationException
      *             if a message listener was defined in the configuration
      */
-    Message receive(int timeout, TimeUnit unit) throws PulsarClientException;
+    Message<T> receive(int timeout, TimeUnit unit) throws PulsarClientException;
 
     /**
      * Acknowledge the consumption of a single message
@@ -112,7 +108,7 @@ public interface Consumer extends Closeable {
      * @throws PulsarClientException.AlreadyClosedException
      *             if the consumer was already closed
      */
-    void acknowledge(Message message) throws PulsarClientException;
+    void acknowledge(Message<?> message) throws PulsarClientException;
 
     /**
      * Acknowledge the consumption of a single message, identified by its MessageId
@@ -139,7 +135,7 @@ public interface Consumer extends Closeable {
      * @throws PulsarClientException.AlreadyClosedException
      *             if the consumer was already closed
      */
-    void acknowledgeCumulative(Message message) throws PulsarClientException;
+    void acknowledgeCumulative(Message<?> message) throws PulsarClientException;
 
     /**
      * Acknowledge the reception of all the messages in the stream up to (and including) the provided message.
@@ -165,7 +161,7 @@ public interface Consumer extends Closeable {
      *            The {@code Message} to be acknowledged
      * @return a future that can be used to track the completion of the operation
      */
-    CompletableFuture<Void> acknowledgeAsync(Message message);
+    CompletableFuture<Void> acknowledgeAsync(Message<?> message);
 
     /**
      * Asynchronously acknowledge the consumption of a single message
@@ -186,7 +182,7 @@ public interface Consumer extends Closeable {
      *            The {@code Message} to be cumulatively acknowledged
      * @return a future that can be used to track the completion of the operation
      */
-    CompletableFuture<Void> acknowledgeCumulativeAsync(Message message);
+    CompletableFuture<Void> acknowledgeCumulativeAsync(Message<?> message);
 
     /**
      * Asynchronously Acknowledge the reception of all the messages in the stream up to (and including) the provided
@@ -201,16 +197,22 @@ public interface Consumer extends Closeable {
     CompletableFuture<Void> acknowledgeCumulativeAsync(MessageId messageId);
 
     /**
-     * Get statistics for the consumer
+     * Get statistics for the consumer.
      *
-     * numMsgsReceived : Number of messages received in the current interval numBytesReceived : Number of bytes received
-     * in the current interval numReceiveFailed : Number of messages failed to receive in the current interval
-     * numAcksSent : Number of acks sent in the current interval numAcksFailed : Number of acks failed to send in the
-     * current interval totalMsgsReceived : Total number of messages received totalBytesReceived : Total number of bytes
-     * received totalReceiveFailed : Total number of messages failed to receive totalAcksSent : Total number of acks
-     * sent totalAcksFailed : Total number of acks failed to sent
+     * <ul>
+     * <li>numMsgsReceived : Number of messages received in the current interval
+     * <li>numBytesReceived : Number of bytes received in the current interval
+     * <li>numReceiveFailed : Number of messages failed to receive in the current interval
+     * <li>numAcksSent : Number of acks sent in the current interval
+     * <li>numAcksFailed : Number of acks failed to send in the current interval
+     * <li>totalMsgsReceived : Total number of messages received
+     * <li>totalBytesReceived : Total number of bytes received
+     * <li>totalReceiveFailed : Total number of messages failed to receive
+     * <li>totalAcksSent : Total number of acks sent
+     * <li>totalAcksFailed : Total number of acks failed to sent
+     * </ul>
      *
-     * @return statistic for the consumer or null if ConsumerStats is disabled.
+     * @return statistic for the consumer
      */
     ConsumerStats getStats();
 
@@ -229,6 +231,9 @@ public interface Consumer extends Closeable {
 
     /**
      * Return true if the topic was terminated and this consumer has already consumed all the messages in the topic.
+     *
+     * Please note that this does not simply mean that the consumer is caught up with the last message published by
+     * producers, rather the topic needs to be explicitly "terminated".
      */
     boolean hasReachedEndOfTopic();
 

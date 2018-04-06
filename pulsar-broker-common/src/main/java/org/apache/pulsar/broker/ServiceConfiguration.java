@@ -24,6 +24,7 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 
+import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
@@ -57,6 +58,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     // Enable the WebSocket API service
     private boolean webSocketServiceEnabled = false;
+
+    // Flag to control features that are meant to be used when running in standalone mode
+    private boolean isRunningStandalone = false;
 
     // Name of the cluster to which this broker belongs to
     @FieldContext(required = true)
@@ -142,6 +146,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // default message-byte dispatch-throttling
     @FieldContext(dynamic = true)
     private long dispatchThrottlingRatePerTopicInByte = 0;
+    // Default number of message dispatching throttling-limit for a subscription.
+    // Using a value of 0, is disabling.
+    @FieldContext(dynamic = true)
+    private int dispatchThrottlingRatePerSubscriptionInMsg = 0;
+    // Default number of message-bytes dispatching throttling-limit for a subscription.
+    // Using a value of 0, is disabling.
+    @FieldContext(dynamic = true)
+    private long dispatchThrottlingRatePerSubscribeInByte = 0;
     // Default dispatch-throttling is disabled for consumers which already caught-up with published messages and
     // don't have backlog. This enables dispatch-throttling for non-backlog consumers as well.
     @FieldContext(dynamic = true)
@@ -201,7 +213,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Specify the tls cipher the broker will use to negotiate during TLS Handshake.
     // Example:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]
     private Set<String> tlsCiphers = Sets.newTreeSet();
-    
+    // Specify whether Client certificates are required for TLS
+    // Reject the Connection if the Client Certificate is not trusted.
+    private boolean tlsRequireTrustedClientCertOnConnect = false;
+
     /***** --- Authentication --- ****/
     // Enable authentication
     private boolean authenticationEnabled = false;
@@ -222,7 +237,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Set<String> proxyRoles = Sets.newTreeSet();
 
     // If this flag is set then the broker authenticates the original Auth data
-    // else it just accepts the originalPrincipal and authorizes it (if required). 
+    // else it just accepts the originalPrincipal and authorizes it (if required).
     private boolean authenticateOriginalAuthData = false;
 
     // Allow wildcard matching in authorization
@@ -234,6 +249,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // to other brokers, either in same or other clusters. Default uses plugin which disables authentication
     private String brokerClientAuthenticationPlugin = "org.apache.pulsar.client.impl.auth.AuthenticationDisabled";
     private String brokerClientAuthenticationParameters = "";
+    // Path for the trusted TLS certificate file for outgoing connection to a server (broker)
+    private String brokerClientTrustCertsFilePath = "";
 
     // When this parameter is not empty, unauthenticated users perform as anonymousUserRole
     private String anonymousUserRole = null;
@@ -276,6 +293,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Number of guaranteed copies (acks to wait before write is complete)
     @FieldContext(minValue = 1)
     private int managedLedgerDefaultAckQuorum = 1;
+
+    // Default type of checksum to use when writing to BookKeeper. Default is "CRC32"
+    // Other possible options are "CRC32C" (which is faster), "MAC" or "DUMMY" (no checksum).
+    private DigestType managedLedgerDigestType = DigestType.CRC32;
+
     // Max number of bookies to use when creating a ledger
     @FieldContext(minValue = 1)
     private int managedLedgerMaxEnsembleSize = 5;
@@ -343,7 +365,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean loadBalancerSheddingEnabled = true;
     // Load shedding interval. Broker periodically checks whether some traffic should be offload from some over-loaded
     // broker to other under-loaded brokers
-    private int loadBalancerSheddingIntervalMinutes = 5;
+    private int loadBalancerSheddingIntervalMinutes = 1;
     // Prevent the same topics to be shed and moved to other broker more that
     // once within this timeframe
     private long loadBalancerSheddingGracePeriodMinutes = 30;
@@ -353,7 +375,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Usage threshold to allocate max number of topics to broker
     @FieldContext(dynamic = true)
     private int loadBalancerBrokerMaxTopics = 50000;
+
     // Usage threshold to determine a broker as over-loaded
+    @FieldContext(dynamic = true)
     private int loadBalancerBrokerOverloadedThresholdPercentage = 85;
     // Interval to flush dynamic resource quota to ZooKeeper
     private int loadBalancerResourceQuotaUpdateIntervalMinutes = 15;
@@ -413,6 +437,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(dynamic = true)
     private boolean preferLaterVersions = false;
 
+    private String schemaRegistryStorageClassName = "org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory";
+
     /**** --- WebSocket --- ****/
     // Number of IO threads in Pulsar Client used in WebSocket proxy
     private int webSocketNumIoThreads = Runtime.getRuntime().availableProcessors();
@@ -422,6 +448,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     /**** --- Metrics --- ****/
     // If true, export topic level metrics otherwise namespace level
     private boolean exposeTopicLevelMetricsInPrometheus = true;
+
+    /**** --- Functions --- ****/
+    private boolean functionsWorkerEnabled = false;
 
     public String getZookeeperServers() {
         return zookeeperServers;
@@ -686,6 +715,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
         this.dispatchThrottlingRatePerTopicInByte = dispatchThrottlingRatePerTopicInByte;
     }
 
+    public int getDispatchThrottlingRatePerSubscriptionInMsg() {
+        return dispatchThrottlingRatePerSubscriptionInMsg;
+    }
+
+    public void setDispatchThrottlingRatePerSubscriptionInMsg(int dispatchThrottlingRatePerSubscriptionInMsg) {
+        this.dispatchThrottlingRatePerSubscriptionInMsg = dispatchThrottlingRatePerSubscriptionInMsg;
+    }
+
+    public long getDispatchThrottlingRatePerSubscribeInByte() {
+        return dispatchThrottlingRatePerSubscribeInByte;
+    }
+
+    public void setDispatchThrottlingRatePerSubscribeInByte(long dispatchThrottlingRatePerSubscribeInByte) {
+        this.dispatchThrottlingRatePerSubscribeInByte = dispatchThrottlingRatePerSubscribeInByte;
+    }
+
     public boolean isDispatchThrottlingOnNonBacklogConsumerEnabled() {
         return dispatchThrottlingOnNonBacklogConsumerEnabled;
     }
@@ -857,15 +902,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public Set<String> getSuperUserRoles() {
         return superUserRoles;
     }
- 
+
     public Set<String> getProxyRoles() {
         return proxyRoles;
     }
-    
+
     public void setProxyRoles(Set<String> proxyRoles) {
         this.proxyRoles = proxyRoles;
     }
-    
+
     public boolean getAuthorizationAllowWildcardsMatching() {
         return authorizationAllowWildcardsMatching;
     }
@@ -892,6 +937,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setBrokerClientAuthenticationParameters(String brokerClientAuthenticationParameters) {
         this.brokerClientAuthenticationParameters = brokerClientAuthenticationParameters;
+    }
+
+    public String getBrokerClientTrustCertsFilePath() {
+        return brokerClientTrustCertsFilePath;
+    }
+
+    public void setBrokerClientTrustCertsFilePath(String brokerClientTrustCertsFilePath) {
+        this.brokerClientTrustCertsFilePath = brokerClientTrustCertsFilePath;
     }
 
     public String getAnonymousUserRole() {
@@ -1014,6 +1067,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setManagedLedgerDefaultAckQuorum(int managedLedgerDefaultAckQuorum) {
         this.managedLedgerDefaultAckQuorum = managedLedgerDefaultAckQuorum;
+    }
+
+    public DigestType getManagedLedgerDigestType() {
+        return managedLedgerDigestType;
+    }
+
+    public void setManagedLedgerDigestType(DigestType managedLedgerDigestType) {
+        this.managedLedgerDigestType = managedLedgerDigestType;
     }
 
     public int getManagedLedgerMaxEnsembleSize() {
@@ -1436,7 +1497,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public void setExposeTopicLevelMetricsInPrometheus(boolean exposeTopicLevelMetricsInPrometheus) {
         this.exposeTopicLevelMetricsInPrometheus = exposeTopicLevelMetricsInPrometheus;
     }
-    
+
+    public String getSchemaRegistryStorageClassName() {
+       return schemaRegistryStorageClassName;
+    }
+
+    public void setSchemaRegistryStorageClassName(String className) {
+        schemaRegistryStorageClassName = className;
+    }
+
     public boolean authenticateOriginalAuthData() {
         return authenticateOriginalAuthData;
     }
@@ -1444,7 +1513,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public void setAuthenticateOriginalAuthData(boolean authenticateOriginalAuthData) {
         this.authenticateOriginalAuthData = authenticateOriginalAuthData;
     }
-    
+
     public Set<String> getTlsProtocols() {
         return tlsProtocols;
     }
@@ -1459,5 +1528,30 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setTlsCiphers(Set<String> tlsCiphers) {
         this.tlsCiphers = tlsCiphers;
+    }
+
+    public boolean getTlsRequireTrustedClientCertOnConnect() {
+        return tlsRequireTrustedClientCertOnConnect;
+    }
+
+    public void setTlsRequireTrustedClientCertOnConnect(boolean tlsRequireTrustedClientCertOnConnect) {
+        this.tlsRequireTrustedClientCertOnConnect = tlsRequireTrustedClientCertOnConnect;
+    }
+    /**** --- Function ---- ****/
+
+    public void setFunctionsWorkerEnabled(boolean enabled) {
+        this.functionsWorkerEnabled = enabled;
+    }
+
+    public boolean isFunctionsWorkerEnabled() {
+        return functionsWorkerEnabled;
+    }
+
+    public boolean isRunningStandalone() {
+        return isRunningStandalone;
+    }
+
+    public void setRunningStandalone(boolean isRunningStandalone) {
+        this.isRunningStandalone = isRunningStandalone;
     }
 }

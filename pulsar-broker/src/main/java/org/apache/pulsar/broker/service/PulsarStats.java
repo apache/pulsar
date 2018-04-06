@@ -144,7 +144,7 @@ public class PulsarStats implements Closeable {
                         });
                         // end persistent topics section
                         topicStatsStream.endObject();
-                        
+
                         if(!tempNonPersistentTopics.isEmpty()) {
                          // start non-persistent topic
                             topicStatsStream.startObject("non-persistent");
@@ -157,9 +157,9 @@ public class PulsarStats implements Closeable {
                                 }
                             });
                             // end non-persistent topics section
-                            topicStatsStream.endObject();    
+                            topicStatsStream.endObject();
                         }
-                        
+
                         // end namespace-bundle section
                         topicStatsStream.endObject();
                     });
@@ -182,7 +182,7 @@ public class PulsarStats implements Closeable {
             // json end
             topicStatsStream.endObject();
         } catch (Exception e) {
-            log.error("Unable to update destination stats", e);
+            log.error("Unable to update topic stats", e);
         }
 
         // swap metricsCollection and tempMetricsCollection
@@ -214,7 +214,7 @@ public class PulsarStats implements Closeable {
         }
     }
 
-    public List<Metrics> getDestinationMetrics() {
+    public List<Metrics> getTopicMetrics() {
         return metricsCollection;
     }
 

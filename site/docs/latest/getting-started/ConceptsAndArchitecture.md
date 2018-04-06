@@ -146,6 +146,43 @@ When the master consumer disconnects, all (non-acked and subsequent) messages wi
 
 In the diagram above, Consumer-C-1 is the master consumer while Consumer-C-2 would be the next in line to receive messages if Consumer-C-2 disconnected.
 
+### Multi-topic subscriptions
+
+When a {% popover consumer %} subscribes to a Pulsar {% popover topic %}, by default it subscribes to one specific topic, such as `persistent://sample/ns1/standalone/my-topic`. As of Pulsar version 1.23.0-incubating, however, Pulsar consumers can simultaneously subscribe to multiple topics. You can define a list of topics in two ways:
+
+* On the basis of a [**reg**ular **ex**pression](https://en.wikipedia.org/wiki/Regular_expression) (regex), for example `persistent://sample/standalone/ns1/finance-.*`
+* By explicitly defining a list of topics
+
+{% include admonition.html type="info" content="When subscribing to multiple topics by regex, all topics must be in the same [namespace](#namespaces)." %}
+
+When subscribing to multiple topics, the Pulsar client will automatically make a call to the Pulsar API to discover the topics that match the regex pattern/list and then subscribe to all of them. If any of the topics don't currently exist, the consumer will auto-subscribe to them once the topics are created.
+
+{% include admonition.html type="danger" title="No ordering guarantees"
+   content="When a consumer subscribes to multiple topics, all ordering guarantees normally provided by Pulsar on single topics do not hold. If your use case for Pulsar involves any strict ordering requirements, we would strongly recommend against using this feature." %}
+
+Here are some multi-topic subscription examples for Java:
+
+```java
+import java.util.regex.Pattern;
+
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.PulsarClient;
+
+PulsarClient pulsarClient = // Instantiate Pulsar client object
+
+// Subscribe to all topics in a namespace
+Pattern allTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/.*");
+Consumer allTopicsConsumer = pulsarClient.subscribe(allTopicsInNamespace, "subscription-1");
+
+// Subscribe to a subsets of topics in a namespace, based on regex
+Pattern someTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/foo.*");
+Consumer someTopicsConsumer = pulsarClient.subscribe(someTopicsInNamespace, "subscription-1");
+```
+
+For code examples, see:
+
+* [Java](../../clients/Java#multi-topic-subscriptions)
+
 ### Partitioned topics
 
 {% include explanations/partitioned-topics.md %}
@@ -266,13 +303,39 @@ In BookKeeper, *journal* files contain BookKeeper transaction logs. Before makin
 
 A future version of BookKeeper will support *non-persistent messaging* and thus multiple durability modes at the topic level. This will enable you to set the durability mode at the topic level, replacing the `persistent` in topic names with a `non-persistent` indicator.
 
+## Message retention and expiry
+
+By default, Pulsar message {% popover brokers %}:
+
+* immediately delete *all* messages that have been {% popover acknowledged %} by a {% popover consumer %}, and
+* [persistently store](#persistent-storage) all unacknowledged messages in a message backlog.
+
+Pulsar has two features, however, that enable you to override this default behavior:
+
+* Message **retention** enables you to store messages that have been acknowledged by a consumer
+* Message **expiry** enables you to set a time to live (TTL) for messages that have not yet been acknowledged
+
+{% include admonition.html type="info" content='All message retention and expiry is managed at the [namespace](#namespaces) level. For a how-to, see the [Message retention and expiry](../../advanced/RetentionExpiry) admin documentation.' %}
+
+The diagram below illustrates both concepts:
+
+{% img /img/retention-expiry.png 80 %}
+
+With message retention, shown at the top, a <span style="color: #89b557;">retention policy</span> applied to all topics in a {% popover namespace %} dicates that some messages are durably stored in Pulsar even though they've already been acknowledged. Acknowledged messages that are not covered by the retention policy are <span style="color: #bb3b3e;">deleted</span>. Without a retention policy, *all* of the <span style="color: #19967d;">acknowledged messages</span> would be deleted.
+
+With message expiry, shown at the bottom, some messages are <span style="color: #bb3b3e;">deleted</span>, even though they <span style="color: #337db6;">haven't been acknowledged</span>, because they've expired according to the <span style="color: #e39441;">TTL applied to the namespace</span> (for example because a TTL of 5 minutes has been applied and the messages haven't been acknowledged but are 10 minutes old).
+
+## Pulsar Functions
+
+For an in-depth look at Pulsar Functions, see the [Pulsar Functions overview](../../functions/overview).
+
 ## Replication
 
 Pulsar enables messages to be produced and consumed in different geo-locations. For instance, your application may be publishing data in one region or market and you would like to process it for consumption in other regions or markets. [Geo-replication](../../admin/GeoReplication) in Pulsar enables you to do that.
 
 ## Multi-tenancy
 
-Pulsar was created from the ground up as a {% popover multi-tenant %} system. To support multi-tenancy, Pulsar has a concept of {% popover properties %}. Properties can be spread across {% popover clusters %} and can each have their own [authentication and authorization](../../admin/Authz) scheme applied to them. They are also the administrative unit at which [storage quotas](TODO), [message TTL](TODO), and [isolation policies](TODO) can be managed.
+Pulsar was created from the ground up as a {% popover multi-tenant %} system. To support multi-tenancy, Pulsar has a concept of {% popover properties %}. Properties can be spread across {% popover clusters %} and can each have their own [authentication and authorization](../../admin/Authz) scheme applied to them. They are also the administrative unit at which [storage quotas](TODO), [message TTL](../../advanced/RetentionExpiry#time-to-live-ttl), and isolation policies can be managed.
 
 The multi-tenant nature of Pulsar is reflected mostly visibly in topic URLs, which have this structure:
 

@@ -24,7 +24,6 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 
 import java.lang.reflect.Field;
-import java.net.InetAddress;
 import java.net.URL;
 import java.util.Map;
 import java.util.Set;
@@ -133,7 +132,7 @@ public class AntiAffinityNamespaceGroupTest {
 
         primaryHost = String.format("%s:%d", "localhost", PRIMARY_BROKER_WEBSERVICE_PORT);
         url1 = new URL("http://127.0.0.1" + ":" + PRIMARY_BROKER_WEBSERVICE_PORT);
-        admin1 = new PulsarAdmin(url1, (Authentication) null);
+        admin1 = PulsarAdmin.builder().serviceHttpUrl(url1.toString()).build();
 
         // Start broker 2
         ServiceConfiguration config2 = new ServiceConfiguration();
@@ -150,7 +149,7 @@ public class AntiAffinityNamespaceGroupTest {
         pulsar2.start();
 
         url2 = new URL("http://127.0.0.1" + ":" + SECONDARY_BROKER_WEBSERVICE_PORT);
-        admin2 = new PulsarAdmin(url2, (Authentication) null);
+        admin2 = PulsarAdmin.builder().serviceHttpUrl(url2.toString()).build();
 
         primaryLoadManager = (ModularLoadManagerImpl) getField(pulsar1.getLoadManager().get(), "loadManager");
         secondaryLoadManager = (ModularLoadManagerImpl) getField(pulsar2.getLoadManager().get(), "loadManager");
@@ -218,7 +217,7 @@ public class AntiAffinityNamespaceGroupTest {
 
         pulsar1.getConfiguration().setFailureDomainsEnabled(true);
         admin1.properties().createProperty("my-property",
-                new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("use")));
+                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
 
         for (int i = 0; i < totalNamespaces; i++) {
             final String ns = namespace + i;
@@ -314,7 +313,7 @@ public class AntiAffinityNamespaceGroupTest {
         final String bundle = "/0x00000000_0xffffffff";
 
         admin1.properties().createProperty("my-property",
-                new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("use")));
+                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
 
         for (int i = 0; i < totalNamespaces; i++) {
             final String ns = namespace + i;
@@ -450,7 +449,7 @@ public class AntiAffinityNamespaceGroupTest {
         final String bundle = "/0x00000000_0xffffffff";
 
         admin1.properties().createProperty("my-property",
-                new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("use")));
+                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
 
         for (int i = 0; i < totalNamespaces; i++) {
             final String ns = namespace + i;
@@ -503,7 +502,7 @@ public class AntiAffinityNamespaceGroupTest {
         final String bundle = "0x00000000_0xffffffff";
 
         admin1.properties().createProperty("my-property",
-                new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("use")));
+                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
 
         for (int i = 0; i < totalNamespaces; i++) {
             final String ns = namespace + i;
@@ -511,8 +510,9 @@ public class AntiAffinityNamespaceGroupTest {
             admin1.namespaces().setNamespaceAntiAffinityGroup(ns, namespaceAntiAffinityGroup);
         }
 
-        PulsarClient pulsarClient = PulsarClient.create(pulsar1.getWebServiceAddress());
-        Producer producer = pulsarClient.createProducer("persistent://" + namespace + "0/my-topic1");
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsar1.getWebServiceAddress()).build();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://" + namespace + "0/my-topic1")
+                .create();
         ModularLoadManagerImpl loadManager = (ModularLoadManagerImpl) ((ModularLoadManagerWrapper) pulsar1
                 .getLoadManager().get()).getLoadManager();
 
@@ -527,6 +527,7 @@ public class AntiAffinityNamespaceGroupTest {
     private boolean isLoadManagerUpdatedDomainCache(ModularLoadManagerImpl loadManager) throws Exception {
         Field mapField = ModularLoadManagerImpl.class.getDeclaredField("brokerToFailureDomainMap");
         mapField.setAccessible(true);
+        @SuppressWarnings("unchecked")
         Map<String, String> map = (Map<String, String>) mapField.get(loadManager);
         return !map.isEmpty();
     }

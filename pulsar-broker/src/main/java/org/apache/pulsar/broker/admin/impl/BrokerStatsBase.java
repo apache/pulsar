@@ -87,12 +87,12 @@ public class BrokerStatsBase extends AdminResource {
 
     @GET
     @Path("/destinations")
-    @ApiOperation(value = "Get all the destination stats by namesapce", response = OutputStream.class, responseContainer = "OutputStream") // https://github.com/swagger-api/swagger-ui/issues/558
+    @ApiOperation(value = "Get all the topic stats by namesapce", response = OutputStream.class, responseContainer = "OutputStream") // https://github.com/swagger-api/swagger-ui/issues/558
                                                                                                                                            // map
                                                                                                                                            // support
                                                                                                                                            // missing
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
-    public StreamingOutput getDestinations2() throws Exception {
+    public StreamingOutput getTopics2() throws Exception {
         // Ensure super user access only
         validateSuperUserAccess();
         return output -> pulsar().getBrokerService().getDimensionMetrics(statsBuf -> {
@@ -138,14 +138,14 @@ public class BrokerStatsBase extends AdminResource {
         try {
             return BookieClientStatsGenerator.generate(pulsar());
         } catch (Exception e) {
-            log.error("[{}] Failed to generate pending bookie ops stats for destinations", clientAppId(), e);
+            log.error("[{}] Failed to generate pending bookie ops stats for topicss", clientAppId(), e);
             throw new RestException(e);
         }
     }
 
     @GET
     @Path("/load-report")
-    @ApiOperation(value = "Get Load for this broker", notes = "consists of destinationstats & systemResourceUsage", response = LoadReport.class)
+    @ApiOperation(value = "Get Load for this broker", notes = "consists of topics stats & systemResourceUsage", response = LoadReport.class)
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
     public LoadManagerReport getLoadReport() throws Exception {
         // Ensure super user access only
@@ -158,20 +158,11 @@ public class BrokerStatsBase extends AdminResource {
         }
     }
 
-    @GET
-    @Path("/broker-resource-availability/{property}/{cluster}/{namespace}")
-    @ApiOperation(value = "Broker availability report", notes = "This API gives the current broker availability in percent, each resource percentage usage is calculated and then"
-            + "sum of all of the resource usage percent is called broker-resource-availability"
-            + "<br/><br/>THIS API IS ONLY FOR USE BY TESTING FOR CONFIRMING NAMESPACE ALLOCATION ALGORITHM", response = ResourceUnit.class, responseContainer = "Map")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 409, message = "Load-manager doesn't support operation") })
-    public Map<Long, Collection<ResourceUnit>> getBrokerResourceAvailability(@PathParam("property") String property,
-            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) throws Exception {
+    protected Map<Long, Collection<ResourceUnit>> internalBrokerResourceAvailability(NamespaceName namespace) {
         try {
-            NamespaceName ns = NamespaceName.get(property, cluster, namespace);
             LoadManager lm = pulsar().getLoadManager().get();
             if (lm instanceof SimpleLoadManagerImpl) {
-                return ((SimpleLoadManagerImpl) lm).getResourceAvailabilityFor(ns).asMap();
+                return ((SimpleLoadManagerImpl) lm).getResourceAvailabilityFor(namespace).asMap();
             } else {
                 throw new RestException(Status.CONFLICT, lm.getClass().getName() + " does not support this operation");
             }

@@ -161,7 +161,7 @@ public class PropertiesBase extends AdminResource {
 
     @DELETE
     @Path("/{property}")
-    @ApiOperation(value = "elete a property and all namespaces and destinations under it.")
+    @ApiOperation(value = "elete a property and all namespaces and topics under it.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property does not exist"),
             @ApiResponse(code = 409, message = "The property still has active namespaces") })

@@ -29,7 +29,7 @@ import static org.testng.Assert.fail;
 
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
@@ -118,6 +118,7 @@ public class NamespaceBundleTest {
         assertEquals(bundle.getNamespaceObject().toString(), "pulsar/use/ns");
     }
 
+    @SuppressWarnings("unchecked")
     private NamespaceBundleFactory getNamespaceBundleFactory() {
         PulsarService pulsar = mock(PulsarService.class);
         LocalZooKeeperCacheService localZkCache = mock(LocalZooKeeperCacheService.class);
@@ -189,20 +190,20 @@ public class NamespaceBundleTest {
 
     @Test
     public void testIncludes() throws Exception {
-        DestinationName dn = DestinationName.get("persistent://pulsar/use/ns1/topic-1");
-        Long hashKey = factory.getLongHashCode(dn.toString());
+        TopicName topicName = TopicName.get("persistent://pulsar/use/ns1/topic-1");
+        Long hashKey = factory.getLongHashCode(topicName.toString());
         Long upper = Math.max(hashKey + 1, NamespaceBundles.FULL_UPPER_BOUND);
         BoundType upperType = upper.equals(NamespaceBundles.FULL_UPPER_BOUND) ? BoundType.CLOSED : BoundType.OPEN;
-        NamespaceBundle bundle = factory.getBundle(dn.getNamespaceObject(),
+        NamespaceBundle bundle = factory.getBundle(topicName.getNamespaceObject(),
                 Range.range(hashKey / 2, BoundType.CLOSED, upper, upperType));
-        assertTrue(bundle.includes(dn));
+        assertTrue(bundle.includes(topicName));
         bundle = factory.getBundle(NamespaceName.get("pulsar/use/ns1"),
                 Range.range(upper, BoundType.CLOSED, NamespaceBundles.FULL_UPPER_BOUND, BoundType.CLOSED));
-        assertTrue(!bundle.includes(dn));
+        assertTrue(!bundle.includes(topicName));
 
         NamespaceBundle otherBundle = factory.getBundle(NamespaceName.get("pulsar/use/ns2"),
                 Range.range(0l, BoundType.CLOSED, 0x40000000L, BoundType.OPEN));
-        assertTrue(!otherBundle.includes(dn));
+        assertTrue(!otherBundle.includes(topicName));
     }
 
     @Test

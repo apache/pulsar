@@ -58,7 +58,6 @@ public class DirectProxyHandler {
     private String originalPrincipal;
     private String clientAuthData;
     private String clientAuthMethod;
-    private boolean forwardAuthData;
     public static final String TLS_HANDLER = "tls";
 
     private final Authentication authentication;
@@ -70,7 +69,6 @@ public class DirectProxyHandler {
         this.clientAuthData = proxyConnection.clientAuthData;
         this.clientAuthMethod = proxyConnection.clientAuthMethod;
         ProxyConfiguration config = service.getConfiguration();
-        this.forwardAuthData = service.getConfiguration().forwardAuthorizationCredentials();
 
         // Start the connection attempt.
         Bootstrap b = new Bootstrap();
@@ -87,11 +85,11 @@ public class DirectProxyHandler {
                     AuthenticationDataProvider authData = authentication.getAuthData();
                     if (authData.hasDataForTls()) {
                         sslCtx = SecurityUtility.createNettySslContextForClient(config.isTlsAllowInsecureConnection(),
-                                config.getTlsTrustCertsFilePath(), (X509Certificate[]) authData.getTlsCertificates(),
+                                config.getBrokerClientTrustCertsFilePath(), (X509Certificate[]) authData.getTlsCertificates(),
                                 authData.getTlsPrivateKey());
                     } else {
                         sslCtx = SecurityUtility.createNettySslContextForClient(config.isTlsAllowInsecureConnection(),
-                                config.getTlsTrustCertsFilePath());
+                                config.getBrokerClientTrustCertsFilePath());
                     }
                     ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
                 }

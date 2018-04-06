@@ -26,7 +26,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 
@@ -48,47 +48,46 @@ public interface AuthorizationProvider extends Closeable {
     void initialize(ServiceConfiguration conf, ConfigurationCacheService configCache) throws IOException;
 
     /**
-     * Check if the specified role has permission to send messages to the specified fully qualified destination name.
+     * Check if the specified role has permission to send messages to the specified fully qualified topic name.
      *
-     * @param destination
-     *            the fully qualified destination name associated with the destination.
+     * @param topicName
+     *            the fully qualified topic name associated with the topic.
      * @param role
-     *            the app id used to send messages to the destination.
+     *            the app id used to send messages to the topic.
      */
-    CompletableFuture<Boolean> canProduceAsync(DestinationName destination, String role,
+    CompletableFuture<Boolean> canProduceAsync(TopicName topicName, String role,
             AuthenticationDataSource authenticationData);
 
     /**
-     * Check if the specified role has permission to receive messages from the specified fully qualified destination
-     * name.
+     * Check if the specified role has permission to receive messages from the specified fully qualified topic name.
      *
-     * @param destination
-     *            the fully qualified destination name associated with the destination.
+     * @param topicName
+     *            the fully qualified topic name associated with the topic.
      * @param role
-     *            the app id used to receive messages from the destination.
+     *            the app id used to receive messages from the topic.
      * @param subscription
      *            the subscription name defined by the client
      */
-    CompletableFuture<Boolean> canConsumeAsync(DestinationName destination, String role,
+    CompletableFuture<Boolean> canConsumeAsync(TopicName topicName, String role,
             AuthenticationDataSource authenticationData, String subscription);
 
     /**
-     * Check whether the specified role can perform a lookup for the specified destination.
+     * Check whether the specified role can perform a lookup for the specified topic.
      *
      * For that the caller needs to have producer or consumer permission.
      *
-     * @param destination
+     * @param topicName
      * @param role
      * @return
      * @throws Exception
      */
-    CompletableFuture<Boolean> canLookupAsync(DestinationName destination, String role,
+    CompletableFuture<Boolean> canLookupAsync(TopicName topicName, String role,
             AuthenticationDataSource authenticationData);
 
     /**
-     * 
+     *
      * Grant authorization-action permission on a namespace to the given client
-     * 
+     *
      * @param namespace
      * @param actions
      * @param role
@@ -104,8 +103,8 @@ public interface AuthorizationProvider extends Closeable {
 
     /**
      * Grant authorization-action permission on a topic to the given client
-     * 
-     * @param topicname
+     *
+     * @param topicName
      * @param role
      * @param authDataJson
      *            additional authdata in json format
@@ -114,7 +113,7 @@ public interface AuthorizationProvider extends Closeable {
      *                IllegalArgumentException when namespace not found<br/>
      *                IllegalStateException when failed to grant permission
      */
-    CompletableFuture<Void> grantPermissionAsync(DestinationName topicname, Set<AuthAction> actions, String role,
+    CompletableFuture<Void> grantPermissionAsync(TopicName topicName, Set<AuthAction> actions, String role,
             String authDataJson);
 
 }

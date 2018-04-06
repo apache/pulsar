@@ -22,7 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
@@ -108,11 +108,11 @@ public class NamespaceBundle implements ServiceUnitId, Comparable<NamespaceBundl
     }
 
     @Override
-    public boolean includes(DestinationName dn) {
-        if (!this.nsname.equals(dn.getNamespaceObject())) {
+    public boolean includes(TopicName topicName) {
+        if (!this.nsname.equals(topicName.getNamespaceObject())) {
             return false;
         }
-        return this.keyRange.contains(factory.getLongHashCode(dn.toString()));
+        return this.keyRange.contains(factory.getLongHashCode(topicName.toString()));
     }
 
     public String getBundleRange() {

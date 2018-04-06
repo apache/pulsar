@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.nonpersistent;
 
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.service.Consumer.getBatchSizeforEntry;
 
 import java.util.List;
@@ -25,10 +26,13 @@ import java.util.List;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.util.Rate;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.Policies;
 
 public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractDispatcherSingleActiveConsumer implements NonPersistentDispatcher {
 
@@ -63,7 +67,17 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
     }
 
     protected boolean isConsumersExceededOnTopic() {
-        final int maxConsumersPerTopic = serviceConfig.getMaxConsumersPerTopic();
+        Policies policies;
+        try {
+            policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
+                    .get(AdminResource.path(POLICIES, TopicName.get(topicName).getNamespace()))
+                    .orElseGet(() -> new Policies());
+        } catch (Exception e) {
+            policies = new Policies();
+        }
+        final int maxConsumersPerTopic = policies.max_consumers_per_topic > 0 ?
+                policies.max_consumers_per_topic :
+                serviceConfig.getMaxConsumersPerTopic();
         if (maxConsumersPerTopic > 0 && maxConsumersPerTopic <= topic.getNumberOfConsumers()) {
             return true;
         }
@@ -71,7 +85,17 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
     }
 
     protected boolean isConsumersExceededOnSubscription() {
-        final int maxConsumersPerSubscription = serviceConfig.getMaxConsumersPerSubscription();
+        Policies policies;
+        try {
+            policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
+                    .get(AdminResource.path(POLICIES, TopicName.get(topicName).getNamespace()))
+                    .orElseGet(() -> new Policies());
+        } catch (Exception e) {
+            policies = new Policies();
+        }
+        final int maxConsumersPerSubscription = policies.max_consumers_per_subscription > 0 ?
+                policies.max_consumers_per_subscription :
+                serviceConfig.getMaxConsumersPerSubscription();
         if (maxConsumersPerSubscription > 0 && maxConsumersPerSubscription <= consumers.size()) {
             return true;
         }

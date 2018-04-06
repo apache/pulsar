@@ -185,7 +185,7 @@ SharedBuffer Commands::newConnect(const AuthenticationPtr& authentication, const
 SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string& subscription,
                                     uint64_t consumerId, uint64_t requestId, CommandSubscribe_SubType subType,
                                     const std::string& consumerName, SubscriptionMode subscriptionMode,
-                                    Optional<BatchMessageId> startMessageId) {
+                                    Optional<MessageId> startMessageId) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::SUBSCRIBE);
     CommandSubscribe* subscribe = cmd.mutable_subscribe();
@@ -198,11 +198,11 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
     subscribe->set_durable(subscriptionMode == SubscriptionModeDurable);
     if (startMessageId.is_present()) {
         MessageIdData& messageIdData = *subscribe->mutable_start_message_id();
-        messageIdData.set_ledgerid(startMessageId.value().ledgerId_);
-        messageIdData.set_entryid(startMessageId.value().entryId_);
+        messageIdData.set_ledgerid(startMessageId.value().ledgerId());
+        messageIdData.set_entryid(startMessageId.value().entryId());
 
-        if (startMessageId.value().batchIndex_ != -1) {
-            messageIdData.set_batch_index(startMessageId.value().batchIndex_);
+        if (startMessageId.value().batchIndex() != -1) {
+            messageIdData.set_batch_index(startMessageId.value().batchIndex());
         }
     }
 
@@ -245,7 +245,7 @@ SharedBuffer Commands::newAck(uint64_t consumerId, const MessageIdData& messageI
     if (CommandAck_AckType_IsValid(validationError)) {
         ack->set_validation_error((CommandAck_ValidationError)validationError);
     }
-    *(ack->mutable_message_id()) = messageId;
+    *(ack->add_message_id()) = messageId;
     return writeMessageWithSize(cmd);
 }
 
@@ -442,7 +442,7 @@ void Commands::serializeSingleMessageInBatchWithPayload(const Message& msg, Shar
     batchPayLoad.write(msg.impl_->payload.data(), payloadSize);
 }
 
-Message Commands::deSerializeSingleMessageInBatch(Message& batchedMessage) {
+Message Commands::deSerializeSingleMessageInBatch(Message& batchedMessage, int32_t batchIndex) {
     SharedBuffer& uncompressedPayload = batchedMessage.impl_->payload;
 
     // Format of batch message
@@ -459,7 +459,9 @@ Message Commands::deSerializeSingleMessageInBatch(Message& batchedMessage) {
     SharedBuffer payload = uncompressedPayload.slice(0, payloadSize);
     uncompressedPayload.consume(payloadSize);
 
-    Message singleMessage(batchedMessage.impl_->messageId, batchedMessage.impl_->metadata, payload, metadata);
+    const MessageId& m = batchedMessage.impl_->messageId;
+    MessageId singleMessageId(m.partition(), m.ledgerId(), m.entryId(), batchIndex);
+    Message singleMessage(singleMessageId, batchedMessage.impl_->metadata, payload, metadata);
     singleMessage.impl_->cnx_ = batchedMessage.impl_->cnx_;
 
     return singleMessage;

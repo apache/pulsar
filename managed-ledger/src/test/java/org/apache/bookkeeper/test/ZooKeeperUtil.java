@@ -27,8 +27,8 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.CountDownLatch;
-import org.apache.bookkeeper.util.ZkUtils;
-import org.apache.bookkeeper.zookeeper.ZooKeeperWatcherBase;
+
+import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
 import org.apache.commons.io.FileUtils;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.ZooDefs.Ids;
@@ -85,8 +85,7 @@ public class ZooKeeperUtil {
 
         // create a zookeeper client
         LOG.debug("Instantiate ZK Client");
-        ZooKeeperWatcherBase w = new ZooKeeperWatcherBase(10000);
-        zkc = ZkUtils.createConnectedZookeeperClient(getZooKeeperConnectString(), w);
+        zkc = ZooKeeperClient.newBuilder().connectString(getZooKeeperConnectString()).build();
 
         // initialize the zk client with values
         zkc.create("/ledgers", new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);

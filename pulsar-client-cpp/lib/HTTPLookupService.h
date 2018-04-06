@@ -59,7 +59,7 @@ class HTTPLookupService : public LookupService, public boost::enable_shared_from
 
     Future<Result, LookupDataResultPtr> lookupAsync(const std::string&);
 
-    Future<Result, LookupDataResultPtr> getPartitionMetadataAsync(const DestinationNamePtr&);
+    Future<Result, LookupDataResultPtr> getPartitionMetadataAsync(const TopicNamePtr&);
 };
 }  // namespace pulsar
 

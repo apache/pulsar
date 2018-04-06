@@ -39,17 +39,17 @@ TEST(BinaryLookupServiceTest, basicLookup) {
     ConnectionPool pool_(conf, ioExecutorProvider_, authData, true);
     BinaryProtoLookupService lookupService(pool_, url);
 
-    std::string topic = "persistent://prop/unit/ns1/destination";
-    DestinationNamePtr dn = DestinationName::get(topic);
+    std::string topic = "persistent://prop/unit/ns1/topic";
+    TopicNamePtr topicName = TopicName::get(topic);
 
-    Future<Result, LookupDataResultPtr> partitionFuture = lookupService.getPartitionMetadataAsync(dn);
+    Future<Result, LookupDataResultPtr> partitionFuture = lookupService.getPartitionMetadataAsync(topicName);
     LookupDataResultPtr lookupData;
     Result result = partitionFuture.get(lookupData);
     ASSERT_TRUE(lookupData != NULL);
     ASSERT_EQ(0, lookupData->getPartitions());
 
     Future<Result, LookupDataResultPtr> future =
-        lookupService.lookupAsync("persistent://prop/unit/ns1/destination");
+        lookupService.lookupAsync("persistent://prop/unit/ns1/topic");
     result = future.get(lookupData);
 
     ASSERT_EQ(ResultOk, result);

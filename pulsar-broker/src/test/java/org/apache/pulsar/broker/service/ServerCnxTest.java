@@ -35,11 +35,18 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
+import com.google.common.collect.Maps;
+import com.google.protobuf.ByteString;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -70,11 +77,13 @@ import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.ServerCnx.State;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.schema.DefaultSchemaRegistryService;
 import org.apache.pulsar.broker.service.utils.ClientChannelHelper;
 import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.Commands.ChecksumType;
 import org.apache.pulsar.common.api.PulsarHandler;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.AuthMethod;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
@@ -83,14 +92,15 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess;
 import org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
-import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
@@ -98,23 +108,14 @@ import org.apache.zookeeper.ZooKeeper;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Maps;
-import com.google.protobuf.ByteString;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import io.netty.channel.embedded.EmbeddedChannel;
-import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
-
 /**
  */
 @Test
+@SuppressWarnings("unchecked")
 public class ServerCnxTest {
     protected EmbeddedChannel channel;
     private ServiceConfiguration svcConfig;
@@ -143,6 +144,8 @@ public class ServerCnxTest {
     public void setup() throws Exception {
         svcConfig = spy(new ServiceConfiguration());
         pulsar = spy(new PulsarService(svcConfig));
+        doReturn(new DefaultSchemaRegistryService()).when(pulsar).getSchemaRegistryService();
+
         svcConfig.setKeepAliveIntervalSeconds(inSec(1, TimeUnit.SECONDS));
         svcConfig.setBacklogQuotaCheckEnabled(false);
         doReturn(svcConfig).when(pulsar).getConfiguration();
@@ -157,7 +160,6 @@ public class ServerCnxTest {
         doReturn(createMockBookKeeper(mockZk)).when(pulsar).getBookKeeperClient();
 
         configCacheService = mock(ConfigurationCacheService.class);
-        @SuppressWarnings("unchecked")
         ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
         doReturn(Optional.empty()).when(zkDataCache).get(anyObject());
         doReturn(zkDataCache).when(configCacheService).policiesCache();
@@ -176,7 +178,7 @@ public class ServerCnxTest {
         namespaceService = mock(NamespaceService.class);
         doReturn(namespaceService).when(pulsar).getNamespaceService();
         doReturn(true).when(namespaceService).isServiceUnitOwned(any(NamespaceBundle.class));
-        doReturn(true).when(namespaceService).isServiceUnitActive(any(DestinationName.class));
+        doReturn(true).when(namespaceService).isServiceUnitActive(any(TopicName.class));
 
         setupMLAsyncCallbackMocks();
 
@@ -210,6 +212,24 @@ public class ServerCnxTest {
         channel.finish();
     }
 
+    private static ByteBuf newConnect(AuthMethod authMethod, String authData, int protocolVersion) {
+        PulsarApi.CommandConnect.Builder connectBuilder = PulsarApi.CommandConnect.newBuilder();
+        connectBuilder.setClientVersion("Pulsar Client");
+        connectBuilder.setAuthMethod(authMethod);
+        connectBuilder.setAuthData(ByteString.copyFromUtf8(authData));
+        connectBuilder.setProtocolVersion(protocolVersion);
+        PulsarApi.CommandConnect connect = connectBuilder.build();
+        ByteBuf res = Commands.serializeWithSize(PulsarApi.BaseCommand.newBuilder().setType(PulsarApi.BaseCommand.Type.CONNECT).setConnect(connect));
+        connect.recycle();
+        connectBuilder.recycle();
+        return res;
+    }
+
+    /**
+     * Ensure that old clients may still connect to new servers
+     *
+     * @throws Exception
+     */
     @Test(timeOut = 30000)
     public void testConnectCommandWithEnum() throws Exception {
         resetChannel();
@@ -217,8 +237,7 @@ public class ServerCnxTest {
         assertEquals(serverCnx.getState(), State.Start);
 
         // test server response to CONNECT
-        @SuppressWarnings("deprecation") // We're actually testing that the deprecated method still works
-        ByteBuf clientCommand = Commands.newConnect(AuthMethod.AuthMethodNone, "");
+        ByteBuf clientCommand = newConnect(AuthMethod.AuthMethodNone, "", Commands.getCurrentProtocolVersion());
         channel.writeInbound(clientCommand);
 
         assertEquals(serverCnx.getState(), State.Connected);
@@ -365,7 +384,7 @@ public class ServerCnxTest {
         channel.writeInbound(clientCommand);
         assertTrue(getResponse() instanceof CommandProducerSuccess);
 
-        PersistentTopic topicRef = (PersistentTopic) brokerService.getTopicReference(successTopicName);
+        PersistentTopic topicRef = (PersistentTopic) brokerService.getTopicReference(successTopicName).get();
 
         assertNotNull(topicRef);
         assertEquals(topicRef.getProducers().size(), 1);
@@ -376,7 +395,7 @@ public class ServerCnxTest {
         channel.writeInbound(clientCommand);
 
         assertTrue(getResponse() instanceof CommandError);
-        assertNull(brokerService.getTopicReference(failTopicName));
+        assertFalse(pulsar.getBrokerService().getTopicReference(failTopicName).isPresent());
 
         channel.finish();
         assertEquals(topicRef.getProducers().size(), 0);
@@ -388,7 +407,7 @@ public class ServerCnxTest {
         setChannelConnected();
 
         CompletableFuture<Topic> delayFuture = new CompletableFuture<>();
-        doReturn(delayFuture).when(brokerService).getTopic(any(String.class));
+        doReturn(delayFuture).when(brokerService).getOrCreateTopic(any(String.class));
         // Create producer first time
         ByteBuf clientCommand = Commands.newProducer(successTopicName, 1 /* producer id */, 1 /* request id */,
                 "prod-name", Collections.emptyMap());
@@ -411,7 +430,7 @@ public class ServerCnxTest {
         setChannelConnected();
 
         // Force the case where the broker doesn't own any topic
-        doReturn(false).when(namespaceService).isServiceUnitActive(any(DestinationName.class));
+        doReturn(false).when(namespaceService).isServiceUnitActive(any(TopicName.class));
 
         // test PRODUCER failure case
         ByteBuf clientCommand = Commands.newProducer(nonOwnedTopicName, 1 /* producer id */, 1 /* request id */,
@@ -424,7 +443,7 @@ public class ServerCnxTest {
         CommandError errorResponse = (CommandError) response;
         assertEquals(errorResponse.getError(), ServerError.ServiceNotReady);
 
-        assertNull(brokerService.getTopicReference(nonOwnedTopicName));
+        assertFalse(pulsar.getBrokerService().getTopicReference(nonOwnedTopicName).isPresent());
 
         channel.finish();
     }
@@ -445,7 +464,7 @@ public class ServerCnxTest {
         channel.writeInbound(clientCommand);
         assertEquals(getResponse().getClass(), CommandProducerSuccess.class);
 
-        PersistentTopic topicRef = (PersistentTopic) brokerService.getTopicReference(successTopicName);
+        PersistentTopic topicRef = (PersistentTopic) brokerService.getTopicReference(successTopicName).get();
 
         assertNotNull(topicRef);
         assertEquals(topicRef.getProducers().size(), 1);
@@ -454,7 +473,6 @@ public class ServerCnxTest {
         assertEquals(topicRef.getProducers().size(), 0);
     }
 
-    @SuppressWarnings("unchecked")
     @Test(timeOut = 30000)
     public void testNonExistentTopic() throws Exception {
         ZooKeeperDataCache<Policies> zkDataCache = mock(ZooKeeperDataCache.class);
@@ -502,7 +520,7 @@ public class ServerCnxTest {
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
         doReturn(true).when(brokerService).isAuthorizationEnabled();
         doReturn(false).when(authorizationProvider).isSuperUser(Mockito.anyString());
-        doReturn(CompletableFuture.completedFuture(true)).when(authorizationProvider).checkPermission(any(DestinationName.class), Mockito.anyString(),
+        doReturn(CompletableFuture.completedFuture(true)).when(authorizationProvider).checkPermission(any(TopicName.class), Mockito.anyString(),
                 any(AuthAction.class));
 
         resetChannel();
@@ -539,7 +557,7 @@ public class ServerCnxTest {
         channel.writeInbound(newProducerCmd);
         assertTrue(getResponse() instanceof CommandProducerSuccess);
 
-        PersistentTopic topicRef = (PersistentTopic) brokerService.getTopicReference(nonExistentTopicName);
+        PersistentTopic topicRef = (PersistentTopic) brokerService.getTopicReference(nonExistentTopicName).get();
         assertNotNull(topicRef);
         assertEquals(topicRef.getProducers().size(), 1);
         channel.finish();
@@ -550,7 +568,7 @@ public class ServerCnxTest {
         ByteBuf newSubscribeCmd = Commands.newSubscribe(nonExistentTopicName, //
                 successSubName, 1 /* consumer id */, 1 /* request id */, SubType.Exclusive, 0, "test" /* consumer name */);
         channel.writeInbound(newSubscribeCmd);
-        topicRef = (PersistentTopic) brokerService.getTopicReference(nonExistentTopicName);
+        topicRef = (PersistentTopic) brokerService.getTopicReference(nonExistentTopicName).get();
         assertNotNull(topicRef);
         assertTrue(topicRef.getSubscriptions().containsKey(successSubName));
         assertTrue(topicRef.getSubscription(successSubName).getDispatcher().isConsumerConnected());
@@ -689,7 +707,7 @@ public class ServerCnxTest {
         setChannelConnected();
 
         CompletableFuture<Topic> delayFuture = new CompletableFuture<>();
-        doReturn(delayFuture).when(brokerService).getTopic(any(String.class));
+        doReturn(delayFuture).when(brokerService).getOrCreateTopic(any(String.class));
         // Create subscriber first time
         ByteBuf clientCommand = Commands.newSubscribe(successTopicName, //
                 successSubName, 1 /* consumer id */, 1 /* request id */, SubType.Exclusive, 0, "test" /* consumer name */);
@@ -1083,7 +1101,7 @@ public class ServerCnxTest {
         channel.writeInbound(clientCommand);
         assertTrue(getResponse() instanceof CommandSuccess);
 
-        PersistentTopic topicRef = (PersistentTopic) brokerService.getTopicReference(successTopicName);
+        PersistentTopic topicRef = (PersistentTopic) brokerService.getTopicReference(successTopicName).get();
 
         assertNotNull(topicRef);
         assertTrue(topicRef.getSubscriptions().containsKey(successSubName));
@@ -1127,7 +1145,7 @@ public class ServerCnxTest {
         channel.writeInbound(clientCommand);
         assertTrue(getResponse() instanceof CommandSuccess);
 
-        PersistentTopic topicRef = (PersistentTopic) brokerService.getTopicReference(successTopicName);
+        PersistentTopic topicRef = (PersistentTopic) brokerService.getTopicReference(successTopicName).get();
         topicRef.markBatchMessagePublished();
 
         // test SUBSCRIBE on topic and cursor creation success
@@ -1238,8 +1256,8 @@ public class ServerCnxTest {
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
         policies.clusterDispatchRate = Maps.newHashMap();
-        doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, DestinationName.get(encryptionRequiredTopicName).getNamespace()));
-        doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, DestinationName.get(encryptionRequiredTopicName).getNamespace()));
+        doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
+        doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(zkDataCache).when(configCacheService).policiesCache();
 
         // test success case: encrypted producer can connect
@@ -1249,7 +1267,7 @@ public class ServerCnxTest {
 
         Object response = getResponse();
         assertEquals(response.getClass(), CommandProducerSuccess.class);
-        PersistentTopic topicRef = (PersistentTopic) brokerService.getTopicReference(encryptionRequiredTopicName);
+        PersistentTopic topicRef = (PersistentTopic) brokerService.getTopicReference(encryptionRequiredTopicName).get();
         assertNotNull(topicRef);
         assertEquals(topicRef.getProducers().size(), 1);
 
@@ -1266,8 +1284,8 @@ public class ServerCnxTest {
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
         policies.clusterDispatchRate = Maps.newHashMap();
-        doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, DestinationName.get(encryptionRequiredTopicName).getNamespace()));
-        doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, DestinationName.get(encryptionRequiredTopicName).getNamespace()));
+        doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
+        doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(zkDataCache).when(configCacheService).policiesCache();
 
         // test failure case: unencrypted producer cannot connect
@@ -1279,7 +1297,7 @@ public class ServerCnxTest {
         assertEquals(response.getClass(), CommandError.class);
         CommandError errorResponse = (CommandError) response;
         assertEquals(errorResponse.getError(), ServerError.MetadataError);
-        PersistentTopic topicRef = (PersistentTopic) brokerService.getTopicReference(encryptionRequiredTopicName);
+        PersistentTopic topicRef = (PersistentTopic) brokerService.getTopicReference(encryptionRequiredTopicName).get();
         assertNotNull(topicRef);
         assertEquals(topicRef.getProducers().size(), 0);
 
@@ -1296,8 +1314,8 @@ public class ServerCnxTest {
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
         policies.clusterDispatchRate = Maps.newHashMap();
-        doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, DestinationName.get(encryptionRequiredTopicName).getNamespace()));
-        doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, DestinationName.get(encryptionRequiredTopicName).getNamespace()));
+        doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
+        doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(zkDataCache).when(configCacheService).policiesCache();
 
         ByteBuf clientCommand = Commands.newProducer(encryptionRequiredTopicName, 1 /* producer id */, 1 /* request id */,
@@ -1331,8 +1349,8 @@ public class ServerCnxTest {
         Policies policies = mock(Policies.class);
         policies.encryption_required = true;
         policies.clusterDispatchRate = Maps.newHashMap();
-        doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, DestinationName.get(encryptionRequiredTopicName).getNamespace()));
-        doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, DestinationName.get(encryptionRequiredTopicName).getNamespace()));
+        doReturn(Optional.of(policies)).when(zkDataCache).get(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
+        doReturn(CompletableFuture.completedFuture(Optional.of(policies))).when(zkDataCache).getAsync(AdminResource.path(POLICIES, TopicName.get(encryptionRequiredTopicName).getNamespace()));
         doReturn(zkDataCache).when(configCacheService).policiesCache();
 
         ByteBuf clientCommand = Commands.newProducer(encryptionRequiredTopicName, 1 /* producer id */, 1 /* request id */,
@@ -1438,20 +1456,20 @@ public class ServerCnxTest {
             @Override
             public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
                 Thread.sleep(300);
-                ((OpenCursorCallback) invocationOnMock.getArguments()[1]).openCursorComplete(cursorMock, null);
+                ((OpenCursorCallback) invocationOnMock.getArguments()[2]).openCursorComplete(cursorMock, null);
                 return null;
             }
-        }).when(ledgerMock).asyncOpenCursor(matches(".*success.*"), any(OpenCursorCallback.class), anyObject());
+        }).when(ledgerMock).asyncOpenCursor(matches(".*success.*"), any(InitialPosition.class), any(OpenCursorCallback.class), anyObject());
 
         doAnswer(new Answer<Object>() {
             @Override
             public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
                 Thread.sleep(300);
-                ((OpenCursorCallback) invocationOnMock.getArguments()[1])
+                ((OpenCursorCallback) invocationOnMock.getArguments()[2])
                         .openCursorFailed(new ManagedLedgerException("Managed ledger failure"), null);
                 return null;
             }
-        }).when(ledgerMock).asyncOpenCursor(matches(".*fail.*"), any(OpenCursorCallback.class), anyObject());
+        }).when(ledgerMock).asyncOpenCursor(matches(".*fail.*"), any(InitialPosition.class), any(OpenCursorCallback.class), anyObject());
 
         doAnswer(new Answer<Object>() {
             @Override
@@ -1541,6 +1559,4 @@ public class ServerCnxTest {
 
         channel.finish();
     }
-
-    private static final Logger log = LoggerFactory.getLogger(ServerCnxTest.class);
 }

@@ -42,16 +42,14 @@ import java.util.concurrent.atomic.LongAdder;
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.HistogramLogWriter;
 import org.HdrHistogram.Recorder;
-import org.apache.pulsar.client.api.ClientConfiguration;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
-import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
+import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -86,7 +84,7 @@ public class PerformanceProducer {
         public String confFile;
 
         @Parameter(description = "persistent://prop/cluster/ns/my-topic", required = true)
-        public List<String> destinations;
+        public List<String> topics;
 
         @Parameter(names = { "-r", "--rate" }, description = "Publish rate msg/s across topics")
         public int msgRate = 100;
@@ -174,7 +172,7 @@ public class PerformanceProducer {
             System.exit(-1);
         }
 
-        if (arguments.destinations.size() != 1) {
+        if (arguments.topics.size() != 1) {
             System.out.println("Only one topic name is allowed");
             jc.usage();
             System.exit(-1);
@@ -230,18 +228,20 @@ public class PerformanceProducer {
         }
 
         // Now processing command line arguments
-        String prefixTopicName = arguments.destinations.get(0);
-        List<Future<Producer>> futures = Lists.newArrayList();
+        String prefixTopicName = arguments.topics.get(0);
+        List<Future<Producer<byte[]>>> futures = Lists.newArrayList();
 
-        ClientConfiguration clientConf = new ClientConfiguration();
-        clientConf.setConnectionsPerBroker(arguments.maxConnections);
-        clientConf.setIoThreads(Runtime.getRuntime().availableProcessors());
-        clientConf.setStatsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS);
+        ClientBuilder clientBuilder = PulsarClient.builder() //
+                .serviceUrl(arguments.serviceURL) //
+                .connectionsPerBroker(arguments.maxConnections) //
+                .ioThreads(Runtime.getRuntime().availableProcessors()) //
+                .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS) //
+                .enableTls(arguments.useTls) //
+                .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
+
         if (isNotBlank(arguments.authPluginClassName)) {
-            clientConf.setAuthentication(arguments.authPluginClassName, arguments.authParams);
+            clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
         }
-        clientConf.setUseTls(arguments.useTls);
-        clientConf.setTlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
 
         class EncKeyReader implements CryptoKeyReader {
 
@@ -264,40 +264,39 @@ public class PerformanceProducer {
                 return null;
             }
         }
-        PulsarClient client = new PulsarClientImpl(arguments.serviceURL, clientConf);
+        PulsarClient client = clientBuilder.build();
+        ProducerBuilder<byte[]> producerBuilder = client.newProducer() //
+                .sendTimeout(0, TimeUnit.SECONDS) //
+                .compressionType(arguments.compression) //
+                .maxPendingMessages(arguments.maxOutstanding) //
+                // enable round robin message routing if it is a partitioned topic
+                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition);
 
-        ProducerConfiguration producerConf = new ProducerConfiguration();
-        producerConf.setSendTimeout(0, TimeUnit.SECONDS);
-        producerConf.setCompressionType(arguments.compression);
-        producerConf.setMaxPendingMessages(arguments.maxOutstanding);
-        // enable round robin message routing if it is a partitioned topic
-        producerConf.setMessageRoutingMode(MessageRoutingMode.RoundRobinPartition);
         if (arguments.batchTime > 0) {
-            producerConf.setBatchingMaxPublishDelay(arguments.batchTime, TimeUnit.MILLISECONDS);
-            producerConf.setBatchingEnabled(true);
+            producerBuilder.batchingMaxPublishDelay(arguments.batchTime, TimeUnit.MILLISECONDS).enableBatching(true);
         }
 
         // Block if queue is full else we will start seeing errors in sendAsync
-        producerConf.setBlockIfQueueFull(true);
+        producerBuilder.blockIfQueueFull(true);
 
         if (arguments.encKeyName != null) {
-            producerConf.addEncryptionKey(arguments.encKeyName);
+            producerBuilder.addEncryptionKey(arguments.encKeyName);
             byte[] pKey = Files.readAllBytes(Paths.get(arguments.encKeyFile));
             EncKeyReader keyReader = new EncKeyReader(pKey);
-            producerConf.setCryptoKeyReader(keyReader);
+            producerBuilder.cryptoKeyReader(keyReader);
         }
 
         for (int i = 0; i < arguments.numTopics; i++) {
             String topic = (arguments.numTopics == 1) ? prefixTopicName : String.format("%s-%d", prefixTopicName, i);
-            log.info("Adding {} publishers on destination {}", arguments.numProducers, topic);
+            log.info("Adding {} publishers on topic {}", arguments.numProducers, topic);
 
             for (int j = 0; j < arguments.numProducers; j++) {
-                futures.add(client.createProducerAsync(topic, producerConf));
+                futures.add(producerBuilder.clone().topic(topic).createAsync());
             }
         }
 
-        final List<Producer> producers = Lists.newArrayListWithCapacity(futures.size());
-        for (Future<Producer> future : futures) {
+        final List<Producer<byte[]>> producers = Lists.newArrayListWithCapacity(futures.size());
+        for (Future<Producer<byte[]>> future : futures) {
             producers.add(future.get());
         }
 
@@ -321,7 +320,7 @@ public class PerformanceProducer {
                 // Send messages on all topics/producers
                 long totalSent = 0;
                 while (true) {
-                    for (Producer producer : producers) {
+                    for (Producer<byte[]> producer : producers) {
                         if (arguments.testTime > 0) {
                             if (System.currentTimeMillis() - startTime > arguments.testTime) {
                                 log.info("------------------- DONE -----------------------");

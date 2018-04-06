@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static java.util.stream.Collectors.toSet;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
 
 import java.util.List;
@@ -36,14 +37,17 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsExcep
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Consumer.SendMessageInfo;
 import org.apache.pulsar.broker.service.Dispatcher;
-import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet;
 import org.apache.pulsar.utils.CopyOnWriteArrayList;
@@ -82,6 +86,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
     private static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers> BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class, "blockedDispatcherOnUnackedMsgs");
     private final ServiceConfiguration serviceConfig;
+    private DispatchRateLimiter dispatchRateLimiter;
 
     enum ReadType {
         Normal, Replay
@@ -96,6 +101,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
         this.maxUnackedMessages = topic.getBrokerService().pulsar().getConfiguration()
                 .getMaxUnackedMessagesPerSubscription();
         this.serviceConfig = topic.getBrokerService().pulsar().getConfiguration();
+        this.dispatchRateLimiter = null;
     }
 
     @Override
@@ -132,7 +138,17 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
     }
 
     private boolean isConsumersExceededOnTopic() {
-        final int maxConsumersPerTopic = serviceConfig.getMaxConsumersPerTopic();
+        Policies policies;
+        try {
+            policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
+                    .get(AdminResource.path(POLICIES, TopicName.get(topic.getName()).getNamespace()))
+                    .orElseGet(() -> new Policies());
+        } catch (Exception e) {
+            policies = new Policies();
+        }
+        final int maxConsumersPerTopic = policies.max_consumers_per_topic > 0 ?
+                policies.max_consumers_per_topic :
+                serviceConfig.getMaxConsumersPerTopic();
         if (maxConsumersPerTopic > 0 && maxConsumersPerTopic <= topic.getNumberOfConsumers()) {
             return true;
         }
@@ -140,7 +156,17 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
     }
 
     private boolean isConsumersExceededOnSubscription() {
-        final int maxConsumersPerSubscription = serviceConfig.getMaxConsumersPerSubscription();
+        Policies policies;
+        try {
+            policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
+                    .get(AdminResource.path(POLICIES, TopicName.get(topic.getName()).getNamespace()))
+                    .orElseGet(() -> new Policies());
+        } catch (Exception e) {
+            policies = new Policies();
+        }
+        final int maxConsumersPerSubscription = policies.max_consumers_per_subscription > 0 ?
+                policies.max_consumers_per_subscription :
+                serviceConfig.getMaxConsumersPerSubscription();
         if (maxConsumersPerSubscription > 0 && maxConsumersPerSubscription <= consumerList.size()) {
             return true;
         }
@@ -207,12 +233,12 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
             // active-cursor reads message from cache rather from bookkeeper (2) if topic has reached message-rate
             // threshold: then schedule the read after MESSAGE_RATE_BACKOFF_MS
             if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
-                DispatchRateLimiter rateLimiter = topic.getDispatchRateLimiter();
-                if (rateLimiter.isDispatchRateLimitingEnabled()) {
-                    if (!rateLimiter.hasMessageDispatchPermit()) {
+                DispatchRateLimiter topicRateLimiter = topic.getDispatchRateLimiter();
+                if (topicRateLimiter.isDispatchRateLimitingEnabled()) {
+                    if (!topicRateLimiter.hasMessageDispatchPermit()) {
                         if (log.isDebugEnabled()) {
-                            log.debug("[{}] message-read exceeded message-rate {}/{}, schedule after a {}", name,
-                                    rateLimiter.getDispatchRateOnMsg(), rateLimiter.getDispatchRateOnByte(),
+                            log.debug("[{}] message-read exceeded topic message-rate {}/{}, schedule after a {}", name,
+                                    topicRateLimiter.getDispatchRateOnMsg(), topicRateLimiter.getDispatchRateOnByte(),
                                     MESSAGE_RATE_BACKOFF_MS);
                         }
                         topic.getBrokerService().executor().schedule(() -> readMoreEntries(), MESSAGE_RATE_BACKOFF_MS,
@@ -220,12 +246,35 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
                         return;
                     } else {
                         // if dispatch-rate is in msg then read only msg according to available permit
-                        long availablePermitsOnMsg = rateLimiter.getAvailableDispatchRateLimitOnMsg();
+                        long availablePermitsOnMsg = topicRateLimiter.getAvailableDispatchRateLimitOnMsg();
                         if (availablePermitsOnMsg > 0) {
                             messagesToRead = Math.min(messagesToRead, (int) availablePermitsOnMsg);
                         }
                     }
                 }
+
+                if (dispatchRateLimiter == null) {
+                    dispatchRateLimiter = new DispatchRateLimiter(topic, name);
+                }
+                if (dispatchRateLimiter.isDispatchRateLimitingEnabled()) {
+                    if (!dispatchRateLimiter.hasMessageDispatchPermit()) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] message-read exceeded subscription message-rate {}/{}, schedule after a {}", name,
+                                dispatchRateLimiter.getDispatchRateOnMsg(), dispatchRateLimiter.getDispatchRateOnByte(),
+                                MESSAGE_RATE_BACKOFF_MS);
+                        }
+                        topic.getBrokerService().executor().schedule(() -> readMoreEntries(), MESSAGE_RATE_BACKOFF_MS,
+                            TimeUnit.MILLISECONDS);
+                        return;
+                    } else {
+                        // if dispatch-rate is in msg then read only msg according to available permit
+                        long availablePermitsOnMsg = dispatchRateLimiter.getAvailableDispatchRateLimitOnMsg();
+                        if (availablePermitsOnMsg > 0) {
+                            messagesToRead = Math.min(messagesToRead, (int) availablePermitsOnMsg);
+                        }
+                    }
+                }
+
             }
 
             if (!messagesToReplay.isEmpty()) {
@@ -394,6 +443,11 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
         // acquire message-dispatch permits for already delivered messages
         if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
             topic.getDispatchRateLimiter().tryDispatchPermit(totalMessagesSent, totalBytesSent);
+
+            if (dispatchRateLimiter == null) {
+                dispatchRateLimiter = new DispatchRateLimiter(topic, name);
+            }
+            dispatchRateLimiter.tryDispatchPermit(totalMessagesSent, totalBytesSent);
         }
 
         if (entriesToDispatch > 0) {
@@ -535,7 +589,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
             // unblock dispatcher if it acks back enough messages
             if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.compareAndSet(this, TRUE, FALSE)) {
                 log.info("[{}] Dispatcher is unblocked", name);
-                topic.getBrokerService().executor().submit(() -> readMoreEntries());
+                topic.getBrokerService().executor().execute(() -> readMoreEntries());
             }
         }
         // increment broker-level count
@@ -560,6 +614,14 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
 
     public String getName() {
         return name;
+    }
+
+    public DispatchRateLimiter getDispatchRateLimiter() {
+        if ((serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) &&
+            (dispatchRateLimiter == null)) {
+            dispatchRateLimiter = new DispatchRateLimiter(topic, name);
+        }
+        return dispatchRateLimiter;
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherMultipleConsumers.class);

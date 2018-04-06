@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.service.nonpersistent;
 
+import com.google.common.base.MoreObjects;
+
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -36,14 +38,12 @@ import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
 import org.apache.pulsar.utils.CopyOnWriteArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.base.MoreObjects;
 
 public class NonPersistentSubscription implements Subscription {
     private final NonPersistentTopic topic;
@@ -95,7 +95,7 @@ public class NonPersistentSubscription implements Subscription {
                 }
                 break;
             case Failover:
-                int partitionIndex = DestinationName.getPartitionIndex(topicName);
+                int partitionIndex = TopicName.getPartitionIndex(topicName);
                 if (partitionIndex < 0) {
                     // For non partition topics, assume index 0 to pick a predictable consumer
                     partitionIndex = 0;
@@ -139,7 +139,7 @@ public class NonPersistentSubscription implements Subscription {
     }
 
     @Override
-    public void acknowledgeMessage(PositionImpl position, AckType ackType, Map<String,Long> properties) {
+    public void acknowledgeMessage(List<Position> position, AckType ackType, Map<String, Long> properties) {
         // No-op
     }
 
@@ -149,7 +149,7 @@ public class NonPersistentSubscription implements Subscription {
     }
 
     @Override
-    public String getDestination() {
+    public String getTopicName() {
         return this.topicName;
     }
 

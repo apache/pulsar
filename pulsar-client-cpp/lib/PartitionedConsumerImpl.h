@@ -20,7 +20,6 @@
 #define PULSAR_PARTITIONED_CONSUMER_HEADER
 #include "ConsumerImpl.h"
 #include "ClientImpl.h"
-#include "DestinationName.h"
 #include <vector>
 #include <boost/shared_ptr.hpp>
 #include <boost/thread/mutex.hpp>
@@ -29,6 +28,7 @@
 #include "lib/UnAckedMessageTrackerDisabled.h"
 #include <lib/Latch.h>
 #include <lib/PartitionedBrokerConsumerStatsImpl.h>
+#include <lib/TopicName.h>
 
 namespace pulsar {
 class PartitionedConsumerImpl;
@@ -44,7 +44,7 @@ class PartitionedConsumerImpl : public ConsumerImplBase,
         Failed
     };
     PartitionedConsumerImpl(ClientImplPtr client, const std::string& subscriptionName,
-                            const DestinationNamePtr destinationName, const unsigned int numPartitions,
+                            const TopicNamePtr topicName, const unsigned int numPartitions,
                             const ConsumerConfiguration& conf);
     virtual ~PartitionedConsumerImpl();
     virtual Future<Result, ConsumerImplBaseWeakPtr> getConsumerCreatedFuture();
@@ -72,7 +72,7 @@ class PartitionedConsumerImpl : public ConsumerImplBase,
    private:
     const ClientImplPtr client_;
     const std::string subscriptionName_;
-    const DestinationNamePtr destinationName_;
+    const TopicNamePtr topicName_;
     unsigned int numPartitions_;
     unsigned int numConsumersCreated_;
     const ConsumerConfiguration conf_;

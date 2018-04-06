@@ -29,15 +29,18 @@ import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.internal.BrokerStatsImpl;
 import org.apache.pulsar.client.admin.internal.BrokersImpl;
 import org.apache.pulsar.client.admin.internal.ClustersImpl;
+import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.client.admin.internal.JacksonConfigurator;
 import org.apache.pulsar.client.admin.internal.LookupImpl;
 import org.apache.pulsar.client.admin.internal.NamespacesImpl;
 import org.apache.pulsar.client.admin.internal.NonPersistentTopicsImpl;
 import org.apache.pulsar.client.admin.internal.PersistentTopicsImpl;
 import org.apache.pulsar.client.admin.internal.PropertiesImpl;
+import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.admin.internal.ResourceQuotasImpl;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
@@ -45,10 +48,12 @@ import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.jackson.JacksonFeature;
+import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
@@ -56,6 +61,7 @@ import org.slf4j.bridge.SLF4JBridgeHandler;
 /**
  * Pulsar client admin API client.
  */
+@SuppressWarnings("deprecation")
 public class PulsarAdmin implements Closeable {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarAdmin.class);
 
@@ -67,12 +73,13 @@ public class PulsarAdmin implements Closeable {
     private final PersistentTopics persistentTopics;
     private final NonPersistentTopics nonPersistentTopics;
     private final ResourceQuotas resourceQuotas;
-
+    private final ClientConfigurationData clientConfigData;
     private final Client client;
-    private final URL serviceUrl;
-    private final WebTarget web;
+    private final String serviceUrl;
     private final Lookup lookups;
-    private final Authentication auth;
+    private final Functions functions;
+    protected final WebTarget root;
+    protected final Authentication auth;
 
     static {
         /**
@@ -93,17 +100,15 @@ public class PulsarAdmin implements Closeable {
     }
 
     /**
-     * Construct a new Pulsar Admin client object.
-     * <p>
-     * This client object can be used to perform many subsquent API calls
-     *
-     * @param serviceUrl
-     *            the Pulsar service URL (eg. "http://my-broker.example.com:8080")
-     * @param pulsarConfig
-     *            the ClientConfiguration object to be used to talk with Pulsar
+     * Creates a builder to construct an instance of {@link PulsarAdmin}.
      */
-    public PulsarAdmin(URL serviceUrl, ClientConfiguration pulsarConfig) throws PulsarClientException {
-        this.auth = pulsarConfig != null ? pulsarConfig.getAuthentication() : new AuthenticationDisabled();
+    public static PulsarAdminBuilder builder() {
+        return new PulsarAdminBuilderImpl();
+    }
+
+    public PulsarAdmin(String serviceUrl, ClientConfigurationData clientConfigData) throws PulsarClientException {
+        this.clientConfigData = clientConfigData;
+        this.auth = clientConfigData != null ? clientConfigData.getAuthentication() : new AuthenticationDisabled();
         LOG.debug("created: serviceUrl={}, authMethodName={}", serviceUrl,
                 auth != null ? auth.getAuthMethodName() : null);
 
@@ -114,24 +119,29 @@ public class PulsarAdmin implements Closeable {
         ClientConfig httpConfig = new ClientConfig();
         httpConfig.property(ClientProperties.FOLLOW_REDIRECTS, true);
         httpConfig.property(ClientProperties.ASYNC_THREADPOOL_SIZE, 8);
+        httpConfig.register(MultiPartFeature.class);
 
         ClientBuilder clientBuilder = ClientBuilder.newBuilder().withConfig(httpConfig)
                 .register(JacksonConfigurator.class).register(JacksonFeature.class);
 
-        if (pulsarConfig != null && pulsarConfig.isUseTls()) {
+        boolean useTls = false;
+
+        if (clientConfigData != null && StringUtils.isNotBlank(clientConfigData.getServiceUrl())
+                && clientConfigData.getServiceUrl().startsWith("https://")) {
+            useTls = true;
             try {
                 SSLContext sslCtx = null;
 
                 X509Certificate trustCertificates[] = SecurityUtility
-                        .loadCertificatesFromPemFile(pulsarConfig.getTlsTrustCertsFilePath());
+                        .loadCertificatesFromPemFile(clientConfigData.getTlsTrustCertsFilePath());
 
                 // Set private key and certificate if available
                 AuthenticationDataProvider authData = auth.getAuthData();
                 if (authData.hasDataForTls()) {
-                    sslCtx = SecurityUtility.createSslContext(pulsarConfig.isTlsAllowInsecureConnection(),
+                    sslCtx = SecurityUtility.createSslContext(clientConfigData.isTlsAllowInsecureConnection(),
                             trustCertificates, authData.getTlsCertificates(), authData.getTlsPrivateKey());
                 } else {
-                    sslCtx = SecurityUtility.createSslContext(pulsarConfig.isTlsAllowInsecureConnection(),
+                    sslCtx = SecurityUtility.createSslContext(clientConfigData.isTlsAllowInsecureConnection(),
                             trustCertificates);
                 }
 
@@ -151,18 +161,34 @@ public class PulsarAdmin implements Closeable {
         this.client = clientBuilder.build();
 
         this.serviceUrl = serviceUrl;
-        WebTarget root = client.target(serviceUrl.toString());
-        web = root.path("/admin");
+        root = client.target(serviceUrl.toString());
 
-        this.clusters = new ClustersImpl(web, auth);
-        this.brokers = new BrokersImpl(web, auth);
-        this.brokerStats = new BrokerStatsImpl(web, auth);
-        this.properties = new PropertiesImpl(web, auth);
-        this.namespaces = new NamespacesImpl(web, auth);
-        this.persistentTopics = new PersistentTopicsImpl(web, auth);
-        this.nonPersistentTopics = new NonPersistentTopicsImpl(web, auth);
-        this.resourceQuotas = new ResourceQuotasImpl(web, auth);
-        this.lookups = new LookupImpl(root, auth, pulsarConfig.isUseTls());
+        this.clusters = new ClustersImpl(root, auth);
+        this.brokers = new BrokersImpl(root, auth);
+        this.brokerStats = new BrokerStatsImpl(root, auth);
+        this.properties = new PropertiesImpl(root, auth);
+        this.namespaces = new NamespacesImpl(root, auth);
+        this.persistentTopics = new PersistentTopicsImpl(root, auth);
+        this.nonPersistentTopics = new NonPersistentTopicsImpl(root, auth);
+        this.resourceQuotas = new ResourceQuotasImpl(root, auth);
+        this.lookups = new LookupImpl(root, auth, useTls);
+        this.functions = new FunctionsImpl(root, auth);
+    }
+
+    /**
+     * Construct a new Pulsar Admin client object.
+     * <p>
+     * This client object can be used to perform many subsquent API calls
+     *
+     * @param serviceUrl
+     *            the Pulsar service URL (eg. "http://my-broker.example.com:8080")
+     * @param pulsarConfig
+     *            the ClientConfiguration object to be used to talk with Pulsar
+     * @deprecated Since 2.0. Use {@link #builder()} to construct a new {@link PulsarAdmin} instance.
+     */
+    @Deprecated
+    public PulsarAdmin(URL serviceUrl, ClientConfiguration pulsarConfig) throws PulsarClientException {
+        this(serviceUrl.toString(), pulsarConfig.getConfigurationData());
     }
 
     /**
@@ -174,7 +200,9 @@ public class PulsarAdmin implements Closeable {
      *            the Pulsar service URL (eg. "http://my-broker.example.com:8080")
      * @param auth
      *            the Authentication object to be used to talk with Pulsar
+     * @deprecated Since 2.0. Use {@link #builder()} to construct a new {@link PulsarAdmin} instance.
      */
+    @Deprecated
     public PulsarAdmin(URL serviceUrl, Authentication auth) throws PulsarClientException {
         this(serviceUrl, new ClientConfiguration() {
             private static final long serialVersionUID = 1L;
@@ -195,8 +223,11 @@ public class PulsarAdmin implements Closeable {
      *            name of the Authentication-Plugin you want to use
      * @param authParamsString
      *            string which represents parameters for the Authentication-Plugin, e.g., "key1:val1,key2:val2"
+     * @deprecated Since 2.0. Use {@link #builder()} to construct a new {@link PulsarAdmin} instance.
      */
-    public PulsarAdmin(URL serviceUrl, String authPluginClassName, String authParamsString) throws PulsarClientException {
+    @Deprecated
+    public PulsarAdmin(URL serviceUrl, String authPluginClassName, String authParamsString)
+            throws PulsarClientException {
         this(serviceUrl, AuthenticationFactory.create(authPluginClassName, authParamsString));
     }
 
@@ -211,8 +242,11 @@ public class PulsarAdmin implements Closeable {
      *            name of the Authentication-Plugin you want to use
      * @param authParams
      *            map which represents parameters for the Authentication-Plugin
+     * @deprecated Since 2.0. Use {@link #builder()} to construct a new {@link PulsarAdmin} instance.
      */
-    public PulsarAdmin(URL serviceUrl, String authPluginClassName, Map<String, String> authParams) throws PulsarClientException {
+    @Deprecated
+    public PulsarAdmin(URL serviceUrl, String authPluginClassName, Map<String, String> authParams)
+            throws PulsarClientException {
         this(serviceUrl, AuthenticationFactory.create(authPluginClassName, authParams));
     }
 
@@ -264,12 +298,20 @@ public class PulsarAdmin implements Closeable {
     public ResourceQuotas resourceQuotas() {
         return resourceQuotas;
     }
-    
+
     /**
-     * @return does a looks up for the broker serving the destination
+     * @return does a looks up for the broker serving the topic
      */
     public Lookup lookups() {
         return lookups;
+    }
+
+    /**
+     * 
+     * @return the functions management object
+     */
+    public Functions functions() {
+        return functions;
     }
     
     /**
@@ -280,10 +322,17 @@ public class PulsarAdmin implements Closeable {
     }
 
     /**
-     * @return the service URL that is being used
+     * @return the service HTTP URL that is being used
      */
-    public URL getServiceUrl() {
+    public String getServiceUrl() {
         return serviceUrl;
+    }
+
+    /**
+     * @return the client Configuration Data that is being used
+     */
+    public ClientConfigurationData getClientConfigData() {
+        return clientConfigData;
     }
 
     /**

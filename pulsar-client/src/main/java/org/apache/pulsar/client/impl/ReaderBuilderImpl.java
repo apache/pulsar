@@ -27,37 +27,43 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
-import org.apache.pulsar.client.api.ReaderConfiguration;
 import org.apache.pulsar.client.api.ReaderListener;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.common.util.FutureUtil;
 
-@SuppressWarnings("deprecation")
-public class ReaderBuilderImpl implements ReaderBuilder {
+public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
 
     private static final long serialVersionUID = 1L;
 
     private final PulsarClientImpl client;
 
-    private final ReaderConfiguration conf;
-    private String topicName;
-    private MessageId startMessageId;
+    private final ReaderConfigurationData<T> conf;
 
-    ReaderBuilderImpl(PulsarClientImpl client) {
+    private final Schema<T> schema;
+
+    ReaderBuilderImpl(PulsarClientImpl client, Schema<T> schema) {
+        this(client, new ReaderConfigurationData<T>(), schema);
+    }
+
+    private ReaderBuilderImpl(PulsarClientImpl client, ReaderConfigurationData<T> conf, Schema<T> schema) {
         this.client = client;
-        this.conf = new ReaderConfiguration();
+        this.conf = conf;
+        this.schema = schema;
     }
 
     @Override
-    public ReaderBuilder clone() {
+    @SuppressWarnings("unchecked")
+    public ReaderBuilder<T> clone() {
         try {
-            return (ReaderBuilder) super.clone();
+            return (ReaderBuilder<T>) super.clone();
         } catch (CloneNotSupportedException e) {
             throw new RuntimeException("Failed to clone ReaderBuilderImpl");
         }
     }
 
     @Override
-    public Reader create() throws PulsarClientException {
+    public Reader<T> create() throws PulsarClientException {
         try {
             return createAsync().get();
         } catch (ExecutionException e) {
@@ -74,59 +80,65 @@ public class ReaderBuilderImpl implements ReaderBuilder {
     }
 
     @Override
-    public CompletableFuture<Reader> createAsync() {
-        if (topicName == null) {
+    public CompletableFuture<Reader<T>> createAsync() {
+        if (conf.getTopicName() == null) {
             return FutureUtil
                     .failedFuture(new IllegalArgumentException("Topic name must be set on the reader builder"));
         }
 
-        if (startMessageId == null) {
+        if (conf.getStartMessageId() == null) {
             return FutureUtil
                     .failedFuture(new IllegalArgumentException("Start message id must be set on the reader builder"));
         }
 
-        return client.createReaderAsync(topicName, startMessageId, conf);
+        return client.createReaderAsync(conf, schema);
     }
 
     @Override
-    public ReaderBuilder topic(String topicName) {
-        this.topicName = topicName;
+    public ReaderBuilder<T> topic(String topicName) {
+        conf.setTopicName(topicName);
         return this;
     }
 
     @Override
-    public ReaderBuilder startMessageId(MessageId startMessageId) {
-        this.startMessageId = startMessageId;
+    public ReaderBuilder<T> startMessageId(MessageId startMessageId) {
+        conf.setStartMessageId(startMessageId);
         return this;
     }
 
     @Override
-    public ReaderBuilder readerListener(ReaderListener readerListener) {
+    public ReaderBuilder<T> readerListener(ReaderListener<T> readerListener) {
         conf.setReaderListener(readerListener);
         return this;
     }
 
     @Override
-    public ReaderBuilder cryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
+    public ReaderBuilder<T> cryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
         conf.setCryptoKeyReader(cryptoKeyReader);
         return this;
     }
 
     @Override
-    public ReaderBuilder cryptoFailureAction(ConsumerCryptoFailureAction action) {
+    public ReaderBuilder<T> cryptoFailureAction(ConsumerCryptoFailureAction action) {
         conf.setCryptoFailureAction(action);
         return this;
     }
 
     @Override
-    public ReaderBuilder receiverQueueSize(int receiverQueueSize) {
+    public ReaderBuilder<T> receiverQueueSize(int receiverQueueSize) {
         conf.setReceiverQueueSize(receiverQueueSize);
         return this;
     }
 
     @Override
-    public ReaderBuilder readerName(String readerName) {
+    public ReaderBuilder<T> readerName(String readerName) {
         conf.setReaderName(readerName);
+        return this;
+    }
+
+    @Override
+    public ReaderBuilder<T> subscriptionRolePrefix(String subscriptionRolePrefix) {
+        conf.setSubscriptionRolePrefix(subscriptionRolePrefix);
         return this;
     }
 }

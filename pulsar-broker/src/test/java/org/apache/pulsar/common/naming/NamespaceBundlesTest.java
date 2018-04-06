@@ -37,7 +37,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
@@ -123,6 +123,7 @@ public class NamespaceBundlesTest {
                 factory.getBundle(nsFld, Range.range(0x40000000l, BoundType.CLOSED, 0xffffffffl, BoundType.CLOSED)));
     }
 
+    @SuppressWarnings("unchecked")
     private NamespaceBundleFactory getNamespaceBundleFactory() {
         PulsarService pulsar = mock(PulsarService.class);
         LocalZooKeeperCacheService localZkCache = mock(LocalZooKeeperCacheService.class);
@@ -143,19 +144,19 @@ public class NamespaceBundlesTest {
         partitions.add(0xc0000000l);
         partitions.add(0xffffffffl);
         NamespaceBundles bundles = new NamespaceBundles(NamespaceName.get("pulsar/global/ns1"), partitions, factory);
-        DestinationName dn = DestinationName.get("persistent://pulsar/global/ns1/topic-1");
-        NamespaceBundle bundle = bundles.findBundle(dn);
-        assertTrue(bundle.includes(dn));
+        TopicName topicName = TopicName.get("persistent://pulsar/global/ns1/topic-1");
+        NamespaceBundle bundle = bundles.findBundle(topicName);
+        assertTrue(bundle.includes(topicName));
 
-        dn = DestinationName.get("persistent://pulsar/use/ns2/topic-2");
+        topicName = TopicName.get("persistent://pulsar/use/ns2/topic-2");
         try {
-            bundles.findBundle(dn);
+            bundles.findBundle(topicName);
             fail("Should have failed due to mismatched namespace name");
         } catch (IllegalArgumentException iae) {
             // OK, expected
         }
 
-        Long hashKey = factory.getLongHashCode(dn.toString());
+        Long hashKey = factory.getLongHashCode(topicName.toString());
         // The following code guarantees that we have at least two ranges after the hashKey till the end
         SortedSet<Long> tailSet = partitions.tailSet(hashKey);
         tailSet.add(hashKey);
@@ -165,8 +166,8 @@ public class NamespaceBundlesTest {
         SortedSet<Long> newPar = tailSet.tailSet(iter.next());
 
         try {
-            bundles = new NamespaceBundles(dn.getNamespaceObject(), newPar, factory);
-            bundles.findBundle(dn);
+            bundles = new NamespaceBundles(topicName.getNamespaceObject(), newPar, factory);
+            bundles.findBundle(topicName);
             fail("Should have failed due to out-of-range");
         } catch (ArrayIndexOutOfBoundsException iae) {
             // OK, expected
@@ -176,9 +177,9 @@ public class NamespaceBundlesTest {
     @Test
     public void testsplitBundles() throws Exception {
         NamespaceName nsname = NamespaceName.get("pulsar/global/ns1");
-        DestinationName dn = DestinationName.get("persistent://pulsar/global/ns1/topic-1");
+        TopicName topicName = TopicName.get("persistent://pulsar/global/ns1/topic-1");
         NamespaceBundles bundles = factory.getBundles(nsname);
-        NamespaceBundle bundle = bundles.findBundle(dn);
+        NamespaceBundle bundle = bundles.findBundle(topicName);
         final int numberSplitBundles = 4;
         // (1) split in 4
         Pair<NamespaceBundles, List<NamespaceBundle>> splitBundles = factory.splitBundles(bundle, numberSplitBundles);
@@ -220,9 +221,9 @@ public class NamespaceBundlesTest {
     public void testSplitBundleInTwo() throws Exception {
         final int NO_BUNDLES = 2;
         NamespaceName nsname = NamespaceName.get("pulsar/global/ns1");
-        DestinationName dn = DestinationName.get("persistent://pulsar/global/ns1/topic-1");
+        TopicName topicName = TopicName.get("persistent://pulsar/global/ns1/topic-1");
         NamespaceBundles bundles = factory.getBundles(nsname);
-        NamespaceBundle bundle = bundles.findBundle(dn);
+        NamespaceBundle bundle = bundles.findBundle(topicName);
         // (1) split : [0x00000000,0xffffffff] => [0x00000000_0x7fffffff,0x7fffffff_0xffffffff]
         Pair<NamespaceBundles, List<NamespaceBundle>> splitBundles = factory.splitBundles(bundle, NO_BUNDLES);
         assertNotNull(splitBundles);

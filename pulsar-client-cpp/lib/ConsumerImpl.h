@@ -20,7 +20,7 @@
 #define LIB_CONSUMERIMPL_H_
 
 #include <string>
-#include "pulsar/BatchMessageId.h"
+
 #include "pulsar/Result.h"
 #include "UnboundedBlockingQueue.h"
 #include "HandlerBase.h"
@@ -69,7 +69,7 @@ class ConsumerImpl : public ConsumerImplBase,
                  const ExecutorServicePtr listenerExecutor = ExecutorServicePtr(),
                  const ConsumerTopicType consumerTopicType = NonPartitioned,
                  Commands::SubscriptionMode = Commands::SubscriptionModeDurable,
-                 Optional<BatchMessageId> startMessageId = Optional<BatchMessageId>::empty());
+                 Optional<MessageId> startMessageId = Optional<MessageId>::empty());
     ~ConsumerImpl();
     void setPartitionIndex(int partitionIndex);
     int getPartitionIndex();
@@ -82,7 +82,7 @@ class ConsumerImpl : public ConsumerImplBase,
     inline proto::CommandSubscribe_SubType getSubType();
     void unsubscribeAsync(ResultCallback callback);
     void handleUnsubscribe(Result result, ResultCallback callback);
-    void doAcknowledge(const BatchMessageId& messageId, proto::CommandAck_AckType ackType,
+    void doAcknowledge(const MessageId& messageId, proto::CommandAck_AckType ackType,
                        ResultCallback callback);
     virtual void disconnectConsumer();
     virtual Future<Result, ConsumerImplBaseWeakPtr> getConsumerCreatedFuture();
@@ -134,7 +134,7 @@ class ConsumerImpl : public ConsumerImplBase,
     Result receiveHelper(Message& msg, int timeout);
     void statsCallback(Result, ResultCallback, proto::CommandAck_AckType);
 
-    Optional<BatchMessageId> clearReceiveQueue();
+    Optional<MessageId> clearReceiveQueue();
 
     boost::mutex mutexForReceiveWithZeroQueueSize;
     const ConsumerConfiguration config_;
@@ -145,15 +145,15 @@ class ConsumerImpl : public ConsumerImplBase,
     ConsumerTopicType consumerTopicType_;
 
     Commands::SubscriptionMode subscriptionMode_;
-    Optional<BatchMessageId> startMessageId_;
+    Optional<MessageId> startMessageId_;
 
-    Optional<BatchMessageId> lastDequedMessage_;
+    Optional<MessageId> lastDequedMessage_;
     UnboundedBlockingQueue<Message> incomingMessages_;
     int availablePermits_;
     uint64_t consumerId_;
     std::string consumerName_;
     std::string consumerStr_;
-    short partitionIndex_;
+    int32_t partitionIndex_;
     Promise<Result, ConsumerImplBaseWeakPtr> consumerCreatedPromise_;
     bool messageListenerRunning_;
     boost::mutex messageListenerMutex_;
