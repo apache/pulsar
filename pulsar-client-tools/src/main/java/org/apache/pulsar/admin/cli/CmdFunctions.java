@@ -53,6 +53,7 @@ import org.apache.pulsar.functions.shaded.io.netty.buffer.Unpooled;
 import org.apache.pulsar.functions.shaded.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.functions.utils.Utils;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
@@ -541,6 +542,7 @@ public class CmdFunctions extends CmdBase {
     class GetFunction extends FunctionCommand {
         @Override
         void runCmd() throws Exception {
+            String json = Utils.
             String json = Utils.printJson(admin.functions().getFunction(tenant, namespace, functionName));
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             System.out.println(gson.toJson(new JsonParser().parse(json)));
