@@ -85,12 +85,9 @@ output: persistent://sample/standalone/ns1/test_result
 You can also mix and match configuration methods by specifying some function attributes via the CLI and others via YAML configuration.
 
 ## Supported languages
-=======
->>>>>>> upstream/master
 
 Pulsar Functions can be configured in two ways:
 
-<<<<<<< HEAD
 ## Function context {#context}
 
 Each Pulsar Function created using the [Pulsar Functions SDK](#sdk) has access to a context object that both provides:
@@ -237,129 +234,11 @@ public class ConfigMapFunction implements Function<String, Void> {
         String val1 = context.getUserConfigValue("key1").get();
         String val2 = context.getUserConfigValue("key2").get();
         context.getLogger().info("The user-supplied values are {} and {}", val1, val2);
-=======
-* Via [command-line arguments](#cli) passed to the [`pulsar-admin functions`](../../reference/CliTools#pulsar-admin-functions) interface
-* Via [YAML](http://yaml.org/) configuration files
-
-If you're supplying a YAML configuration, you must specify a path to the file on the command line. Here's an example:
-
-```bash
-$ bin/pulsar-admin functions create \
-  --functionConfigFile ./my-function.yaml
-```
-
-And here's an example `my-function.yaml` file:
-
-```yaml
-name: my-function
-tenant: sample
-namespace: ns1
-jar: ./target/my-functions.jar
-className: org.example.pulsar.functions.MyFunction
-inputs:
-- persistent://sample/standalone/ns1/test_src
-output: persistent://sample/standalone/ns1/test_result
-```
-
-You can also mix and match configuration methods by specifying some function attributes via the CLI and others via YAML configuration.
-
-## Supported languages
-
-Pulsar Functions can currently be written in [Java](../../functions/api#java) and [Python](../../functions/api#python). Support for additional languages is coming soon.
-
-## Function context {#context}
-
-Each Pulsar Function created using the [Pulsar Functions SDK](#sdk) has access to a context object that both provides:
-
-1. A wide variety of information about the function, including:
-  * The name of the function
-  * The {% popover tenant %} and {% popover namespace %} of the function
-  * [User-supplied configuration]() values
-
-### Language-native functions {#native}
-
-Both Java and Python support writing "native" functions, i.e. Pulsar Functions with no dependencies.
-
-The benefit of native functions is that they don't have any dependencies beyond what's already available in Java/Python "out of the box." The downside is that they don't provide access to the function's [context](#context)
-
-### The Pulsar Functions SDK {#sdk}
-
-If you'd like a Pulsar Function to have access to a [context object](#context), you can use the Pulsar Functions SDK, available for both [Java](../api#java-sdk) and [Pythnon](../api#python-sdk).
-
-Here's an example Java function that uses information about its context:
-
-```java
-import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.Function;
-import org.slf4j.Logger;
-
-public class ContextAwareFunction implements Function<String, Void> {
-    @Override
-    public Void process(String input, Context, context) {
-        Logger LOG = context.getLogger();
-        String functionTenant = context.getTenant();
-        String functionNamespace = context.getNamespace();
-        String functionName = context.getName();
-        LOG.info("{}/{}/{}", functionTenant, functionNamespace, functionName);
->>>>>>> upstream/master
         return null;
     }
 }
 ```
 
-<<<<<<< HEAD
-## Counters {#counters}
-
-Pulsar Functions created using the [Pulsar Functions SDK](#sdk) can increment and access **counters** on a per-key basis (thus a Pulsar Function could increment, for example, a `website-visits` counter as well as a `login-attempts` counter).
-
-Pulsar counters are distinguished by:
-
-* Tenant
-* Namespace
-* Function
-* Key
-
-This Java function, for example, implements the classic "word count" function using counters:
-
-```java
-public class WordCountFunction implements PulsarFunction<String, Void> {
-    @Override
-    public Void process(String input, Context context) {
-        Arrays.asList(input.split("\\.")).forEach(word -> context.incrCounter(word.toLowerCase(), 1));
-        return null;
-    }
-}
-```
-
-Here, each incoming string is split into individual words. Each word is then used as the key for a counter that is incremented by 1.
-
-The value of counters can then be obtained via the [`querystate`](../../reference/CliTools#pulsar-admin-functions-querystate) command. Here's an example:
-
-```bash
-$ bin/pulsar-admin functions querystate \
-  --tenant sample \
-  --namespace ns1 \
-  --name counter-func \
-  --key "fabulous" \
-  --watch
-```
-
-This command would listen for changes in the `fabulous` counter of the word count function (each time the word "fabulous" is in a sentence passed to the function, that counter will be incremented).
-
-## Metrics
-
-Here's an example function that publishes a value of 1 to the `my-metric` metric.
-
-```java
-public class MetricsFunction implements PulsarFunction<String, Void> {
-    @Override
-    public Void process(String input, Context context) {
-        context.recordMetric("my-metric", 1);
-        return null;
-    }
-}
-```
-=======
 ## Deployment modes
 
 The Pulsar Functions feature was built to support a variety of deployment options. At the moment, there are two ways to run Pulsar Functions:
@@ -475,4 +354,3 @@ public class ConfigMapFunction implements Function<String, Void> {
 ## Metrics
 
 Pulsar Functions that use the [Pulsar Functions SDK](#sdk) can publish metrics to Pulsar. For more information, see [Metrics for Pulsar Functions](../metrics).
->>>>>>> upstream/master
