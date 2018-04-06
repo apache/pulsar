@@ -103,6 +103,9 @@ public class CmdFunctions extends CmdBase {
      */
     @Getter
     abstract class NamespaceCommand extends BaseCommand {
+        @Parameter(names = "--fqfn", description = "The Fully Qualified Function Name (FQFN) for the function", required = false)
+        protected String fqfn;
+
         @Parameter(names = "--tenant", description = "The function's tenant", required = true)
         protected String tenant;
 
@@ -124,6 +127,8 @@ public class CmdFunctions extends CmdBase {
      */
     @Getter
     abstract class FunctionConfigCommand extends BaseCommand {
+        @Parameter(names = "--fqfn", description = "The Fully Qualified Function Name (FQFN) for the function")
+        protected String fqfn;
         @Parameter(names = "--tenant", description = "The function's tenant")
         protected String tenant;
         @Parameter(names = "--namespace", description = "The function's namespace")
@@ -168,13 +173,29 @@ public class CmdFunctions extends CmdBase {
 
         @Override
         void processArguments() throws Exception {
-
             FunctionConfig.Builder functionConfigBuilder;
+
+            // Initialize config builder either from a supplied YAML config file or from scratch
             if (null != fnConfigFile) {
                 functionConfigBuilder = loadConfig(new File(fnConfigFile));
             } else {
                 functionConfigBuilder = FunctionConfig.newBuilder();
             }
+
+            if (null != fqfn) {
+                parseFullyQualifiedFunctionName(fqfn, functionConfigBuilder);
+            } else {
+                if (null != tenant) {
+                    functionConfigBuilder.setTenant(tenant);
+                }
+                if (null != namespace) {
+                    functionConfigBuilder.setNamespace(namespace);
+                }
+                if (null != functionName) {
+                    functionConfigBuilder.setName(functionName);
+                }
+            }
+
             if (null != inputs) {
                 String[] topicNames = inputs.split(",");
                 for (int i = 0; i < topicNames.length; ++i) {
@@ -191,15 +212,6 @@ public class CmdFunctions extends CmdBase {
             }
             if (null != logTopic) {
                 functionConfigBuilder.setLogTopic(logTopic);
-            }
-            if (null != tenant) {
-                functionConfigBuilder.setTenant(tenant);
-            }
-            if (null != namespace) {
-                functionConfigBuilder.setNamespace(namespace);
-            }
-            if (null != functionName) {
-                functionConfigBuilder.setName(functionName);
             }
             if (null != className) {
                 functionConfigBuilder.setClassName(className);
@@ -370,6 +382,17 @@ public class CmdFunctions extends CmdBase {
                         throw new RuntimeException("Serializer type mismatch " + typeArgs[1] + " vs " + serDeTypes[0]);
                     }
                 }
+            }
+        }
+
+        private void parseFullyQualifiedFunctionName(String fqfn, FunctionConfig.Builder functionConfigBuilder) {
+            String[] args = fqfn.split("/");
+            if (args.length != 3) {
+                throw new RuntimeException("Fully qualified function names must be of the form tenant/namespace/name");
+            } else {
+                functionConfigBuilder.setTenant(args[0]);
+                functionConfigBuilder.setNamespace(args[1]);
+                functionConfigBuilder.setName(args[2]);
             }
         }
 
@@ -702,7 +725,7 @@ public class CmdFunctions extends CmdBase {
     TriggerFunction getTriggerer() {
         return triggerer;
     }
-    
+
     private static FunctionConfig.Builder loadConfig(File file) throws IOException {
         String json = FunctionConfigUtils.convertYamlToJson(file);
         FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
