@@ -24,6 +24,7 @@ import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import io.netty.util.AbstractReferenceCounted;
 import io.netty.util.ReferenceCounted;
+import org.apache.commons.lang3.tuple.Pair;
 import org.testng.annotations.Test;
 
 @Test
@@ -179,7 +180,7 @@ public class RangeCacheTest {
         cache.put(3, new RefString("three"));
 
         // This should remove the LRU entries: 0, 1 whose combined size is 7
-        assertEquals(cache.evictLeastAccessedEntries(5), Pair.create(2, (long) 7));
+        assertEquals(cache.evictLeastAccessedEntries(5), Pair.of(2, (long) 7));
 
         assertEquals(cache.getNumberOfEntries(), 2);
         assertEquals(cache.getSize(), 8);
@@ -188,7 +189,7 @@ public class RangeCacheTest {
         assertEquals(cache.get(2).s, "two");
         assertEquals(cache.get(3).s, "three");
 
-        assertEquals(cache.evictLeastAccessedEntries(100), Pair.create(2, (long) 8));
+        assertEquals(cache.evictLeastAccessedEntries(100), Pair.of(2, (long) 8));
         assertEquals(cache.getNumberOfEntries(), 0);
         assertEquals(cache.getSize(), 0);
         assertEquals(cache.get(0), null);
@@ -221,18 +222,18 @@ public class RangeCacheTest {
 
         assertEquals(cache.getSize(), 100);
         Pair<Integer, Long> res = cache.evictLeastAccessedEntries(1);
-        assertEquals((int) res.first, 1);
-        assertEquals((long) res.second, 1);
+        assertEquals((int) res.getLeft(), 1);
+        assertEquals((long) res.getRight(), 1);
         assertEquals(cache.getSize(), 99);
 
         res = cache.evictLeastAccessedEntries(10);
-        assertEquals((int) res.first, 10);
-        assertEquals((long) res.second, 10);
+        assertEquals((int) res.getLeft(), 10);
+        assertEquals((long) res.getRight(), 10);
         assertEquals(cache.getSize(), 89);
 
         res = cache.evictLeastAccessedEntries(100);
-        assertEquals((int) res.first, 89);
-        assertEquals((long) res.second, 89);
+        assertEquals((int) res.getLeft(), 89);
+        assertEquals((long) res.getRight(), 89);
         assertEquals(cache.getSize(), 0);
 
         for (int i = 0; i < 100; i++) {
@@ -242,8 +243,8 @@ public class RangeCacheTest {
         assertEquals(cache.getSize(), 100);
 
         res = cache.removeRange(10, 20, false);
-        assertEquals((int) res.first, 10);
-        assertEquals((long) res.second, 10);
+        assertEquals((int) res.getLeft(), 10);
+        assertEquals((long) res.getRight(), 10);
         assertEquals(cache.getSize(), 90);
     }
 }
