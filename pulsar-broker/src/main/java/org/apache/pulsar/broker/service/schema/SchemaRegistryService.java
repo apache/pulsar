@@ -35,9 +35,10 @@ public interface SchemaRegistryService extends SchemaRegistry {
             Object factoryInstance = storageClass.newInstance();
             Method createMethod = storageClass.getMethod(CreateMethodName, PulsarService.class);
             SchemaStorage schemaStorage = (SchemaStorage) createMethod.invoke(factoryInstance, pulsar);
+            schemaStorage.start();
             return new SchemaRegistryServiceImpl(schemaStorage);
         } catch (Exception e) {
-            log.warn("Error when trying to create scehema registry storage: {}", e);
+            log.warn("Unable to create schema registry storage, defaulting to empty storage: {}", e);
         }
         return new DefaultSchemaRegistryService();
     }

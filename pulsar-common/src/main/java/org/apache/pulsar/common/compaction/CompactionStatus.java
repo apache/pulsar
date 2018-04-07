@@ -16,32 +16,37 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.naming;
+package org.apache.pulsar.common.compaction;
 
-public enum TopicDomain {
-    persistent("persistent"), non_persistent("non-persistent");
+/**
+ * Status of compaction for a topic.
+ */
+public class CompactionStatus {
+    public enum Status {
+        NOT_RUN,
+        RUNNING,
+        SUCCESS,
+        ERROR
+    };
 
-    private String value;
+    public Status status;
+    public String lastError;
 
-    private TopicDomain(String value) {
-        this.value = value;
+    public CompactionStatus() {
+        this.status = Status.NOT_RUN;
+        this.lastError = "";
     }
 
-    public String value() {
-        return this.value;
+    private CompactionStatus(Status status, String lastError) {
+        this.status = status;
+        this.lastError = lastError;
     }
 
-    public static TopicDomain getEnum(String value) {
-        for (TopicDomain e : values()) {
-            if (e.value.equalsIgnoreCase(value)) {
-                return e;
-            }
-        }
-        throw new IllegalArgumentException("Invalid topic domain: '" + value + "'");
+    public static CompactionStatus forStatus(Status status) {
+        return new CompactionStatus(status, "");
     }
 
-    @Override
-    public String toString() {
-        return this.value;
+    public static CompactionStatus forError(String lastError) {
+        return new CompactionStatus(Status.ERROR, lastError);
     }
 }

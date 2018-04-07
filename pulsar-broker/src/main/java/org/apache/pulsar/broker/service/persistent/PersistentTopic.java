@@ -29,6 +29,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -84,6 +86,7 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.compaction.CompactionStatus;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
@@ -1619,6 +1622,27 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             currentCompaction = brokerService.pulsar().getCompactor().compact(topic);
         } else {
             throw new AlreadyRunningException("Compaction already in progress");
+        }
+    }
+
+
+    public synchronized CompactionStatus compactionStatus() {
+        final CompletableFuture<Long> current;
+        synchronized (this) {
+            current = currentCompaction;
+        }
+        if (!current.isDone()) {
+            return CompactionStatus.forStatus(CompactionStatus.Status.RUNNING);
+        } else {
+            try {
+                if (current.join() == COMPACTION_NEVER_RUN) {
+                    return CompactionStatus.forStatus(CompactionStatus.Status.NOT_RUN);
+                } else {
+                    return CompactionStatus.forStatus(CompactionStatus.Status.SUCCESS);
+                }
+            } catch (CancellationException | CompletionException e) {
+                return CompactionStatus.forError(e.getMessage());
+            }
         }
     }
 
