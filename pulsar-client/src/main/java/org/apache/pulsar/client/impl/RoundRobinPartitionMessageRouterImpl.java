@@ -18,7 +18,10 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.apache.pulsar.client.util.MathUtils.signSafeMod;
+
 import com.google.common.annotations.VisibleForTesting;
+
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import org.apache.pulsar.client.api.HashingScheme;
@@ -67,14 +70,14 @@ public class RoundRobinPartitionMessageRouterImpl extends MessageRouterBase {
     public int choosePartition(Message<?> msg, TopicMetadata topicMetadata) {
         // If the message has a key, it supersedes the round robin routing policy
         if (msg.hasKey()) {
-            return hash.makeHash(msg.getKey()) % topicMetadata.numPartitions();
+            return signSafeMod(hash.makeHash(msg.getKey()), topicMetadata.numPartitions());
         }
 
         if (isBatchingEnabled) { // if batching is enabled, choose partition on `maxBatchingDelayMs` boundary.
             long currentMs = System.currentTimeMillis();
-            return (((int) (currentMs / maxBatchingDelayMs)) + startPtnIdx) % topicMetadata.numPartitions();
+            return signSafeMod(currentMs / maxBatchingDelayMs + startPtnIdx, topicMetadata.numPartitions());
         } else {
-            return ((PARTITION_INDEX_UPDATER.getAndIncrement(this) & Integer.MAX_VALUE) % topicMetadata.numPartitions());
+            return signSafeMod(PARTITION_INDEX_UPDATER.getAndIncrement(this), topicMetadata.numPartitions());
         }
     }
 
