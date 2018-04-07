@@ -18,14 +18,17 @@
  */
 package org.apache.pulsar.connect.core;
 
-import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * A Pulsar Sink interface.
- * The lifcycle is to open it, call publish to publish messages and
- * then close it at the end of the session
+ * Pulsar's Sink interface. Sink read data from
+ * a Pulsar topic and write it to external sinks(kv store, database, filesystem ,etc)
+ * The lifcycle of a Sink is to open it passing any config needed
+ * by it to initialize(like open network connection, authenticate, etc).
+ * On every message from the designated PulsarTopic, the write method is
+ * invoked which writes the message to the external sink. One can use close
+ * at the end of the session to do any cleanup
  */
 public interface Sink<T> extends AutoCloseable {
     /**
@@ -42,5 +45,5 @@ public interface Sink<T> extends AutoCloseable {
      * @param message Object to publish to the sink
      * @return Completable future fo async publish request
      */
-    CompletableFuture<Void> publish(final T message);
+    CompletableFuture<Void> write(final T message);
 }

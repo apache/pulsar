@@ -22,11 +22,8 @@ package org.apache.pulsar.connect.twitter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
 import java.util.function.Function;
 
 import org.apache.pulsar.connect.core.PushSource;
@@ -43,8 +40,6 @@ import com.twitter.hbc.httpclient.BasicClient;
 import com.twitter.hbc.httpclient.auth.Authentication;
 import com.twitter.hbc.httpclient.auth.OAuth1;
 
-import static org.apache.pulsar.connect.twitter.TwitterFireHoseConfigKeys.*;
-
 /**
  * Simple Push based Twitter FireHose Source
  */
@@ -60,12 +55,15 @@ public class TwitterFireHose implements PushSource<String> {
 
     @Override
     public void open(Map<String, String> config) {
-        verifyExists(config, CONSUMER_KEY);
-        verifyExists(config, CONSUMER_SECRET);
-        verifyExists(config, TOKEN);
-        verifyExists(config, TOKEN_SECRET);
+        TwitterFireHoseConfig hoseConfig = TwitterFireHoseConfig.load(config);
+        if (hoseConfig.getConsumerKey() == null
+                || hoseConfig.getConsumerSecret() == null
+                || hoseConfig.getToken() != null
+                || hoseConfig.getTokenSecret() == null) {
+            throw new IllegalArgumentException("Required property not set.");
+        }
         waitObject = new Object();
-        startThread(config);
+        startThread(hoseConfig);
     }
 
     @Override
@@ -78,12 +76,6 @@ public class TwitterFireHose implements PushSource<String> {
         stopThread();
     }
 
-
-    private void verifyExists(final Map<String, String> config, final String key) {
-        if (!config.containsKey(key)) {
-            throw new IllegalArgumentException("Required property '" + key + "' not set.");
-        }
-    }
     // ------ Custom endpoints
 
     /**
@@ -107,15 +99,15 @@ public class TwitterFireHose implements PushSource<String> {
         }
     }
 
-    private void startThread(Map<String, String> config) {
-        Authentication auth = new OAuth1(config.get(CONSUMER_KEY),
-                config.get(CONSUMER_SECRET),
-                config.get(TOKEN),
-                config.get(TOKEN_SECRET));
+    private void startThread(TwitterFireHoseConfig config) {
+        Authentication auth = new OAuth1(config.getConsumerKey(),
+                config.getConsumerSecret(),
+                config.getToken(),
+                config.getTokenSecret());
 
         BasicClient client = new ClientBuilder()
-                .name(config.getOrDefault(CLIENT_NAME, "openconnector-twitter-source"))
-                .hosts(config.getOrDefault(CLIENT_HOSTS, Constants.STREAM_HOST))
+                .name(config.getClientName())
+                .hosts(config.getClientHosts())
                 .endpoint(new SampleStatusesEndpoint().createEndpoint())
                 .authentication(auth)
                 .processor(new HosebirdMessageProcessor() {
@@ -124,13 +116,16 @@ public class TwitterFireHose implements PushSource<String> {
                     @Override
                     public void setup(InputStream input) {
                         reader = new DelimitedStreamReader(input, Constants.DEFAULT_CHARSET,
-                            Integer.parseInt(config.getOrDefault(CLIENT_BUFFER_SIZE, "50000")));
+                            config.getClientBufferSize());
                     }
 
                     @Override
                     public boolean process() throws IOException, InterruptedException {
                         String line = reader.readLine();
                         try {
+                            // We don't really care if the future succeeds or not.
+                            // However might be in the future to count failures
+                            // TODO:- Figure out the metrics story for connectors
                             consumeFunction.apply(line);
                         } catch (Exception e) {
                             LOG.error("Exception thrown");
