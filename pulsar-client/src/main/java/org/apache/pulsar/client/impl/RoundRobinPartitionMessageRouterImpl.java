@@ -20,8 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.client.util.MathUtils.signSafeMod;
 
-import com.google.common.annotations.VisibleForTesting;
-
+import java.time.Clock;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import org.apache.pulsar.client.api.HashingScheme;
@@ -49,21 +48,28 @@ public class RoundRobinPartitionMessageRouterImpl extends MessageRouterBase {
     private final boolean isBatchingEnabled;
     private final long maxBatchingDelayMs;
 
-    @VisibleForTesting
-    public RoundRobinPartitionMessageRouterImpl(HashingScheme hashingScheme,
-                                                int startPtnIdx) {
-        this(hashingScheme, startPtnIdx, false, 0);
-    }
+    private final Clock clock;
+
+    private static final Clock SYSTEM_CLOCK = Clock.systemUTC();
 
     public RoundRobinPartitionMessageRouterImpl(HashingScheme hashingScheme,
                                                 int startPtnIdx,
                                                 boolean isBatchingEnabled,
                                                 long maxBatchingDelayMs) {
+        this(hashingScheme, startPtnIdx, isBatchingEnabled, maxBatchingDelayMs, SYSTEM_CLOCK);
+    }
+
+    public RoundRobinPartitionMessageRouterImpl(HashingScheme hashingScheme,
+                                                int startPtnIdx,
+                                                boolean isBatchingEnabled,
+                                                long maxBatchingDelayMs,
+                                                Clock clock) {
         super(hashingScheme);
         PARTITION_INDEX_UPDATER.set(this, startPtnIdx);
         this.startPtnIdx = startPtnIdx;
         this.isBatchingEnabled = isBatchingEnabled;
         this.maxBatchingDelayMs = Math.max(1, maxBatchingDelayMs);
+        this.clock = clock;
     }
 
     @Override
@@ -74,7 +80,7 @@ public class RoundRobinPartitionMessageRouterImpl extends MessageRouterBase {
         }
 
         if (isBatchingEnabled) { // if batching is enabled, choose partition on `maxBatchingDelayMs` boundary.
-            long currentMs = System.currentTimeMillis();
+            long currentMs = clock.millis();
             return signSafeMod(currentMs / maxBatchingDelayMs + startPtnIdx, topicMetadata.numPartitions());
         } else {
             return signSafeMod(PARTITION_INDEX_UPDATER.getAndIncrement(this), topicMetadata.numPartitions());
