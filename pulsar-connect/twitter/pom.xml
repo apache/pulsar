@@ -19,41 +19,31 @@
 
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <packaging>pom</packaging>
   <parent>
     <groupId>org.apache.pulsar</groupId>
-    <artifactId>pulsar</artifactId>
+    <artifactId>pulsar-connect</artifactId>
     <version>2.0.0-incubating-SNAPSHOT</version>
   </parent>
 
-  <artifactId>pulsar-connect</artifactId>
-  <name>Pulsar Connect :: Parent</name>
-
-  <modules>
-    <module>core</module>
-    <module>twitter</module>
-  </modules>
-
-  <dependencyManagement>
-    <dependencies>
-
-      <dependency>
-        <groupId>org.projectlombok</groupId>
-        <artifactId>lombok</artifactId>
-        <version>1.16.12</version>
-      </dependency>
-
-    </dependencies>
-  </dependencyManagement>
+  <artifactId>pulsar-connect-twitter</artifactId>
+  <name>Pulsar Connect :: Twitter</name>
 
   <dependencies>
+
     <dependency>
-      <groupId>org.projectlombok</groupId>
-      <artifactId>lombok</artifactId>
-      <scope>provided</scope>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-connect-core</artifactId>
+      <version>${project.version}</version>
     </dependency>
+
+    <dependency>
+      <groupId>com.twitter</groupId>
+      <artifactId>hbc-core</artifactId>
+      <version>2.2.0</version>
+    </dependency>
+
   </dependencies>
 
 </project>
