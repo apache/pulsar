@@ -676,34 +676,41 @@
     
     
     <div class="card">
-      <div class="card-header" role="tab" id="heading-advanced">
+      <div class="card-header" role="tab" id="heading-cookbooks">
         <h5>
-          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-advanced" aria-controls="collapse-advanced">
-            Advanced
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-cookbooks" aria-controls="collapse-cookbooks">
+            Cookbooks
           </a>
         </h5>
       </div>
 
-      <div class="sidebar-group collapse" id="collapse-advanced" role="tabpanel" aria-labelledby="heading-advanced">
+      <div class="sidebar-group collapse" id="collapse-cookbooks" role="tabpanel" aria-labelledby="heading-cookbooks">
         <ul>
           
           
           <li>
-            <a href="../../advanced/PartitionedTopics">
+            <a href="../../cookbooks/message-deduplication">
+              Message deduplication
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../cookbooks/PartitionedTopics">
               Partitioned topics
             </a>
           </li>
           
           
           <li>
-            <a href="../../advanced/RetentionExpiry">
+            <a href="../../cookbooks/RetentionExpiry">
               Retention and expiry
             </a>
           </li>
           
           
           <li>
-            <a href="../../advanced/Encryption">
+            <a href="../../cookbooks/Encryption">
               Encryption
             </a>
           </li>
@@ -870,7 +877,7 @@
   <li>publish the results of the computation to another topic</li>
 </ul>
 
-<p>Here’s an example Pulsar Function for Java:</p>
+<p>Here’s an example Pulsar Function for Java (using the <a href="../api#java-native">native interface</a>):</p>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">java.util.Function</span><span class="o">;</span>
 
@@ -887,9 +894,9 @@
 <p>The core goal behind Pulsar Functions is to enable you to easily create processing logic of any level of complexity without needing to deploy a separate neighboring system (such as <a href="http://storm.apache.org/">Apache Storm</a>, <a href="https://apache.github.io/incubator-heron">Apache Heron</a>, <a href="https://flink.apache.org/">Apache Flink</a>, etc.). Pulsar Functions is essentially ready-made compute infrastructure at your disposal as part of your Pulsar messaging system. This core goal is tied to a series of other goals:</p>
 
 <ul>
-  <li>Developer productive (<a href="#native">language-native</a> vs. <a href="#sdk">Pulsar Functions SDK</a> functions)</li>
-  <li>easy troubleshooting</li>
-  <li>Operational simplicity (no need for an external system)</li>
+  <li>Developer productivity (<a href="#native">language-native</a> vs. <a href="#sdk">Pulsar Functions SDK</a> functions)</li>
+  <li>Easy troubleshooting</li>
+  <li>Operational simplicity (no need for an external processing system)</li>
 </ul>
 
 <h2 id="inspirations">Inspirations</h2>
@@ -905,8 +912,104 @@
 
 <ul>
   <li><a href="https://aws.amazon.com/lambda/">Lambda</a>-style functions that are</li>
-  <li>specifically designed to work with Pulsar</li>
+  <li>specifically designed to use Pulsar as a message bus</li>
 </ul>
+
+<h2 id="programming-model">Programming model</h2>
+
+<p>The core programming model behind Pulsar Functions is very simple:</p>
+
+<ul>
+  <li>Functions receive messages from one or more <strong>input <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span></strong>. Every time a message is received, the function can do a variety of things:
+    <ul>
+      <li>Apply some processing logic to the input and write output to:
+        <ul>
+          <li>An <strong>output topic</strong> in Pulsar</li>
+          <li><a href="#state-storage">Apache BookKeeper</a></li>
+        </ul>
+      </li>
+      <li>Write logs to a <strong>log topic</strong> (potentially for debugging purposes)</li>
+      <li>Increment a <a href="#counters">counter</a></li>
+    </ul>
+  </li>
+</ul>
+
+<p><img src="/img/pulsar-functions-overview.png" alt="Pulsar Functions core programming model" /></p>
+
+<h3 id="word-count">Word count example</h3>
+
+<p>If you were to implement the classic word count example using Pulsar Functions, it might look something like this:</p>
+
+<p><img src="/img/pulsar-functions-word-count.png" alt="Pulsar Functions word count example" /></p>
+
+<p>Here, sentences are produced on the <code class="highlighter-rouge">sentences</code> topic. The Pulsar Function listens on that topic and whenever a message arrives it splits the sentence up into individual words and increments a <a href="#counters">counter</a> for each word every time that word is encountered. The value of that counter is then available to all <a href="#parallelism">instances</a> of the function.</p>
+
+<p>If you were writing the function in <a href="../api#java">Java</a> using the <a href="../api#java-sdk">Pulsar Functions SDK for Java</a>, you could write the function like this…</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">package</span> <span class="n">org</span><span class="o">.</span><span class="na">example</span><span class="o">.</span><span class="na">functions</span><span class="o">;</span>
+
+<span class="kn">import</span> <span class="nn">org.apache.pulsar.functions.api.Context</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">org.apache.pulsar.functions.api.Function</span><span class="o">;</span>
+
+<span class="kn">import</span> <span class="nn">java.util.Arrays</span><span class="o">;</span>
+
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">WordCountFunction</span> <span class="kd">implements</span> <span class="n">Function</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Void</span><span class="o">&gt;</span> <span class="o">{</span>
+    <span class="c1">// This function is invoked every time a message is published to the input topic</span>
+    <span class="nd">@Override</span>
+    <span class="kd">public</span> <span class="n">Void</span> <span class="nf">process</span><span class="o">(</span><span class="n">String</span> <span class="n">input</span><span class="o">,</span> <span class="n">Context</span> <span class="n">context</span><span class="o">)</span> <span class="o">{</span>
+        <span class="n">Arrays</span><span class="o">.</span><span class="na">asList</span><span class="o">(</span><span class="n">input</span><span class="o">.</span><span class="na">split</span><span class="o">(</span><span class="s">" "</span><span class="o">)).</span><span class="na">forEach</span><span class="o">(</span><span class="n">word</span> <span class="o">-&gt;</span> <span class="o">{</span>
+            <span class="n">String</span> <span class="n">counterKey</span> <span class="o">=</span> <span class="n">word</span><span class="o">.</span><span class="na">toLowerCase</span><span class="o">();</span>
+            <span class="n">context</span><span class="o">.</span><span class="na">incrCounter</span><span class="o">(</span><span class="n">counterKey</span><span class="o">,</span> <span class="mi">1</span><span class="o">)</span>
+        <span class="o">});</span>
+        <span class="k">return</span> <span class="kc">null</span><span class="o">;</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>…and then <a href="#cluster-mode">deploy it</a> in your Pulsar cluster using the <a href="#cli">command line</a> like this:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions create <span class="se">\</span>
+  <span class="nt">--jar</span> target/my-jar-with-dependencies.jar <span class="se">\</span>
+  <span class="nt">--className</span> org.example.functions.WordCountFunction <span class="se">\</span>
+  <span class="nt">--tenant</span> sample <span class="se">\</span>
+  <span class="nt">--namespace</span> ns1 <span class="se">\</span>
+  <span class="nt">--name</span> word-count <span class="se">\</span>
+  <span class="nt">--inputs</span> persistent://sample/standalone/ns1/sentences <span class="se">\</span>
+  <span class="nt">--output</span> persistent://sample/standalone/ns1/count
+</code></pre></div></div>
+
+<h3 id="content">Content-based routing example</h3>
+
+<p>The use cases for Pulsar Functions are essentially endless, but let’s dig into a more sophisticated example that involves content-based routing.</p>
+
+<p>Imagine a function that takes items (strings) as input and publishes them to either a fruits or vegetables topic, depending on the item. Or, if an item is neither a fruit nor a vegetable, a warning is logged to a <a href="#logging">log topic</a>. Here’s a visual representation:</p>
+
+<p><img src="/img/pulsar-functions-routing-example.png" alt="Pulsar Functions routing example" /></p>
+
+<p>If you were implementing this routing functionality in Python, it might look something like this:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">pulsar</span> <span class="kn">import</span> <span class="n">Function</span>
+
+<span class="k">class</span> <span class="nc">RoutingFunction</span><span class="p">(</span><span class="n">Function</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fruits_topic</span> <span class="o">=</span> <span class="s">"persistent://sample/standalone/ns1/fruits"</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vegetables_topic</span> <span class="o">=</span> <span class="s">"persistent://sample/standalone/ns1/vegetables"</span>
+
+    <span class="k">def</span> <span class="nf">is_fruit</span><span class="p">(</span><span class="n">item</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">item</span> <span class="ow">in</span> <span class="p">[</span><span class="s">"apple"</span><span class="p">,</span> <span class="s">"orange"</span><span class="p">,</span> <span class="s">"pear"</span><span class="p">,</span> <span class="s">"other fruits..."</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">is_vegetable</span><span class="p">(</span><span class="n">item</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">item</span> <span class="ow">in</span> <span class="p">[</span><span class="s">"carrot"</span><span class="p">,</span> <span class="s">"lettuce"</span><span class="p">,</span> <span class="s">"radish"</span><span class="p">,</span> <span class="s">"other vegetables..."</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_fruit</span><span class="p">(</span><span class="n">item</span><span class="p">):</span>
+            <span class="n">context</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fruits_topic</span><span class="p">,</span> <span class="n">item</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_vegetable</span><span class="p">(</span><span class="n">item</span><span class="p">):</span>
+            <span class="n">context</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vegetables_topic</span><span class="p">,</span> <span class="n">item</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">warning</span> <span class="o">=</span> <span class="s">"The item {0} is neither a fruit nor a vegetable"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+            <span class="n">context</span><span class="o">.</span><span class="n">get_logger</span><span class="p">()</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">warning</span><span class="p">)</span>
+</code></pre></div></div>
 
 <h2 id="cli">Command-line interface</h2>
 
@@ -918,6 +1021,36 @@
   <span class="nt">--jar</span> examples/api-examples.jar <span class="se">\</span>
   <span class="nt">--className</span> org.apache.pulsar.functions.api.examples.ExclamationFunction
 </code></pre></div></div>
+
+<h2 id="fqfn">Fully Qualified Function Name (FQFN)</h2>
+
+<p>Each Pulsar Function has a <strong>Fully Qualified Function Name</strong> (FQFN) that consists of three elements: the function’s <span class="popover-term" tabindex="0" title="What is a tenant?" data-placement="top" data-content="An administrative unit for allocating capacity and enforcing an authentication/authorization scheme. Tenants in Pulsar are managed at the property level." data-toggle="popover" data-trigger="focus">tenant</span>, <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span>, and function name. FQFN’s look like this:</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<section class="fqfn">
+  <span class="tenant">tenant</span>/<span class="namespace">namespace</span>/<span class="name">name</span>
+</section>
+
+<p>FQFNs enable you to, for example, create multiple functions with the same name provided that they’re in different namespaces.</p>
 
 <h2 id="configuration">Configuration</h2>
 
@@ -952,6 +1085,14 @@
 
 <p>Pulsar Functions can currently be written in <a href="../../functions/api#java">Java</a> and <a href="../../functions/api#python">Python</a>. Support for additional languages is coming soon.</p>
 
+<h2 id="api">The Pulsar Functions API</h2>
+
+<ul>
+  <li>Type safe (bytes versus specific types)</li>
+  <li>SerDe (built-in vs. custom)</li>
+  <li>Pulsar messages are always just bytes, but Pulsar Functions handles data types for you <em>unless</em> you need custom types</li>
+</ul>
+
 <h2 id="context">Function context</h2>
 
 <p>Each Pulsar Function created using the <a href="#sdk">Pulsar Functions SDK</a> has access to a context object that both provides:</p>
@@ -961,7 +1102,13 @@
     <ul>
       <li>The name of the function</li>
       <li>The <span class="popover-term" tabindex="0" title="What is a tenant?" data-placement="top" data-content="An administrative unit for allocating capacity and enforcing an authentication/authorization scheme. Tenants in Pulsar are managed at the property level." data-toggle="popover" data-trigger="focus">tenant</span> and <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span> of the function</li>
-      <li><a href="">User-supplied configuration</a> values</li>
+      <li><a href="#user-config">User-supplied configuration</a> values</li>
+    </ul>
+  </li>
+  <li>Special functionality, including:
+    <ul>
+      <li>The ability to produce <a href="#logging">logs</a> to a specified logging topic</li>
+      <li>The ability to produce <a href="#metrics">metrics</a></li>
     </ul>
   </li>
 </ol>
@@ -972,7 +1119,7 @@
 
 <p>The benefit of native functions is that they don’t have any dependencies beyond what’s already available in Java/Python “out of the box.” The downside is that they don’t provide access to the function’s <a href="#context">context</a></p>
 
-<h3 id="sdk">The Pulsar Functions SDK</h3>
+<h2 id="sdk">The Pulsar Functions SDK</h2>
 
 <p>If you’d like a Pulsar Function to have access to a <a href="#context">context object</a>, you can use the Pulsar Functions SDK, available for both <a href="../api#java-sdk">Java</a> and <a href="../api#python-sdk">Pythnon</a>.</p>
 
@@ -1113,9 +1260,48 @@
 <span class="o">}</span>
 </code></pre></div></div>
 
+<h2 id="guarantees">Processing guarantees</h2>
+
+<p>The Pulsar Functions feature provides three different messaging semantics that you can apply to any function:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Delivery semantics</th>
+      <th style="text-align: left">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><strong>At-most-once</strong> delivery</td>
+      <td style="text-align: left">Each message that is sent to the function will most likely be processed but also may not be (hence the “at most”)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><strong>At-least-once</strong> delivery</td>
+      <td style="text-align: left">Each message that is sent to the function could be processed more than once (hence the “at least”)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><strong>Effectively-once</strong> delivery</td>
+      <td style="text-align: left">Each message that is sent to the function will have one output associated with it</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>This command, for example, would run a function in <a href="#cluster-mode">cluster mode</a> with effectively-once guarantees applied:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions create <span class="se">\</span>
+  <span class="nt">--name</span> my-effectively-once-function <span class="se">\</span>
+  <span class="nt">--processingGuarantees</span> EFFECTIVELY_ONCE <span class="se">\</span>
+  <span class="c"># Other function configs</span>
+</code></pre></div></div>
+
 <h2 id="metrics">Metrics</h2>
 
 <p>Pulsar Functions that use the <a href="#sdk">Pulsar Functions SDK</a> can publish metrics to Pulsar. For more information, see <a href="../metrics">Metrics for Pulsar Functions</a>.</p>
+
+<h2 id="state-storage">State storage</h2>
+
+<p>Pulsar Functions use <a href="https://bookkeeper.apache.org">Apache BookKeeper</a> as a state storage interface. All Pulsar installations, including local <span class="popover-term" tabindex="0" title="What is a standalone Pulsar broker?" data-placement="top" data-content="A lightweight Pulsar broker in which all components run in a single Java Virtual Machine (JVM) process. Standalone clusters can be run on a single machine and are useful for development purposes." data-toggle="popover" data-trigger="focus">standalone</span> installations, include a deployment of BookKeeper <span class="popover-term" tabindex="0" title="What is a bookie?" data-placement="top" data-content="Bookie is just a nickname for an individual BookKeeper server." data-toggle="popover" data-trigger="focus">bookies</span>.</p>
 
       </section>
     </article>

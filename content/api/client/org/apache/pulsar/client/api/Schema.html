@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6};
+var methods = {"i0":6,"i1":6,"i2":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -145,6 +145,10 @@ var activeTableTab = "activeTableTab";
 <td class="colFirst"><code>byte[]</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Schema.html#encode-T-">encode</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Schema.html" title="type parameter in Schema">T</a>&nbsp;message)</code>&nbsp;</td>
 </tr>
+<tr id="i2" class="altColor">
+<td class="colFirst"><code>SchemaInfo</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Schema.html#getSchemaInfo--">getSchemaInfo</a></span>()</code>&nbsp;</td>
+</tr>
 </table>
 </li>
 </ul>
@@ -191,10 +195,19 @@ var activeTableTab = "activeTableTab";
 <a name="decode-byte:A-">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>decode</h4>
 <pre><a href="../../../../../org/apache/pulsar/client/api/Schema.html" title="type parameter in Schema">T</a>&nbsp;decode(byte[]&nbsp;bytes)</pre>
+</li>
+</ul>
+<a name="getSchemaInfo--">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>getSchemaInfo</h4>
+<pre>SchemaInfo&nbsp;getSchemaInfo()</pre>
 </li>
 </ul>
 </li>

@@ -676,34 +676,41 @@
     
     
     <div class="card">
-      <div class="card-header" role="tab" id="heading-advanced">
+      <div class="card-header" role="tab" id="heading-cookbooks">
         <h5>
-          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-advanced" aria-controls="collapse-advanced">
-            Advanced
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-cookbooks" aria-controls="collapse-cookbooks">
+            Cookbooks
           </a>
         </h5>
       </div>
 
-      <div class="sidebar-group collapse" id="collapse-advanced" role="tabpanel" aria-labelledby="heading-advanced">
+      <div class="sidebar-group collapse" id="collapse-cookbooks" role="tabpanel" aria-labelledby="heading-cookbooks">
         <ul>
           
           
           <li>
-            <a href="../../advanced/PartitionedTopics">
+            <a href="../../cookbooks/message-deduplication">
+              Message deduplication
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../cookbooks/PartitionedTopics">
               Partitioned topics
             </a>
           </li>
           
           
           <li>
-            <a href="../../advanced/RetentionExpiry">
+            <a href="../../cookbooks/RetentionExpiry">
               Retention and expiry
             </a>
           </li>
           
           
           <li>
-            <a href="../../advanced/Encryption">
+            <a href="../../cookbooks/Encryption">
               Encryption
             </a>
           </li>
@@ -1495,7 +1502,7 @@ Ideally, ledger dirs and the journal dir are each in a different device, which r
     
     <tr id="broker-advertisedAddress">
       <td>advertisedAddress</td>
-      <td>Hostname or IP address the service advertises to the outside world. If not set, the value of InetAddress.getLocalHost().getHostName() is used.
+      <td>Hostname or IP address the service advertises to the outside world. If not set, the value of <code class="highlighter-rouge">InetAddress.getLocalHost().getHostName()</code> is used.
 </td>
       <td></td>
     </tr>
@@ -1505,6 +1512,34 @@ Ideally, ledger dirs and the journal dir are each in a different device, which r
       <td>Name of the cluster to which this broker belongs to
 </td>
       <td></td>
+    </tr>
+    
+    <tr id="broker-brokerDeduplicationEnabled">
+      <td>brokerDeduplicationEnabled</td>
+      <td>Sets the default behavior for message deduplication in the broker. If enabled, the broker will reject messages that were already stored in the topic. This setting can be overridden on a per-namespace basis.
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="broker-brokerDeduplicationMaxNumberOfProducers">
+      <td>brokerDeduplicationMaxNumberOfProducers</td>
+      <td>The maximum number of producers for which information will be stored for deduplication purposes.
+</td>
+      <td>10000</td>
+    </tr>
+    
+    <tr id="broker-brokerDeduplicationEntriesInterval">
+      <td>brokerDeduplicationEntriesInterval</td>
+      <td>The number of entries after which a deduplication informational snapshot is taken. A larger interval will lead to fewer snapshots being taken, though this would also lengthen the topic recovery time (the time required for entries published after the snapshot to be replayed).
+</td>
+      <td>1000</td>
+    </tr>
+    
+    <tr id="broker-brokerDeduplicationProducerInactivityTimeoutMinutes">
+      <td>brokerDeduplicationProducerInactivityTimeoutMinutes</td>
+      <td>The time of inactivity (in minutes) after which the broker will discard deduplication information related to a disconnected producer.
+</td>
+      <td>360</td>
     </tr>
     
     <tr id="broker-zooKeeperSessionTimeoutMillis">

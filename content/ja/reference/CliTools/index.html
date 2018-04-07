@@ -848,6 +848,8 @@
           
           
           
+          
+          
         </ul>
       </div>
     </div>
@@ -902,6 +904,8 @@
           
           
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
+          
+          
           
           
           
@@ -1272,6 +1276,8 @@
           
           
           
+          
+          
         </ul>
       </div>
     </div>
@@ -1324,6 +1330,8 @@
           
           
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
+          
+          
           
           
           
@@ -1688,6 +1696,8 @@
           
           
           
+          
+          
         </ul>
       </div>
     </div>
@@ -1740,6 +1750,8 @@
           
           
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
+          
+          
           
           
           
@@ -5405,6 +5417,12 @@
           </li>
           
           <li>
+            <a href="#pulsar-admin-namespaces-set-deduplication">
+              <code class="highlighter-rouge">set-deduplication</code>
+            </a>
+          </li>
+          
+          <li>
             <a href="#pulsar-admin-namespaces-permissions">
               <code class="highlighter-rouge">permissions</code>
             </a>
@@ -5603,6 +5621,69 @@
             <p>Deletes a namespace</p>
             <h5>Usage</h5>
             <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces delete <span class="command">property/cluster/namespace</span></code></pre></div>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-namespaces-set-deduplication"><code class="highlighter-rouge">set-deduplication</code></h4>
+          <div class="card-content">
+            <p>Enable or disable message deduplication on a namespace</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces set-deduplication <span class="command">property/cluster/namespace</span> <span class="options">options</span></code></pre></div>
+            
+            <h5>Options</h5>
+            <table class="options-table">
+              <thead>
+                <tr>
+                  <th>Flag</th>
+                  <th>Description</th>
+                  <th>Default</th>
+                </tr>
+                <tbody>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--enable</code>
+                      , 
+                      
+                      <code class="highlighter-rouge">-e</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>Enable message deduplication on the specified namespace</p>
+</td>
+                    <td>
+                      <p>false</p>
+
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--disable</code>
+                      , 
+                      
+                      <code class="highlighter-rouge">-d</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>Disable message deduplication on the specified namespace</p>
+</td>
+                    <td>
+                      <p>false</p>
+
+                    </td>
+                  </tr>
+                   <!-- for option in options -->
+                </tbody>
+              </thead>
+            </table>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>

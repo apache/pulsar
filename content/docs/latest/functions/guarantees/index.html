@@ -676,34 +676,41 @@
     
     
     <div class="card">
-      <div class="card-header" role="tab" id="heading-advanced">
+      <div class="card-header" role="tab" id="heading-cookbooks">
         <h5>
-          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-advanced" aria-controls="collapse-advanced">
-            Advanced
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-cookbooks" aria-controls="collapse-cookbooks">
+            Cookbooks
           </a>
         </h5>
       </div>
 
-      <div class="sidebar-group collapse" id="collapse-advanced" role="tabpanel" aria-labelledby="heading-advanced">
+      <div class="sidebar-group collapse" id="collapse-cookbooks" role="tabpanel" aria-labelledby="heading-cookbooks">
         <ul>
           
           
           <li>
-            <a href="../../advanced/PartitionedTopics">
+            <a href="../../cookbooks/message-deduplication">
+              Message deduplication
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../cookbooks/PartitionedTopics">
               Partitioned topics
             </a>
           </li>
           
           
           <li>
-            <a href="../../advanced/RetentionExpiry">
+            <a href="../../cookbooks/RetentionExpiry">
               Retention and expiry
             </a>
           </li>
           
           
           <li>
-            <a href="../../advanced/Encryption">
+            <a href="../../cookbooks/Encryption">
               Encryption
             </a>
           </li>
@@ -882,7 +889,7 @@
     </tr>
     <tr>
       <td style="text-align: left"><strong>Effectively-once</strong> delivery</td>
-      <td style="text-align: left">Each message that is sent to the function will have one output associated with it. The function may be invoked more than once, perhaps due to some kind of system failure, but the function will produce one effect for each incoming message.</td>
+      <td style="text-align: left">Each message that is sent to the function will have one output associated with it</td>
     </tr>
   </tbody>
 </table>

@@ -676,34 +676,41 @@
     
     
     <div class="card">
-      <div class="card-header" role="tab" id="heading-advanced">
+      <div class="card-header" role="tab" id="heading-cookbooks">
         <h5>
-          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-advanced" aria-controls="collapse-advanced">
-            Advanced
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-cookbooks" aria-controls="collapse-cookbooks">
+            Cookbooks
           </a>
         </h5>
       </div>
 
-      <div class="sidebar-group collapse" id="collapse-advanced" role="tabpanel" aria-labelledby="heading-advanced">
+      <div class="sidebar-group collapse" id="collapse-cookbooks" role="tabpanel" aria-labelledby="heading-cookbooks">
         <ul>
           
           
           <li>
-            <a href="../../advanced/PartitionedTopics">
+            <a href="../../cookbooks/message-deduplication">
+              Message deduplication
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../cookbooks/PartitionedTopics">
               Partitioned topics
             </a>
           </li>
           
           
           <li>
-            <a href="../../advanced/RetentionExpiry">
+            <a href="../../cookbooks/RetentionExpiry">
               Retention and expiry
             </a>
           </li>
           
           
           <li>
-            <a href="../../advanced/Encryption">
+            <a href="../../cookbooks/Encryption">
               Encryption
             </a>
           </li>
@@ -977,6 +984,220 @@
           
           
           
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">deduplication</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-deduplication">deduplication</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-deduplication">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>deduplication</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/getting-started/ConceptsAndArchitecture/">Pulsar concepts and architecture</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/cookbooks/message-deduplication/">Message deduplication</a></li>
           
           
           
@@ -1907,7 +2128,7 @@ enableNonPersistentTopics=true
 <div class="admonition">
   <div class="info">
     
-    <p>All message retention and expiry is managed at the <a href="#namespaces">namespace</a> level. For a how-to, see the <a href="../../advanced/RetentionExpiry">Message retention and expiry</a> admin documentation.</p>
+    <p>All message retention and expiry is managed at the <a href="#namespaces">namespace</a> level. For a how-to, see the <a href="../../cookbooks/RetentionExpiry">Message retention and expiry</a> cookbook.</p>
 
   </div>
 </div>
@@ -1928,9 +2149,86 @@ enableNonPersistentTopics=true
 
 <p>Pulsar enables messages to be produced and consumed in different geo-locations. For instance, your application may be publishing data in one region or market and you would like to process it for consumption in other regions or markets. <a href="../../admin/GeoReplication">Geo-replication</a> in Pulsar enables you to do that.</p>
 
+<h2 id="message-deduplication">Message deduplication</h2>
+
+<p>Message <strong>duplication</strong> occurs when a message is <a href="#persistent-storage">persisted</a> by Pulsar more than once. Message <strong><em>de</em>duplication</strong> is an optional Pulsar feature that prevents unnecessary message duplication by processing each message only once, <em>even if the message is received more than once</em>.</p>
+
+<p>The following diagram illustrates what happens when message deduplication is disabled vs. enabled:</p>
+
+<p><img src="/img/message-deduplication.png" width="75%" /></p>
+
+<p>Message deduplication is disabled in the scenario shown at the top. Here, a producer publishes message 1 on a topic; the message reaches a Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> and is <a href="#persistent-storage">persisted</a> to BookKeeper. The producer then sends message 1 again (in this case due to some retry logic), and the message is received by the broker and stored in BookKeeper again, which means that duplication has occurred.</p>
+
+<p>In the second scenario at the bottom, the producer publishes message 1, which is received by the broker and persisted, as in the first scenario. When the producer attempts to publish the message again, however, the broker knows that it has already seen message 1 and thus does not persist the message.</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    
+    <p>Message deduplication is handled at the namespace level. For more instructions, see the <a href="../../cookbooks/message-deduplication">message deduplication cookbook</a>.</p>
+
+  </div>
+</div>
+
+<h3 id="producer-idempotency">Producer idempotency</h3>
+
+<p>The other available approach to message deduplication is to ensure that each message is <em>only produced once</em>. This approach is typically called <strong>producer idempotency</strong>. The drawback of this approach is that it defers the work of message deduplication to the application. In Pulsar, this is handled at the <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> level, which means that you don’t need to modify your Pulsar client code. Instead, you only need to make administrative changes (see the <a href="../../cookbooks/message-deduplication">Managing message deduplication</a> cookbook for a guide).</p>
+
+<h3 id="deduplication-and-effectively-once-semantics">Deduplication and effectively-once semantics</h3>
+
+<p>Message deduplication makes Pulsar an ideal messaging system to be used in conjunction with stream processing engines (SPEs) and other systems seeking to provide <a href="https://blog.streaml.io/exactly-once/">effectively-once</a> processing semantics. Messaging systems that don’t offer automatic message deduplication require the SPE or other system to guarantee deduplication, which means that strict message ordering comes at the cost of burdening the application with the responsibility of deduplication. With Pulsar, strict ordering guarantees come at no application-level cost.</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    
+    
+<p>More in-depth information can be found in <a href="https://blog.streaml.io/pulsar-effectively-once/">this post</a> on the <a href="https://blog.streaml.io">Streamlio blog</a>.</p>
+
+  </div>
+</div>
+
 <h2 id="multi-tenancy">Multi-tenancy</h2>
 
-<p>Pulsar was created from the ground up as a <span class="popover-term" tabindex="0" title="What is multi-tenancy?" data-placement="top" data-content="The ability to isolate namespaces, specify quotas, and configure authentication and authorization on a per-property basis." data-toggle="popover" data-trigger="focus">multi-tenant</span> system. To support multi-tenancy, Pulsar has a concept of <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">properties</span>. Properties can be spread across <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">clusters</span> and can each have their own <a href="../../admin/Authz">authentication and authorization</a> scheme applied to them. They are also the administrative unit at which <a href="TODO">storage quotas</a>, <a href="../../advanced/RetentionExpiry#time-to-live-ttl">message TTL</a>, and isolation policies can be managed.</p>
+<p>Pulsar was created from the ground up as a <span class="popover-term" tabindex="0" title="What is multi-tenancy?" data-placement="top" data-content="The ability to isolate namespaces, specify quotas, and configure authentication and authorization on a per-property basis." data-toggle="popover" data-trigger="focus">multi-tenant</span> system. To support multi-tenancy, Pulsar has a concept of <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">properties</span>. Properties can be spread across <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">clusters</span> and can each have their own <a href="../../admin/Authz">authentication and authorization</a> scheme applied to them. They are also the administrative unit at which <a href="TODO">storage quotas</a>, <a href="../../cookbooks/RetentionExpiry#time-to-live-ttl">message TTL</a>, and isolation policies can be managed.</p>
 
 <p>The multi-tenant nature of Pulsar is reflected mostly visibly in topic URLs, which have this structure:</p>
 
@@ -2224,7 +2522,7 @@ enableNonPersistentTopics=true
   <li>Some other message between the earliest and the latest. If you select this option, you’ll need to explicitly provide a message ID. Your application will be responsible for “knowing” this message ID in advance, perhaps fetching it from a persistent data store or cache.</li>
 </ul>
 
-<p>The reader interface is helpful for use cases like using Pulsar to provide <a href="https://streaml.io/blog/exactly-once/">effectively-once</a> processing semantics for a stream processing system. For this use case, it’s essential that the stream processing system be able to “rewind” topics to a specific message and begin reading there. The reader interface provides Pulsar clients with the low-level abstraction necessary to “manually position” themselves within a topic.</p>
+<p>The reader interface is helpful for use cases like using Pulsar to provide <a href="https://blog.streaml.io/exactly-once/">effectively-once</a> processing semantics for a stream processing system. For this use case, it’s essential that the stream processing system be able to “rewind” topics to a specific message and begin reading there. The reader interface provides Pulsar clients with the low-level abstraction necessary to “manually position” themselves within a topic.</p>
 
 <p><img src="/img/pulsar-reader-consumer-interfaces.png" alt="The Pulsar consumer and reader interfaces" width="80%" /></p>
 

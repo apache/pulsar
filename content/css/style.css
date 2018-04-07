@@ -9457,22 +9457,22 @@ span.popover-term {
     text-decoration: none; }
   .rest-api-container article section.content h2 + p, .rest-api-container article section.content h3 + p, .rest-api-container article section.content h4 + p, .rest-api-container article section.content h5 + p, .rest-api-container article section.content h6 + p, .docs-container article section.content h2 + p, .docs-container article section.content h3 + p, .docs-container article section.content h4 + p, .docs-container article section.content h5 + p, .docs-container article section.content h6 + p {
     margin-top: 15px; }
-  .rest-api-container article section.content .topic, .docs-container article section.content .topic {
+  .rest-api-container article section.content .topic, .rest-api-container article section.content .fqfn, .docs-container article section.content .topic, .docs-container article section.content .fqfn {
     color: #bcc5c5;
     background-color: #232937;
     font-size: 1rem;
     font-family: "Inconsolata", monospace;
     padding: 10px 0 10px 20px;
     border-radius: 0; }
-    .rest-api-container article section.content .topic .property, .docs-container article section.content .topic .property {
+    .rest-api-container article section.content .topic .property, .rest-api-container article section.content .topic .tenant, .rest-api-container article section.content .fqfn .property, .rest-api-container article section.content .fqfn .tenant, .docs-container article section.content .topic .property, .docs-container article section.content .topic .tenant, .docs-container article section.content .fqfn .property, .docs-container article section.content .fqfn .tenant {
       color: #b1cc00; }
-    .rest-api-container article section.content .topic .cluster, .docs-container article section.content .topic .cluster {
+    .rest-api-container article section.content .topic .cluster, .rest-api-container article section.content .topic .name, .rest-api-container article section.content .fqfn .cluster, .rest-api-container article section.content .fqfn .name, .docs-container article section.content .topic .cluster, .docs-container article section.content .topic .name, .docs-container article section.content .fqfn .cluster, .docs-container article section.content .fqfn .name {
       color: #e25418; }
-    .rest-api-container article section.content .topic .namespace, .docs-container article section.content .topic .namespace {
+    .rest-api-container article section.content .topic .namespace, .rest-api-container article section.content .fqfn .namespace, .docs-container article section.content .topic .namespace, .docs-container article section.content .fqfn .namespace {
       color: #3797db; }
-    .rest-api-container article section.content .topic .t, .docs-container article section.content .topic .t {
+    .rest-api-container article section.content .topic .t, .rest-api-container article section.content .fqfn .t, .docs-container article section.content .topic .t, .docs-container article section.content .fqfn .t {
       color: #d33682; }
-    .rest-api-container article section.content .topic + p, .docs-container article section.content .topic + p {
+    .rest-api-container article section.content .topic + p, .rest-api-container article section.content .fqfn + p, .docs-container article section.content .topic + p, .docs-container article section.content .fqfn + p {
       margin-top: 20px; }
   .rest-api-container article section.content .highlighter-rouge, .docs-container article section.content .highlighter-rouge {
     font-family: "Inconsolata", monospace;
@@ -9515,7 +9515,7 @@ span.popover-term {
       font-size: 16px;
       border-bottom: 1px solid black; }
       .rest-api-container article section.content table thead tr th, .docs-container article section.content table thead tr th {
-        padding-right: 1rem; }
+        padding: 0 1rem 0.5rem 0; }
     .rest-api-container article section.content table tbody tr td, .docs-container article section.content table tbody tr td {
       padding: 5px 1rem 5px 0;
       overflow-x: scroll; }
