@@ -54,7 +54,7 @@ public class TwitterFireHose implements PushSource<String> {
     private Function<String, CompletableFuture<Void>> consumeFunction;
 
     @Override
-    public void open(Map<String, String> config) {
+    public void open(Map<String, String> config) throws IOException {
         TwitterFireHoseConfig hoseConfig = TwitterFireHoseConfig.load(config);
         if (hoseConfig.getConsumerKey() == null
                 || hoseConfig.getConsumerSecret() == null
