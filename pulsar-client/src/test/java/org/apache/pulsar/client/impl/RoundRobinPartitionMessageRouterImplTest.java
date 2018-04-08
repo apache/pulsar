@@ -29,22 +29,12 @@ import java.time.ZoneId;
 
 import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.Message;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.testng.IObjectFactory;
-import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link RoundRobinPartitionMessageRouterImpl}.
  */
-@PrepareForTest({ RoundRobinPartitionMessageRouterImpl.class })
 public class RoundRobinPartitionMessageRouterImplTest {
-
-    @ObjectFactory
-    public IObjectFactory getObjectFactory() {
-        return new org.powermock.modules.testng.PowerMockObjectFactory();
-    }
 
     @Test
     public void testChoosePartitionWithoutKey() {
@@ -108,27 +98,8 @@ public class RoundRobinPartitionMessageRouterImplTest {
         when(msg.getKey()).thenReturn(null);
 
         // Fake clock, simulate timestamp that resolves into a negative Integer value
-        Clock clock = new Clock() {
-            @Override
-            public Clock withZone(ZoneId zone) {
-                return null;
-            }
-
-            @Override
-            public long millis() {
-                return Integer.MAX_VALUE;
-            }
-
-            @Override
-            public Instant instant() {
-                return Instant.ofEpochMilli(millis());
-            }
-
-            @Override
-            public ZoneId getZone() {
-                return ZoneId.systemDefault();
-            }
-        };
+        Clock clock = mock(Clock.class);
+        when(clock.millis()).thenReturn((long) Integer.MAX_VALUE);
 
         RoundRobinPartitionMessageRouterImpl router = new RoundRobinPartitionMessageRouterImpl(
                 HashingScheme.JavaStringHash, 3, true, 5, clock);
@@ -162,21 +133,22 @@ public class RoundRobinPartitionMessageRouterImplTest {
         Message<?> msg = mock(Message.class);
         when(msg.getKey()).thenReturn(null);
 
-        PowerMockito.mockStatic(System.class);
+        Clock clock = mock(Clock.class);
 
-        RoundRobinPartitionMessageRouterImpl router = new RoundRobinPartitionMessageRouterImpl(HashingScheme.JavaStringHash, 0, true, 10);
+        RoundRobinPartitionMessageRouterImpl router = new RoundRobinPartitionMessageRouterImpl(
+                HashingScheme.JavaStringHash, 0, true, 10, clock);
         TopicMetadataImpl metadata = new TopicMetadataImpl(100);
 
         // time at `12345*` milliseconds
         for (int i = 0; i < 10; i++) {
-            PowerMockito.when(System.currentTimeMillis()).thenReturn(123450L + i);
+            when(clock.millis()).thenReturn(123450L + i);
 
             assertEquals(45, router.choosePartition(msg, metadata));
         }
 
         // time at `12346*` milliseconds
         for (int i = 0; i < 10; i++) {
-            PowerMockito.when(System.currentTimeMillis()).thenReturn(123460L + i);
+            when(clock.millis()).thenReturn(123460L + i);
 
             assertEquals(46, router.choosePartition(msg, metadata));
         }
