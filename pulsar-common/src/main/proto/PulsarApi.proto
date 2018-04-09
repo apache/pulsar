@@ -407,6 +407,7 @@ message CommandRedeliverUnacknowledgedMessages {
 
 message CommandSuccess {
 	required uint64 request_id = 1;
+	optional Schema schema = 2;
 }
 
 /// Response from CommandProducer
