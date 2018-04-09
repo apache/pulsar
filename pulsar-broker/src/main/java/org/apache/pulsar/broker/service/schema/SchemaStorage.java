@@ -31,6 +31,8 @@ public interface SchemaStorage {
 
     SchemaVersion versionFromBytes(byte[] version);
 
+    void start() throws Exception;
+
     void close() throws Exception;
 
 }

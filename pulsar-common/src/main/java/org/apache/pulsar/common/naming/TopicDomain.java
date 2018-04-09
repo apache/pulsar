@@ -30,14 +30,14 @@ public enum TopicDomain {
     public String value() {
         return this.value;
     }
-    
+
     public static TopicDomain getEnum(String value) {
         for (TopicDomain e : values()) {
             if (e.value.equalsIgnoreCase(value)) {
                 return e;
             }
         }
-        throw new IllegalArgumentException("Invalid enum value " + value);
+        throw new IllegalArgumentException("Invalid topic domain: '" + value + "'");
     }
 
     @Override

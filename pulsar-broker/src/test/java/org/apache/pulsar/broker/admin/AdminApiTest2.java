@@ -768,4 +768,41 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         producer.close();
         consumer.close();
     }
+
+    @Test
+    public void testTenantNameWithUnderscore() throws Exception {
+        PropertyAdmin propertyAdmin = new PropertyAdmin(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use"));
+        admin.properties().createProperty("prop_xyz", propertyAdmin);
+
+        admin.namespaces().createNamespace("prop_xyz/use/my-namespace");
+
+        String topic = "persistent://prop_xyz/use/my-namespace/my-topic";
+
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
+                .create();
+
+        PersistentTopicStats stats = admin.persistentTopics().getStats(topic);
+        assertEquals(stats.publishers.size(), 1);
+        producer.close();
+    }
+
+    @Test
+    public void testTenantNameWithInvalidCharacters() throws Exception {
+        PropertyAdmin propertyAdmin = new PropertyAdmin(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use"));
+
+        // If we try to create property with invalid characters, it should fail immediately
+        try {
+            admin.properties().createProperty("prop xyz", propertyAdmin);
+            fail("Should have failed");
+        } catch (PulsarAdminException e) {
+            // Expected
+        }
+
+        try {
+            admin.properties().createProperty("prop&xyz", propertyAdmin);
+            fail("Should have failed");
+        } catch (PulsarAdminException e) {
+            // Expected
+        }
+    }
 }

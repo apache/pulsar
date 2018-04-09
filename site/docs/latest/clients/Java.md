@@ -151,7 +151,7 @@ Producer producer = client.newProducer()
 
 ### Message routing
 
-When using {% popover partitioned topics %}, you can specify the routing mode whenever you publish messages using a {% popover producer %}. For more on specifying a routing mode using the Java client, see the [Partitioned Topics](../../advanced/PartitionedTopics) guide.
+When using {% popover partitioned topics %}, you can specify the routing mode whenever you publish messages using a {% popover producer %}. For more on specifying a routing mode using the Java client, see the [Partitioned Topics](../../cookbooks/PartitionedTopics) cookbook.
 
 ### Async send
 

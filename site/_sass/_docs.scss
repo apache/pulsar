@@ -109,7 +109,7 @@
         }
       }
 
-      .topic {
+      .topic, .fqfn {
         color: $sx-light-gray;
         background-color: $black;
         font-size: $code-font-size;
@@ -117,8 +117,8 @@
         padding: 10px 0 10px 20px;
         border-radius: 0;
 
-        .property { color: $sx-olive; }
-        .cluster { color: $sx-red; }
+        .property, .tenant { color: $sx-olive; }
+        .cluster, .name { color: $sx-red; }
         .namespace { color: $sx-7; }
         .t { color: $sx-magenta; }
 
@@ -195,7 +195,7 @@
           border-bottom: 1px solid black;
 
           tr th {
-            padding-right: $table-right-padding;
+            padding: 0 $table-right-padding .5rem 0;
           }
         }
 

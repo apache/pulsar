@@ -16,14 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.admin;
+package org.apache.pulsar.common.schema;
 
-import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
-import org.apache.pulsar.client.api.PulsarClientException;
+import java.util.Map;
+import lombok.Data;
 
-public class PulsarAdminWithFunctionsBuilderImpl extends PulsarAdminBuilderImpl {
-    @Override
-    public PulsarAdmin build() throws PulsarClientException {
-        return new PulsarAdminWithFunctions(conf.getServiceUrl(), conf);
-    }
+@Data
+public class PostSchemaPayload {
+    private String type;
+    private String schema;
+    private Map<String, String> properties;
 }

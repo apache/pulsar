@@ -3,6 +3,7 @@ title: Pulsar concepts and architecture
 lead: A high-level overview of Pulsar's moving pieces
 tags:
 - architecture
+- deduplication
 ---
 
 <!--
@@ -315,7 +316,7 @@ Pulsar has two features, however, that enable you to override this default behav
 * Message **retention** enables you to store messages that have been acknowledged by a consumer
 * Message **expiry** enables you to set a time to live (TTL) for messages that have not yet been acknowledged
 
-{% include admonition.html type="info" content='All message retention and expiry is managed at the [namespace](#namespaces) level. For a how-to, see the [Message retention and expiry](../../advanced/RetentionExpiry) admin documentation.' %}
+{% include admonition.html type="info" content='All message retention and expiry is managed at the [namespace](#namespaces) level. For a how-to, see the [Message retention and expiry](../../cookbooks/RetentionExpiry) cookbook.' %}
 
 The diagram below illustrates both concepts:
 
@@ -333,9 +334,35 @@ For an in-depth look at Pulsar Functions, see the [Pulsar Functions overview](..
 
 Pulsar enables messages to be produced and consumed in different geo-locations. For instance, your application may be publishing data in one region or market and you would like to process it for consumption in other regions or markets. [Geo-replication](../../admin/GeoReplication) in Pulsar enables you to do that.
 
+## Message deduplication
+
+Message **duplication** occurs when a message is [persisted](#persistent-storage) by Pulsar more than once. Message ***de*duplication** is an optional Pulsar feature that prevents unnecessary message duplication by processing each message only once, *even if the message is received more than once*.
+
+The following diagram illustrates what happens when message deduplication is disabled vs. enabled:
+
+{% img /img/message-deduplication.png 75 %}
+
+Message deduplication is disabled in the scenario shown at the top. Here, a producer publishes message 1 on a topic; the message reaches a Pulsar {% popover broker %} and is [persisted](#persistent-storage) to BookKeeper. The producer then sends message 1 again (in this case due to some retry logic), and the message is received by the broker and stored in BookKeeper again, which means that duplication has occurred.
+
+In the second scenario at the bottom, the producer publishes message 1, which is received by the broker and persisted, as in the first scenario. When the producer attempts to publish the message again, however, the broker knows that it has already seen message 1 and thus does not persist the message.
+
+{% include admonition.html type="info" content='Message deduplication is handled at the namespace level. For more instructions, see the [message deduplication cookbook](../../cookbooks/message-deduplication).' %}
+
+### Producer idempotency
+
+The other available approach to message deduplication is to ensure that each message is *only produced once*. This approach is typically called **producer idempotency**. The drawback of this approach is that it defers the work of message deduplication to the application. In Pulsar, this is handled at the {% popover broker %} level, which means that you don't need to modify your Pulsar client code. Instead, you only need to make administrative changes (see the [Managing message deduplication](../../cookbooks/message-deduplication) cookbook for a guide).
+
+### Deduplication and effectively-once semantics
+
+Message deduplication makes Pulsar an ideal messaging system to be used in conjunction with stream processing engines (SPEs) and other systems seeking to provide [effectively-once](https://blog.streaml.io/exactly-once/) processing semantics. Messaging systems that don't offer automatic message deduplication require the SPE or other system to guarantee deduplication, which means that strict message ordering comes at the cost of burdening the application with the responsibility of deduplication. With Pulsar, strict ordering guarantees come at no application-level cost.
+
+{% include admonition.html type="info" content='
+More in-depth information can be found in [this post](https://blog.streaml.io/pulsar-effectively-once/) on the [Streamlio blog](https://blog.streaml.io).
+' %}
+
 ## Multi-tenancy
 
-Pulsar was created from the ground up as a {% popover multi-tenant %} system. To support multi-tenancy, Pulsar has a concept of {% popover properties %}. Properties can be spread across {% popover clusters %} and can each have their own [authentication and authorization](../../admin/Authz) scheme applied to them. They are also the administrative unit at which [storage quotas](TODO), [message TTL](../../advanced/RetentionExpiry#time-to-live-ttl), and isolation policies can be managed.
+Pulsar was created from the ground up as a {% popover multi-tenant %} system. To support multi-tenancy, Pulsar has a concept of {% popover properties %}. Properties can be spread across {% popover clusters %} and can each have their own [authentication and authorization](../../admin/Authz) scheme applied to them. They are also the administrative unit at which [storage quotas](TODO), [message TTL](../../cookbooks/RetentionExpiry#time-to-live-ttl), and isolation policies can be managed.
 
 The multi-tenant nature of Pulsar is reflected mostly visibly in topic URLs, which have this structure:
 
@@ -411,7 +438,7 @@ The **reader interface** for Pulsar enables applications to manually manage curs
 * The **latest** available message in the topic
 * Some other message between the earliest and the latest. If you select this option, you'll need to explicitly provide a message ID. Your application will be responsible for "knowing" this message ID in advance, perhaps fetching it from a persistent data store or cache.
 
-The reader interface is helpful for use cases like using Pulsar to provide [effectively-once](https://streaml.io/blog/exactly-once/) processing semantics for a stream processing system. For this use case, it's essential that the stream processing system be able to "rewind" topics to a specific message and begin reading there. The reader interface provides Pulsar clients with the low-level abstraction necessary to "manually position" themselves within a topic.
+The reader interface is helpful for use cases like using Pulsar to provide [effectively-once](https://blog.streaml.io/exactly-once/) processing semantics for a stream processing system. For this use case, it's essential that the stream processing system be able to "rewind" topics to a specific message and begin reading there. The reader interface provides Pulsar clients with the low-level abstraction necessary to "manually position" themselves within a topic.
 
 <img src="/img/pulsar-reader-consumer-interfaces.png" alt="The Pulsar consumer and reader interfaces" width="80%">
 
