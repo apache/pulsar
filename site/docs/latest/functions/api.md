@@ -205,7 +205,7 @@ In general, you should use native functions when you don't need access to the fu
 
 There is one example Java native function in [this folder](https://github.com/apache/incubator-pulsar/tree/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples):
 
-* [`ExclamationFunction`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/JavaNativeExclmationFunction.java)
+* [`JavaNativeExclmationFunction`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/JavaNativeExclmationFunction.java)
 
 ### Java SDK functions {#java-sdk}
 
@@ -219,7 +219,14 @@ There are several example Java SDK functions in [this folder](https://github.com
 
 Function name | Description
 :-------------|:-----------
-[`ContextFunction`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/ContextFunction.java) | Illustrate [context](#context)-specific functionality like [logging](#java-logging) and [metrics](#java-metrics)
+[`ContextFunction`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/ContextFunction.java) | Illustrates [context](#context)-specific functionality like [logging](#java-logging) and [metrics](#java-metrics)
+[`CounterFunction`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/CounterFunction.java) | Illustrates usage of Pulsar Function [counters](../overview#counters)
+[`ExclamationFunction`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/ExclamationFunction.java) | A basic string manipulation function for the Java SDK
+[`LoggingFunction`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/LoggingFunction.java) | A function that shows how [logging](#java-logging) works for Java
+[`PublishFunction`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/PublishFunction.java) | Publishes results to a topic specified in the function's [user config](#java-user-config) (rather than on the function's output topic)
+[`UserConfigFunction`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/UserConfigFunction.java) | A function that consumes [user-supplied configuration](#java-user-config) values
+[`UserMetricFunction`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/UserMetricFunction.java) | A function that records metrics
+[`VoidFunction`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/UserMetricFunction.java)  | A simple [void function](#void-functions)
 
 ### Java context object {#java-context}
 
@@ -239,7 +246,9 @@ public interface Context {
     String getInstanceId();
     String getFunctionVersion();
     Logger getLogger();
-    String getUserConfigValue(String key);
+    Map<String, String> getUserConfigMap();
+    Optional<String> getUserConfigValue(String key);
+    String getUserConfigValueOrDefault(String key, String default);
     void recordMetric(String metricName, double value);
     <O> CompletableFuture<Void> publish(String topicName, O object, String serDeClassName);
     <O> CompletableFuture<Void> publish(String topicName, O object);
@@ -446,6 +455,16 @@ public class UserConfigFunction implements Function<String, Void> {
 
 The `UserConfigFunction` function will log the string `"The word of the day is verdure"` every time the function is invoked (i.e. every time a message arrives). The `word-of-the-day` user config will be changed only when the function is updated with a new config value via the command line.
 
+You can also access the entire user config map or set a default value in case no value is present:
+
+```java
+// Get the whole config map
+Map<String, String> allConfigs = context.getUserConfigMap();
+
+// Get value or resort to default
+String wotd = context.getUserConfigValueOrDefault("word-of-the-day", "perspicacious");
+```
+
 {% include admonition.html type="info" content="For all key/value pairs passed to Java Pulsar Functions, both the key *and* the value are `String`s. If you'd like the value to be of a different type, you will need to deserialize from the `String` type." %}
 
 ## Java metrics
@@ -494,12 +513,12 @@ $ pip install pulsar-client=={{ site.python_latest }}
 
 In order to run Python Pulsar Functions in [local run](../deployment#local-run) mode, you'll also need to install the following libraries:
 
-* [`protobuf`](https://pypi.python.org/pypi/protobuf)
+* [`grpc`](https://pypi.python.org/pypi/grpc)
 
 To install them all at once:
 
 ```bash
-$ pip install protobuf
+$ pip install grpc
 ```
 
 ### Packaging
@@ -517,7 +536,15 @@ def process(input):
 
 In general, you should use native functions when you don't need access to the function's [context](#context). If you *do* need access to the function's context, then we recommend using the [Pulsar Functions Python SDK](#python-sdk).
 
+#### Python native examples
+
+There is one example Python native function in [this folder](https://github.com/apache/incubator-pulsar/tree/master/pulsar-functions/python-examples):
+
+* [`pure_python_function_exclamation.py`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/python-examples/pure_python_function_exclamation.py)
+
 ### Python SDK functions {#python-sdk}
+
+To get started developing Pulsar Functions using the Python SDK, you'll need to 
 
 ### Python context object {#python-context}
 
