@@ -81,7 +81,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
-import org.apache.bookkeeper.mledger.util.Pair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1230,12 +1230,12 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     void initializeCursorPosition(Pair<PositionImpl, Long> lastPositionCounter) {
-        readPosition = ledger.getNextValidPosition(lastPositionCounter.first);
-        markDeletePosition = lastPositionCounter.first;
+        readPosition = ledger.getNextValidPosition(lastPositionCounter.getLeft());
+        markDeletePosition = lastPositionCounter.getLeft();
 
         // Initialize the counter such that the difference between the messages written on the ML and the
         // messagesConsumed is 0, to ensure the initial backlog count is 0.
-        messagesConsumedCounter = lastPositionCounter.second;
+        messagesConsumedCounter = lastPositionCounter.getRight();
     }
 
     /**

@@ -21,7 +21,7 @@ package org.apache.bookkeeper.mledger.impl;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
-import org.apache.bookkeeper.mledger.util.Pair;
+import org.apache.commons.lang3.tuple.Pair;
 
 /**
  * Cache of entries used by a single ManagedLedger. An EntryCache is compared to other EntryCache instances using their

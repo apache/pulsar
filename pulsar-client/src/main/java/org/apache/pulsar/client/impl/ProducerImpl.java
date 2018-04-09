@@ -25,11 +25,13 @@ import static java.lang.String.format;
 import static org.apache.pulsar.common.api.Commands.hasChecksum;
 import static org.apache.pulsar.common.api.Commands.readChecksum;
 
+import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -105,6 +107,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private ScheduledFuture<?> keyGeneratorTask = null;
 
     private final Map<String, String> metadata;
+
+    private Optional<byte[]> schemaVersion = Optional.empty();
 
     private final ConnectionHandler connectionHandler;
 
@@ -286,6 +290,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             callback.sendComplete(new PulsarClientException.InvalidMessageException("Cannot re-use the same message"));
             compressedPayload.release();
             return;
+        }
+
+        if (schemaVersion.isPresent()) {
+            msgMetadata.setSchemaVersion(ByteString.copyFrom(schemaVersion.get()));
         }
 
         try {
@@ -837,9 +845,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         cnx.sendRequestWithId(
                 Commands.newProducer(topic, producerId, requestId, producerName, conf.isEncryptionEnabled(), metadata),
-                requestId).thenAccept(pair -> {
-                    String producerName = pair.getLeft();
-                    long lastSequenceId = pair.getRight();
+                requestId).thenAccept(response -> {
+                    String producerName = response.getProducerName();
+                    long lastSequenceId = response.getLastSequenceId();
+                    schemaVersion = Optional.ofNullable(response.getSchemaVersion());
 
                     // We are now reconnected to broker and clear to send messages. Re-send all pending messages and
                     // set the cnx pointer so that new messages will be sent immediately

@@ -38,7 +38,7 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.util.Pair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -186,7 +186,7 @@ public class EntryCacheManager {
 
         @Override
         public Pair<Integer, Long> evictEntries(long sizeToFree) {
-            return Pair.create(0, (long) 0);
+            return Pair.of(0, (long) 0);
         }
 
         @Override

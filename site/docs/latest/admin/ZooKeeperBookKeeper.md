@@ -59,7 +59,7 @@ Configuration for global ZooKeeper is handled by the [`conf/global-zookeeper.con
 {% popover BookKeeper %} is responsible for all durable message storage in Pulsar. BookKeeper is a distributed [write-ahead log](https://en.wikipedia.org/wiki/Write-ahead_logging) WAL system that guarantees read consistency of independent message logs called {% popover ledgers %}. Individual BookKeeper servers are also called *bookies*.
 
 {% include admonition.html type="info" content="
-For a guide to managing message persistence, retention, and expiry in Pulsar, see [this guide](../../advanced/RetentionExpiry).
+For a guide to managing message persistence, retention, and expiry in Pulsar, see [this cookbook](../../cookbooks/RetentionExpiry).
 " %}
 
 ### Deploying BookKeeper

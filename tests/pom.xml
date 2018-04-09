@@ -36,6 +36,7 @@
     <module>integration-tests-utils</module>
     <module>integration-tests-topologies</module>
     <module>integration-tests-base</module>
+    <module>integration</module>
   </modules>
   <build>
     <plugins>

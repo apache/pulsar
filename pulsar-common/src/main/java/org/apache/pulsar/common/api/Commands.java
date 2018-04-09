@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.api;
 
+import static com.google.protobuf.ByteString.copyFrom;
 import static com.google.protobuf.ByteString.copyFromUtf8;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.resumeChecksum;
@@ -31,6 +32,8 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.AuthMethod;
 import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
@@ -74,8 +77,9 @@ import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.schema.SchemaVersion;
-import org.apache.pulsar.common.util.collections.Pair;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 
@@ -310,12 +314,12 @@ public class Commands {
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
             SubType subType, int priorityLevel, String consumerName) {
         return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName,
-                true /* isDurable */, null /* startMessageId */, Collections.emptyMap(), false, InitialPosition.Earliest);
+                true /* isDurable */, null /* startMessageId */, Collections.emptyMap(), false, InitialPosition.Earliest, null);
     }
 
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageIdData startMessageId,
-            Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition) {
+            Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition, SchemaInfo schemaInfo) {
         CommandSubscribe.Builder subscribeBuilder = CommandSubscribe.newBuilder();
         subscribeBuilder.setTopic(topic);
         subscribeBuilder.setSubscription(subscription);
@@ -331,6 +335,10 @@ public class Commands {
             subscribeBuilder.setStartMessageId(startMessageId);
         }
         subscribeBuilder.addAllMetadata(CommandUtils.toKeyValueList(metadata));
+
+        if (null != schemaInfo) {
+            subscribeBuilder.setSchema(getSchema(schemaInfo));
+        }
 
         CommandSubscribe subscribe = subscribeBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.SUBSCRIBE).setSubscribe(subscribe));
@@ -425,6 +433,41 @@ public class Commands {
 
     public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
                 boolean encrypted, Map<String, String> metadata) {
+        return newProducer(topic, producerId, requestId, producerName, encrypted, metadata, null);
+    }
+
+    private static PulsarApi.Schema.Type getSchemaType(SchemaType type) {
+        switch (type) {
+            case PROTOBUF:
+                return PulsarApi.Schema.Type.Protobuf;
+            case THRIFT:
+                return PulsarApi.Schema.Type.Thrift;
+            case AVRO:
+                return PulsarApi.Schema.Type.Avro;
+            case JSON:
+                return PulsarApi.Schema.Type.Json;
+            default:
+                return null;
+        }
+    }
+
+    private static PulsarApi.Schema getSchema(SchemaInfo schemaInfo) {
+        return PulsarApi.Schema.newBuilder()
+            .setName(schemaInfo.getName())
+            .setSchemaData(copyFrom(schemaInfo.getSchema()))
+            .setType(getSchemaType(schemaInfo.getType()))
+            .addAllProperties(
+                schemaInfo.getProperties().entrySet().stream().map(entry ->
+                    PulsarApi.KeyValue.newBuilder()
+                        .setKey(entry.getKey())
+                        .setValue(entry.getValue())
+                        .build()
+                ).collect(Collectors.toList())
+            ).build();
+    }
+
+    public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
+                boolean encrypted, Map<String, String> metadata, SchemaInfo schemaInfo) {
         CommandProducer.Builder producerBuilder = CommandProducer.newBuilder();
         producerBuilder.setTopic(topic);
         producerBuilder.setProducerId(producerId);
@@ -435,6 +478,10 @@ public class Commands {
         producerBuilder.setEncrypted(encrypted);
 
         producerBuilder.addAllMetadata(CommandUtils.toKeyValueList(metadata));
+
+        if (null != schemaInfo) {
+            producerBuilder.setSchema(getSchema(schemaInfo));
+        }
 
         CommandProducer producer = producerBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.PRODUCER).setProducer(producer));
@@ -527,8 +574,8 @@ public class Commands {
 
         int entriesCount = entries.size();
         for (int i = 0; i < entriesCount; i++) {
-            long ledgerId = entries.get(i).getFirst();
-            long entryId = entries.get(i).getSecond();
+            long ledgerId = entries.get(i).getLeft();
+            long entryId = entries.get(i).getRight();
 
             MessageIdData.Builder messageIdDataBuilder = MessageIdData.newBuilder();
             messageIdDataBuilder.setLedgerId(ledgerId);

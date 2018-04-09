@@ -123,7 +123,9 @@ public class TwoPhaseCompactor extends Compactor {
                             }
                         } else {
                             String key = extractKey(m);
-                            latestForKey.put(key, id);
+                            if (key != null) {
+                                latestForKey.put(key, id);
+                            }
                         }
 
                         if (id.compareTo(lastMessageId) == 0) {
@@ -213,7 +215,9 @@ public class TwoPhaseCompactor extends Compactor {
                         }
                     } else {
                         String key = extractKey(m);
-                        if (latestForKey.get(key).equals(id)) {
+                        if (key == null) { // pass through messages without a key
+                            messageToAdd = Optional.of(m);
+                        } else if (latestForKey.get(key).equals(id)) {
                             messageToAdd = Optional.of(m);
                         } else {
                             m.close();
@@ -306,7 +310,11 @@ public class TwoPhaseCompactor extends Compactor {
     private static String extractKey(RawMessage m) {
         ByteBuf headersAndPayload = m.getHeadersAndPayload();
         MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
-        return msgMetadata.getPartitionKey();
+        if (msgMetadata.hasPartitionKey()) {
+            return msgMetadata.getPartitionKey();
+        } else {
+            return null;
+        }
     }
 
     private static class PhaseOneResult {

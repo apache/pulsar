@@ -101,6 +101,8 @@ public interface ProducerBuilder<T> extends Serializable, Cloneable {
      * Set the send timeout <i>(default: 30 seconds)</i>
      * <p>
      * If a message is not acknowledged by the server before the sendTimeout expires, an error will be reported.
+     * Setting the timeout to zero, for example <code>setTimeout(0, TimeUnit.SECONDS)</code> will set the timeout
+     * to infinity, which can be useful when using Pulsar's message deduplication feature. 
      *
      * @param sendTimeout
      *            the send timeout

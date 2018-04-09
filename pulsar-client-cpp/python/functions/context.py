@@ -81,7 +81,12 @@ class Context(object):
 
   @abstractmethod
   def get_user_config_value(self, key):
-    """Returns the value of the user defined config. If the key doesnt exist return null instead"""
+    """Returns the value of the user-defined config. If the key doesn't exist, None is returned"""
+    pass
+  
+  @abstractmethod
+  def get_user_config_map(self):
+    """Returns the entire user-defined config as a dict (the dict will be empty if no user-defined config is supplied)"""
     pass
 
   @abstractmethod
