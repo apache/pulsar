@@ -133,7 +133,7 @@ public class CmdFunctions extends CmdBase {
             if (null != fqfn) {
                 String[] fqfnArray = fqfn.split("/");
                 if (fqfnArray.length != 3) {
-                    throw new IllegalArgumentException("FQFNs must be of the form tenant/namespace/name");
+                    throw new IllegalArgumentException("Fully qualified function names (FQFNs) must be of the form tenant/namespace/name");
                 }
                 tenant = fqfnArray[0];
                 namespace = fqfnArray[1];
@@ -756,7 +756,7 @@ public class CmdFunctions extends CmdBase {
     private void parseFullyQualifiedFunctionName(String fqfn, FunctionConfig.Builder functionConfigBuilder) {
         String[] args = fqfn.split("/");
         if (args.length != 3) {
-            throw new RuntimeException("Fully qualified function names must be of the form tenant/namespace/name");
+            throw new RuntimeException("Fully qualified function names (FQFNs) must be of the form tenant/namespace/name");
         } else {
             functionConfigBuilder.setTenant(args[0]);
             functionConfigBuilder.setNamespace(args[1]);
