@@ -113,7 +113,8 @@ public class RawBatchConverter {
                     messagesRetained++;
                     Commands.serializeSingleMessageInBatchWithPayload(singleMessageMetadataBuilder,
                                                                       singleMessagePayload, batchBuffer);
-                } else if (filter.test(singleMessageMetadataBuilder.getPartitionKey(), id)) {
+                } else if (filter.test(singleMessageMetadataBuilder.getPartitionKey(), id)
+                           && singleMessagePayload.readableBytes() > 0) {
                     messagesRetained++;
                     Commands.serializeSingleMessageInBatchWithPayload(singleMessageMetadataBuilder,
                                                                       singleMessagePayload, batchBuffer);
