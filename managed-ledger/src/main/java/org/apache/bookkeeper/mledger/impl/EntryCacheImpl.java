@@ -172,7 +172,7 @@ public class EntryCacheImpl implements EntryCache {
             manager.mlFactoryMBean.recordCacheHit(cachedEntry.getLength());
             callback.readEntryComplete(cachedEntry, ctx);
         } else {
-            lh.readAsync(position.getEntryId(), position.getEntryId()).whenComplete(
+            lh.readAsync(position.getEntryId(), position.getEntryId()).whenCompleteAsync(
                     (ledgerEntries, exception) -> {
                         if (exception != null) {
                             ml.invalidateLedgerHandle(lh, exception);
@@ -188,9 +188,7 @@ public class EntryCacheImpl implements EntryCache {
 
                                 manager.mlFactoryMBean.recordCacheMiss(1, returnEntry.getLength());
                                 ml.mbean.addReadEntriesSample(1, returnEntry.getLength());
-                                ml.getExecutor().executeOrdered(ml.getName(), safeRun(() -> {
-                                            callback.readEntryComplete(returnEntry, ctx);
-                                        }));
+                                callback.readEntryComplete(returnEntry, ctx);
                             } else {
                                 // got an empty sequence
                                 callback.readEntryFailed(new ManagedLedgerException("Could not read given position"),
@@ -199,7 +197,7 @@ public class EntryCacheImpl implements EntryCache {
                         } finally {
                             ledgerEntries.close();
                         }
-                    });
+                    }, ml.getExecutor().chooseThread(ml.getName()));
         }
     }
 
@@ -243,7 +241,7 @@ public class EntryCacheImpl implements EntryCache {
             }
 
             // Read all the entries from bookkeeper
-            lh.readAsync(firstEntry, lastEntry).whenComplete(
+            lh.readAsync(firstEntry, lastEntry).whenCompleteAsync(
                     (ledgerEntries, exception) -> {
                         if (exception != null) {
                             if (exception instanceof BKException
@@ -259,28 +257,27 @@ public class EntryCacheImpl implements EntryCache {
 
                         checkNotNull(ml.getName());
                         checkNotNull(ml.getExecutor());
-                        ml.getExecutor().executeOrdered(ml.getName(), safeRun(() -> {
-                                    try {
-                                        // We got the entries, we need to transform them to a List<> type
-                                        long totalSize = 0;
-                                        final List<EntryImpl> entriesToReturn
-                                            = Lists.newArrayListWithExpectedSize(entriesToRead);
-                                        for (LedgerEntry e : ledgerEntries) {
-                                            EntryImpl entry = EntryImpl.create(e);
 
-                                            entriesToReturn.add(entry);
-                                            totalSize += entry.getLength();
-                                        }
+                        try {
+                            // We got the entries, we need to transform them to a List<> type
+                            long totalSize = 0;
+                            final List<EntryImpl> entriesToReturn
+                                = Lists.newArrayListWithExpectedSize(entriesToRead);
+                            for (LedgerEntry e : ledgerEntries) {
+                                EntryImpl entry = EntryImpl.create(e);
 
-                                        manager.mlFactoryMBean.recordCacheMiss(entriesToReturn.size(), totalSize);
-                                        ml.getMBean().addReadEntriesSample(entriesToReturn.size(), totalSize);
+                                entriesToReturn.add(entry);
+                                totalSize += entry.getLength();
+                            }
 
-                                        callback.readEntriesComplete((List) entriesToReturn, ctx);
-                                    } finally {
-                                        ledgerEntries.close();
-                                    }
-                                }));
-                    });
+                            manager.mlFactoryMBean.recordCacheMiss(entriesToReturn.size(), totalSize);
+                            ml.getMBean().addReadEntriesSample(entriesToReturn.size(), totalSize);
+
+                            callback.readEntriesComplete((List) entriesToReturn, ctx);
+                        } finally {
+                            ledgerEntries.close();
+                        }
+                    }, ml.getExecutor().chooseThread(ml.getName()));
         }
     }
 
