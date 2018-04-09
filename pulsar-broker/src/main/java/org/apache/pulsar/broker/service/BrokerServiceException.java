@@ -139,6 +139,12 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    public static class AlreadyRunningException extends BrokerServiceException {
+        public AlreadyRunningException(String msg) {
+            super(msg);
+        }
+    }
+
     public static PulsarApi.ServerError getClientErrorCode(Throwable t) {
         if (t instanceof ServerMetadataException) {
             return PulsarApi.ServerError.MetadataError;

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.v2;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.Objects.isNull;
 import static org.apache.commons.lang.StringUtils.defaultIfEmpty;
@@ -27,6 +28,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import io.swagger.annotations.ApiOperation;
 import java.time.Clock;
+import java.util.Optional;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.Encoded;
@@ -90,7 +92,7 @@ public class SchemasResource extends AdminResource {
                                 .type(schema.schema.getType())
                                 .timestamp(schema.schema.getTimestamp())
                                 .data(new String(schema.schema.getData()))
-                                .properties(schema.schema.props)
+                                .properties(schema.schema.getProps())
                                 .build()
                             )
                             .build()
@@ -131,7 +133,7 @@ public class SchemasResource extends AdminResource {
                                     .type(schema.schema.getType())
                                     .timestamp(schema.schema.getTimestamp())
                                     .data(new String(schema.schema.getData()))
-                                    .properties(schema.schema.props)
+                                    .properties(schema.schema.getProps())
                                     .build()
                                 ).build()
                         );
@@ -230,8 +232,8 @@ public class SchemasResource extends AdminResource {
 
     private void validateDestinationExists(TopicName dn) {
         try {
-            Topic topic = pulsar().getBrokerService().getTopicReference(dn.toString());
-            checkNotNull(topic);
+            Optional<Topic> topic = pulsar().getBrokerService().getTopicReference(dn.toString());
+            checkArgument(topic.isPresent());
         } catch (Exception e) {
             throw new RestException(Response.Status.NOT_FOUND, "Topic not found");
         }

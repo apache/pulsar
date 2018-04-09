@@ -29,7 +29,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.locks.StampedLock;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.util.Pair;
+import org.apache.commons.lang3.tuple.Pair;
 
 /**
  * Contains all the cursors for a ManagedLedger.
@@ -135,7 +135,7 @@ class ManagedCursorContainer implements Iterable<ManagedCursor> {
             }
 
             PositionImpl newSlowestConsumer = heap.get(0).position;
-            return Pair.create(previousSlowestConsumer, newSlowestConsumer);
+            return Pair.of(previousSlowestConsumer, newSlowestConsumer);
         } finally {
             rwLock.unlockWrite(stamp);
         }

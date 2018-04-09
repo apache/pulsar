@@ -34,6 +34,7 @@ message Schema {
     required bytes schema_data = 3;
 	required Type type = 4;
     repeated KeyValue properties = 5;
+	
 }
 
 message MessageIdData {

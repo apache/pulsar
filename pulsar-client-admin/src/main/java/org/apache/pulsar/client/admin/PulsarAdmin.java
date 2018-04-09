@@ -29,9 +29,11 @@ import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.internal.BrokerStatsImpl;
 import org.apache.pulsar.client.admin.internal.BrokersImpl;
 import org.apache.pulsar.client.admin.internal.ClustersImpl;
+import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.client.admin.internal.JacksonConfigurator;
 import org.apache.pulsar.client.admin.internal.LookupImpl;
 import org.apache.pulsar.client.admin.internal.NamespacesImpl;
@@ -71,10 +73,11 @@ public class PulsarAdmin implements Closeable {
     private final PersistentTopics persistentTopics;
     private final NonPersistentTopics nonPersistentTopics;
     private final ResourceQuotas resourceQuotas;
-
+    private final ClientConfigurationData clientConfigData;
     private final Client client;
     private final String serviceUrl;
     private final Lookup lookups;
+    private final Functions functions;
     protected final WebTarget root;
     protected final Authentication auth;
 
@@ -103,8 +106,9 @@ public class PulsarAdmin implements Closeable {
         return new PulsarAdminBuilderImpl();
     }
 
-    public PulsarAdmin(String serviceUrl, ClientConfigurationData pulsarConfig) throws PulsarClientException {
-        this.auth = pulsarConfig != null ? pulsarConfig.getAuthentication() : new AuthenticationDisabled();
+    public PulsarAdmin(String serviceUrl, ClientConfigurationData clientConfigData) throws PulsarClientException {
+        this.clientConfigData = clientConfigData;
+        this.auth = clientConfigData != null ? clientConfigData.getAuthentication() : new AuthenticationDisabled();
         LOG.debug("created: serviceUrl={}, authMethodName={}", serviceUrl,
                 auth != null ? auth.getAuthMethodName() : null);
 
@@ -120,22 +124,24 @@ public class PulsarAdmin implements Closeable {
         ClientBuilder clientBuilder = ClientBuilder.newBuilder().withConfig(httpConfig)
                 .register(JacksonConfigurator.class).register(JacksonFeature.class);
 
-        boolean useTls = pulsarConfig.getServiceUrl().startsWith("https://");
+        boolean useTls = false;
 
-        if (pulsarConfig != null && useTls) {
+        if (clientConfigData != null && StringUtils.isNotBlank(clientConfigData.getServiceUrl())
+                && clientConfigData.getServiceUrl().startsWith("https://")) {
+            useTls = true;
             try {
                 SSLContext sslCtx = null;
 
                 X509Certificate trustCertificates[] = SecurityUtility
-                        .loadCertificatesFromPemFile(pulsarConfig.getTlsTrustCertsFilePath());
+                        .loadCertificatesFromPemFile(clientConfigData.getTlsTrustCertsFilePath());
 
                 // Set private key and certificate if available
                 AuthenticationDataProvider authData = auth.getAuthData();
                 if (authData.hasDataForTls()) {
-                    sslCtx = SecurityUtility.createSslContext(pulsarConfig.isTlsAllowInsecureConnection(),
+                    sslCtx = SecurityUtility.createSslContext(clientConfigData.isTlsAllowInsecureConnection(),
                             trustCertificates, authData.getTlsCertificates(), authData.getTlsPrivateKey());
                 } else {
-                    sslCtx = SecurityUtility.createSslContext(pulsarConfig.isTlsAllowInsecureConnection(),
+                    sslCtx = SecurityUtility.createSslContext(clientConfigData.isTlsAllowInsecureConnection(),
                             trustCertificates);
                 }
 
@@ -166,6 +172,7 @@ public class PulsarAdmin implements Closeable {
         this.nonPersistentTopics = new NonPersistentTopicsImpl(root, auth);
         this.resourceQuotas = new ResourceQuotasImpl(root, auth);
         this.lookups = new LookupImpl(root, auth, useTls);
+        this.functions = new FunctionsImpl(root, auth);
     }
 
     /**
@@ -300,6 +307,14 @@ public class PulsarAdmin implements Closeable {
     }
 
     /**
+     * 
+     * @return the functions management object
+     */
+    public Functions functions() {
+        return functions;
+    }
+    
+    /**
      * @return the broker statics
      */
     public BrokerStats brokerStats() {
@@ -311,6 +326,13 @@ public class PulsarAdmin implements Closeable {
      */
     public String getServiceUrl() {
         return serviceUrl;
+    }
+
+    /**
+     * @return the client Configuration Data that is being used
+     */
+    public ClientConfigurationData getClientConfigData() {
+        return clientConfigData;
     }
 
     /**

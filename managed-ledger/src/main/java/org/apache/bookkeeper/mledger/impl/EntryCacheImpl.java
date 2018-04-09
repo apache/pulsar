@@ -35,9 +35,9 @@ import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.util.Pair;
 import org.apache.bookkeeper.mledger.util.RangeCache;
 import org.apache.bookkeeper.mledger.util.RangeCache.Weighter;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -132,8 +132,8 @@ public class EntryCacheImpl implements EntryCache {
         final PositionImpl firstPosition = PositionImpl.get(-1, 0);
 
         Pair<Integer, Long> removed = entries.removeRange(firstPosition, lastPosition, true);
-        int entriesRemoved = removed.first;
-        long sizeRemoved = removed.second;
+        int entriesRemoved = removed.getLeft();
+        long sizeRemoved = removed.getRight();
         if (log.isDebugEnabled()) {
             log.debug("[{}] Invalidated entries up to {} - Entries removed: {} - Size removed: {}", ml.getName(),
                     lastPosition, entriesRemoved, sizeRemoved);
@@ -148,8 +148,8 @@ public class EntryCacheImpl implements EntryCache {
         final PositionImpl lastPosition = PositionImpl.get(ledgerId + 1, 0);
 
         Pair<Integer, Long> removed = entries.removeRange(firstPosition, lastPosition, false);
-        int entriesRemoved = removed.first;
-        long sizeRemoved = removed.second;
+        int entriesRemoved = removed.getLeft();
+        long sizeRemoved = removed.getRight();
         if (log.isDebugEnabled()) {
             log.debug("[{}] Invalidated all entries on ledger {} - Entries removed: {} - Size removed: {}",
                     ml.getName(), ledgerId, entriesRemoved, sizeRemoved);
@@ -188,7 +188,7 @@ public class EntryCacheImpl implements EntryCache {
                     manager.mlFactoryMBean.recordCacheMiss(1, returnEntry.getLength());
                     ml.mbean.addReadEntriesSample(1, returnEntry.getLength());
 
-                    ml.getExecutor().submitOrdered(ml.getName(), safeRun(() -> {
+                    ml.getExecutor().executeOrdered(ml.getName(), safeRun(() -> {
                         callback.readEntryComplete(returnEntry, obj);
                     }));
                 } else {
@@ -254,7 +254,7 @@ public class EntryCacheImpl implements EntryCache {
 
                 checkNotNull(ml.getName());
                 checkNotNull(ml.getExecutor());
-                ml.getExecutor().submitOrdered(ml.getName(), safeRun(() -> {
+                ml.getExecutor().executeOrdered(ml.getName(), safeRun(() -> {
                     // We got the entries, we need to transform them to a List<> type
                     long totalSize = 0;
                     final List<EntryImpl> entriesToReturn = Lists.newArrayListWithExpectedSize(entriesToRead);
@@ -299,8 +299,8 @@ public class EntryCacheImpl implements EntryCache {
     public Pair<Integer, Long> evictEntries(long sizeToFree) {
         checkArgument(sizeToFree > 0);
         Pair<Integer, Long> evicted = entries.evictLeastAccessedEntries(sizeToFree);
-        int evictedEntries = evicted.first;
-        long evictedSize = evicted.second;
+        int evictedEntries = evicted.getLeft();
+        long evictedSize = evicted.getRight();
         if (log.isDebugEnabled()) {
             log.debug(
                     "[{}] Doing cache eviction of at least {} Mb -- Deleted {} entries - Total size deleted: {} Mb "

@@ -141,7 +141,7 @@ public abstract class NamespacesBase extends AdminResource {
                 if (policies.replication_clusters.size() == 1
                         && !policies.replication_clusters.contains(config().getClusterName())) {
                     // the only replication cluster is other cluster, redirect
-                    String replCluster = policies.replication_clusters.get(0);
+                    String replCluster = Lists.newArrayList(policies.replication_clusters).get(0);
                     ClusterData replClusterData = clustersCache().get(AdminResource.path("clusters", replCluster))
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                                     "Cluster " + replCluster + " does not exist"));
@@ -242,7 +242,7 @@ public abstract class NamespacesBase extends AdminResource {
                 if (policies.replication_clusters.size() == 1
                         && !policies.replication_clusters.contains(config().getClusterName())) {
                     // the only replication cluster is other cluster, redirect
-                    String replCluster = policies.replication_clusters.get(0);
+                    String replCluster = Lists.newArrayList(policies.replication_clusters).get(0);
                     ClusterData replClusterData = clustersCache().get(AdminResource.path("clusters", replCluster))
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                                     "Cluser " + replCluster + " does not exist"));
@@ -346,7 +346,7 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected List<String> internalGetNamespaceReplicationClusters() {
+    protected Set<String> internalGetNamespaceReplicationClusters() {
         if (!namespaceName.isGlobal()) {
             throw new RestException(Status.PRECONDITION_FAILED,
                     "Cannot get the replication clusters for a non-global namespace");
@@ -388,7 +388,7 @@ public abstract class NamespacesBase extends AdminResource {
             // Force to read the data s.t. the watch to the cache content is setup.
             policiesNode = policiesCache().getWithStat(path(POLICIES, namespaceName.toString())).orElseThrow(
                     () -> new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist"));
-            policiesNode.getKey().replication_clusters = clusterIds;
+            policiesNode.getKey().replication_clusters = replicationClusterSet;
 
             // Write back the new policies into zookeeper
             globalZk().setData(path(POLICIES, namespaceName.toString()),

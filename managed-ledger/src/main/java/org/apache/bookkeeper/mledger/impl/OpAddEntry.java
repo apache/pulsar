@@ -123,14 +123,14 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
             // be marked as failed.
             ml.mbean.recordAddEntryError();
 
-            ml.getExecutor().submitOrdered(ml.getName(), SafeRun.safeRun(() -> {
+            ml.getExecutor().executeOrdered(ml.getName(), SafeRun.safeRun(() -> {
                 // Force the creation of a new ledger. Doing it in a background thread to avoid acquiring ML lock
                 // from a BK callback.
                 ml.ledgerClosed(lh);
             }));
         } else {
             // Trigger addComplete callback in a thread hashed on the managed ledger name
-            ml.getExecutor().submitOrdered(ml.getName(), this);
+            ml.getExecutor().executeOrdered(ml.getName(), this);
         }
     }
 

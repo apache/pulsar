@@ -25,7 +25,6 @@ import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 /**
@@ -41,7 +40,7 @@ public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
         super.internalSetup();
         admin.clusters().createCluster("use", new ClusterData(brokerUrl.toString()));
         admin.properties().createProperty("prop",
-                new PropertyAdmin(Lists.newArrayList("appid1"), Sets.newHashSet("use")));
+                new PropertyAdmin(Sets.newHashSet("appid1"), Sets.newHashSet("use")));
         admin.namespaces().createNamespace("prop/use/ns-abc");
     }
 

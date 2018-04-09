@@ -376,7 +376,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void setNamespaceReplicationClusters(String namespace, List<String> clusterIds) throws PulsarAdminException;
+    void setNamespaceReplicationClusters(String namespace, Set<String> clusterIds) throws PulsarAdminException;
 
     /**
      * Get the message TTL for a namespace.
