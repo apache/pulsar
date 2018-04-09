@@ -41,6 +41,7 @@ PulsarClient client = PulsarClient.builder()
 
 Consumer consumer = client.newConsumer()
         .topic(TOPIC)
+        .subscriptionName(subscription)
         .subscriptionType(SubscriptionType.Shared)
         .receiverQueueSize(0)
         .subscribe();
