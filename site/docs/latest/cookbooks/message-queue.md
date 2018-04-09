@@ -22,7 +22,7 @@ To use a Pulsar {% popover topic %} as a message queue, you should distribute th
 
 {% include admonition.html type="info" content="The default receiver queue size is 1000." %}
 
-### Java
+### Java clients {#java}
 
 Here's an example Java consumer configuration that sets the receiver queue size to zero and uses a shared subscription:
 
@@ -46,7 +46,7 @@ Consumer consumer = client.newConsumer()
         .subscribe();
 ```
 
-### Python
+### Python clients {#python}
 
 Here's an example Python consumer configuration that sets the receiver queue size to zero and uses a shared subscription:
 
@@ -63,4 +63,26 @@ consumer = client.subscribe(
     SUBSCRIPTION,
     receiver_queue_size=0,
     consumer_type=ConsumerType.Shared)
+```
+
+### C++ clients {#cpp}
+
+Here's an example C++ consumer configuration that sets the receiver queue size to zero and uses a shared subscription:
+
+```cpp
+#include <pulsar/Client.h>
+
+std::string serviceUrl = "pulsar://localhost:6650";
+std::string topic = "persistent://sample/standalone/ns1/mq-topic-1";
+std::string subscription = "sub-1";
+
+Client client(serviceUrl);
+
+ConsumerConfiguration consumerConfig;
+consumerConfig.setReceiverQueueSize(0);
+consumerConfig.setConsumerType(ConsumerType.ConsumerShared)
+
+Consumer consumer;
+
+Result result = client.subscribe("persistent://sample/standalone/ns1/my-topic", consumerConfig, consumer);
 ```
