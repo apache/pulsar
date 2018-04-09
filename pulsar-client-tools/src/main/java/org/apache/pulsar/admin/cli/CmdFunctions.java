@@ -127,6 +127,19 @@ public class CmdFunctions extends CmdBase {
 
         @Parameter(names = "--name", description = "The function's name")
         protected String functionName;
+
+        @Override
+        void processArguments() throws Exception {
+            if (null != fqfn) {
+                String[] fqfnArray = fqfn.split("/");
+                if (fqfnArray.length != 3) {
+                    throw new IllegalArgumentException("FQFNs must be of the form tenant/namespace/name");
+                }
+                tenant = fqfnArray[0];
+                namespace = fqfnArray[1];
+                functionName = fqfnArray[2];
+            }
+        }
     }
 
     /**
@@ -386,17 +399,6 @@ public class CmdFunctions extends CmdBase {
                         throw new RuntimeException("Serializer type mismatch " + typeArgs[1] + " vs " + serDeTypes[0]);
                     }
                 }
-            }
-        }
-
-        private void parseFullyQualifiedFunctionName(String fqfn, FunctionConfig.Builder functionConfigBuilder) {
-            String[] args = fqfn.split("/");
-            if (args.length != 3) {
-                throw new RuntimeException("Fully qualified function names must be of the form tenant/namespace/name");
-            } else {
-                functionConfigBuilder.setTenant(args[0]);
-                functionConfigBuilder.setNamespace(args[1]);
-                functionConfigBuilder.setName(args[2]);
             }
         }
 
@@ -749,5 +751,16 @@ public class CmdFunctions extends CmdBase {
         org.apache.pulsar.functions.proto.Function.FunctionConfig.Builder functionConfigBuilder = org.apache.pulsar.functions.proto.Function.FunctionConfig.newBuilder();
         Utils.mergeJson(FunctionsImpl.printJson(functionConfig), functionConfigBuilder);
         return functionConfigBuilder.build();
+    }
+
+    private void parseFullyQualifiedFunctionName(String fqfn, FunctionConfig.Builder functionConfigBuilder) {
+        String[] args = fqfn.split("/");
+        if (args.length != 3) {
+            throw new RuntimeException("Fully qualified function names must be of the form tenant/namespace/name");
+        } else {
+            functionConfigBuilder.setTenant(args[0]);
+            functionConfigBuilder.setNamespace(args[1]);
+            functionConfigBuilder.setName(args[2]);
+        }
     }
 }
