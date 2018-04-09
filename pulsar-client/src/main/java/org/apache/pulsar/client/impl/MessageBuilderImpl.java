@@ -33,10 +33,10 @@ import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import com.google.common.base.Preconditions;
 
 public class MessageBuilderImpl<T> implements MessageBuilder<T> {
-
+    private static final ByteBuffer EMPTY_CONTENT = ByteBuffer.allocate(0);
     private final MessageMetadata.Builder msgMetadataBuilder = MessageMetadata.newBuilder();
     private final Schema<T> schema;
-    private ByteBuffer content;
+    private ByteBuffer content = EMPTY_CONTENT;
 
     public MessageBuilderImpl(Schema<T> schema) {
         this.schema = schema;

@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicLong;
+import org.apache.commons.lang3.tuple.Pair;
 
 /**
  * Special type of cache where get() and delete() operations can be done over a range of keys.
@@ -144,7 +145,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
 
         size.addAndGet(-removedSize);
 
-        return Pair.create(removedEntries, removedSize);
+        return Pair.of(removedEntries, removedSize);
     }
 
     /**
@@ -171,7 +172,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
         }
 
         size.addAndGet(-removedSize);
-        return Pair.create(removedEntries, removedSize);
+        return Pair.of(removedEntries, removedSize);
     }
 
     /**

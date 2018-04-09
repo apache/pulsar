@@ -105,12 +105,16 @@ public class RawBatchConverter {
                 ByteBuf singleMessagePayload = Commands.deSerializeSingleMessageInBatch(payload,
                                                                                         singleMessageMetadataBuilder,
                                                                                         0, batchSize);
-                String key = singleMessageMetadataBuilder.getPartitionKey();
                 MessageId id = new BatchMessageIdImpl(msg.getMessageIdData().getLedgerId(),
                                                       msg.getMessageIdData().getEntryId(),
                                                       msg.getMessageIdData().getPartition(),
                                                       i);
-                if (filter.test(key, id)) {
+                if (!singleMessageMetadataBuilder.hasPartitionKey()) {
+                    messagesRetained++;
+                    Commands.serializeSingleMessageInBatchWithPayload(singleMessageMetadataBuilder,
+                                                                      singleMessagePayload, batchBuffer);
+                } else if (filter.test(singleMessageMetadataBuilder.getPartitionKey(), id)
+                           && singleMessagePayload.readableBytes() > 0) {
                     messagesRetained++;
                     Commands.serializeSingleMessageInBatchWithPayload(singleMessageMetadataBuilder,
                                                                       singleMessagePayload, batchBuffer);

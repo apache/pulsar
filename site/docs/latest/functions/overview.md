@@ -10,7 +10,7 @@ preview: true
 * apply a user-supplied processing logic to each message,
 * publish the results of the computation to another topic
 
-Here's an example Pulsar Function for Java:
+Here's an example Pulsar Function for Java (using the [native interface](../api#java-native)):
 
 ```java
 import java.util.Function;
@@ -27,9 +27,9 @@ Functions are executed each time a message is published to the input topic. If a
 
 The core goal behind Pulsar Functions is to enable you to easily create processing logic of any level of complexity without needing to deploy a separate neighboring system (such as [Apache Storm](http://storm.apache.org/), [Apache Heron](https://apache.github.io/incubator-heron), [Apache Flink](https://flink.apache.org/), etc.). Pulsar Functions is essentially ready-made compute infrastructure at your disposal as part of your Pulsar messaging system. This core goal is tied to a series of other goals:
 
-* Developer productive ([language-native](#native) vs. [Pulsar Functions SDK](#sdk) functions)
-* easy troubleshooting
-* Operational simplicity (no need for an external system)
+* Developer productivity ([language-native](#native) vs. [Pulsar Functions SDK](#sdk) functions)
+* Easy troubleshooting
+* Operational simplicity (no need for an external processing system)
 
 ## Inspirations
 
@@ -51,8 +51,8 @@ The core programming model behind Pulsar Functions is very simple:
   * Apply some processing logic to the input and write output to:
     * An **output topic** in Pulsar
     * [Apache BookKeeper](#state-storage)
-  * Write logs to a **log topic**
-  * Increment a distributed counter
+  * Write logs to a **log topic** (potentially for debugging purposes)
+  * Increment a [counter](#counters)
 
 ![Pulsar Functions core programming model](/img/pulsar-functions-overview.png)
 
@@ -62,19 +62,35 @@ If you were to implement the classic word count example using Pulsar Functions, 
 
 ![Pulsar Functions word count example](/img/pulsar-functions-word-count.png)
 
-If you were writing the function in [Python](../api#python) using the [native interface](../api#python-native), you could write the function like this...
+If you were writing the function in [Java](../api#java) using the [Pulsar Functions SDK for Java](../api#java-sdk), you could write the function like this...
 
-```python
-def process(input):
-    return {word: input.split().count(word) for word in input.split()}
+```java
+package org.example.functions;
+
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Function;
+
+import java.util.Arrays;
+
+public class WordCountFunction implements Function<String, Void> {
+    // This function is invoked every time a message is published to the input topic
+    @Override
+    public Void process(String input, Context context) {
+        Arrays.asList(input.split(" ")).forEach(word -> {
+            String counterKey = word.toLowerCase();
+            context.incrCounter(counterKey, 1)
+        });
+        return null;
+    }
+}
 ```
 
 ...and then [deploy it](#cluster-mode) in your Pulsar cluster using the [command line](#cli) like this:
 
 ```bash
 $ bin/pulsar-admin functions create \
-  --py word_count.py \
-  --className word_count \
+  --jar target/my-jar-with-dependencies.jar \
+  --className org.example.functions.WordCountFunction \
   --tenant sample \
   --namespace ns1 \
   --name word-count \
@@ -127,6 +143,14 @@ $ bin/pulsar-functions localrun \
   --jar examples/api-examples.jar \
   --className org.apache.pulsar.functions.api.examples.ExclamationFunction
 ```
+
+## Fully Qualified Function Name (FQFN) {#fqfn}
+
+Each Pulsar Function has a **Fully Qualified Function Name** (FQFN) that consists of three elements: the function's {% popover tenant %}, {% popover namespace %}, and function name. FQFN's look like this:
+
+{% include fqfn.html tenant="tenant" namespace="namespace" name="name" %}
+
+FQFNs enable you to, for example, create multiple functions with the same name provided that they're in different namespaces.
 
 ## Configuration
 

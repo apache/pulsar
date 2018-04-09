@@ -23,7 +23,7 @@ import static java.util.Collections.reverseOrder;
 
 import com.google.common.collect.Lists;
 import java.util.List;
-import org.apache.bookkeeper.mledger.util.Pair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,8 +85,8 @@ public class EntryCacheDefaultEvictionPolicy implements EntryCacheEvictionPolicy
             }
 
             Pair<Integer, Long> evicted = entryCache.evictEntries(singleCacheSizeToFree);
-            evictedEntries += evicted.first;
-            evictedSize += evicted.second;
+            evictedEntries += evicted.getLeft();
+            evictedSize += evicted.getRight();
         }
 
         log.info("Completed cache eviction. Removed {} entries from {} caches. ({} Mb)", evictedEntries,

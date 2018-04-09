@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -19,17 +18,6 @@
     under the License.
 
 -->
-<Configuration status="INFO">
-    <Appenders>
-        <Console name="Console" target="SYSTEM_OUT">
-            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t:%C@%L] %-5level %logger{36} - %msg%n" />
-        </Console>
-    </Appenders>
-    <Loggers>
-        <Root level="warn">
-            <AppenderRef ref="Console" />
-        </Root>
-        <Logger name="org.apache.pulsar" level="info"/>
-        <Logger name="org.apache.bookkeeper" level="info"/>
-    </Loggers>
-</Configuration>
+<section class="fqfn">
+  <span class="tenant">{{ include.tenant }}</span>/<span class="namespace">{{ include.namespace }}</span>/<span class="name">{{ include.name }}</span>
+</section>
