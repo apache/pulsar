@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.api;
 import org.slf4j.Logger;
 
 import java.util.Collection;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -111,6 +112,12 @@ public interface Context {
      * @param amount The amount to be incremented
      */
     void incrCounter(String key, long amount);
+
+    /**
+     * Get a map of all user-defined key/value configs for the function
+     * @return The full map of user-defined config values
+     */
+    Map<String, String> getUserConfigMap();
 
     /**
      * Get any user-defined key/value

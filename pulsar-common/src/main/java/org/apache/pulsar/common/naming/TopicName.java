@@ -105,7 +105,7 @@ public class TopicName implements ServiceUnitId {
             // legacy: persistent://property/cluster/namespace/topic
             if (!completeTopicName.contains("://")) {
                 throw new IllegalArgumentException(
-                        "Invalid completeTopicName name: " + completeTopicName + " -- Domain is missing");
+                        "Invalid topic name: " + completeTopicName + " -- Domain is missing");
             }
 
             List<String> parts = Splitter.on("://").limit(2).splitToList(completeTopicName);
@@ -139,15 +139,15 @@ public class TopicName implements ServiceUnitId {
                 this.partitionIndex = getPartitionIndex(completeTopicName);
                 this.namespaceName = NamespaceName.get(property, cluster, namespacePortion);
             } else {
-                throw new IllegalArgumentException("Invalid completeTopicName name: " + completeTopicName);
+                throw new IllegalArgumentException("Invalid topic name: " + completeTopicName);
             }
 
 
             if (localName == null || localName.isEmpty()) {
-                throw new IllegalArgumentException("Invalid completeTopicName name: " + completeTopicName);
+                throw new IllegalArgumentException("Invalid topic name: " + completeTopicName);
             }
         } catch (NullPointerException e) {
-            throw new IllegalArgumentException("Invalid completeTopicName name: " + completeTopicName, e);
+            throw new IllegalArgumentException("Invalid topic name: " + completeTopicName, e);
         }
 
     }
