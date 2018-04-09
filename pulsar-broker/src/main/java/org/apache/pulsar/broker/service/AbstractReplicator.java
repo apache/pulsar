@@ -28,6 +28,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.ProducerImpl;
@@ -74,7 +75,10 @@ public abstract class AbstractReplicator {
         this.producerQueueSize = brokerService.pulsar().getConfiguration().getReplicationProducerQueueSize();
 
         this.producerBuilder = client.newProducer() //
-                .topic(topicName).sendTimeout(0, TimeUnit.SECONDS) //
+                .topic(topicName)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .enableBatching(false)
+                .sendTimeout(0, TimeUnit.SECONDS) //
                 .maxPendingMessages(producerQueueSize) //
                 .producerName(getReplicatorName(replicatorPrefix, localCluster));
         STATE_UPDATER.set(this, State.Stopped);

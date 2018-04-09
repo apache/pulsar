@@ -617,7 +617,11 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         producer.close();
 
         // (c) non-batch msg without compression
-        producer = pulsarClient.newProducer().topic(topic).compressionType(CompressionType.NONE).create();
+        producer = pulsarClient.newProducer().topic(topic)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .compressionType(CompressionType.NONE)
+            .create();
         message = MessageBuilder.create().setContent(new byte[PulsarDecoder.MaxMessageSize + 1]).build();
         try {
             producer.send(message);
@@ -628,7 +632,11 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         producer.close();
 
         // (d) non-batch msg with compression and try to consume message
-        producer = pulsarClient.newProducer().topic(topic).compressionType(CompressionType.LZ4).create();
+        producer = pulsarClient.newProducer()
+            .topic(topic)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .compressionType(CompressionType.LZ4).create();
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1").subscribe();
         byte[] content = new byte[PulsarDecoder.MaxMessageSize + 10];
         message = MessageBuilder.create().setContent(content).build();
