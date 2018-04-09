@@ -1325,22 +1325,25 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
                 mbean.startDataLedgerOpenOp();
 
-                CompletableFuture<ReadHandle> future = bookKeeper.newOpenLedgerOp()
+                CompletableFuture<ReadHandle> promise = new CompletableFuture<>();
+                bookKeeper.newOpenLedgerOp()
                     .withRecovery(true)
                     .withLedgerId(ledgerId)
                     .withDigestType(config.getDigestType())
-                    .withPassword(config.getPassword()).execute();
-                future.whenCompleteAsync((res,ex) -> {
-                        mbean.endDataLedgerOpenOp();
-                        if (ex != null) {
-                            ledgerCache.remove(ledgerId, future);
-                        } else {
-                            if (log.isDebugEnabled()) {
-                                log.debug("[{}] Successfully opened ledger {} for reading", name, ledgerId);
+                    .withPassword(config.getPassword()).execute()
+                    .whenCompleteAsync((res,ex) -> {
+                            mbean.endDataLedgerOpenOp();
+                            if (ex != null) {
+                                ledgerCache.remove(ledgerId, promise);
+                                promise.completeExceptionally(createManagedLedgerException(ex));
+                            } else {
+                                if (log.isDebugEnabled()) {
+                                    log.debug("[{}] Successfully opened ledger {} for reading", name, ledgerId);
+                                }
+                                promise.complete(res);
                             }
-                        }
-                    }, executor.chooseThread(name));
-                return future;
+                        }, executor.chooseThread(name));
+                return promise;
             });
     }
 
