@@ -69,11 +69,6 @@ message FunctionMetaData {
     uint64 createTime = 4;
 }
 
-message Snapshot {
-    repeated FunctionMetaData functionMetaDataList = 1;
-    bytes lastAppliedMessageId = 2;
-}
-
 message Instance {
     FunctionMetaData functionMetaData = 1;
     int32 instanceId = 2;
