@@ -227,6 +227,31 @@ public class CmdFunctionsTest {
     }
 
     @Test
+    public void testCreateUsingFullyQualifiedFunctionName() throws Exception {
+        String inputTopicName = TEST_NAME + "-input-topic";
+        String outputTopicName = TEST_NAME + "-output-topic";
+        String tenant = "sample";
+        String namespace = "ns1";
+        String functionName = "func";
+        String fqfn = String.format("%s/%s/%s", tenant, namespace, functionName);
+
+        cmd.run(new String[] {
+                "create",
+                "--inputs", inputTopicName,
+                "--output", outputTopicName,
+                "--fqfn", fqfn,
+                "--jar", "SomeJar.jar",
+                "--className", DummyFunction.class.getName(),
+        });
+
+        CreateFunction creater = cmd.getCreater();
+        assertEquals(tenant, creater.getFunctionConfig().getTenant());
+        assertEquals(namespace, creater.getFunctionConfig().getNamespace());
+        assertEquals(functionName, creater.getFunctionConfig().getName());
+        verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
+    }
+
+    @Test
     public void testCreateWithoutFunctionName() throws Exception {
         String inputTopicName = TEST_NAME + "-input-topic";
         String outputTopicName = TEST_NAME + "-output-topic";

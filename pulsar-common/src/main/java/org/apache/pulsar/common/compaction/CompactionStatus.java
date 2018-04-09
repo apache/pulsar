@@ -16,22 +16,37 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.util.collections;
-
-import lombok.Value;
+package org.apache.pulsar.common.compaction;
 
 /**
- * Basic holder of a pair of values.
- *
- * Use as: <br/>
- * <pre><code>
- * Pair&lt;String, String&gt; p = Pair.of("a", "b");
- * p.getFirst();
- * p.getSecond();
- * </code></pre>
+ * Status of compaction for a topic.
  */
-@Value(staticConstructor = "of")
-public class Pair<X, Y> {
-    private final X first;
-    private final Y second;
+public class CompactionStatus {
+    public enum Status {
+        NOT_RUN,
+        RUNNING,
+        SUCCESS,
+        ERROR
+    };
+
+    public Status status;
+    public String lastError;
+
+    public CompactionStatus() {
+        this.status = Status.NOT_RUN;
+        this.lastError = "";
+    }
+
+    private CompactionStatus(Status status, String lastError) {
+        this.status = status;
+        this.lastError = lastError;
+    }
+
+    public static CompactionStatus forStatus(Status status) {
+        return new CompactionStatus(status, "");
+    }
+
+    public static CompactionStatus forError(String lastError) {
+        return new CompactionStatus(Status.ERROR, lastError);
+    }
 }

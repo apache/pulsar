@@ -18,12 +18,14 @@
  */
 package org.apache.pulsar.common.naming;
 
-import java.net.URI;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import lombok.experimental.UtilityClass;
+
 /**
  */
+@UtilityClass
 public class NamedEntity {
 
     // allowed characters for property, namespace, cluster and topic names are
@@ -37,11 +39,4 @@ public class NamedEntity {
             throw new IllegalArgumentException("Invalid named entity: " + name);
         }
     }
-
-    public static void checkURI(URI uri, String name) {
-        if (!String.format("%s://%s%s", uri.getScheme(), uri.getHost(), uri.getPath()).equals(name)) {
-            throw new IllegalArgumentException("Invalid trailing chars in named entity: " + name);
-        }
-    }
-
 }
