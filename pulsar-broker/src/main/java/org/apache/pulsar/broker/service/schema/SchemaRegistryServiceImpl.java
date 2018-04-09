@@ -27,7 +27,6 @@ import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
-import java.nio.ByteBuffer;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
