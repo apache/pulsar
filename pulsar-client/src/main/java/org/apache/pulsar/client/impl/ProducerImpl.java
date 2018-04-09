@@ -181,7 +181,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
 
         this.connectionHandler = new ConnectionHandler(this,
-            new Backoff(100, TimeUnit.MILLISECONDS, 60, TimeUnit.SECONDS, Math.max(100, conf.getSendTimeoutMs() - 100), TimeUnit.MILLISECONDS),
+            new Backoff(100, TimeUnit.MILLISECONDS,
+                client.getConfiguration().getOperationTimeoutMs(), TimeUnit.MILLISECONDS,
+                Math.max(100, conf.getSendTimeoutMs() - 100), TimeUnit.MILLISECONDS),
             this);
         grabCnx();
     }

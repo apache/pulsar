@@ -184,7 +184,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         this.connectionHandler = new ConnectionHandler(this,
-            new Backoff(100, TimeUnit.MILLISECONDS, 60, TimeUnit.SECONDS, 0, TimeUnit.MILLISECONDS),
+            new Backoff(100, TimeUnit.MILLISECONDS,
+                client.getConfiguration().getOperationTimeoutMs(), TimeUnit.MILLISECONDS,
+                0, TimeUnit.MILLISECONDS),
             this);
 
         grabCnx();
