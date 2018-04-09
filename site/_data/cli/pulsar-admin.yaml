@@ -326,6 +326,16 @@ commands:
   - name: delete
     description: Deletes a namespace
     argument: property/cluster/namespace
+  - name: set-deduplication
+    description: Enable or disable message deduplication on a namespace
+    argument: property/cluster/namespace
+    options:
+    - flags: --enable, -e
+      description: Enable message deduplication on the specified namespace
+      default: 'false'
+    - flags: --disable, -d
+      description: Disable message deduplication on the specified namespace
+      default: 'false'
   - name: permissions
     description: Get the permissions on a namespace
     argument: property/cluster/namespace

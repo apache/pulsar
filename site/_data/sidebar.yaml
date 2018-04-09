@@ -129,9 +129,11 @@ groups:
   - title: Apache Storm
     endpoint: PulsarStorm
 
-- title: Advanced
-  dir: advanced
+- title: Cookbooks
+  dir: cookbooks
   docs:
+  - title: Message deduplication
+    endpoint: message-deduplication
   - title: Partitioned topics
     endpoint: PartitionedTopics
   - title: Retention and expiry

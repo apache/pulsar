@@ -16,32 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.naming;
+package org.apache.pulsar.common.schema;
 
-public enum TopicDomain {
-    persistent("persistent"), non_persistent("non-persistent");
+import java.util.Map;
+import lombok.Builder;
+import lombok.Data;
 
-    private String value;
-
-    private TopicDomain(String value) {
-        this.value = value;
-    }
-
-    public String value() {
-        return this.value;
-    }
-
-    public static TopicDomain getEnum(String value) {
-        for (TopicDomain e : values()) {
-            if (e.value.equalsIgnoreCase(value)) {
-                return e;
-            }
-        }
-        throw new IllegalArgumentException("Invalid topic domain: '" + value + "'");
-    }
-
-    @Override
-    public String toString() {
-        return this.value;
-    }
+@Data
+@Builder
+public class GetSchemaResponse {
+    private SchemaVersion version;
+    private SchemaType type;
+    private long timestamp;
+    private String data;
+    private Map<String, String> properties;
 }

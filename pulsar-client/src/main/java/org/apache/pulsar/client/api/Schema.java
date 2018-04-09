@@ -18,9 +18,13 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.common.schema.SchemaInfo;
+
 public interface Schema<T> {
     byte[] encode(T message);
     T decode(byte[] bytes);
+
+    SchemaInfo getSchemaInfo();
 
     Schema<byte[]> IDENTITY = new Schema<byte[]>() {
         @Override
@@ -31,6 +35,11 @@ public interface Schema<T> {
         @Override
         public byte[] decode(byte[] bytes) {
             return bytes;
+        }
+
+        @Override
+        public SchemaInfo getSchemaInfo() {
+            return null;
         }
     };
 }
