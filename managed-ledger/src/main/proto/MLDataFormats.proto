@@ -27,6 +27,7 @@ message ManagedLedgerInfo {
     	optional int64 entries  = 2;
     	optional int64 size     = 3;
     	optional int64 timestamp = 4;
+        optional bytes offloadContext = 5;
     }
     
     repeated LedgerInfo ledgerInfo = 1;
