@@ -467,7 +467,7 @@ String wotd = context.getUserConfigValueOrDefault("word-of-the-day", "perspicaci
 
 {% include admonition.html type="info" content="For all key/value pairs passed to Java Pulsar Functions, both the key *and* the value are `String`s. If you'd like the value to be of a different type, you will need to deserialize from the `String` type." %}
 
-## Java metrics
+### Java metrics
 
 You can record metrics using the [`Context`](#java-context) object on a per-key basis. You can, for example, set a metric for the key `process-count` and a different metric for the key `elevens-count` every time the function processes a message. Here's an example:
 
