@@ -479,7 +479,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
-    public synchronized void asyncAddEntry(ByteBuf buffer, AddEntryCallback callback, Object ctx) {
+    public void asyncAddEntry(ByteBuf buffer, AddEntryCallback callback, Object ctx) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] asyncAddEntry size={} state={}", name, buffer.readableBytes(), state);
         }
@@ -498,6 +498,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         OpAddEntry addOperation = OpAddEntry.create(this, buffer, callback, ctx);
         pendingAddEntries.add(addOperation);
 
+        // Jump to specific thread to avoid contention from writers writing from different threads
+        executor.executeOrdered(name, safeRun(() -> {
+            internalAsyncAddEntry(addOperation);
+        }));
+    }
+
+    private synchronized void internalAsyncAddEntry(OpAddEntry addOperation) {
         if (state == State.ClosingLedger || state == State.CreatingLedger) {
             // We don't have a ready ledger to write into
             // We are waiting for a new ledger to be created
@@ -509,7 +516,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (now < lastLedgerCreationFailureTimestamp + WaitTimeAfterLedgerCreationFailureMs) {
                 // Deny the write request, since we haven't waited enough time since last attempt to create a new ledger
                 pendingAddEntries.remove(addOperation);
-                callback.addFailed(new ManagedLedgerException("Waiting for new ledger creation to complete"), ctx);
+                addOperation.failed(new ManagedLedgerException("Waiting for new ledger creation to complete"));
                 return;
             }
 
@@ -521,7 +528,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 this.lastLedgerCreationInitiationTimestamp = System.nanoTime();
                 mbean.startDataLedgerCreateOp();
                 bookKeeper.asyncCreateLedger(config.getEnsembleSize(), config.getWriteQuorumSize(),
-                        config.getAckQuorumSize(), config.getDigestType(), config.getPassword(), this, ctx,
+                        config.getAckQuorumSize(), config.getDigestType(), config.getPassword(), this, null,
                         Collections.emptyMap());
             }
         } else {
@@ -531,7 +538,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             addOperation.setLedger(currentLedger);
 
             ++currentLedgerEntries;
-            currentLedgerSize += buffer.readableBytes();
+            currentLedgerSize += addOperation.data.readableBytes();
 
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Write into current ledger lh={} entries={}", name, currentLedger.getId(),

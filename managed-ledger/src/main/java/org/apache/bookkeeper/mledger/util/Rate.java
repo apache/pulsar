@@ -57,7 +57,7 @@ public class Rate {
     }
 
     public void calculateRate(double period) {
-        checkArgument(period != 0);
+        checkArgument(period > 0, "Invalid period %s to calculate rate", period);
 
         count = countAdder.sumThenReset();
         long sum = valueAdder.sumThenReset();

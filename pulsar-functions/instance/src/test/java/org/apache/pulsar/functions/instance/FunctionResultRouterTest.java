@@ -22,28 +22,19 @@ import static org.mockito.Mockito.mock;
 import static org.powermock.api.mockito.PowerMockito.when;
 import static org.testng.Assert.assertEquals;
 
+import java.time.Clock;
+
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.impl.Hash;
 import org.apache.pulsar.client.impl.Murmur3_32Hash;
-import org.apache.pulsar.client.impl.RoundRobinPartitionMessageRouterImpl;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.testng.IObjectFactory;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link FunctionResultRouter}.
  */
-@PrepareForTest({ RoundRobinPartitionMessageRouterImpl.class })
 public class FunctionResultRouterTest {
-
-    @ObjectFactory
-    public IObjectFactory getObjectFactory() {
-        return new org.powermock.modules.testng.PowerMockObjectFactory();
-    }
 
     private Hash hash;
 
@@ -61,11 +52,11 @@ public class FunctionResultRouterTest {
         TopicMetadata topicMetadata = mock(TopicMetadata.class);
         when(topicMetadata.numPartitions()).thenReturn(5);
 
-        PowerMockito.mockStatic(System.class);
+        Clock clock = mock(Clock.class);
 
-        FunctionResultRouter router = new FunctionResultRouter(0);
+        FunctionResultRouter router = new FunctionResultRouter(0, clock);
         for (int i = 0; i < 10; i++) {
-            PowerMockito.when(System.currentTimeMillis()).thenReturn(123450L + i);
+            when(clock.millis()).thenReturn(123450L + i);
             assertEquals(i % 5, router.choosePartition(msg, topicMetadata));
         }
     }
@@ -75,7 +66,9 @@ public class FunctionResultRouterTest {
         TopicMetadata topicMetadata = mock(TopicMetadata.class);
         when(topicMetadata.numPartitions()).thenReturn(5);
 
-        FunctionResultRouter router = new FunctionResultRouter(0);
+        Clock clock = mock(Clock.class);
+
+        FunctionResultRouter router = new FunctionResultRouter(0, clock);
         for (int i = 0; i < 10; i++) {
             Message msg = mock(Message.class);
             when(msg.hasKey()).thenReturn(false);
@@ -98,7 +91,9 @@ public class FunctionResultRouterTest {
         when(msg2.getKey()).thenReturn(key2);
         when(msg1.getSequenceId()).thenReturn(-1L);
 
-        FunctionResultRouter router = new FunctionResultRouter(0);
+        Clock clock = mock(Clock.class);
+
+        FunctionResultRouter router = new FunctionResultRouter(0, clock);
         TopicMetadata metadata = mock(TopicMetadata.class);
         when(metadata.numPartitions()).thenReturn(100);
 
@@ -120,7 +115,9 @@ public class FunctionResultRouterTest {
         when(msg2.getKey()).thenReturn(key2);
         when(msg1.getSequenceId()).thenReturn((long) ((key2.hashCode() % 100) + 1));
 
-        FunctionResultRouter router = new FunctionResultRouter(0);
+        Clock clock = mock(Clock.class);
+
+        FunctionResultRouter router = new FunctionResultRouter(0, clock);
         TopicMetadata metadata = mock(TopicMetadata.class);
         when(metadata.numPartitions()).thenReturn(100);
 
