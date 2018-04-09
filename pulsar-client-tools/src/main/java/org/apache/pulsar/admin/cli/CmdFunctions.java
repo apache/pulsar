@@ -130,14 +130,30 @@ public class CmdFunctions extends CmdBase {
 
         @Override
         void processArguments() throws Exception {
-            if (null != fqfn) {
-                String[] fqfnArray = fqfn.split("/");
-                if (fqfnArray.length != 3) {
-                    throw new IllegalArgumentException("Fully qualified function names (FQFNs) must be of the form tenant/namespace/name");
+            super.processArguments();
+
+            boolean usesSetters = (null != tenant || null != namespace || null != functionName);
+            boolean usesFqfn = (null != fqfn);
+
+            // Throw an exception if --fqfn is set alongside any combination of --tenant, --namespace, and --name
+            if (usesFqfn && usesSetters) {
+                throw new RuntimeException(
+                        "You must specify either a Fully Qualified Function Name (FQFN) or tenant, namespace, and function name");
+            } else if (usesFqfn) {
+                // If the --fqfn flag is used, parse tenant, namespace, and name using that flag
+                String[] fqfnParts = fqfn.split("/");
+                if (fqfnParts.length != 3) {
+                    throw new RuntimeException(
+                            "Fully qualified function names (FQFNs) must be of the form tenant/namespace/name");
                 }
-                tenant = fqfnArray[0];
-                namespace = fqfnArray[1];
-                functionName = fqfnArray[2];
+                tenant = fqfnParts[0];
+                namespace = fqfnParts[1];
+                functionName = fqfnParts[2];
+            } else {
+                if (null == tenant || null == namespace || null == functionName) {
+                    throw new RuntimeException(
+                            "You must specify a tenant, namespace, and name for the function or a Fully Qualified Function Name (FQFN)");
+                }
             }
         }
     }
@@ -193,6 +209,8 @@ public class CmdFunctions extends CmdBase {
 
         @Override
         void processArguments() throws Exception {
+            super.processArguments();
+
             FunctionConfig.Builder functionConfigBuilder;
 
             // Initialize config builder either from a supplied YAML config file or from scratch
