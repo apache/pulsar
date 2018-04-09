@@ -3719,6 +3719,10 @@ public final class MLDataFormats {
         getPropertiesOrBuilderList();
     org.apache.bookkeeper.mledger.proto.MLDataFormats.LongPropertyOrBuilder getPropertiesOrBuilder(
         int index);
+    
+    // optional int64 lastActive = 6;
+    boolean hasLastActive();
+    long getLastActive();
   }
   public static final class ManagedCursorInfo extends
       com.google.protobuf.GeneratedMessage
@@ -3821,12 +3825,23 @@ public final class MLDataFormats {
       return properties_.get(index);
     }
     
+    // optional int64 lastActive = 6;
+    public static final int LASTACTIVE_FIELD_NUMBER = 6;
+    private long lastActive_;
+    public boolean hasLastActive() {
+      return ((bitField0_ & 0x00000008) == 0x00000008);
+    }
+    public long getLastActive() {
+      return lastActive_;
+    }
+    
     private void initFields() {
       cursorsLedgerId_ = 0L;
       markDeleteLedgerId_ = 0L;
       markDeleteEntryId_ = 0L;
       individualDeletedMessages_ = java.util.Collections.emptyList();
       properties_ = java.util.Collections.emptyList();
+      lastActive_ = 0L;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -3871,6 +3886,9 @@ public final class MLDataFormats {
       for (int i = 0; i < properties_.size(); i++) {
         output.writeMessage(5, properties_.get(i));
       }
+      if (((bitField0_ & 0x00000008) == 0x00000008)) {
+        output.writeInt64(6, lastActive_);
+      }
       getUnknownFields().writeTo(output);
     }
     
@@ -3899,6 +3917,10 @@ public final class MLDataFormats {
       for (int i = 0; i < properties_.size(); i++) {
         size += com.google.protobuf.CodedOutputStream
           .computeMessageSize(5, properties_.get(i));
+      }
+      if (((bitField0_ & 0x00000008) == 0x00000008)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeInt64Size(6, lastActive_);
       }
       size += getUnknownFields().getSerializedSize();
       memoizedSerializedSize = size;
@@ -4044,6 +4066,8 @@ public final class MLDataFormats {
         } else {
           propertiesBuilder_.clear();
         }
+        lastActive_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000020);
         return this;
       }
       
@@ -4112,6 +4136,10 @@ public final class MLDataFormats {
         } else {
           result.properties_ = propertiesBuilder_.build();
         }
+        if (((from_bitField0_ & 0x00000020) == 0x00000020)) {
+          to_bitField0_ |= 0x00000008;
+        }
+        result.lastActive_ = lastActive_;
         result.bitField0_ = to_bitField0_;
         onBuilt();
         return result;
@@ -4189,6 +4217,9 @@ public final class MLDataFormats {
             }
           }
         }
+        if (other.hasLastActive()) {
+          setLastActive(other.getLastActive());
+        }
         this.mergeUnknownFields(other.getUnknownFields());
         return this;
       }
@@ -4261,6 +4292,11 @@ public final class MLDataFormats {
               org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.Builder subBuilder = org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty.newBuilder();
               input.readMessage(subBuilder, extensionRegistry);
               addProperties(subBuilder.buildPartial());
+              break;
+            }
+            case 48: {
+              bitField0_ |= 0x00000020;
+              lastActive_ = input.readInt64();
               break;
             }
           }
@@ -4704,6 +4740,27 @@ public final class MLDataFormats {
         return propertiesBuilder_;
       }
       
+      // optional int64 lastActive = 6;
+      private long lastActive_ ;
+      public boolean hasLastActive() {
+        return ((bitField0_ & 0x00000020) == 0x00000020);
+      }
+      public long getLastActive() {
+        return lastActive_;
+      }
+      public Builder setLastActive(long value) {
+        bitField0_ |= 0x00000020;
+        lastActive_ = value;
+        onChanged();
+        return this;
+      }
+      public Builder clearLastActive() {
+        bitField0_ = (bitField0_ & ~0x00000020);
+        lastActive_ = 0L;
+        onChanged();
+        return this;
+      }
+      
       // @@protoc_insertion_point(builder_scope:ManagedCursorInfo)
     }
     
@@ -4773,13 +4830,13 @@ public final class MLDataFormats {
       "ssageRange\022*\n\rlowerEndpoint\030\001 \002(\0132\023.Nest" +
       "edPositionInfo\022*\n\rupperEndpoint\030\002 \002(\0132\023." +
       "NestedPositionInfo\"+\n\014LongProperty\022\014\n\004na" +
-      "me\030\001 \002(\t\022\r\n\005value\030\002 \002(\003\"\270\001\n\021ManagedCurso" +
+      "me\030\001 \002(\t\022\r\n\005value\030\002 \002(\003\"\314\001\n\021ManagedCurso" +
       "rInfo\022\027\n\017cursorsLedgerId\030\001 \002(\003\022\032\n\022markDe" +
       "leteLedgerId\030\002 \001(\003\022\031\n\021markDeleteEntryId\030" +
       "\003 \001(\003\0220\n\031individualDeletedMessages\030\004 \003(\013" +
       "2\r.MessageRange\022!\n\nproperties\030\005 \003(\0132\r.Lo" +
-      "ngPropertyB\'\n#org.apache.bookkeeper.mled",
-      "ger.protoH\001"
+      "ngProperty\022\022\n\nlastActive\030\006 \001(\003B\'\n#org.ap",
+      "ache.bookkeeper.mledger.protoH\001"
     };
     com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner assigner =
       new com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner() {
@@ -4839,7 +4896,7 @@ public final class MLDataFormats {
           internal_static_ManagedCursorInfo_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_ManagedCursorInfo_descriptor,
-              new java.lang.String[] { "CursorsLedgerId", "MarkDeleteLedgerId", "MarkDeleteEntryId", "IndividualDeletedMessages", "Properties", },
+              new java.lang.String[] { "CursorsLedgerId", "MarkDeleteLedgerId", "MarkDeleteEntryId", "IndividualDeletedMessages", "Properties", "LastActive", },
               org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo.class,
               org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo.Builder.class);
           return null;

@@ -155,6 +155,9 @@ public class ManagedCursorImpl implements ManagedCursor {
     private volatile int pendingMarkDeletedSubmittedCount = 0;
     private long lastLedgerSwitchTimestamp;
 
+    // The last active time (Unix time, milliseconds) of the cursor
+    private long lastActive = System.currentTimeMillis();
+
     enum State {
         Uninitialized, // Cursor is being initialized
         NoLedger, // There is no metadata ledger open for writing
@@ -211,6 +214,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             public void operationComplete(ManagedCursorInfo info, Stat stat) {
 
                 cursorLedgerStat = stat;
+                lastActive = info.getLastActive() != 0 ? info.getLastActive() : lastActive;
 
                 if (info.getCursorsLedgerId() == -1L) {
                     // There is no cursor ledger to read the last position from. It means the cursor has been properly
@@ -1668,6 +1672,16 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     @Override
+    public long getLastActive() {
+        return lastActive;
+    }
+
+    @Override
+    public void updateLastActive() {
+        lastActive = System.currentTimeMillis();
+    }
+
+    @Override
     public boolean isDurable() {
         return true;
     }
@@ -1812,7 +1826,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         ManagedCursorInfo.Builder info = ManagedCursorInfo.newBuilder() //
                 .setCursorsLedgerId(cursorsLedgerId) //
                 .setMarkDeleteLedgerId(position.getLedgerId()) //
-                .setMarkDeleteEntryId(position.getEntryId()); //
+                .setMarkDeleteEntryId(position.getEntryId()) //
+                .setLastActive(lastActive); //
 
         info.addAllProperties(buildPropertiesMap(properties));
         if (persistIndividualDeletedMessageRanges) {
