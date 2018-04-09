@@ -138,6 +138,7 @@ flexible messaging model and an intuitive client API.</description>
     <protoc-gen-grpc-java.version>1.0.0</protoc-gen-grpc-java.version>
     <gson.version>2.8.2</gson.version>
     <sketches.version>0.8.3</sketches.version>
+    <jctools.version>2.1.1</jctools.version>
 
     <!-- test dependencies -->
     <disruptor.version>3.4.0</disruptor.version>
@@ -428,6 +429,12 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>log4j-core</artifactId>
         <type>test-jar</type>
         <version>${log4j2.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.jctools</groupId>
+        <artifactId>jctools-core</artifactId>
+        <version>${jctools.version}</version>
       </dependency>
 
       <dependency>
