@@ -16,26 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include <pulsar/BatchMessageId.h>
+
 #include <lib/ProducerImpl.h>
 #include <lib/ConsumerImpl.h>
 #include <string>
 
 using std::string;
 
-namespace pulsar{
+namespace pulsar {
 class PulsarFriend {
-    public:
-    static int getBatchIndex(const BatchMessageId& mId) {
-        return mId.batchIndex_;
+   public:
+    static MessageId getMessageId(int32_t partition, int64_t ledgerId, int64_t entryId, int32_t batchIndex) {
+        return MessageId(partition, ledgerId, entryId, batchIndex);
     }
+
+    static int getBatchIndex(const MessageId& mId) { return mId.batchIndex(); }
 
     static ProducerStatsImplPtr getProducerStatsPtr(Producer producer) {
         ProducerImpl* producerImpl = static_cast<ProducerImpl*>(producer.impl_.get());
         return boost::static_pointer_cast<ProducerStatsImpl>(producerImpl->producerStatsBasePtr_);
     }
 
-    template<typename T>
+    template <typename T>
     static unsigned long sum(std::map<T, unsigned long> m) {
         unsigned long sum = 0;
         for (typename std::map<T, unsigned long>::iterator iter = m.begin(); iter != m.end(); iter++) {
@@ -59,12 +61,10 @@ class PulsarFriend {
         return *consumerImpl;
     }
 
-    static ClientConnectionWeakPtr getClientConnection(HandlerBase&  handler) {
-        return handler.connection_;
-    }
+    static ClientConnectionWeakPtr getClientConnection(HandlerBase& handler) { return handler.connection_; }
 
     static boost::posix_time::ptime& getFirstBackoffTime(Backoff& backoff) {
         return backoff.firstBackoffTime_;
     }
 };
-}
+}  // namespace pulsar

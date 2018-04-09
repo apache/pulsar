@@ -47,8 +47,24 @@ commands:
     pulsar broker \
       --conf /path/to/broker.conf
   options:
-  - flags: -c, --conf
+  - flags: -c, --broker-conf
     description: Configuration file for the broker
+  - flags: -bc, --bookie-conf
+    description: Configuration file for BookKeeper
+  - flags: -rb, --run-bookie
+    description: Run a BookKeeper bookie on the same host as the Pulsar broker
+    default: 'false'
+  - flags: -ra, --run-bookie-autorecovery
+    description: Run a BookKeeper autorecovery daemon on the same host as the Pulsar broker
+    default: 'false'
+- name: compact-topic
+  description: Run compaction against a Pulsar topic
+  example: |
+    pulsar compact-topic \
+      --topic persistent://sample/standalone/ns1/topic-to-compact
+  options:
+  - flags: -t, --topic
+    description: The Pulsar topic that you would like to compact
 - name: discovery
   description: Run a discovery server
   example: |
@@ -79,6 +95,19 @@ commands:
     description: The web service URL for the new cluster with TLS encryption
   - flags: -zk, --zookeeper
     description: The local ZooKeeper quorum connection string
+- name: proxy
+  description: Manages the Pulsar proxy
+  example: |
+    pulsar proxy \
+      --zookeeper-servers zk-0,zk-1,zk2 \
+      --global-zookeeper-servers zk-0,zk-1,zk-2
+  options:
+  - flags: -c, --config
+    description: Path to a Pulsar proxy configuration file
+  - flags: -gzk, --global-zookeeper-servers
+    description: Global ZooKeeper connection string
+  - flags: -zk, --zookeeper-servers
+    description: Local ZooKeeper connection string
 - name: standalone
   description: Run a broker service with local bookies and local ZooKeeper
   options:
@@ -124,10 +153,12 @@ commands:
   options:
   - flags: -c, --conf
     description: Configuration file for ZooKeeper
+- name: zookeeper-shell
+  description: Opens up a shell client to the ZooKeeper cluster used by Pulsar
 env_vars:
 - name: PULSAR_LOG_CONF
   description: Log4j configuration file
-  default: conf/log4j.properties
+  default: conf/log4j2.yaml
 - name: PULSAR_BROKER_CONF
   description: Configuration file for broker
   default: conf/broker.conf

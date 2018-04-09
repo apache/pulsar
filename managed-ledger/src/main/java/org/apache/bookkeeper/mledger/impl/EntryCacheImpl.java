@@ -20,33 +20,29 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 
+import com.google.common.collect.Lists;
+import com.google.common.primitives.Longs;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.PooledByteBufAllocator;
 import java.util.Collection;
 import java.util.List;
-
-import org.apache.bookkeeper.client.AsyncCallback.ReadCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
-import org.apache.bookkeeper.mledger.util.Pair;
 import org.apache.bookkeeper.mledger.util.RangeCache;
 import org.apache.bookkeeper.mledger.util.RangeCache.Weighter;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Lists;
-import com.google.common.primitives.Longs;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
-
 /**
- * Cache data payload for entries of all ledgers
+ * Cache data payload for entries of all ledgers.
  */
 public class EntryCacheImpl implements EntryCache {
 
@@ -56,17 +52,12 @@ public class EntryCacheImpl implements EntryCache {
 
     private static final double MB = 1024 * 1024;
 
-    private static final Weighter<EntryImpl> entryWeighter = new Weighter<EntryImpl>() {
-        @Override
-        public long getSize(EntryImpl entry) {
-            return entry.getLength();
-        }
-    };
+    private static final Weighter<EntryImpl> entryWeighter = EntryImpl::getLength;
 
     public EntryCacheImpl(EntryCacheManager manager, ManagedLedgerImpl ml) {
         this.manager = manager;
         this.ml = ml;
-        this.entries = new RangeCache<PositionImpl, EntryImpl>(entryWeighter);
+        this.entries = new RangeCache<>(entryWeighter);
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] Initialized managed-ledger entry cache", ml.getName());
@@ -78,15 +69,14 @@ public class EntryCacheImpl implements EntryCache {
         return ml.getName();
     }
 
-    public final static PooledByteBufAllocator allocator = new PooledByteBufAllocator( //
-            true, // preferDirect
+    public final static PooledByteBufAllocator ALLOCATOR = new PooledByteBufAllocator(true, // preferDirect
             0, // nHeapArenas,
-            1, // nDirectArena
-            8192, // pageSize
-            11, // maxOrder
-            64, // tinyCacheSize
-            32, // smallCacheSize
-            8, // normalCacheSize,
+            PooledByteBufAllocator.defaultNumDirectArena(), // nDirectArena
+            PooledByteBufAllocator.defaultPageSize(), // pageSize
+            PooledByteBufAllocator.defaultMaxOrder(), // maxOrder
+            PooledByteBufAllocator.defaultTinyCacheSize(), // tinyCacheSize
+            PooledByteBufAllocator.defaultSmallCacheSize(), // smallCacheSize
+            PooledByteBufAllocator.defaultNormalCacheSize(), // normalCacheSize,
             true // Use cache for all threads
     );
 
@@ -111,7 +101,7 @@ public class EntryCacheImpl implements EntryCache {
         int size = entry.getLength();
         ByteBuf cachedData = null;
         try {
-            cachedData = allocator.directBuffer(size, size);
+            cachedData = ALLOCATOR.directBuffer(size, size);
         } catch (Throwable t) {
             log.warn("[{}] Failed to allocate buffer for entry cache: {}", ml.getName(), t.getMessage(), t);
             return false;
@@ -142,8 +132,8 @@ public class EntryCacheImpl implements EntryCache {
         final PositionImpl firstPosition = PositionImpl.get(-1, 0);
 
         Pair<Integer, Long> removed = entries.removeRange(firstPosition, lastPosition, true);
-        int entriesRemoved = removed.first;
-        long sizeRemoved = removed.second;
+        int entriesRemoved = removed.getLeft();
+        long sizeRemoved = removed.getRight();
         if (log.isDebugEnabled()) {
             log.debug("[{}] Invalidated entries up to {} - Entries removed: {} - Size removed: {}", ml.getName(),
                     lastPosition, entriesRemoved, sizeRemoved);
@@ -158,8 +148,8 @@ public class EntryCacheImpl implements EntryCache {
         final PositionImpl lastPosition = PositionImpl.get(ledgerId + 1, 0);
 
         Pair<Integer, Long> removed = entries.removeRange(firstPosition, lastPosition, false);
-        int entriesRemoved = removed.first;
-        long sizeRemoved = removed.second;
+        int entriesRemoved = removed.getLeft();
+        long sizeRemoved = removed.getRight();
         if (log.isDebugEnabled()) {
             log.debug("[{}] Invalidated all entries on ledger {} - Entries removed: {} - Size removed: {}",
                     ml.getName(), ledgerId, entriesRemoved, sizeRemoved);
@@ -184,7 +174,7 @@ public class EntryCacheImpl implements EntryCache {
             lh.asyncReadEntries(position.getEntryId(), position.getEntryId(), (rc, ledgerHandle, sequence, obj) -> {
                 if (rc != BKException.Code.OK) {
                     ml.invalidateLedgerHandle(ledgerHandle, rc);
-                    callback.readEntryFailed(new ManagedLedgerException(BKException.create(rc)), obj);
+                    callback.readEntryFailed(createManagedLedgerException(rc), obj);
                     return;
                 }
 
@@ -198,7 +188,7 @@ public class EntryCacheImpl implements EntryCache {
                     manager.mlFactoryMBean.recordCacheMiss(1, returnEntry.getLength());
                     ml.mbean.addReadEntriesSample(1, returnEntry.getLength());
 
-                    ml.getExecutor().submitOrdered(ml.getName(), safeRun(() -> {
+                    ml.getExecutor().executeOrdered(ml.getName(), safeRun(() -> {
                         callback.readEntryComplete(returnEntry, obj);
                     }));
                 } else {
@@ -253,18 +243,18 @@ public class EntryCacheImpl implements EntryCache {
 
                 if (rc != BKException.Code.OK) {
                     if (rc == BKException.Code.TooManyRequestsException) {
-                        callback.readEntriesFailed(new TooManyRequestsException("Too many request error from bookies"),
-                                ctx);
+                        callback.readEntriesFailed(createManagedLedgerException(rc), ctx);
                     } else {
                         ml.invalidateLedgerHandle(lh1, rc);
-                        callback.readEntriesFailed(new ManagedLedgerException(BKException.getMessage(rc)), ctx);
+                        ManagedLedgerException mlException = createManagedLedgerException(rc);
+                        callback.readEntriesFailed(mlException, ctx);
                     }
                     return;
                 }
 
                 checkNotNull(ml.getName());
                 checkNotNull(ml.getExecutor());
-                ml.getExecutor().submitOrdered(ml.getName(), safeRun(() -> {
+                ml.getExecutor().executeOrdered(ml.getName(), safeRun(() -> {
                     // We got the entries, we need to transform them to a List<> type
                     long totalSize = 0;
                     final List<EntryImpl> entriesToReturn = Lists.newArrayListWithExpectedSize(entriesToRead);
@@ -309,8 +299,8 @@ public class EntryCacheImpl implements EntryCache {
     public Pair<Integer, Long> evictEntries(long sizeToFree) {
         checkArgument(sizeToFree > 0);
         Pair<Integer, Long> evicted = entries.evictLeastAccessedEntries(sizeToFree);
-        int evictedEntries = evicted.first;
-        long evictedSize = evicted.second;
+        int evictedEntries = evicted.getLeft();
+        long evictedSize = evicted.getRight();
         if (log.isDebugEnabled()) {
             log.debug(
                     "[{}] Doing cache eviction of at least {} Mb -- Deleted {} entries - Total size deleted: {} Mb "

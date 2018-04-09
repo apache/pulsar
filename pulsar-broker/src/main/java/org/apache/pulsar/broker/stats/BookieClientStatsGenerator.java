@@ -23,7 +23,7 @@ import java.util.Map;
 import org.apache.bookkeeper.mledger.proto.PendingBookieOpsStats;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 
 import com.google.common.collect.Maps;
 
@@ -32,7 +32,7 @@ import com.google.common.collect.Maps;
 public class BookieClientStatsGenerator {
     private final PulsarService pulsar;
 
-    // map<namespace, map<destination, bookieOpsStats>>
+    // map<namespace, map<topic, bookieOpsStats>>
     private Map<String, Map<String, PendingBookieOpsStats>> nsBookieClientStatsMap;
 
     public BookieClientStatsGenerator(PulsarService pulsar) {
@@ -49,8 +49,8 @@ public class BookieClientStatsGenerator {
             pulsar.getBrokerService().getTopics().forEach((name, topicFuture) -> {
                 PersistentTopic persistentTopic = (PersistentTopic) topicFuture.getNow(null);
                 if (persistentTopic != null) {
-                    DestinationName destinationName = DestinationName.get(persistentTopic.getName());
-                    put(destinationName, persistentTopic.getManagedLedger().getStats().getPendingBookieOpsStats());
+                    TopicName topicName = TopicName.get(persistentTopic.getName());
+                    put(topicName, persistentTopic.getManagedLedger().getStats().getPendingBookieOpsStats());
                 }
             });
         }
@@ -58,14 +58,14 @@ public class BookieClientStatsGenerator {
         return nsBookieClientStatsMap;
     }
 
-    private void put(DestinationName destinationName, PendingBookieOpsStats bookieOpsStats) {
-        String namespace = destinationName.getNamespace();
+    private void put(TopicName topicName, PendingBookieOpsStats bookieOpsStats) {
+        String namespace = topicName.getNamespace();
         if (!nsBookieClientStatsMap.containsKey(namespace)) {
             Map<String, PendingBookieOpsStats> destBookieClientStatsMap = Maps.newTreeMap();
-            destBookieClientStatsMap.put(destinationName.toString(), bookieOpsStats);
+            destBookieClientStatsMap.put(topicName.toString(), bookieOpsStats);
             nsBookieClientStatsMap.put(namespace, destBookieClientStatsMap);
         } else {
-            nsBookieClientStatsMap.get(namespace).put(destinationName.toString(), bookieOpsStats);
+            nsBookieClientStatsMap.get(namespace).put(topicName.toString(), bookieOpsStats);
         }
 
     }

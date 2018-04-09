@@ -31,11 +31,11 @@ public interface ServiceUnitId {
     public abstract NamespaceName getNamespaceObject();
 
     /**
-     * Check whether a fully-qualified destination is included in this <code>ServiceUnitId</code> object
+     * Check whether a fully-qualified topic is included in this <code>ServiceUnitId</code> object
      *
-     * @param dn
-     *            a fully-qualified destination object
+     * @param topicName
+     *            a fully-qualified topic object
      * @return true or false
      */
-    public abstract boolean includes(DestinationName dn);
+    public abstract boolean includes(TopicName topicName);
 }

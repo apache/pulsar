@@ -103,6 +103,9 @@ import _pulsar
 
 from _pulsar import Result, CompressionType, ConsumerType, PartitionsRoutingMode  # noqa: F401
 
+from functions.function import Function
+from functions.context import Context
+from functions.serde import SerDe, IdentitySerDe, PickleSerDe
 
 class MessageId:
     """
@@ -185,6 +188,8 @@ class Authentication:
         * `authParamsString`: Comma-separated list of provider-specific
           configuration params
         """
+        _check_type(str, dynamicLibPath, 'dynamicLibPath')
+        _check_type(str, authParamsString, 'authParamsString')
         self.auth = _pulsar.Authentication(dynamicLibPath, authParamsString)
 
 
@@ -202,7 +207,7 @@ class Client:
                  operation_timeout_seconds=30,
                  io_threads=1,
                  message_listener_threads=1,
-                 concurrent_lookup_requests=5000,
+                 concurrent_lookup_requests=50000,
                  log_conf_file_path=None,
                  use_tls=False,
                  tls_trust_certs_file_path=None,
@@ -243,6 +248,17 @@ class Client:
           Configure whether the Pulsar client accepts untrusted TLS certificates
           from the broker.
         """
+        _check_type(str, service_url, 'service_url')
+        _check_type_or_none(Authentication, authentication, 'authentication')
+        _check_type(int, operation_timeout_seconds, 'operation_timeout_seconds')
+        _check_type(int, io_threads, 'io_threads')
+        _check_type(int, message_listener_threads, 'message_listener_threads')
+        _check_type(int, concurrent_lookup_requests, 'concurrent_lookup_requests')
+        _check_type_or_none(str, log_conf_file_path, 'log_conf_file_path')
+        _check_type(bool, use_tls, 'use_tls')
+        _check_type_or_none(str, tls_trust_certs_file_path, 'tls_trust_certs_file_path')
+        _check_type(bool, tls_allow_insecure_connection, 'tls_allow_insecure_connection')
+
         conf = _pulsar.ClientConfiguration()
         if authentication:
             conf.authentication(authentication.auth)
@@ -306,6 +322,18 @@ class Client:
         * `message_routing_mode`:
           Set the message routing mode for the partitioned producer.
         """
+        _check_type(str, topic, 'topic')
+        _check_type_or_none(str, producer_name, 'producer_name')
+        _check_type_or_none(int, initial_sequence_id, 'initial_sequence_id')
+        _check_type(int, send_timeout_millis, 'send_timeout_millis')
+        _check_type(CompressionType, compression_type, 'compression_type')
+        _check_type(int, max_pending_messages, 'max_pending_messages')
+        _check_type(bool, block_if_queue_full, 'block_if_queue_full')
+        _check_type(bool, batching_enabled, 'batching_enabled')
+        _check_type(int, batching_max_messages, 'batching_max_messages')
+        _check_type(int, batching_max_allowed_size_in_bytes, 'batching_max_allowed_size_in_bytes')
+        _check_type(int, batching_max_publish_delay_ms, 'batching_max_publish_delay_ms')
+
         conf = _pulsar.ProducerConfiguration()
         conf.send_timeout_millis(send_timeout_millis)
         conf.compression_type(compression_type)
@@ -380,6 +408,14 @@ class Client:
           Sets the time duration for which the broker-side consumer stats will
           be cached in the client.
         """
+        _check_type(str, topic, 'topic')
+        _check_type(str, subscription_name, 'subscription_name')
+        _check_type(ConsumerType, consumer_type, 'consumer_type')
+        _check_type(int, receiver_queue_size, 'receiver_queue_size')
+        _check_type_or_none(str, consumer_name, 'consumer_name')
+        _check_type_or_none(int, unacked_messages_timeout_ms, 'unacked_messages_timeout_ms')
+        _check_type(int, broker_consumer_stats_cache_time_ms, 'broker_consumer_stats_cache_time_ms')
+
         conf = _pulsar.ConsumerConfiguration()
         conf.consumer_type(consumer_type)
         if message_listener:
@@ -399,7 +435,8 @@ class Client:
     def create_reader(self, topic, start_message_id,
                       reader_listener=None,
                       receiver_queue_size=1000,
-                      reader_name=None
+                      reader_name=None,
+                      subscription_role_prefix=None
                       ):
         """
         Create a reader on a particular topic
@@ -443,13 +480,23 @@ class Client:
           memory utilization.
         * `reader_name`:
           Sets the reader name.
+        * `subscription_role_prefix`:
+          Sets the subscription role prefix.
         """
+        _check_type(str, topic, 'topic')
+        _check_type(_pulsar.MessageId, start_message_id, 'start_message_id')
+        _check_type(int, receiver_queue_size, 'receiver_queue_size')
+        _check_type_or_none(str, reader_name, 'reader_name')
+        _check_type_or_none(str, subscription_role_prefix, 'subscription_role_prefix')
+
         conf = _pulsar.ReaderConfiguration()
         if reader_listener:
             conf.reader_listener(reader_listener)
         conf.receiver_queue_size(receiver_queue_size)
         if reader_name:
             conf.reader_name(reader_name)
+        if subscription_role_prefix:
+            conf.subscription_role_prefix(subscription_role_prefix)
         c = Reader()
         c._reader = self._client.create_reader(topic, start_message_id, conf)
         c._client = self
@@ -515,13 +562,13 @@ class Producer:
           A dict of application-defined string properties.
         * `partition_key`:
           Sets the partition key for message routing. A hash of this key is used
-          to determine the message's destination partition.
+          to determine the message's topic partition.
         * `sequence_id`:
           Specify a custom sequence id for the message being published.
         * `replication_clusters`:
           Override namespace replication clusters. Note that it is the caller's
           responsibility to provide valid cluster names and that all clusters
-          have been previously configured as destinations. Given an empty list,
+          have been previously configured as topics. Given an empty list,
           the message will replicate according to the namespace configuration.
         * `disable_replication`:
           Do not replicate this message.
@@ -565,12 +612,12 @@ class Producer:
           A dict of application0-defined string properties.
         * `partition_key`:
           Sets the partition key for the message routing. A hash of this key is
-          used to determine the message's destination partition.
+          used to determine the message's topic partition.
         * `sequence_id`:
           Specify a custom sequence id for the message being published.
         * `replication_clusters`: Override namespace replication clusters. Note
           that it is the caller's responsibility to provide valid cluster names
-          and that all clusters have been previously configured as destinations.
+          and that all clusters have been previously configured as topics.
           Given an empty list, the message will replicate per the namespace
           configuration.
         * `disable_replication`:
@@ -588,10 +635,17 @@ class Producer:
 
     def _build_msg(self, content, properties, partition_key, sequence_id,
                    replication_clusters, disable_replication):
+        _check_type(bytes, content, 'content')
+        _check_type_or_none(dict, properties, 'properties')
+        _check_type_or_none(str, partition_key, 'partition_key')
+        _check_type_or_none(int, sequence_id, 'sequence_id')
+        _check_type_or_none(list, replication_clusters, 'replication_clusters')
+        _check_type(bool, disable_replication, 'disable_replication')
+
         mb = _pulsar.MessageBuilder()
         mb.content(content)
         if properties:
-            for k, v in properties:
+            for k, v in properties.items():
                 mb.property(k, v)
         if partition_key:
             mb.partition_key(partition_key)
@@ -649,6 +703,7 @@ class Consumer:
         if timeout_millis is None:
             return self._consumer.receive()
         else:
+            _check_type(int, timeout_millis, 'timeout_millis')
             return self._consumer.receive(timeout_millis)
 
     def acknowledge(self, message):
@@ -741,6 +796,7 @@ class Reader:
         if timeout_millis is None:
             return self._reader.read_next()
         else:
+            _check_type(int, timeout_millis, 'timeout_millis')
             return self._reader.read_next(timeout_millis)
 
     def close(self):
@@ -749,3 +805,14 @@ class Reader:
         """
         self._reader.close()
         self._client._consumers.remove(self)
+
+
+def _check_type(var_type, var, name):
+    if not isinstance(var, var_type):
+        raise ValueError("Argument %s is expected to be of type '%s'" % (name, var_type.__name__))
+
+
+def _check_type_or_none(var_type, var, name):
+    if var is not None and not isinstance(var, var_type):
+        raise ValueError("Argument %s is expected to be either None or of type '%s'"
+                         % (name, var_type.__name__))

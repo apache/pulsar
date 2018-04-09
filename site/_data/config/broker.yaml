@@ -18,6 +18,9 @@
 #
 
 configs:
+- name: functionsWorkerEnabled
+  description: Whether the Pulsar Functions worker service is enabled in the broker
+  default: 'false'
 - name: zookeeperServers
   default: ''
   description: Zookeeper quorum connection string
@@ -44,10 +47,22 @@ configs:
   description: Hostname or IP address the service binds on, default is 0.0.0.0.
 - name: advertisedAddress
   default: ''
-  description: Hostname or IP address the service advertises to the outside world. If not set, the value of InetAddress.getLocalHost().getHostName() is used.
+  description: Hostname or IP address the service advertises to the outside world. If not set, the value of `InetAddress.getLocalHost().getHostName()` is used.
 - name: clusterName
   default: ''
   description: Name of the cluster to which this broker belongs to
+- name: brokerDeduplicationEnabled
+  default: 'false'
+  description: Sets the default behavior for message deduplication in the broker. If enabled, the broker will reject messages that were already stored in the topic. This setting can be overridden on a per-namespace basis.
+- name: brokerDeduplicationMaxNumberOfProducers
+  default: '10000'
+  description: The maximum number of producers for which information will be stored for deduplication purposes.
+- name: brokerDeduplicationEntriesInterval
+  default: '1000'
+  description: The number of entries after which a deduplication informational snapshot is taken. A larger interval will lead to fewer snapshots being taken, though this would also lengthen the topic recovery time (the time required for entries published after the snapshot to be replayed).
+- name: brokerDeduplicationProducerInactivityTimeoutMinutes
+  default: '360'
+  description: The time of inactivity (in minutes) after which the broker will discard deduplication information related to a disconnected producer.
 - name: zooKeeperSessionTimeoutMillis
   default: '30000'
   description: Zookeeper session timeout in milliseconds
@@ -206,6 +221,9 @@ configs:
   default: '1000'
   description: |
     Max number of "acknowledgment holes" that are going to be persistently stored. When acknowledging out of order, a consumer will leave holes that are supposed to be quickly filled by acking all the messages. The information of which messages are acknowledged is persisted by compressing in "ranges" of messages that were acknowledged. After the max number of ranges is reached, the information will only be tracked in memory and messages will be redelivered in case of crashes.
+- name: autoSkipNonRecoverableData
+  default: 'false'
+  description: Skip reading non-recoverable/unreadable data-ledger under managed-ledger's list.It helps when data-ledgers gets corrupted at bookkeeper and managed-cursor is stuck at that ledger.
 - name: loadBalancerEnabled
   default: 'true'
   description: Enable load balancer
@@ -227,6 +245,9 @@ configs:
 - name: loadBalancerSheddingGracePeriodMinutes
   default: '30'
   description: Prevent the same topics to be shed and moved to other broker more that once within this timeframe
+- name: loadBalancerBrokerMaxTopics
+  default: '50000'
+  description: Usage threshold to allocate max number of topics to broker
 - name: loadBalancerBrokerUnderloadedThresholdPercentage
   default: '1'
   description: Usage threshold to determine a broker as under-loaded

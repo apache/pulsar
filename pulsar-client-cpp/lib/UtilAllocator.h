@@ -22,10 +22,8 @@
 #include <boost/aligned_storage.hpp>
 
 class HandlerAllocator : private boost::noncopyable {
- public:
-    HandlerAllocator()
-            : inUse_(false) {
-    }
+   public:
+    HandlerAllocator() : inUse_(false) {}
 
     void* allocate(std::size_t size) {
         if (!inUse_ && size < storage_.size) {
@@ -44,26 +42,23 @@ class HandlerAllocator : private boost::noncopyable {
         }
     }
 
- private:
+   private:
     // Storage space used for handler-based custom memory allocation.
     boost::aligned_storage<1024> storage_;
     bool inUse_;
 };
 
-template<typename Handler>
+template <typename Handler>
 class AllocHandler {
- public:
-    AllocHandler(HandlerAllocator& a, Handler h)
-            : allocator_(a),
-              handler_(h) {
-    }
+   public:
+    AllocHandler(HandlerAllocator& a, Handler h) : allocator_(a), handler_(h) {}
 
-    template<typename Arg1>
+    template <typename Arg1>
     void operator()(Arg1 arg1) {
         handler_(arg1);
     }
 
-    template<typename Arg1, typename Arg2>
+    template <typename Arg1, typename Arg2>
     void operator()(Arg1 arg1, Arg2 arg2) {
         handler_(arg1, arg2);
     }
@@ -72,12 +67,11 @@ class AllocHandler {
         return thisHandler->allocator_.allocate(size);
     }
 
-    friend void asio_handler_deallocate(void* ptr, std::size_t,
-                                        AllocHandler<Handler>* thisHandler) {
+    friend void asio_handler_deallocate(void* ptr, std::size_t, AllocHandler<Handler>* thisHandler) {
         thisHandler->allocator_.deallocate(ptr);
     }
 
- private:
+   private:
     HandlerAllocator& allocator_;
     Handler handler_;
 };

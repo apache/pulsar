@@ -70,11 +70,11 @@ public class PulsarBrokerVersionStringUtils {
     }
 
     /**
-     * Looks for a resource in the jar which is expected to be a java.util.Properties, then
+     * Looks for a resource in the jar which is expected to be a java.util.PropertiesBase, then
      * extract a specific property value.
      *
      * @return the property value, or null if the resource does not exist or the resource
-     *         is not a valid java.util.Properties or the resource does not contain the
+     *         is not a valid java.util.PropertiesBase or the resource does not contain the
      *         named property
      */
     private static String getPropertyFromResource(String resource, String propertyName) {

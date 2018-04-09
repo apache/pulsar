@@ -20,6 +20,7 @@ package org.apache.pulsar;
 
 import static org.testng.Assert.fail;
 
+import com.google.common.collect.Sets;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -28,14 +29,10 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-
 import org.apache.bookkeeper.bookie.LedgerDirsManager;
-import org.apache.pulsar.PulsarBrokerStarter;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Sets;
 
 /**
  * @version $Revision$<br>
@@ -77,6 +74,7 @@ public class PulsarBrokerStarterTest {
         printWriter.println("replicationProducerQueueSize=50");
         printWriter.println("bookkeeperClientTimeoutInSeconds=12345");
         printWriter.println("bookkeeperClientSpeculativeReadTimeoutInMillis=3000");
+        printWriter.println("enableRunBookieTogether=true");
 
         printWriter.close();
         testConfigFile.deleteOnExit();
@@ -266,18 +264,17 @@ public class PulsarBrokerStarterTest {
     }
 
     /**
-     * Verifies that the main throws {@link IllegalArgumentException} when no argument is given.
+     * Verifies that the main throws {@link FileNotFoundException} when no argument is given.
      */
     @Test
     public void testMainWithNoArgument() throws Exception {
         try {
             PulsarBrokerStarter.main(new String[0]);
-            Assert.fail("No argument to main should've raised IllegalArgumentException!");
-        } catch (IllegalArgumentException e) {
+            Assert.fail("No argument to main should've raised FileNotFoundException for no broker config!");
+        } catch (FileNotFoundException e) {
             // code should reach here.
         }
     }
-
 
     /**
      * Verifies that the main throws {@link IllegalArgumentException}
@@ -287,11 +284,12 @@ public class PulsarBrokerStarterTest {
     public void testMainRunBookieAndAutoRecoveryNoConfig() throws Exception {
         try {
             File testConfigFile = createValidBrokerConfigFile();
-            String[] args = {testConfigFile.getAbsolutePath(), "-rb", "-ra"};
+            String[] args = {"-c", testConfigFile.getAbsolutePath(), "-rb", "-ra", "-bc", ""};
             PulsarBrokerStarter.main(args);
             Assert.fail("No Config file for bookie auto recovery should've raised IllegalArgumentException!");
         } catch (IllegalArgumentException e) {
             // code should reach here.
+            e.printStackTrace();
             Assert.assertEquals(e.getMessage(), "No configuration file for Bookie");
         }
     }
@@ -304,7 +302,7 @@ public class PulsarBrokerStarterTest {
     public void testMainRunBookieRecoveryNoConfig() throws Exception {
         try {
             File testConfigFile = createValidBrokerConfigFile();
-            String[] args = {testConfigFile.getAbsolutePath(), "-ra"};
+            String[] args = {"-c", testConfigFile.getAbsolutePath(), "-ra", "-bc", ""};
             PulsarBrokerStarter.main(args);
             Assert.fail("No Config file for bookie auto recovery should've raised IllegalArgumentException!");
         } catch (IllegalArgumentException e) {
@@ -320,7 +318,7 @@ public class PulsarBrokerStarterTest {
     public void testMainRunBookieNoConfig() throws Exception {
         try {
             File testConfigFile = createValidBrokerConfigFile();
-            String[] args = {testConfigFile.getAbsolutePath(), "-rb"};
+            String[] args = {"-c", testConfigFile.getAbsolutePath(), "-rb", "-bc", ""};
             PulsarBrokerStarter.main(args);
             Assert.fail("No Config file for bookie should've raised IllegalArgumentException!");
         } catch (IllegalArgumentException e) {
@@ -330,18 +328,17 @@ public class PulsarBrokerStarterTest {
     }
 
     /**
-     * Verifies that the main throws {@link IllegalArgumentException} when no config file for bookie is given.
+     * Verifies that the main throws {@link IllegalArgumentException} when no config file for bookie .
      */
     @Test
-    public void testMainRunBookieEmptyConfig() throws Exception {
+    public void testMainEnableRunBookieThroughBrokerConfig() throws Exception {
         try {
             File testConfigFile = createValidBrokerConfigFile();
-            String[] args = {testConfigFile.getAbsolutePath(), "-ra", "-rb", "-bc", testConfigFile.getAbsolutePath()};
+            String[] args = {"-c", testConfigFile.getAbsolutePath()};
             PulsarBrokerStarter.main(args);
-            Assert.fail("Effectively empty config file for bookie should've raised NoWritableLedgerDirException!");
-        } catch (LedgerDirsManager.NoWritableLedgerDirException e) {
-            // code should reach here
-            // Since empty config file will have empty ledgerDirs, it should raise exception when bookie init.
+            Assert.fail("No argument to main should've raised IllegalArgumentException for no bookie config!");
+        } catch (IllegalArgumentException e) {
+            // code should reach here.
         }
     }
 }

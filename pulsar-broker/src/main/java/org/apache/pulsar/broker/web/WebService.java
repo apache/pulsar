@@ -22,6 +22,7 @@ import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -48,6 +49,7 @@ import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.util.thread.ExecutorThreadPool;
+import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
 import org.slf4j.Logger;
@@ -88,24 +90,20 @@ public class WebService implements AutoCloseable {
         connectors.add(connector);
 
         if (pulsar.getConfiguration().isTlsEnabled()) {
-            SslContextFactory sslCtxFactory = new SslContextFactory();
-
             try {
-                sslCtxFactory.setSslContext(
-                        SecurityUtility.createSslContext(
-                            pulsar.getConfiguration().isTlsAllowInsecureConnection(),
-                            pulsar.getConfiguration().getTlsTrustCertsFilePath(),
-                            pulsar.getConfiguration().getTlsCertificateFilePath(),
-                            pulsar.getConfiguration().getTlsKeyFilePath()));
+                SslContextFactory sslCtxFactory = SecurityUtility.createSslContextFactory(
+                        pulsar.getConfiguration().isTlsAllowInsecureConnection(),
+                        pulsar.getConfiguration().getTlsTrustCertsFilePath(),
+                        pulsar.getConfiguration().getTlsCertificateFilePath(),
+                        pulsar.getConfiguration().getTlsKeyFilePath(),
+                        pulsar.getConfiguration().getTlsRequireTrustedClientCertOnConnect());
+                ServerConnector tlsConnector = new PulsarServerConnector(server, 1, 1, sslCtxFactory);
+                tlsConnector.setPort(pulsar.getConfiguration().getWebServicePortTls());
+                tlsConnector.setHost(pulsar.getBindAddress());
+                connectors.add(tlsConnector);
             } catch (GeneralSecurityException e) {
                 throw new PulsarServerException(e);
             }
-
-            sslCtxFactory.setWantClientAuth(true);
-            ServerConnector tlsConnector = new PulsarServerConnector(server, 1, 1, sslCtxFactory);
-            tlsConnector.setPort(pulsar.getConfiguration().getWebServicePortTls());
-            tlsConnector.setHost(pulsar.getBindAddress());
-            connectors.add(tlsConnector);
         }
 
         // Limit number of concurrent HTTP connections to avoid getting out of file descriptors
@@ -113,22 +111,27 @@ public class WebService implements AutoCloseable {
         server.setConnectors(connectors.toArray(new ServerConnector[connectors.size()]));
     }
 
-    public void addRestResources(String basePath, String javaPackages, boolean requiresAuthentication) {
+    public void addRestResources(String basePath, String javaPackages, boolean requiresAuthentication, Map<String,Object> attributeMap) {
         JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
         provider.setMapper(ObjectMapperFactory.create());
         ResourceConfig config = new ResourceConfig();
         config.packages("jersey.config.server.provider.packages", javaPackages);
         config.register(provider);
+        config.register(MultiPartFeature.class);
         ServletHolder servletHolder = new ServletHolder(new ServletContainer(config));
         servletHolder.setAsyncSupported(true);
-        addServlet(basePath, servletHolder, requiresAuthentication);
+        addServlet(basePath, servletHolder, requiresAuthentication, attributeMap);
     }
 
-    public void addServlet(String path, ServletHolder servletHolder, boolean requiresAuthentication) {
+    public void addServlet(String path, ServletHolder servletHolder, boolean requiresAuthentication, Map<String,Object> attributeMap) {
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath(path);
         context.addServlet(servletHolder, MATCH_ALL);
-        context.setAttribute(WebService.ATTRIBUTE_PULSAR_NAME, pulsar);
+        if (attributeMap != null) {
+            attributeMap.forEach((key, value) -> {
+                context.setAttribute(key, value);
+            });
+        }
 
         if (requiresAuthentication && pulsar.getConfiguration().isAuthenticationEnabled()) {
             FilterHolder filter = new FilterHolder(new AuthenticationFilter(pulsar));

@@ -26,14 +26,16 @@ import java.util.concurrent.TimeUnit;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarHandler;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,6 +51,7 @@ public class ServerConnection extends PulsarHandler {
 
     private DiscoveryService service;
     private String authRole = null;
+    private AuthenticationDataSource authenticationData = null;
     private State state;
     public static final String TLS_HANDLER = "tls";
 
@@ -86,8 +89,9 @@ public class ServerConnection extends PulsarHandler {
                 if (sslHandler != null) {
                     sslSession = ((SslHandler) sslHandler).engine().getSession();
                 }
+                this.authenticationData = new AuthenticationDataCommand(authData, remoteAddress, sslSession);
                 authRole = service.getAuthenticationService()
-                        .authenticate(new AuthenticationDataCommand(authData, remoteAddress, sslSession), authMethod);
+                        .authenticate(this.authenticationData, authMethod);
                 LOG.info("[{}] Client successfully authenticated with {} role {}", remoteAddress, authMethod, authRole);
             } catch (AuthenticationException e) {
                 String msg = "Unable to authenticate";
@@ -141,15 +145,17 @@ public class ServerConnection extends PulsarHandler {
 
     private void sendPartitionMetadataResponse(CommandPartitionedTopicMetadata partitionMetadata) {
         final long requestId = partitionMetadata.getRequestId();
-        DestinationName dn = DestinationName.get(partitionMetadata.getTopic());
+        TopicName topicName = TopicName.get(partitionMetadata.getTopic());
 
-        service.getDiscoveryProvider().getPartitionedTopicMetadata(service, dn, authRole).thenAccept(metadata -> {
+        service.getDiscoveryProvider()
+                .getPartitionedTopicMetadata(service, topicName, authRole, authenticationData)
+                .thenAccept(metadata -> {
             if (LOG.isDebugEnabled()) {
-                LOG.debug("[{}] Total number of partitions for topic {} is {}", authRole, dn, metadata.partitions);
+                LOG.debug("[{}] Total number of partitions for topic {} is {}", authRole, topicName, metadata.partitions);
             }
             ctx.writeAndFlush(Commands.newPartitionMetadataResponse(metadata.partitions, requestId));
         }).exceptionally(ex -> {
-            LOG.warn("[{}] Failed to get partitioned metadata for topic {} {}", remoteAddress, dn, ex.getMessage(), ex);
+            LOG.warn("[{}] Failed to get partitioned metadata for topic {} {}", remoteAddress, topicName, ex.getMessage(), ex);
             ctx.writeAndFlush(
                     Commands.newPartitionMetadataResponse(ServerError.ServiceNotReady, ex.getMessage(), requestId));
             return null;

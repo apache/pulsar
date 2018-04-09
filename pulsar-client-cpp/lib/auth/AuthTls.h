@@ -25,31 +25,30 @@
 #include <string>
 
 namespace pulsar {
-    
-    class AuthDataTls : public AuthenticationDataProvider {
-        
-    public:
-        AuthDataTls(ParamMap& params);
-        ~AuthDataTls();
-        bool hasDataForTls();
-        std::string getTlsCertificates();
-        std::string getTlsPrivateKey();
-    private:
-        std::string tlsCertificates_;
-        std::string tlsPrivateKey_;
-    };
-    
-    class AuthTls : public Authentication {
-        
-    public:
-        AuthTls(AuthenticationDataPtr&);
-        ~AuthTls();
-        static AuthenticationPtr create(ParamMap& params);
-        const std::string getAuthMethodName() const;
-        Result getAuthData(AuthenticationDataPtr& authDataTls) const;
-    private:
-        AuthenticationDataPtr authDataTls_;
-    };
-    
-}
+
+class AuthDataTls : public AuthenticationDataProvider {
+   public:
+    AuthDataTls(ParamMap& params);
+    ~AuthDataTls();
+    bool hasDataForTls();
+    std::string getTlsCertificates();
+    std::string getTlsPrivateKey();
+
+   private:
+    std::string tlsCertificates_;
+    std::string tlsPrivateKey_;
+};
+
+class AuthTls : public Authentication {
+   public:
+    AuthTls(AuthenticationDataPtr&);
+    ~AuthTls();
+    static AuthenticationPtr create(ParamMap& params);
+    const std::string getAuthMethodName() const;
+    Result getAuthData(AuthenticationDataPtr& authDataTls) const;
+
+   private:
+    AuthenticationDataPtr authDataTls_;
+};
+}  // namespace pulsar
 #endif /* PULSAR_AUTH_TLS_H_ */

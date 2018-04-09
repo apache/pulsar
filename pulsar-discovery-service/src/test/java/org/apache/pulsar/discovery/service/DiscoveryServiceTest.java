@@ -37,7 +37,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.common.api.Commands;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
@@ -99,17 +99,17 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
 
     @Test
     public void testGetPartitionsMetadata() throws Exception {
-        DestinationName topic1 = DestinationName.get("persistent://test/local/ns/my-topic-1");
+        TopicName topic1 = TopicName.get("persistent://test/local/ns/my-topic-1");
 
-        PartitionedTopicMetadata m = service.getDiscoveryProvider().getPartitionedTopicMetadata(service, topic1, "role")
+        PartitionedTopicMetadata m = service.getDiscoveryProvider().getPartitionedTopicMetadata(service, topic1, "role", null)
                 .get();
         assertEquals(m.partitions, 0);
 
         // Simulate ZK error
         mockZookKeeper.failNow(Code.SESSIONEXPIRED);
-        DestinationName topic2 = DestinationName.get("persistent://test/local/ns/my-topic-2");
+        TopicName topic2 = TopicName.get("persistent://test/local/ns/my-topic-2");
         CompletableFuture<PartitionedTopicMetadata> future = service.getDiscoveryProvider()
-                .getPartitionedTopicMetadata(service, topic2, "role");
+                .getPartitionedTopicMetadata(service, topic2, "role", null);
         try {
             future.get();
             fail("Partition metadata lookup should have failed");

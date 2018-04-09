@@ -47,6 +47,8 @@ import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
 
 import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.pulsar.broker.admin.v1.Namespaces;
+import org.apache.pulsar.broker.admin.v1.PersistentTopics;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -55,10 +57,10 @@ import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -139,7 +141,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.clusters().createCluster("usw", new ClusterData("http://broker-usw.com:" + BROKER_WEBSERVICE_PORT));
         admin.clusters().createCluster("usc", new ClusterData("http://broker-usc.com:" + BROKER_WEBSERVICE_PORT));
         admin.properties().createProperty(this.testProperty,
-                new PropertyAdmin(Lists.newArrayList("role1", "role2"), Sets.newHashSet("use", "usc", "usw")));
+                new PropertyAdmin(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use", "usc", "usw")));
 
         createTestNamespaces(this.testProperty, this.testLocalNamespaces, new BundlesData());
         createGlobalTestNamespaces(this.testProperty, this.testGlobalNamespaces.get(0).getLocalName(),
@@ -369,7 +371,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertEquals(
                 namespaces.getNamespaceReplicationClusters(this.testGlobalNamespaces.get(0).getProperty(),
                         this.testGlobalNamespaces.get(0).getCluster(), this.testGlobalNamespaces.get(0).getLocalName()),
-                Lists.newArrayList());
+                Sets.newHashSet());
 
         namespaces.setNamespaceReplicationClusters(this.testGlobalNamespaces.get(0).getProperty(),
                 this.testGlobalNamespaces.get(0).getCluster(), this.testGlobalNamespaces.get(0).getLocalName(),
@@ -408,7 +410,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         }
 
         admin.properties().updateProperty(testProperty,
-                new PropertyAdmin(Lists.newArrayList("role1", "role2"), Sets.newHashSet("use", "usc")));
+                new PropertyAdmin(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use", "usc")));
 
         try {
             namespaces.setNamespaceReplicationClusters(this.testProperty, "global",
@@ -566,7 +568,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 }), Mockito.anyBoolean(), Mockito.anyBoolean(), Mockito.anyBoolean());
 
         admin.namespaces().setNamespaceReplicationClusters(testGlobalNamespaces.get(0).toString(),
-                Lists.newArrayList("usw"));
+                Sets.newHashSet("usw"));
 
         uri = URI.create("http://localhost" + ":" + BROKER_WEBSERVICE_PORT + "/admin/namespace/"
                 + this.testLocalNamespaces.get(2).toString() + "?authoritative=false");
@@ -596,7 +598,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         }
 
         NamespaceName testNs = this.testLocalNamespaces.get(1);
-        DestinationName topicName = DestinationName.get(testNs.getPersistentTopicName("my-topic"));
+        TopicName topicName = TopicName.get(testNs.getPersistentTopicName("my-topic"));
         ZkUtils.createFullPathOptimistic(mockZookKeeper, "/managed-ledgers/" + topicName.getPersistenceNamingEncoding(),
                 new byte[0], null, null);
 
@@ -638,7 +640,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         // delete the topic from ZK
         mockZookKeeper.delete("/managed-ledgers/" + topicName.getPersistenceNamingEncoding(), -1);
-        // ensure refreshed destination list in the cache
+        // ensure refreshed topics list in the cache
         pulsar.getLocalZkCacheService().managedLedgerListCache().clearTree();
         // setup ownership to localhost
         doReturn(Optional.of(localWebServiceUrl)).when(nsSvc).getWebServiceUrl(testNs, false, false, false);
@@ -821,7 +823,6 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         }));
 
-        doNothing().when(nsSvc).unloadNamespace(testNs);
         NamespaceBundle bundle = nsSvc.getNamespaceBundleFactory().getFullBundle(testNs);
         doNothing().when(namespaces).validateBundleOwnership(bundle, false, true);
 
@@ -986,7 +987,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             pulsar.getConfiguration().setAuthorizationEnabled(true);
             final String path = PulsarWebResource.path(POLICIES, property);
             final String data = ObjectMapperFactory.getThreadLocal().writeValueAsString(
-                    new PropertyAdmin(Lists.newArrayList(namespaces.clientAppId()), Sets.newHashSet("use")));
+                    new PropertyAdmin(Sets.newHashSet(namespaces.clientAppId()), Sets.newHashSet("use")));
             ZkUtils.createFullPathOptimistic(pulsar.getConfigurationCache().getZooKeeper(), path, data.getBytes(),
                     ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
             namespaces.validateAdminAccessOnProperty(property);
@@ -1046,7 +1047,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testValidateDestinationOwnership() throws Exception {
+    public void testValidateTopicOwnership() throws Exception {
         try {
             URL localWebServiceUrl = new URL(pulsar.getWebServiceAddress());
             String bundledNsLocal = "test-bundled-namespace-1";
@@ -1058,25 +1059,21 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
             ownership.setAccessible(true);
             ownership.set(pulsar.getNamespaceService(), MockOwnershipCache);
-            DestinationName topicName = DestinationName.get(testNs.getPersistentTopicName("my-topic"));
+            TopicName topicName = TopicName.get(testNs.getPersistentTopicName("my-topic"));
             PersistentTopics topics = spy(new PersistentTopics());
             topics.setServletContext(new MockServletContext());
             topics.setPulsar(pulsar);
             doReturn(false).when(topics).isRequestHttps();
             doReturn("test").when(topics).clientAppId();
             mockWebUrl(localWebServiceUrl, testNs);
+            doReturn("persistent").when(topics).domain();
 
             try {
-                topics.validateAdminOperationOnDestination(topicName, false);
+                topics.validateTopicName(topicName.getProperty(), topicName.getCluster(),
+                        topicName.getNamespacePortion(), topicName.getEncodedLocalName());
+                topics.validateAdminOperationOnTopic(false);
             } catch (RestException e) {
                 fail("validateAdminAccessOnProperty failed");
-            }
-
-            try {
-                topics.validateAdminOperationOnDestination(DestinationName.get(""), false);
-                fail("validateAdminAccessOnProperty failed");
-            } catch (Exception e) {
-                // OK
             }
 
         } catch (RestException e) {
@@ -1103,17 +1100,17 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         // (1) Force topic creation and namespace being loaded
         final String topicName = "persistent://" + namespace + "/my-topic";
-        DestinationName destination = DestinationName.get(topicName);
+        TopicName topic = TopicName.get(topicName);
 
         Producer producer = pulsarClient.createProducer(topicName);
         producer.close();
-        NamespaceBundle bundle1 = pulsar.getNamespaceService().getBundle(destination);
+        NamespaceBundle bundle1 = pulsar.getNamespaceService().getBundle(topic);
         // (2) Delete topic
         admin.persistentTopics().delete(topicName);
         // (3) Delete ns
         admin.namespaces().deleteNamespace(namespace);
         // (4) check bundle
-        NamespaceBundle bundle2 = pulsar.getNamespaceService().getBundle(destination);
+        NamespaceBundle bundle2 = pulsar.getNamespaceService().getBundle(topic);
         assertNotEquals(bundle1.getBundleRange(), bundle2.getBundleRange());
         // returns full bundle if policies not present
         assertEquals("0x00000000_0xffffffff", bundle2.getBundleRange());

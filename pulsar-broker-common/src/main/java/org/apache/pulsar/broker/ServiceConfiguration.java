@@ -18,13 +18,14 @@
  */
 package org.apache.pulsar.broker;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 
+import org.apache.bookkeeper.client.BookKeeper.DigestType;
+import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 
@@ -58,9 +59,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Enable the WebSocket API service
     private boolean webSocketServiceEnabled = false;
 
+    // Flag to control features that are meant to be used when running in standalone mode
+    private boolean isRunningStandalone = false;
+
     // Name of the cluster to which this broker belongs to
     @FieldContext(required = true)
     private String clusterName;
+    // Enable cluster's failure-domain which can distribute brokers into logical region
+    @FieldContext(dynamic = true)
+    private boolean failureDomainsEnabled = false;
     // Zookeeper session timeout in milliseconds
     private long zooKeeperSessionTimeoutMillis = 30000;
     // Time to wait for broker graceful shutdown. After this time elapses, the
@@ -139,6 +146,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // default message-byte dispatch-throttling
     @FieldContext(dynamic = true)
     private long dispatchThrottlingRatePerTopicInByte = 0;
+    // Default number of message dispatching throttling-limit for a subscription.
+    // Using a value of 0, is disabling.
+    @FieldContext(dynamic = true)
+    private int dispatchThrottlingRatePerSubscriptionInMsg = 0;
+    // Default number of message-bytes dispatching throttling-limit for a subscription.
+    // Using a value of 0, is disabling.
+    @FieldContext(dynamic = true)
+    private long dispatchThrottlingRatePerSubscribeInByte = 0;
     // Default dispatch-throttling is disabled for consumers which already caught-up with published messages and
     // don't have backlog. This enables dispatch-throttling for non-backlog consumers as well.
     @FieldContext(dynamic = true)
@@ -160,6 +175,27 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Enable broker to load non-persistent topics
     private boolean enableNonPersistentTopics = true;
 
+    // Enable to run bookie along with broker
+    private boolean enableRunBookieTogether = false;
+
+    // Enable to run bookie autorecovery along with broker
+    private boolean enableRunBookieAutoRecoveryTogether = false;
+
+    // Max number of producers allowed to connect to topic. Once this limit reaches, Broker will reject new producers
+    // until the number of connected producers decrease.
+    // Using a value of 0, is disabling maxProducersPerTopic-limit check.
+    private int maxProducersPerTopic = 0;
+
+    // Max number of consumers allowed to connect to topic. Once this limit reaches, Broker will reject new consumers
+    // until the number of connected consumers decrease.
+    // Using a value of 0, is disabling maxConsumersPerTopic-limit check.
+    private int maxConsumersPerTopic = 0;
+
+    // Max number of consumers allowed to connect to subscription. Once this limit reaches, Broker will reject new consumers
+    // until the number of connected consumers decrease.
+    // Using a value of 0, is disabling maxConsumersPerSubscription-limit check.
+    private int maxConsumersPerSubscription = 0;
+
     /***** --- TLS --- ****/
     // Enable TLS
     private boolean tlsEnabled = false;
@@ -171,6 +207,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String tlsTrustCertsFilePath = "";
     // Accept untrusted TLS certificate from client
     private boolean tlsAllowInsecureConnection = false;
+    // Specify the tls protocols the broker will use to negotiate during TLS Handshake.
+    // Example:- [TLSv1.2, TLSv1.1, TLSv1]
+    private Set<String> tlsProtocols = Sets.newTreeSet();
+    // Specify the tls cipher the broker will use to negotiate during TLS Handshake.
+    // Example:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]
+    private Set<String> tlsCiphers = Sets.newTreeSet();
+    // Specify whether Client certificates are required for TLS
+    // Reject the Connection if the Client Certificate is not trusted.
+    private boolean tlsRequireTrustedClientCertOnConnect = false;
 
     /***** --- Authentication --- ****/
     // Enable authentication
@@ -180,10 +225,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     // Enforce authorization
     private boolean authorizationEnabled = false;
+    // Authorization provider fully qualified class-name
+    private String authorizationProvider = PulsarAuthorizationProvider.class.getName();
 
     // Role names that are treated as "super-user", meaning they will be able to
     // do all admin operations and publish/consume from all topics
     private Set<String> superUserRoles = Sets.newTreeSet();
+
+    // Role names that are treated as "proxy roles". If the broker sees a request with
+    // role as proxyRoles - it will demand to see the original client role or certificate.
+    private Set<String> proxyRoles = Sets.newTreeSet();
+
+    // If this flag is set then the broker authenticates the original Auth data
+    // else it just accepts the originalPrincipal and authorizes it (if required).
+    private boolean authenticateOriginalAuthData = false;
 
     // Allow wildcard matching in authorization
     // (wildcard matching only applicable if wildcard-char:
@@ -194,6 +249,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // to other brokers, either in same or other clusters. Default uses plugin which disables authentication
     private String brokerClientAuthenticationPlugin = "org.apache.pulsar.client.impl.auth.AuthenticationDisabled";
     private String brokerClientAuthenticationParameters = "";
+    // Path for the trusted TLS certificate file for outgoing connection to a server (broker)
+    private String brokerClientTrustCertsFilePath = "";
+
+    // When this parameter is not empty, unauthenticated users perform as anonymousUserRole
+    private String anonymousUserRole = null;
 
     /**** --- BookKeeper Client --- ****/
     // Authentication plugin to use when connecting to bookies
@@ -233,6 +293,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Number of guaranteed copies (acks to wait before write is complete)
     @FieldContext(minValue = 1)
     private int managedLedgerDefaultAckQuorum = 1;
+
+    // Default type of checksum to use when writing to BookKeeper. Default is "CRC32"
+    // Other possible options are "CRC32C" (which is faster), "MAC" or "DUMMY" (no checksum).
+    private DigestType managedLedgerDigestType = DigestType.CRC32;
+
     // Max number of bookies to use when creating a ledger
     @FieldContext(minValue = 1)
     private int managedLedgerMaxEnsembleSize = 5;
@@ -276,10 +341,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // than this limit then broker will persist unacked ranges into bookkeeper to avoid additional data overhead into
     // zookeeper.
     private int managedLedgerMaxUnackedRangesToPersistInZooKeeper = 1000;
+    // Skip reading non-recoverable/unreadable data-ledger under managed-ledger's list. It helps when data-ledgers gets
+    // corrupted at bookkeeper and managed-cursor is stuck at that ledger.
+    @FieldContext(dynamic = true)
+    private boolean autoSkipNonRecoverableData = false;
 
     /*** --- Load balancer --- ****/
     // Enable load balancer
-    private boolean loadBalancerEnabled = false;
+    private boolean loadBalancerEnabled = true;
     // load placement strategy[weightedRandomSelection/leastLoadedServer] (only used by SimpleLoadManagerImpl)
     @Deprecated
     private String loadBalancerPlacementStrategy = "leastLoadedServer"; // weighted random selection
@@ -291,17 +360,24 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int loadBalancerReportUpdateMaxIntervalMinutes = 15;
     // Frequency of report to collect
     private int loadBalancerHostUsageCheckIntervalMinutes = 1;
+    // Enable/disable automatic bundle unloading for load-shedding
+    @FieldContext(dynamic = true)
+    private boolean loadBalancerSheddingEnabled = true;
     // Load shedding interval. Broker periodically checks whether some traffic should be offload from some over-loaded
     // broker to other under-loaded brokers
-    private int loadBalancerSheddingIntervalMinutes = 5;
+    private int loadBalancerSheddingIntervalMinutes = 1;
     // Prevent the same topics to be shed and moved to other broker more that
     // once within this timeframe
     private long loadBalancerSheddingGracePeriodMinutes = 30;
     // Usage threshold to determine a broker as under-loaded (only used by SimpleLoadManagerImpl)
     @Deprecated
     private int loadBalancerBrokerUnderloadedThresholdPercentage = 50;
-    // Usage threshold to determine a broker as over-loaded (only used by SimpleLoadManagerImpl)
-    @Deprecated
+    // Usage threshold to allocate max number of topics to broker
+    @FieldContext(dynamic = true)
+    private int loadBalancerBrokerMaxTopics = 50000;
+
+    // Usage threshold to determine a broker as over-loaded
+    @FieldContext(dynamic = true)
     private int loadBalancerBrokerOverloadedThresholdPercentage = 85;
     // Interval to flush dynamic resource quota to ZooKeeper
     private int loadBalancerResourceQuotaUpdateIntervalMinutes = 15;
@@ -327,6 +403,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Name of load manager to use
     @FieldContext(dynamic = true)
     private String loadManagerClassName = "org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl";
+
+    // Option to override the auto-detected network interfaces max speed
+    private Double loadBalancerOverrideBrokerNicSpeedGbps;
 
     /**** --- Replication --- ****/
     // Enable replication metrics
@@ -358,11 +437,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(dynamic = true)
     private boolean preferLaterVersions = false;
 
+    private String schemaRegistryStorageClassName = "org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory";
+
     /**** --- WebSocket --- ****/
     // Number of IO threads in Pulsar Client used in WebSocket proxy
     private int webSocketNumIoThreads = Runtime.getRuntime().availableProcessors();
     // Number of connections per Broker in Pulsar Client used in WebSocket proxy
     private int webSocketConnectionsPerBroker = Runtime.getRuntime().availableProcessors();
+
+    /**** --- Metrics --- ****/
+    // If true, export topic level metrics otherwise namespace level
+    private boolean exposeTopicLevelMetricsInPrometheus = true;
+
+    /**** --- Functions --- ****/
+    private boolean functionsWorkerEnabled = false;
 
     public String getZookeeperServers() {
         return zookeeperServers;
@@ -447,6 +535,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setClusterName(String clusterName) {
         this.clusterName = clusterName;
+    }
+
+    public boolean isFailureDomainsEnabled() {
+        return failureDomainsEnabled;
+    }
+
+    public void setFailureDomainsEnabled(boolean failureDomainsEnabled) {
+        this.failureDomainsEnabled = failureDomainsEnabled;
     }
 
     public long getBrokerShutdownTimeoutMs() {
@@ -619,6 +715,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
         this.dispatchThrottlingRatePerTopicInByte = dispatchThrottlingRatePerTopicInByte;
     }
 
+    public int getDispatchThrottlingRatePerSubscriptionInMsg() {
+        return dispatchThrottlingRatePerSubscriptionInMsg;
+    }
+
+    public void setDispatchThrottlingRatePerSubscriptionInMsg(int dispatchThrottlingRatePerSubscriptionInMsg) {
+        this.dispatchThrottlingRatePerSubscriptionInMsg = dispatchThrottlingRatePerSubscriptionInMsg;
+    }
+
+    public long getDispatchThrottlingRatePerSubscribeInByte() {
+        return dispatchThrottlingRatePerSubscribeInByte;
+    }
+
+    public void setDispatchThrottlingRatePerSubscribeInByte(long dispatchThrottlingRatePerSubscribeInByte) {
+        this.dispatchThrottlingRatePerSubscribeInByte = dispatchThrottlingRatePerSubscribeInByte;
+    }
+
     public boolean isDispatchThrottlingOnNonBacklogConsumerEnabled() {
         return dispatchThrottlingOnNonBacklogConsumerEnabled;
     }
@@ -675,6 +787,46 @@ public class ServiceConfiguration implements PulsarConfiguration {
         this.enableNonPersistentTopics = enableNonPersistentTopics;
     }
 
+    public boolean isEnableRunBookieTogether() {
+        return enableRunBookieTogether;
+    }
+
+    public void setEnableRunBookieTogether(boolean enableRunBookieTogether) {
+        this.enableRunBookieTogether = enableRunBookieTogether;
+    }
+
+    public boolean isEnableRunBookieAutoRecoveryTogether() {
+        return enableRunBookieAutoRecoveryTogether;
+    }
+
+    public void setEnableRunBookieAutoRecoveryTogether(boolean enableRunBookieAutoRecoveryTogether) {
+        this.enableRunBookieAutoRecoveryTogether = enableRunBookieAutoRecoveryTogether;
+    }
+
+    public int getMaxProducersPerTopic() {
+        return maxProducersPerTopic;
+    }
+
+    public void setMaxProducersPerTopic(int maxProducersPerTopic) {
+        this.maxProducersPerTopic = maxProducersPerTopic;
+    }
+
+    public int getMaxConsumersPerTopic() {
+        return maxConsumersPerTopic;
+    }
+
+    public void setMaxConsumersPerTopic(int maxConsumersPerTopic) {
+        this.maxConsumersPerTopic = maxConsumersPerTopic;
+    }
+
+    public int getMaxConsumersPerSubscription() {
+        return maxConsumersPerSubscription;
+    }
+
+    public void setMaxConsumersPerSubscription(int maxConsumersPerSubscription) {
+        this.maxConsumersPerSubscription = maxConsumersPerSubscription;
+    }
+
     public boolean isTlsEnabled() {
         return tlsEnabled;
     }
@@ -723,6 +875,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
         this.authenticationEnabled = authenticationEnabled;
     }
 
+    public String getAuthorizationProvider() {
+        return authorizationProvider;
+    }
+
+    public void setAuthorizationProvider(String authorizationProvider) {
+        this.authorizationProvider = authorizationProvider;
+    }
+
     public void setAuthenticationProviders(Set<String> providersClassNames) {
         authenticationProviders = providersClassNames;
     }
@@ -741,6 +901,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public Set<String> getSuperUserRoles() {
         return superUserRoles;
+    }
+
+    public Set<String> getProxyRoles() {
+        return proxyRoles;
+    }
+
+    public void setProxyRoles(Set<String> proxyRoles) {
+        this.proxyRoles = proxyRoles;
     }
 
     public boolean getAuthorizationAllowWildcardsMatching() {
@@ -769,6 +937,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setBrokerClientAuthenticationParameters(String brokerClientAuthenticationParameters) {
         this.brokerClientAuthenticationParameters = brokerClientAuthenticationParameters;
+    }
+
+    public String getBrokerClientTrustCertsFilePath() {
+        return brokerClientTrustCertsFilePath;
+    }
+
+    public void setBrokerClientTrustCertsFilePath(String brokerClientTrustCertsFilePath) {
+        this.brokerClientTrustCertsFilePath = brokerClientTrustCertsFilePath;
+    }
+
+    public String getAnonymousUserRole() {
+        return anonymousUserRole;
+    }
+
+    public void setAnonymousUserRole(String anonymousUserRole) {
+        this.anonymousUserRole = anonymousUserRole;
     }
 
     public String getBookkeeperClientAuthenticationPlugin() {
@@ -885,6 +1069,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
         this.managedLedgerDefaultAckQuorum = managedLedgerDefaultAckQuorum;
     }
 
+    public DigestType getManagedLedgerDigestType() {
+        return managedLedgerDigestType;
+    }
+
+    public void setManagedLedgerDigestType(DigestType managedLedgerDigestType) {
+        this.managedLedgerDigestType = managedLedgerDigestType;
+    }
+
     public int getManagedLedgerMaxEnsembleSize() {
         return managedLedgerMaxEnsembleSize;
     }
@@ -990,6 +1182,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
         this.managedLedgerMaxUnackedRangesToPersistInZooKeeper = managedLedgerMaxUnackedRangesToPersistInZookeeper;
     }
 
+    public boolean isAutoSkipNonRecoverableData() {
+        return autoSkipNonRecoverableData;
+    }
+
+    public void setAutoSkipNonRecoverableData(boolean skipNonRecoverableLedger) {
+        this.autoSkipNonRecoverableData = skipNonRecoverableLedger;
+    }
+
     public boolean isLoadBalancerEnabled() {
         return loadBalancerEnabled;
     }
@@ -1030,6 +1230,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
         this.loadBalancerHostUsageCheckIntervalMinutes = loadBalancerHostUsageCheckIntervalMinutes;
     }
 
+    public boolean isLoadBalancerSheddingEnabled() {
+        return loadBalancerSheddingEnabled;
+    }
+
+    public void setLoadBalancerSheddingEnabled(boolean loadBalancerSheddingEnabled) {
+        this.loadBalancerSheddingEnabled = loadBalancerSheddingEnabled;
+    }
+
     public int getLoadBalancerSheddingIntervalMinutes() {
         return loadBalancerSheddingIntervalMinutes;
     }
@@ -1065,6 +1273,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public int getLoadBalancerBrokerOverloadedThresholdPercentage() {
         return loadBalancerBrokerOverloadedThresholdPercentage;
+    }
+
+    public int getLoadBalancerBrokerMaxTopics() {
+        return loadBalancerBrokerMaxTopics;
+    }
+
+    public void setLoadBalancerBrokerMaxTopics(int loadBalancerBrokerMaxTopics) {
+        this.loadBalancerBrokerMaxTopics = loadBalancerBrokerMaxTopics;
     }
 
     public void setLoadBalancerNamespaceBundleMaxTopics(int topics) {
@@ -1134,6 +1350,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public int getLoadBalancerNamespaceMaximumBundles() {
         return this.loadBalancerNamespaceMaximumBundles;
+    }
+
+    public Optional<Double> getLoadBalancerOverrideBrokerNicSpeedGbps() {
+        return Optional.ofNullable(loadBalancerOverrideBrokerNicSpeedGbps);
+    }
+
+    public void setLoadBalancerOverrideBrokerNicSpeedGbps(double loadBalancerOverrideBrokerNicSpeedGbps) {
+        this.loadBalancerOverrideBrokerNicSpeedGbps = loadBalancerOverrideBrokerNicSpeedGbps;
     }
 
     public boolean isReplicationMetricsEnabled() {
@@ -1265,4 +1489,69 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public int getWebSocketConnectionsPerBroker() { return webSocketConnectionsPerBroker; }
 
     public void setWebSocketConnectionsPerBroker(int webSocketConnectionsPerBroker) { this.webSocketConnectionsPerBroker = webSocketConnectionsPerBroker; }
+
+    public boolean exposeTopicLevelMetricsInPrometheus() {
+        return exposeTopicLevelMetricsInPrometheus;
+    }
+
+    public void setExposeTopicLevelMetricsInPrometheus(boolean exposeTopicLevelMetricsInPrometheus) {
+        this.exposeTopicLevelMetricsInPrometheus = exposeTopicLevelMetricsInPrometheus;
+    }
+
+    public String getSchemaRegistryStorageClassName() {
+       return schemaRegistryStorageClassName;
+    }
+
+    public void setSchemaRegistryStorageClassName(String className) {
+        schemaRegistryStorageClassName = className;
+    }
+
+    public boolean authenticateOriginalAuthData() {
+        return authenticateOriginalAuthData;
+    }
+
+    public void setAuthenticateOriginalAuthData(boolean authenticateOriginalAuthData) {
+        this.authenticateOriginalAuthData = authenticateOriginalAuthData;
+    }
+
+    public Set<String> getTlsProtocols() {
+        return tlsProtocols;
+    }
+
+    public void setTlsProtocols(Set<String> tlsProtocols) {
+        this.tlsProtocols = tlsProtocols;
+    }
+
+    public Set<String> getTlsCiphers() {
+        return tlsCiphers;
+    }
+
+    public void setTlsCiphers(Set<String> tlsCiphers) {
+        this.tlsCiphers = tlsCiphers;
+    }
+
+    public boolean getTlsRequireTrustedClientCertOnConnect() {
+        return tlsRequireTrustedClientCertOnConnect;
+    }
+
+    public void setTlsRequireTrustedClientCertOnConnect(boolean tlsRequireTrustedClientCertOnConnect) {
+        this.tlsRequireTrustedClientCertOnConnect = tlsRequireTrustedClientCertOnConnect;
+    }
+    /**** --- Function ---- ****/
+
+    public void setFunctionsWorkerEnabled(boolean enabled) {
+        this.functionsWorkerEnabled = enabled;
+    }
+
+    public boolean isFunctionsWorkerEnabled() {
+        return functionsWorkerEnabled;
+    }
+
+    public boolean isRunningStandalone() {
+        return isRunningStandalone;
+    }
+
+    public void setRunningStandalone(boolean isRunningStandalone) {
+        this.isRunningStandalone = isRunningStandalone;
+    }
 }

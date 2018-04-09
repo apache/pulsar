@@ -19,20 +19,29 @@
 package org.apache.pulsar.client.impl.auth;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import org.testng.annotations.Test;
-import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.impl.auth.AuthenticationAthenz;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import static org.apache.pulsar.common.util.Codec.encode;
+import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.security.PrivateKey;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yahoo.athenz.auth.util.Crypto;
 import com.yahoo.athenz.zts.RoleToken;
 import com.yahoo.athenz.zts.ZTSClient;
 
@@ -41,24 +50,12 @@ public class AuthenticationAthenzTest {
     private AuthenticationAthenz auth;
     private static final String TENANT_DOMAIN = "test_tenant";
     private static final String TENANT_SERVICE = "test_service";
-    private static final String PROVIDER_DOMAIN = "test_provider";
-    private static final String PRIVATE_KEY_PATH = "./src/test/resources/tenant_private.pem";
 
     @BeforeClass
     public void setup() throws Exception {
-
-        // Configure parameters
-        Map<String, String> params = new HashMap<String, String>() {
-            {
-                put("tenantDomain", TENANT_DOMAIN);
-                put("tenantService", TENANT_SERVICE);
-                put("providerDomain", PROVIDER_DOMAIN);
-                put("privateKeyPath", PRIVATE_KEY_PATH);
-            }
-        };
+        String paramsStr = new String(Files.readAllBytes(Paths.get("./src/test/resources/authParams.json")));
         auth = new AuthenticationAthenz();
-        auth.configure(params);
-
+        auth.configure(paramsStr);
         // Set mock ztsClient which returns fixed token instead of fetching from ZTS server
         Field field = auth.getClass().getDeclaredField("ztsClient");
         field.setAccessible(true);
@@ -111,5 +108,67 @@ public class AuthenticationAthenzTest {
             }
         }
         assertEquals(count, 1);
+    }
+
+    @Test
+    public void testZtsUrl() throws Exception {
+        Field field = auth.getClass().getDeclaredField("ztsUrl");
+        field.setAccessible(true);
+        String ztsUrl = (String) field.get(auth);
+        assertEquals(ztsUrl, "https://localhost:4443/");
+    }
+
+    @Test
+    public void testLoadPrivateKeyBase64() throws Exception {
+        try {
+            String paramsStr = new String(Files.readAllBytes(Paths.get("./src/test/resources/authParams.json")));
+
+            // load privatekey and encode it using base64
+            ObjectMapper jsonMapper = ObjectMapperFactory.create();
+            Map<String, String> authParamsMap = jsonMapper.readValue(paramsStr,
+                    new TypeReference<HashMap<String, String>>() {
+                    });
+            String privateKeyContents = new String(Files.readAllBytes(Paths.get(authParamsMap.get("privateKey"))));
+            authParamsMap.put("privateKey", "data:application/x-pem-file;base64,"
+                    + new String(Base64.getEncoder().encode(privateKeyContents.getBytes())));
+
+            AuthenticationAthenz authBase64 = new AuthenticationAthenz();
+            authBase64.configure(jsonMapper.writeValueAsString(authParamsMap));
+
+            PrivateKey privateKey = Crypto.loadPrivateKey(new File("./src/test/resources/tenant_private.pem"));
+            Field field = authBase64.getClass().getDeclaredField("privateKey");
+            field.setAccessible(true);
+            PrivateKey key = (PrivateKey) field.get(authBase64);
+            assertTrue(privateKey.equals(key));
+        } catch (Exception e) {
+            Assert.fail();
+        }
+    }
+
+    @Test
+    public void testLoadPrivateKeyUrlEncode() throws Exception {
+        try {
+            String paramsStr = new String(Files.readAllBytes(Paths.get("./src/test/resources/authParams.json")));
+
+            // load privatekey and encode it using url encoding
+            ObjectMapper jsonMapper = ObjectMapperFactory.create();
+            Map<String, String> authParamsMap = jsonMapper.readValue(paramsStr,
+                    new TypeReference<HashMap<String, String>>() {
+                    });
+            String privateKeyContents = new String(Files.readAllBytes(Paths.get(authParamsMap.get("privateKey"))));
+            authParamsMap.put("privateKey",
+                    "data:application/x-pem-file," + new String(encode(privateKeyContents).replace("+", "%20")));
+
+            AuthenticationAthenz authEncode = new AuthenticationAthenz();
+            authEncode.configure(jsonMapper.writeValueAsString(authParamsMap));
+
+            PrivateKey privateKey = Crypto.loadPrivateKey(new File("./src/test/resources/tenant_private.pem"));
+            Field field = authEncode.getClass().getDeclaredField("privateKey");
+            field.setAccessible(true);
+            PrivateKey key = (PrivateKey) field.get(authEncode);
+            assertTrue(privateKey.equals(key));
+        } catch (Exception e) {
+            Assert.fail();
+        }
     }
 }

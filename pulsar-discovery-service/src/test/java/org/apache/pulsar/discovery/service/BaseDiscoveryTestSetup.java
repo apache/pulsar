@@ -46,38 +46,38 @@ public class BaseDiscoveryTestSetup {
     protected MockZooKeeper mockZookKeeper;
     private final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
     private final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";
-    
+
     protected void setup() throws Exception {
         config = new ServiceConfig();
         config.setServicePort(nextFreePort());
         config.setServicePortTls(nextFreePort());
         config.setBindOnLocalhost(true);
-        
+
         config.setTlsEnabled(true);
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
-        
+
         mockZookKeeper = createMockZooKeeper();
         service = spy(new DiscoveryService(config));
         doReturn(mockZooKeeperClientFactory).when(service).getZooKeeperClientFactory();
         service.start();
-        
+
     }
-    
+
     protected void cleanup() throws Exception {
         mockZookKeeper.shutdown();
         service.close();
     }
- 
+
     protected MockZooKeeper createMockZooKeeper() throws Exception {
-        MockZooKeeper zk = MockZooKeeper.newInstance(MoreExecutors.sameThreadExecutor());
+        MockZooKeeper zk = MockZooKeeper.newInstance(MoreExecutors.newDirectExecutorService());
 
         ZkUtils.createFullPathOptimistic(zk, LOADBALANCE_BROKERS_ROOT,
                 "".getBytes(ZookeeperClientFactoryImpl.ENCODING_SCHEME), ZooDefs.Ids.OPEN_ACL_UNSAFE,
                 CreateMode.PERSISTENT);
         return zk;
     }
-    
+
     protected ZooKeeperClientFactory mockZooKeeperClientFactory = new ZooKeeperClientFactory() {
 
         @Override
@@ -87,5 +87,5 @@ public class BaseDiscoveryTestSetup {
             return CompletableFuture.completedFuture(mockZookKeeper);
         }
     };
-    
+
 }

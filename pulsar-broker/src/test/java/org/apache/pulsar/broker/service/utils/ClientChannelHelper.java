@@ -28,6 +28,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandMessage;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess;
@@ -145,6 +146,11 @@ public class ClientChannelHelper {
         @Override
         protected void handleProducerSuccess(CommandProducerSuccess success) {
             queue.offer(CommandProducerSuccess.newBuilder(success).build());
+        }
+
+        @Override
+        protected void handleLookupResponse(CommandLookupTopicResponse connection) {
+            queue.offer(CommandLookupTopicResponse.newBuilder(connection).build());
         }
     };
 

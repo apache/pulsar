@@ -21,11 +21,11 @@
 
 using std::string;
 
-namespace pulsar{
+namespace pulsar {
 class ConsumerTest {
-    public:
+   public:
     static int getNumOfMessagesInQueue(const Consumer& consumer) {
         return consumer.impl_->getNumOfPrefetchedMessages();
     }
 };
-}
+}  // namespace pulsar

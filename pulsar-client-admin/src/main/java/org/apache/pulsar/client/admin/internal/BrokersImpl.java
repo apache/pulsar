@@ -28,21 +28,22 @@ import javax.ws.rs.core.GenericType;
 import org.apache.pulsar.client.admin.Brokers;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 
 public class BrokersImpl extends BaseResource implements Brokers {
-    private final WebTarget brokers;
+    private final WebTarget adminBrokers;
 
     public BrokersImpl(WebTarget web, Authentication auth) {
         super(auth);
-        brokers = web.path("/brokers");
+        adminBrokers = web.path("/admin/v2/brokers");
     }
 
     @Override
     public List<String> getActiveBrokers(String cluster) throws PulsarAdminException {
         try {
-            return request(brokers.path(cluster)).get(new GenericType<List<String>>() {
+            return request(adminBrokers.path(cluster)).get(new GenericType<List<String>>() {
             });
         } catch (Exception e) {
             throw getApiException(e);
@@ -53,7 +54,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
     public Map<String, NamespaceOwnershipStatus> getOwnedNamespaces(String cluster, String brokerUrl)
             throws PulsarAdminException {
         try {
-            return request(brokers.path(cluster).path(brokerUrl).path("ownedNamespaces")).get(
+            return request(adminBrokers.path(cluster).path(brokerUrl).path("ownedNamespaces")).get(
                     new GenericType<Map<String, NamespaceOwnershipStatus>>() {
                     });
         } catch (Exception e) {
@@ -64,7 +65,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
     @Override
     public void updateDynamicConfiguration(String configName, String configValue) throws PulsarAdminException {
         try {
-            request(brokers.path("/configuration/").path(configName).path(configValue)).post(Entity.json(""),
+            request(adminBrokers.path("/configuration/").path(configName).path(configValue)).post(Entity.json(""),
                     ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
@@ -74,7 +75,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
     @Override
     public Map<String, String> getAllDynamicConfigurations() throws PulsarAdminException {
         try {
-            return request(brokers.path("/configuration/").path("values")).get(new GenericType<Map<String, String>>() {
+            return request(adminBrokers.path("/configuration/").path("values")).get(new GenericType<Map<String, String>>() {
             });
         } catch (Exception e) {
             throw getApiException(e);
@@ -84,8 +85,17 @@ public class BrokersImpl extends BaseResource implements Brokers {
     @Override
     public List<String> getDynamicConfigurationNames() throws PulsarAdminException {
         try {
-            return request(brokers.path("/configuration")).get(new GenericType<List<String>>() {
+            return request(adminBrokers.path("/configuration")).get(new GenericType<List<String>>() {
             });
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public InternalConfigurationData getInternalConfigurationData() throws PulsarAdminException {
+        try {
+            return request(adminBrokers.path("/internal-configuration")).get(InternalConfigurationData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }

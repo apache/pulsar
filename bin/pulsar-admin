@@ -22,7 +22,14 @@ BINDIR=$(dirname "$0")
 PULSAR_HOME=`cd $BINDIR/..;pwd`
 
 DEFAULT_CLIENT_CONF=$PULSAR_HOME/conf/client.conf
-DEFAULT_LOG_CONF=$PULSAR_HOME/conf/log4j.properties
+DEFAULT_LOG_CONF=$PULSAR_HOME/conf/log4j2.yaml
+
+# functions related variables
+FUNCTIONS_HOME=$PULSAR_HOME/pulsar-functions
+DEFAULT_JAVA_INSTANCE_JAR=$PULSAR_HOME/instances/java-instance.jar
+JAVA_INSTANCE_JAR=${PULSAR_JAVA_INSTANCE_JAR:-"${DEFAULT_JAVA_INSTANCE_JAR}"}
+DEFAULT_PY_INSTANCE_FILE=$PULSAR_HOME/instances/python-instance/python_instance_main.py
+PY_INSTANCE_FILE=${PULSAR_PY_INSTANCE_FILE:-"${DEFAULT_PY_INSTANCE_FILE}"}
 
 if [ -f "$PULSAR_HOME/conf/pulsar_tools_env.sh" ]
 then
@@ -41,7 +48,7 @@ else
 fi
 
 # exclude tests jar
-RELEASE_JAR=`ls $PULSAR_HOME/pulsar-*.jar 2> /dev/null | grep -v tests | tail -1` 
+RELEASE_JAR=`ls $PULSAR_HOME/pulsar-*.jar 2> /dev/null | grep -v tests | tail -1`
 if [ $? == 0 ]; then
     PULSAR_JAR=$RELEASE_JAR
 fi
@@ -61,20 +68,20 @@ add_maven_deps_to_classpath() {
     if [ "$MAVEN_HOME" != "" ]; then
 	MVN=${MAVEN_HOME}/bin/mvn
     fi
-    
+
     # Need to generate classpath from maven pom. This is costly so generate it
     # and cache it. Save the file into our target dir so a mvn clean will get
     # clean it up and force us create a new one.
     f="${PULSAR_HOME}/all/target/classpath.txt"
     if [ ! -f "${f}" ]
     then
-	${MVN} -f "${PULSAR_HOME}/pom.xml" dependency:build-classpath -Dmdep.outputFile="${f}" &> /dev/null
+	${MVN} -f "${PULSAR_HOME}/pom.xml" dependency:build-classpath -DincludeScope=compile -Dmdep.outputFile="${f}" &> /dev/null
     fi
     PULSAR_CLASSPATH=${CLASSPATH}:`cat "${f}"`
 }
 
 if [ -d "$PULSAR_HOME/lib" ]; then
-	PULSAR_CLASSPATH="$PULSAR_CLASSPATH:$PULSAR_HOME/lib/*"
+    PULSAR_CLASSPATH="$PULSAR_CLASSPATH:$PULSAR_HOME/lib/*"
 else
     add_maven_deps_to_classpath
 fi
@@ -88,7 +95,7 @@ fi
 
 PULSAR_CLASSPATH="$PULSAR_JAR:$PULSAR_CLASSPATH:$PULSAR_EXTRA_CLASSPATH"
 PULSAR_CLASSPATH="`dirname $PULSAR_LOG_CONF`:$PULSAR_CLASSPATH"
-OPTS="$OPTS -Dlog4j.configuration=`basename $PULSAR_LOG_CONF`"
+OPTS="$OPTS -Dlog4j.configurationFile=`basename $PULSAR_LOG_CONF`"
 OPTS="$OPTS -Djava.net.preferIPv4Stack=true"
 
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
@@ -96,12 +103,46 @@ OPTS="-cp $PULSAR_CLASSPATH $OPTS"
 OPTS="$OPTS $PULSAR_EXTRA_OPTS"
 
 # log directory & file
-PULSAR_ROOT_LOGGER=${PULSAR_ROOT_LOGGER:-"INFO,CONSOLE"}
 PULSAR_LOG_DIR=${PULSAR_LOG_DIR:-"$PULSAR_HOME/logs"}
+PULSAR_LOG_APPENDER=${PULSAR_LOG_APPENDER:-"RoutingAppender"}
+PULSAR_LOG_LEVEL=${PULSAR_LOG_LEVEL:-"info"}
+PULSAR_ROUTING_APPENDER_DEFAULT=${PULSAR_ROUTING_APPENDER_DEFAULT:-"Console"}
 
 #Configure log configuration system properties
-OPTS="$OPTS -Dpulsar.root.logger=$PULSAR_ROOT_LOGGER"
+OPTS="$OPTS -Dpulsar.log.appender=$PULSAR_LOG_APPENDER"
 OPTS="$OPTS -Dpulsar.log.dir=$PULSAR_LOG_DIR"
+OPTS="$OPTS -Dpulsar.log.level=$PULSAR_LOG_LEVEL"
+OPTS="$OPTS -Dpulsar.routing.appender.default=$PULSAR_ROUTING_APPENDER_DEFAULT"
+
+# find the java instance location
+if [ ! -f "${JAVA_INSTANCE_JAR}" ]; then
+    # didn't find a released jar, then search the built jar
+    BUILT_JAVA_INSTANCE_JAR="${FUNCTIONS_HOME}/runtime-all/target/java-instance.jar"
+    if [ -f "${BUILT_JAVA_INSTANCE_JAR}" ]; then
+        JAVA_INSTANCE_JAR=${BUILT_JAVA_INSTANCE_JAR}
+    else
+        echo "\nCouldn't find pulsar java instance jar.";
+        echo "Make sure you've run 'mvn package'\n";
+        exit 1;
+    fi
+fi
+
+# find the python instance location
+if [ ! -f "${PY_INSTANCE_FILE}" ]; then
+    # didn't find a released python instance, then search the built python instance
+    BUILT_PY_INSTANCE_FILE="${FUNCTIONS_HOME}/runtime/target/python-instance/python_instance_main.py"
+    if [ -f "${BUILT_PY_INSTANCE_FILE}" ]; then
+        PY_INSTANCE_FILE=${BUILT_PY_INSTANCE_FILE}
+    else
+        echo "\nCouldn't find pulsar python instance.";
+        echo "Make sure you've run 'mvn package'\n";
+        exit 1;
+    fi
+fi
+
+# functions
+OPTS="$OPTS -Dpulsar.functions.java.instance.jar=${JAVA_INSTANCE_JAR}"
+OPTS="$OPTS -Dpulsar.functions.python.instance.file=${PY_INSTANCE_FILE}"
 
 #Change to PULSAR_HOME to support relative paths
 cd "$PULSAR_HOME"

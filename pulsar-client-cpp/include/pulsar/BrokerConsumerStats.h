@@ -33,9 +33,10 @@ class PulsarWrapper;
 
 /* @note: isValid() or getXXX() methods are not allowed on an invalid BrokerConsumerStats */
 class BrokerConsumerStats {
- private:
+   private:
     boost::shared_ptr<BrokerConsumerStatsImplBase> impl_;
- public:
+
+   public:
     explicit BrokerConsumerStats(boost::shared_ptr<BrokerConsumerStatsImplBase> impl);
 
     BrokerConsumerStats();
@@ -83,12 +84,12 @@ class BrokerConsumerStats {
     boost::shared_ptr<BrokerConsumerStatsImplBase> getImpl() const;
 
     friend class PulsarWrapper;
-    friend std::ostream& operator<<(std::ostream &os, const BrokerConsumerStats &obj);
+    friend std::ostream &operator<<(std::ostream &os, const BrokerConsumerStats &obj);
 };
-typedef boost::function<void(Result result, BrokerConsumerStats brokerConsumerStats)> BrokerConsumerStatsCallback;
-
-}
+typedef boost::function<void(Result result, BrokerConsumerStats brokerConsumerStats)>
+    BrokerConsumerStatsCallback;
+}  // namespace pulsar
 
 #pragma GCC visibility pop
 
-#endif //PULSAR_CPP_BROKERCONSUMERSTATS_H
+#endif  // PULSAR_CPP_BROKERCONSUMERSTATS_H

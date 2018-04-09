@@ -20,26 +20,22 @@ package org.apache.pulsar.websocket;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import java.io.IOException;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
-
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Reader;
-import org.apache.pulsar.client.api.ReaderConfiguration;
+import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.ReaderImpl;
-import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ConsumerMessage;
@@ -48,8 +44,6 @@ import org.eclipse.jetty.websocket.api.WriteCallback;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
 
 /**
  *
@@ -60,9 +54,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
  *
  */
 public class ReaderHandler extends AbstractWebSocketHandler {
-    private String subscription;
-    private final ReaderConfiguration conf;
-    private Reader reader;
+
+    private static final int DEFAULT_RECEIVER_QUEUE_SIZE = 1000;
+
+    private String subscription = "";
+    private Reader<byte[]> reader;
 
     private final int maxPendingMessages;
     private final AtomicInteger pendingMessages = new AtomicInteger();
@@ -75,18 +71,28 @@ public class ReaderHandler extends AbstractWebSocketHandler {
 
     public ReaderHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
         super(service, request, response);
-        this.subscription = "";
-        this.conf = getReaderConfiguration();
-        this.maxPendingMessages = (conf.getReceiverQueueSize() == 0) ? 1 : conf.getReceiverQueueSize();
+
+        final int receiverQueueSize = getReceiverQueueSize();
+
+        this.maxPendingMessages = (receiverQueueSize == 0) ? 1 : receiverQueueSize;
         this.numMsgsDelivered = new LongAdder();
         this.numBytesDelivered = new LongAdder();
 
-        if (!authResult) {
+        if (!checkAuth(response)) {
             return;
         }
 
         try {
-            this.reader = service.getPulsarClient().createReader(topic, getMessageId(), conf);
+            ReaderBuilder<byte[]> builder = service.getPulsarClient().newReader()
+                    .topic(topic.toString())
+                    .startMessageId(getMessageId())
+                    .receiverQueueSize(receiverQueueSize);
+            if (queryParams.containsKey("readerName")) {
+                builder.readerName(queryParams.get("readerName"));
+            }
+
+            this.reader = builder.create();
+
             this.subscription = ((ReaderImpl)this.reader).getConsumer().getSubscription();
             if (!this.service.addReader(this)) {
                 log.warn("[{}:{}] Failed to add reader handler for topic {}", request.getRemoteAddr(),
@@ -96,7 +102,8 @@ public class ReaderHandler extends AbstractWebSocketHandler {
             log.warn("[{}:{}] Failed in creating reader {} on topic {}", request.getRemoteAddr(),
                     request.getRemotePort(), subscription, topic, e);
             try {
-                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to create reader");
+                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                        "Failed to create reader: " + e.getMessage());
             } catch (IOException e1) {
                 log.warn("[{}:{}] Failed to send error: {}", request.getRemoteAddr(), request.getRemotePort(),
                         e1.getMessage(), e1);
@@ -203,7 +210,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
     }
 
     public Consumer getConsumer() {
-        return ((ReaderImpl)reader).getConsumer();
+        return reader != null ? ((ReaderImpl)reader).getConsumer() : null;
     }
 
     public String getSubscription() {
@@ -232,22 +239,18 @@ public class ReaderHandler extends AbstractWebSocketHandler {
         numBytesDelivered.add(msgSize);
     }
 
-    private ReaderConfiguration getReaderConfiguration() {
-        ReaderConfiguration conf = new ReaderConfiguration();
-
-        if (queryParams.containsKey("readerName")) {
-            conf.setReaderName(queryParams.get("readerName"));
-        }
-
-        if (queryParams.containsKey("receiverQueueSize")) {
-            conf.setReceiverQueueSize(Math.min(Integer.parseInt(queryParams.get("receiverQueueSize")), 1000));
-        }
-        return conf;
+    @Override
+    protected Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData) throws Exception {
+        return service.getAuthorizationService().canConsume(topic, authRole, authenticationData,
+                this.subscription);
     }
 
-    @Override
-    protected Boolean isAuthorized(String authRole) throws Exception {
-        return service.getAuthorizationManager().canConsume(DestinationName.get(topic), authRole);
+    private int getReceiverQueueSize() {
+        int size = DEFAULT_RECEIVER_QUEUE_SIZE;
+        if (queryParams.containsKey("receiverQueueSize")) {
+            size =  Math.min(Integer.parseInt(queryParams.get("receiverQueueSize")), DEFAULT_RECEIVER_QUEUE_SIZE);
+        }
+        return size;
     }
 
     private MessageId getMessageId() throws IOException {

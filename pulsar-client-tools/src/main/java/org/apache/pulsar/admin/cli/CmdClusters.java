@@ -21,9 +21,11 @@ package org.apache.pulsar.admin.cli;
 import java.util.Arrays;
 
 import org.apache.commons.lang3.StringUtils;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.FailureDomain;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
@@ -125,6 +127,97 @@ public class CmdClusters extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get list of peer-clusters")
+    private class GetPeerClusters extends CliCommand {
+        
+        @Parameter(description = "cluster-name\n", required = true)
+        private java.util.List<String> params;
+        
+        void run() throws PulsarAdminException {
+            String cluster = getOneArgument(params);
+            print(admin.clusters().getPeerClusterNames(cluster));
+        }
+    }
+    
+    
+    @Parameters(commandDescription = "Create a new failure-domain for a cluster. updates it if already created.")
+    private class CreateFailureDomain extends CliCommand {
+        @Parameter(description = "cluster-name\n", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = "--domain-name", description = "domain-name", required = true)
+        private String domainName;
+
+        @Parameter(names = "--broker-list", description = "Comma separated broker list", required = false)
+        private String brokerList;
+        
+        void run() throws PulsarAdminException {
+            String cluster = getOneArgument(params);
+            FailureDomain domain = new FailureDomain();
+            domain.setBrokers((isNotBlank(brokerList) ? Sets.newHashSet(brokerList.split(",")): null));
+            admin.clusters().createFailureDomain(cluster, domainName, domain);
+        }
+    }
+
+    @Parameters(commandDescription = "Update failure-domain for a cluster. Creates a new one if not exist.")
+    private class UpdateFailureDomain extends CliCommand {
+        @Parameter(description = "cluster-name\n", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = "--domain-name", description = "domain-name", required = true)
+        private String domainName;
+
+        @Parameter(names = "--broker-list", description = "Comma separated broker list", required = false)
+        private String brokerList;
+
+        void run() throws PulsarAdminException {
+            String cluster = getOneArgument(params);
+            FailureDomain domain = new FailureDomain();
+            domain.setBrokers((isNotBlank(brokerList) ? Sets.newHashSet(brokerList.split(",")) : null));
+            admin.clusters().updateFailureDomain(cluster, domainName, domain);
+        }
+    }
+    
+    @Parameters(commandDescription = "Deletes an existing failure-domain")
+    private class DeleteFailureDomain extends CliCommand {
+        @Parameter(description = "cluster-name\n", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = "--domain-name", description = "domain-name", required = true)
+        private String domainName;
+
+        void run() throws PulsarAdminException {
+            String cluster = getOneArgument(params);
+            admin.clusters().deleteFailureDomain(cluster, domainName);
+        }
+    }
+
+    @Parameters(commandDescription = "List the existing failure-domains for a cluster")
+    private class ListFailureDomains extends CliCommand {
+        
+        @Parameter(description = "cluster-name\n", required = true)
+        private java.util.List<String> params;
+        
+        void run() throws PulsarAdminException {
+            String cluster = getOneArgument(params);
+            print(admin.clusters().getFailureDomains(cluster));
+        }
+    }
+
+    @Parameters(commandDescription = "Get the configuration brokers of a failure-domain")
+    private class GetFailureDomain extends CliCommand {
+        @Parameter(description = "cluster-name\n", required = true)
+        private java.util.List<String> params;
+        
+        @Parameter(names = "--domain-name", description = "domain-name", required = true)
+        private String domainName;
+
+        void run() throws PulsarAdminException {
+            String cluster = getOneArgument(params);
+            print(admin.clusters().getFailureDomain(cluster, domainName));
+        }
+    }
+    
     public CmdClusters(PulsarAdmin admin) {
         super("clusters", admin);
         jcommander.addCommand("get", new Get());
@@ -133,6 +226,12 @@ public class CmdClusters extends CmdBase {
         jcommander.addCommand("delete", new Delete());
         jcommander.addCommand("list", new List());
         jcommander.addCommand("update-peer-clusters", new UpdatePeerClusters());
+        jcommander.addCommand("get-peer-clusters", new GetPeerClusters());
+        jcommander.addCommand("get-failure-domain", new GetFailureDomain());
+        jcommander.addCommand("create-failure-domain", new CreateFailureDomain());
+        jcommander.addCommand("update-failure-domain", new UpdateFailureDomain());
+        jcommander.addCommand("delete-failure-domain", new DeleteFailureDomain());
+        jcommander.addCommand("list-failure-domains", new ListFailureDomains());
     }
 
 }

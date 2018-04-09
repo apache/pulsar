@@ -69,6 +69,11 @@ public class LocalBookkeeperEnsemble {
 
     public LocalBookkeeperEnsemble(int numberOfBookies, int zkPort, int bkBasePort, String zkDataDirName,
             String bkDataDirName, boolean clearOldData) {
+        this(numberOfBookies, zkPort, bkBasePort, zkDataDirName, bkDataDirName, clearOldData, null);
+    }
+
+    public LocalBookkeeperEnsemble(int numberOfBookies, int zkPort, int bkBasePort, String zkDataDirName,
+            String bkDataDirName, boolean clearOldData, String advertisedAddress) {
         this.numberOfBookies = numberOfBookies;
         this.HOSTPORT = "127.0.0.1:" + zkPort;
         this.ZooKeeperDefaultPort = zkPort;
@@ -76,10 +81,12 @@ public class LocalBookkeeperEnsemble {
         this.zkDataDirName = zkDataDirName;
         this.bkDataDirName = bkDataDirName;
         this.clearOldData = clearOldData;
-        LOG.info("Running " + this.numberOfBookies + " bookie(s).");
+        this.advertisedAddress = null == advertisedAddress ? "127.0.0.1" : advertisedAddress;
+        LOG.info("Running {} bookie(s) and advertised them at {}.", this.numberOfBookies, advertisedAddress);
     }
 
     private final String HOSTPORT;
+    private final String advertisedAddress;
     NIOServerCnxnFactory serverFactory;
     ZooKeeperServer zks;
     ZooKeeper zkc;
@@ -138,13 +145,15 @@ public class LocalBookkeeperEnsemble {
             if (zkc.exists("/ledgers/available", false) == null) {
                 zkc.create("/ledgers/available", new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
             }
+            if (zkc.exists("/ledgers/available/readonly", false) == null) {
+                zkc.create("/ledgers/available/readonly", new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+            }
             // No need to create an entry for each requested bookie anymore as the
             // BookieServers will register themselves with ZooKeeper on startup.
         } catch (KeeperException e) {
-            // TODO Auto-generated catch block
             LOG.error("Exception while creating znodes", e);
         } catch (InterruptedException e) {
-            // TODO Auto-generated catch block
+            Thread.currentThread().interrupt();
             LOG.error("Interrupted while creating znodes", e);
         }
     }
@@ -224,7 +233,10 @@ public class LocalBookkeeperEnsemble {
         conf.setProperty("dbStorage_readAheadCacheMaxSizeMb", 64);
         conf.setFlushInterval(60000);
         conf.setProperty("journalMaxGroupWaitMSec", 1L);
-        conf.setAdvertisedAddress("127.0.0.1");
+        conf.setAdvertisedAddress(advertisedAddress);
+        // use high disk usage thresholds for standalone
+        conf.setDiskUsageWarnThreshold(0.9999f);
+        conf.setDiskUsageThreshold(0.99999f);
 
         runZookeeper(1000);
         initializeZookeper();

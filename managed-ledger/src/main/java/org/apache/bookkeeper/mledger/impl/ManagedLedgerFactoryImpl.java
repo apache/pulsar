@@ -19,6 +19,10 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLedgerException;
+
+import com.google.common.base.Predicates;
+import com.google.common.collect.Maps;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,13 +31,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
@@ -59,7 +63,6 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
 import org.apache.bookkeeper.mledger.util.Futures;
-import org.apache.bookkeeper.util.OrderedSafeExecutor;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
@@ -67,20 +70,16 @@ import org.apache.zookeeper.ZooKeeper.States;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Predicates;
-import com.google.common.collect.Maps;
-
-import io.netty.util.concurrent.DefaultThreadFactory;
-
 public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     private final MetaStore store;
     private final BookKeeper bookKeeper;
     private final boolean isBookkeeperManaged;
     private final ZooKeeper zookeeper;
     private final ManagedLedgerFactoryConfig config;
-    protected final ScheduledExecutorService executor = Executors.newScheduledThreadPool(16,
-            new DefaultThreadFactory("bookkeeper-ml"));
-    private final OrderedSafeExecutor orderedExecutor = new OrderedSafeExecutor(16, "bookkeeper-ml-workers");
+    protected final OrderedScheduler scheduledExecutor = OrderedScheduler.newSchedulerBuilder().numThreads(16)
+            .name("bookkeeper-ml-scheduler").build();
+    private final OrderedExecutor orderedExecutor = OrderedExecutor.newBuilder().numThreads(16)
+            .name("bookkeeper-ml-workers").build();
 
     protected final ManagedLedgerFactoryMBeanImpl mbean;
 
@@ -122,7 +121,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         this.config = config;
         this.mbean = new ManagedLedgerFactoryMBeanImpl(this);
         this.entryCacheManager = new EntryCacheManager(this);
-        this.statsTask = executor.scheduleAtFixedRate(() -> refreshStats(), 0, StatsPeriodSeconds, TimeUnit.SECONDS);
+        this.statsTask = scheduledExecutor.scheduleAtFixedRate(() -> refreshStats(), 0, StatsPeriodSeconds, TimeUnit.SECONDS);
     }
 
     public ManagedLedgerFactoryImpl(BookKeeper bookKeeper, ZooKeeper zooKeeper) throws Exception {
@@ -138,7 +137,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         this.config = config;
         this.mbean = new ManagedLedgerFactoryMBeanImpl(this);
         this.entryCacheManager = new EntryCacheManager(this);
-        this.statsTask = executor.scheduleAtFixedRate(() -> refreshStats(), 0, StatsPeriodSeconds, TimeUnit.SECONDS);
+        this.statsTask = scheduledExecutor.scheduleAtFixedRate(() -> refreshStats(), 0, StatsPeriodSeconds, TimeUnit.SECONDS);
     }
 
     private synchronized void refreshStats() {
@@ -157,7 +156,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     }
 
     /**
-     * Helper for getting stats
+     * Helper for getting stats.
      *
      * @return
      */
@@ -232,7 +231,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         ledgers.computeIfAbsent(name, (mlName) -> {
             // Create the managed ledger
             CompletableFuture<ManagedLedgerImpl> future = new CompletableFuture<>();
-            final ManagedLedgerImpl newledger = new ManagedLedgerImpl(this, bookKeeper, store, config, executor,
+            final ManagedLedgerImpl newledger = new ManagedLedgerImpl(this, bookKeeper, store, config, scheduledExecutor,
                     orderedExecutor, name);
             newledger.initialize(new ManagedLedgerInitializeLedgerCallback() {
                 @Override
@@ -305,7 +304,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
             }
         }
 
-        executor.shutdown();
+        scheduledExecutor.shutdown();
         orderedExecutor.shutdown();
 
         entryCacheManager.clear();
@@ -343,7 +342,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     @Override
     public void asyncGetManagedLedgerInfo(String name, ManagedLedgerInfoCallback callback, Object ctx) {
-        store.getManagedLedgerInfo(name, new MetaStoreCallback<MLDataFormats.ManagedLedgerInfo>() {
+        store.getManagedLedgerInfo(name, false /* createIfMissing */,
+                new MetaStoreCallback<MLDataFormats.ManagedLedgerInfo>() {
             @Override
             public void operationComplete(MLDataFormats.ManagedLedgerInfo pbInfo, Stat stat) {
                 ManagedLedgerInfo info = new ManagedLedgerInfo();
@@ -432,7 +432,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                             // Completed all the cursors info
                             callback.getInfoComplete(info, ctx);
                         }).exceptionally((ex) -> {
-                            callback.getInfoFailed(new ManagedLedgerException(ex), ctx);
+                            callback.getInfoFailed(getManagedLedgerException(ex.getCause()), ctx);
                             return null;
                         });
                     }

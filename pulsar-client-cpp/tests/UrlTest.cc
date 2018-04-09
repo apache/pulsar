@@ -65,7 +65,10 @@ TEST(UrlTest, testUrl) {
     ASSERT_EQ("pulsar", url.protocol());
     ASSERT_EQ(6650, url.port());
 
-    ASSERT_TRUE(Url::parse("http://env-broker3.messaging.cluster.company.com:4080/lookup/v2/destination/persistent/cmscpp/gq1/TESTNS.4/TOPIC_1490664894335_1?authoritative=false", url));
+    ASSERT_TRUE(
+        Url::parse("http://env-broker3.messaging.cluster.company.com:4080/lookup/v2/destination/persistent/"
+                   "cmscpp/gq1/TESTNS.4/TOPIC_1490664894335_1?authoritative=false",
+                   url));
     ASSERT_EQ("http", url.protocol());
     ASSERT_EQ(4080, url.port());
     ASSERT_EQ("/lookup/v2/destination/persistent/cmscpp/gq1/TESTNS.4/TOPIC_1490664894335_1", url.path());
@@ -73,7 +76,8 @@ TEST(UrlTest, testUrl) {
     ASSERT_EQ("TOPIC_1490664894335_1", url.file());
     ASSERT_EQ("?authoritative=false", url.parameter());
 
-    ASSERT_TRUE(Url::parse("http://abc.com:8090/ads/ad/asd/TOPIC_1490664894335_1?authoritative=false,temp=true", url));
+    ASSERT_TRUE(Url::parse(
+        "http://abc.com:8090/ads/ad/asd/TOPIC_1490664894335_1?authoritative=false,temp=true", url));
     ASSERT_EQ("http", url.protocol());
     ASSERT_EQ(8090, url.port());
     ASSERT_EQ("/ads/ad/asd/TOPIC_1490664894335_1", url.path());

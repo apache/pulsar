@@ -18,37 +18,96 @@
  */
 package org.apache.bookkeeper.test;
 
-import java.net.ServerSocket;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.net.ServerSocket;
+import java.nio.CharBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 
 /**
  * Port manager allows a base port to be specified on the commandline. Tests will then use ports, counting up from this
  * base port. This allows multiple instances of the bookkeeper tests to run at once.
  */
 public class PortManager {
-    private static int nextPort = getBasePort();
 
+    private static final String lockFilename = System.getProperty("test.lockFilename",
+            "/tmp/pulsar-test-port-manager.lock");
+    private static final int basePort = Integer.valueOf(System.getProperty("test.basePort", "15000"));
+
+    private static final int maxPort = 32000;
+
+    /**
+     * Return a TCP port that is currently unused.
+     *
+     * Keeps track of assigned ports and avoid race condition between different processes
+     */
     public synchronized static int nextFreePort() {
-        while (true) {
-            ServerSocket ss = null;
+        Path path = Paths.get(lockFilename);
+
+        try {
+            FileChannel fileChannel = FileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+            FileLock lock = fileChannel.lock();
+
             try {
-                int port = nextPort++;
-                ss = new ServerSocket(port);
-                ss.setReuseAddress(true);
-                return port;
-            } catch (IOException ioe) {
-            } finally {
-                if (ss != null) {
-                    try {
-                        ss.close();
-                    } catch (IOException ioe) {
-                    }
+
+                FileReader reader = new FileReader(lockFilename);
+                CharBuffer buffer = CharBuffer.allocate(16);
+                int len = reader.read(buffer);
+                buffer.flip();
+
+                int lastUsedPort = basePort;
+                if (len > 0) {
+                    String lastUsedPortStr = buffer.toString();
+                    lastUsedPort = Integer.parseInt(lastUsedPortStr);
                 }
+
+                int freePort = probeFreePort(lastUsedPort + 1);
+
+                FileWriter writer = new FileWriter(lockFilename);
+                writer.write(Integer.toString(freePort));
+
+                reader.close();
+                writer.close();
+
+                return freePort;
+
+            } finally {
+                lock.release();
+                fileChannel.close();
             }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 
-    private static int getBasePort() {
-        return Integer.valueOf(System.getProperty("test.basePort", "15000"));
+    private static final int MAX_PORT_CONFLICTS = 10;
+
+    private synchronized static int probeFreePort(int port) {
+        int exceptionCount = 0;
+        while (true) {
+            if (port == maxPort) {
+                // Rollover the port probe
+                port = basePort;
+            }
+
+            try (ServerSocket ss = new ServerSocket(port)) {
+                ss.close();
+                // Give it some time to truly close the connection
+                Thread.sleep(100);
+                return port;
+
+            } catch (Exception e) {
+                port++;
+                exceptionCount++;
+                if (exceptionCount > MAX_PORT_CONFLICTS) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
     }
 }

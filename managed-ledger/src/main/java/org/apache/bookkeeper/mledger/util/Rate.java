@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
+
 import java.util.concurrent.atomic.LongAdder;
 
 /**
@@ -56,7 +57,7 @@ public class Rate {
     }
 
     public void calculateRate(double period) {
-        checkArgument(period != 0);
+        checkArgument(period > 0, "Invalid period %s to calculate rate", period);
 
         count = countAdder.sumThenReset();
         long sum = valueAdder.sumThenReset();

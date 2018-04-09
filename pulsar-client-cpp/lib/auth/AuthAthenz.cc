@@ -38,84 +38,70 @@
 DECLARE_LOG_OBJECT()
 
 namespace pulsar {
-    AuthDataAthenz::AuthDataAthenz(ParamMap& params) {
-        ztsClient_ = boost::make_shared<ZTSClient>(boost::ref(params));
-        LOG_DEBUG("AuthDataAthenz is construted.")
-    }
-    
-    bool AuthDataAthenz::hasDataForHttp() {
-        return true;
-    }
-    
-    std::string AuthDataAthenz::getHttpHeaders() {
-        return ztsClient_->getHeader() + ": " + ztsClient_->getRoleToken();
-    }
-    
-    bool AuthDataAthenz::hasDataFromCommand() {
-        return true;
-    }
-
-    
-    std::string AuthDataAthenz::getCommandData() {
-        return ztsClient_->getRoleToken();
-    }
-
-    AuthDataAthenz::~AuthDataAthenz() {
-
-    }
-
-    AuthAthenz::AuthAthenz(AuthenticationDataPtr& authDataAthenz) {
-        authDataAthenz_ = authDataAthenz;
-    }
-
-    AuthAthenz::~AuthAthenz() {
-    }
-    
-    ParamMap parseAuthParamsString(const std::string& authParamsString) {
-        ParamMap params;
-        if(!authParamsString.empty()) {
-            Json::Value root;
-            Json::Reader reader;
-            if (reader.parse(authParamsString, root, false)) {
-                Json::Value::Members members = root.getMemberNames();
-                for (Json::Value::Members::iterator iter = members.begin(); iter != members.end(); iter++) {
-                    params[*iter] = root[*iter].asString();
-                }
-            } else {
-                LOG_ERROR("Invalid String Error: " << reader.getFormatedErrorMessages());
-            }
-        }
-        return params;
-    }
-    
-    AuthenticationPtr AuthAthenz::create(const std::string& authParamsString) {
-        ParamMap params = parseAuthParamsString(authParamsString);
-        AuthenticationDataPtr authDataAthenz = AuthenticationDataPtr(new AuthDataAthenz(params));
-        return AuthenticationPtr(new AuthAthenz(authDataAthenz));
-    }
-    
-    AuthenticationPtr AuthAthenz::create(ParamMap& params) {
-        AuthenticationDataPtr authDataAthenz = AuthenticationDataPtr(new AuthDataAthenz(params));
-        return AuthenticationPtr(new AuthAthenz(authDataAthenz));
-    }
-
-    const std::string AuthAthenz::getAuthMethodName() const {
-        return "athenz";
-    }
-
-    Result AuthAthenz::getAuthData(AuthenticationDataPtr& authDataContent) const {
-        authDataContent = authDataAthenz_;
-        return ResultOk;
-    }
-    
-    extern "C" Authentication* create(const std::string& authParamsString) {
-        ParamMap params = parseAuthParamsString(authParamsString);
-        AuthenticationDataPtr authDataAthenz = AuthenticationDataPtr(new AuthDataAthenz(params));
-        return new AuthAthenz(authDataAthenz);
-    }
-
-    extern "C" Authentication* createFromMap(ParamMap& params) {
-        AuthenticationDataPtr authDataAthenz = AuthenticationDataPtr(new AuthDataAthenz(params));
-        return new AuthAthenz(authDataAthenz);
-    }
+AuthDataAthenz::AuthDataAthenz(ParamMap& params) {
+    ztsClient_ = boost::make_shared<ZTSClient>(boost::ref(params));
+    LOG_DEBUG("AuthDataAthenz is construted.")
 }
+
+bool AuthDataAthenz::hasDataForHttp() { return true; }
+
+std::string AuthDataAthenz::getHttpHeaders() {
+    return ztsClient_->getHeader() + ": " + ztsClient_->getRoleToken();
+}
+
+bool AuthDataAthenz::hasDataFromCommand() { return true; }
+
+std::string AuthDataAthenz::getCommandData() { return ztsClient_->getRoleToken(); }
+
+AuthDataAthenz::~AuthDataAthenz() {}
+
+AuthAthenz::AuthAthenz(AuthenticationDataPtr& authDataAthenz) { authDataAthenz_ = authDataAthenz; }
+
+AuthAthenz::~AuthAthenz() {}
+
+ParamMap parseAuthParamsString(const std::string& authParamsString) {
+    ParamMap params;
+    if (!authParamsString.empty()) {
+        Json::Value root;
+        Json::Reader reader;
+        if (reader.parse(authParamsString, root, false)) {
+            Json::Value::Members members = root.getMemberNames();
+            for (Json::Value::Members::iterator iter = members.begin(); iter != members.end(); iter++) {
+                params[*iter] = root[*iter].asString();
+            }
+        } else {
+            LOG_ERROR("Invalid String Error: " << reader.getFormatedErrorMessages());
+        }
+    }
+    return params;
+}
+
+AuthenticationPtr AuthAthenz::create(const std::string& authParamsString) {
+    ParamMap params = parseAuthParamsString(authParamsString);
+    AuthenticationDataPtr authDataAthenz = AuthenticationDataPtr(new AuthDataAthenz(params));
+    return AuthenticationPtr(new AuthAthenz(authDataAthenz));
+}
+
+AuthenticationPtr AuthAthenz::create(ParamMap& params) {
+    AuthenticationDataPtr authDataAthenz = AuthenticationDataPtr(new AuthDataAthenz(params));
+    return AuthenticationPtr(new AuthAthenz(authDataAthenz));
+}
+
+const std::string AuthAthenz::getAuthMethodName() const { return "athenz"; }
+
+Result AuthAthenz::getAuthData(AuthenticationDataPtr& authDataContent) const {
+    authDataContent = authDataAthenz_;
+    return ResultOk;
+}
+
+extern "C" Authentication* create(const std::string& authParamsString) {
+    ParamMap params = parseAuthParamsString(authParamsString);
+    AuthenticationDataPtr authDataAthenz = AuthenticationDataPtr(new AuthDataAthenz(params));
+    return new AuthAthenz(authDataAthenz);
+}
+
+extern "C" Authentication* createFromMap(ParamMap& params) {
+    AuthenticationDataPtr authDataAthenz = AuthenticationDataPtr(new AuthDataAthenz(params));
+    return new AuthAthenz(authDataAthenz);
+}
+}  // namespace pulsar

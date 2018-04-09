@@ -34,8 +34,8 @@ SharedBuffer CompressionCodecZLib::encode(const SharedBuffer& raw) {
     SharedBuffer compressed = SharedBuffer::allocate(maxCompressedSize);
 
     unsigned long bytesWritten = maxCompressedSize;
-    int res = compress((Bytef*) compressed.mutableData(), &bytesWritten, (const Bytef*) raw.data(),
-             raw.readableBytes());
+    int res = compress((Bytef*)compressed.mutableData(), &bytesWritten, (const Bytef*)raw.data(),
+                       raw.readableBytes());
     if (res != Z_OK) {
         LOG_ERROR("Failed to compress buffer. res=" << res);
         abort();
@@ -50,7 +50,8 @@ bool CompressionCodecZLib::decode(const SharedBuffer& encoded, uint32_t uncompre
     SharedBuffer decompressed = SharedBuffer::allocate(uncompressedSize);
 
     unsigned long bytesUncompressed = uncompressedSize;
-    int res = uncompress((Bytef*) decompressed.mutableData(), &bytesUncompressed, (Bytef*) encoded.data(), encoded.readableBytes());
+    int res = uncompress((Bytef*)decompressed.mutableData(), &bytesUncompressed, (Bytef*)encoded.data(),
+                         encoded.readableBytes());
 
     decompressed.bytesWritten(bytesUncompressed);
     if (res == Z_OK) {
@@ -60,5 +61,4 @@ bool CompressionCodecZLib::decode(const SharedBuffer& encoded, uint32_t uncompre
         return false;
     }
 }
-
-}
+}  // namespace pulsar

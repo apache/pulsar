@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.common.collect.Queues;
+import java.util.Collections;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -25,47 +28,50 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
+import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ConsumerName;
-import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 
-import com.google.common.collect.Queues;
-
-public abstract class ConsumerBase extends HandlerBase implements Consumer {
+public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T> {
 
     enum ConsumerType {
         PARTITIONED, NON_PARTITIONED
     }
 
     protected final String subscription;
-    protected final ConsumerConfiguration conf;
+    protected final ConsumerConfigurationData<T> conf;
     protected final String consumerName;
-    protected final CompletableFuture<Consumer> subscribeFuture;
-    protected final MessageListener listener;
+    protected final CompletableFuture<Consumer<T>> subscribeFuture;
+    protected final MessageListener<T> listener;
+    protected final ConsumerEventListener consumerEventListener;
     protected final ExecutorService listenerExecutor;
-    final BlockingQueue<Message> incomingMessages;
-    protected final ConcurrentLinkedQueue<CompletableFuture<Message>> pendingReceives;
-    protected final int maxReceiverQueueSize;
+    final BlockingQueue<Message<T>> incomingMessages;
+    protected final ConcurrentLinkedQueue<CompletableFuture<Message<T>>> pendingReceives;
+    protected int maxReceiverQueueSize;
+    protected Schema<T> schema;
 
-    protected ConsumerBase(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
-            int receiverQueueSize, ExecutorService listenerExecutor, CompletableFuture<Consumer> subscribeFuture) {
-        super(client, topic, new Backoff(100, TimeUnit.MILLISECONDS, 60, TimeUnit.SECONDS, 0 , TimeUnit.MILLISECONDS));
+    protected ConsumerBase(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
+                           int receiverQueueSize, ExecutorService listenerExecutor,
+                           CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema) {
+        super(client, topic);
         this.maxReceiverQueueSize = receiverQueueSize;
-        this.subscription = subscription;
+        this.subscription = conf.getSubscriptionName();
         this.conf = conf;
         this.consumerName = conf.getConsumerName() == null ? ConsumerName.generateRandomName() : conf.getConsumerName();
         this.subscribeFuture = subscribeFuture;
         this.listener = conf.getMessageListener();
+        this.consumerEventListener = conf.getConsumerEventListener();
         if (receiverQueueSize <= 1) {
             this.incomingMessages = Queues.newArrayBlockingQueue(1);
         } else {
@@ -74,10 +80,11 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
 
         this.listenerExecutor = listenerExecutor;
         this.pendingReceives = Queues.newConcurrentLinkedQueue();
+        this.schema = schema;
     }
 
     @Override
-    public Message receive() throws PulsarClientException {
+    public Message<T> receive() throws PulsarClientException {
         if (listener != null) {
             throw new PulsarClientException.InvalidConfigurationException(
                     "Cannot use receive() when a listener has been set");
@@ -90,16 +97,20 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
         case Closing:
         case Closed:
             throw new PulsarClientException.AlreadyClosedException("Consumer already closed");
+        case Terminated:
+            throw new PulsarClientException.AlreadyClosedException("Topic was terminated");
         case Failed:
         case Uninitialized:
             throw new PulsarClientException.NotConnectedException();
+        default:
+            break;
         }
 
         return internalReceive();
     }
 
     @Override
-    public CompletableFuture<Message> receiveAsync() {
+    public CompletableFuture<Message<T>> receiveAsync() {
 
         if (listener != null) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
@@ -113,6 +124,8 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
         case Closing:
         case Closed:
             return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Consumer already closed"));
+        case Terminated:
+            return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Topic was terminated"));
         case Failed:
         case Uninitialized:
             return FutureUtil.failedFuture(new PulsarClientException.NotConnectedException());
@@ -121,12 +134,12 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
         return internalReceiveAsync();
     }
 
-    abstract protected Message internalReceive() throws PulsarClientException;
+    abstract protected Message<T> internalReceive() throws PulsarClientException;
 
-    abstract protected CompletableFuture<Message> internalReceiveAsync();
+    abstract protected CompletableFuture<Message<T>> internalReceiveAsync();
 
     @Override
-    public Message receive(int timeout, TimeUnit unit) throws PulsarClientException {
+    public Message<T> receive(int timeout, TimeUnit unit) throws PulsarClientException {
         if (conf.getReceiverQueueSize() == 0) {
             throw new PulsarClientException.InvalidConfigurationException(
                     "Can't use receive with timeout, if the queue size is 0");
@@ -143,6 +156,8 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
         case Closing:
         case Closed:
             throw new PulsarClientException.AlreadyClosedException("Consumer already closed");
+        case Terminated:
+            throw new PulsarClientException.AlreadyClosedException("Topic was terminated");
         case Failed:
         case Uninitialized:
             throw new PulsarClientException.NotConnectedException();
@@ -151,10 +166,10 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
         return internalReceive(timeout, unit);
     }
 
-    abstract protected Message internalReceive(int timeout, TimeUnit unit) throws PulsarClientException;
+    abstract protected Message<T> internalReceive(int timeout, TimeUnit unit) throws PulsarClientException;
 
     @Override
-    public void acknowledge(Message message) throws PulsarClientException {
+    public void acknowledge(Message<?> message) throws PulsarClientException {
         try {
             acknowledge(message.getMessageId());
         } catch (NullPointerException npe) {
@@ -180,7 +195,7 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
     }
 
     @Override
-    public void acknowledgeCumulative(Message message) throws PulsarClientException {
+    public void acknowledgeCumulative(Message<?> message) throws PulsarClientException {
         try {
             acknowledgeCumulative(message.getMessageId());
         } catch (NullPointerException npe) {
@@ -206,7 +221,7 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
     }
 
     @Override
-    public CompletableFuture<Void> acknowledgeAsync(Message message) {
+    public CompletableFuture<Void> acknowledgeAsync(Message<?> message) {
         try {
             return acknowledgeAsync(message.getMessageId());
         } catch (NullPointerException npe) {
@@ -215,7 +230,7 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
     }
 
     @Override
-    public CompletableFuture<Void> acknowledgeCumulativeAsync(Message message) {
+    public CompletableFuture<Void> acknowledgeCumulativeAsync(Message<?> message) {
         try {
             return acknowledgeCumulativeAsync(message.getMessageId());
         } catch (NullPointerException npe) {
@@ -225,7 +240,7 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
 
     @Override
     public CompletableFuture<Void> acknowledgeAsync(MessageId messageId) {
-        return doAcknowledge(messageId, AckType.Individual);
+        return doAcknowledge(messageId, AckType.Individual, Collections.emptyMap());
     }
 
     @Override
@@ -235,10 +250,11 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
                     "Cannot use cumulative acks on a non-exclusive subscription"));
         }
 
-        return doAcknowledge(messageId, AckType.Cumulative);
+        return doAcknowledge(messageId, AckType.Cumulative, Collections.emptyMap());
     }
 
-    abstract protected CompletableFuture<Void> doAcknowledge(MessageId messageId, AckType ackType);
+    abstract protected CompletableFuture<Void> doAcknowledge(MessageId messageId, AckType ackType,
+                                                             Map<String,Long> properties);
 
     @Override
     public void unsubscribe() throws PulsarClientException {
@@ -307,7 +323,7 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
 
     abstract public int numMessagesInQueue();
 
-    public CompletableFuture<Consumer> subscribeFuture() {
+    public CompletableFuture<Consumer<T>> subscribeFuture() {
         return subscribeFuture;
     }
 
@@ -327,7 +343,7 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
      * the connected consumers. This is a non blocking call and doesn't throw an exception. In case the connection
      * breaks, the messages are redelivered after reconnect.
      */
-    protected abstract void redeliverUnacknowledgedMessages(Set<MessageIdImpl> messageIds);
+    protected abstract void redeliverUnacknowledgedMessages(Set<MessageId> messageIds);
 
     @Override
     public String toString() {
@@ -337,4 +353,9 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
                 ", topic='" + topic + '\'' +
                 '}';
     }
+
+    protected void setMaxReceiverQueueSize(int newSize) {
+        this.maxReceiverQueueSize = newSize;
+    }
+
 }

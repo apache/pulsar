@@ -22,9 +22,10 @@
 #include <boost/regex.hpp>
 
 class NamedEntity {
- private:
+   private:
     static const boost::regex pattern;
- public:
+
+   public:
     static bool checkName(const std::string& name);
 };
 #endif

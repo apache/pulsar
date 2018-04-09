@@ -32,8 +32,13 @@ import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.net.URI;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -41,18 +46,26 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
-
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
 import javax.ws.rs.core.UriInfo;
-
+import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.proto.PendingBookieOpsStats;
 import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.pulsar.broker.admin.v1.BrokerStats;
+import org.apache.pulsar.broker.admin.v1.Brokers;
+import org.apache.pulsar.broker.admin.v1.Clusters;
+import org.apache.pulsar.broker.admin.v1.Namespaces;
+import org.apache.pulsar.broker.admin.v1.PersistentTopics;
+import org.apache.pulsar.broker.admin.v1.Properties;
+import org.apache.pulsar.broker.admin.v1.ResourceQuotas;
+import org.apache.pulsar.broker.admin.v2.SchemasResource;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
-import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.common.conf.InternalConfigurationData;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
@@ -74,13 +87,10 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-
 @Test
 public class AdminTest extends MockedPulsarServiceBaseTest {
+    private final String configClusterName = "use";
     private ConfigurationCacheService configurationCache;
-
     private Clusters clusters;
     private Properties properties;
     private Namespaces namespaces;
@@ -88,13 +98,16 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     private Brokers brokers;
     private ResourceQuotas resourceQuotas;
     private BrokerStats brokerStats;
-
+    private SchemasResource schemasResource;
     private Field uriField;
-    private UriInfo uriInfo;
+    private Clock mockClock = Clock.fixed(
+        Instant.ofEpochSecond(365248800),
+        ZoneId.of("-05:00")
+    );
 
     public AdminTest() {
         super();
-        conf.setClusterName("use");
+        conf.setClusterName(configClusterName);
     }
 
     @Override
@@ -145,7 +158,6 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         uriField = PulsarWebResource.class.getDeclaredField("uri");
         uriField.setAccessible(true);
-        uriInfo = mock(UriInfo.class);
 
         persistentTopics = spy(new PersistentTopics());
         persistentTopics.setServletContext(new MockServletContext());
@@ -176,6 +188,14 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         doReturn(mockZookKeeper).when(brokerStats).localZk();
         doReturn(configurationCache.propertiesCache()).when(brokerStats).propertiesCache();
         doReturn(configurationCache.policiesCache()).when(brokerStats).policiesCache();
+
+        schemasResource = spy(new SchemasResource(mockClock));
+        schemasResource.setServletContext(new MockServletContext());
+        schemasResource.setPulsar(pulsar);
+        doReturn(mockZookKeeper).when(schemasResource).globalZk();
+        doReturn(mockZookKeeper).when(schemasResource).localZk();
+        doReturn(configurationCache.propertiesCache()).when(schemasResource).propertiesCache();
+        doReturn(configurationCache.policiesCache()).when(schemasResource).policiesCache();
     }
 
     @Override
@@ -185,8 +205,18 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    void internalConfiguration() throws Exception {
+        InternalConfigurationData expectedData = new InternalConfigurationData(
+            pulsar.getConfiguration().getZookeeperServers(),
+            pulsar.getConfiguration().getGlobalZookeeperServers(),
+            new ClientConfiguration().getZkLedgersRootPath());
+
+        assertEquals(brokers.getInternalConfigurationData(), expectedData);
+    }
+
+    @Test
     void clusters() throws Exception {
-        assertEquals(clusters.getClusters(), new ArrayList<String>());
+        assertEquals(clusters.getClusters(), Lists.newArrayList());
         verify(clusters, never()).validateSuperUserAccess();
 
         clusters.createCluster("use", new ClusterData("http://broker.messaging.use.example.com"));
@@ -340,7 +370,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         verify(properties, times(1)).validateSuperUserAccess();
 
         Set<String> allowedClusters = Sets.newHashSet();
-        PropertyAdmin propertyAdmin = new PropertyAdmin(Lists.newArrayList("role1", "role2"), allowedClusters);
+        PropertyAdmin propertyAdmin = new PropertyAdmin(Sets.newHashSet("role1", "role2"), allowedClusters);
         properties.createProperty("test-property", propertyAdmin);
         verify(properties, times(2)).validateSuperUserAccess();
 
@@ -350,7 +380,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertEquals(properties.getPropertyAdmin("test-property"), propertyAdmin);
         verify(properties, times(4)).validateSuperUserAccess();
 
-        PropertyAdmin newPropertyAdmin = new PropertyAdmin(Lists.newArrayList("role1", "other-role"), allowedClusters);
+        PropertyAdmin newPropertyAdmin = new PropertyAdmin(Sets.newHashSet("role1", "other-role"), allowedClusters);
         properties.updateProperty("test-property", newPropertyAdmin);
         verify(properties, times(5)).validateSuperUserAccess();
 
@@ -448,7 +478,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         // Create a namespace to test deleting a non-empty property
         clusters.createCluster("use", new ClusterData());
-        newPropertyAdmin = new PropertyAdmin(Lists.newArrayList("role1", "other-role"), Sets.newHashSet("use"));
+        newPropertyAdmin = new PropertyAdmin(Sets.newHashSet("role1", "other-role"), Sets.newHashSet("use"));
         properties.createProperty("my-property", newPropertyAdmin);
 
         namespaces.createNamespace("my-property", "use", "my-namespace", new BundlesData());
@@ -510,7 +540,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         String namespace = "ns";
         String bundleRange = "0x00000000_0xffffffff";
         Policies policies = new Policies();
-        doReturn(policies).when(resourceQuotas).getNamespacePolicies(property, cluster, namespace);
+        doReturn(policies).when(resourceQuotas).getNamespacePolicies(NamespaceName.get(property, cluster, namespace));
         doReturn("client-id").when(resourceQuotas).clientAppId();
 
         try {
@@ -566,11 +596,10 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertNotNull(allocatorStats);
         Map<String, Map<String, PendingBookieOpsStats>> bookieOpsStats = brokerStats.getPendingBookieOpsStats();
         assertTrue(bookieOpsStats.isEmpty());
-        StreamingOutput destination = brokerStats.getDestinations2();
-        assertNotNull(destination);
+        StreamingOutput topic = brokerStats.getTopics2();
+        assertNotNull(topic);
         try {
-            Map<Long, Collection<ResourceUnit>> resource = brokerStats.getBrokerResourceAvailability("prop", "use",
-                    "ns2");
+            brokerStats.getBrokerResourceAvailability("prop", "use", "ns2");
             fail("should have failed as ModularLoadManager doesn't support it");
         } catch (RestException re) {
             // Ok
@@ -583,25 +612,24 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         final String property = "prop-xyz";
         final String cluster = "use";
         final String namespace = "ns";
-        final String destination = "ds1";
+        final String topic = "ds1";
         Policies policies = new Policies();
-        doReturn(policies).when(resourceQuotas).getNamespacePolicies(property, cluster, namespace);
+        doReturn(policies).when(resourceQuotas).getNamespacePolicies(NamespaceName.get(property, cluster, namespace));
         doReturn("client-id").when(resourceQuotas).clientAppId();
         // create policies
         PropertyAdmin admin = new PropertyAdmin();
         admin.getAllowedClusters().add(cluster);
-        ZkUtils.createFullPathOptimistic(mockZookKeeper,
-                PulsarWebResource.path(POLICIES, property, cluster, namespace),
+        ZkUtils.createFullPathOptimistic(mockZookKeeper, PulsarWebResource.path(POLICIES, property, cluster, namespace),
                 ObjectMapperFactory.getThreadLocal().writeValueAsBytes(new Policies()), ZooDefs.Ids.OPEN_ACL_UNSAFE,
                 CreateMode.PERSISTENT);
 
         List<String> list = persistentTopics.getList(property, cluster, namespace);
         assertTrue(list.isEmpty());
-        // create destination
+        // create topic
         assertEquals(persistentTopics.getPartitionedTopicList(property, cluster, namespace), Lists.newArrayList());
-        persistentTopics.createPartitionedTopic(property, cluster, namespace, destination, 5, false);
-        assertEquals(persistentTopics.getPartitionedTopicList(property, cluster, namespace), Lists.newArrayList(
-                String.format("persistent://%s/%s/%s/%s", property, cluster, namespace, destination)));
+        persistentTopics.createPartitionedTopic(property, cluster, namespace, topic, 5, false);
+        assertEquals(persistentTopics.getPartitionedTopicList(property, cluster, namespace), Lists
+                .newArrayList(String.format("persistent://%s/%s/%s/%s", property, cluster, namespace, topic)));
 
         CountDownLatch notificationLatch = new CountDownLatch(2);
         configurationCache.policiesCache().registerListener((path, data, stat) -> {
@@ -611,19 +639,19 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         // grant permission
         final Set<AuthAction> actions = Sets.newHashSet(AuthAction.produce);
         final String role = "test-role";
-        persistentTopics.grantPermissionsOnDestination(property, cluster, namespace, destination, role, actions);
+        persistentTopics.grantPermissionsOnTopic(property, cluster, namespace, topic, role, actions);
         // verify permission
-        Map<String, Set<AuthAction>> permission = persistentTopics.getPermissionsOnDestination(property, cluster,
-                namespace, destination);
+        Map<String, Set<AuthAction>> permission = persistentTopics.getPermissionsOnTopic(property, cluster,
+                namespace, topic);
         assertEquals(permission.get(role), actions);
         // remove permission
-        persistentTopics.revokePermissionsOnDestination(property, cluster, namespace, destination, role);
+        persistentTopics.revokePermissionsOnTopic(property, cluster, namespace, topic, role);
 
         // Wait for cache to be updated
         notificationLatch.await();
 
         // verify removed permission
-        permission = persistentTopics.getPermissionsOnDestination(property, cluster, namespace, destination);
+        permission = persistentTopics.getPermissionsOnTopic(property, cluster, namespace, topic);
         assertTrue(permission.isEmpty());
     }
 
@@ -634,5 +662,5 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertEquals(exception.getMessage(), message);
 
     }
-    
+
 }

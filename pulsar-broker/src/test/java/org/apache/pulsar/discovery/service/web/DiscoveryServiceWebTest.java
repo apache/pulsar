@@ -76,7 +76,7 @@ public class DiscoveryServiceWebTest extends ProducerConsumerBase {
      * @throws Exception
      */
     @Test
-    public void testRiderectUrlWithServerStarted() throws Exception {
+    public void testRedirectUrlWithServerStarted() throws Exception {
         // 1. start server
         int port = PortManager.nextFreePort();
         ServiceConfig config = new ServiceConfig();
@@ -100,7 +100,7 @@ public class DiscoveryServiceWebTest extends ProducerConsumerBase {
          **/
 
         assertEquals(hitBrokerService(HttpMethod.POST, postRequestUrl, Lists.newArrayList("use")),
-                "Property does not exist");
+                "Cannot set replication on a non-global namespace");
         assertEquals(hitBrokerService(HttpMethod.PUT, putRequestUrl, new BundlesData(1)), "Property does not exist");
         assertEquals(hitBrokerService(HttpMethod.GET, getRequestUrl, null), "Property does not exist");
 

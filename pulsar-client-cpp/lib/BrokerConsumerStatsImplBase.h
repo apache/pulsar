@@ -22,48 +22,48 @@
 #include <pulsar/BrokerConsumerStats.h>
 
 namespace pulsar {
-    class BrokerConsumerStatsImplBase {
-    public:
-        /** Returns true if the Stats are still valid **/
-        virtual bool isValid() const = 0;
+class BrokerConsumerStatsImplBase {
+   public:
+    /** Returns true if the Stats are still valid **/
+    virtual bool isValid() const = 0;
 
-        /** Returns the rate of messages delivered to the consumer. msg/s */
-        virtual double getMsgRateOut() const = 0;
+    /** Returns the rate of messages delivered to the consumer. msg/s */
+    virtual double getMsgRateOut() const = 0;
 
-        /** Returns the throughput delivered to the consumer. bytes/s */
-        virtual double getMsgThroughputOut() const = 0;
+    /** Returns the throughput delivered to the consumer. bytes/s */
+    virtual double getMsgThroughputOut() const = 0;
 
-        /** Returns the rate of messages redelivered by this consumer. msg/s */
-        virtual double getMsgRateRedeliver() const = 0;
+    /** Returns the rate of messages redelivered by this consumer. msg/s */
+    virtual double getMsgRateRedeliver() const = 0;
 
-        /** Returns the Name of the consumer */
-        virtual const std::string getConsumerName() const = 0;
+    /** Returns the Name of the consumer */
+    virtual const std::string getConsumerName() const = 0;
 
-        /** Returns the Number of available message permits for the consumer */
-        virtual uint64_t getAvailablePermits() const = 0;
+    /** Returns the Number of available message permits for the consumer */
+    virtual uint64_t getAvailablePermits() const = 0;
 
-        /** Returns the Number of unacknowledged messages for the consumer */
-        virtual uint64_t getUnackedMessages() const = 0;
+    /** Returns the Number of unacknowledged messages for the consumer */
+    virtual uint64_t getUnackedMessages() const = 0;
 
-        /** Returns true if the consumer is blocked due to unacked messages.  */
-        virtual bool isBlockedConsumerOnUnackedMsgs() const = 0;
+    /** Returns true if the consumer is blocked due to unacked messages.  */
+    virtual bool isBlockedConsumerOnUnackedMsgs() const = 0;
 
-        /** Returns the Address of this consumer */
-        virtual const std::string getAddress() const = 0;
+    /** Returns the Address of this consumer */
+    virtual const std::string getAddress() const = 0;
 
-        /** Returns the Timestamp of connection */
-        virtual const std::string getConnectedSince() const = 0;
+    /** Returns the Timestamp of connection */
+    virtual const std::string getConnectedSince() const = 0;
 
-        /** Returns Whether this subscription is Exclusive or Shared or Failover */
-        virtual const ConsumerType getType() const = 0;
+    /** Returns Whether this subscription is Exclusive or Shared or Failover */
+    virtual const ConsumerType getType() const = 0;
 
-        /** Returns the rate of messages expired on this subscription. msg/s */
-        virtual double getMsgRateExpired() const = 0;
+    /** Returns the rate of messages expired on this subscription. msg/s */
+    virtual double getMsgRateExpired() const = 0;
 
-        /** Returns the Number of messages in the subscription backlog */
-        virtual uint64_t getMsgBacklog() const = 0;
-    };
-    typedef boost::shared_ptr<BrokerConsumerStatsImplBase> BrokerConsumerStatsImplBasePtr;
-}
+    /** Returns the Number of messages in the subscription backlog */
+    virtual uint64_t getMsgBacklog() const = 0;
+};
+typedef boost::shared_ptr<BrokerConsumerStatsImplBase> BrokerConsumerStatsImplBasePtr;
+}  // namespace pulsar
 
-#endif //PULSAR_CPP_BROKERCONSUMERSTATSIMPLBASE_H
+#endif  // PULSAR_CPP_BROKERCONSUMERSTATSIMPLBASE_H

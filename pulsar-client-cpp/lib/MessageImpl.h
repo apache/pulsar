@@ -21,7 +21,6 @@
 
 #include <pulsar/Message.h>
 #include <pulsar/MessageId.h>
-#include "pulsar/BatchMessageId.h"
 #include "SharedBuffer.h"
 #include "PulsarApi.pb.h"
 
@@ -35,14 +34,14 @@ class ClientConnection;
 class BatchMessageContainer;
 
 class MessageImpl {
- public:
+   public:
     MessageImpl();
 
     const Message::StringMap& properties();
 
     proto::MessageMetadata metadata;
     SharedBuffer payload;
-    BatchMessageId messageId;
+    MessageId messageId;
     ClientConnection* cnx_;
 
     const std::string& getPartitionKey() const;
@@ -53,7 +52,8 @@ class MessageImpl {
 
     friend class PulsarWrapper;
     friend class MessageBuilder;
-private:
+
+   private:
     void setReplicationClusters(const std::vector<std::string>& clusters);
     void setProperty(const std::string& name, const std::string& value);
     void disableReplication(bool flag);
@@ -61,7 +61,6 @@ private:
     void setEventTimestamp(uint64_t eventTimestamp);
     Message::StringMap properties_;
 };
-
-}
+}  // namespace pulsar
 
 #endif /* LIB_MESSAGEIMPL_H_ */

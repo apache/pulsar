@@ -20,7 +20,6 @@
 #define PULSAR_PARTITIONED_CONSUMER_HEADER
 #include "ConsumerImpl.h"
 #include "ClientImpl.h"
-#include "DestinationName.h"
 #include <vector>
 #include <boost/shared_ptr.hpp>
 #include <boost/thread/mutex.hpp>
@@ -29,81 +28,80 @@
 #include "lib/UnAckedMessageTrackerDisabled.h"
 #include <lib/Latch.h>
 #include <lib/PartitionedBrokerConsumerStatsImpl.h>
+#include <lib/TopicName.h>
 
 namespace pulsar {
-    class PartitionedConsumerImpl;
-    class PartitionedConsumerImpl: public ConsumerImplBase, public boost::enable_shared_from_this<PartitionedConsumerImpl> {
-    public:
-        enum PartitionedConsumerState {
-            Pending,
-            Ready,
-            Closing,
-            Closed,
-            Failed
-        };
-        PartitionedConsumerImpl(ClientImplPtr client,
-                                const std::string& subscriptionName,
-                                const DestinationNamePtr destinationName,
-                                const unsigned int numPartitions,
-                                const ConsumerConfiguration& conf);
-        virtual ~PartitionedConsumerImpl ();
-        virtual Future<Result, ConsumerImplBaseWeakPtr> getConsumerCreatedFuture();
-        virtual const std::string& getSubscriptionName() const;
-        virtual const std::string& getTopic() const;
-        virtual Result receive(Message& msg);
-        virtual Result receive(Message& msg, int timeout);
-        virtual void unsubscribeAsync(ResultCallback callback);
-        virtual void acknowledgeAsync(const MessageId& msgId, ResultCallback callback);
-        virtual void acknowledgeCumulativeAsync(const MessageId& msgId, ResultCallback callback);
-        virtual void closeAsync(ResultCallback callback);
-        virtual void start();
-        virtual void shutdown();
-        virtual bool isClosed();
-        virtual bool isOpen();
-        virtual Result pauseMessageListener();
-        virtual Result resumeMessageListener();
-        virtual void redeliverUnacknowledgedMessages();
-        virtual const std::string& getName() const;
-        virtual int getNumOfPrefetchedMessages() const ;
-        virtual void getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback);
-        void handleGetConsumerStats(Result , BrokerConsumerStats, LatchPtr,
-                                    PartitionedBrokerConsumerStatsPtr, size_t, BrokerConsumerStatsCallback);
-
-    private:
-        const ClientImplPtr client_;
-        const std::string subscriptionName_;
-        const DestinationNamePtr destinationName_;
-        unsigned int numPartitions_;
-        unsigned int numConsumersCreated_;
-        const ConsumerConfiguration conf_;
-        typedef std::vector<ConsumerImplPtr> ConsumerList;
-        ConsumerList consumers_;
-        boost::mutex mutex_;
-        PartitionedConsumerState state_;
-        unsigned int unsubscribedSoFar_;
-        BlockingQueue<Message> messages_;
-        ExecutorServicePtr listenerExecutor_;
-        MessageListener messageListener_;
-        const std::string topic_;
-        const std::string name_;
-        const std::string partitionStr_;
-        /* methods */
-        void setState(PartitionedConsumerState state);
-        void handleUnsubscribeAsync(Result result,
-                                    unsigned int consumerIndex,
-                                    ResultCallback callback);
-        void handleSinglePartitionConsumerCreated(Result result,
-                                                  ConsumerImplBaseWeakPtr consumerImplBaseWeakPtr,
-                                                  unsigned int partitionIndex);
-        void handleSinglePartitionConsumerClose(Result result, unsigned int partitionIndex, CloseCallback callback);
-        void notifyResult(CloseCallback closeCallback);
-        void messageReceived(Consumer consumer, const Message& msg);
-        void internalListener(Consumer consumer);
-        void receiveMessages();
-        Promise<Result, ConsumerImplBaseWeakPtr> partitionedConsumerCreatedPromise_;
-        UnAckedMessageTrackerScopedPtr unAckedMessageTrackerPtr_;
+class PartitionedConsumerImpl;
+class PartitionedConsumerImpl : public ConsumerImplBase,
+                                public boost::enable_shared_from_this<PartitionedConsumerImpl> {
+   public:
+    enum PartitionedConsumerState
+    {
+        Pending,
+        Ready,
+        Closing,
+        Closed,
+        Failed
     };
-    typedef boost::weak_ptr<PartitionedConsumerImpl> PartitionedConsumerImplWeakPtr;
-    typedef boost::shared_ptr<PartitionedConsumerImpl> PartitionedConsumerImplPtr;
-}
-#endif //PULSAR_PARTITIONED_CONSUMER_HEADER
+    PartitionedConsumerImpl(ClientImplPtr client, const std::string& subscriptionName,
+                            const TopicNamePtr topicName, const unsigned int numPartitions,
+                            const ConsumerConfiguration& conf);
+    virtual ~PartitionedConsumerImpl();
+    virtual Future<Result, ConsumerImplBaseWeakPtr> getConsumerCreatedFuture();
+    virtual const std::string& getSubscriptionName() const;
+    virtual const std::string& getTopic() const;
+    virtual Result receive(Message& msg);
+    virtual Result receive(Message& msg, int timeout);
+    virtual void unsubscribeAsync(ResultCallback callback);
+    virtual void acknowledgeAsync(const MessageId& msgId, ResultCallback callback);
+    virtual void acknowledgeCumulativeAsync(const MessageId& msgId, ResultCallback callback);
+    virtual void closeAsync(ResultCallback callback);
+    virtual void start();
+    virtual void shutdown();
+    virtual bool isClosed();
+    virtual bool isOpen();
+    virtual Result pauseMessageListener();
+    virtual Result resumeMessageListener();
+    virtual void redeliverUnacknowledgedMessages();
+    virtual const std::string& getName() const;
+    virtual int getNumOfPrefetchedMessages() const;
+    virtual void getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback);
+    void handleGetConsumerStats(Result, BrokerConsumerStats, LatchPtr, PartitionedBrokerConsumerStatsPtr,
+                                size_t, BrokerConsumerStatsCallback);
+
+   private:
+    const ClientImplPtr client_;
+    const std::string subscriptionName_;
+    const TopicNamePtr topicName_;
+    unsigned int numPartitions_;
+    unsigned int numConsumersCreated_;
+    const ConsumerConfiguration conf_;
+    typedef std::vector<ConsumerImplPtr> ConsumerList;
+    ConsumerList consumers_;
+    boost::mutex mutex_;
+    PartitionedConsumerState state_;
+    unsigned int unsubscribedSoFar_;
+    BlockingQueue<Message> messages_;
+    ExecutorServicePtr listenerExecutor_;
+    MessageListener messageListener_;
+    const std::string topic_;
+    const std::string name_;
+    const std::string partitionStr_;
+    /* methods */
+    void setState(PartitionedConsumerState state);
+    void handleUnsubscribeAsync(Result result, unsigned int consumerIndex, ResultCallback callback);
+    void handleSinglePartitionConsumerCreated(Result result, ConsumerImplBaseWeakPtr consumerImplBaseWeakPtr,
+                                              unsigned int partitionIndex);
+    void handleSinglePartitionConsumerClose(Result result, unsigned int partitionIndex,
+                                            CloseCallback callback);
+    void notifyResult(CloseCallback closeCallback);
+    void messageReceived(Consumer consumer, const Message& msg);
+    void internalListener(Consumer consumer);
+    void receiveMessages();
+    Promise<Result, ConsumerImplBaseWeakPtr> partitionedConsumerCreatedPromise_;
+    UnAckedMessageTrackerScopedPtr unAckedMessageTrackerPtr_;
+};
+typedef boost::weak_ptr<PartitionedConsumerImpl> PartitionedConsumerImplWeakPtr;
+typedef boost::shared_ptr<PartitionedConsumerImpl> PartitionedConsumerImplPtr;
+}  // namespace pulsar
+#endif  // PULSAR_PARTITIONED_CONSUMER_HEADER

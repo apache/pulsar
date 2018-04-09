@@ -30,55 +30,57 @@
 
 namespace pulsar {
 
-    class ClientConfiguration;
-    class Authentication;
+class ClientConfiguration;
+class Authentication;
 
-    class AuthenticationDataProvider {
-    public:
-        virtual ~AuthenticationDataProvider();
-        virtual bool hasDataForTls();
-        virtual std::string getTlsCertificates();
-        virtual std::string getTlsPrivateKey();
-        virtual bool hasDataForHttp();
-        virtual std::string getHttpAuthType();
-        virtual std::string getHttpHeaders();
-        virtual bool hasDataFromCommand();
-        virtual std::string getCommandData();
-    protected:
-        AuthenticationDataProvider();
-    };
+class AuthenticationDataProvider {
+   public:
+    virtual ~AuthenticationDataProvider();
+    virtual bool hasDataForTls();
+    virtual std::string getTlsCertificates();
+    virtual std::string getTlsPrivateKey();
+    virtual bool hasDataForHttp();
+    virtual std::string getHttpAuthType();
+    virtual std::string getHttpHeaders();
+    virtual bool hasDataFromCommand();
+    virtual std::string getCommandData();
 
-    typedef boost::shared_ptr<AuthenticationDataProvider> AuthenticationDataPtr;
-    typedef boost::shared_ptr<Authentication> AuthenticationPtr;
-    typedef std::map<std::string, std::string> ParamMap;
+   protected:
+    AuthenticationDataProvider();
+};
 
-    class Authentication {
-    public:
-        virtual ~Authentication();
-        virtual const std::string getAuthMethodName() const = 0;
-        virtual Result getAuthData(AuthenticationDataPtr& authDataContent) const {
-            authDataContent = authData_;
-            return ResultOk;
-        }
-    protected:
-        Authentication();
-        AuthenticationDataPtr authData_;
-        friend class ClientConfiguration;
-    };
+typedef boost::shared_ptr<AuthenticationDataProvider> AuthenticationDataPtr;
+typedef boost::shared_ptr<Authentication> AuthenticationPtr;
+typedef std::map<std::string, std::string> ParamMap;
 
-    class AuthFactory {
-    public:
-        static AuthenticationPtr Disabled();
-        static AuthenticationPtr create(const std::string& dynamicLibPath);
-        static AuthenticationPtr create(const std::string& dynamicLibPath, const std::string& authParamsString);
-        static AuthenticationPtr create(const std::string& dynamicLibPath, ParamMap& params);
+class Authentication {
+   public:
+    virtual ~Authentication();
+    virtual const std::string getAuthMethodName() const = 0;
+    virtual Result getAuthData(AuthenticationDataPtr& authDataContent) const {
+        authDataContent = authData_;
+        return ResultOk;
+    }
 
-    protected:
-        static bool isShutdownHookRegistered_;
-        static std::vector<void *> loadedLibrariesHandles_;
-        static void release_handles();
-    };
-}
+   protected:
+    Authentication();
+    AuthenticationDataPtr authData_;
+    friend class ClientConfiguration;
+};
+
+class AuthFactory {
+   public:
+    static AuthenticationPtr Disabled();
+    static AuthenticationPtr create(const std::string& dynamicLibPath);
+    static AuthenticationPtr create(const std::string& dynamicLibPath, const std::string& authParamsString);
+    static AuthenticationPtr create(const std::string& dynamicLibPath, ParamMap& params);
+
+   protected:
+    static bool isShutdownHookRegistered_;
+    static std::vector<void*> loadedLibrariesHandles_;
+    static void release_handles();
+};
+}  // namespace pulsar
 // namespace pulsar
 
 #pragma GCC visibility pop

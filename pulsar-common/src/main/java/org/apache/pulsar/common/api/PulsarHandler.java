@@ -67,9 +67,7 @@ public abstract class PulsarHandler extends PulsarDecoder {
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        if (keepAliveTask != null) {
-            keepAliveTask.cancel(false);
-        }
+        cancelKeepAliveTask();
     }
 
     @Override
@@ -110,6 +108,13 @@ public abstract class PulsarHandler extends PulsarDecoder {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Peer doesn't support keep-alive", ctx.channel());
             }
+        }
+    }
+
+    protected void cancelKeepAliveTask() {
+        if (keepAliveTask != null) {
+            keepAliveTask.cancel(false);
+            keepAliveTask = null;
         }
     }
 

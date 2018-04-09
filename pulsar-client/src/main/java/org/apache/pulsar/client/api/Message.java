@@ -1,3 +1,4 @@
+
 /**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -25,7 +26,7 @@ import java.util.Map;
  *
  *
  */
-public interface Message {
+public interface Message<T> {
 
     /**
      * Return the properties attached to the message.
@@ -62,6 +63,8 @@ public interface Message {
      */
     byte[] getData();
 
+    T getValue();
+
     /**
      * Get the unique message ID associated with this message.
      *
@@ -91,6 +94,24 @@ public interface Message {
      * @since 1.20.0
      */
     long getEventTime();
+
+    /**
+     * Get the sequence id associated with this message. It is typically set by the applications via
+     * {@link MessageBuilder#setSequenceId(long)}.
+     *
+     * @return sequence id associated with this message.
+     * @see MessageBuilder#setEventTime(long)
+     * @since 1.22.0
+     */
+    long getSequenceId();
+
+    /**
+     * Get the producer name who produced this message.
+     *
+     * @return producer name who produced this message, null if producer name is not set.
+     * @since 1.22.0
+     */
+    String getProducerName();
 
     /**
      * Check whether the message has a key

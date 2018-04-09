@@ -90,8 +90,11 @@ Key | Type | Required? | Explanation
 `batchingMaxMessages` | int | no | Maximum number of messages permitted in a batch (default: 1000)
 `maxPendingMessages` | int | no | Set the max size of the internal-queue holding the messages (default: 1000)
 `batchingMaxPublishDelay` | long | no | Time period within which the messages will be batched (default: 10ms)
-`messageRoutingMode` | string | no | Message [routing mode](https://pulsar.incubator.apache.org/api/client/index.html?org/apache/pulsar/client/api/ProducerConfiguration.MessageRoutingMode.html) for the partitioned producer: SinglePartition/RoundRobinPartition
-`compressionType` | string | no | Compression [type](https://pulsar.incubator.apache.org/api/client/index.html?org/apache/pulsar/client/api/CompressionType.html): LZ4/ZLIB
+`messageRoutingMode` | string | no | Message [routing mode](https://pulsar.incubator.apache.org/api/client/index.html?org/apache/pulsar/client/api/ProducerConfiguration.MessageRoutingMode.html) for the partitioned producer: `SinglePartition`, `RoundRobinPartition`
+`compressionType` | string | no | Compression [type](https://pulsar.incubator.apache.org/api/client/index.html?org/apache/pulsar/client/api/CompressionType.html): `LZ4`, `ZLIB`
+`producerName` | string | no | Specify the name for the producer. Pulsar will enforce only one producer with same name can be publishing on a topic
+`initialSequenceId` | long | no | Set the baseline for the sequence ids for messages published by the producer.
+`hashingScheme` | string | no | [Hashing function](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ProducerConfiguration.HashingScheme.html) to use when publishing on a partitioned topic: `JavaStringHash`, `Murmur3_32Hash`
 
 
 #### Publishing a message
@@ -150,9 +153,10 @@ The consumer endpoint requires you to specify a {% popover property %}, {% popov
 Key | Type | Required? | Explanation
 :---|:-----|:----------|:-----------
 `ackTimeoutMillis` | long | no | Set the timeout for unacked messages (default: 0)
-`subscriptionType` | string | no | [Subscription type](https://pulsar.incubator.apache.org/api/client/index.html?org/apache/pulsar/client/api/SubscriptionType.html): Exclusive/Failover/Shared
+`subscriptionType` | string | no | [Subscription type](https://pulsar.incubator.apache.org/api/client/index.html?org/apache/pulsar/client/api/SubscriptionType.html): `Exclusive`, `Failover`, `Shared`
 `receiverQueueSize` | int | no | Size of the consumer receive queue (default: 1000)
 `consumerName` | string | no | Consumer name
+`priorityLevel` | int | no | Define a [priority](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ConsumerConfiguration.html#setPriorityLevel-int-) for the consumer
 
 ##### Receiving messages
 

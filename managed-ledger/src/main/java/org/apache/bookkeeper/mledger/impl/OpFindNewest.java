@@ -18,17 +18,15 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
+import com.google.common.base.Predicate;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.PositionBound;
-import com.google.common.base.Predicate;
 
-/**
- */
-public class OpFindNewest implements ReadEntryCallback {
+class OpFindNewest implements ReadEntryCallback {
     private final ManagedCursorImpl cursor;
     private final PositionImpl startPosition;
     private final FindEntryCallback callback;

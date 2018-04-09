@@ -18,7 +18,10 @@
  */
 package org.apache.pulsar.broker.service.nonpersistent;
 
+import com.google.common.base.MoreObjects;
+
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
@@ -35,15 +38,12 @@ import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
-import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.utils.CopyOnWriteArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.base.MoreObjects;
 
 public class NonPersistentSubscription implements Subscription {
     private final NonPersistentTopic topic;
@@ -55,6 +55,7 @@ public class NonPersistentSubscription implements Subscription {
     private static final int TRUE = 1;
     private static final AtomicIntegerFieldUpdater<NonPersistentSubscription> IS_FENCED_UPDATER = AtomicIntegerFieldUpdater
             .newUpdater(NonPersistentSubscription.class, "isFenced");
+    @SuppressWarnings("unused")
     private volatile int isFenced = FALSE;
 
     public NonPersistentSubscription(NonPersistentTopic topic, String subscriptionName) {
@@ -85,16 +86,16 @@ public class NonPersistentSubscription implements Subscription {
             switch (consumer.subType()) {
             case Exclusive:
                 if (dispatcher == null || dispatcher.getType() != SubType.Exclusive) {
-                    dispatcher = new NonPersistentDispatcherSingleActiveConsumer(SubType.Exclusive, 0, topic, this.subName);
+                    dispatcher = new NonPersistentDispatcherSingleActiveConsumer(SubType.Exclusive, 0, topic, this);
                 }
                 break;
             case Shared:
                 if (dispatcher == null || dispatcher.getType() != SubType.Shared) {
-                    dispatcher = new NonPersistentDispatcherMultipleConsumers(topic, this.subName);
+                    dispatcher = new NonPersistentDispatcherMultipleConsumers(topic, this);
                 }
                 break;
             case Failover:
-                int partitionIndex = DestinationName.getPartitionIndex(topicName);
+                int partitionIndex = TopicName.getPartitionIndex(topicName);
                 if (partitionIndex < 0) {
                     // For non partition topics, assume index 0 to pick a predictable consumer
                     partitionIndex = 0;
@@ -102,7 +103,7 @@ public class NonPersistentSubscription implements Subscription {
 
                 if (dispatcher == null || dispatcher.getType() != SubType.Failover) {
                     dispatcher = new NonPersistentDispatcherSingleActiveConsumer(SubType.Failover, partitionIndex,
-                            topic, this.subName);
+                            topic, this);
                 }
                 break;
             default:
@@ -138,7 +139,7 @@ public class NonPersistentSubscription implements Subscription {
     }
 
     @Override
-    public void acknowledgeMessage(PositionImpl position, AckType ackType) {
+    public void acknowledgeMessage(List<Position> position, AckType ackType, Map<String, Long> properties) {
         // No-op
     }
 
@@ -148,7 +149,7 @@ public class NonPersistentSubscription implements Subscription {
     }
 
     @Override
-    public String getDestination() {
+    public String getTopicName() {
         return this.topicName;
     }
 

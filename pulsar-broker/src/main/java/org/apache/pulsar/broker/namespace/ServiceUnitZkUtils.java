@@ -75,10 +75,17 @@ public final class ServiceUnitZkUtils {
         String[] parts = path.split("/");
         checkArgument(parts.length > 2);
         checkArgument(parts[1].equals("namespace"));
-        checkArgument(parts.length > 5);
+        checkArgument(parts.length > 4);
 
-        Range<Long> range = getHashRange(parts[5]);
-        return factory.getBundle(NamespaceName.get(parts[2], parts[3], parts[4]), range);
+        if (parts.length > 5) {
+            // this is a V1 path prop/cluster/namespace/hash
+            Range<Long> range = getHashRange(parts[5]);
+            return factory.getBundle(NamespaceName.get(parts[2], parts[3], parts[4]), range);
+        } else {
+            // this is a V2 path prop/namespace/hash
+            Range<Long> range = getHashRange(parts[4]);
+            return factory.getBundle(NamespaceName.get(parts[2], parts[3]), range);
+        }
     }
 
     private static Range<Long> getHashRange(String rangePathPart) {

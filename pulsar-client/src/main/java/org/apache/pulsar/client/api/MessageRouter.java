@@ -23,11 +23,27 @@ import java.io.Serializable;
 public interface MessageRouter extends Serializable {
 
     /**
-     * 
+     *
      * @param msg
      *            Message object
      * @return The index of the partition to use for the message
+     * @deprecated since 1.22.0. Please use {@link #choosePartition(Message, TopicMetadata)} instead.
      */
-    int choosePartition(Message msg);
+    @Deprecated
+    default int choosePartition(Message<?> msg) {
+        throw new UnsupportedOperationException("Use #choosePartition(Message, TopicMetadata) instead");
+    }
+
+    /**
+     * Choose a partition based on msg and the topic metadata.
+     *
+     * @param msg message to route
+     * @param metadata topic metadata
+     * @return the partition to route the message.
+     * @since 1.22.0
+     */
+    default int choosePartition(Message<?> msg, TopicMetadata metadata) {
+        return choosePartition(msg);
+    }
 
 }

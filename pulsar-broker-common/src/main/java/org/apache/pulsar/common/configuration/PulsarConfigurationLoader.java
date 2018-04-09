@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.common.configuration;
 
-import org.apache.pulsar.broker.ServiceConfiguration;
-
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.pulsar.common.util.FieldParser.update;
 
@@ -31,16 +29,21 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Properties;
 
+import org.apache.commons.lang.StringUtils;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Loads ServiceConfiguration with properties
- * 
+ *
  *
  */
 public class PulsarConfigurationLoader {
 
     /**
      * Creates PulsarConfiguration and loads it with populated attribute values loaded from provided property file.
-     * 
+     *
      * @param configFile
      * @throws IOException
      * @throws IllegalArgumentException
@@ -54,7 +57,7 @@ public class PulsarConfigurationLoader {
     /**
      * Creates PulsarConfiguration and loads it with populated attribute values loaded from provided inputstream
      * property file.
-     * 
+     *
      * @param inStream
      * @throws IOException
      *             if an error occurred when reading from the input stream.
@@ -94,26 +97,38 @@ public class PulsarConfigurationLoader {
      * Validates {@link FieldContext} annotation on each field of the class element. If element is annotated required
      * and value of the element is null or number value is not in a provided (min,max) range then consider as incomplete
      * object and throws exception with incomplete parameters
-     * 
+     *
      * @param object
      * @return
      * @throws IllegalArgumentException
      *             if object is field values are not completed according to {@link FieldContext} constraints.
      * @throws IllegalAccessException
      */
-    public static boolean isComplete(Object obj) throws IllegalArgumentException, IllegalAccessException {
+    public static boolean isComplete(Object obj) throws IllegalArgumentException {
         checkNotNull(obj);
         Field[] fields = obj.getClass().getDeclaredFields();
         StringBuilder error = new StringBuilder();
         for (Field field : fields) {
             if (field.isAnnotationPresent(FieldContext.class)) {
                 field.setAccessible(true);
-                Object value = field.get(obj);
+                Object value;
+
+                try {
+                    value = field.get(obj);
+                } catch (IllegalAccessException e) {
+                    throw new RuntimeException(e);
+                }
+
+                if (log.isDebugEnabled()) {
+                    log.debug("Validating configuration field '{}' = '{}'", field.getName(), value);
+                }
                 boolean isRequired = ((FieldContext) field.getAnnotation(FieldContext.class)).required();
                 long minValue = ((FieldContext) field.getAnnotation(FieldContext.class)).minValue();
                 long maxValue = ((FieldContext) field.getAnnotation(FieldContext.class)).maxValue();
-                if (isRequired && value == null)
+                if (isRequired && isEmpty(value)) {
                     error.append(String.format("Required %s is null,", field.getName()));
+                }
+
                 if (value != null && Number.class.isAssignableFrom(value.getClass())) {
                     long fieldVal = ((Number) value).longValue();
                     boolean valid = fieldVal >= minValue && fieldVal <= maxValue;
@@ -128,6 +143,16 @@ public class PulsarConfigurationLoader {
             throw new IllegalArgumentException(error.substring(0, error.length() - 1));
         }
         return true;
+    }
+
+    private static boolean isEmpty(Object obj) {
+        if (obj == null) {
+            return true;
+        } else if (obj instanceof String) {
+            return StringUtils.isBlank((String) obj);
+        } else {
+            return false;
+        }
     }
 
     /**
@@ -170,4 +195,5 @@ public class PulsarConfigurationLoader {
         return convertFrom(conf, true);
     }
 
+    private static final Logger log = LoggerFactory.getLogger(PulsarConfigurationLoader.class);
 }

@@ -37,21 +37,21 @@ class CompressionCodecLZ4;
 class CompressionCodecZLib;
 
 class CompressionCodecProvider {
- public:
+   public:
     static CompressionType convertType(proto::CompressionType type);
     static proto::CompressionType convertType(CompressionType type);
 
     static CompressionCodec& getCodec(CompressionType compressionType);
- private:
+
+   private:
     static CompressionCodecNone compressionCodecNone_;
     static CompressionCodecLZ4 compressionCodecLZ4_;
     static CompressionCodecZLib compressionCodecZLib_;
 };
 
 class CompressionCodec {
- public:
-    virtual ~CompressionCodec() {
-    }
+   public:
+    virtual ~CompressionCodec() {}
 
     /**
      * Compress a buffer
@@ -75,17 +75,15 @@ class CompressionCodec {
      *             were the result will be passed
      * @return true if the buffer was decompressed, false otherwise
      */
-    virtual bool decode(const SharedBuffer& encoded, uint32_t uncompressedSize,
-                        SharedBuffer& decoded) = 0;
+    virtual bool decode(const SharedBuffer& encoded, uint32_t uncompressedSize, SharedBuffer& decoded) = 0;
 };
 
 class CompressionCodecNone : public CompressionCodec {
- public:
+   public:
     SharedBuffer encode(const SharedBuffer& raw);
 
     bool decode(const SharedBuffer& encoded, uint32_t uncompressedSize, SharedBuffer& decoded);
 };
-
-}
+}  // namespace pulsar
 
 #endif /* LIB_COMPRESSIONCODEC_H_ */

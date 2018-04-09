@@ -31,14 +31,12 @@ class ReaderImpl;
 typedef boost::shared_ptr<ReaderImpl> ReaderImplPtr;
 typedef boost::weak_ptr<ReaderImpl> ReaderImplWeakPtr;
 
-class ReaderImpl: public boost::enable_shared_from_this<ReaderImpl> {
-public:
-    ReaderImpl(const ClientImplPtr client, const std::string& topic,
-               const ReaderConfiguration& conf,
-               const ExecutorServicePtr listenerExecutor,
-               ReaderCallback readerCreatedCallback);
+class ReaderImpl : public boost::enable_shared_from_this<ReaderImpl> {
+   public:
+    ReaderImpl(const ClientImplPtr client, const std::string& topic, const ReaderConfiguration& conf,
+               const ExecutorServicePtr listenerExecutor, ReaderCallback readerCreatedCallback);
 
-    void start(const BatchMessageId& startMessageId);
+    void start(const MessageId& startMessageId);
 
     const std::string& getTopic() const;
 
@@ -51,7 +49,7 @@ public:
 
     ConsumerImplPtr getConsumer();
 
-private:
+   private:
     void handleConsumerCreated(Result result, ConsumerImplBaseWeakPtr consumer);
 
     void messageListener(Consumer consumer, const Message& msg);
@@ -65,7 +63,6 @@ private:
     ReaderCallback readerCreatedCallback_;
     ReaderListener readerListener_;
 };
-
-}
+}  // namespace pulsar
 
 #endif /* LIB_READERIMPL_H_ */

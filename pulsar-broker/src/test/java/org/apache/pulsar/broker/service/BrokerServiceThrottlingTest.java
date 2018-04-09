@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.service.BrokerService.BROKER_SERVICE_CONFIGURATION_PATH;
+import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.fail;
@@ -34,7 +35,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -42,6 +42,7 @@ import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.ZooDefs;
+import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -90,13 +91,11 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
 
         final String topicName = "persistent://prop/usw/my-ns/newTopic";
 
-        org.apache.pulsar.client.api.ClientConfiguration clientConf = new org.apache.pulsar.client.api.ClientConfiguration();
-        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
         String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
-        PulsarClient pulsarClient = PulsarClient.create(lookupUrl, clientConf);
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
+                .build();
 
-        ConsumerConfiguration consumerConfig = new ConsumerConfiguration();
-        Consumer consumer = pulsarClient.subscribe(topicName, "mysub", consumerConfig);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub").subscribe();
         consumer.close();
 
         int newPermits = 0;
@@ -111,7 +110,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         }
 
         try {
-            consumer = pulsarClient.subscribe(topicName, "mysub", consumerConfig);
+            consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub").subscribe();
             consumer.close();
             fail("It should fail as throttling should not receive any request");
         } catch (org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException e) {
@@ -133,15 +132,9 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
     public void testLookupThrottlingForClientByBroker() throws Exception {
         final String topicName = "persistent://prop/usw/my-ns/newTopic";
 
-        org.apache.pulsar.client.api.ClientConfiguration clientConf = new org.apache.pulsar.client.api.ClientConfiguration();
-        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
-        clientConf.setIoThreads(20);
-        clientConf.setConnectionsPerBroker(20);
         String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
-        PulsarClient pulsarClient = PulsarClient.create(lookupUrl, clientConf);
-
-        ConsumerConfiguration consumerConfig = new ConsumerConfiguration();
-        consumerConfig.setSubscriptionType(SubscriptionType.Shared);
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
+                .ioThreads(20).connectionsPerBroker(20).build();
 
         int newPermits = 1;
         admin.brokers().updateDynamicConfiguration("maxConcurrentLookupRequest", Integer.toString(newPermits));
@@ -154,14 +147,15 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
             }
         }
 
-        List<Consumer> successfulConsumers = Collections.synchronizedList(Lists.newArrayList());
+        List<Consumer<byte[]>> successfulConsumers = Collections.synchronizedList(Lists.newArrayList());
         ExecutorService executor = Executors.newFixedThreadPool(10);
         final int totalConsumers = 20;
         CountDownLatch latch = new CountDownLatch(totalConsumers);
         for (int i = 0; i < totalConsumers; i++) {
             executor.execute(() -> {
                 try {
-                    successfulConsumers.add(pulsarClient.subscribe(topicName, "mysub", consumerConfig));
+                    successfulConsumers.add(pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub")
+                            .subscriptionType(SubscriptionType.Shared).subscribe());
                 } catch (PulsarClientException.TooManyRequestsException e) {
                     // ok
                 } catch (Exception e) {
@@ -172,7 +166,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         }
         latch.await();
 
-        for (Consumer c : successfulConsumers) {
+        for (Consumer<?> c : successfulConsumers) {
             if (c != null) {
                 c.close();
             }
@@ -200,23 +194,19 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
 
         final String topicName = "persistent://prop/usw/my-ns/newTopic";
 
-        org.apache.pulsar.client.api.ClientConfiguration clientConf = new org.apache.pulsar.client.api.ClientConfiguration();
-        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
-        clientConf.setIoThreads(20);
-        clientConf.setConnectionsPerBroker(20);
         String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
-        PulsarClient pulsarClient = PulsarClient.create(lookupUrl, clientConf);
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
+                .ioThreads(20).connectionsPerBroker(20).build();
         upsertLookupPermits(100);
-        ConsumerConfiguration consumerConfig = new ConsumerConfiguration();
-        consumerConfig.setSubscriptionType(SubscriptionType.Shared);
-        List<Consumer> consumers = Collections.synchronizedList(Lists.newArrayList());
+        List<Consumer<byte[]>> consumers = Collections.synchronizedList(Lists.newArrayList());
         ExecutorService executor = Executors.newFixedThreadPool(10);
         final int totalConsumers = 8;
         CountDownLatch latch = new CountDownLatch(totalConsumers);
         for (int i = 0; i < totalConsumers; i++) {
             executor.execute(() -> {
                 try {
-                    consumers.add(pulsarClient.subscribe(topicName, "mysub", consumerConfig));
+                    consumers.add(pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub")
+                            .subscriptionType(SubscriptionType.Shared).subscribe());
                 } catch (PulsarClientException.TooManyRequestsException e) {
                     // ok
                 } catch (Exception e) {
@@ -232,17 +222,11 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         startBroker();
 
         // wait strategically for all consumers to reconnect
-        for (int i = 0; i < 5; i++) {
-            if (!areAllConsumersConnected(consumers)) {
-                Thread.sleep(1000 + (i * 500));
-            } else {
-                break;
-            }
-        }
+        retryStrategically((test) -> areAllConsumersConnected(consumers), 5, 500);
 
         int totalConnectedConsumers = 0;
         for (int i = 0; i < consumers.size(); i++) {
-            if (((ConsumerImpl) consumers.get(i)).isConnected()) {
+            if (((ConsumerImpl<?>) consumers.get(i)).isConnected()) {
                 totalConnectedConsumers++;
             }
             consumers.get(i).close();
@@ -254,9 +238,9 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         pulsarClient.close();
     }
 
-    private boolean areAllConsumersConnected(List<Consumer> consumers) {
+    private boolean areAllConsumersConnected(List<Consumer<byte[]>> consumers) {
         for (int i = 0; i < consumers.size(); i++) {
-            if (!((ConsumerImpl) consumers.get(i)).isConnected()) {
+            if (!((ConsumerImpl<?>) consumers.get(i)).isConnected()) {
                 return false;
             }
         }

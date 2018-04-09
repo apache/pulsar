@@ -24,6 +24,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 
 import java.lang.reflect.Field;
@@ -55,7 +56,6 @@ import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceAllocationPolicies;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
@@ -163,7 +163,7 @@ public class ModularLoadManagerImplTest {
 
         primaryHost = String.format("%s:%d", InetAddress.getLocalHost().getHostName(), PRIMARY_BROKER_WEBSERVICE_PORT);
         url1 = new URL("http://127.0.0.1" + ":" + PRIMARY_BROKER_WEBSERVICE_PORT);
-        admin1 = new PulsarAdmin(url1, (Authentication) null);
+        admin1 = PulsarAdmin.builder().serviceHttpUrl(url1.toString()).build();
 
         // Start broker 2
         ServiceConfiguration config2 = new ServiceConfiguration();
@@ -179,7 +179,7 @@ public class ModularLoadManagerImplTest {
         pulsar2.start();
 
         url2 = new URL("http://127.0.0.1" + ":" + SECONDARY_BROKER_WEBSERVICE_PORT);
-        admin2 = new PulsarAdmin(url2, (Authentication) null);
+        admin2 = PulsarAdmin.builder().serviceHttpUrl(url2.toString()).build();
 
         primaryLoadManager = (ModularLoadManagerImpl) getField(pulsar1.getLoadManager().get(), "loadManager");
         secondaryLoadManager = (ModularLoadManagerImpl) getField(pulsar2.getLoadManager().get(), "loadManager");
@@ -223,7 +223,7 @@ public class ModularLoadManagerImplTest {
         // After 2 selections, the load balancer should select both brokers due to preallocation.
         for (int i = 0; i < 2; ++i) {
             final ServiceUnitId serviceUnit = makeBundle(Integer.toString(i));
-            final String broker = primaryLoadManager.selectBrokerForAssignment(serviceUnit);
+            final String broker = primaryLoadManager.selectBrokerForAssignment(serviceUnit).get();
             if (broker.equals(primaryHost)) {
                 foundFirst = true;
             } else {
@@ -281,6 +281,40 @@ public class ModularLoadManagerImplTest {
                 // them.
                 assertEquals(numAssignedToPrimary, numAssignedToSecondary);
             }
+        }
+    }
+
+    /**
+     * It verifies that once broker owns max-number of topics: load-manager doesn't allocates new bundles to that broker
+     * unless all the brokers are in same state.
+     *
+     * <pre>
+     * 1. Create a bundle whose bundle-resource-quota will contain max-topics
+     * 2. Load-manager assigns broker to this bundle so, assigned broker is overloaded with max-topics
+     * 3. For any new further bundles: broker assigns different brokers.
+     * </pre>
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testMaxTopicDistributionToBroker() throws Exception {
+
+        final int totalBundles = 50;
+        final NamespaceBundle[] bundles = LoadBalancerTestingUtils.makeBundles(nsFactory, "test", "test", "test",
+                totalBundles);
+        final BundleData bundleData = new BundleData(10, 1000);
+        // it sets max topics under this bundle so, owner of this broker reaches max-topic threshold
+        bundleData.setTopics(pulsar1.getConfiguration().getLoadBalancerBrokerMaxTopics() + 10);
+        final TimeAverageMessageData longTermMessageData = new TimeAverageMessageData(1000);
+        longTermMessageData.setMsgRateIn(1000);
+        bundleData.setLongTermData(longTermMessageData);
+        final String firstBundleDataPath = String.format("%s/%s", ModularLoadManagerImpl.BUNDLE_DATA_ZPATH, bundles[0]);
+        ZkUtils.createFullPathOptimistic(pulsar1.getZkClient(), firstBundleDataPath, bundleData.getJsonBytes(),
+                ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        String maxTopicOwnedBroker = primaryLoadManager.selectBrokerForAssignment(bundles[0]).get();
+
+        for (int i = 1; i < totalBundles; i++) {
+            assertNotEquals(primaryLoadManager.selectBrokerForAssignment(bundles[i]), maxTopicOwnedBroker);
         }
     }
 
@@ -393,7 +427,7 @@ public class ModularLoadManagerImplTest {
         currentData.getCpu().usage = 106;
         currentData.getCpu().limit = 1000;
         assert (!needUpdate.get());
-        
+
         // Minimally test other absolute values to ensure they are included.
         lastData.getCpu().usage = 100;
         lastData.getCpu().limit = 1000;
@@ -416,10 +450,10 @@ public class ModularLoadManagerImplTest {
         currentData.setNumBundles(100);
         assert (!needUpdate.get());
     }
-    
+
     /**
      * It verifies that deletion of broker-znode on broker-stop will invalidate availableBrokerCache list
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -435,23 +469,23 @@ public class ModularLoadManagerImplTest {
         Set<String> avaialbeBrokers = loadManager.getAvailableBrokers();
         assertEquals(avaialbeBrokers.size(), 1);
     }
-    
+
     /**
      * It verifies namespace-isolation policies with primary and secondary brokers.
-     * 
+     *
      * usecase:
-     * 
+     *
      * <pre>
      *  1. Namespace: primary=broker1, secondary=broker2, shared=broker3, min_limit = 1
-     *     a. available-brokers: broker1, broker2, broker3 => result: broker1 
+     *     a. available-brokers: broker1, broker2, broker3 => result: broker1
      *     b. available-brokers: broker2, broker3          => result: broker2
      *     c. available-brokers: broker3                   => result: NULL
      *  2. Namespace: primary=broker1, secondary=broker2, shared=broker3, min_limit = 2
-     *     a. available-brokers: broker1, broker2, broker3 => result: broker1, broker2 
+     *     a. available-brokers: broker1, broker2, broker3 => result: broker1, broker2
      *     b. available-brokers: broker2, broker3          => result: broker2
      *     c. available-brokers: broker3                   => result: NULL
      * </pre>
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -465,7 +499,7 @@ public class ModularLoadManagerImplTest {
         final String sharedBroker = "broker3";
         admin1.clusters().createCluster(cluster, new ClusterData("http://" + pulsar1.getAdvertisedAddress()));
         admin1.properties().createProperty(property,
-                new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet(cluster)));
+                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
         admin1.namespaces().createNamespace(property + "/" + cluster + "/" + namespace);
 
         // set a new policy
@@ -499,7 +533,7 @@ public class ModularLoadManagerImplTest {
         // test1: shared=1, primary=1, secondary=1 => It should return 1 primary broker only
         Set<String> brokerCandidateCache = Sets.newHashSet();
         Set<String> availableBrokers = Sets.newHashSet(sharedBroker, broker1Address, broker2Address);
-        LoadManagerShared.applyPolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
+        LoadManagerShared.applyNamespacePolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
                 availableBrokers, brokerTopicLoadingPredicate);
         assertEquals(brokerCandidateCache.size(), 1);
         assertTrue(brokerCandidateCache.contains(broker1Address));
@@ -507,7 +541,7 @@ public class ModularLoadManagerImplTest {
         // test2: shared=1, primary=0, secondary=1 => It should return 1 secondary broker only
         brokerCandidateCache = Sets.newHashSet();
         availableBrokers = Sets.newHashSet(sharedBroker, broker2Address);
-        LoadManagerShared.applyPolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
+        LoadManagerShared.applyNamespacePolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
                 availableBrokers, brokerTopicLoadingPredicate);
         assertEquals(brokerCandidateCache.size(), 1);
         assertTrue(brokerCandidateCache.contains(broker2Address));
@@ -515,7 +549,7 @@ public class ModularLoadManagerImplTest {
         // test3: shared=1, primary=0, secondary=0 => It should return 0 broker
         brokerCandidateCache = Sets.newHashSet();
         availableBrokers = Sets.newHashSet(sharedBroker);
-        LoadManagerShared.applyPolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
+        LoadManagerShared.applyNamespacePolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
                 availableBrokers, brokerTopicLoadingPredicate);
         assertEquals(brokerCandidateCache.size(), 0);
 
@@ -529,7 +563,7 @@ public class ModularLoadManagerImplTest {
         // test1: shared=1, primary=1, secondary=1 => It should return primary + secondary
         brokerCandidateCache = Sets.newHashSet();
         availableBrokers = Sets.newHashSet(sharedBroker, broker1Address, broker2Address);
-        LoadManagerShared.applyPolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
+        LoadManagerShared.applyNamespacePolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
                 availableBrokers, brokerTopicLoadingPredicate);
         assertEquals(brokerCandidateCache.size(), 2);
         assertTrue(brokerCandidateCache.contains(broker1Address));
@@ -538,7 +572,7 @@ public class ModularLoadManagerImplTest {
         // test2: shared=1, secondary=1 => It should return secondary
         brokerCandidateCache = Sets.newHashSet();
         availableBrokers = Sets.newHashSet(sharedBroker, broker2Address);
-        LoadManagerShared.applyPolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
+        LoadManagerShared.applyNamespacePolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
                 availableBrokers, brokerTopicLoadingPredicate);
         assertEquals(brokerCandidateCache.size(), 1);
         assertTrue(brokerCandidateCache.contains(broker2Address));
@@ -546,16 +580,16 @@ public class ModularLoadManagerImplTest {
         // test3: shared=1, => It should return 0 broker
         brokerCandidateCache = Sets.newHashSet();
         availableBrokers = Sets.newHashSet(sharedBroker);
-        LoadManagerShared.applyPolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
+        LoadManagerShared.applyNamespacePolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
                 availableBrokers, brokerTopicLoadingPredicate);
         assertEquals(brokerCandidateCache.size(), 0);
 
     }
-    
+
     /**
      * It verifies that pulsar-service fails if load-manager tries to create ephemeral znode for broker which is already
      * created by other zk-session-id.
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -580,5 +614,7 @@ public class ModularLoadManagerImplTest {
         } catch (PulsarServerException e) {
             //Ok.
         }
+
+        pulsar.close();
     }
 }

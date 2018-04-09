@@ -19,6 +19,8 @@
 package org.apache.pulsar.stats.client;
 
 import static org.mockito.Mockito.spy;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 import java.net.URL;
 import java.util.concurrent.TimeUnit;
@@ -37,22 +39,16 @@ import org.apache.pulsar.client.admin.PulsarAdminException.ServerSideErrorExcept
 import org.apache.pulsar.client.admin.internal.BrokerStatsImpl;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
-import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.CursorStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.assertEquals;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
 
 public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
 
@@ -72,7 +68,7 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
     @Test
     public void testServiceException() throws Exception {
         URL url = new URL("http://localhost:15000");
-        PulsarAdmin admin = new PulsarAdmin(url, (Authentication) null);
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(url.toString()).build();
         BrokerStatsImpl client = (BrokerStatsImpl) spy(admin.brokerStats());
         try {
             client.getLoadReport();
@@ -85,7 +81,7 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
             // Ok
         }
         try {
-            client.getBrokerResourceAvailability("prop", "cluster", "ns");
+            client.getBrokerResourceAvailability("prop/cluster/ns");
         } catch (PulsarAdminException e) {
             // Ok
         }
@@ -108,20 +104,16 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
 
         final String topicName = "persistent://my-property/use/my-ns/my-topic1";
         final String subscriptionName = "my-subscriber-name";
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(SubscriptionType.Exclusive);
-        Consumer consumer = pulsarClient.subscribe(topicName, subscriptionName, conf);
-
-        ProducerConfiguration producerConf = new ProducerConfiguration();
-
-        Producer producer = pulsarClient.createProducer(topicName, producerConf);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                .acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         final int numberOfMsgs = 1000;
         for (int i = 0; i < numberOfMsgs; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
         }
 
-        Message msg = null;
+        Message<byte[]> msg = null;
         int count = 0;
         for (int i = 0; i < numberOfMsgs; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
@@ -130,13 +122,13 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
             }
         }
 
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName).get();
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
         PersistentTopicInternalStats internalStats = topic.getInternalStats();
         CursorStats cursor = internalStats.cursors.get(subscriptionName);
         assertEquals(cursor.numberOfEntriesSinceFirstNotAckedMessage, numberOfMsgs);
         assertTrue(cursor.totalNonContiguousDeletedMessagesRange > 0
                 && (cursor.totalNonContiguousDeletedMessagesRange) < numberOfMsgs / 2);
-        
+
         producer.close();
         consumer.close();
         log.info("-- Exiting {} test --", methodName);

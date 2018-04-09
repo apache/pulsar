@@ -21,13 +21,12 @@
 namespace pulsar {
 
 Backoff::Backoff(const TimeDuration& initial, const TimeDuration& max, const TimeDuration& mandatoryStop)
-        : initial_(initial),
-          max_(max),
-          next_(initial),
-          mandatoryStopMade_(false),
-          mandatoryStop_(mandatoryStop),
-          randomSeed_(time(NULL)) {
-}
+    : initial_(initial),
+      max_(max),
+      next_(initial),
+      mandatoryStopMade_(false),
+      mandatoryStop_(mandatoryStop),
+      randomSeed_(time(NULL)) {}
 
 TimeDuration Backoff::next() {
     TimeDuration current = next_;
@@ -57,4 +56,4 @@ void Backoff::reset() {
     mandatoryStopMade_ = false;
 }
 
-}  //pulsar - namespace end
+}  // namespace pulsar

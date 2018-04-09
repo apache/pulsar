@@ -34,7 +34,7 @@ import com.google.protobuf.UninitializedMessageException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
-public class MessageIdImpl implements MessageId, Comparable<MessageIdImpl> {
+public class MessageIdImpl implements MessageId {
     protected final long ledgerId;
     protected final long entryId;
     protected final int partitionIndex;
@@ -61,13 +61,6 @@ public class MessageIdImpl implements MessageId, Comparable<MessageIdImpl> {
 
     public int getPartitionIndex() {
         return partitionIndex;
-    }
-
-    @Override
-    public int compareTo(MessageIdImpl other) {
-
-        return ComparisonChain.start().compare(this.ledgerId, other.ledgerId).compare(this.entryId, other.entryId)
-                .compare(this.getPartitionIndex(), other.getPartitionIndex()).result();
     }
 
     @Override
@@ -151,5 +144,20 @@ public class MessageIdImpl implements MessageId, Comparable<MessageIdImpl> {
     public byte[] toByteArray() {
         // there is no message batch so we pass -1
         return toByteArray(-1);
+    }
+
+    @Override
+    public int compareTo(MessageId o) {
+        if (!(o instanceof MessageIdImpl)) {
+            throw new IllegalArgumentException(
+                "expected MessageIdImpl object. Got instance of " + o.getClass().getName());
+        }
+
+        MessageIdImpl other = (MessageIdImpl) o;
+        return ComparisonChain.start()
+            .compare(this.ledgerId, other.ledgerId)
+            .compare(this.entryId, other.entryId)
+            .compare(this.getPartitionIndex(), other.getPartitionIndex())
+            .result();
     }
 }

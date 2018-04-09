@@ -23,7 +23,6 @@ import static org.testng.Assert.assertTrue;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
@@ -66,7 +65,7 @@ public class ManagedLedgerMBeanTest extends MockedBookKeeperTestCase {
         mbean.addLedgerSwitchLatencySample(1, TimeUnit.SECONDS);
 
         // Simulate stats getting update from different thread
-        factory.executor.submit(() -> {
+        factory.scheduledExecutor.submit(() -> {
             mbean.refreshStats(1, TimeUnit.SECONDS);
         }).get();
 
@@ -91,7 +90,7 @@ public class ManagedLedgerMBeanTest extends MockedBookKeeperTestCase {
         ledger.addEntry(new byte[600]);
         cursor.markDelete(p1);
 
-        factory.executor.submit(() -> {
+        factory.scheduledExecutor.submit(() -> {
             mbean.refreshStats(1, TimeUnit.SECONDS);
         }).get();
 
@@ -110,7 +109,7 @@ public class ManagedLedgerMBeanTest extends MockedBookKeeperTestCase {
         mbean.recordAddEntryError();
         mbean.recordReadEntriesError();
 
-        factory.executor.submit(() -> {
+        factory.scheduledExecutor.submit(() -> {
             mbean.refreshStats(1, TimeUnit.SECONDS);
         }).get();
 
@@ -120,7 +119,7 @@ public class ManagedLedgerMBeanTest extends MockedBookKeeperTestCase {
         List<Entry> entries = cursor.readEntries(100);
         assertEquals(entries.size(), 1);
 
-        factory.executor.submit(() -> {
+        factory.scheduledExecutor.submit(() -> {
             mbean.refreshStats(1, TimeUnit.SECONDS);
         }).get();
 

@@ -30,7 +30,10 @@ import javax.naming.AuthenticationException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WebSocketAdapter;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
@@ -44,9 +47,9 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
     protected final WebSocketService service;
     protected final HttpServletRequest request;
 
-    protected final String topic;
+    protected final TopicName topic;
     protected final Map<String, String> queryParams;
-    protected final boolean authResult;
+
 
     public AbstractWebSocketHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
         this.service = service;
@@ -57,12 +60,11 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         request.getParameterMap().forEach((key, values) -> {
             queryParams.put(key, values[0]);
         });
-
-        authResult = checkAuth(response);
     }
 
-    private boolean checkAuth(ServletUpgradeResponse response) {
+    protected boolean checkAuth(ServletUpgradeResponse response) {
         String authRole = "<none>";
+        AuthenticationDataSource authenticationData = new AuthenticationDataHttps(request);
         if (service.isAuthenticationEnabled()) {
             try {
                 authRole = service.getAuthenticationService().authenticateHttpRequest(request);
@@ -84,7 +86,7 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
 
         if (service.isAuthorizationEnabled()) {
             try {
-                if (!isAuthorized(authRole)) {
+                if (!isAuthorized(authRole, authenticationData)) {
                     log.warn("[{}:{}] WebSocket Client [{}] is not authorized on topic {}", request.getRemoteAddr(),
                             request.getRemotePort(), authRole, topic);
                     response.sendError(HttpServletResponse.SC_FORBIDDEN, "Not authorized");
@@ -149,25 +151,42 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         return null;
     }
 
-    private String extractTopicName(HttpServletRequest request) {
+    private TopicName extractTopicName(HttpServletRequest request) {
         String uri = request.getRequestURI();
         List<String> parts = Splitter.on("/").splitToList(uri);
 
-        // Format must be like :
+        // V1 Format must be like :
         // /ws/producer/persistent/my-property/my-cluster/my-ns/my-topic
         // or
         // /ws/consumer/persistent/my-property/my-cluster/my-ns/my-topic/my-subscription
         // or
         // /ws/reader/persistent/my-property/my-cluster/my-ns/my-topic
+
+        // V2 Format must be like :
+        // /ws/v2/producer/persistent/my-property/my-ns/my-topic
+        // or
+        // /ws/v2/consumer/persistent/my-property/my-ns/my-topic/my-subscription
+        // or
+        // /ws/v2/reader/persistent/my-property/my-ns/my-topic
+
         checkArgument(parts.size() >= 8, "Invalid topic name format");
         checkArgument(parts.get(1).equals("ws"));
-        checkArgument(parts.get(3).equals("persistent") || parts.get(3).equals("non-persistent"));
 
-        DestinationName dn = DestinationName.get(parts.get(3), parts.get(4), parts.get(5), parts.get(6), parts.get(7));
-        return dn.toString();
+        final boolean isV2Format = parts.get(2).equals("v2");
+        final int domainIndex = isV2Format ? 4 : 3;
+        checkArgument(parts.get(domainIndex).equals("persistent") ||
+                parts.get(domainIndex).equals("non-persistent"));
+
+
+        final String domain = parts.get(domainIndex);
+        final NamespaceName namespace = isV2Format ? NamespaceName.get(parts.get(5), parts.get(6)) :
+                NamespaceName.get( parts.get(4), parts.get(5), parts.get(6));
+        final String name = parts.get(7);
+
+        return TopicName.get(domain, namespace, name);
     }
 
-    protected abstract Boolean isAuthorized(String authRole) throws Exception;
+    protected abstract Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData) throws Exception;
 
     private static final Logger log = LoggerFactory.getLogger(AbstractWebSocketHandler.class);
 }

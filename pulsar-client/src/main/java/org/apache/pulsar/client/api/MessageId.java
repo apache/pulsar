@@ -30,7 +30,7 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
  *
  *
  */
-public interface MessageId {
+public interface MessageId extends Comparable<MessageId>{
 
     /**
      * Serialize the message ID into a byte array

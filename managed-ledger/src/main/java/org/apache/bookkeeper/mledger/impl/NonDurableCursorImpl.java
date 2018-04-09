@@ -18,19 +18,17 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import com.google.common.base.MoreObjects;
+import com.google.common.collect.Range;
 import java.util.Map;
-
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
-import org.apache.bookkeeper.mledger.util.Pair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.Range;
 
 public class NonDurableCursorImpl extends ManagedCursorImpl {
 
@@ -64,9 +62,9 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
 
         // Initialize the counter such that the difference between the messages written on the ML and the
         // messagesConsumed is equal to the current backlog (negated).
-        long initialBacklog = readPosition.compareTo(lastEntryAndCounter.first) < 0
-                ? ledger.getNumberOfEntries(Range.closed(readPosition, lastEntryAndCounter.first)) : 0;
-        messagesConsumedCounter = lastEntryAndCounter.second - initialBacklog;
+        long initialBacklog = readPosition.compareTo(lastEntryAndCounter.getLeft()) < 0
+                ? ledger.getNumberOfEntries(Range.closed(readPosition, lastEntryAndCounter.getLeft())) : 0;
+        messagesConsumedCounter = lastEntryAndCounter.getRight() - initialBacklog;
     }
 
     @Override

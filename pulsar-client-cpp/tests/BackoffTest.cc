@@ -41,9 +41,9 @@ static bool withinTenPercentAndDecrementTimer(Backoff& backoff, const unsigned i
 TEST(BackoffTest, mandatoryStopTestNegativeTest) {
     Backoff backoff(milliseconds(100), seconds(60), milliseconds(1900));
     ASSERT_EQ(backoff.next().total_milliseconds(), 100);
-    backoff.next().total_milliseconds(); // 200
-    backoff.next().total_milliseconds(); // 400
-    backoff.next().total_milliseconds(); // 800
+    backoff.next().total_milliseconds();  // 200
+    backoff.next().total_milliseconds();  // 400
+    backoff.next().total_milliseconds();  // 800
     ASSERT_FALSE(withinTenPercentAndDecrementTimer(backoff, 400));
 }
 
@@ -53,14 +53,13 @@ TEST(BackoffTest, firstBackoffTimerTest) {
     boost::posix_time::ptime firstBackOffTime = PulsarFriend::getFirstBackoffTime(backoff);
     usleep(300 * 1000);
     TimeDuration diffBackOffTime = PulsarFriend::getFirstBackoffTime(backoff) - firstBackOffTime;
-    ASSERT_EQ(diffBackOffTime, milliseconds(0)); // no change since reset not called
+    ASSERT_EQ(diffBackOffTime, milliseconds(0));  // no change since reset not called
 
     backoff.reset();
     ASSERT_EQ(backoff.next().total_milliseconds(), 100);
     diffBackOffTime = PulsarFriend::getFirstBackoffTime(backoff) - firstBackOffTime;
     ASSERT_TRUE(diffBackOffTime >= milliseconds(300) && diffBackOffTime < milliseconds(310));
 }
-
 
 TEST(BackoffTest, basicTest) {
     Backoff backoff(milliseconds(5), seconds(60), seconds(60));
@@ -145,4 +144,3 @@ TEST(BackoffTest, ignoringMandatoryStopTest) {
     ASSERT_TRUE(withinTenPercentAndDecrementTimer(backoff, 60000));
     ASSERT_TRUE(withinTenPercentAndDecrementTimer(backoff, 60000));
 }
-

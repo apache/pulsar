@@ -27,14 +27,11 @@
 namespace pulsar {
 
 ExecutorService::ExecutorService()
-        : io_service_(),
-          work_(new BackgroundWork(io_service_)),
-          worker_(boost::bind(&boost::asio::io_service::run, &io_service_)) {
-}
+    : io_service_(),
+      work_(new BackgroundWork(io_service_)),
+      worker_(boost::bind(&boost::asio::io_service::run, &io_service_)) {}
 
-ExecutorService::~ExecutorService() {
-    close();
-}
+ExecutorService::~ExecutorService() { close(); }
 
 /*
  *  factory method of boost::asio::ip::tcp::socket associated with io_service_ instance
@@ -45,7 +42,8 @@ SocketPtr ExecutorService::createSocket() {
 }
 
 TlsSocketPtr ExecutorService::createTlsSocket(SocketPtr &socket, boost::asio::ssl::context &ctx) {
-    return boost::shared_ptr<boost::asio::ssl::stream<boost::asio::ip::tcp::socket&> >(new boost::asio::ssl::stream<boost::asio::ip::tcp::socket&> (*socket, ctx));
+    return boost::shared_ptr<boost::asio::ssl::stream<boost::asio::ip::tcp::socket &> >(
+        new boost::asio::ssl::stream<boost::asio::ip::tcp::socket &>(*socket, ctx));
 }
 
 /*
@@ -66,17 +64,12 @@ void ExecutorService::close() {
     worker_.join();
 }
 
-void ExecutorService::postWork(boost::function<void(void)> task) {
-    io_service_.post(task);
-}
+void ExecutorService::postWork(boost::function<void(void)> task) { io_service_.post(task); }
 
 /////////////////////
 
 ExecutorServiceProvider::ExecutorServiceProvider(int nthreads)
-        : executors_(nthreads),
-          executorIdx_(0),
-          mutex_() {
-}
+    : executors_(nthreads), executorIdx_(0), mutex_() {}
 
 ExecutorServicePtr ExecutorServiceProvider::get() {
     Lock lock(mutex_);
@@ -97,5 +90,4 @@ void ExecutorServiceProvider::close() {
         it->reset();
     }
 }
-
-}
+}  // namespace pulsar

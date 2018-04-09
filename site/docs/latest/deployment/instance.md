@@ -160,7 +160,7 @@ that can contain many topic. Common practice is to create a namespace for each
 different use case from a single tenant.
 
 ```shell
-$ bin/pulsar-admin namespaces create test/us-west/ns1
+$ bin/pulsar-admin namespaces create test-prop/us-west/ns1
 ```
 
 ##### Testing producer and consumer
@@ -173,24 +173,24 @@ created the first time a producer or a consumer tries to use them.
 
 The topic name in this case could be:
 
-{% include topic.html p="test" c="us-west" n="ns1" t="my-topic" %}
+{% include topic.html p="test-prop" c="us-west" n="ns1" t="my-topic" %}
 
 Start a consumer that will create a subscription on the topic and will wait
 for messages:
 
 ```shell
-$ bin/pulsar-perf consume persistent://test/us-west/ns1/my-topic
+$ bin/pulsar-perf consume persistent://test-prop/us-west/ns1/my-topic
 ```
 
 Start a producer that publishes messages at a fixed rate and report stats every
 10 seconds:
 
 ```shell
-$ bin/pulsar-perf produce persistent://test/us-west/ns1/my-topic
+$ bin/pulsar-perf produce persistent://test-prop/us-west/ns1/my-topic
 ```
 
 To report the topic stats:
 
 ```shell
-$ bin/pulsar-admin persistent stats persistent://test/us-west/ns1/my-topic
+$ bin/pulsar-admin persistent stats persistent://test-prop/us-west/ns1/my-topic
 ```

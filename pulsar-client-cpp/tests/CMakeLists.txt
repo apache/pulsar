@@ -17,7 +17,7 @@
 # under the License.
 #
 
-find_library(GTEST_LIBRARY_PATH gtest)
+find_library(GMOCK_LIBRARY_PATH gmock)
 
 file(GLOB TEST_SOURCES *.cc)
 
@@ -25,4 +25,4 @@ add_executable(main ${TEST_SOURCES})
 
 target_include_directories(main PRIVATE ${CMAKE_SOURCE_DIR}/lib)
 
-target_link_libraries(main ${CLIENT_LIBS} ${GTEST_LIBRARY_PATH} ztsClient)
+target_link_libraries(main ${CLIENT_LIBS} ${GMOCK_LIBRARY_PATH} ztsClient)

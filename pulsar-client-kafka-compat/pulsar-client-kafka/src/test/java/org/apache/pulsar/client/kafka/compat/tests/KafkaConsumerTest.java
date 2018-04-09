@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -38,8 +39,6 @@ import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
-import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -74,21 +73,22 @@ public class KafkaConsumerTest extends BrokerTestBase {
         Consumer<String, String> consumer = new PulsarKafkaConsumer<>(props);
         consumer.subscribe(Arrays.asList(topic));
 
-        Producer pulsarProducer = pulsarClient.createProducer(topic);
+        Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic).create();
 
         for (int i = 0; i < 10; i++) {
-            Message msg = MessageBuilder.create().setKey(Integer.toString(i)).setContent(("hello-" + i).getBytes())
-                    .build();
+            Message<byte[]> msg = MessageBuilder.create().setKey(Integer.toString(i))
+                    .setContent(("hello-" + i).getBytes()).build();
             pulsarProducer.send(msg);
         }
 
-        for (int i = 0; i < 10; i++) {
+        AtomicInteger received = new AtomicInteger();
+        while (received.get() < 10) {
             ConsumerRecords<String, String> records = consumer.poll(100);
-            assertEquals(records.count(), 1);
-            int idx = i;
             records.forEach(record -> {
-                assertEquals(record.key(), Integer.toString(idx));
-                assertEquals(record.value(), "hello-" + idx);
+                assertEquals(record.key(), Integer.toString(received.get()));
+                assertEquals(record.value(), "hello-" + received.get());
+
+                received.incrementAndGet();
             });
 
             consumer.commitSync();
@@ -111,21 +111,21 @@ public class KafkaConsumerTest extends BrokerTestBase {
         Consumer<String, String> consumer = new PulsarKafkaConsumer<>(props);
         consumer.subscribe(Arrays.asList(topic));
 
-        Producer pulsarProducer = pulsarClient.createProducer(topic);
+        Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic).create();
 
         for (int i = 0; i < 10; i++) {
-            Message msg = MessageBuilder.create().setKey(Integer.toString(i)).setContent(("hello-" + i).getBytes())
-                    .build();
+            Message<byte[]> msg = MessageBuilder.create().setKey(Integer.toString(i))
+                    .setContent(("hello-" + i).getBytes()).build();
             pulsarProducer.send(msg);
         }
 
-        for (int i = 0; i < 10; i++) {
+        AtomicInteger received = new AtomicInteger();
+        while (received.get() < 10) {
             ConsumerRecords<String, String> records = consumer.poll(100);
-            assertEquals(records.count(), 1);
-            int idx = i;
             records.forEach(record -> {
-                assertEquals(record.key(), Integer.toString(idx));
-                assertEquals(record.value(), "hello-" + idx);
+                assertEquals(record.key(), Integer.toString(received.get()));
+                assertEquals(record.value(), "hello-" + received.get());
+                received.incrementAndGet();
             });
         }
 
@@ -154,26 +154,27 @@ public class KafkaConsumerTest extends BrokerTestBase {
         Consumer<String, String> consumer = new PulsarKafkaConsumer<>(props);
         consumer.subscribe(Arrays.asList(topic));
 
-        Producer pulsarProducer = pulsarClient.createProducer(topic);
+        Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic).create();
 
         for (int i = 0; i < 10; i++) {
-            Message msg = MessageBuilder.create().setKey(Integer.toString(i)).setContent(("hello-" + i).getBytes())
-                    .build();
+            Message<byte[]> msg = MessageBuilder.create().setKey(Integer.toString(i))
+                    .setContent(("hello-" + i).getBytes()).build();
             pulsarProducer.send(msg);
         }
 
-        for (int i = 0; i < 10; i++) {
+        AtomicInteger received = new AtomicInteger();
+        while (received.get() < 10) {
             ConsumerRecords<String, String> records = consumer.poll(100);
-            assertEquals(records.count(), 1);
-            int idx = i;
             records.forEach(record -> {
-                assertEquals(record.key(), Integer.toString(idx));
-                assertEquals(record.value(), "hello-" + idx);
+                assertEquals(record.key(), Integer.toString(received.get()));
+                assertEquals(record.value(), "hello-" + received.get());
 
                 Map<TopicPartition, OffsetAndMetadata> offsets = new HashMap<>();
                 offsets.put(new TopicPartition(record.topic(), record.partition()),
                         new OffsetAndMetadata(record.offset()));
                 consumer.commitSync(offsets);
+
+                received.incrementAndGet();
             });
         }
 
@@ -203,9 +204,8 @@ public class KafkaConsumerTest extends BrokerTestBase {
         props.put("key.deserializer", StringDeserializer.class.getName());
         props.put("value.deserializer", StringDeserializer.class.getName());
 
-        ProducerConfiguration conf = new ProducerConfiguration();
-        conf.setMessageRoutingMode(MessageRoutingMode.RoundRobinPartition);
-        Producer pulsarProducer = pulsarClient.createProducer(topic);
+        Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic)
+                .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition).create();
 
         // Create 2 Kakfa consumer and verify each gets half of the messages
         List<Consumer<String, String>> consumers = new ArrayList<>();
@@ -218,16 +218,17 @@ public class KafkaConsumerTest extends BrokerTestBase {
         int N = 8 * 3;
 
         for (int i = 0; i < N; i++) {
-            Message msg = MessageBuilder.create().setKey(Integer.toString(i)).setContent(("hello-" + i).getBytes())
-                    .build();
+            Message<byte[]> msg = MessageBuilder.create().setKey(Integer.toString(i))
+                    .setContent(("hello-" + i).getBytes()).build();
             pulsarProducer.send(msg);
         }
 
         consumers.forEach(consumer -> {
             int expectedMessaged = N / consumers.size();
-            for (int i = 0; i < expectedMessaged; i++) {
+
+            for (int i = 0; i < expectedMessaged;) {
                 ConsumerRecords<String, String> records = consumer.poll(100);
-                assertEquals(records.count(), 1);
+                i += records.count();
             }
 
             // No more messages for this consumer
@@ -248,25 +249,27 @@ public class KafkaConsumerTest extends BrokerTestBase {
         props.put("enable.auto.commit", "false");
         props.put("key.deserializer", StringDeserializer.class.getName());
         props.put("value.deserializer", StringDeserializer.class.getName());
+        props.put("pulsar.consumer.acknowledgments.group.time.millis", "0");
 
         Consumer<String, String> consumer = new PulsarKafkaConsumer<>(props);
         consumer.subscribe(Arrays.asList(topic));
 
-        Producer pulsarProducer = pulsarClient.createProducer(topic);
+        Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic).create();
 
         for (int i = 0; i < 10; i++) {
-            Message msg = MessageBuilder.create().setKey(Integer.toString(i)).setContent(("hello-" + i).getBytes())
-                    .build();
+            Message<byte[]> msg = MessageBuilder.create().setKey(Integer.toString(i))
+                    .setContent(("hello-" + i).getBytes()).build();
             pulsarProducer.send(msg);
         }
 
-        for (int i = 0; i < 10; i++) {
+        AtomicInteger received = new AtomicInteger();
+        while (received.get() < 10) {
             ConsumerRecords<String, String> records = consumer.poll(100);
-            assertEquals(records.count(), 1);
-            int idx = i;
             records.forEach(record -> {
-                assertEquals(record.key(), Integer.toString(idx));
-                assertEquals(record.value(), "hello-" + idx);
+                assertEquals(record.key(), Integer.toString(received.get()));
+                assertEquals(record.value(), "hello-" + received.get());
+
+                received.incrementAndGet();
             });
 
             consumer.commitSync();
@@ -277,13 +280,14 @@ public class KafkaConsumerTest extends BrokerTestBase {
         Thread.sleep(500);
 
         // Messages should be available again
-        for (int i = 0; i < 10; i++) {
+        received.set(0);
+        while (received.get() < 10) {
             ConsumerRecords<String, String> records = consumer.poll(100);
-            assertEquals(records.count(), 1);
-            int idx = i;
             records.forEach(record -> {
-                assertEquals(record.key(), Integer.toString(idx));
-                assertEquals(record.value(), "hello-" + idx);
+                assertEquals(record.key(), Integer.toString(received.get()));
+                assertEquals(record.value(), "hello-" + received.get());
+
+                received.incrementAndGet();
             });
 
             consumer.commitSync();
@@ -302,25 +306,27 @@ public class KafkaConsumerTest extends BrokerTestBase {
         props.put("enable.auto.commit", "false");
         props.put("key.deserializer", StringDeserializer.class.getName());
         props.put("value.deserializer", StringDeserializer.class.getName());
+        props.put("pulsar.consumer.acknowledgments.group.time.millis", "0");
 
         Consumer<String, String> consumer = new PulsarKafkaConsumer<>(props);
         consumer.subscribe(Arrays.asList(topic));
 
-        Producer pulsarProducer = pulsarClient.createProducer(topic);
+        Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic).create();
 
         for (int i = 0; i < 10; i++) {
-            Message msg = MessageBuilder.create().setKey(Integer.toString(i)).setContent(("hello-" + i).getBytes())
-                    .build();
+            Message<byte[]> msg = MessageBuilder.create().setKey(Integer.toString(i))
+                    .setContent(("hello-" + i).getBytes()).build();
             pulsarProducer.send(msg);
         }
 
-        for (int i = 0; i < 10; i++) {
+        AtomicInteger received = new AtomicInteger();
+        while (received.get() < 10) {
             ConsumerRecords<String, String> records = consumer.poll(100);
-            assertEquals(records.count(), 1);
-            int idx = i;
             records.forEach(record -> {
-                assertEquals(record.key(), Integer.toString(idx));
-                assertEquals(record.value(), "hello-" + idx);
+                assertEquals(record.key(), Integer.toString(received.get()));
+                assertEquals(record.value(), "hello-" + received.get());
+
+                received.incrementAndGet();
             });
 
             consumer.commitSync();

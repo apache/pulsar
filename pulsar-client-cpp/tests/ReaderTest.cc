@@ -60,8 +60,7 @@ TEST(ReaderTest, testSimpleReader) {
 TEST(ReaderTest, testReaderAfterMessagesWerePublished) {
     Client client(serviceUrl);
 
-    std::string topicName =
-            "persistent://property/cluster/namespace/testReaderAfterMessagesWerePublished";
+    std::string topicName = "persistent://property/cluster/namespace/testReaderAfterMessagesWerePublished";
 
     Producer producer;
     ASSERT_EQ(ResultOk, client.createProducer(topicName, producer));
@@ -212,7 +211,6 @@ TEST(ReaderTest, testReaderOnSpecificMessage) {
     client.close();
 }
 
-
 /**
  * Test that we can position on a particular message even within a batch
  */
@@ -259,7 +257,7 @@ TEST(ReaderTest, testReaderOnSpecificMessageWithBatches) {
     // Create another reader starting on msgid4
     auto msgId4 = MessageId::deserialize(lastMessageId);
     Reader reader2;
-    ASSERT_EQ(ResultOk, client.createReader(topicName, *msgId4, readerConf, reader2));
+    ASSERT_EQ(ResultOk, client.createReader(topicName, msgId4, readerConf, reader2));
 
     for (int i = 5; i < 11; i++) {
         Message msg;
@@ -274,4 +272,3 @@ TEST(ReaderTest, testReaderOnSpecificMessageWithBatches) {
     reader2.close();
     client.close();
 }
-

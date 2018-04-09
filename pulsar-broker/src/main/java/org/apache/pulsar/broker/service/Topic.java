@@ -18,22 +18,25 @@
  */
 package org.apache.pulsar.broker.service;
 
+import io.netty.buffer.ByteBuf;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.schema.SchemaData;
+import org.apache.pulsar.common.schema.SchemaVersion;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.utils.StatsOutputStream;
-
-import io.netty.buffer.ByteBuf;
 
 public interface Topic {
 
@@ -77,9 +80,10 @@ public interface Topic {
     void removeProducer(Producer producer);
 
     CompletableFuture<Consumer> subscribe(ServerCnx cnx, String subscriptionName, long consumerId, SubType subType,
-            int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId);
+            int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
+            Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition);
 
-    CompletableFuture<Subscription> createSubscription(String subscriptionName);
+    CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition);
 
     CompletableFuture<Void> unsubscribe(String subName);
 
@@ -105,6 +109,10 @@ public interface Topic {
 
     boolean isBacklogQuotaExceeded(String producerName);
 
+    boolean isEncryptionRequired();
+
+    boolean isReplicated();
+
     BacklogQuota getBacklogQuota();
 
     void updateRates(NamespaceStats nsStats, NamespaceBundleStats currentBundleStats,
@@ -118,4 +126,8 @@ public interface Topic {
     PersistentTopicStats getStats();
 
     PersistentTopicInternalStats getInternalStats();
+
+    Position getLastMessageId();
+
+    CompletableFuture<SchemaVersion> addSchema(SchemaData schema);
 }

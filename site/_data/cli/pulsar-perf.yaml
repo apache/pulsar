@@ -131,7 +131,7 @@ commands:
 env_vars:
 - name: PULSAR_LOG_CONF
   description: Log4j configuration file
-  default: conf/log4j.properties
+  default: conf/log4j2.yaml
 - name: PULSAR_CLIENT_CONF
   description: Configuration file for the client
   default: conf/client.conf

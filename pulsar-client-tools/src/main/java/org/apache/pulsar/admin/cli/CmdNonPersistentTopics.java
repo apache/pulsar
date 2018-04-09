@@ -38,24 +38,26 @@ public class CmdNonPersistentTopics extends CmdBase {
         jcommander.addCommand("stats", new GetStats());
         jcommander.addCommand("stats-internal", new GetInternalStats());
         jcommander.addCommand("get-partitioned-topic-metadata", new GetPartitionedTopicMetadataCmd());
+        jcommander.addCommand("list", new GetList());
+        jcommander.addCommand("list-in-bundle", new GetListInBundle());
     }
 
-    @Parameters(commandDescription = "Lookup a destination from the current serving broker")
+    @Parameters(commandDescription = "Lookup a topic from the current serving broker")
     private class Lookup extends CliCommand {
         @Parameter(description = "non-persistent://property/cluster/namespace/topic\n", required = true)
         private java.util.List<String> params;
 
         @Override
         void run() throws PulsarAdminException {
-            String destination = validateDestination(params);
-            print(admin.lookups().lookupDestination(destination));
+            String topic = validateTopicName(params);
+            print(admin.lookups().lookupTopic(topic));
         }
     }
 
     @Parameters(commandDescription = "Get the stats for the topic and its connected producers and consumers. \n"
             + "\t       All the rates are computed over a 1 minute window and are relative the last completed 1 minute period.")
     private class GetStats extends CliCommand {
-        @Parameter(description = "non-persistent://property/cluster/namespace/destination\n", required = true)
+        @Parameter(description = "non-persistent://property/cluster/namespace/topic\n", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -67,7 +69,7 @@ public class CmdNonPersistentTopics extends CmdBase {
 
     @Parameters(commandDescription = "Get the internal stats for the topic")
     private class GetInternalStats extends CliCommand {
-        @Parameter(description = "non-persistent://property/cluster/namespace/destination\n", required = true)
+        @Parameter(description = "non-persistent://property/cluster/namespace/topic\n", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -81,7 +83,7 @@ public class CmdNonPersistentTopics extends CmdBase {
             + "\t\tThe partitioned topic has to be created before creating a producer on it.")
     private class CreatePartitionedCmd extends CliCommand {
 
-        @Parameter(description = "non-persistent://property/cluster/namespace/destination\n", required = true)
+        @Parameter(description = "non-persistent://property/cluster/namespace/topic\n", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = { "-p",
@@ -99,13 +101,41 @@ public class CmdNonPersistentTopics extends CmdBase {
             + "\t\tIf the topic is not created or is a non-partitioned topic, it returns empty topic with 0 partitions")
     private class GetPartitionedTopicMetadataCmd extends CliCommand {
 
-        @Parameter(description = "non-persistent://property/cluster/namespace/destination\n", required = true)
+        @Parameter(description = "non-persistent://property/cluster/namespace/topic\n", required = true)
         private java.util.List<String> params;
 
         @Override
         void run() throws Exception {
             String persistentTopic = validateNonPersistentTopic(params);
             print(nonPersistentTopics.getPartitionedTopicMetadata(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Get list of non-persistent topics present under a namespace")
+    private class GetList extends CliCommand {
+        @Parameter(description = "property/cluster/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(nonPersistentTopics.getList(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Get list of non-persistent topics present under a namespace bundle")
+    private class GetListInBundle extends CliCommand {
+        @Parameter(description = "property/cluster/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-b",
+                "--bundle" }, description = "bundle range", required = true)
+        private String bundleRange;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(nonPersistentTopics.getListInBundle(namespace, bundleRange));
         }
     }
 }

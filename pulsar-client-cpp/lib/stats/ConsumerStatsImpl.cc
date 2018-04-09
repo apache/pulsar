@@ -25,31 +25,29 @@ DECLARE_LOG_OBJECT();
 
 ConsumerStatsImpl::ConsumerStatsImpl(std::string consumerStr, DeadlineTimerPtr timer,
                                      unsigned int statsIntervalInSeconds)
-        : consumerStr_(consumerStr),
-          timer_(timer),
-          statsIntervalInSeconds_(statsIntervalInSeconds),
-          totalNumBytesRecieved_(0),
-          numBytesRecieved_(0) {
+    : consumerStr_(consumerStr),
+      timer_(timer),
+      statsIntervalInSeconds_(statsIntervalInSeconds),
+      totalNumBytesRecieved_(0),
+      numBytesRecieved_(0) {
     timer_->expires_from_now(boost::posix_time::seconds(statsIntervalInSeconds_));
     timer_->async_wait(
-            boost::bind(&pulsar::ConsumerStatsImpl::flushAndReset, this,
-                        boost::asio::placeholders::error));
+        boost::bind(&pulsar::ConsumerStatsImpl::flushAndReset, this, boost::asio::placeholders::error));
 }
 
 ConsumerStatsImpl::ConsumerStatsImpl(const ConsumerStatsImpl& stats)
-        : consumerStr_(stats.consumerStr_),
-          totalNumBytesRecieved_(stats.totalNumBytesRecieved_),
-          numBytesRecieved_(stats.numBytesRecieved_),
-          receivedMsgMap_(stats.receivedMsgMap_),
-          ackedMsgMap_(stats.ackedMsgMap_),
-          totalReceivedMsgMap_(stats.totalReceivedMsgMap_),
-          totalAckedMsgMap_(stats.totalAckedMsgMap_),
-          statsIntervalInSeconds_(stats.statsIntervalInSeconds_) {
-}
+    : consumerStr_(stats.consumerStr_),
+      totalNumBytesRecieved_(stats.totalNumBytesRecieved_),
+      numBytesRecieved_(stats.numBytesRecieved_),
+      receivedMsgMap_(stats.receivedMsgMap_),
+      ackedMsgMap_(stats.ackedMsgMap_),
+      totalReceivedMsgMap_(stats.totalReceivedMsgMap_),
+      totalAckedMsgMap_(stats.totalAckedMsgMap_),
+      statsIntervalInSeconds_(stats.statsIntervalInSeconds_) {}
 
 void ConsumerStatsImpl::flushAndReset(const boost::system::error_code& ec) {
     if (ec) {
-        LOG_DEBUG("Ignoring timer cancelled event, code[" << ec <<"]");
+        LOG_DEBUG("Ignoring timer cancelled event, code[" << ec << "]");
         return;
     }
 
@@ -62,8 +60,7 @@ void ConsumerStatsImpl::flushAndReset(const boost::system::error_code& ec) {
 
     timer_->expires_from_now(boost::posix_time::seconds(statsIntervalInSeconds_));
     timer_->async_wait(
-            boost::bind(&pulsar::ConsumerStatsImpl::flushAndReset, this,
-                        boost::asio::placeholders::error));
+        boost::bind(&pulsar::ConsumerStatsImpl::flushAndReset, this, boost::asio::placeholders::error));
     LOG_INFO(tmp);
 }
 
@@ -90,24 +87,26 @@ void ConsumerStatsImpl::messageAcknowledged(Result res, proto::CommandAck_AckTyp
     totalAckedMsgMap_[std::make_pair(res, ackType)] += 1;
 }
 
-std::ostream& operator<<(
-        std::ostream& os,
-        const std::map<std::pair<Result, proto::CommandAck_AckType>, unsigned long>& m) {
+std::ostream& operator<<(std::ostream& os,
+                         const std::map<std::pair<Result, proto::CommandAck_AckType>, unsigned long>& m) {
     os << "{";
-    for (std::map<std::pair<Result, proto::CommandAck_AckType>, unsigned long>::const_iterator it = m.begin(); it != m.end(); it++) {
-        os << "[Key: {" << "Result: " << strResult((it->first).first) << ", ackType: "
-                << (it->first).second << "}, Value: " << it->second << "], ";
+    for (std::map<std::pair<Result, proto::CommandAck_AckType>, unsigned long>::const_iterator it = m.begin();
+         it != m.end(); it++) {
+        os << "[Key: {"
+           << "Result: " << strResult((it->first).first) << ", ackType: " << (it->first).second
+           << "}, Value: " << it->second << "], ";
     }
     os << "}";
     return os;
 }
 
 std::ostream& operator<<(std::ostream& os, const ConsumerStatsImpl& obj) {
-    os << "Consumer " << obj.consumerStr_ << ", ConsumerStatsImpl (" << "numBytesRecieved_ = "
-       << obj.numBytesRecieved_ << ", totalNumBytesRecieved_ = " << obj.totalNumBytesRecieved_
+    os << "Consumer " << obj.consumerStr_ << ", ConsumerStatsImpl ("
+       << "numBytesRecieved_ = " << obj.numBytesRecieved_
+       << ", totalNumBytesRecieved_ = " << obj.totalNumBytesRecieved_
        << ", receivedMsgMap_ = " << obj.receivedMsgMap_ << ", ackedMsgMap_ = " << obj.ackedMsgMap_
-       << ", totalReceivedMsgMap_ = " << obj.totalReceivedMsgMap_ << ", totalAckedMsgMap_ = "
-       << obj.totalAckedMsgMap_ << ")";
+       << ", totalReceivedMsgMap_ = " << obj.totalReceivedMsgMap_
+       << ", totalAckedMsgMap_ = " << obj.totalAckedMsgMap_ << ")";
     return os;
 }
 } /* namespace pulsar */

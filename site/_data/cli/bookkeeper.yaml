@@ -57,7 +57,7 @@ commands:
 env_vars:
 - name: BOOKIE_LOG_CONF
   description: Log4j configuration file
-  default: conf/log4j.properties
+  default: conf/log4j2.yaml
 - name: BOOKIE_CONF
   description: BookKeeper configuration file
   default: conf/bk_server.conf

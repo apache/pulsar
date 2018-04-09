@@ -22,15 +22,15 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 
-import org.apache.pulsar.checksum.utils.Crc32cChecksum;
+import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.Commands;
-import org.apache.pulsar.common.api.DoubleByteBuf;
 import org.apache.pulsar.common.api.Commands.ChecksumType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 import org.testng.annotations.Test;
+
+import com.scurrilous.circe.checksum.Crc32cIntChecksum;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
@@ -48,20 +48,19 @@ public class CommandsTest {
         MessageMetadata messageMetadata = MessageMetadata.newBuilder().setPublishTime(System.currentTimeMillis())
                 .setProducerName(producerName).setSequenceId(sequenceId).build();
         int expectedChecksum = computeChecksum(messageMetadata, data);
-        ByteBuf clientCommand = Commands.newSend(1, 0, 1, ChecksumType.Crc32c, messageMetadata, data);
+        ByteBufPair clientCommand = Commands.newSend(1, 0, 1, ChecksumType.Crc32c, messageMetadata, data);
         clientCommand.retain();
-        ByteBuffer inputBytes = clientCommand.nioBuffer();
-        ByteBuf receivedBuf = Unpooled.wrappedBuffer(inputBytes);
+        ByteBuf receivedBuf = ByteBufPair.coalesce(clientCommand);
         receivedBuf.skipBytes(4); //skip [total-size]
         int cmdSize = (int) receivedBuf.readUnsignedInt();
         receivedBuf.readerIndex(8 + cmdSize);
         int startMessagePos = receivedBuf.readerIndex();
-        
+
         /*** 1. verify checksum and metadataParsing ***/
         boolean hasChecksum = Commands.hasChecksum(receivedBuf);
-        int checksum = Commands.readChecksum(receivedBuf).intValue();
-        
-        
+        int checksum = Commands.readChecksum(receivedBuf);
+
+
         // verify checksum is present
         assertTrue(hasChecksum);
         // verify checksum value
@@ -69,13 +68,13 @@ public class CommandsTest {
         MessageMetadata metadata = Commands.parseMessageMetadata(receivedBuf);
         // verify metadata parsing
         assertEquals(metadata.getProducerName(), producerName);
-        
-        /** 2. parseMessageMetadata should skip checksum if present **/  
+
+        /** 2. parseMessageMetadata should skip checksum if present **/
         receivedBuf.readerIndex(startMessagePos);
         metadata = Commands.parseMessageMetadata(receivedBuf);
         // verify metadata parsing
         assertEquals(metadata.getProducerName(), producerName);
-        
+
     }
 
     private int computeChecksum(MessageMetadata msgMetadata, ByteBuf compressedPayload) throws IOException {
@@ -86,12 +85,12 @@ public class CommandsTest {
         metaPayloadFrame.writeInt(metadataSize);
         msgMetadata.writeTo(outStream);
         ByteBuf payload = compressedPayload.copy();
-        ByteBuf metaPayloadBuf = DoubleByteBuf.get(metaPayloadFrame, payload);
-        int computedChecksum = Crc32cChecksum.computeChecksum(metaPayloadBuf); 
+        ByteBufPair metaPayloadBuf = ByteBufPair.get(metaPayloadFrame, payload);
+        int computedChecksum = Crc32cIntChecksum.computeChecksum(ByteBufPair.coalesce(metaPayloadBuf));
         outStream.recycle();
         metaPayloadBuf.release();
         return computedChecksum;
     }
 
-    
+
 }

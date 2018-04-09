@@ -18,34 +18,33 @@
  */
 package org.apache.pulsar.client.api;
 
-import java.util.List;
 import java.util.Map;
 
 public interface CryptoKeyReader {
 
-    /*
+    /**
      * Return the encryption key corresponding to the key name in the argument
      * <p>
-     * This method should be implemented to return the EncryptionKeyInfo. This method will be
-     * called at the time of producer creation as well as consumer receiving messages.
-     * Hence, application should not make any blocking calls within the implementation. 
+     * This method should be implemented to return the EncryptionKeyInfo. This method will be called at the time of
+     * producer creation as well as consumer receiving messages. Hence, application should not make any blocking calls
+     * within the implementation.
      * <p>
-     * 
-    * @param keyName
-    *            Unique name to identify the key
-    * @param metadata
-    *            Additional information needed to identify the key
-    * @return EncryptionKeyInfo with details about the public key
-    * */
+     *
+     * @param keyName
+     *            Unique name to identify the key
+     * @param metadata
+     *            Additional information needed to identify the key
+     * @return EncryptionKeyInfo with details about the public key
+     */
     EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> metadata);
 
-    /*
-    * @param keyName
-    *            Unique name to identify the key
-    * @param metadata
-    *            Additional information needed to identify the key
-    * @return byte array of the private key value
-    */
+    /**
+     * @param keyName
+     *            Unique name to identify the key
+     * @param metadata
+     *            Additional information needed to identify the key
+     * @return byte array of the private key value
+     */
     EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> metadata);
-    
+
 }

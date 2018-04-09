@@ -18,15 +18,17 @@
  */
 package org.apache.pulsar.common.naming;
 
-import java.net.URI;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import lombok.experimental.UtilityClass;
+
 /**
  */
+@UtilityClass
 public class NamedEntity {
 
-    // allowed characters for property, namespace, cluster and destination names are
+    // allowed characters for property, namespace, cluster and topic names are
     // alphanumeric (a-zA-Z_0-9) and these special chars -=:.
     // % is allowed as part of valid URL encoding
     private static final Pattern NAMED_ENTITY_PATTERN = Pattern.compile("^[-=:.\\w]*$");
@@ -37,11 +39,4 @@ public class NamedEntity {
             throw new IllegalArgumentException("Invalid named entity: " + name);
         }
     }
-
-    public static void checkURI(URI uri, String name) {
-        if (!String.format("%s://%s%s", uri.getScheme(), uri.getHost(), uri.getPath()).equals(name)) {
-            throw new IllegalArgumentException("Invalid trailing chars in named entity: " + name);
-        }
-    }
-
 }

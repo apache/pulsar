@@ -32,6 +32,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -69,7 +70,7 @@ public class ZooKeeperClientAspectJTest {
     private final int LOCAL_ZOOKEEPER_PORT = PortManager.nextFreePort();
     private final long ZOOKEEPER_SESSION_TIMEOUT_MILLIS = 2000;
     private final List<ACL> Acl = ZooDefs.Ids.OPEN_ACL_UNSAFE;
-    
+
     static {
         // load agent with aspectjweaver-Agent for testing
         // maven-test waves advice on build-goal so, maven doesn't need explicit loading
@@ -79,8 +80,9 @@ public class ZooKeeperClientAspectJTest {
 
     @Test
     public void testZkConnected() throws Exception {
+        OrderedScheduler executor = OrderedScheduler.newSchedulerBuilder().build();
         try {
-            ZooKeeperClientFactory zkf = new ZookeeperBkClientFactoryImpl();
+            ZooKeeperClientFactory zkf = new ZookeeperBkClientFactoryImpl(executor);
             CompletableFuture<ZooKeeper> zkFuture = zkf.create("127.0.0.1:" + LOCAL_ZOOKEEPER_PORT, SessionType.ReadWrite,
                     (int) ZOOKEEPER_SESSION_TIMEOUT_MILLIS);
             localZkc = zkFuture.get(ZOOKEEPER_SESSION_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
@@ -90,6 +92,8 @@ public class ZooKeeperClientAspectJTest {
             if (localZkc != null) {
                 localZkc.close();
             }
+
+            executor.shutdown();
         }
     }
 
@@ -106,12 +110,13 @@ public class ZooKeeperClientAspectJTest {
 
     /**
      * Verifies that aspect-advice calculates the latency of of zk-operation
-     * 
+     *
      * @throws Exception
      */
     @Test(enabled=false, timeOut = 7000)
     void testZkClientAspectJTrigger() throws Exception {
-        ZooKeeperClientFactory zkf = new ZookeeperBkClientFactoryImpl();
+        OrderedScheduler executor = OrderedScheduler.newSchedulerBuilder().build();
+        ZooKeeperClientFactory zkf = new ZookeeperBkClientFactoryImpl(executor);
         CompletableFuture<ZooKeeper> zkFuture = zkf.create("127.0.0.1:" + LOCAL_ZOOKEEPER_PORT, SessionType.ReadWrite,
                 (int) ZOOKEEPER_SESSION_TIMEOUT_MILLIS);
         localZkc = zkFuture.get(ZOOKEEPER_SESSION_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
@@ -160,18 +165,20 @@ public class ZooKeeperClientAspectJTest {
             if (localZkc != null) {
                 localZkc.close();
             }
+
+            executor.shutdown();
         }
     }
 
     /**
      * Verifies that aspect-advice calculates the latency of of zk-operation and updates PulsarStats
-     * 
+     *
      * @throws Exception
      */
     @Test(enabled=false, timeOut = 7000)
     public void testZkOpStatsMetrics() throws Exception {
-
-        ZooKeeperClientFactory zkf = new ZookeeperBkClientFactoryImpl();
+        OrderedScheduler executor = OrderedScheduler.newSchedulerBuilder().build();
+        ZooKeeperClientFactory zkf = new ZookeeperBkClientFactoryImpl(executor);
         CompletableFuture<ZooKeeper> zkFuture = zkf.create("127.0.0.1:" + LOCAL_ZOOKEEPER_PORT, SessionType.ReadWrite,
                 (int) ZOOKEEPER_SESSION_TIMEOUT_MILLIS);
         localZkc = zkFuture.get(ZOOKEEPER_SESSION_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
@@ -182,7 +189,7 @@ public class ZooKeeperClientAspectJTest {
             PulsarClient pulsarClient = mockPulsar.getClient();
             PulsarService pulsar = mockPulsar.getPulsar();
 
-            pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic1");
+            pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
             Metrics zkOpMetric = getMetric(pulsar, "zk_write_latency");
             Assert.assertNotNull(zkOpMetric);
             Assert.assertTrue(zkOpMetric.getMetrics().containsKey("brk_zk_write_rate_s"));
@@ -227,7 +234,7 @@ public class ZooKeeperClientAspectJTest {
 
             BrokerService brokerService = pulsar.getBrokerService();
             brokerService.updateRates();
-            List<Metrics> metrics = brokerService.getDestinationMetrics();
+            List<Metrics> metrics = brokerService.getTopicMetrics();
             AtomicDouble writeRate = new AtomicDouble();
             AtomicDouble readRate = new AtomicDouble();
             metrics.forEach(m -> {
@@ -244,13 +251,15 @@ public class ZooKeeperClientAspectJTest {
             if (localZkc != null) {
                 localZkc.close();
             }
+
+            executor.shutdown();
         }
     }
 
     private Metrics getMetric(PulsarService pulsar, String dimension) {
         BrokerService brokerService = pulsar.getBrokerService();
         brokerService.updateRates();
-        for (Metrics metric : brokerService.getDestinationMetrics()) {
+        for (Metrics metric : brokerService.getTopicMetrics()) {
             if (dimension.equalsIgnoreCase(metric.getDimension("metric"))) {
                 return metric;
             }

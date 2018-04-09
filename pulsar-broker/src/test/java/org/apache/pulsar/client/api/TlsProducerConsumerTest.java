@@ -21,9 +21,9 @@ package org.apache.pulsar.client.api;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
-import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
@@ -42,33 +42,94 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         final int MESSAGE_SIZE = 16 * 1024 + 1;
         log.info("-- message size --", MESSAGE_SIZE);
 
-        internalSetUpForClient();
+        internalSetUpForClient(true, "pulsar+ssl://localhost:" + BROKER_PORT_TLS);
         internalSetUpForNamespace();
 
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(SubscriptionType.Exclusive);
-        Consumer consumer = pulsarClient
-                .subscribe("persistent://my-property/use/my-ns/my-topic1", "my-subscriber-name", conf);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
+                .subscriptionName("my-subscriber-name").subscribe();
 
-        ProducerConfiguration producerConf = new ProducerConfiguration();
-
-        Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic1", producerConf);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1")
+                .create();
         for (int i = 0; i < 10; i++) {
             byte[] message = new byte[MESSAGE_SIZE];
             Arrays.fill(message, (byte) i);
             producer.send(message);
         }
 
-        Message msg = null;
+        Message<byte[]> msg = null;
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             byte[] expected = new byte[MESSAGE_SIZE];
             Arrays.fill(expected, (byte) i);
-            Assert.assertArrayEquals(expected, msg.getData());
+            Assert.assertEquals(expected, msg.getData());
         }
         // Acknowledge the consumption of all messages at once
         consumer.acknowledgeCumulative(msg);
         consumer.close();
         log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test(timeOut = 30000)
+    public void testTlsClientAuthOverBinaryProtocol() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        final int MESSAGE_SIZE = 16 * 1024 + 1;
+        log.info("-- message size --", MESSAGE_SIZE);
+        internalSetUpForNamespace();
+
+        // Test 1 - Using TLS on binary protocol without sending certs - expect failure
+        internalSetUpForClient(false, "pulsar+ssl://localhost:" + BROKER_PORT_TLS);
+        try {
+            ConsumerConfiguration conf = new ConsumerConfiguration();
+            conf.setSubscriptionType(SubscriptionType.Exclusive);
+            Consumer consumer = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic1",
+                    "my-subscriber-name", conf);
+            Assert.fail("Server should have failed the TLS handshake since client didn't .");
+        } catch (Exception ex) {
+            // OK
+        }
+
+        // Test 2 - Using TLS on binary protocol - sending certs
+        internalSetUpForClient(true, "pulsar+ssl://localhost:" + BROKER_PORT_TLS);
+        try {
+            ConsumerConfiguration conf = new ConsumerConfiguration();
+            conf.setSubscriptionType(SubscriptionType.Exclusive);
+            Consumer consumer = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic1",
+                    "my-subscriber-name", conf);
+        } catch (Exception ex) {
+            Assert.fail("Should not fail since certs are sent.");
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testTlsClientAuthOverHTTPProtocol() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        final int MESSAGE_SIZE = 16 * 1024 + 1;
+        log.info("-- message size --", MESSAGE_SIZE);
+        internalSetUpForNamespace();
+
+        // Test 1 - Using TLS on https without sending certs - expect failure
+        internalSetUpForClient(false, "https://localhost:" + BROKER_WEBSERVICE_PORT_TLS);
+        try {
+            ConsumerConfiguration conf = new ConsumerConfiguration();
+            conf.setSubscriptionType(SubscriptionType.Exclusive);
+            Consumer consumer = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic1",
+                    "my-subscriber-name", conf);
+            Assert.fail("Server should have failed the TLS handshake since client didn't .");
+        } catch (Exception ex) {
+            // OK
+        }
+
+        // Test 2 - Using TLS on https - sending certs
+        internalSetUpForClient(true, "https://localhost:" + BROKER_WEBSERVICE_PORT_TLS);
+        try {
+            ConsumerConfiguration conf = new ConsumerConfiguration();
+            conf.setSubscriptionType(SubscriptionType.Exclusive);
+            Consumer consumer = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic1",
+                    "my-subscriber-name", conf);
+        } catch (Exception ex) {
+            Assert.fail("Should not fail since certs are sent.");
+        }
     }
 }

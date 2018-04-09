@@ -20,16 +20,11 @@
 
 namespace pulsar {
 
-ReaderConfiguration::ReaderConfiguration()
-        : impl_(boost::make_shared<ReaderConfigurationImpl>()) {
-}
+ReaderConfiguration::ReaderConfiguration() : impl_(boost::make_shared<ReaderConfigurationImpl>()) {}
 
-ReaderConfiguration::~ReaderConfiguration() {
-}
+ReaderConfiguration::~ReaderConfiguration() {}
 
-ReaderConfiguration::ReaderConfiguration(const ReaderConfiguration& x)
-    : impl_(x.impl_) {
-}
+ReaderConfiguration::ReaderConfiguration(const ReaderConfiguration& x) : impl_(x.impl_) {}
 
 ReaderConfiguration& ReaderConfiguration::operator=(const ReaderConfiguration& x) {
     impl_ = x.impl_;
@@ -42,27 +37,23 @@ ReaderConfiguration& ReaderConfiguration::setReaderListener(ReaderListener reade
     return *this;
 }
 
-ReaderListener ReaderConfiguration::getReaderListener() const {
-    return impl_->readerListener;
+ReaderListener ReaderConfiguration::getReaderListener() const { return impl_->readerListener; }
+
+bool ReaderConfiguration::hasReaderListener() const { return impl_->hasReaderListener; }
+
+void ReaderConfiguration::setReceiverQueueSize(int size) { impl_->receiverQueueSize = size; }
+
+int ReaderConfiguration::getReceiverQueueSize() const { return impl_->receiverQueueSize; }
+
+const std::string& ReaderConfiguration::getReaderName() const { return impl_->readerName; }
+
+void ReaderConfiguration::setReaderName(const std::string& readerName) { impl_->readerName = readerName; }
+
+const std::string& ReaderConfiguration::getSubscriptionRolePrefix() const {
+    return impl_->subscriptionRolePrefix;
 }
 
-bool ReaderConfiguration::hasReaderListener() const {
-    return impl_->hasReaderListener;
+void ReaderConfiguration::setSubscriptionRolePrefix(const std::string& subscriptionRolePrefix) {
+    impl_->subscriptionRolePrefix = subscriptionRolePrefix;
 }
-
-void ReaderConfiguration::setReceiverQueueSize(int size) {
-    impl_->receiverQueueSize = size;
-}
-
-int ReaderConfiguration::getReceiverQueueSize() const {
-    return impl_->receiverQueueSize;
-}
-
-const std::string& ReaderConfiguration::getReaderName() const {
-    return impl_->readerName;
-}
-
-void ReaderConfiguration::setReaderName(const std::string& readerName) {
-    impl_->readerName = readerName;
-}
-}
+}  // namespace pulsar

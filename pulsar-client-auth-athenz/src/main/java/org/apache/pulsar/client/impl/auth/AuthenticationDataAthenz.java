@@ -27,6 +27,8 @@ import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import java.util.Set;
 
 public class AuthenticationDataAthenz implements AuthenticationDataProvider {
+    private static final long serialVersionUID = 1L;
+
     protected String roleToken;
     protected String httpHeaderName;
 

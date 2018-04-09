@@ -19,40 +19,77 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRouter;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.util.FutureUtil;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TopicMetadata;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 
-public class PartitionedProducerImpl extends ProducerBase {
+public class PartitionedProducerImpl<T> extends ProducerBase<T> {
 
-    private List<ProducerImpl> producers;
-    private int numPartitions;
+    private List<ProducerImpl<T>> producers;
     private MessageRouter routerPolicy;
-    private final ProducerStats stats;
+    private final ProducerStatsRecorderImpl stats;
+    private final TopicMetadata topicMetadata;
 
-    public PartitionedProducerImpl(PulsarClientImpl client, String topic, ProducerConfiguration conf, int numPartitions,
-            CompletableFuture<Producer> producerCreatedFuture) {
-        super(client, topic, conf, producerCreatedFuture);
+    public PartitionedProducerImpl(PulsarClientImpl client, String topic, ProducerConfigurationData conf, int numPartitions,
+            CompletableFuture<Producer<T>> producerCreatedFuture, Schema<T> schema) {
+        super(client, topic, conf, producerCreatedFuture, schema);
         this.producers = Lists.newArrayListWithCapacity(numPartitions);
-        this.numPartitions = numPartitions;
-        this.routerPolicy = conf.getMessageRouter(numPartitions);
-        stats = client.getConfiguration().getStatsIntervalSeconds() > 0 ? new ProducerStats() : null;
+        this.topicMetadata = new TopicMetadataImpl(numPartitions);
+        this.routerPolicy = getMessageRouter();
+        stats = client.getConfiguration().getStatsIntervalSeconds() > 0 ? new ProducerStatsRecorderImpl() : null;
+
+        int maxPendingMessages = Math.min(conf.getMaxPendingMessages(),
+                conf.getMaxPendingMessagesAcrossPartitions() / numPartitions);
+        conf.setMaxPendingMessages(maxPendingMessages);
         start();
+    }
+
+    private MessageRouter getMessageRouter() {
+        MessageRouter messageRouter;
+
+        MessageRoutingMode messageRouteMode = conf.getMessageRoutingMode();
+        MessageRouter customMessageRouter = conf.getCustomMessageRouter();
+
+        switch (messageRouteMode) {
+        case CustomPartition:
+            checkNotNull(customMessageRouter);
+            messageRouter = customMessageRouter;
+            break;
+        case RoundRobinPartition:
+            messageRouter = new RoundRobinPartitionMessageRouterImpl(
+                conf.getHashingScheme(),
+                ThreadLocalRandom.current().nextInt(topicMetadata.numPartitions()),
+                conf.isBatchingEnabled(),
+                TimeUnit.MICROSECONDS.toMillis(conf.getBatchingMaxPublishDelayMicros()));
+            break;
+        case SinglePartition:
+        default:
+            messageRouter = new SinglePartitionMessageRouterImpl(
+                ThreadLocalRandom.current().nextInt(topicMetadata.numPartitions()), conf.getHashingScheme());
+        }
+
+        return messageRouter;
     }
 
     @Override
@@ -70,10 +107,10 @@ public class PartitionedProducerImpl extends ProducerBase {
     private void start() {
         AtomicReference<Throwable> createFail = new AtomicReference<Throwable>();
         AtomicInteger completed = new AtomicInteger();
-        for (int partitionIndex = 0; partitionIndex < numPartitions; partitionIndex++) {
-            String partitionName = DestinationName.get(topic).getPartition(partitionIndex).toString();
-            ProducerImpl producer = new ProducerImpl(client, partitionName, conf, new CompletableFuture<Producer>(),
-                    partitionIndex);
+        for (int partitionIndex = 0; partitionIndex < topicMetadata.numPartitions(); partitionIndex++) {
+            String partitionName = TopicName.get(topic).getPartition(partitionIndex).toString();
+            ProducerImpl<T> producer = new ProducerImpl<>(client, partitionName, conf, new CompletableFuture<>(),
+                    partitionIndex, schema);
             producers.add(producer);
             producer.producerCreatedFuture().handle((prod, createException) -> {
                 if (createException != null) {
@@ -85,7 +122,7 @@ public class PartitionedProducerImpl extends ProducerBase {
                 // due to any
                 // failure in one of the partitions and close the successfully
                 // created partitions
-                if (completed.incrementAndGet() == numPartitions) {
+                if (completed.incrementAndGet() == topicMetadata.numPartitions()) {
                     if (createFail.get() == null) {
                         setState(State.Ready);
                         producerCreatedFuture().complete(PartitionedProducerImpl.this);
@@ -107,7 +144,15 @@ public class PartitionedProducerImpl extends ProducerBase {
     }
 
     @Override
-    public CompletableFuture<MessageId> sendAsync(Message message) {
+    public MessageId send(Message<T> message) throws PulsarClientException {
+        int partition = routerPolicy.choosePartition(message, topicMetadata);
+        checkArgument(partition >= 0 && partition < topicMetadata.numPartitions(),
+            "Illegal partition index chosen by the message routing policy");
+        return producers.get(partition).send(message);
+    }
+
+    @Override
+    public CompletableFuture<MessageId> sendAsync(Message<T> message) {
 
         switch (getState()) {
         case Ready:
@@ -121,22 +166,16 @@ public class PartitionedProducerImpl extends ProducerBase {
             return FutureUtil.failedFuture(new PulsarClientException.NotConnectedException());
         }
 
-        int partition = routerPolicy.choosePartition(message);
-        checkArgument(partition >= 0 && partition < numPartitions,
+        int partition = routerPolicy.choosePartition(message, topicMetadata);
+        checkArgument(partition >= 0 && partition < topicMetadata.numPartitions(),
                 "Illegal partition index chosen by the message routing policy");
         return producers.get(partition).sendAsync(message);
     }
 
     @Override
     public boolean isConnected() {
-        for (ProducerImpl producer : producers) {
-            // returns false if any of the partition is not connected
-            if (!producer.isConnected()) {
-                return false;
-            }
-        }
-
-        return true;
+        // returns false if any of the partition is not connected
+        return producers.stream().allMatch(ProducerImpl::isConnected);
     }
 
     @Override
@@ -147,9 +186,9 @@ public class PartitionedProducerImpl extends ProducerBase {
         setState(State.Closing);
 
         AtomicReference<Throwable> closeFail = new AtomicReference<Throwable>();
-        AtomicInteger completed = new AtomicInteger(numPartitions);
+        AtomicInteger completed = new AtomicInteger(topicMetadata.numPartitions());
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
-        for (Producer producer : producers) {
+        for (Producer<T> producer : producers) {
             if (producer != null) {
                 producer.closeAsync().handle((closed, ex) -> {
                     if (ex != null) {
@@ -178,28 +217,18 @@ public class PartitionedProducerImpl extends ProducerBase {
     }
 
     @Override
-    public synchronized ProducerStats getStats() {
+    public synchronized ProducerStatsRecorderImpl getStats() {
         if (stats == null) {
             return null;
         }
         stats.reset();
-        for (int i = 0; i < numPartitions; i++) {
+        for (int i = 0; i < topicMetadata.numPartitions(); i++) {
             stats.updateCumulativeStats(producers.get(i).getStats());
         }
         return stats;
     }
 
     private static final Logger log = LoggerFactory.getLogger(PartitionedProducerImpl.class);
-
-    @Override
-    void connectionFailed(PulsarClientException exception) {
-        // noop
-    }
-
-    @Override
-    void connectionOpened(ClientCnx cnx) {
-        // noop
-    }
 
     @Override
     String getHandlerName() {

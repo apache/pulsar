@@ -37,6 +37,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
@@ -57,7 +58,6 @@ import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
 import org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
@@ -129,6 +129,7 @@ public class MessageCrypto {
 
     public MessageCrypto(String logCtx, boolean keyGenNeeded) {
 
+        this.logCtx = logCtx;
         encryptedDataKeyMap = new ConcurrentHashMap<String, EncryptionKeyInfo>();
         dataKeyCache = CacheBuilder.newBuilder().expireAfterAccess(4, TimeUnit.HOURS)
                 .build(new CacheLoader<ByteBuffer, SecretKey>() {
@@ -282,23 +283,21 @@ public class MessageCrypto {
      * Encrypt data key using the public key(s) in the argument. <p> If more than one key name is specified, data key is
      * encrypted using each of those keys. If the public key is expired or changed, application is responsible to remove
      * the old key and add the new key <p>
-     * 
+     *
      * @param keyNames List of public keys to encrypt data key
-     * 
+     *
      * @param keyReader Implementation to read the key values
-     * 
+     *
      */
-    public synchronized void addPublicKeyCipher(ConcurrentOpenHashSet<String> keyNames, CryptoKeyReader keyReader)
+    public synchronized void addPublicKeyCipher(Set<String> keyNames, CryptoKeyReader keyReader)
             throws CryptoException {
 
         // Generate data key
         dataKey = keyGenerator.generateKey();
 
-        List<String> keyNameList = keyNames.values();
-        for (int i = 0; i < keyNameList.size(); i++) {
-            addPublicKeyCipher(keyNameList.get(i), keyReader);
+        for (String key : keyNames) {
+            addPublicKeyCipher(key, keyReader);
         }
-
     }
 
     private void addPublicKeyCipher(String keyName, CryptoKeyReader keyReader) throws CryptoException {
@@ -349,9 +348,9 @@ public class MessageCrypto {
 
     /*
      * Remove a key <p> Remove the key identified by the keyName from the list of keys.<p>
-     * 
+     *
      * @param keyName Unique name to identify the key
-     * 
+     *
      * @return true if succeeded, false otherwise
      */
     /*
@@ -367,16 +366,16 @@ public class MessageCrypto {
 
     /*
      * Encrypt the payload using the data key and update message metadata with the keyname & encrypted data key
-     * 
+     *
      * @param encKeys One or more public keys to encrypt data key
-     * 
+     *
      * @param msgMetadata Message Metadata
-     * 
+     *
      * @param payload Message which needs to be encrypted
-     * 
+     *
      * @return encryptedData if success
      */
-    public synchronized ByteBuf encrypt(ConcurrentOpenHashSet<String> encKeys, CryptoKeyReader keyReader,
+    public synchronized ByteBuf encrypt(Set<String> encKeys, CryptoKeyReader keyReader,
             MessageMetadata.Builder msgMetadata, ByteBuf payload) throws PulsarClientException {
 
         if (encKeys.isEmpty()) {
@@ -384,9 +383,7 @@ public class MessageCrypto {
         }
 
         // Update message metadata with encrypted data key
-        List<String> keyNameList = encKeys.values();
-        for (int i = 0; i < keyNameList.size(); i++) {
-            String keyName = keyNameList.get(i);
+        for (String keyName : encKeys) {
             if (encryptedDataKeyMap.get(keyName) == null) {
                 // Attempt to load the key. This will allow us to load keys as soon as
                 // a new key is added to producer config
@@ -471,7 +468,7 @@ public class MessageCrypto {
             return false;
         }
 
-        // Generate a data key to encrypt messages
+        // Decrypt data key to decrypt messages
         Cipher dataKeyCipher = null;
         byte[] dataKeyValue = null;
         byte[] keyDigest = null;
@@ -568,13 +565,13 @@ public class MessageCrypto {
 
     /*
      * Decrypt the payload using the data key. Keys used to encrypt data key can be retrieved from msgMetadata
-     * 
+     *
      * @param msgMetadata Message Metadata
-     * 
+     *
      * @param payload Message which needs to be decrypted
-     * 
+     *
      * @param keyReader KeyReader implementation to retrieve key value
-     * 
+     *
      * @return decryptedData if success, null otherwise
      */
     public ByteBuf decrypt(MessageMetadata msgMetadata, ByteBuf payload, CryptoKeyReader keyReader) {

@@ -34,7 +34,7 @@ void LogUtils::init(const std::string& logfilePath) {
                 LogManager::getLoggerRepository()->setConfigured(true);
                 LoggerPtr root = Logger::getRootLogger();
                 static const LogString TTCC_CONVERSION_PATTERN(
-                        LOG4CXX_STR("%d{HH:mm:ss.SSS} [%t] %-5p %l - %m%n"));
+                    LOG4CXX_STR("%d{HH:mm:ss.SSS} [%t] %-5p %l - %m%n"));
                 LayoutPtr layout(new PatternLayout(TTCC_CONVERSION_PATTERN));
                 AppenderPtr appender(new ConsoleAppender(layout));
                 root->setLevel(log4cxx::Level::getInfo());
@@ -44,10 +44,9 @@ void LogUtils::init(const std::string& logfilePath) {
             log4cxx::PropertyConfigurator::configure(logfilePath);
         }
     } catch (const std::exception& e) {
-        std::cerr << "exception caught while configuring log4cpp via '" << logfilePath << "': "
-                  << e.what() << std::endl;
-    } catch (...) {
-        std::cerr << "unknown exception while configuring log4cpp via '" << logfilePath << "'."
+        std::cerr << "exception caught while configuring log4cpp via '" << logfilePath << "': " << e.what()
                   << std::endl;
+    } catch (...) {
+        std::cerr << "unknown exception while configuring log4cpp via '" << logfilePath << "'." << std::endl;
     }
 }

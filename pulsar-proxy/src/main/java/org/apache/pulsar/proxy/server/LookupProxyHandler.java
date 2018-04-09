@@ -28,19 +28,23 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.netty.buffer.ByteBuf;
 import io.prometheus.client.Counter;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 
 public class LookupProxyHandler {
+    private final String throttlingErrorMessage = "Too many concurrent lookup and partitionsMetadata requests";
     private final ProxyService service;
     private final ProxyConnection proxyConnection;
     private final boolean connectWithTLS;
 
     private SocketAddress clientAddress;
+    private String brokerServiceURL;
 
     private static final Counter lookupRequests = Counter
             .build("pulsar_proxy_lookup_requests", "Counter of topic lookup requests").create().register();
@@ -49,35 +53,60 @@ public class LookupProxyHandler {
             .build("pulsar_proxy_partitions_metadata_requests", "Counter of partitions metadata requests").create()
             .register();
 
+    static final Counter rejectedLookupRequests = Counter.build("pulsar_proxy_rejected_lookup_requests",
+            "Counter of topic lookup requests rejected due to throttling").create().register();
+
+    static final Counter rejectedPartitionsMetadataRequests = Counter
+            .build("pulsar_proxy_rejected_partitions_metadata_requests",
+                    "Counter of partitions metadata requests rejected due to throttling")
+            .create().register();
+
     public LookupProxyHandler(ProxyService proxy, ProxyConnection proxyConnection) {
         this.service = proxy;
         this.proxyConnection = proxyConnection;
         this.clientAddress = proxyConnection.clientAddress();
         this.connectWithTLS = proxy.getConfiguration().isTlsEnabledWithBroker();
+        this.brokerServiceURL = this.connectWithTLS ? proxy.getConfiguration().getBrokerServiceURLTLS()
+                : proxy.getConfiguration().getBrokerServiceURL();
     }
 
     public void handleLookup(CommandLookupTopic lookup) {
         if (log.isDebugEnabled()) {
             log.debug("Received Lookup from {}", clientAddress);
         }
-
-        lookupRequests.inc();
         long clientRequestId = lookup.getRequestId();
-        String topic = lookup.getTopic();
-
-        ServiceLookupData availableBroker = null;
-        try {
-            availableBroker = service.getDiscoveryProvider().nextBroker();
-        } catch (Exception e) {
-            log.warn("[{}] Failed to get next active broker {}", clientAddress, e.getMessage(), e);
-            proxyConnection.ctx().writeAndFlush(
-                    Commands.newLookupErrorResponse(ServerError.ServiceNotReady, e.getMessage(), clientRequestId));
-            return;
+        if (this.service.getLookupRequestSemaphore().tryAcquire()) {
+            lookupRequests.inc();
+            String topic = lookup.getTopic();
+            String serviceUrl;
+            if (isBlank(brokerServiceURL)) {
+                ServiceLookupData availableBroker = null;
+                try {
+                    availableBroker = service.getDiscoveryProvider().nextBroker();
+                } catch (Exception e) {
+                    log.warn("[{}] Failed to get next active broker {}", clientAddress, e.getMessage(), e);
+                    proxyConnection.ctx().writeAndFlush(Commands.newLookupErrorResponse(ServerError.ServiceNotReady,
+                            e.getMessage(), clientRequestId));
+                    return;
+                }
+                serviceUrl = this.connectWithTLS ? availableBroker.getPulsarServiceUrlTls()
+                        : availableBroker.getPulsarServiceUrl();
+            } else {
+                serviceUrl = this.connectWithTLS ? service.getConfiguration().getBrokerServiceURLTLS()
+                        : service.getConfiguration().getBrokerServiceURL();
+            }
+            performLookup(clientRequestId, topic, serviceUrl, false, 10);
+            this.service.getLookupRequestSemaphore().release();
+        } else {
+            rejectedLookupRequests.inc();
+            if (log.isDebugEnabled()) {
+                log.debug("Lookup Request ID {} from {} rejected - {}.", clientRequestId, clientAddress,
+                        throttlingErrorMessage);
+            }
+            proxyConnection.ctx().writeAndFlush(Commands.newLookupErrorResponse(ServerError.ServiceNotReady,
+                    throttlingErrorMessage, clientRequestId));
         }
 
-        performLookup(clientRequestId, topic,
-                this.connectWithTLS ? availableBroker.getPulsarServiceUrlTls() : availableBroker.getPulsarServiceUrl(),
-                false, 10);
     }
 
     private void performLookup(long clientRequestId, String topic, String brokerServiceUrl, boolean authoritative,
@@ -97,23 +126,30 @@ public class LookupProxyHandler {
             return;
         }
 
-        InetSocketAddress addr = new InetSocketAddress(brokerURI.getHost(), brokerURI.getPort());
+        InetSocketAddress addr = InetSocketAddress.createUnresolved(brokerURI.getHost(), brokerURI.getPort());
         if (log.isDebugEnabled()) {
-            log.debug("Getting connections to '{}'", addr);
+            log.debug("Getting connections to '{}' for Looking up topic '{}' with clientReq Id '{}'", addr, topic,
+                    clientRequestId);
         }
         service.getConnectionPool().getConnection(addr).thenAccept(clientCnx -> {
             // Connected to backend broker
             long requestId = service.newRequestId();
-            clientCnx.newLookup(Commands.newLookup(topic, authoritative, requestId), requestId).thenAccept(result -> {
+            ByteBuf command;
+            if (service.getConfiguration().isAuthenticationEnabled()) {
+                command = Commands.newLookup(topic, authoritative, proxyConnection.clientAuthRole,
+                        proxyConnection.clientAuthData, proxyConnection.clientAuthMethod, requestId);
+            } else {
+                command = Commands.newLookup(topic, authoritative, requestId);
+            }
+            clientCnx.newLookup(command, requestId).thenAccept(result -> {
+                String brokerUrl = connectWithTLS ? result.brokerUrlTls : result.brokerUrl;
                 if (result.redirect) {
                     // Need to try the lookup again on a different broker
-                    performLookup(clientRequestId, topic, result.brokerUrl, authoritative, numberOfRetries - 1);
+                    performLookup(clientRequestId, topic, brokerUrl, result.authoritative, numberOfRetries - 1);
                 } else {
-                    // We have the result immediately
-                    String brokerUrl = connectWithTLS ? result.brokerUrlTls : result.brokerUrl;
-
-                    // Reply the same address for both TLS non-TLS. The reason is that whether we use TLS between proxy
-                    // and broker is independent of whether the client itself uses TLS, but we need to force the client
+                    // Reply the same address for both TLS non-TLS. The reason is that whether we use TLS
+                    // and broker is independent of whether the client itself uses TLS, but we need to force the
+                    // client
                     // to use the appropriate target broker (and port) when it will connect back.
                     proxyConnection.ctx().writeAndFlush(Commands.newLookupResponse(brokerUrl, brokerUrl, true,
                             LookupType.Connect, clientRequestId, true /* this is coming from proxy */));
@@ -132,30 +168,89 @@ public class LookupProxyHandler {
         });
     }
 
-    void handlePartitionMetadataResponse(CommandPartitionedTopicMetadata partitionMetadata) {
+    public void handlePartitionMetadataResponse(CommandPartitionedTopicMetadata partitionMetadata) {
         partitionsMetadataRequests.inc();
         if (log.isDebugEnabled()) {
             log.debug("[{}] Received PartitionMetadataLookup", clientAddress);
         }
+        final long clientRequestId = partitionMetadata.getRequestId();
+        if (this.service.getLookupRequestSemaphore().tryAcquire()) {
+            handlePartitionMetadataResponse(partitionMetadata, clientRequestId);
+            this.service.getLookupRequestSemaphore().release();
+        } else {
+            rejectedPartitionsMetadataRequests.inc();
+            if (log.isDebugEnabled()) {
+                log.debug("PartitionMetaData Request ID {} from {} rejected - {}.", clientRequestId, clientAddress,
+                        throttlingErrorMessage);
+            }
+            proxyConnection.ctx().writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.ServiceNotReady,
+                    throttlingErrorMessage, clientRequestId));
+        }
+    }
 
-        final long requestId = partitionMetadata.getRequestId();
-        DestinationName dn = DestinationName.get(partitionMetadata.getTopic());
+    private void handlePartitionMetadataResponse(CommandPartitionedTopicMetadata partitionMetadata,
+            long clientRequestId) {
+        TopicName topicName = TopicName.get(partitionMetadata.getTopic());
+        if (isBlank(brokerServiceURL)) {
+            service.getDiscoveryProvider().getPartitionedTopicMetadata(service, topicName,
+                    proxyConnection.clientAuthRole, proxyConnection.authenticationData).thenAccept(metadata -> {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Total number of partitions for topic {} is {}",
+                                    proxyConnection.clientAuthRole, topicName, metadata.partitions);
+                        }
+                        proxyConnection.ctx().writeAndFlush(
+                                Commands.newPartitionMetadataResponse(metadata.partitions, clientRequestId));
+                    }).exceptionally(ex -> {
+                        log.warn("[{}] Failed to get partitioned metadata for topic {} {}", clientAddress, topicName,
+                                ex.getMessage(), ex);
+                        proxyConnection.ctx().writeAndFlush(Commands.newPartitionMetadataResponse(
+                                ServerError.ServiceNotReady, ex.getMessage(), clientRequestId));
+                        return null;
+                    });
+        } else {
+            URI brokerURI;
+            try {
+                brokerURI = new URI(brokerServiceURL);
+            } catch (URISyntaxException e) {
+                proxyConnection.ctx().writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.MetadataError,
+                        e.getMessage(), clientRequestId));
+                return;
+            }
+            InetSocketAddress addr = new InetSocketAddress(brokerURI.getHost(), brokerURI.getPort());
 
-        service.getDiscoveryProvider().getPartitionedTopicMetadata(service, dn, proxyConnection.clientAuthRole)
-                .thenAccept(metadata -> {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Total number of partitions for topic {} is {}", proxyConnection.clientAuthRole,
-                                dn, metadata.partitions);
-                    }
-                    proxyConnection.ctx()
-                            .writeAndFlush(Commands.newPartitionMetadataResponse(metadata.partitions, requestId));
-                }).exceptionally(ex -> {
-                    log.warn("[{}] Failed to get partitioned metadata for topic {} {}", clientAddress, dn,
-                            ex.getMessage(), ex);
-                    proxyConnection.ctx().writeAndFlush(Commands
-                            .newPartitionMetadataResponse(ServerError.ServiceNotReady, ex.getMessage(), requestId));
+            if (log.isDebugEnabled()) {
+                log.debug("Getting connections to '{}' for Looking up topic '{}' with clientReq Id '{}'", addr,
+                        topicName.getPartitionedTopicName(), clientRequestId);
+            }
+
+            service.getConnectionPool().getConnection(addr).thenAccept(clientCnx -> {
+                // Connected to backend broker
+                long requestId = service.newRequestId();
+                ByteBuf command;
+                if (service.getConfiguration().isAuthenticationEnabled()) {
+                    command = Commands.newPartitionMetadataRequest(topicName.toString(), requestId,
+                            proxyConnection.clientAuthRole, proxyConnection.clientAuthData,
+                            proxyConnection.clientAuthMethod);
+                } else {
+                    command = Commands.newPartitionMetadataRequest(topicName.toString(), requestId);
+                }
+                clientCnx.newLookup(command, requestId).thenAccept(lookupDataResult -> {
+                    proxyConnection.ctx().writeAndFlush(
+                            Commands.newPartitionMetadataResponse(lookupDataResult.partitions, clientRequestId));
+                }).exceptionally((ex) -> {
+                    log.warn("[{}] failed to get Partitioned metadata : {}", topicName.toString(),
+                            ex.getCause().getMessage(), ex);
+                    proxyConnection.ctx().writeAndFlush(Commands.newLookupErrorResponse(ServerError.ServiceNotReady,
+                            ex.getMessage(), clientRequestId));
                     return null;
                 });
+            }).exceptionally(ex -> {
+                // Failed to connect to backend broker
+                proxyConnection.ctx().writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.ServiceNotReady,
+                        ex.getMessage(), clientRequestId));
+                return null;
+            });
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(LookupProxyHandler.class);

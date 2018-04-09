@@ -43,7 +43,9 @@ public interface Authentication extends Closeable, Serializable {
      * Configure the authentication plugins with the supplied parameters
      *
      * @param authParams
-     * @deprecated This method will be deleted on versin 2.0, instead please use configure(String encodedAuthParamString) which is in EncodedAuthenticationParameterSupport for now and will be integrated into this interface.
+     * @deprecated This method will be deleted on version 2.0, instead please use configure(String
+     *             encodedAuthParamString) which is in EncodedAuthenticationParameterSupport for now and will be
+     *             integrated into this interface.
      */
     @Deprecated
     void configure(Map<String, String> authParams);

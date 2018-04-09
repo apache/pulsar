@@ -20,16 +20,11 @@
 
 namespace pulsar {
 
-ConsumerConfiguration::ConsumerConfiguration()
-        : impl_(boost::make_shared<ConsumerConfigurationImpl>()) {
-}
+ConsumerConfiguration::ConsumerConfiguration() : impl_(boost::make_shared<ConsumerConfigurationImpl>()) {}
 
-ConsumerConfiguration::~ConsumerConfiguration() {
-}
+ConsumerConfiguration::~ConsumerConfiguration() {}
 
-ConsumerConfiguration::ConsumerConfiguration(const ConsumerConfiguration& x)
-    : impl_(x.impl_) {
-}
+ConsumerConfiguration::ConsumerConfiguration(const ConsumerConfiguration& x) : impl_(x.impl_) {}
 
 ConsumerConfiguration& ConsumerConfiguration::operator=(const ConsumerConfiguration& x) {
     impl_ = x.impl_;
@@ -49,9 +44,7 @@ ConsumerConfiguration& ConsumerConfiguration::setConsumerType(ConsumerType consu
     return *this;
 }
 
-ConsumerType ConsumerConfiguration::getConsumerType() const {
-    return impl_->consumerType;
-}
+ConsumerType ConsumerConfiguration::getConsumerType() const { return impl_->consumerType; }
 
 ConsumerConfiguration& ConsumerConfiguration::setMessageListener(MessageListener messageListener) {
     impl_->messageListener = messageListener;
@@ -59,33 +52,29 @@ ConsumerConfiguration& ConsumerConfiguration::setMessageListener(MessageListener
     return *this;
 }
 
-MessageListener ConsumerConfiguration::getMessageListener() const {
-    return impl_->messageListener;
+MessageListener ConsumerConfiguration::getMessageListener() const { return impl_->messageListener; }
+
+bool ConsumerConfiguration::hasMessageListener() const { return impl_->hasMessageListener; }
+
+void ConsumerConfiguration::setReceiverQueueSize(int size) { impl_->receiverQueueSize = size; }
+
+int ConsumerConfiguration::getReceiverQueueSize() const { return impl_->receiverQueueSize; }
+
+void ConsumerConfiguration::setMaxTotalReceiverQueueSizeAcrossPartitions(int size) {
+    impl_->maxTotalReceiverQueueSizeAcrossPartitions = size;
 }
 
-bool ConsumerConfiguration::hasMessageListener() const {
-    return impl_->hasMessageListener;
+int ConsumerConfiguration::getMaxTotalReceiverQueueSizeAcrossPartitions() const {
+    return impl_->maxTotalReceiverQueueSizeAcrossPartitions;
 }
 
-void ConsumerConfiguration::setReceiverQueueSize(int size) {
-    impl_->receiverQueueSize = size;
-}
-
-int ConsumerConfiguration::getReceiverQueueSize() const {
-    return impl_->receiverQueueSize;
-}
-
-const std::string& ConsumerConfiguration::getConsumerName() const {
-    return impl_->consumerName;
-}
+const std::string& ConsumerConfiguration::getConsumerName() const { return impl_->consumerName; }
 
 void ConsumerConfiguration::setConsumerName(const std::string& consumerName) {
     impl_->consumerName = consumerName;
 }
 
-long ConsumerConfiguration::getUnAckedMessagesTimeoutMs() const {
-    return impl_->unAckedMessagesTimeoutMs;
-}
+long ConsumerConfiguration::getUnAckedMessagesTimeoutMs() const { return impl_->unAckedMessagesTimeoutMs; }
 
 void ConsumerConfiguration::setUnAckedMessagesTimeoutMs(const uint64_t milliSeconds) {
     if (milliSeconds < 10000) {
@@ -93,4 +82,23 @@ void ConsumerConfiguration::setUnAckedMessagesTimeoutMs(const uint64_t milliSeco
     }
     impl_->unAckedMessagesTimeoutMs = milliSeconds;
 }
+
+bool ConsumerConfiguration::isEncryptionEnabled() const { return (impl_->cryptoKeyReader != NULL); }
+
+const CryptoKeyReaderPtr ConsumerConfiguration::getCryptoKeyReader() const { return impl_->cryptoKeyReader; }
+
+ConsumerConfiguration& ConsumerConfiguration::setCryptoKeyReader(CryptoKeyReaderPtr cryptoKeyReader) {
+    impl_->cryptoKeyReader = cryptoKeyReader;
+    return *this;
 }
+
+ConsumerCryptoFailureAction ConsumerConfiguration::getCryptoFailureAction() const {
+    return impl_->cryptoFailureAction;
+}
+
+ConsumerConfiguration& ConsumerConfiguration::setCryptoFailureAction(ConsumerCryptoFailureAction action) {
+    impl_->cryptoFailureAction = action;
+    return *this;
+}
+
+}  // namespace pulsar

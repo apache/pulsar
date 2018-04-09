@@ -25,7 +25,6 @@
 #include <pulsar/ConsumerConfiguration.h>
 #pragma GCC visibility push(default)
 
-
 namespace pulsar {
 class PulsarWrapper;
 class ConsumerImplBase;
@@ -34,7 +33,7 @@ class PulsarFriend;
  *
  */
 class Consumer {
- public:
+   public:
     /**
      * Construct an uninitialized consumer object
      */
@@ -139,7 +138,8 @@ class Consumer {
      * waiting for the callback to be triggered.
      *
      * @param message the last message in the stream to acknowledge
-     * @return ResultOk if the message was successfully acknowledged. All previously delivered messages for this topic are also acknowledged.
+     * @return ResultOk if the message was successfully acknowledged. All previously delivered messages for
+     * this topic are also acknowledged.
      * @return ResultError if there was a failure
      */
     Result acknowledgeCumulative(const Message& message);
@@ -174,17 +174,22 @@ class Consumer {
     Result resumeMessageListener();
 
     /**
-     * Redelivers all the unacknowledged messages. In Failover mode, the request is ignored if the consumer is not
-     * active for the given topic. In Shared mode, the consumers messages to be redelivered are distributed across all
-     * the connected consumers. This is a non blocking call and doesn't throw an exception. In case the connection
+     * Redelivers all the unacknowledged messages. In Failover mode, the request is ignored if the consumer is
+     * not
+     * active for the given topic. In Shared mode, the consumers messages to be redelivered are distributed
+     * across all
+     * the connected consumers. This is a non blocking call and doesn't throw an exception. In case the
+     * connection
      * breaks, the messages are redelivered after reconnect.
      */
     void redeliverUnacknowledgedMessages();
 
     /**
      * Gets Consumer Stats from broker.
-     * The stats are cached for 30 seconds, if a call is made before the stats returned by the previous call expires
-     * then cached data will be returned. BrokerConsumerStats::isValid() function can be used to check if the stats are
+     * The stats are cached for 30 seconds, if a call is made before the stats returned by the previous call
+     * expires
+     * then cached data will be returned. BrokerConsumerStats::isValid() function can be used to check if the
+     * stats are
      * still valid.
      *
      * @param brokerConsumerStats - if the function returns ResultOk, this object will contain consumer stats
@@ -194,16 +199,19 @@ class Consumer {
     Result getBrokerConsumerStats(BrokerConsumerStats& brokerConsumerStats);
 
     /**
-    * Asynchronous call to gets Consumer Stats from broker.
-    * The stats are cached for 30 seconds, if a call is made before the stats returned by the previous call expires
-    * then cached data will be returned. BrokerConsumerStats::isValid() function can be used to check if the stats are
-    * still valid.
-    *
-    * @param callback - callback function to get the brokerConsumerStats,
-    *                   if result is ResultOk then the brokerConsumerStats will be populated
-    */
+     * Asynchronous call to gets Consumer Stats from broker.
+     * The stats are cached for 30 seconds, if a call is made before the stats returned by the previous call
+     * expires
+     * then cached data will be returned. BrokerConsumerStats::isValid() function can be used to check if the
+     * stats are
+     * still valid.
+     *
+     * @param callback - callback function to get the brokerConsumerStats,
+     *                   if result is ResultOk then the brokerConsumerStats will be populated
+     */
     void getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback);
-private:
+
+   private:
     typedef boost::shared_ptr<ConsumerImplBase> ConsumerImplBasePtr;
     ConsumerImplBasePtr impl_;
     explicit Consumer(ConsumerImplBasePtr);
@@ -215,8 +223,7 @@ private:
     friend class ClientImpl;
     friend class ConsumerTest;
 };
-
-}
+}  // namespace pulsar
 
 #pragma GCC visibility pop
 

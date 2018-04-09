@@ -36,7 +36,6 @@ import java.util.Map.Entry;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
 import org.apache.bookkeeper.bookie.Bookie;
 import org.apache.bookkeeper.bookie.BookieException;
 import org.apache.bookkeeper.client.BookKeeperTestClient;
@@ -140,6 +139,7 @@ public abstract class BookKeeperClusterTestCase {
     protected void startBKCluster() throws Exception {
         baseClientConf.setZkServers(zkUtil.getZooKeeperConnectString());
         baseClientConf.setUseV2WireProtocol(true);
+        baseClientConf.setEnableDigestTypeAutodetection(true);
         if (numBookies > 0) {
             bkc = new BookKeeperTestClient(baseClientConf);
         }

@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  ******************************************************************************/
-#include <stddef.h> // size_t
+#include <stddef.h>  // size_t
 
-#if defined(_MSC_VER) && _MSC_VER < 1600 // stdint.h added in MSVC 2010
+#if defined(_MSC_VER) && _MSC_VER < 1600  // stdint.h added in MSVC 2010
 
 typedef __int8 int8_t;
 typedef __int16 int16_t;
@@ -28,16 +28,16 @@ typedef unsigned __int64 uint64_t;
 
 #else
 
-# include <stdint.h>
+#include <stdint.h>
 
 #endif
 
-#if defined(_MSC_VER) && _MSC_VER < 1900 // MSVC 2015
+#if defined(_MSC_VER) && _MSC_VER < 1900  // MSVC 2015
 
-# define SIZE_T_FORMAT "%Iu"
+#define SIZE_T_FORMAT "%Iu"
 
 #else
 
-# define SIZE_T_FORMAT "%zu"
+#define SIZE_T_FORMAT "%zu"
 
 #endif

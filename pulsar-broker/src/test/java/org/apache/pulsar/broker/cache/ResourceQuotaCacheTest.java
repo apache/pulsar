@@ -25,13 +25,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
+import com.google.common.hash.Hashing;
 
-import org.apache.bookkeeper.util.OrderedSafeExecutor;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
-import org.apache.pulsar.broker.cache.ResourceQuotaCache;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -45,23 +42,19 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.hash.Hashing;
-
 public class ResourceQuotaCacheTest {
 
     private PulsarService pulsar;
     private ZooKeeperCache zkCache;
     private LocalZooKeeperCacheService localCache;
     private NamespaceBundleFactory bundleFactory;
-    private OrderedSafeExecutor executor;
-    private ScheduledExecutorService scheduledExecutor;
+    private OrderedScheduler executor;
 
     @BeforeMethod
     public void setup() throws Exception {
         pulsar = mock(PulsarService.class);
-        executor = new OrderedSafeExecutor(1, "test");
-        scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
-        zkCache = new LocalZooKeeperCache(MockZooKeeper.newInstance(), executor, scheduledExecutor);
+        executor = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("test").build();
+        zkCache = new LocalZooKeeperCache(MockZooKeeper.newInstance(), executor);
         localCache = new LocalZooKeeperCacheService(zkCache, null);
 
         // set mock pulsar localzkcache
@@ -79,7 +72,6 @@ public class ResourceQuotaCacheTest {
     @AfterMethod
     public void teardown() {
         executor.shutdown();
-        scheduledExecutor.shutdown();
     }
 
     @Test

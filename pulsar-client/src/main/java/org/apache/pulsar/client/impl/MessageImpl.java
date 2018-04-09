@@ -26,13 +26,14 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 
 import com.google.common.collect.Maps;
@@ -42,31 +43,46 @@ import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 
-public class MessageImpl implements Message {
+public class MessageImpl<T> implements Message<T> {
 
     private MessageMetadata.Builder msgMetadataBuilder;
     private MessageId messageId;
     private ClientCnx cnx;
     private ByteBuf payload;
+    private Schema<T> schema;
 
     transient private Map<String, String> properties;
 
     // Constructor for out-going message
-    static MessageImpl create(MessageMetadata.Builder msgMetadataBuilder, ByteBuffer payload) {
-        MessageImpl msg = RECYCLER.get();
+    static <T> MessageImpl<T> create(MessageMetadata.Builder msgMetadataBuilder, ByteBuffer payload, Schema<T> schema) {
+        @SuppressWarnings("unchecked")
+        MessageImpl<T> msg = (MessageImpl<T>) RECYCLER.get();
         msg.msgMetadataBuilder = msgMetadataBuilder;
         msg.messageId = null;
         msg.cnx = null;
         msg.payload = Unpooled.wrappedBuffer(payload);
-        msg.properties = Collections.emptyMap();
+        msg.properties = null;
+        msg.schema = schema;
+        return msg;
+    }
+
+    static MessageImpl<byte[]> create(MessageMetadata.Builder msgMetadataBuilder, ByteBuffer payload) {
+        @SuppressWarnings("unchecked")
+        MessageImpl<byte[]> msg = (MessageImpl<byte[]>) RECYCLER.get();
+        msg.msgMetadataBuilder = msgMetadataBuilder;
+        msg.messageId = null;
+        msg.cnx = null;
+        msg.payload = Unpooled.wrappedBuffer(payload);
+        msg.properties = null;
+        msg.schema = Schema.IDENTITY;
         return msg;
     }
 
     // Constructor for incoming message
-    MessageImpl(MessageIdData messageId, MessageMetadata msgMetadata, ByteBuf payload, int partitionIndex,
-            ClientCnx cnx) {
+    MessageImpl(MessageIdImpl messageId, MessageMetadata msgMetadata, ByteBuf payload, ClientCnx cnx,
+            Schema<T> schema) {
         this.msgMetadataBuilder = MessageMetadata.newBuilder(msgMetadata);
-        this.messageId = new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), partitionIndex);
+        this.messageId = messageId;
         this.cnx = cnx;
 
         // Need to make a copy since the passed payload is using a ref-count buffer that we don't know when could
@@ -75,19 +91,16 @@ public class MessageImpl implements Message {
         this.payload = Unpooled.copiedBuffer(payload);
 
         if (msgMetadata.getPropertiesCount() > 0) {
-            Map<String, String> properties = Maps.newTreeMap();
-            for (KeyValue entry : msgMetadata.getPropertiesList()) {
-                properties.put(entry.getKey(), entry.getValue());
-            }
-
-            this.properties = Collections.unmodifiableMap(properties);
+            this.properties = Collections.unmodifiableMap(msgMetadataBuilder.getPropertiesList().stream()
+                    .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue)));
         } else {
             properties = Collections.emptyMap();
         }
+        this.schema = schema;
     }
 
     MessageImpl(BatchMessageIdImpl batchMessageIdImpl, MessageMetadata msgMetadata,
-            PulsarApi.SingleMessageMetadata singleMessageMetadata, ByteBuf payload, ClientCnx cnx) {
+            PulsarApi.SingleMessageMetadata singleMessageMetadata, ByteBuf payload, ClientCnx cnx, Schema<T> schema) {
         this.msgMetadataBuilder = MessageMetadata.newBuilder(msgMetadata);
         this.messageId = batchMessageIdImpl;
         this.cnx = cnx;
@@ -107,13 +120,15 @@ public class MessageImpl implements Message {
         if (singleMessageMetadata.hasPartitionKey()) {
             msgMetadataBuilder.setPartitionKey(singleMessageMetadata.getPartitionKey());
         }
+
+        this.schema = schema;
     }
 
-    public MessageImpl(String msgId, Map<String, String> properties, byte[] payload) {
-        this(msgId, properties, Unpooled.wrappedBuffer(payload));
+    public MessageImpl(String msgId, Map<String, String> properties, byte[] payload, Schema<T> schema) {
+        this(msgId, properties, Unpooled.wrappedBuffer(payload), schema);
     }
 
-    public MessageImpl(String msgId, Map<String, String> properties, ByteBuf payload) {
+    public MessageImpl(String msgId, Map<String, String> properties, ByteBuf payload, Schema<T> schema) {
         String[] data = msgId.split(":");
         long ledgerId = Long.parseLong(data[0]);
         long entryId = Long.parseLong(data[1]);
@@ -127,8 +142,9 @@ public class MessageImpl implements Message {
         this.properties = Collections.unmodifiableMap(properties);
     }
 
-    public static MessageImpl deserialize(ByteBuf headersAndPayload) throws IOException {
-        MessageImpl msg = RECYCLER.get();
+    public static MessageImpl<byte[]> deserialize(ByteBuf headersAndPayload) throws IOException {
+        @SuppressWarnings("unchecked")
+        MessageImpl<byte[]> msg = (MessageImpl<byte[]>) RECYCLER.get();
         MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
 
         msg.msgMetadataBuilder = MessageMetadata.newBuilder(msgMetadata);
@@ -187,6 +203,28 @@ public class MessageImpl implements Message {
         }
     }
 
+    @Override
+    public T getValue() {
+        return schema.decode(getData());
+    }
+
+    public long getSequenceId() {
+        checkNotNull(msgMetadataBuilder);
+        if (msgMetadataBuilder.hasSequenceId()) {
+            return msgMetadataBuilder.getSequenceId();
+        }
+        return -1;
+    }
+
+    @Override
+    public String getProducerName() {
+        checkNotNull(msgMetadataBuilder);
+        if (msgMetadataBuilder.hasProducerName()) {
+            return msgMetadataBuilder.getProducerName();
+        }
+        return null;
+    }
+
     ByteBuf getDataBuffer() {
         return payload;
     }
@@ -198,13 +236,21 @@ public class MessageImpl implements Message {
     }
 
     @Override
-    public Map<String, String> getProperties() {
-        return properties;
+    public synchronized Map<String, String> getProperties() {
+        if (this.properties == null) {
+            if (msgMetadataBuilder.getPropertiesCount() > 0) {
+                this.properties = Collections.unmodifiableMap(msgMetadataBuilder.getPropertiesList().stream()
+                        .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue)));
+            } else {
+                this.properties = Collections.emptyMap();
+            }
+        }
+        return this.properties;
     }
 
     @Override
     public boolean hasProperty(String name) {
-        return properties.containsKey(name);
+        return getProperties().containsKey(name);
     }
 
     @Override
@@ -243,16 +289,16 @@ public class MessageImpl implements Message {
         }
     }
 
-    private MessageImpl(Handle<MessageImpl> recyclerHandle) {
+    private MessageImpl(Handle<MessageImpl<?>> recyclerHandle) {
         this.recyclerHandle = recyclerHandle;
     }
 
-    private Handle<MessageImpl> recyclerHandle;
+    private Handle<MessageImpl<?>> recyclerHandle;
 
-    private final static Recycler<MessageImpl> RECYCLER = new Recycler<MessageImpl>() {
+    private final static Recycler<MessageImpl<?>> RECYCLER = new Recycler<MessageImpl<?>>() {
         @Override
-        protected MessageImpl newObject(Handle<MessageImpl> handle) {
-            return new MessageImpl(handle);
+        protected MessageImpl<?> newObject(Handle<MessageImpl<?>> handle) {
+            return new MessageImpl<>(handle);
         }
     };
 

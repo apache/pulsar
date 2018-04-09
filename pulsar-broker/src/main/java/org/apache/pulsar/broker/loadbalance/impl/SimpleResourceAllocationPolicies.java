@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.loadbalance.impl;
 
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -47,57 +48,62 @@ public class SimpleResourceAllocationPolicies {
         return true;
     }
 
-    private NamespaceIsolationPolicies getIsolationPolicies(String clusterName) {
-        NamespaceIsolationPolicies policies = null;
+    private Optional<NamespaceIsolationPolicies> getIsolationPolicies(String clusterName) {
         try {
-            policies = namespaceIsolationPolicies
-                    .get(AdminResource.path("clusters", clusterName, "namespaceIsolationPolicies")).orElse(null);
+            return namespaceIsolationPolicies
+                    .get(AdminResource.path("clusters", clusterName, "namespaceIsolationPolicies"));
         } catch (Exception e) {
             LOG.warn("GetIsolationPolicies: Unable to get the namespaceIsolationPolicies [{}]", e);
+            return Optional.empty();
         }
-        return policies;
     }
 
-    public boolean IsIsolationPoliciesPresent(NamespaceName namespace) {
+    public boolean areIsolationPoliciesPresent(NamespaceName namespace) {
         try {
-            NamespaceIsolationPolicies policies = null;
-            policies = getIsolationPolicies(pulsar.getConfiguration().getClusterName());
-            if (policies != null)
-                return policies.getPolicyByNamespace(namespace) != null;
+            Optional<NamespaceIsolationPolicies> policies = getIsolationPolicies(pulsar.getConfiguration().getClusterName());
+            if (policies.isPresent()) {
+                return policies.get().getPolicyByNamespace(namespace) != null;
+            } else {
+                return false;
+            }
         } catch (Exception e) {
             LOG.warn("IsIsolationPoliciesPresent: Unable to get the namespaceIsolationPolicies [{}]", e);
+            return false;
         }
-        return false;
     }
 
-    private NamespaceIsolationPolicy getNamespaceIsolationPolicy(NamespaceName namespace) {
-        NamespaceIsolationPolicies policies = null;
-        NamespaceIsolationPolicy policy = null;
+    private Optional<NamespaceIsolationPolicy> getNamespaceIsolationPolicy(NamespaceName namespace) {
         try {
-            policies = getIsolationPolicies(pulsar.getConfiguration().getClusterName());
-            policy = policies.getPolicyByNamespace(namespace);
+            Optional<NamespaceIsolationPolicies> policies =getIsolationPolicies(pulsar.getConfiguration().getClusterName());
+            if (!policies.isPresent()) {
+                return Optional.empty();
+            }
+
+            return Optional.ofNullable(policies.get().getPolicyByNamespace(namespace));
         } catch (Exception e) {
             LOG.warn("Unable to get the namespaceIsolationPolicies [{}]", e);
+            return Optional.empty();
         }
-        return policy;
     }
 
     public boolean isPrimaryBroker(NamespaceName namespace, String broker) {
-		NamespaceIsolationPolicy nsPolicy = getNamespaceIsolationPolicy(namespace);
-		return (nsPolicy != null) ? nsPolicy.isPrimaryBroker(broker) : false;
+		Optional<NamespaceIsolationPolicy> nsPolicy = getNamespaceIsolationPolicy(namespace);
+		return nsPolicy.isPresent() && nsPolicy.get().isPrimaryBroker(broker);
     }
 
     public boolean isSecondaryBroker(NamespaceName namespace, String broker) {
-		NamespaceIsolationPolicy nsPolicy = getNamespaceIsolationPolicy(namespace);
-		return (nsPolicy != null) ? nsPolicy.isSecondaryBroker(broker) : false;
+		Optional<NamespaceIsolationPolicy> nsPolicy = getNamespaceIsolationPolicy(namespace);
+		return nsPolicy.isPresent() && nsPolicy.get().isSecondaryBroker(broker);
     }
 
     public boolean isSharedBroker(String broker) {
         try {
-            NamespaceIsolationPolicies policies = getIsolationPolicies(pulsar.getConfiguration().getClusterName());
-            if (policies == null)
+            Optional<NamespaceIsolationPolicies> policies = getIsolationPolicies(pulsar.getConfiguration().getClusterName());
+            if (!policies.isPresent()) {
                 return true;
-            return policies.isSharedBroker(broker);
+            }
+
+            return policies.get().isSharedBroker(broker);
         } catch (Exception e) {
             LOG.warn("isPrimaryForAnyNamespace: [{}]", e);
         }
@@ -105,7 +111,7 @@ public class SimpleResourceAllocationPolicies {
     }
 
     public boolean shouldFailoverToSecondaries(NamespaceName namespace, int totalPrimaryCandidates) {
-		NamespaceIsolationPolicy nsPolicy = getNamespaceIsolationPolicy(namespace);
-		return (nsPolicy != null) ? nsPolicy.shouldFailover(totalPrimaryCandidates) : false;
+		Optional<NamespaceIsolationPolicy> nsPolicy = getNamespaceIsolationPolicy(namespace);
+		return nsPolicy.isPresent() && nsPolicy.get().shouldFailover(totalPrimaryCandidates);
     }
 }

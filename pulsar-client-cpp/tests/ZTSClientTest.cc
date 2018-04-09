@@ -21,35 +21,32 @@
 
 using namespace pulsar;
 
-namespace pulsar{
+namespace pulsar {
 
 class ZTSClientWrapper {
-    public:
-    static PrivateKeyUri parseUri(const char* uri) {
-        return ZTSClient::parseUri(uri);
-    }
+   public:
+    static PrivateKeyUri parseUri(const char* uri) { return ZTSClient::parseUri(uri); }
 };
-}
+}  // namespace pulsar
 
 TEST(ZTSClientTest, testZTSClient) {
-
     {
         PrivateKeyUri uri = ZTSClientWrapper::parseUri("file:/path/to/private.key");
-        ASSERT_EQ("file",                 uri.scheme);
+        ASSERT_EQ("file", uri.scheme);
         ASSERT_EQ("/path/to/private.key", uri.path);
     }
 
     {
         PrivateKeyUri uri = ZTSClientWrapper::parseUri("file:///path/to/private.key");
-        ASSERT_EQ("file",                   uri.scheme);
+        ASSERT_EQ("file", uri.scheme);
         ASSERT_EQ("///path/to/private.key", uri.path);
     }
 
     {
         PrivateKeyUri uri = ZTSClientWrapper::parseUri("data:application/x-pem-file;base64,SGVsbG8gV29ybGQK");
-        ASSERT_EQ("data",                          uri.scheme);
+        ASSERT_EQ("data", uri.scheme);
         ASSERT_EQ("application/x-pem-file;base64", uri.mediaTypeAndEncodingType);
-        ASSERT_EQ("SGVsbG8gV29ybGQK",              uri.data);
+        ASSERT_EQ("SGVsbG8gV29ybGQK", uri.data);
     }
 
     {
@@ -67,5 +64,4 @@ TEST(ZTSClientTest, testZTSClient) {
         ASSERT_EQ("", uri.mediaTypeAndEncodingType);
         ASSERT_EQ("", uri.data);
     }
-
 }

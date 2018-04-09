@@ -33,8 +33,8 @@ static std::string adminUrl = "http://localhost:8765/";
 TEST(ClientDeduplicationTest, testProducerSequenceAfterReconnect) {
     Client client(serviceUrl);
 
-    std::string topicName = "persistent://sample/standalone/ns-dedup-1/testProducerSequenceAfterReconnect-"
-            + boost::lexical_cast<std::string>(time(NULL));
+    std::string topicName = "persistent://sample/standalone/ns-dedup-1/testProducerSequenceAfterReconnect-" +
+                            boost::lexical_cast<std::string>(time(NULL));
 
     // call admin api to create namespace and enable deduplication
     std::string url = adminUrl + "admin/namespaces/sample/standalone/ns-dedup-1";
@@ -81,8 +81,8 @@ TEST(ClientDeduplicationTest, testProducerSequenceAfterReconnect) {
 TEST(ClientDeduplicationTest, testProducerDeduplication) {
     Client client(serviceUrl);
 
-    std::string topicName = "persistent://sample/standalone/ns-dedup-2/testProducerDeduplication-"
-            + boost::lexical_cast<std::string>(time(NULL));
+    std::string topicName = "persistent://sample/standalone/ns-dedup-2/testProducerDeduplication-" +
+                            boost::lexical_cast<std::string>(time(NULL));
 
     // call admin api to create namespace and enable deduplication
     std::string url = adminUrl + "admin/namespaces/sample/standalone/ns-dedup-2";
@@ -107,18 +107,13 @@ TEST(ClientDeduplicationTest, testProducerDeduplication) {
     Consumer consumer;
     ASSERT_EQ(client.subscribe(topicName, "my-subscription", consumer), ResultOk);
 
-    ASSERT_EQ(producer.send(MessageBuilder().setContent("my-message-0").setSequenceId(0).build()),
-              ResultOk);
-    ASSERT_EQ(producer.send(MessageBuilder().setContent("my-message-1").setSequenceId(1).build()),
-              ResultOk);
-    ASSERT_EQ(producer.send(MessageBuilder().setContent("my-message-2").setSequenceId(2).build()),
-              ResultOk);
+    ASSERT_EQ(producer.send(MessageBuilder().setContent("my-message-0").setSequenceId(0).build()), ResultOk);
+    ASSERT_EQ(producer.send(MessageBuilder().setContent("my-message-1").setSequenceId(1).build()), ResultOk);
+    ASSERT_EQ(producer.send(MessageBuilder().setContent("my-message-2").setSequenceId(2).build()), ResultOk);
 
     // Repeat the messages and verify they're not received by consumer
-    ASSERT_EQ(producer.send(MessageBuilder().setContent("my-message-1").setSequenceId(1).build()),
-              ResultOk);
-    ASSERT_EQ(producer.send(MessageBuilder().setContent("my-message-2").setSequenceId(2).build()),
-              ResultOk);
+    ASSERT_EQ(producer.send(MessageBuilder().setContent("my-message-1").setSequenceId(1).build()), ResultOk);
+    ASSERT_EQ(producer.send(MessageBuilder().setContent("my-message-2").setSequenceId(2).build()), ResultOk);
 
     producer.close();
 
@@ -137,10 +132,8 @@ TEST(ClientDeduplicationTest, testProducerDeduplication) {
     ASSERT_EQ(producer.getLastSequenceId(), 2);
 
     // Repeat the messages and verify they're not received by consumer
-    ASSERT_EQ(producer.send(MessageBuilder().setContent("my-message-1").setSequenceId(1).build()),
-              ResultOk);
-    ASSERT_EQ(producer.send(MessageBuilder().setContent("my-message-2").setSequenceId(2).build()),
-              ResultOk);
+    ASSERT_EQ(producer.send(MessageBuilder().setContent("my-message-1").setSequenceId(1).build()), ResultOk);
+    ASSERT_EQ(producer.send(MessageBuilder().setContent("my-message-2").setSequenceId(2).build()), ResultOk);
 
     // No other messages should be received
     ASSERT_EQ(consumer.receive(msg, 1000), ResultTimeout);

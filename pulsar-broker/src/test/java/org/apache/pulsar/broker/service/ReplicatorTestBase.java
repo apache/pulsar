@@ -32,21 +32,18 @@ import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
+import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.util.FutureUtil;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.slf4j.Logger;
@@ -95,7 +92,7 @@ public class ReplicatorTestBase {
         return 60;
     }
 
-    public boolean isBrokerServicePurgeInactiveDestination() {
+    public boolean isBrokerServicePurgeInactiveTopic() {
         return false;
     }
 
@@ -117,11 +114,12 @@ public class ReplicatorTestBase {
         // completely
         // independent config objects instead of referring to the same properties object
         config1.setClusterName("r1");
+        config1.setAdvertisedAddress("localhost");
         config1.setWebServicePort(webServicePort1);
         config1.setWebServicePortTls(webServicePortTls1);
         config1.setZookeeperServers("127.0.0.1:" + zkPort1);
         config1.setGlobalZookeeperServers("127.0.0.1:" + globalZKPort + "/foo");
-        config1.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveDestination());
+        config1.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
         config1.setBrokerServicePurgeInactiveFrequencyInSeconds(
                 inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
         config1.setBrokerServicePort(PortManager.nextFreePort());
@@ -131,13 +129,14 @@ public class ReplicatorTestBase {
         config1.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         config1.setTlsTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH);
         config1.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
+        config1.setDefaultNumberOfNamespaceBundles(1);
         pulsar1 = new PulsarService(config1);
         pulsar1.start();
         ns1 = pulsar1.getBrokerService();
 
         url1 = new URL("http://localhost:" + webServicePort1);
         urlTls1 = new URL("https://localhost:" + webServicePortTls1);
-        admin1 = new PulsarAdmin(url1, (Authentication) null);
+        admin1 = PulsarAdmin.builder().serviceHttpUrl(url1.toString()).build();
 
         // Start region 2
 
@@ -149,11 +148,12 @@ public class ReplicatorTestBase {
         int webServicePort2 = PortManager.nextFreePort();
         int webServicePortTls2 = PortManager.nextFreePort();
         config2.setClusterName("r2");
+        config2.setAdvertisedAddress("localhost");
         config2.setWebServicePort(webServicePort2);
         config2.setWebServicePortTls(webServicePortTls2);
         config2.setZookeeperServers("127.0.0.1:" + zkPort2);
         config2.setGlobalZookeeperServers("127.0.0.1:" + globalZKPort + "/foo");
-        config2.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveDestination());
+        config2.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
         config2.setBrokerServicePurgeInactiveFrequencyInSeconds(
                 inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
         config2.setBrokerServicePort(PortManager.nextFreePort());
@@ -163,13 +163,14 @@ public class ReplicatorTestBase {
         config2.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         config2.setTlsTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH);
         config2.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
+        config2.setDefaultNumberOfNamespaceBundles(1);
         pulsar2 = new PulsarService(config2);
         pulsar2.start();
         ns2 = pulsar2.getBrokerService();
 
         url2 = new URL("http://localhost:" + webServicePort2);
         urlTls2 = new URL("https://localhost:" + webServicePortTls2);
-        admin2 = new PulsarAdmin(url2, (Authentication) null);
+        admin2 = PulsarAdmin.builder().serviceHttpUrl(url2.toString()).build();
 
         // Start region 3
 
@@ -181,11 +182,12 @@ public class ReplicatorTestBase {
         int webServicePort3 = PortManager.nextFreePort();
         int webServicePortTls3 = PortManager.nextFreePort();
         config3.setClusterName("r3");
+        config3.setAdvertisedAddress("localhost");
         config3.setWebServicePort(webServicePort3);
         config3.setWebServicePortTls(webServicePortTls3);
         config3.setZookeeperServers("127.0.0.1:" + zkPort3);
         config3.setGlobalZookeeperServers("127.0.0.1:" + globalZKPort + "/foo");
-        config3.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveDestination());
+        config3.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
         config3.setBrokerServicePurgeInactiveFrequencyInSeconds(
                 inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
         config3.setBrokerServicePort(PortManager.nextFreePort());
@@ -194,13 +196,14 @@ public class ReplicatorTestBase {
         config3.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         config3.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         config3.setTlsTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH);
+        config3.setDefaultNumberOfNamespaceBundles(1);
         pulsar3 = new PulsarService(config3);
         pulsar3.start();
         ns3 = pulsar3.getBrokerService();
 
         url3 = new URL("http://localhost:" + webServicePort3);
         urlTls3 = new URL("https://localhost:" + webServicePortTls3);
-        admin3 = new PulsarAdmin(url3, (Authentication) null);
+        admin3 = PulsarAdmin.builder().serviceHttpUrl(url3.toString()).build();
 
         // Provision the global namespace
         admin1.clusters().createCluster("r1", new ClusterData(url1.toString(), urlTls1.toString(),
@@ -212,11 +215,11 @@ public class ReplicatorTestBase {
 
         admin1.clusters().createCluster("global", new ClusterData("http://global:8080", "https://global:8443"));
         admin1.properties().createProperty("pulsar",
-                new PropertyAdmin(Lists.newArrayList("appid1", "appid2", "appid3"), Sets.newHashSet("r1", "r2", "r3")));
+                new PropertyAdmin(Sets.newHashSet("appid1", "appid2", "appid3"), Sets.newHashSet("r1", "r2", "r3")));
         admin1.namespaces().createNamespace("pulsar/global/ns");
-        admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns", Lists.newArrayList("r1", "r2", "r3"));
+        admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns", Sets.newHashSet("r1", "r2", "r3"));
         admin1.namespaces().createNamespace("pulsar/global/ns1");
-        admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns1", Lists.newArrayList("r1", "r2"));
+        admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns1", Sets.newHashSet("r1", "r2"));
 
         assertEquals(admin2.clusters().getCluster("r1").getServiceUrl(), url1.toString());
         assertEquals(admin2.clusters().getCluster("r2").getServiceUrl(), url2.toString());
@@ -257,33 +260,29 @@ public class ReplicatorTestBase {
         String namespace;
         String topicName;
         PulsarClient client;
-        Producer producer;
+        Producer<byte[]> producer;
 
-        MessageProducer(URL url, final DestinationName dest) throws Exception {
+        MessageProducer(URL url, final TopicName dest) throws Exception {
             this.url = url;
             this.namespace = dest.getNamespace();
             this.topicName = dest.toString();
-            ClientConfiguration conf = new ClientConfiguration();
-            conf.setStatsInterval(0, TimeUnit.SECONDS);
-            client = PulsarClient.create(url.toString(), conf);
-            producer = client.createProducer(topicName);
+            client = PulsarClient.builder().serviceUrl(url.toString()).statsInterval(0, TimeUnit.SECONDS).build();
+            producer = client.newProducer().topic(topicName).create();
 
         }
 
-        MessageProducer(URL url, final DestinationName dest, boolean batch) throws Exception {
+        MessageProducer(URL url, final TopicName dest, boolean batch) throws Exception {
             this.url = url;
             this.namespace = dest.getNamespace();
             this.topicName = dest.toString();
-            ClientConfiguration conf = new ClientConfiguration();
-            conf.setStatsInterval(0, TimeUnit.SECONDS);
-            client = PulsarClient.create(url.toString(), conf);
-            ProducerConfiguration producerConfiguration = new ProducerConfiguration();
+            client = PulsarClient.builder().serviceUrl(url.toString()).statsInterval(0, TimeUnit.SECONDS).build();
+            ProducerBuilder<byte[]> producerBuilder = client.newProducer().topic(topicName);
             if (batch) {
-                producerConfiguration.setBatchingEnabled(true);
-                producerConfiguration.setBatchingMaxPublishDelay(1, TimeUnit.SECONDS);
-                producerConfiguration.setBatchingMaxMessages(5);
+                producerBuilder.enableBatching(true);
+                producerBuilder.batchingMaxPublishDelay(1, TimeUnit.SECONDS);
+                producerBuilder.batchingMaxMessages(5);
             }
-            producer = client.createProducer(topicName, producerConfiguration);
+            producer = producerBuilder.create();
 
         }
 
@@ -308,7 +307,7 @@ public class ReplicatorTestBase {
 
         }
 
-        void produce(int messages, MessageBuilder messageBuilder) throws Exception {
+        void produce(int messages, MessageBuilder<byte[]> messageBuilder) throws Exception {
             log.info("Start sending messages");
             for (int i = 0; i < messages; i++) {
                 final String m = new String("test-builder-" + i);
@@ -329,22 +328,21 @@ public class ReplicatorTestBase {
         final String namespace;
         final String topicName;
         final PulsarClient client;
-        final Consumer consumer;
+        final Consumer<byte[]> consumer;
 
-        MessageConsumer(URL url, final DestinationName dest) throws Exception {
+        MessageConsumer(URL url, final TopicName dest) throws Exception {
             this(url, dest, "sub-id");
         }
 
-        MessageConsumer(URL url, final DestinationName dest, String subId) throws Exception {
+        MessageConsumer(URL url, final TopicName dest, String subId) throws Exception {
             this.url = url;
             this.namespace = dest.getNamespace();
             this.topicName = dest.toString();
-            ClientConfiguration conf = new ClientConfiguration();
-            conf.setStatsInterval(0, TimeUnit.SECONDS);
-            client = PulsarClient.create(url.toString(), conf);
+
+            client = PulsarClient.builder().serviceUrl(url.toString()).statsInterval(0, TimeUnit.SECONDS).build();
 
             try {
-                consumer = client.subscribe(topicName, subId);
+                consumer = client.newConsumer().topic(topicName).subscriptionName(subId).subscribe();
             } catch (Exception e) {
                 client.close();
                 throw e;
@@ -353,7 +351,7 @@ public class ReplicatorTestBase {
 
         void receive(int messages) throws Exception {
             log.info("Start receiving messages");
-            Message msg = null;
+            Message<byte[]> msg = null;
 
             for (int i = 0; i < messages; i++) {
                 msg = consumer.receive();

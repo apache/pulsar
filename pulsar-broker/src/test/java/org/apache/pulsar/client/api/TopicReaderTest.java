@@ -19,7 +19,11 @@
 package org.apache.pulsar.client.api;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 
+import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -28,8 +32,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
+import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,8 +41,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Sets;
 
 public class TopicReaderTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(TopicReaderTest.class);
@@ -58,19 +60,17 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testSimpleReader() throws Exception {
-        ReaderConfiguration conf = new ReaderConfiguration();
-        Reader reader = pulsarClient.createReader("persistent://my-property/use/my-ns/my-topic1", MessageId.earliest,
-                conf);
+        Reader<byte[]> reader = pulsarClient.newReader().topic("persistent://my-property/use/my-ns/my-topic1")
+                .startMessageId(MessageId.earliest).create();
 
-        ProducerConfiguration producerConf = new ProducerConfiguration();
-
-        Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic1", producerConf);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1")
+                .create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
         }
 
-        Message msg = null;
+        Message<byte[]> msg = null;
         Set<String> messageSet = Sets.newHashSet();
         for (int i = 0; i < 10; i++) {
             msg = reader.readNext(1, TimeUnit.SECONDS);
@@ -88,18 +88,17 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testReaderAfterMessagesWerePublished() throws Exception {
-        ProducerConfiguration producerConf = new ProducerConfiguration();
-
-        Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic1", producerConf);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1")
+                .create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
         }
 
-        Reader reader = pulsarClient.createReader("persistent://my-property/use/my-ns/my-topic1", MessageId.earliest,
-                new ReaderConfiguration());
+        Reader<byte[]> reader = pulsarClient.newReader().topic("persistent://my-property/use/my-ns/my-topic1")
+                .startMessageId(MessageId.earliest).create();
 
-        Message msg = null;
+        Message<byte[]> msg = null;
         Set<String> messageSet = Sets.newHashSet();
         for (int i = 0; i < 10; i++) {
             msg = reader.readNext(1, TimeUnit.SECONDS);
@@ -117,21 +116,20 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testMultipleReaders() throws Exception {
-        ProducerConfiguration producerConf = new ProducerConfiguration();
-
-        Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic1", producerConf);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1")
+                .create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
         }
 
-        Reader reader1 = pulsarClient.createReader("persistent://my-property/use/my-ns/my-topic1", MessageId.earliest,
-                new ReaderConfiguration());
+        Reader<byte[]> reader1 = pulsarClient.newReader().topic("persistent://my-property/use/my-ns/my-topic1")
+                .startMessageId(MessageId.earliest).create();
 
-        Reader reader2 = pulsarClient.createReader("persistent://my-property/use/my-ns/my-topic1", MessageId.earliest,
-                new ReaderConfiguration());
+        Reader<byte[]> reader2 = pulsarClient.newReader().topic("persistent://my-property/use/my-ns/my-topic1")
+                .startMessageId(MessageId.earliest).create();
 
-        Message msg = null;
+        Message<byte[]> msg = null;
         Set<String> messageSet1 = Sets.newHashSet();
         for (int i = 0; i < 10; i++) {
             msg = reader1.readNext(1, TimeUnit.SECONDS);
@@ -161,9 +159,9 @@ public class TopicReaderTest extends ProducerConsumerBase {
     public void testTopicStats() throws Exception {
         String topicName = "persistent://my-property/use/my-ns/my-topic1";
 
-        Reader reader1 = pulsarClient.createReader(topicName, MessageId.earliest, new ReaderConfiguration());
+        Reader<byte[]> reader1 = pulsarClient.newReader().topic(topicName).startMessageId(MessageId.earliest).create();
 
-        Reader reader2 = pulsarClient.createReader(topicName, MessageId.earliest, new ReaderConfiguration());
+        Reader<byte[]> reader2 = pulsarClient.newReader().topic(topicName).startMessageId(MessageId.earliest).create();
 
         PersistentTopicStats stats = admin.persistentTopics().getStats(topicName);
         assertEquals(stats.subscriptions.size(), 2);
@@ -180,16 +178,15 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testReaderOnLastMessage() throws Exception {
-        ProducerConfiguration producerConf = new ProducerConfiguration();
-
-        Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic1", producerConf);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1")
+                .create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
         }
 
-        Reader reader = pulsarClient.createReader("persistent://my-property/use/my-ns/my-topic1", MessageId.latest,
-                new ReaderConfiguration());
+        Reader<byte[]> reader = pulsarClient.newReader().topic("persistent://my-property/use/my-ns/my-topic1")
+                .startMessageId(MessageId.latest).create();
 
         for (int i = 10; i < 20; i++) {
             String message = "my-message-" + i;
@@ -198,7 +195,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
         // Publish more messages and verify the readers only sees new messages
 
-        Message msg = null;
+        Message<byte[]> msg = null;
         Set<String> messageSet = Sets.newHashSet();
         for (int i = 10; i < 20; i++) {
             msg = reader.readNext(1, TimeUnit.SECONDS);
@@ -216,20 +213,19 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testReaderOnSpecificMessage() throws Exception {
-        ProducerConfiguration producerConf = new ProducerConfiguration();
-
-        Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic1", producerConf);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1")
+                .create();
         List<MessageId> messageIds = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             messageIds.add(producer.send(message.getBytes()));
         }
 
-        Reader reader = pulsarClient.createReader("persistent://my-property/use/my-ns/my-topic1", messageIds.get(4),
-                new ReaderConfiguration());
+        Reader<byte[]> reader = pulsarClient.newReader().topic("persistent://my-property/use/my-ns/my-topic1")
+                .startMessageId(messageIds.get(4)).create();
 
         // Publish more messages and verify the readers only sees messages starting from the intended message
-        Message msg = null;
+        Message<byte[]> msg = null;
         Set<String> messageSet = Sets.newHashSet();
         for (int i = 5; i < 10; i++) {
             msg = reader.readNext(1, TimeUnit.SECONDS);
@@ -247,10 +243,9 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testReaderOnSpecificMessageWithBatches() throws Exception {
-        ProducerConfiguration producerConf = new ProducerConfiguration();
-        producerConf.setBatchingEnabled(true);
-        producerConf.setBatchingMaxPublishDelay(100, TimeUnit.MILLISECONDS);
-        Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/testReaderOnSpecificMessageWithBatches", producerConf);
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic("persistent://my-property/use/my-ns/testReaderOnSpecificMessageWithBatches").enableBatching(true)
+                .batchingMaxPublishDelay(100, TimeUnit.MILLISECONDS).create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             producer.sendAsync(message.getBytes());
@@ -258,13 +253,13 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
         // Write one sync message to ensure everything before got persistend
         producer.send("my-message-10".getBytes());
-        Reader reader1 = pulsarClient.createReader(
-                "persistent://my-property/use/my-ns/testReaderOnSpecificMessageWithBatches", MessageId.earliest,
-                new ReaderConfiguration());
+        Reader<byte[]> reader1 = pulsarClient.newReader()
+                .topic("persistent://my-property/use/my-ns/testReaderOnSpecificMessageWithBatches")
+                .startMessageId(MessageId.earliest).create();
 
         MessageId lastMessageId = null;
         for (int i = 0; i < 5; i++) {
-            Message msg = reader1.readNext();
+            Message<byte[]> msg = reader1.readNext();
             lastMessageId = msg.getMessageId();
         }
 
@@ -272,12 +267,12 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
         System.out.println("CREATING READER ON MSG ID: " + lastMessageId);
 
-        Reader reader2 = pulsarClient.createReader(
-                "persistent://my-property/use/my-ns/testReaderOnSpecificMessageWithBatches", lastMessageId,
-                new ReaderConfiguration());
+        Reader<byte[]> reader2 = pulsarClient.newReader()
+                .topic("persistent://my-property/use/my-ns/testReaderOnSpecificMessageWithBatches")
+                .startMessageId(lastMessageId).create();
 
         for (int i = 5; i < 11; i++) {
-            Message msg = reader2.readNext(1, TimeUnit.SECONDS);
+            Message<byte[]> msg = reader2.readNext(1, TimeUnit.SECONDS);
 
             String receivedMessage = new String(msg.getData());
             log.debug("Received message: [{}]", receivedMessage);
@@ -295,6 +290,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         class EncKeyReader implements CryptoKeyReader {
 
             EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+
             @Override
             public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
                 String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
@@ -331,22 +327,19 @@ public class TopicReaderTest extends ProducerConsumerBase {
         final int totalMsg = 10;
 
         Set<String> messageSet = Sets.newHashSet();
-        ReaderConfiguration conf = new ReaderConfiguration();
-        conf.setCryptoKeyReader(new EncKeyReader());
-        Reader reader = pulsarClient.createReader("persistent://my-property/use/my-ns/test-reader-myecdsa-topic1", MessageId.latest,
-                conf);
+        Reader<byte[]> reader = pulsarClient.newReader()
+                .topic("persistent://my-property/use/my-ns/test-reader-myecdsa-topic1").startMessageId(MessageId.latest)
+                .cryptoKeyReader(new EncKeyReader()).create();
 
-        ProducerConfiguration producerConf = new ProducerConfiguration();
-        producerConf.addEncryptionKey("client-ecdsa.pem");
-        producerConf.setCryptoKeyReader(new EncKeyReader());
-
-        Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/test-reader-myecdsa-topic1", producerConf);
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic("persistent://my-property/use/my-ns/test-reader-myecdsa-topic1")
+                .addEncryptionKey("client-ecdsa.pem").cryptoKeyReader(new EncKeyReader()).create();
         for (int i = 0; i < totalMsg; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
         }
 
-        Message msg = null;
+        Message<byte[]> msg = null;
 
         for (int i = 0; i < totalMsg; i++) {
             msg = reader.readNext(5, TimeUnit.SECONDS);
@@ -358,5 +351,101 @@ public class TopicReaderTest extends ProducerConsumerBase {
         producer.close();
         reader.close();
         log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test
+    public void testSimpleReaderReachEndofTopic() throws Exception {
+        Reader<byte[]> reader = pulsarClient.newReader().topic("persistent://my-property/use/my-ns/my-topic1")
+                .startMessageId(MessageId.earliest).create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1")
+                .create();
+
+        // no data write, should return false
+        assertFalse(reader.hasMessageAvailable());
+
+        // produce message 0 -- 99
+        for (int i = 0; i < 100; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        MessageImpl<byte[]> msg = null;
+        Set<String> messageSet = Sets.newHashSet();
+        int index = 0;
+
+        // read message till end.
+        while (reader.hasMessageAvailable()) {
+            msg = (MessageImpl<byte[]>) reader.readNext(1, TimeUnit.SECONDS);
+            String receivedMessage = new String(msg.getData());
+            log.debug("Received message: [{}]", receivedMessage);
+            String expectedMessage = "my-message-" + (index++);
+            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
+        }
+
+        assertEquals(index, 100);
+        // readNext should return null, after reach the end of topic.
+        assertNull(reader.readNext(1, TimeUnit.SECONDS));
+
+        // produce message again.
+        for (int i = 100; i < 200; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        // read message till end again.
+        while (reader.hasMessageAvailable()) {
+            msg = (MessageImpl<byte[]>) reader.readNext(1, TimeUnit.SECONDS);
+            String receivedMessage = new String(msg.getData());
+            log.debug("Received message: [{}]", receivedMessage);
+            String expectedMessage = "my-message-" + (index++);
+            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
+        }
+
+        assertEquals(index, 200);
+        // readNext should return null, after reach the end of topic.
+        assertNull(reader.readNext(1, TimeUnit.SECONDS));
+
+        producer.close();
+    }
+
+    @Test
+    public void testReaderReachEndofTopicOnMessageWithBatches() throws Exception {
+        Reader<byte[]> reader = pulsarClient.newReader()
+                .topic("persistent://my-property/use/my-ns/testReaderReachEndofTopicOnMessageWithBatches")
+                .startMessageId(MessageId.earliest).create();
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic("persistent://my-property/use/my-ns/testReaderReachEndofTopicOnMessageWithBatches")
+                .enableBatching(true).batchingMaxPublishDelay(100, TimeUnit.MILLISECONDS).create();
+
+        // no data write, should return false
+        assertFalse(reader.hasMessageAvailable());
+
+        for (int i = 0; i < 100; i++) {
+            String message = "my-message-" + i;
+            producer.sendAsync(message.getBytes());
+        }
+
+        // Write one sync message to ensure everything before got persistend
+        producer.send("my-message-10".getBytes());
+
+        MessageId lastMessageId = null;
+        int index = 0;
+        assertTrue(reader.hasMessageAvailable());
+
+        if (reader.hasMessageAvailable()) {
+            Message<byte[]> msg = reader.readNext();
+            lastMessageId = msg.getMessageId();
+            assertEquals(lastMessageId.getClass(), BatchMessageIdImpl.class);
+
+            while (msg != null) {
+                index++;
+                msg = reader.readNext(100, TimeUnit.MILLISECONDS);
+            }
+            assertEquals(index, 101);
+        }
+
+        assertFalse(reader.hasMessageAvailable());
+        producer.close();
     }
 }

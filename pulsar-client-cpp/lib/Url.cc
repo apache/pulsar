@@ -40,10 +40,10 @@ static const std::map<std::string, int>& defaultPortsMap() {
 bool Url::parse(const std::string& urlStr, Url& url) {
     std::vector<std::string> values;
     static const boost::regex expression(
-    //       proto                 host               port
-            "^(\?:([^:/\?#]+)://)\?(\\w+[^/\?#:]*)(\?::(\\d+))\?"
-            //       path                  file       parameters
-                    "(/\?(\?:[^\?#/]*/)*)\?([^\?#]*)\?(\\\?(.*))\?");
+        //       proto                 host               port
+        "^(\?:([^:/\?#]+)://)\?(\\w+[^/\?#:]*)(\?::(\\d+))\?"
+        //       path                  file       parameters
+        "(/\?(\?:[^\?#/]*/)*)\?([^\?#]*)\?(\\\?(.*))\?");
 
     boost::cmatch groups;
     if (!boost::regex_match(urlStr.c_str(), groups, expression)) {
@@ -74,38 +74,30 @@ bool Url::parse(const std::string& urlStr, Url& url) {
     return true;
 }
 
-const std::string& Url::protocol() const {
-    return protocol_;
+const std::string& Url::protocol() const { return protocol_; }
+
+const std::string& Url::host() const { return host_; }
+
+const int Url::port() const { return port_; }
+
+const std::string& Url::path() const { return path_; }
+
+const std::string& Url::pathWithoutFile() const { return pathWithoutFile_; }
+
+const std::string& Url::file() const { return file_; }
+
+const std::string& Url::parameter() const { return parameter_; }
+
+std::string Url::hostPort() const {
+    std::stringstream ss;
+    ss << host_ << ':' << port_;
+    return ss.str();
 }
 
-const std::string& Url::host() const {
-    return host_;
-}
-
-const int Url::port() const {
-    return port_;
-}
-
-const std::string& Url::path() const {
-    return path_;
-}
-
-const std::string& Url::pathWithoutFile() const {
-    return pathWithoutFile_;
-}
-
-const std::string& Url::file() const {
-    return file_;
-}
-
-const std::string& Url::parameter() const {
-    return parameter_;
-}
-
-std::ostream & operator<<(std::ostream &os, const Url& obj) {
-    os << "Url [Host = " << obj.host() << ", Protocol = " << obj.protocol()
-       << ", Port = " << obj.port() << "]";
+std::ostream& operator<<(std::ostream& os, const Url& obj) {
+    os << "Url [Host = " << obj.host() << ", Protocol = " << obj.protocol() << ", Port = " << obj.port()
+       << "]";
     return os;
 }
 
-} // pulsar
+}  // namespace pulsar

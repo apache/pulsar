@@ -24,30 +24,31 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import com.google.common.base.Charsets;
+import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.BookKeeperTestClient;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.testng.annotations.Test;
-
-import com.google.common.base.Charsets;
-import com.google.common.collect.Lists;
 
 public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
 
@@ -344,7 +345,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         PositionImpl p1 = (PositionImpl) ledger.addEntry("entry-1".getBytes());
 
         // Trigger the closure of the data ledger
-        bkc.openLedger(p1.getLedgerId(), DigestType.MAC, new byte[] {});
+        bkc.openLedger(p1.getLedgerId(), DigestType.CRC32C, new byte[] {});
 
         ledger.addEntry("entry-2".getBytes());
 
@@ -461,4 +462,77 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         factory2.shutdown();
         factory.shutdown();
     }
+
+    @Test(timeOut = 30000)
+    public void managedLedgerClosed() throws Exception {
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setEnsembleSize(2).setAckQuorumSize(2).setMetadataEnsembleSize(2);
+        ManagedLedgerImpl ledger1 = (ManagedLedgerImpl) factory.open("my_test_ledger", config);
+
+        int N = 100;
+
+        AtomicReference<ManagedLedgerException> res = new AtomicReference<>();
+        CountDownLatch latch = new CountDownLatch(N);
+
+        for (int i = 0; i < N; i++) {
+            ledger1.asyncAddEntry(("entry-" + i).getBytes(), new AddEntryCallback() {
+
+                @Override
+                public void addComplete(Position position, Object ctx) {
+                    latch.countDown();
+                }
+
+                @Override
+                public void addFailed(ManagedLedgerException exception, Object ctx) {
+                    res.compareAndSet(null, exception);
+                    latch.countDown();
+                }
+            }, null);
+
+            if (i == 1) {
+                ledger1.close();
+            }
+        }
+
+        // Ensures all the callback must have been invoked
+        latch.await();
+        assertNotNull(res.get());
+        assertEquals(res.get().getClass(), ManagedLedgerAlreadyClosedException.class);
+        factory.shutdown();
+    }
+
+    @Test
+    public void testChangeCrcType() throws Exception {
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setEnsembleSize(2).setAckQuorumSize(2).setMetadataEnsembleSize(2);
+        config.setDigestType(DigestType.CRC32);
+        ManagedLedger ledger = factory.open("my_test_ledger", config);
+        ManagedCursor c1 = ledger.openCursor("c1");
+
+        ledger.addEntry("entry-0".getBytes());
+        ledger.addEntry("entry-1".getBytes());
+        ledger.addEntry("entry-2".getBytes());
+
+        ledger.close();
+
+        config.setDigestType(DigestType.CRC32C);
+        ledger = factory.open("my_test_ledger", config);
+        c1 = ledger.openCursor("c1");
+
+        ledger.addEntry("entry-3".getBytes());
+
+        assertEquals(c1.getNumberOfEntries(), 4);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), 4);
+
+        List<Entry> entries = c1.readEntries(4);
+        assertEquals(entries.size(), 4);
+        for (int i = 0; i < 4; i++) {
+            assertEquals(new String(entries.get(i).getData()), "entry-" + i);
+        }
+
+        factory.shutdown();
+    }
+
 }

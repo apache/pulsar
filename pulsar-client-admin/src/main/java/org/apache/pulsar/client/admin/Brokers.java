@@ -23,6 +23,7 @@ import java.util.Map;
 
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
+import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 
 /**
@@ -98,4 +99,10 @@ public interface Brokers {
      */
     Map<String, String> getAllDynamicConfigurations() throws PulsarAdminException;
 
+    /**
+     * Get the internal configuration data.
+     *
+     * @return internal configuration data.
+     */
+    InternalConfigurationData getInternalConfigurationData() throws PulsarAdminException;
 }

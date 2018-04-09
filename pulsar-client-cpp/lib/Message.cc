@@ -34,11 +34,9 @@ using namespace pulsar;
 namespace pulsar {
 
 const static std::string emptyString;
-const static BatchMessageId invalidMessageId;
+const static MessageId invalidMessageId;
 
-const Message::StringMap& Message::getProperties() const {
-    return impl_->properties();
-}
+const Message::StringMap& Message::getProperties() const { return impl_->properties(); }
 
 bool Message::hasProperty(const std::string& name) const {
     const StringMap& m = impl_->properties();
@@ -54,36 +52,29 @@ const std::string& Message::getProperty(const std::string& name) const {
     }
 }
 
-const void* Message::getData() const {
-    return impl_->payload.data();
-}
+const void* Message::getData() const { return impl_->payload.data(); }
 
-std::size_t Message::getLength() const {
-    return impl_->payload.readableBytes();
-}
+std::size_t Message::getLength() const { return impl_->payload.readableBytes(); }
 
-std::string Message::getDataAsString() const {
-    return std::string((const char*) getData(), getLength());
-}
+std::string Message::getDataAsString() const { return std::string((const char*)getData(), getLength()); }
 
-Message::Message()
-        : impl_() {
-}
+Message::Message() : impl_() {}
 
-Message::Message(MessageImplPtr& impl)
-        : impl_(impl) {
-}
+Message::Message(MessageImplPtr& impl) : impl_(impl) {}
 
-Message::Message(const proto::CommandMessage& msg, proto::MessageMetadata& metadata,
-                 SharedBuffer& payload)
-        : impl_(boost::make_shared<MessageImpl>()) {
-    impl_->messageId = BatchMessageId(msg.message_id().ledgerid(), msg.message_id().entryid());
+Message::Message(const proto::CommandMessage& msg, proto::MessageMetadata& metadata, SharedBuffer& payload,
+                 int32_t partition)
+    : impl_(boost::make_shared<MessageImpl>()) {
+    impl_->messageId =
+        MessageId(partition, msg.message_id().ledgerid(), msg.message_id().entryid(), /* batchId */
+                  -1);
     impl_->metadata = metadata;
     impl_->payload = payload;
 }
 
-Message::Message(const BatchMessageId& messageID, proto::MessageMetadata& metadata, SharedBuffer& payload, proto::SingleMessageMetadata& singleMetadata)
-: impl_(boost::make_shared<MessageImpl>()) {
+Message::Message(const MessageId& messageID, proto::MessageMetadata& metadata, SharedBuffer& payload,
+                 proto::SingleMessageMetadata& singleMetadata)
+    : impl_(boost::make_shared<MessageImpl>()) {
     impl_->messageId = messageID;
     impl_->metadata = metadata;
     impl_->payload = payload;
@@ -98,8 +89,8 @@ const MessageId& Message::getMessageId() const {
     }
 }
 
-bool Message::hasPartitionKey() const{
-    if(impl_) {
+bool Message::hasPartitionKey() const {
+    if (impl_) {
         return impl_->hasPartitionKey();
     }
     return false;
@@ -112,13 +103,9 @@ const std::string& Message::getPartitionKey() const {
     return impl_->getPartitionKey();
 }
 
-uint64_t Message::getPublishTimestamp() const {
-    return impl_ ? impl_->getPublishTimestamp() : 0ull;
-}
+uint64_t Message::getPublishTimestamp() const { return impl_ ? impl_->getPublishTimestamp() : 0ull; }
 
-uint64_t Message::getEventTimestamp() const {
-    return impl_ ? impl_->getEventTimestamp() : 0ull;
-}
+uint64_t Message::getEventTimestamp() const { return impl_ ? impl_->getEventTimestamp() : 0ull; }
 
 #pragma GCC visibility push(default)
 
@@ -148,13 +135,12 @@ std::ostream& operator<<(std::ostream& s, const Message& msg) {
     assert(msg.impl_.get());
     assert(msg.impl_->metadata.has_sequence_id());
     assert(msg.impl_->metadata.has_publish_time());
-    s << "Message(prod=" << msg.impl_->metadata.producer_name() << ", seq="
-      << msg.impl_->metadata.sequence_id() << ", publish_time="
-      << msg.impl_->metadata.publish_time() << ", payload_size=" << msg.getLength() << ", msg_id="
-      << msg.getMessageId() << ", props=" << msg.getProperties() << ')';
+    s << "Message(prod=" << msg.impl_->metadata.producer_name()
+      << ", seq=" << msg.impl_->metadata.sequence_id()
+      << ", publish_time=" << msg.impl_->metadata.publish_time() << ", payload_size=" << msg.getLength()
+      << ", msg_id=" << msg.getMessageId() << ", props=" << msg.getProperties() << ')';
     return s;
 }
 
 #pragma GCC visibility pop
-
-}
+}  // namespace pulsar

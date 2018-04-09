@@ -24,42 +24,43 @@
 
 namespace pulsar {
 
-    struct RoleToken {
-        std::string token;
-        long long expiryTime;
-    };
+struct RoleToken {
+    std::string token;
+    long long expiryTime;
+};
 
-    struct PrivateKeyUri {
-        std::string scheme;
-        std::string mediaTypeAndEncodingType;
-        std::string data;
-        std::string path;
-    };
+struct PrivateKeyUri {
+    std::string scheme;
+    std::string mediaTypeAndEncodingType;
+    std::string data;
+    std::string path;
+};
 
-    class ZTSClient {
-    public:
-        ZTSClient(std::map<std::string, std::string>& params);
-        const std::string getRoleToken() const;
-        const std::string getHeader() const;
-        ~ZTSClient();
-    private:
-        std::string tenantDomain_;
-        std::string tenantService_;
-        std::string providerDomain_;
-        PrivateKeyUri privateKeyUri_;
-        std::string ztsUrl_;
-        std::string keyId_;
-        std::string principalHeader_;
-        std::string roleHeader_;
-        int tokenExpirationTime_;
-        static std::map<std::string, RoleToken> roleTokenCache_;
-        static std::string getSalt();
-        static std::string ybase64Encode(const unsigned char *input, int length);
-        static char* base64Decode(const char *input);
-        const std::string getPrincipalToken() const;
-        static PrivateKeyUri parseUri(const char* uri);
+class ZTSClient {
+   public:
+    ZTSClient(std::map<std::string, std::string>& params);
+    const std::string getRoleToken() const;
+    const std::string getHeader() const;
+    ~ZTSClient();
 
-        friend class ZTSClientWrapper;
-    };
-}
+   private:
+    std::string tenantDomain_;
+    std::string tenantService_;
+    std::string providerDomain_;
+    PrivateKeyUri privateKeyUri_;
+    std::string ztsUrl_;
+    std::string keyId_;
+    std::string principalHeader_;
+    std::string roleHeader_;
+    int tokenExpirationTime_;
+    static std::map<std::string, RoleToken> roleTokenCache_;
+    static std::string getSalt();
+    static std::string ybase64Encode(const unsigned char* input, int length);
+    static char* base64Decode(const char* input);
+    const std::string getPrincipalToken() const;
+    static PrivateKeyUri parseUri(const char* uri);
+
+    friend class ZTSClientWrapper;
+};
+}  // namespace pulsar
 #pragma GCC visibility pop

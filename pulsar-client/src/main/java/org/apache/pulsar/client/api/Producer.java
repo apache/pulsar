@@ -21,8 +21,6 @@ package org.apache.pulsar.client.api;
 import java.io.Closeable;
 import java.util.concurrent.CompletableFuture;
 
-import org.apache.pulsar.client.impl.ProducerStats;
-
 /**
  * Producer object.
  *
@@ -30,7 +28,7 @@ import org.apache.pulsar.client.impl.ProducerStats;
  *
  *
  */
-public interface Producer extends Closeable {
+public interface Producer<T> extends Closeable {
 
     /**
      * @return the topic which producer is publishing to
@@ -53,21 +51,21 @@ public interface Producer extends Closeable {
      * @throws PulsarClientException.AlreadyClosedException
      *             if the producer was already closed
      */
-    MessageId send(byte[] message) throws PulsarClientException;
+    MessageId send(T message) throws PulsarClientException;
 
     /**
      * Send a message asynchronously
      * <p>
-     * When the producer queue is full, by default this method will complete the future with an exception {@link PulsarClientException#ProducerQueueIsFullError}
+     * When the producer queue is full, by default this method will complete the future with an exception {@link PulsarClientException.ProducerQueueIsFullError}
      * <p>
-     * See {@link ProducerConfiguration#setMaxPendingMessages} to configure the producer queue size and
-     * {@link ProducerConfiguration#setBlockIfQueueFull(boolean)} to change the blocking behavior.
+     * See {@link ProducerBuilder#maxPendingMessages(int)} to configure the producer queue size and
+     * {@link ProducerBuilder#blockIfQueueFull(boolean)} to change the blocking behavior.
      *
      * @param message
      *            a byte array with the payload of the message
      * @return a future that can be used to track when the message will have been safely persisted
      */
-    CompletableFuture<MessageId> sendAsync(byte[] message);
+    CompletableFuture<MessageId> sendAsync(T message);
 
     /**
      * Send a message
@@ -78,12 +76,12 @@ public interface Producer extends Closeable {
      * @throws PulsarClientException.TimeoutException
      *             if the message was not correctly received by the system within the timeout period
      */
-    MessageId send(Message message) throws PulsarClientException;
+    MessageId send(Message<T> message) throws PulsarClientException;
 
     /**
      * Send a message asynchronously
      * <p>
-     * When the returned {@link CompletatableFuture} is marked as completed successfully, the provided message will
+     * When the returned {@link CompletableFuture} is marked as completed successfully, the provided message will
      * contain the {@link MessageId} assigned by the broker to the published message.
      * <p>
      * Example:
@@ -97,16 +95,16 @@ public interface Producer extends Closeable {
      * });</code>
      * </pre>
      * <p>
-     * When the producer queue is full, by default this method will complete the future with an exception {@link PulsarClientException#ProducerQueueIsFullError}
+     * When the producer queue is full, by default this method will complete the future with an exception {@link PulsarClientException.ProducerQueueIsFullError}
      * <p>
-     * See {@link ProducerConfiguration#setMaxPendingMessages} to configure the producer queue size and
-     * {@link ProducerConfiguration#setBlockIfQueueFull(boolean)} to change the blocking behavior.
+     * See {@link ProducerBuilder#maxPendingMessages(int)} to configure the producer queue size and
+     * {@link ProducerBuilder#blockIfQueueFull(boolean)} to change the blocking behavior.
      *
      * @param message
      *            a message
      * @return a future that can be used to track when the message will have been safely persisted
      */
-    CompletableFuture<MessageId> sendAsync(Message message);
+    CompletableFuture<MessageId> sendAsync(Message<T> message);
 
     /**
      * Get the last sequence id that was published by this producer.
@@ -124,13 +122,18 @@ public interface Producer extends Closeable {
     /**
      * Get statistics for the producer
      *
-     * numMsgsSent : Number of messages sent in the current interval numBytesSent : Number of bytes sent in the current
-     * interval numSendFailed : Number of messages failed to send in the current interval numAcksReceived : Number of
-     * acks received in the current interval totalMsgsSent : Total number of messages sent totalBytesSent : Total number
-     * of bytes sent totalSendFailed : Total number of messages failed to send totalAcksReceived: Total number of acks
-     * received
+     * <ul>
+     * <li>numMsgsSent : Number of messages sent in the current interval
+     * <li>numBytesSent : Number of bytes sent in the current interval
+     * <li>numSendFailed : Number of messages failed to send in the current interval
+     * <li>numAcksReceived : Number of acks received in the current interval
+     * <li>totalMsgsSent : Total number of messages sent
+     * <li>totalBytesSent : Total number of bytes sent
+     * <li>totalSendFailed : Total number of messages failed to send
+     * <li>totalAcksReceived: Total number of acks received
+     * </ul>
      *
-     * @return statistic for the producer or null if ProducerStats is disabled.
+     * @return statistic for the producer or null if ProducerStatsRecorderImpl is disabled.
      */
     ProducerStats getStats();
 

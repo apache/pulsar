@@ -18,15 +18,19 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.primitives.Longs;
+import io.netty.buffer.ByteBuf;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-
 import org.apache.bookkeeper.client.AsyncCallback.ReadCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.LedgerEntry;
@@ -34,17 +38,11 @@ import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.util.Pair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.primitives.Longs;
-
-import io.netty.buffer.ByteBuf;
-
+@SuppressWarnings("checkstyle:javadoctype")
 public class EntryCacheManager {
 
     private final long maxSize;
@@ -111,7 +109,7 @@ public class EntryCacheManager {
 
         // Trigger a single eviction in background. While the eviction is running we stop inserting entries in the cache
         if (currentSize > evictionTriggerThreshold && evictionInProgress.compareAndSet(false, true)) {
-            mlFactory.executor.execute(safeRun(() -> {
+            mlFactory.scheduledExecutor.execute(safeRun(() -> {
                 // Trigger a new cache eviction cycle to bring the used memory below the cacheEvictionWatermark
                 // percentage limit
                 long sizeToEvict = currentSize - (long) (maxSize * cacheEvictionWatermak);
@@ -188,7 +186,7 @@ public class EntryCacheManager {
 
         @Override
         public Pair<Integer, Long> evictEntries(long sizeToFree) {
-            return Pair.create(0, (long) 0);
+            return Pair.of(0, (long) 0);
         }
 
         @Override
@@ -197,7 +195,7 @@ public class EntryCacheManager {
             lh.asyncReadEntries(firstEntry, lastEntry, new ReadCallback() {
                 public void readComplete(int rc, LedgerHandle lh, Enumeration<LedgerEntry> seq, Object bkctx) {
                     if (rc != BKException.Code.OK) {
-                        callback.readEntriesFailed(new ManagedLedgerException(BKException.create(rc)), ctx);
+                        callback.readEntriesFailed(createManagedLedgerException(rc), ctx);
                         return;
                     }
 
@@ -241,6 +239,6 @@ public class EntryCacheManager {
     public static Entry create(long ledgerId, long entryId, ByteBuf data) {
         return EntryImpl.create(ledgerId, entryId, data);
     }
-    
+
     private static final Logger log = LoggerFactory.getLogger(EntryCacheManager.class);
 }

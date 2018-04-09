@@ -23,10 +23,9 @@
 
 namespace pulsar {
 class ProducerStatsDisabled : public ProducerStatsBase {
- public:
-    virtual void messageSent(const Message& msg) {};
-    virtual void messageReceived(Result&, boost::posix_time::ptime&) {};
+   public:
+    virtual void messageSent(const Message& msg){};
+    virtual void messageReceived(Result&, boost::posix_time::ptime&){};
 };
-
-}
-#endif // PULSAR_PRODUCER_STATS_DISABLED_HEADER
+}  // namespace pulsar
+#endif  // PULSAR_PRODUCER_STATS_DISABLED_HEADER

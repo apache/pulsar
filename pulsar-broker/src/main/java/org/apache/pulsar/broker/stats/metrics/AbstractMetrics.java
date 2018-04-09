@@ -211,7 +211,7 @@ abstract class AbstractMetrics {
         Double val = map.getOrDefault(mkey, 0.0);
         map.put(mkey, val + value);
     }
-    
+
     protected void populateMaxMap(Map<String, Long> map, String mkey, long value) {
         Long existingValue = map.get(mkey);
         if (existingValue == null || value > existingValue) {
@@ -220,9 +220,9 @@ abstract class AbstractMetrics {
     }
 
     /**
-     * Helper to manage populating destination map
+     * Helper to manage populating topics map
      *
-     * @param destStatsByDimensionMap
+     * @param ledgersByDimensionMap
      * @param dimensionKey
      * @param destStats
      */
@@ -237,14 +237,14 @@ abstract class AbstractMetrics {
         }
     }
 
-    protected void populateDimensionMap(Map<Metrics, List<PersistentTopicStats>> destStatsByDimensionMap,
+    protected void populateDimensionMap(Map<Metrics, List<PersistentTopicStats>> topicsStatsByDimensionMap,
             Metrics metrics, PersistentTopicStats destStats) {
-        if (!destStatsByDimensionMap.containsKey(metrics)) {
+        if (!topicsStatsByDimensionMap.containsKey(metrics)) {
             // create new list
-            destStatsByDimensionMap.put(metrics, Lists.newArrayList(destStats));
+            topicsStatsByDimensionMap.put(metrics, Lists.newArrayList(destStats));
         } else {
             // add to collection
-            destStatsByDimensionMap.get(metrics).add(destStats);
+            topicsStatsByDimensionMap.get(metrics).add(destStats);
         }
 
     }

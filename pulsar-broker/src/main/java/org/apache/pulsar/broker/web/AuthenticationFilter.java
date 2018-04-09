@@ -31,6 +31,8 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,6 +46,7 @@ public class AuthenticationFilter implements Filter {
     private final AuthenticationService authenticationService;
 
     public static final String AuthenticatedRoleAttributeName = AuthenticationFilter.class.getName() + "-role";
+    public static final String AuthenticatedDataAttributeName = AuthenticationFilter.class.getName() + "-data";
 
     public AuthenticationFilter(PulsarService pulsar) {
         this.authenticationService = pulsar.getBrokerService().getAuthenticationService();
@@ -56,6 +59,8 @@ public class AuthenticationFilter implements Filter {
         try {
             String role = authenticationService.authenticateHttpRequest((HttpServletRequest) request);
             request.setAttribute(AuthenticatedRoleAttributeName, role);
+            request.setAttribute(AuthenticatedDataAttributeName,
+                    new AuthenticationDataHttps((HttpServletRequest) request));
 
             if (LOG.isDebugEnabled()) {
                 LOG.debug("[{}] Authenticated HTTP request with role {}", request.getRemoteAddr(), role);

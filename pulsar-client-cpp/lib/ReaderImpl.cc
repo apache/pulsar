@@ -24,16 +24,11 @@ namespace pulsar {
 
 static ResultCallback emptyCallback;
 
-ReaderImpl::ReaderImpl(const ClientImplPtr client, const std::string& topic,
-                       const ReaderConfiguration& conf, const ExecutorServicePtr listenerExecutor,
-                       ReaderCallback readerCreatedCallback) :
-                topic_(topic),
-                    client_(client),
-                    readerConf_(conf),
-                    readerCreatedCallback_(readerCreatedCallback) {
-}
+ReaderImpl::ReaderImpl(const ClientImplPtr client, const std::string& topic, const ReaderConfiguration& conf,
+                       const ExecutorServicePtr listenerExecutor, ReaderCallback readerCreatedCallback)
+    : topic_(topic), client_(client), readerConf_(conf), readerCreatedCallback_(readerCreatedCallback) {}
 
-void ReaderImpl::start(const BatchMessageId& startMessageId) {
+void ReaderImpl::start(const MessageId& startMessageId) {
     ConsumerConfiguration consumerConf;
     consumerConf.setConsumerType(ConsumerExclusive);
     consumerConf.setReceiverQueueSize(readerConf_.getReceiverQueueSize());
@@ -45,32 +40,30 @@ void ReaderImpl::start(const BatchMessageId& startMessageId) {
     if (readerConf_.hasReaderListener()) {
         // Adapt the message listener to be a reader-listener
         readerListener_ = readerConf_.getReaderListener();
-        consumerConf.setMessageListener(boost::bind(&ReaderImpl::messageListener,
-                                                    shared_from_this(), _1, _2));
+        consumerConf.setMessageListener(
+            boost::bind(&ReaderImpl::messageListener, shared_from_this(), _1, _2));
     }
 
     std::string subscription = "reader-" + generateRandomName();
+    if (!readerConf_.getSubscriptionRolePrefix().empty()) {
+        subscription = readerConf_.getSubscriptionRolePrefix() + "-" + subscription;
+    }
 
-    consumer_ = boost::make_shared<ConsumerImpl>(client_.lock(), topic_, subscription, consumerConf,
-                                                 ExecutorServicePtr(), NonPartitioned,
-                                                 Commands::SubscriptionModeNonDurable,
-                                                 Optional<BatchMessageId>::of(startMessageId));
+    consumer_ = boost::make_shared<ConsumerImpl>(
+        client_.lock(), topic_, subscription, consumerConf, ExecutorServicePtr(), NonPartitioned,
+        Commands::SubscriptionModeNonDurable, Optional<MessageId>::of(startMessageId));
     consumer_->getConsumerCreatedFuture().addListener(
-            boost::bind(&ReaderImpl::handleConsumerCreated, shared_from_this(), _1, _2));
+        boost::bind(&ReaderImpl::handleConsumerCreated, shared_from_this(), _1, _2));
     consumer_->start();
 }
 
-const std::string& ReaderImpl::getTopic() const {
-    return consumer_->getTopic();
-}
+const std::string& ReaderImpl::getTopic() const { return consumer_->getTopic(); }
 
 void ReaderImpl::handleConsumerCreated(Result result, ConsumerImplBaseWeakPtr consumer) {
     readerCreatedCallback_(result, Reader(shared_from_this()));
 }
 
-ConsumerImplPtr ReaderImpl::getConsumer() {
-    return consumer_;
-}
+ConsumerImplPtr ReaderImpl::getConsumer() { return consumer_; }
 
 Result ReaderImpl::readNext(Message& msg) {
     Result res = consumer_->receive(msg);
@@ -94,18 +87,13 @@ void ReaderImpl::acknowledgeIfNecessary(Result result, const Message& msg) {
         return;
     }
 
-    const BatchMessageId& msgId = static_cast<const BatchMessageId&>(msg.getMessageId());
-
     // Only acknowledge on the first message in the batch
-    if (msgId.batchIndex_ <= 0) {
+    if (msg.getMessageId().batchIndex() <= 0) {
         // Acknowledge message immediately because the reader is based on non-durable
         // subscription. When it reconnects, it will specify the subscription position anyway
-        consumer_->acknowledgeCumulativeAsync(msgId, emptyCallback);
+        consumer_->acknowledgeCumulativeAsync(msg.getMessageId(), emptyCallback);
     }
 }
 
-void ReaderImpl::closeAsync(ResultCallback callback) {
-    consumer_->closeAsync(callback);
-}
-
-}
+void ReaderImpl::closeAsync(ResultCallback callback) { consumer_->closeAsync(callback); }
+}  // namespace pulsar

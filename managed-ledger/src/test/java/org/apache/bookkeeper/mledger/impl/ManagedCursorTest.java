@@ -18,13 +18,11 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotEquals;
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
+import static org.testng.Assert.*;
 
+import com.google.common.base.Charsets;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -43,10 +41,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
-
 import org.apache.bookkeeper.client.BKException;
-import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
+import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
@@ -67,13 +64,10 @@ import org.apache.bookkeeper.mledger.impl.MetaStore.Stat;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.apache.zookeeper.KeeperException.Code;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
-
-import com.google.common.base.Charsets;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 
 public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
@@ -416,11 +410,29 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         stopBookKeeper();
         assertEquals(entries.size(), 1);
 
+        // Mark-delete should succeed if BK is down
+        cursor.markDelete(entries.get(0).getPosition());
+
+        entries.forEach(e -> e.release());
+    }
+
+    @Test(timeOut = 20000)
+    void markDeleteWithZKErrors() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedCursor cursor = ledger.openCursor("c1");
+        ledger.addEntry("dummy-entry-1".getBytes(Encoding));
+        List<Entry> entries = cursor.readEntries(100);
+
+        assertEquals(entries.size(), 1);
+
+        stopBookKeeper();
+        stopZooKeeper();
+
         try {
             cursor.markDelete(entries.get(0).getPosition());
-            fail("call should have failed");
-        } catch (ManagedLedgerException e) {
-            // ok
+            fail("Should have failed");
+        } catch (Exception e) {
+            // Expected
         }
 
         entries.forEach(e -> e.release());
@@ -1029,6 +1041,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ManagedLedger ledger = factory.open("my_test_ledger");
 
         bkc.failAfter(1, BKException.Code.NotEnoughBookiesException);
+        zkc.failNow(Code.SESSIONEXPIRED);
         try {
             ledger.openCursor("c1");
             fail("should have failed");
@@ -2470,7 +2483,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     /**
      * Verifies cursor persists individually unack range into cursor-ledger if range count is higher than
      * MaxUnackedRangesToPersistInZk
-     * 
+     *
      * @throws Exception
      */
     @Test(timeOut = 20000)
@@ -2522,9 +2535,10 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // verify cursor-ledger's last entry has individual-deleted positions
         final CountDownLatch latch = new CountDownLatch(1);
         final AtomicInteger individualDeletedMessagesCount = new AtomicInteger(0);
-        bkc.asyncOpenLedger(c1.getCursorLedger(), DigestType.MAC, "".getBytes(), (rc, lh, ctx) -> {
+        bkc.asyncOpenLedger(c1.getCursorLedger(), DigestType.CRC32C, "".getBytes(), (rc, lh, ctx) -> {
             if (rc == BKException.Code.OK) {
-                lh.asyncReadLastEntry((rc1, lh1, seq, ctx1) -> {
+                long lastEntry = lh.getLastAddConfirmed();
+                lh.asyncReadEntries(lastEntry, lastEntry, (rc1, lh1, seq, ctx1) -> {
                     try {
                         LedgerEntry entry = seq.nextElement();
                         PositionInfo positionInfo;
@@ -2556,7 +2570,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     /**
      * Close Cursor without MaxUnackedRangesToPersistInZK: It should store individually unack range into Zk
-     * 
+     *
      * @throws Exception
      */
     @Test(timeOut = 20000)

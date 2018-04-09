@@ -20,22 +20,20 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 
+import com.google.common.collect.Lists;
+import io.netty.util.Recycler;
+import io.netty.util.Recycler.Handle;
 import java.util.List;
-
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Lists;
-
-import io.netty.util.Recycler;
-import io.netty.util.Recycler.Handle;
-
-public class OpReadEntry implements ReadEntriesCallback {
+class OpReadEntry implements ReadEntriesCallback {
 
     ManagedCursorImpl cursor;
     PositionImpl readPosition;
@@ -80,19 +78,33 @@ public class OpReadEntry implements ReadEntriesCallback {
     }
 
     @Override
-    public void readEntriesFailed(ManagedLedgerException status, Object ctx) {
+    public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
         cursor.readOperationCompleted();
 
         if (!entries.isEmpty()) {
             // There were already some entries that were read before, we can return them
-            cursor.ledger.getExecutor().submit(safeRun(() -> {
+            cursor.ledger.getExecutor().execute(safeRun(() -> {
                 callback.readEntriesComplete(entries, ctx);
                 recycle();
             }));
+        } else if (cursor.config.isAutoSkipNonRecoverableData() && exception instanceof NonRecoverableLedgerException) {
+            log.warn("[{}][{}] read failed from ledger at position:{} : {}", cursor.ledger.getName(), cursor.getName(),
+                    readPosition, exception.getMessage());
+            // try to find and move to next valid ledger
+            final Position nexReadPosition = cursor.getNextLedgerPosition(readPosition.getLedgerId());
+            // fail callback if it couldn't find next valid ledger
+            if (nexReadPosition == null) {
+                callback.readEntriesFailed(exception, ctx);
+                cursor.ledger.mbean.recordReadEntriesError();
+                recycle();
+                return;
+            }
+            updateReadPosition(nexReadPosition);
+            checkReadCompletion();
         } else {
-            if (!(status instanceof TooManyRequestsException)) {
-                log.warn("[{}][{}] read failed from ledger at position:{} : {}", cursor.ledger.getName(), cursor.getName(),
-                        readPosition, status.getMessage());
+            if (!(exception instanceof TooManyRequestsException)) {
+                log.warn("[{}][{}] read failed from ledger at position:{} : {}", cursor.ledger.getName(),
+                        cursor.getName(), readPosition, exception.getMessage());
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}][{}] read throttled failed from ledger at position:{}", cursor.ledger.getName(),
@@ -100,7 +112,7 @@ public class OpReadEntry implements ReadEntriesCallback {
                 }
             }
 
-            callback.readEntriesFailed(status, ctx);
+            callback.readEntriesFailed(exception, ctx);
             cursor.ledger.mbean.recordReadEntriesError();
             recycle();
         }
@@ -119,7 +131,7 @@ public class OpReadEntry implements ReadEntriesCallback {
             }
 
             // Schedule next read in a different thread
-            cursor.ledger.getExecutor().submit(safeRun(() -> {
+            cursor.ledger.getExecutor().execute(safeRun(() -> {
                 readPosition = cursor.ledger.startReadOperationOnLedger(nextReadPosition);
                 cursor.ledger.asyncReadEntries(OpReadEntry.this);
             }));
@@ -127,7 +139,7 @@ public class OpReadEntry implements ReadEntriesCallback {
             // The reading was already completed, release resources and trigger callback
             cursor.readOperationCompleted();
 
-            cursor.ledger.getExecutor().submit(safeRun(() -> {
+            cursor.ledger.getExecutor().execute(safeRun(() -> {
                 callback.readEntriesComplete(entries, ctx);
                 recycle();
             }));

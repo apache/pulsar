@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -91,17 +92,18 @@ public class KafkaApiTest extends BrokerTestBase {
         producer.flush();
         producer.close();
 
-        for (int i = 0; i < 10; i++) {
-            ConsumerRecords<Integer, String> records = consumer.poll(1000);
-            assertEquals(records.count(), 1);
-
-            int idx = i;
+        AtomicInteger received = new AtomicInteger();
+        while (received.get() < 10) {
+            ConsumerRecords<Integer, String> records = consumer.poll(100);
             records.forEach(record -> {
-                log.info("Received record: {}", record);
-                assertEquals(record.key().intValue(), idx);
-                assertEquals(record.value(), "hello-" + idx);
-                assertEquals(record.offset(), offsets.get(idx).longValue());
+                assertEquals(record.key().intValue(), received.get());
+                assertEquals(record.value(), "hello-" + received.get());
+                assertEquals(record.offset(), offsets.get(received.get()).longValue());
+
+                received.incrementAndGet();
             });
+
+            consumer.commitSync();
         }
 
         consumer.close();

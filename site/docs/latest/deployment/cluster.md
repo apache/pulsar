@@ -229,3 +229,27 @@ $ bin/pulsar-daemon start broker
 ```
 
 Once you've succesfully started up all the brokers you intend to use, your Pulsar cluster should be ready to go!
+
+## Connecting to the running cluster
+
+Once your Pulsar cluster is up and running, you should be able to connect with it using Pulsar clients. One such client is the [`pulsar-client`](../../../reference/CliTools#pulsar-client) tool, which is included with the Pulsar binary package. The `pulsar-client` tool can publish messages to and consume messages from Pulsar {% popover topics %} and thus provides a simple way to make sure that your cluster is runnning properly.
+
+To use the `pulsar-client` tool, first modify the client configuration file in [`conf/client.conf`](../../../reference/Configuration#client) in your binary package. You'll need to change the values for `webServiceUrl` and `brokerServiceUrl`, substituting `localhost` (which is the default), with the DNS name that you've assigned to your broker/bookie hosts. Here's an example:
+
+```properties
+webServiceUrl=http://us-west.example.com:8080/
+brokerServiceurl=pulsar://us-west.example.com:6650/
+```
+
+Once you've done that, you can publish a message to Pulsar topic:
+
+```bash
+$ bin/pulsar-client produce \
+  persistent://sample/pulsar-cluster-1/ns1/test \
+  -n 1 \
+  -m "Hello, Pulsar"
+```
+
+> You may need to use a different cluster name in the topic if you specified a cluster name different from `pulsar-cluster-1`.
+
+This will publish a single message to the Pulsar topic.

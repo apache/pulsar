@@ -22,7 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.fail;
 
-import org.apache.pulsar.common.naming.DestinationDomain;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.testng.annotations.Test;
 
@@ -53,21 +53,14 @@ public class NamespaceNameTest {
         }
 
         try {
-            NamespaceName.get("property.namespace:destination");
+            NamespaceName.get("property.namespace:topic");
             fail("Should have raised exception");
         } catch (IllegalArgumentException e) {
             // Ok
         }
 
         try {
-            NamespaceName.get("property/namespace");
-            fail("Should have raised exception");
-        } catch (IllegalArgumentException e) {
-            // Ok
-        }
-
-        try {
-            NamespaceName.get("property/cluster/namespace/destination");
+            NamespaceName.get("property/cluster/namespace/topic");
             fail("Should have raised exception");
         } catch (IllegalArgumentException e) {
             // Ok
@@ -89,13 +82,13 @@ public class NamespaceNameTest {
                 "persistent://prop/cluster/ns/ds");
 
         try {
-            NamespaceName.get("prop/cluster/ns").getDestinationName(null, "ds");
+            NamespaceName.get("prop/cluster/ns").getTopicName(null, "ds");
             fail("Should have raised exception");
         } catch (IllegalArgumentException e) {
             // Ok
         }
 
-        assertEquals(NamespaceName.get("prop/cluster/ns").getDestinationName(DestinationDomain.persistent, "ds"),
+        assertEquals(NamespaceName.get("prop/cluster/ns").getTopicName(TopicDomain.persistent, "ds"),
                 "persistent://prop/cluster/ns/ds");
         assertEquals(NamespaceName.get("prop/cluster/ns"), NamespaceName.get("prop/cluster/ns"));
         assertEquals(NamespaceName.get("prop/cluster/ns").toString(), "prop/cluster/ns");
@@ -123,13 +116,6 @@ public class NamespaceNameTest {
         try {
             NamespaceName.get("ns").getLocalName();
             fail("old style namespace");
-        } catch (IllegalArgumentException e) {
-            // Ok
-        }
-
-        try {
-            NamespaceName.get("_pulsar/cluster/namespace");
-            fail("Should have raised exception");
         } catch (IllegalArgumentException e) {
             // Ok
         }
@@ -177,13 +163,6 @@ public class NamespaceNameTest {
         }
 
         try {
-            NamespaceName.get("pulsar/cluster/");
-            fail("Should have raised exception");
-        } catch (IllegalArgumentException e) {
-            // Ok
-        }
-
-        try {
             NamespaceName.get("pulsar", "cluster", null);
             fail("Should have raised exception");
         } catch (IllegalArgumentException e) {
@@ -201,5 +180,15 @@ public class NamespaceNameTest {
         assertEquals(v2Namespace.getProperty(), "pulsar");
         assertEquals(v2Namespace.getCluster(), "colo1");
         assertEquals(v2Namespace.getLocalName(), "testns-1");
+    }
+
+    @Test
+    void testNewScheme() {
+        NamespaceName ns = NamespaceName.get("my-tenant/my-namespace");
+        assertEquals(ns.getProperty(), "my-tenant");
+        assertEquals(ns.getLocalName(), "my-namespace");
+        assertEquals(ns.isGlobal(), true);
+        assertEquals(ns.getCluster(), null);
+        assertEquals(ns.getPersistentTopicName("my-topic"), "persistent://my-tenant/my-namespace/my-topic");
     }
 }

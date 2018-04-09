@@ -21,12 +21,14 @@ package org.apache.pulsar.client.admin;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 
 /**
@@ -132,6 +134,28 @@ public interface Clusters {
      *             Unexpected error
      */
     void updatePeerClusterNames(String cluster, LinkedHashSet<String> peerClusterNames) throws PulsarAdminException;
+    
+    /**
+     * Get peer-cluster names
+     * <p>
+     *
+     * @param cluster
+     *            Cluster name
+     * @return
+     * @throws NotAuthorizedException
+     *             You don't have admin permission to create the cluster
+     *
+     * @throws NotFoundException
+     *             Domain doesn't exist
+     *
+     * @throws PreconditionFailedException
+     *             Cluster doesn't exist
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    Set<String> getPeerClusterNames(String cluster) throws PulsarAdminException;
+    
 
     /**
      * Delete an existing cluster
@@ -284,4 +308,135 @@ public interface Clusters {
      */
     NamespaceIsolationData getNamespaceIsolationPolicy(String cluster, String policyName) throws PulsarAdminException;
 
+    /**
+     * Create a domain into cluster
+     * <p>
+     *
+     * @param cluster
+     *          Cluster name
+     *
+     * @param domainName
+     *          domain name
+     *
+     * @param FailureDomain
+     *          Domain configurations
+     *
+     * @return
+     * @throws NotAuthorizedException
+     *             You don't have admin permission to create the cluster
+     *
+     * @throws ConflictException
+     *             Broker already exist into other domain
+     *             
+     * @throws NotFoundException
+     *             Cluster doesn't exist
+     *
+     * @throws PreconditionFailedException
+     *             Cluster doesn't exist
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void createFailureDomain(String cluster, String domainName, FailureDomain domain)
+            throws PulsarAdminException;
+    
+    
+    /**
+     * Update a domain into cluster
+     * <p>
+     *
+     * @param cluster
+     *          Cluster name
+     *
+     * @param domainName
+     *          domain name
+     *
+     * @param FailureDomain
+     *          Domain configurations
+     *
+     * @return
+     * @throws NotAuthorizedException
+     *             You don't have admin permission to create the cluster
+     *
+     * @throws ConflictException
+     *             Broker already exist into other domain
+     *             
+     * @throws NotFoundException
+     *             Cluster doesn't exist
+     *
+     * @throws PreconditionFailedException
+     *             Cluster doesn't exist
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void updateFailureDomain(String cluster, String domainName, FailureDomain domain)
+            throws PulsarAdminException;
+    
+    
+    /**
+     * Delete a domain in cluster
+     * <p>
+     *
+     * @param cluster
+     *          Cluster name
+     *
+     * @param domainName
+     *          Domain name
+     *
+     * @return
+     * @throws NotAuthorizedException
+     *             You don't have admin permission to create the cluster
+     *
+     * @throws NotFoundException
+     *             Cluster doesn't exist
+     *
+     * @throws PreconditionFailedException
+     *             Cluster doesn't exist
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+
+    void deleteFailureDomain(String cluster, String domainName) throws PulsarAdminException;
+
+    /**
+     * Get all registered domains in cluster
+     * <p>
+     *
+     * @param cluster
+     *            Cluster name
+     * @return
+     * @throws NotAuthorizedException
+     *             You don't have admin permission to create the cluster
+     *
+     * @throws NotFoundException
+     *             Cluster don't exist
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    Map<String, FailureDomain> getFailureDomains(String cluster) throws PulsarAdminException;
+    
+    /**
+     * Get the domain registered into a cluster
+     * <p>
+     *
+     * @param cluster
+     *            Cluster name
+     * @return
+     * @throws NotAuthorizedException
+     *             You don't have admin permission to create the cluster
+     *
+     * @throws NotFoundException
+     *             Domain doesn't exist
+     *
+     * @throws PreconditionFailedException
+     *             Cluster doesn't exist
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    FailureDomain getFailureDomain(String cluster, String domainName) throws PulsarAdminException;
+    
 }

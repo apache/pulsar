@@ -41,4 +41,4 @@ DOCKER_CMD="docker run -i -v $ROOT_DIR:/pulsar $IMAGE"
 find . -name CMakeCache.txt | xargs rm -f
 find . -name CMakeFiles | xargs rm -rf
 
-$DOCKER_CMD bash -c "cd /pulsar/pulsar-client-cpp && cmake . $CMAKE_ARGS && make"
+$DOCKER_CMD bash -c "cd /pulsar/pulsar-client-cpp && cmake . $CMAKE_ARGS && make check-format && make"

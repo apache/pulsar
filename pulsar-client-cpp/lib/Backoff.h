@@ -16,12 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#ifndef  _PULSAR_BACKOFF_HEADER_
+#ifndef _PULSAR_BACKOFF_HEADER_
 #define _PULSAR_BACKOFF_HEADER_
 #include <boost/date_time/posix_time/posix_time.hpp>
-#include <stdlib.h>     /* srand, rand */
+#include <stdlib.h> /* srand, rand */
 #include <algorithm>
-#include <time.h>       /* time */
+#include <time.h> /* time */
 
 #pragma GCC visibility push(default)
 
@@ -30,11 +30,12 @@ namespace pulsar {
 typedef boost::posix_time::time_duration TimeDuration;
 
 class Backoff {
- public:
+   public:
     Backoff(const TimeDuration&, const TimeDuration&, const TimeDuration&);
     TimeDuration next();
     void reset();
- private:
+
+   private:
     const TimeDuration initial_;
     const TimeDuration max_;
     TimeDuration next_;
@@ -44,7 +45,7 @@ class Backoff {
     unsigned int randomSeed_;
     friend class PulsarFriend;
 };
-}
+}  // namespace pulsar
 
 #pragma GCC visibility pop
 

@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.common.annotations.VisibleForTesting;
+import java.time.Clock;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -27,19 +29,28 @@ public class Backoff {
     private static final long MAX_BACKOFF_INTERVAL_NANOSECONDS = TimeUnit.SECONDS.toNanos(30);
     private final long initial;
     private final long max;
+    private final Clock clock;
     private long next;
     private long mandatoryStop;
-    long firstBackoffTimeInMillis;
+
+    private long firstBackoffTimeInMillis;
     private boolean mandatoryStopMade = false;
 
     private static final Random random = new Random();
 
-    public Backoff(long initial, TimeUnit unitInitial, long max, TimeUnit unitMax, long mandatoryStop,
-            TimeUnit unitMandatoryStop) {
+    @VisibleForTesting
+    Backoff(long initial, TimeUnit unitInitial, long max, TimeUnit unitMax, long mandatoryStop,
+            TimeUnit unitMandatoryStop, Clock clock) {
         this.initial = unitInitial.toMillis(initial);
         this.max = unitMax.toMillis(max);
         this.next = this.initial;
         this.mandatoryStop = unitMandatoryStop.toMillis(mandatoryStop);
+        this.clock = clock;
+    }
+
+    public Backoff(long initial, TimeUnit unitInitial, long max, TimeUnit unitMax, long mandatoryStop,
+            TimeUnit unitMandatoryStop) {
+        this(initial, unitInitial, max, unitMax, mandatoryStop, unitMandatoryStop, Clock.systemDefaultZone());
     }
 
     public long next() {
@@ -50,7 +61,7 @@ public class Backoff {
         
         // Check for mandatory stop
         if (!mandatoryStopMade) {
-            long now = System.currentTimeMillis();
+            long now = clock.millis();
             long timeElapsedSinceFirstBackoff = 0;
             if (initial == current) {
                 firstBackoffTimeInMillis = now;
@@ -81,6 +92,11 @@ public class Backoff {
     public void reset() {
         this.next = this.initial;
         this.mandatoryStopMade = false;
+    }
+
+    @VisibleForTesting
+    long getFirstBackoffTimeInMillis() {
+        return firstBackoffTimeInMillis;
     }
 
     public static boolean shouldBackoff(long initialTimestamp, TimeUnit unitInitial, int failedAttempts) {

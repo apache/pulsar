@@ -30,12 +30,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -50,7 +47,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
@@ -80,6 +76,7 @@ public class BacklogQuotaManagerTest {
             // start pulsar service
             config = new ServiceConfiguration();
             config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
+            config.setAdvertisedAddress("localhost");
             config.setWebServicePort(BROKER_WEBSERVICE_PORT);
             config.setClusterName("usc");
             config.setBrokerServicePort(BROKER_SERVICE_PORT);
@@ -93,11 +90,11 @@ public class BacklogQuotaManagerTest {
             pulsar.start();
 
             adminUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
-            admin = new PulsarAdmin(adminUrl, (Authentication) null);
+            admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl.toString()).build();;
 
             admin.clusters().createCluster("usc", new ClusterData(adminUrl.toString()));
             admin.properties().createProperty("prop",
-                    new PropertyAdmin(Lists.newArrayList("appid1"), Sets.newHashSet("usc")));
+                    new PropertyAdmin(Sets.newHashSet("appid1"), Sets.newHashSet("usc")));
             admin.namespaces().createNamespace("prop/usc/ns-quota");
             admin.namespaces().createNamespace("prop/usc/quotahold");
             admin.namespaces().createNamespace("prop/usc/quotaholdasync");
@@ -128,18 +125,17 @@ public class BacklogQuotaManagerTest {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/usc/ns-quota"), Maps.newTreeMap());
         admin.namespaces().setBacklogQuota("prop/usc/ns-quota",
                 new BacklogQuota(10 * 1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction));
-        ClientConfiguration clientConf = new ClientConfiguration();
-        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
-        PulsarClient client = PulsarClient.create(adminUrl.toString(), clientConf);
+        PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
 
         final String topic1 = "persistent://prop/usc/ns-quota/topic1";
         final String subName1 = "c1";
         final String subName2 = "c2";
         final int numMsgs = 20;
 
-        Consumer consumer1 = client.subscribe(topic1, subName1);
-        Consumer consumer2 = client.subscribe(topic1, subName2);
-        org.apache.pulsar.client.api.Producer producer = client.createProducer(topic1);
+        Consumer<byte[]> consumer1 = client.newConsumer().topic(topic1).subscriptionName(subName1).subscribe();
+        Consumer<byte[]> consumer2 = client.newConsumer().topic(topic1).subscriptionName(subName2).subscribe();
+        org.apache.pulsar.client.api.Producer<byte[]> producer = client.newProducer().topic(topic1).create();
         byte[] content = new byte[1024];
         for (int i = 0; i < numMsgs; i++) {
             producer.send(content);
@@ -160,16 +156,16 @@ public class BacklogQuotaManagerTest {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/usc/ns-quota"), Maps.newTreeMap());
         admin.namespaces().setBacklogQuota("prop/usc/ns-quota",
                 new BacklogQuota(10 * 1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction));
-        PulsarClient client = PulsarClient.create(adminUrl.toString());
+        PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).build();
 
         final String topic1 = "persistent://prop/usc/ns-quota/topic11";
         final String subName1 = "c11";
         final String subName2 = "c21";
         final int numMsgs = 20;
 
-        Consumer consumer1 = client.subscribe(topic1, subName1);
-        Consumer consumer2 = client.subscribe(topic1, subName2);
-        org.apache.pulsar.client.api.Producer producer = client.createProducer(topic1);
+        Consumer<byte[]> consumer1 = client.newConsumer().topic(topic1).subscriptionName(subName1).subscribe();
+        Consumer<byte[]> consumer2 = client.newConsumer().topic(topic1).subscriptionName(subName2).subscribe();
+        org.apache.pulsar.client.api.Producer<byte[]> producer = client.newProducer().topic(topic1).create();
         byte[] content = new byte[1024];
         for (int i = 0; i < numMsgs; i++) {
             producer.send(content);
@@ -200,18 +196,19 @@ public class BacklogQuotaManagerTest {
         final CyclicBarrier barrier = new CyclicBarrier(2);
         final CountDownLatch counter = new CountDownLatch(2);
         final AtomicBoolean gotException = new AtomicBoolean(false);
-        ClientConfiguration clientConf = new ClientConfiguration();
-        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
-        PulsarClient client = PulsarClient.create(adminUrl.toString(), clientConf);
-        PulsarClient client2 = PulsarClient.create(adminUrl.toString(), clientConf);
-        Consumer consumer1 = client2.subscribe(topic1, subName1);
-        Consumer consumer2 = client2.subscribe(topic1, subName2);
+        PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        PulsarClient client2 = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        Consumer<byte[]> consumer1 = client2.newConsumer().topic(topic1).subscriptionName(subName1).subscribe();
+        Consumer<byte[]> consumer2 = client2.newConsumer().topic(topic1).subscriptionName(subName2).subscribe();
 
         Thread producerThread = new Thread() {
             public void run() {
                 try {
                     barrier.await();
-                    final org.apache.pulsar.client.api.Producer producer = client.createProducer(topic1);
+                    org.apache.pulsar.client.api.Producer<byte[]> producer = client.newProducer().topic(topic1)
+                            .create();
                     byte[] content = new byte[1024];
                     for (int i = 0; i < numMsgs; i++) {
                         producer.send(content);
@@ -271,19 +268,20 @@ public class BacklogQuotaManagerTest {
         final CyclicBarrier barrier = new CyclicBarrier(2);
         final CountDownLatch counter = new CountDownLatch(2);
         final AtomicBoolean gotException = new AtomicBoolean(false);
-        final ClientConfiguration clientConf = new ClientConfiguration();
-        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
-        final PulsarClient client = PulsarClient.create(adminUrl.toString(), clientConf);
+        final PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString())
+                .statsInterval(0, TimeUnit.SECONDS).build();
 
-        final Consumer consumer1 = client.subscribe(topic1, subName1);
-        final Consumer consumer2 = client.subscribe(topic1, subName2);
-        final PulsarClient client2 = PulsarClient.create(adminUrl.toString(), clientConf);
+        final Consumer<byte[]> consumer1 = client.newConsumer().topic(topic1).subscriptionName(subName1).subscribe();
+        final Consumer<byte[]> consumer2 = client.newConsumer().topic(topic1).subscriptionName(subName2).subscribe();
+        final PulsarClient client2 = PulsarClient.builder().serviceUrl(adminUrl.toString())
+                .statsInterval(0, TimeUnit.SECONDS).build();
 
         Thread producerThread = new Thread() {
             public void run() {
                 try {
                     barrier.await();
-                    org.apache.pulsar.client.api.Producer producer = client2.createProducer(topic1);
+                    org.apache.pulsar.client.api.Producer<byte[]> producer = client2.newProducer().topic(topic1)
+                            .create();
                     byte[] content = new byte[1024];
                     for (int i = 0; i < numMsgs; i++) {
                         producer.send(content);
@@ -335,20 +333,22 @@ public class BacklogQuotaManagerTest {
         final CyclicBarrier barrier = new CyclicBarrier(4);
         final CountDownLatch counter = new CountDownLatch(4);
         final AtomicBoolean gotException = new AtomicBoolean(false);
-        final ClientConfiguration clientConf = new ClientConfiguration();
-        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
-        final PulsarClient client = PulsarClient.create(adminUrl.toString(), clientConf);
+        final PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString())
+                .statsInterval(0, TimeUnit.SECONDS).build();
 
-        final Consumer consumer1 = client.subscribe(topic1, subName1);
-        final Consumer consumer2 = client.subscribe(topic1, subName2);
-        final PulsarClient client3 = PulsarClient.create(adminUrl.toString(), clientConf);
-        final PulsarClient client2 = PulsarClient.create(adminUrl.toString(), clientConf);
+        final Consumer<byte[]> consumer1 = client.newConsumer().topic(topic1).subscriptionName(subName1).subscribe();
+        final Consumer<byte[]> consumer2 = client.newConsumer().topic(topic1).subscriptionName(subName2).subscribe();
+        final PulsarClient client3 = PulsarClient.builder().serviceUrl(adminUrl.toString())
+                .statsInterval(0, TimeUnit.SECONDS).build();
+        final PulsarClient client2 = PulsarClient.builder().serviceUrl(adminUrl.toString())
+                .statsInterval(0, TimeUnit.SECONDS).build();
 
         Thread producerThread1 = new Thread() {
             public void run() {
                 try {
                     barrier.await();
-                    org.apache.pulsar.client.api.Producer producer = client2.createProducer(topic1);
+                    org.apache.pulsar.client.api.Producer<byte[]> producer = client2.newProducer().topic(topic1)
+                            .create();
                     byte[] content = new byte[1024];
                     for (int i = 0; i < numMsgs; i++) {
                         producer.send(content);
@@ -366,7 +366,8 @@ public class BacklogQuotaManagerTest {
             public void run() {
                 try {
                     barrier.await();
-                    org.apache.pulsar.client.api.Producer producer = client3.createProducer(topic1);
+                    org.apache.pulsar.client.api.Producer<byte[]> producer = client3.newProducer().topic(topic1)
+                            .create();
                     byte[] content = new byte[1024];
                     for (int i = 0; i < numMsgs; i++) {
                         producer.send(content);
@@ -431,19 +432,16 @@ public class BacklogQuotaManagerTest {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/usc/quotahold"), Maps.newTreeMap());
         admin.namespaces().setBacklogQuota("prop/usc/quotahold",
                 new BacklogQuota(10 * 1024, BacklogQuota.RetentionPolicy.producer_request_hold));
-        final ClientConfiguration clientConf = new ClientConfiguration();
-        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
-        final PulsarClient client = PulsarClient.create(adminUrl.toString(), clientConf);
+        final PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString())
+                .statsInterval(0, TimeUnit.SECONDS).build();
         final String topic1 = "persistent://prop/usc/quotahold/hold";
         final String subName1 = "c1hold";
         final int numMsgs = 10;
 
-        Consumer consumer = client.subscribe(topic1, subName1);
-        ProducerConfiguration producerConfiguration = new ProducerConfiguration();
-        producerConfiguration.setSendTimeout(2, TimeUnit.SECONDS);
+        Consumer<byte[]> consumer = client.newConsumer().topic(topic1).subscriptionName(subName1).subscribe();
 
         byte[] content = new byte[1024];
-        Producer producer = client.createProducer(topic1, producerConfiguration);
+        Producer<byte[]> producer = client.newProducer().topic(topic1).sendTimeout(2, TimeUnit.SECONDS).create();
         for (int i = 0; i <= numMsgs; i++) {
             try {
                 producer.send(content);
@@ -472,19 +470,16 @@ public class BacklogQuotaManagerTest {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/usc/quotahold"), Maps.newTreeMap());
         admin.namespaces().setBacklogQuota("prop/usc/quotahold",
                 new BacklogQuota(10 * 1024, BacklogQuota.RetentionPolicy.producer_request_hold));
-        final ClientConfiguration clientConf = new ClientConfiguration();
-        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
-        final PulsarClient client = PulsarClient.create(adminUrl.toString(), clientConf);
+        final PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString())
+                .statsInterval(0, TimeUnit.SECONDS).build();
         final String topic1 = "persistent://prop/usc/quotahold/holdtimeout";
         final String subName1 = "c1holdtimeout";
         boolean gotException = false;
 
-        client.subscribe(topic1, subName1);
-        ProducerConfiguration producerConfiguration = new ProducerConfiguration();
-        producerConfiguration.setSendTimeout(2, TimeUnit.SECONDS);
+        client.newConsumer().topic(topic1).subscriptionName(subName1).subscribe();
 
         byte[] content = new byte[1024];
-        Producer producer = client.createProducer(topic1, producerConfiguration);
+        Producer<byte[]> producer = client.newProducer().topic(topic1).sendTimeout(2, TimeUnit.SECONDS).create();
         for (int i = 0; i < 10; i++) {
             producer.send(content);
         }
@@ -509,19 +504,16 @@ public class BacklogQuotaManagerTest {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/usc/quotahold"), Maps.newTreeMap());
         admin.namespaces().setBacklogQuota("prop/usc/quotahold",
                 new BacklogQuota(10 * 1024, BacklogQuota.RetentionPolicy.producer_exception));
-        final ClientConfiguration clientConf = new ClientConfiguration();
-        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
-        final PulsarClient client = PulsarClient.create(adminUrl.toString(), clientConf);
+        final PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString())
+                .statsInterval(0, TimeUnit.SECONDS).build();
         final String topic1 = "persistent://prop/usc/quotahold/except";
         final String subName1 = "c1except";
         boolean gotException = false;
 
-        client.subscribe(topic1, subName1);
-        ProducerConfiguration producerConfiguration = new ProducerConfiguration();
-        producerConfiguration.setSendTimeout(2, TimeUnit.SECONDS);
+        client.newConsumer().topic(topic1).subscriptionName(subName1).subscribe();
 
         byte[] content = new byte[1024];
-        Producer producer = client.createProducer(topic1, producerConfiguration);
+        Producer<byte[]> producer = client.newProducer().topic(topic1).sendTimeout(2, TimeUnit.SECONDS).create();
         for (int i = 0; i < 10; i++) {
             producer.send(content);
         }
@@ -548,19 +540,16 @@ public class BacklogQuotaManagerTest {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/usc/quotahold"), Maps.newTreeMap());
         admin.namespaces().setBacklogQuota("prop/usc/quotahold",
                 new BacklogQuota(10 * 1024, BacklogQuota.RetentionPolicy.producer_exception));
-        final ClientConfiguration clientConf = new ClientConfiguration();
-        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
-        final PulsarClient client = PulsarClient.create(adminUrl.toString(), clientConf);
+        final PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString())
+                .statsInterval(0, TimeUnit.SECONDS).build();
         final String topic1 = "persistent://prop/usc/quotahold/exceptandunblock";
         final String subName1 = "c1except";
         boolean gotException = false;
 
-        Consumer consumer = client.subscribe(topic1, subName1);
-        ProducerConfiguration producerConfiguration = new ProducerConfiguration();
-        producerConfiguration.setSendTimeout(2, TimeUnit.SECONDS);
+        Consumer<byte[]> consumer = client.newConsumer().topic(topic1).subscriptionName(subName1).subscribe();
 
         byte[] content = new byte[1024];
-        Producer producer = client.createProducer(topic1, producerConfiguration);
+        Producer<byte[]> producer = client.newProducer().topic(topic1).sendTimeout(2, TimeUnit.SECONDS).create();
         for (int i = 0; i < 10; i++) {
             producer.send(content);
         }
@@ -585,7 +574,7 @@ public class BacklogQuotaManagerTest {
         int backlog = (int) stats.subscriptions.get(subName1).msgBacklog;
 
         for (int i = 0; i < backlog; i++) {
-            Message msg = consumer.receive();
+            Message<?> msg = consumer.receive();
             consumer.acknowledge(msg);
         }
         Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA + 1) * 1000);

@@ -18,13 +18,11 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
 import javax.xml.bind.annotation.XmlRootElement;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 @XmlRootElement
@@ -32,7 +30,7 @@ public class PropertyAdmin {
     /**
      * List of role enabled as admin for this property
      */
-    private List<String> adminRoles;
+    private Set<String> adminRoles;
 
     /**
      * List of clusters this property is restricted on
@@ -40,20 +38,20 @@ public class PropertyAdmin {
     private Set<String> allowedClusters;
 
     public PropertyAdmin() {
-        adminRoles = Lists.newArrayList();
+        adminRoles = Sets.newHashSet();
         allowedClusters = Sets.newHashSet();
     }
 
-    public PropertyAdmin(List<String> adminRoles, Set<String> allowedClusters) {
+    public PropertyAdmin(Set<String> adminRoles, Set<String> allowedClusters) {
         this.adminRoles = adminRoles;
         this.allowedClusters = allowedClusters;
     }
 
-    public List<String> getAdminRoles() {
+    public Set<String> getAdminRoles() {
         return adminRoles;
     }
 
-    public void setAdminRoles(List<String> adminRoles) {
+    public void setAdminRoles(Set<String> adminRoles) {
         this.adminRoles = adminRoles;
     }
 

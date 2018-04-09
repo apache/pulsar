@@ -30,12 +30,13 @@
 
 namespace pulsar {
 typedef boost::shared_ptr<boost::asio::ip::tcp::socket> SocketPtr;
-typedef boost::shared_ptr<boost::asio::ssl::stream<boost::asio::ip::tcp::socket&> > TlsSocketPtr;
+typedef boost::shared_ptr<boost::asio::ssl::stream<boost::asio::ip::tcp::socket &> > TlsSocketPtr;
 typedef boost::shared_ptr<boost::asio::ip::tcp::resolver> TcpResolverPtr;
 typedef boost::shared_ptr<boost::asio::deadline_timer> DeadlineTimerPtr;
 class ExecutorService : private boost::noncopyable {
- friend class ClientConnection;
- public:
+    friend class ClientConnection;
+
+   public:
     ExecutorService();
     ~ExecutorService();
 
@@ -45,8 +46,8 @@ class ExecutorService : private boost::noncopyable {
     DeadlineTimerPtr createDeadlineTimer();
     void postWork(boost::function<void(void)> task);
     void close();
- private:
 
+   private:
     /*
      *  only called once and within lock so no need to worry about thread-safety
      */
@@ -75,14 +76,14 @@ class ExecutorService : private boost::noncopyable {
 typedef boost::shared_ptr<ExecutorService> ExecutorServicePtr;
 
 class ExecutorServiceProvider {
- public:
+   public:
     explicit ExecutorServiceProvider(int nthreads);
 
     ExecutorServicePtr get();
 
     void close();
 
- private:
+   private:
     typedef std::vector<ExecutorServicePtr> ExecutorList;
     ExecutorList executors_;
     int executorIdx_;
@@ -91,9 +92,8 @@ class ExecutorServiceProvider {
 };
 
 typedef boost::shared_ptr<ExecutorServiceProvider> ExecutorServiceProviderPtr;
-
-}
+}  // namespace pulsar
 
 #pragma GCC visibility pop
 
-#endif //_PULSAR_EXECUTOR_SERVICE_HEADER_
+#endif  //_PULSAR_EXECUTOR_SERVICE_HEADER_

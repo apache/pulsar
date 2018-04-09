@@ -35,7 +35,6 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import org.apache.bookkeeper.test.PortManager;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.websocket.WebSocketService;
 import org.apache.pulsar.websocket.service.ProxyServer;
@@ -47,19 +46,19 @@ import org.eclipse.jetty.websocket.client.WebSocketClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Sets;
 
 public class ProxyAuthenticationTest extends ProducerConsumerBase {
-    
+
     private int port;
     private ProxyServer proxyServer;
     private WebSocketService service;
+    private WebSocketClient consumeClient;
+    private WebSocketClient produceClient;
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -71,10 +70,21 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
         config.setWebServicePort(port);
         config.setClusterName("use");
         config.setAuthenticationEnabled(true);
-        config.setAuthenticationProviders(
-                Sets.newHashSet("org.apache.pulsar.websocket.proxy.MockAuthenticationProvider"));
         config.setGlobalZookeeperServers("dummy-zk-servers");
         config.setSuperUserRoles(Sets.newHashSet("pulsar.super_user"));
+
+        // If this is not set, 500 error occurs.
+        config.setGlobalZookeeperServers("dummy");
+
+        if (methodName.equals("authenticatedSocketTest") || methodName.equals("statsTest")) {
+            config.setAuthenticationProviders(Sets.newHashSet("org.apache.pulsar.websocket.proxy.MockAuthenticationProvider"));
+        } else {
+            config.setAuthenticationProviders(Sets.newHashSet("org.apache.pulsar.websocket.proxy.MockUnauthenticationProvider"));
+        }
+        if (methodName.equals("anonymousSocketTest")) {
+            config.setAnonymousUserRole("anonymousUser");
+        }
+
         service = spy(new WebSocketService(config));
         doReturn(mockZooKeeperClientFactory).when(service).getZooKeeperClientFactory();
         proxyServer = new ProxyServer(config);
@@ -84,6 +94,22 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 
     @AfterMethod
     protected void cleanup() throws Exception {
+        ExecutorService executor = newFixedThreadPool(1);
+        try {
+            executor.submit(() -> {
+                try {
+                    consumeClient.stop();
+                    produceClient.stop();
+                    log.info("proxy clients are stopped successfully");
+                } catch (Exception e) {
+                    log.error(e.getMessage());
+                }
+            }).get(2, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.error("failed to close clients ", e);
+        }
+        executor.shutdownNow();
+
         super.internalCleanup();
         service.close();
         proxyServer.stop();
@@ -91,7 +117,6 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 
     }
 
-    @Test(timeOut=10000)
     public void socketTest() throws Exception {
         final String topic = "my-property/use/my-ns/my-topic1";
         final String consumerUri = "ws://localhost:" + port + "/ws/consumer/persistent/" + topic + "/my-sub";
@@ -99,46 +124,47 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
         URI consumeUri = URI.create(consumerUri);
         URI produceUri = URI.create(producerUri);
 
-        WebSocketClient consumeClient = new WebSocketClient();
+        consumeClient = new WebSocketClient();
         SimpleConsumerSocket consumeSocket = new SimpleConsumerSocket();
-        WebSocketClient produceClient = new WebSocketClient();
+        produceClient = new WebSocketClient();
         SimpleProducerSocket produceSocket = new SimpleProducerSocket();
 
+        consumeClient.start();
+        ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest();
+        Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeUri, consumeRequest);
+        log.info("Connecting to : {}", consumeUri);
+
+        ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+        produceClient.start();
+        Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
+        Assert.assertTrue(consumerFuture.get().isOpen());
+        Assert.assertTrue(producerFuture.get().isOpen());
+
+        consumeSocket.awaitClose(1, TimeUnit.SECONDS);
+        produceSocket.awaitClose(1, TimeUnit.SECONDS);
+        Assert.assertTrue(produceSocket.getBuffer().size() > 0);
+        Assert.assertEquals(produceSocket.getBuffer(), consumeSocket.getBuffer());
+    }
+
+    @Test(timeOut=10000)
+    public void authenticatedSocketTest() throws Exception {
+        socketTest();
+    }
+
+    @Test(timeOut=10000)
+    public void anonymousSocketTest() throws Exception {
+        socketTest();
+    }
+
+    @Test(timeOut=10000)
+    public void unauthenticatedSocketTest() throws Exception{
+        Exception exception = null;
         try {
-            consumeClient.start();
-            ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest();
-            Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeUri, consumeRequest);
-            log.info("Connecting to : {}", consumeUri);
-
-            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
-            produceClient.start();
-            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
-            // let it connect
-            Thread.sleep(1000);
-            Assert.assertTrue(consumerFuture.get().isOpen());
-            Assert.assertTrue(producerFuture.get().isOpen());
-
-            consumeSocket.awaitClose(1, TimeUnit.SECONDS);
-            produceSocket.awaitClose(1, TimeUnit.SECONDS);
-            Assert.assertTrue(produceSocket.getBuffer().size() > 0);
-            Assert.assertEquals(produceSocket.getBuffer(), consumeSocket.getBuffer());
-        } finally {
-            ExecutorService executor = newFixedThreadPool(1);
-            try {
-                executor.submit(() -> {
-                    try {
-                        consumeClient.stop();
-                        produceClient.stop();
-                        log.info("proxy clients are stopped successfully");
-                    } catch (Exception e) {
-                        log.error(e.getMessage());
-                    }
-                }).get(2, TimeUnit.SECONDS);
-            } catch (Exception e) {
-                log.error("failed to close clients ", e);
-            }
-            executor.shutdownNow();
+            socketTest();
+        } catch (Exception e) {
+            exception = e;
         }
+        Assert.assertTrue(exception instanceof java.util.concurrent.ExecutionException);
     }
 
     @Test(timeOut=10000)

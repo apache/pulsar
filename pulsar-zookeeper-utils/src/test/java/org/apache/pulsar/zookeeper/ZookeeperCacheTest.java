@@ -19,8 +19,8 @@
 package org.apache.pulsar.zookeeper;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.assertNull;
@@ -33,20 +33,9 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.bookkeeper.mledger.util.Pair;
-import org.apache.bookkeeper.util.OrderedSafeExecutor;
-import org.apache.pulsar.zookeeper.Deserializers;
-import org.apache.pulsar.zookeeper.GlobalZooKeeperCache;
-import org.apache.pulsar.zookeeper.LocalZooKeeperCache;
-import org.apache.pulsar.zookeeper.ZooKeeperCache;
-import org.apache.pulsar.zookeeper.ZooKeeperCacheListener;
-import org.apache.pulsar.zookeeper.ZooKeeperChildrenCache;
-import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
-import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.WatchedEvent;
@@ -54,7 +43,9 @@ import org.apache.zookeeper.Watcher.Event;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
 import org.apache.zookeeper.ZooKeeper;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -67,10 +58,12 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 @Test
 public class ZookeeperCacheTest {
     private MockZooKeeper zkClient;
+    private OrderedScheduler executor;
+    private ScheduledExecutorService scheduledExecutor;
 
     @BeforeMethod
     void setup() throws Exception {
-        zkClient = MockZooKeeper.newInstance(MoreExecutors.sameThreadExecutor());
+        zkClient = MockZooKeeper.newInstance(MoreExecutors.newDirectExecutorService());
     }
 
     @AfterMethod
@@ -78,11 +71,23 @@ public class ZookeeperCacheTest {
         zkClient.shutdown();
     }
 
-    @Test
+    @BeforeClass
+    void classSetup() throws Exception {
+        executor = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("ZookeeperCacheTest").build();
+        scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
+    }
+
+    @AfterClass
+    void classTeardown() throws Exception {
+        executor.shutdown();
+        scheduledExecutor.shutdown();
+    }
+
+
+    @Test(timeOut = 10000)
     void testSimpleCache() throws Exception {
-        OrderedSafeExecutor executor = new OrderedSafeExecutor(1, "test");
-        ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
-        ZooKeeperCache zkCacheService = new LocalZooKeeperCache(zkClient, executor, scheduledExecutor);
+
+        ZooKeeperCache zkCacheService = new LocalZooKeeperCache(zkClient, executor);
         ZooKeeperDataCache<String> zkCache = new ZooKeeperDataCache<String>(zkCacheService) {
             @Override
             public String deserialize(String key, byte[] content) throws Exception {
@@ -116,18 +121,13 @@ public class ZookeeperCacheTest {
         } catch (Exception e) {
             // Ok
         }
-        executor.shutdown();
-        scheduledExecutor.shutdown();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     void testChildrenCache() throws Exception {
-        OrderedSafeExecutor executor = new OrderedSafeExecutor(1, "test");
-        ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
-        
         zkClient.create("/test", new byte[0], null, null);
 
-        ZooKeeperCache zkCacheService = new LocalZooKeeperCache(zkClient, executor, scheduledExecutor);
+        ZooKeeperCache zkCacheService = new LocalZooKeeperCache(zkClient, executor);
         ZooKeeperChildrenCache cache = new ZooKeeperChildrenCache(zkCacheService, "/test");
 
         // Create callback counter
@@ -173,19 +173,14 @@ public class ZookeeperCacheTest {
         }
 
         assertEquals(notificationCount.get(), 3);
-        executor.shutdown();
-        scheduledExecutor.shutdown();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     void testExistsCache() throws Exception {
-        OrderedSafeExecutor executor = new OrderedSafeExecutor(1, "test");
-        ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
-        
         // Check existence after creation of the node
         zkClient.create("/test", new byte[0], null, null);
         Thread.sleep(20);
-        ZooKeeperCache zkCacheService = new LocalZooKeeperCache(zkClient, executor, scheduledExecutor);
+        ZooKeeperCache zkCacheService = new LocalZooKeeperCache(zkClient, executor);
         boolean exists = zkCacheService.exists("/test");
         Assert.assertTrue(exists, "/test should exists in the cache");
 
@@ -194,20 +189,15 @@ public class ZookeeperCacheTest {
         Thread.sleep(20);
         boolean shouldNotExist = zkCacheService.exists("/test");
         Assert.assertFalse(shouldNotExist, "/test should not exist in the cache");
-        executor.shutdown();
-        scheduledExecutor.shutdown();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     void testInvalidateCache() throws Exception {
-        OrderedSafeExecutor executor = new OrderedSafeExecutor(1, "test");
-        ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
-        
         zkClient.create("/test", new byte[0], null, null);
         zkClient.create("/test/c1", new byte[0], null, null);
         zkClient.create("/test/c2", new byte[0], null, null);
         Thread.sleep(20);
-        ZooKeeperCache zkCacheService = new LocalZooKeeperCache(zkClient, executor, scheduledExecutor);
+        ZooKeeperCache zkCacheService = new LocalZooKeeperCache(zkClient, executor);
         boolean exists = zkCacheService.exists("/test");
         Assert.assertTrue(exists, "/test should exists in the cache");
 
@@ -232,14 +222,10 @@ public class ZookeeperCacheTest {
         assertNotNull(zkCacheService.getChildren("/test"));
         zkCacheService.invalidateRoot("/test");
         assertNull(zkCacheService.getChildrenIfPresent("/test"));
-        executor.shutdown();
-        scheduledExecutor.shutdown();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     void testGlobalZooKeeperCache() throws Exception {
-        OrderedSafeExecutor executor = new OrderedSafeExecutor(1, "test");
-        ScheduledExecutorService scheduledExecutor = new ScheduledThreadPoolExecutor(1);
         MockZooKeeper zkc = MockZooKeeper.newInstance();
         ZooKeeperClientFactory zkClientfactory = new ZooKeeperClientFactory() {
             @Override
@@ -334,28 +320,26 @@ public class ZookeeperCacheTest {
         assertEquals(zkCache.get("/other2").get(), newValue);
 
         zkCacheService.close();
-        executor.shutdown();
-        scheduledExecutor.shutdown();
 
         // Update shouldn't happen after the last check
         assertEquals(notificationCount.get(), 1);
     }
-    
+
     /**
      * Verifies that blocking call on zkCache-callback will not introduce deadlock because zkCache completes
      * future-result with different thread than zookeeper-client thread.
-     * 
+     *
      * @throws Exception
      */
     @Test(timeOut = 2000)
     void testZkCallbackThreadStuck() throws Exception {
-        OrderedSafeExecutor executor = new OrderedSafeExecutor(1, "test");
+        OrderedScheduler executor = OrderedScheduler.newSchedulerBuilder().build();
         ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(2);
         ExecutorService zkExecutor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("mockZk"));
         // add readOpDelayMs so, main thread will not serve zkCacahe-returned future and let zkExecutor-thread handle
         // callback-result process
         MockZooKeeper zkClient = MockZooKeeper.newInstance(zkExecutor, 100);
-        ZooKeeperCache zkCacheService = new LocalZooKeeperCache(zkClient, executor, scheduledExecutor);
+        ZooKeeperCache zkCacheService = new LocalZooKeeperCache(zkClient, executor);
         ZooKeeperDataCache<String> zkCache = new ZooKeeperDataCache<String>(zkCacheService) {
             @Override
             public String deserialize(String key, byte[] content) throws Exception {
@@ -387,25 +371,23 @@ public class ZookeeperCacheTest {
         zkExecutor.shutdown();
         scheduledExecutor.shutdown();
     }
-    
+
     /**
      * <pre>
-     * Verifies that if {@link ZooKeeperCache} fails to fetch data into the cache then 
+     * Verifies that if {@link ZooKeeperCache} fails to fetch data into the cache then
      * (1) it invalidates failed future so, next time it helps to get fresh data from zk
      * (2) handles zk.getData() unexpected exception if zkSession is lost
      * </pre>
-     * 
+     *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testInvalidateCacheOnFailure() throws Exception {
         ExecutorService zkExecutor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("mockZk"));
-        OrderedSafeExecutor executor = new OrderedSafeExecutor(1, "test");
-        ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
         // add readOpDelayMs so, main thread will not serve zkCacahe-returned future and let zkExecutor-thread handle
         // callback-result process
         MockZooKeeper zkClient = MockZooKeeper.newInstance(zkExecutor, 100);
-        ZooKeeperCache zkCacheService = new LocalZooKeeperCache(zkClient, executor, scheduledExecutor);
+        ZooKeeperCache zkCacheService = new LocalZooKeeperCache(zkClient, executor);
 
         final AtomicInteger count = new AtomicInteger(0);
         ZooKeeperDataCache<String> zkCache = new ZooKeeperDataCache<String>(zkCacheService) {
@@ -456,8 +438,5 @@ public class ZookeeperCacheTest {
         // (6) now, cache should be invalidate failed-future and should refetch the data
         assertEquals(zkCache.getAsync(key1).get().get(), value);
         zkExecutor.shutdown();
-        executor.shutdown();
-        scheduledExecutor.shutdown();
-
     }
 }

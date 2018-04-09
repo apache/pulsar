@@ -20,8 +20,8 @@ package org.apache.bookkeeper.mledger;
 
 import com.google.common.annotations.Beta;
 
-@SuppressWarnings("serial")
 @Beta
+@SuppressWarnings({"serial", "checkstyle:javadoctype"})
 public class ManagedLedgerException extends Exception {
     public ManagedLedgerException(String msg) {
         super(msg);
@@ -29,6 +29,13 @@ public class ManagedLedgerException extends Exception {
 
     public ManagedLedgerException(Throwable e) {
         super(e);
+    }
+
+    public static ManagedLedgerException getManagedLedgerException(Throwable e) {
+        if (e instanceof ManagedLedgerException) {
+            return (ManagedLedgerException) e;
+        }
+        return new ManagedLedgerException(e);
     }
 
     public static class MetaStoreException extends ManagedLedgerException {
@@ -43,12 +50,25 @@ public class ManagedLedgerException extends Exception {
         }
     }
 
+    public static class MetadataNotFoundException extends MetaStoreException {
+        public MetadataNotFoundException(Exception e) {
+            super(e);
+        }
+    }
+
+
     public static class ManagedLedgerFencedException extends ManagedLedgerException {
         public ManagedLedgerFencedException() {
             super(new Exception("Attempted to use a fenced managed ledger"));
         }
 
         public ManagedLedgerFencedException(Exception e) {
+            super(e);
+        }
+    }
+
+    public static class ManagedLedgerNotFoundException extends ManagedLedgerException {
+        public ManagedLedgerNotFoundException(Exception e) {
             super(e);
         }
     }
@@ -77,6 +97,12 @@ public class ManagedLedgerException extends Exception {
         }
     }
 
+    public static class ManagedLedgerAlreadyClosedException extends ManagedLedgerException {
+        public ManagedLedgerAlreadyClosedException(String msg) {
+            super(msg);
+        }
+    }
+
     public static class CursorAlreadyClosedException extends ManagedLedgerException {
         public CursorAlreadyClosedException(String msg) {
             super(msg);
@@ -85,6 +111,12 @@ public class ManagedLedgerException extends Exception {
 
     public static class TooManyRequestsException extends ManagedLedgerException {
         public TooManyRequestsException(String msg) {
+            super(msg);
+        }
+    }
+
+    public static class NonRecoverableLedgerException extends ManagedLedgerException {
+        public NonRecoverableLedgerException(String msg) {
             super(msg);
         }
     }

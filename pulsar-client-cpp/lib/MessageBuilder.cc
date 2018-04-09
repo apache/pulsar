@@ -35,22 +35,16 @@ namespace pulsar {
 
 ObjectPool<MessageImpl, 100000> messagePool;
 
-boost::shared_ptr<MessageImpl> MessageBuilder::createMessageImpl() {
-    return messagePool.create();
-}
+boost::shared_ptr<MessageImpl> MessageBuilder::createMessageImpl() { return messagePool.create(); }
 
-MessageBuilder::MessageBuilder() {
-    impl_ = createMessageImpl();
-}
+MessageBuilder::MessageBuilder() { impl_ = createMessageImpl(); }
 
 MessageBuilder& MessageBuilder::create() {
     impl_ = createMessageImpl();
     return *this;
 }
 
-Message MessageBuilder::build() {
-    return Message(impl_);
-}
+Message MessageBuilder::build() { return Message(impl_); }
 
 void MessageBuilder::checkMetadata() {
     if (!impl_.get()) {
@@ -61,25 +55,25 @@ void MessageBuilder::checkMetadata() {
 
 MessageBuilder& MessageBuilder::setContent(const void* data, size_t size) {
     checkMetadata();
-    impl_->payload = SharedBuffer::copy((char *) data, size);
+    impl_->payload = SharedBuffer::copy((char*)data, size);
     return *this;
 }
 
 MessageBuilder& MessageBuilder::setAllocatedContent(void* data, size_t size) {
     checkMetadata();
-    impl_->payload = SharedBuffer::wrap((char *) data, size);
+    impl_->payload = SharedBuffer::wrap((char*)data, size);
     return *this;
 }
 
 MessageBuilder& MessageBuilder::setContent(const std::string& data) {
     checkMetadata();
-    impl_->payload = SharedBuffer::copy((char *) data.c_str(), data.length());
+    impl_->payload = SharedBuffer::copy((char*)data.c_str(), data.length());
     return *this;
 }
 
 MessageBuilder& MessageBuilder::setProperty(const std::string& name, const std::string& value) {
     checkMetadata();
-    proto::KeyValue *keyValue = proto::KeyValue().New();
+    proto::KeyValue* keyValue = proto::KeyValue().New();
     keyValue->set_key(name);
     keyValue->set_value(value);
     impl_->metadata.mutable_properties()->AddAllocated(keyValue);
@@ -131,5 +125,4 @@ MessageBuilder& MessageBuilder::disableReplication(bool flag) {
     r.Swap(impl_->metadata.mutable_replicate_to());
     return *this;
 }
-
-}
+}  // namespace pulsar

@@ -19,16 +19,19 @@
 @media screen and (min-width: 769px) {
   .rest-api-container, .docs-container {
     article {
-      @include shadow($shadow-size);
-      padding: 2% 3%;
-      margin-bottom: 50px;
+      padding: 0 2%;
+      margin-bottom: 2rem;
     }
   }
 }
 
 
 .rest-api-container, .docs-container {
-  margin-top: $top-margin;
+  blockquote {
+    border: 1px solid $sx-light-gray;
+    background-color: lighten($sx-light-gray, 20%);
+    padding: 0.75rem;
+  }
 
   h4 + ul {
     margin-top: 1rem;
@@ -54,6 +57,11 @@
 
       h1.docs-title {
         font-size: 40px;
+        line-height: 3.2rem;
+
+        .badge {
+          margin-left: .75rem;
+        }
       }
 
       span.docs-lead {
@@ -101,7 +109,7 @@
         }
       }
 
-      .topic {
+      .topic, .fqfn {
         color: $sx-light-gray;
         background-color: $black;
         font-size: $code-font-size;
@@ -109,8 +117,8 @@
         padding: 10px 0 10px 20px;
         border-radius: 0;
 
-        .property { color: $sx-olive; }
-        .cluster { color: $sx-red; }
+        .property, .tenant { color: $sx-olive; }
+        .cluster, .name { color: $sx-red; }
         .namespace { color: $sx-7; }
         .t { color: $sx-magenta; }
 
@@ -121,23 +129,28 @@
 
       .highlighter-rouge {
         font-family: $font-family-monospace;
-      
-        & + h2 {
-          margin-top: 40px;
-        }
+        margin: .75rem 0;
 
         .highlight {
-          padding: 15px;
+          margin: 0;
+          padding: 1rem;
 
-          code {
-            font-size: $code-font-size;
+          pre.highlight {
+            margin: 0;
+            padding: 0;
+
+            code {
+              margin: 0;
+              padding: 0;
+              font-size: $code-font-size;
+            }
           }
         }
       }
 
       code.highlighter-rouge {
         color: $pulsar-blue;
-        padding: .2rem .3rem;
+        //padding: .2rem .3rem;
         background-color: lighten($sx-light-gray, 22%);
         border-radius: 0;
       }
@@ -165,10 +178,6 @@
 
       p {
         font-size: $docs-font-size;
-
-        & + .highlighter-rouge {
-          margin-top: 15px;
-        }
       }
 
       h2, h3 {
@@ -186,7 +195,7 @@
           border-bottom: 1px solid black;
 
           tr th {
-            padding-right: $table-right-padding;
+            padding: 0 $table-right-padding .5rem 0;
           }
         }
 
@@ -257,14 +266,6 @@
             }
           }
         }
-      }
-
-      p + table, table + p, table + h4, h4 + .highlighter-rouge {
-        margin-top: 15px;
-      }
-
-      .highlighter-rouge + table, .highlighter-rouge + h4 {
-        margin-top: 20px;
       }
     }
   }

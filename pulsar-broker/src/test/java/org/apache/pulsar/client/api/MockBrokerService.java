@@ -47,6 +47,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetad
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSend;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.schema.SchemaVersion;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
@@ -174,7 +175,7 @@ public class MockBrokerService {
                 return;
             }
             // default
-            ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer"));
+            ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer", SchemaVersion.Empty));
         }
 
         @Override
@@ -244,7 +245,6 @@ public class MockBrokerService {
     EventLoopGroup workerGroup;
 
     private final int webServicePort;
-    private final int webServicePortTls;
     private final int brokerServicePort;
     private final int brokerServicePortTls;
 
@@ -268,7 +268,6 @@ public class MockBrokerService {
     public MockBrokerService(int webServicePort, int webServicePortTls, int brokerServicePort,
             int brokerServicePortTls) {
         this.webServicePort = webServicePort;
-        this.webServicePortTls = webServicePortTls;
         this.brokerServicePort = brokerServicePort;
         this.brokerServicePortTls = brokerServicePortTls;
 

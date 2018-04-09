@@ -38,19 +38,22 @@ typedef boost::shared_ptr<proto::MessageMetadata> MessageMetadataPtr;
  * Buffer are already including the 4 byte size at the beginning
  */
 class Commands {
- public:
-
-    enum ChecksumType {
+   public:
+    enum ChecksumType
+    {
         Crc32c,
         None
     };
-    enum WireFormatConstant {
+    enum WireFormatConstant
+    {
         MaxMessageSize = (5 * 1024 * 1024 - (10 * 1024)),
         MaxFrameSize = (5 * 1024 * 1024)
     };
 
-    enum SubscriptionMode {
-        // Make the subscription to be backed by a durable cursor that will retain messages and persist the current
+    enum SubscriptionMode
+    {
+        // Make the subscription to be backed by a durable cursor that will retain messages and persist the
+        // current
         // position
         SubscriptionModeDurable,
 
@@ -61,22 +64,20 @@ class Commands {
     const static uint16_t magicCrc32c = 0x0e01;
     const static int checksumSize = 4;
 
-    static SharedBuffer newConnect(const AuthenticationPtr& authentication);
+    static SharedBuffer newConnect(const AuthenticationPtr& authentication, const std::string& logicalAddress,
+                                   bool connectingThroughProxy);
 
     static SharedBuffer newPartitionMetadataRequest(const std::string& topic, uint64_t requestId);
 
-    static SharedBuffer newLookup(const std::string& topic, const bool authoritative,
-                                  uint64_t requestId);
+    static SharedBuffer newLookup(const std::string& topic, const bool authoritative, uint64_t requestId);
 
-    static PairSharedBuffer newSend(SharedBuffer& headers, proto::BaseCommand& cmd,
-                                    uint64_t producerId, uint64_t sequenceId, ChecksumType checksumType, const Message& msg);
+    static PairSharedBuffer newSend(SharedBuffer& headers, proto::BaseCommand& cmd, uint64_t producerId,
+                                    uint64_t sequenceId, ChecksumType checksumType, const Message& msg);
 
-    static SharedBuffer newSubscribe(const std::string& topic, const std::string&subscription,
+    static SharedBuffer newSubscribe(const std::string& topic, const std::string& subscription,
                                      uint64_t consumerId, uint64_t requestId,
-                                     proto::CommandSubscribe_SubType subType,
-                                     const std::string& consumerName,
-                                     SubscriptionMode subscriptionMode,
-                                     Optional<BatchMessageId> startMessageId);
+                                     proto::CommandSubscribe_SubType subType, const std::string& consumerName,
+                                     SubscriptionMode subscriptionMode, Optional<MessageId> startMessageId);
 
     static SharedBuffer newUnsubscribe(uint64_t consumerId, uint64_t requestId);
 
@@ -99,19 +100,19 @@ class Commands {
 
     static std::string messageType(proto::BaseCommand::Type type);
 
-    static void initBatchMessageMetadata(const Message &msg, pulsar::proto::MessageMetadata &batchMetadata);
+    static void initBatchMessageMetadata(const Message& msg, pulsar::proto::MessageMetadata& batchMetadata);
 
-    static void serializeSingleMessageInBatchWithPayload(const Message &msg, SharedBuffer& batchPayLoad, const unsigned long& maxMessageSizeInBytes);
+    static void serializeSingleMessageInBatchWithPayload(const Message& msg, SharedBuffer& batchPayLoad,
+                                                         const unsigned long& maxMessageSizeInBytes);
 
-    static Message deSerializeSingleMessageInBatch(Message& batchedMessage);
+    static Message deSerializeSingleMessageInBatch(Message& batchedMessage, int32_t batchIndex);
 
     static SharedBuffer newConsumerStats(uint64_t consumerId, uint64_t requestId);
 
- private:
+   private:
     Commands();
 
     static SharedBuffer writeMessageWithSize(const proto::BaseCommand& cmd);
-
 };
 
 } /* namespace pulsar */

@@ -28,12 +28,12 @@
 
 namespace pulsar {
 
-template<typename T, int MaxSize>
+template <typename T, int MaxSize>
 class Allocator {
-    public:
+   public:
     // Allocator must be stateless, so put everything in this static
     class Impl {
-        public:
+       public:
         // cheap lock to acquire
         static boost::mutex mutex_;
 
@@ -42,16 +42,16 @@ class Allocator {
             Node* next;
             explicit Node(Node* n) : next(n) {}
         };
-        Node *head_;
+        Node* head_;
         int pushSize_;
 
         struct GlobalPool {
-            Node *node_;
+            Node* node_;
             int nodeCount_;
-            GlobalPool *next_;
+            GlobalPool* next_;
             explicit GlobalPool(GlobalPool* n) : next_(n) {}
         };
-        static struct GlobalPool *globalPool_;
+        static struct GlobalPool* globalPool_;
         static int globalNodeCount_;
 
         Impl(const Impl&);
@@ -66,13 +66,12 @@ class Allocator {
                     return NULL;
                 }
 
-                GlobalPool *poolEntry = globalPool_;
+                GlobalPool* poolEntry = globalPool_;
                 head_ = globalPool_->node_;
                 pushSize_ += globalPool_->nodeCount_;
                 globalNodeCount_ -= globalPool_->nodeCount_;
                 globalPool_ = globalPool_->next_;
                 delete poolEntry;
-
             }
             void* result = head_;
             if (result) {
@@ -83,10 +82,8 @@ class Allocator {
         }
 
         bool push(void* p) {
-
             // Once thread specific entries reaches 10% of max size, push them to GlobalPool
-            if (pushSize_ >= MaxSize*0.1) {
-
+            if (pushSize_ >= MaxSize * 0.1) {
                 bool deleteList = true;
                 {
                     // Move the entries to global pool
@@ -95,7 +92,6 @@ class Allocator {
                     // If total node count reached max allowed cache limit,
                     // skip adding to global pool.
                     if ((globalNodeCount_ + pushSize_) <= MaxSize) {
-
                         deleteList = false;
 
                         globalPool_ = new GlobalPool(globalPool_);
@@ -103,18 +99,17 @@ class Allocator {
                         globalPool_->nodeCount_ = pushSize_;
                         globalNodeCount_ += pushSize_;
                     }
-
                 }
                 if (deleteList) {
                     pushSize_ = 0;
                     deleteLinkedList(head_);
                 }
-                head_ = new(p) Node(0);
+                head_ = new (p) Node(0);
                 pushSize_ = 1;
                 return true;
             }
 
-            head_ = new(p) Node(head_);
+            head_ = new (p) Node(head_);
             pushSize_++;
             return true;
         }
@@ -127,7 +122,8 @@ class Allocator {
                 ::operator delete(p);
             }
         }
-    public:
+
+       public:
         Impl() {
             pushSize_ = 0;
             head_ = 0;
@@ -159,30 +155,25 @@ class Allocator {
     typedef T* pointer;
     typedef const void* const_pointer;
 
-    Allocator() {
-    }
+    Allocator() {}
 
-    Allocator(const Allocator& /*other*/) {
-    }
+    Allocator(const Allocator& /*other*/) {}
 
-    template<typename Other, int OtherSize>
-    Allocator(const Allocator<Other, OtherSize>& /*other*/) {
-    }
+    template <typename Other, int OtherSize>
+    Allocator(const Allocator<Other, OtherSize>& /*other*/) {}
 
-    pointer allocate(size_type n, const void * /*hint*/ = 0) {
-        Impl *impl = implPtr_.get();
+    pointer allocate(size_type n, const void* /*hint*/ = 0) {
+        Impl* impl = implPtr_.get();
         if (!impl) {
             implPtr_.reset(new Impl);
             impl = implPtr_.get();
         }
-        void* p = (n == 1)
-            ? impl->allocate()
-            : operator new(n * sizeof(T));
+        void* p = (n == 1) ? impl->allocate() : operator new(n * sizeof(T));
         return static_cast<T*>(p);
     }
 
     void deallocate(pointer ptr, size_type n) {
-        Impl *impl = implPtr_.get();
+        Impl* impl = implPtr_.get();
         if (!impl) {
             implPtr_.reset(new Impl);
             impl = implPtr_.get();
@@ -193,7 +184,8 @@ class Allocator {
             ::operator delete(ptr);
     }
 
-    template<typename Other> struct rebind {
+    template <typename Other>
+    struct rebind {
         typedef Allocator<Other, MaxSize> other;
     };
 };
@@ -201,46 +193,42 @@ class Allocator {
 // typename Allocator<Type,MaxSize>::Impl is important else the compiler
 // doesn't understand that it is a type
 template <typename Type, int MaxSize>
-boost::thread_specific_ptr<typename Allocator<Type,MaxSize>::Impl> Allocator<Type,MaxSize>::implPtr_;
+boost::thread_specific_ptr<typename Allocator<Type, MaxSize>::Impl> Allocator<Type, MaxSize>::implPtr_;
 
 template <typename Type, int MaxSize>
-boost::mutex Allocator<Type,MaxSize>::Impl::mutex_;
+boost::mutex Allocator<Type, MaxSize>::Impl::mutex_;
 
 template <typename Type, int MaxSize>
-struct Allocator<Type,MaxSize>::Impl::GlobalPool *Allocator<Type,MaxSize>::Impl::globalPool_;
+struct Allocator<Type, MaxSize>::Impl::GlobalPool* Allocator<Type, MaxSize>::Impl::globalPool_;
 
 template <typename Type, int MaxSize>
-int Allocator<Type,MaxSize>::Impl::globalNodeCount_;
+int Allocator<Type, MaxSize>::Impl::globalNodeCount_;
 
-template<typename Type, int MaxSize>
+template <typename Type, int MaxSize>
 class ObjectPool {
     typedef boost::shared_ptr<Type> TypeSharedPtr;
 
     Allocator<Type, MaxSize> allocator_;
 
- public:
-    ObjectPool() {
+   public:
+    ObjectPool() {}
 
-    }
-
-    TypeSharedPtr create() {
-        return boost::allocate_shared<Type>(allocator_);
-    }
+    TypeSharedPtr create() { return boost::allocate_shared<Type>(allocator_); }
 
     ~ObjectPool() {
-
-        struct Allocator<Type,MaxSize>::Impl::GlobalPool *poolEntry = Allocator<Type,MaxSize>::Impl::globalPool_;
-        while(poolEntry) {
+        struct Allocator<Type, MaxSize>::Impl::GlobalPool* poolEntry =
+            Allocator<Type, MaxSize>::Impl::globalPool_;
+        while (poolEntry) {
             Allocator<Type, MaxSize>::Impl::deleteLinkedList(poolEntry->node_);
-            struct Allocator<Type,MaxSize>::Impl::GlobalPool *delEntry = poolEntry;
+            struct Allocator<Type, MaxSize>::Impl::GlobalPool* delEntry = poolEntry;
             poolEntry = poolEntry->next_;
             ::operator delete(delEntry);
         }
     }
- private:
+
+   private:
     ObjectPool<Type, MaxSize>(const ObjectPool<Type, MaxSize>&);
     ObjectPool<Type, MaxSize>& operator=(const ObjectPool<Type, MaxSize>&);
 };
-
-}
+}  // namespace pulsar
 #endif /* LIB_OBJECTPOOL_H_ */

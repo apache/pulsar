@@ -30,9 +30,28 @@ groups:
   - title: Concepts and architecture
     endpoint: ConceptsAndArchitecture
 
+- title: Pulsar Functions
+  dir: functions
+  new: true
+  docs:
+  - title: Pulsar Functions overview
+    endpoint: overview
+  - title: Getting started with Pulsar Functions
+    endpoint: quickstart
+  - title: The Pulsar Functions API
+    endpoint: api
+  - title: Deploying Pulsar Functions
+    endpoint: deployment
+  - title: Processing guarantees
+    endpoint: guarantees
+  - title: Metrics for Pulsar Functions
+    endpoint: metrics
+
 - title: Deployment
   dir: deployment
   docs:
+  - title: Deploy on Amazon Web Services
+    endpoint: aws-cluster
   - title: Single cluster on bare metal
     endpoint: cluster
   - title: Multi-cluster instance on bare metal
@@ -63,6 +82,8 @@ groups:
     endpoint: Stats
   - title: Modular load manager
     endpoint: ModularLoadManager
+  - title: Pulsar proxy
+    endpoint: Proxy
 
 - title: Client libraries
   dir: clients
@@ -108,9 +129,11 @@ groups:
   - title: Apache Storm
     endpoint: PulsarStorm
 
-- title: Advanced
-  dir: advanced
+- title: Cookbooks
+  dir: cookbooks
   docs:
+  - title: Message deduplication
+    endpoint: message-deduplication
   - title: Partitioned topics
     endpoint: PartitionedTopics
   - title: Retention and expiry

@@ -46,6 +46,39 @@ public class AggregatedNamespaceStats {
 
     public Map<String, AggregatedReplicationStats> replicationStats = new HashMap<>();
 
+    void updateStats(TopicStats stats) {
+        topicsCount++;
+
+        subscriptionsCount += stats.subscriptionsCount;
+        producersCount += stats.producersCount;
+        consumersCount += stats.consumersCount;
+
+        rateIn += stats.rateIn;
+        rateOut += stats.rateOut;
+        throughputIn += stats.throughputIn;
+        throughputOut += stats.throughputOut;
+
+        storageSize += stats.storageSize;
+
+        storageWriteRate += stats.storageWriteRate;
+        storageReadRate += stats.storageWriteRate;
+
+        msgBacklog += msgBacklog;
+
+        storageWriteLatencyBuckets.addAll(stats.storageWriteLatencyBuckets);
+        entrySizeBuckets.addAll(stats.entrySizeBuckets);
+
+        stats.replicationStats.forEach((n, as) -> {
+            AggregatedReplicationStats replStats =
+                    replicationStats.computeIfAbsent(n,  k -> new AggregatedReplicationStats());
+            replStats.msgRateIn += as.msgRateIn;
+            replStats.msgRateOut += as.msgRateOut;
+            replStats.msgThroughputIn += as.msgThroughputIn;
+            replStats.msgThroughputOut += as.msgThroughputOut;
+            replStats.replicationBacklog += as.replicationBacklog;
+        });
+    }
+
     public void reset() {
         topicsCount = 0;
         subscriptionsCount = 0;

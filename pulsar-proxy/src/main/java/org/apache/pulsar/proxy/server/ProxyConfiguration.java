@@ -21,6 +21,7 @@ package org.apache.pulsar.proxy.server;
 import java.util.Properties;
 import java.util.Set;
 
+import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 
 import com.google.common.collect.Sets;
@@ -35,6 +36,10 @@ public class ProxyConfiguration implements PulsarConfiguration {
     // ZooKeeper session timeout
     private int zookeeperSessionTimeoutMs = 30_000;
 
+    // if Service Discovery is Disabled this url should point to the discovery service provider.
+    private String brokerServiceURL;
+    private String brokerServiceURLTLS;
+
     // Port to use to server binary-proto request
     private int servicePort = 6650;
     // Port to use to server binary-proto-tls request
@@ -44,6 +49,10 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private int webServicePort = 8080;
     // Port to use to server HTTPS request
     private int webServicePortTls = 8443;
+    
+    // Path for the file used to determine the rotation status for the broker
+    // when responding to service discovery health checks
+    private String statusFilePath;
 
     // Role names that are treated as "super-user", meaning they will be able to
     // do all admin operations and publish/consume from all topics
@@ -55,10 +64,22 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private Set<String> authenticationProviders = Sets.newTreeSet();
     // Enforce authorization
     private boolean authorizationEnabled = false;
+    // Authorization provider fully qualified class-name
+    private String authorizationProvider = PulsarAuthorizationProvider.class.getName();
+    // Forward client authData to Broker for re authorization
+    // make sure authentication is enabled for this to take effect
+    private boolean forwardAuthorizationCredentials = false;
+
+    // Max concurrent inbound Connections
+    private int maxConcurrentInboundConnections = 10000;
+
+    // Max concurrent outbound Connections
+    private int maxConcurrentLookupRequests = 10000;
 
     // Authentication settings of the proxy itself. Used to connect to brokers
     private String brokerClientAuthenticationPlugin;
     private String brokerClientAuthenticationParameters;
+    private String brokerClientTrustCertsFilePath;
 
     /***** --- TLS --- ****/
     // Enable TLS for the proxy handler
@@ -75,8 +96,43 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private String tlsTrustCertsFilePath;
     // Accept untrusted TLS certificate from client
     private boolean tlsAllowInsecureConnection = false;
-
+    // Validates hostname when proxy creates tls connection with broker
+    private boolean tlsHostnameVerificationEnabled = false;
+    // Specify the tls protocols the broker will use to negotiate during TLS Handshake.
+    // Example:- [TLSv1.2, TLSv1.1, TLSv1]
+    private Set<String> tlsProtocols = Sets.newTreeSet();
+    // Specify the tls cipher the broker will use to negotiate during TLS Handshake.
+    // Example:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]
+    private Set<String> tlsCiphers = Sets.newTreeSet();
+    // Specify whether Client certificates are required for TLS
+    // Reject the Connection if the Client Certificate is not trusted.
+    private boolean tlsRequireTrustedClientCertOnConnect = false;
+    
     private Properties properties = new Properties();
+
+    public boolean forwardAuthorizationCredentials() {
+        return forwardAuthorizationCredentials;
+    }
+
+    public void setForwardAuthorizationCredentials(boolean forwardAuthorizationCredentials) {
+        this.forwardAuthorizationCredentials = forwardAuthorizationCredentials;
+    }
+
+    public String getBrokerServiceURLTLS() {
+        return brokerServiceURLTLS;
+    }
+
+    public void setBrokerServiceURLTLS(String discoveryServiceURLTLS) {
+        this.brokerServiceURLTLS = discoveryServiceURLTLS;
+    }
+
+    public String getBrokerServiceURL() {
+        return brokerServiceURL;
+    }
+
+    public void setBrokerServiceURL(String discoveryServiceURL) {
+        this.brokerServiceURL = discoveryServiceURL;
+    }
 
     public String getZookeeperServers() {
         return zookeeperServers;
@@ -134,6 +190,14 @@ public class ProxyConfiguration implements PulsarConfiguration {
         this.webServicePortTls = webServicePortTls;
     }
 
+    public String getStatusFilePath() {
+        return statusFilePath;
+    }
+
+    public void setStatusFilePath(String statusFilePath) {
+        this.statusFilePath = statusFilePath;
+    }
+
     public boolean isTlsEnabledInProxy() {
         return tlsEnabledInProxy;
     }
@@ -182,6 +246,14 @@ public class ProxyConfiguration implements PulsarConfiguration {
         this.tlsAllowInsecureConnection = tlsAllowInsecureConnection;
     }
 
+    public boolean isTlsHostnameVerificationEnabled() {
+        return tlsHostnameVerificationEnabled;
+    }
+
+    public void setTlsHostnameVerificationEnabled(boolean tlsHostnameVerificationEnabled) {
+        this.tlsHostnameVerificationEnabled = tlsHostnameVerificationEnabled;
+    }
+
     public String getBrokerClientAuthenticationPlugin() {
         return brokerClientAuthenticationPlugin;
     }
@@ -196,6 +268,14 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     public void setBrokerClientAuthenticationParameters(String brokerClientAuthenticationParameters) {
         this.brokerClientAuthenticationParameters = brokerClientAuthenticationParameters;
+    }
+
+    public String getBrokerClientTrustCertsFilePath() {
+        return this.brokerClientTrustCertsFilePath;
+    }
+
+    public void setBrokerClientTrustCertsFilePath(String brokerClientTlsTrustCertsFilePath) {
+        this.brokerClientTrustCertsFilePath = brokerClientTlsTrustCertsFilePath;
     }
 
     public boolean isAuthenticationEnabled() {
@@ -222,6 +302,14 @@ public class ProxyConfiguration implements PulsarConfiguration {
         this.authorizationEnabled = authorizationEnabled;
     }
 
+    public String getAuthorizationProvider() {
+        return authorizationProvider;
+    }
+
+    public void setAuthorizationProvider(String authorizationProvider) {
+        this.authorizationProvider = authorizationProvider;
+    }
+
     public Set<String> getSuperUserRoles() {
         return superUserRoles;
     }
@@ -236,5 +324,45 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     public void setProperties(Properties properties) {
         this.properties = properties;
+    }
+
+    public Set<String> getTlsProtocols() {
+        return tlsProtocols;
+    }
+
+    public void setTlsProtocols(Set<String> tlsProtocols) {
+        this.tlsProtocols = tlsProtocols;
+    }
+
+    public Set<String> getTlsCiphers() {
+        return tlsCiphers;
+    }
+
+    public void setTlsCiphers(Set<String> tlsCiphers) {
+        this.tlsCiphers = tlsCiphers;
+    }
+
+    public int getMaxConcurrentInboundConnections() {
+        return maxConcurrentInboundConnections;
+    }
+
+    public void setMaxConcurrentInboundConnections(int maxConcurrentInboundConnections) {
+        this.maxConcurrentInboundConnections = maxConcurrentInboundConnections;
+    }
+
+    public int getMaxConcurrentLookupRequests() {
+        return maxConcurrentLookupRequests;
+    }
+
+    public void setMaxConcurrentLookupRequests(int maxConcurrentLookupRequests) {
+        this.maxConcurrentLookupRequests = maxConcurrentLookupRequests;
+    }
+
+    public boolean getTlsRequireTrustedClientCertOnConnect() {
+        return tlsRequireTrustedClientCertOnConnect;
+    }
+
+    public void setTlsRequireTrustedClientCertOnConnect(boolean tlsRequireTrustedClientCertOnConnect) {
+        this.tlsRequireTrustedClientCertOnConnect = tlsRequireTrustedClientCertOnConnect;
     }
 }

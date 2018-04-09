@@ -25,40 +25,25 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
-import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 
 /**
  * Class used to specify client side configuration like authentication, etc..
  *
- *
+ * @deprecated Use {@link PulsarClient#builder()} to construct and configure a new {@link PulsarClient} instance
  */
+@Deprecated
 public class ClientConfiguration implements Serializable {
 
-    /**
-     *
-     */
     private static final long serialVersionUID = 1L;
-    private Authentication authentication = new AuthenticationDisabled();
-    private long operationTimeoutMs = 30000;
-    private long statsIntervalSeconds = 60;
 
-    private int numIoThreads = 1;
-    private int numListenerThreads = 1;
-    private int connectionsPerBroker = 1;
-
-    private boolean useTcpNoDelay = true;
-
-    private boolean useTls = false;
-    private String tlsTrustCertsFilePath = "";
-    private boolean tlsAllowInsecureConnection = false;
-    private int concurrentLookupRequest = 5000;
-    private int maxNumberOfRejectedRequestPerConnection = 50;
+    private final ClientConfigurationData confData = new ClientConfigurationData();
 
     /**
      * @return the authentication provider to be used
      */
     public Authentication getAuthentication() {
-        return authentication;
+        return confData.getAuthentication();
     }
 
     /**
@@ -69,12 +54,12 @@ public class ClientConfiguration implements Serializable {
      *
      * <pre>
      * <code>
-     * ClientConfiguration conf = new ClientConfiguration();
+     * ClientConfiguration confData = new ClientConfiguration();
      * String authPluginClassName = "org.apache.pulsar.client.impl.auth.MyAuthentication";
      * String authParamsString = "key1:val1,key2:val2";
      * Authentication auth = AuthenticationFactory.create(authPluginClassName, authParamsString);
-     * conf.setAuthentication(auth);
-     * PulsarClient client = PulsarClient.create(serviceUrl, conf);
+     * confData.setAuthentication(auth);
+     * PulsarClient client = PulsarClient.create(serviceUrl, confData);
      * ....
      * </code>
      * </pre>
@@ -82,7 +67,7 @@ public class ClientConfiguration implements Serializable {
      * @param authentication
      */
     public void setAuthentication(Authentication authentication) {
-        this.authentication = authentication;
+        confData.setAuthentication(authentication);
     }
 
     /**
@@ -93,11 +78,11 @@ public class ClientConfiguration implements Serializable {
      *
      * <pre>
      * <code>
-     * ClientConfiguration conf = new ClientConfiguration();
+     * ClientConfiguration confData = new ClientConfiguration();
      * String authPluginClassName = "org.apache.pulsar.client.impl.auth.MyAuthentication";
      * String authParamsString = "key1:val1,key2:val2";
-     * conf.setAuthentication(authPluginClassName, authParamsString);
-     * PulsarClient client = PulsarClient.create(serviceUrl, conf);
+     * confData.setAuthentication(authPluginClassName, authParamsString);
+     * PulsarClient client = PulsarClient.create(serviceUrl, confData);
      * ....
      * </code>
      * </pre>
@@ -111,7 +96,7 @@ public class ClientConfiguration implements Serializable {
      */
     public void setAuthentication(String authPluginClassName, String authParamsString)
             throws UnsupportedAuthenticationException {
-        this.authentication = AuthenticationFactory.create(authPluginClassName, authParamsString);
+        confData.setAuthentication(AuthenticationFactory.create(authPluginClassName, authParamsString));
     }
 
     /**
@@ -122,12 +107,12 @@ public class ClientConfiguration implements Serializable {
      *
      * <pre>
      * <code>
-     * ClientConfiguration conf = new ClientConfiguration();
+     * ClientConfiguration confData = new ClientConfiguration();
      * String authPluginClassName = "org.apache.pulsar.client.impl.auth.MyAuthentication";
      * Map<String, String> authParams = new HashMap<String, String>();
      * authParams.put("key1", "val1");
-     * conf.setAuthentication(authPluginClassName, authParams);
-     * PulsarClient client = PulsarClient.create(serviceUrl, conf);
+     * confData.setAuthentication(authPluginClassName, authParams);
+     * PulsarClient client = PulsarClient.create(serviceUrl, confData);
      * ....
      * </code>
      * </pre>
@@ -141,14 +126,14 @@ public class ClientConfiguration implements Serializable {
      */
     public void setAuthentication(String authPluginClassName, Map<String, String> authParams)
             throws UnsupportedAuthenticationException {
-        this.authentication = AuthenticationFactory.create(authPluginClassName, authParams);
+        confData.setAuthentication(AuthenticationFactory.create(authPluginClassName, authParams));
     }
 
     /**
      * @return the operation timeout in ms
      */
     public long getOperationTimeoutMs() {
-        return operationTimeoutMs;
+        return confData.getOperationTimeoutMs();
     }
 
     /**
@@ -164,14 +149,14 @@ public class ClientConfiguration implements Serializable {
      */
     public void setOperationTimeout(int operationTimeout, TimeUnit unit) {
         checkArgument(operationTimeout >= 0);
-        this.operationTimeoutMs = unit.toMillis(operationTimeout);
+        confData.setOperationTimeoutMs(unit.toMillis(operationTimeout));
     }
 
     /**
      * @return the number of threads to use for handling connections
      */
     public int getIoThreads() {
-        return numIoThreads;
+        return confData.getNumIoThreads();
     }
 
     /**
@@ -181,14 +166,14 @@ public class ClientConfiguration implements Serializable {
      */
     public void setIoThreads(int numIoThreads) {
         checkArgument(numIoThreads > 0);
-        this.numIoThreads = numIoThreads;
+        confData.setNumIoThreads(numIoThreads);
     }
 
     /**
      * @return the number of threads to use for message listeners
      */
     public int getListenerThreads() {
-        return numListenerThreads;
+        return confData.getNumListenerThreads();
     }
 
     /**
@@ -198,14 +183,14 @@ public class ClientConfiguration implements Serializable {
      */
     public void setListenerThreads(int numListenerThreads) {
         checkArgument(numListenerThreads > 0);
-        this.numListenerThreads = numListenerThreads;
+        confData.setNumListenerThreads(numListenerThreads);
     }
 
     /**
      * @return the max number of connections per single broker
      */
     public int getConnectionsPerBroker() {
-        return connectionsPerBroker;
+        return confData.getConnectionsPerBroker();
     }
 
     /**
@@ -219,16 +204,15 @@ public class ClientConfiguration implements Serializable {
      *            max number of connections per broker (needs to be greater than 0)
      */
     public void setConnectionsPerBroker(int connectionsPerBroker) {
-        checkArgument(connectionsPerBroker > 0,
-                "Connections per broker need to be greater than 0");
-        this.connectionsPerBroker = connectionsPerBroker;
+        checkArgument(connectionsPerBroker > 0, "Connections per broker need to be greater than 0");
+        confData.setConnectionsPerBroker(connectionsPerBroker);
     }
 
     /**
      * @return whether TCP no-delay should be set on the connections
      */
     public boolean isUseTcpNoDelay() {
-        return useTcpNoDelay;
+        return confData.isUseTcpNoDelay();
     }
 
     /**
@@ -243,14 +227,14 @@ public class ClientConfiguration implements Serializable {
      * @param useTcpNoDelay
      */
     public void setUseTcpNoDelay(boolean useTcpNoDelay) {
-        this.useTcpNoDelay = useTcpNoDelay;
+        confData.setUseTcpNoDelay(useTcpNoDelay);
     }
 
     /**
      * @return whether TLS encryption is used on the connection
      */
     public boolean isUseTls() {
-        return useTls;
+        return confData.isUseTls();
     }
 
     /**
@@ -259,14 +243,14 @@ public class ClientConfiguration implements Serializable {
      * @param useTls
      */
     public void setUseTls(boolean useTls) {
-        this.useTls = useTls;
+        confData.setUseTls(useTls);
     }
 
     /**
      * @return path to the trusted TLS certificate file
      */
     public String getTlsTrustCertsFilePath() {
-        return tlsTrustCertsFilePath;
+        return confData.getTlsTrustCertsFilePath();
     }
 
     /**
@@ -275,14 +259,14 @@ public class ClientConfiguration implements Serializable {
      * @param tlsTrustCertsFilePath
      */
     public void setTlsTrustCertsFilePath(String tlsTrustCertsFilePath) {
-        this.tlsTrustCertsFilePath = tlsTrustCertsFilePath;
+        confData.setTlsTrustCertsFilePath(tlsTrustCertsFilePath);
     }
 
     /**
      * @return whether the Pulsar client accept untrusted TLS certificate from broker
      */
     public boolean isTlsAllowInsecureConnection() {
-        return tlsAllowInsecureConnection;
+        return confData.isTlsAllowInsecureConnection();
     }
 
     /**
@@ -291,69 +275,95 @@ public class ClientConfiguration implements Serializable {
      * @param tlsAllowInsecureConnection
      */
     public void setTlsAllowInsecureConnection(boolean tlsAllowInsecureConnection) {
-        this.tlsAllowInsecureConnection = tlsAllowInsecureConnection;
+        confData.setTlsAllowInsecureConnection(tlsAllowInsecureConnection);
     }
 
     /**
      * Stats will be activated with positive statsIntervalSeconds
-     * 
+     *
      * @return the interval between each stat info <i>(default: 60 seconds)</i>
      */
     public long getStatsIntervalSeconds() {
-        return statsIntervalSeconds;
+        return confData.getStatsIntervalSeconds();
     }
 
     /**
      * Set the interval between each stat info <i>(default: 60 seconds)</i> Stats will be activated with positive
      * statsIntervalSeconds It should be set to at least 1 second
-     * 
+     *
      * @param statsIntervalSeconds
      *            the interval between each stat info
      * @param unit
      *            time unit for {@code statsInterval}
      */
     public void setStatsInterval(long statsInterval, TimeUnit unit) {
-        this.statsIntervalSeconds = unit.toSeconds(statsInterval);
+        confData.setStatsIntervalSeconds(unit.toSeconds(statsInterval));
     }
 
     /**
      * Get configured total allowed concurrent lookup-request.
-     * 
+     *
      * @return
      */
     public int getConcurrentLookupRequest() {
-        return concurrentLookupRequest;
+        return confData.getConcurrentLookupRequest();
     }
 
     /**
      * Number of concurrent lookup-requests allowed on each broker-connection to prevent overload on broker.
-     * <i>(default: 5000)</i> It should be configured with higher value only in case of it requires to produce/subscribe on
-     * thousands of topic using created {@link PulsarClient}
-     * 
+     * <i>(default: 50000)</i> It should be configured with higher value only in case of it requires to
+     * produce/subscribe on thousands of topic using created {@link PulsarClient}
+     *
      * @param concurrentLookupRequest
      */
     public void setConcurrentLookupRequest(int concurrentLookupRequest) {
-        this.concurrentLookupRequest = concurrentLookupRequest;
+        confData.setConcurrentLookupRequest(concurrentLookupRequest);
     }
 
     /**
      * Get configured max number of reject-request in a time-frame (30 seconds) after which connection will be closed
-     * 
+     *
      * @return
      */
     public int getMaxNumberOfRejectedRequestPerConnection() {
-        return maxNumberOfRejectedRequestPerConnection;
+        return confData.getMaxNumberOfRejectedRequestPerConnection();
     }
 
     /**
      * Set max number of broker-rejected requests in a certain time-frame (30 seconds) after which current connection
      * will be closed and client creates a new connection that give chance to connect a different broker <i>(default:
      * 50)</i>
-     * 
+     *
      * @param maxNumberOfRejectedRequestPerConnection
      */
     public void setMaxNumberOfRejectedRequestPerConnection(int maxNumberOfRejectedRequestPerConnection) {
-        this.maxNumberOfRejectedRequestPerConnection = maxNumberOfRejectedRequestPerConnection;
+        confData.setMaxNumberOfRejectedRequestPerConnection(maxNumberOfRejectedRequestPerConnection);
+    }
+
+    public boolean isTlsHostnameVerificationEnable() {
+        return confData.isTlsHostnameVerificationEnable();
+    }
+
+    /**
+     * It allows to validate hostname verification when client connects to broker over tls. It validates incoming x509
+     * certificate and matches provided hostname(CN/SAN) with expected broker's host name. It follows RFC 2818, 3.1.
+     * Server Identity hostname verification.
+     *
+     * @see <a href="https://tools.ietf.org/html/rfc2818">rfc2818</a>
+     *
+     * @param tlsHostnameVerificationEnable
+     */
+    public void setTlsHostnameVerificationEnable(boolean tlsHostnameVerificationEnable) {
+        confData.setTlsHostnameVerificationEnable(tlsHostnameVerificationEnable);
+    }
+
+    public ClientConfiguration setServiceUrl(String serviceUrl) {
+        confData.setServiceUrl(serviceUrl);
+        return this;
+    }
+
+    public ClientConfigurationData getConfigurationData() {
+        return confData;
     }
 
 }

@@ -33,6 +33,7 @@ import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 
 /**
  * Admin interface for namespaces management
@@ -86,12 +87,13 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
+    @Deprecated
     List<String> getNamespaces(String property, String cluster) throws PulsarAdminException;
 
     /**
-     * Get the list of destinations.
+     * Get the list of topics.
      * <p>
-     * Get the list of all the destinations under a certain namespace.
+     * Get the list of all the topics under a certain namespace.
      * <p>
      * Response Example:
      *
@@ -110,7 +112,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    List<String> getDestinations(String namespace) throws PulsarAdminException;
+    List<String> getTopics(String namespace) throws PulsarAdminException;
 
     /**
      * Get policies for a namespace.
@@ -374,7 +376,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void setNamespaceReplicationClusters(String namespace, List<String> clusterIds) throws PulsarAdminException;
+    void setNamespaceReplicationClusters(String namespace, Set<String> clusterIds) throws PulsarAdminException;
 
     /**
      * Get the message TTL for a namespace.
@@ -419,6 +421,78 @@ public interface Namespaces {
      *             Unexpected error
      */
     void setNamespaceMessageTTL(String namespace, int ttlInSeconds) throws PulsarAdminException;
+
+
+    /**
+     * Set anti-affinity group name for a namespace
+     * <p>
+     * Request example:
+     *
+     * @param namespace
+     *            Namespace name
+     * @param namespaceAntiAffinityGroup
+     *            anti-affinity group name for a namespace
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setNamespaceAntiAffinityGroup(String namespace, String namespaceAntiAffinityGroup) throws PulsarAdminException;
+
+    /**
+     * Get all namespaces that grouped with given anti-affinity group
+     *
+     * @param property
+     *            property is only used for authorization. Client has to be admin of any of the property to access this
+     *            api api.
+     * @param cluster
+     *            cluster name
+     * @param namespaceAntiAffinityGroup
+     *            Anti-affinity group name
+     * @return list of namespace grouped under a given anti-affinity group
+     * @throws PulsarAdminException
+     */
+    List<String> getAntiAffinityNamespaces(String property, String cluster, String namespaceAntiAffinityGroup)
+            throws PulsarAdminException;
+
+    /**
+     * Get anti-affinity group name for a namespace
+     * <p>
+     * Response example:
+     *
+     * <pre>
+     * <code>60</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    String getNamespaceAntiAffinityGroup(String namespace) throws PulsarAdminException;
+
+    /**
+     * Delete anti-affinity group name for a namespace.
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             You don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void deleteNamespaceAntiAffinityGroup(String namespace) throws PulsarAdminException;
 
     /**
      * Set the deduplication status for all topics within a namespace.
@@ -493,7 +567,7 @@ public interface Namespaces {
     Map<BacklogQuota.BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(String namespace) throws PulsarAdminException;
 
     /**
-     * Set a backlog quota for all the destinations on a namespace.
+     * Set a backlog quota for all the topics on a namespace.
      * <p>
      * Set a backlog quota on a namespace.
      * <p>
@@ -544,7 +618,7 @@ public interface Namespaces {
     public void removeBacklogQuota(String namespace) throws PulsarAdminException;
 
     /**
-     * Set the persistence configuration for all the destinations on a namespace.
+     * Set the persistence configuration for all the topics on a namespace.
      * <p>
      * Set the persistence configuration on a namespace.
      * <p>
@@ -622,7 +696,7 @@ public interface Namespaces {
     public PersistencePolicies getPersistence(String namespace) throws PulsarAdminException;
 
     /**
-     * Set the retention configuration for all the destinations on a namespace.
+     * Set the retention configuration for all the topics on a namespace.
      * <p/>
      * Set the retention configuration on a namespace. This operation requires Pulsar super-user access.
      * <p/>
@@ -752,7 +826,29 @@ public interface Namespaces {
     DispatchRate getDispatchRate(String namespace) throws PulsarAdminException;
 
     /**
-     * Clear backlog for all destinations on a namespace
+     * Set subscription-message-dispatch-rate (subscriptions under this namespace can dispatch this many messages per second)
+     *
+     * @param namespace
+     * @param dispatchRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setSubscriptionDispatchRate(String namespace, DispatchRate dispatchRate) throws PulsarAdminException;
+
+    /** Get subscription-message-dispatch-rate (subscriptions under this namespace can dispatch this many messages per second)
+     *
+     * @param namespace
+     * @returns DispatchRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    DispatchRate getSubscriptionDispatchRate(String namespace) throws PulsarAdminException;
+
+
+    /**
+     * Clear backlog for all topics on a namespace
      *
      * @param namespace
      * @throws PulsarAdminException
@@ -761,7 +857,7 @@ public interface Namespaces {
     void clearNamespaceBacklog(String namespace) throws PulsarAdminException;
 
     /**
-     * Clear backlog for a given subscription on all destinations on a namespace
+     * Clear backlog for a given subscription on all topics on a namespace
      *
      * @param namespace
      * @param subscription
@@ -771,7 +867,7 @@ public interface Namespaces {
     void clearNamespaceBacklogForSubscription(String namespace, String subscription) throws PulsarAdminException;
 
     /**
-     * Clear backlog for all destinations on a namespace bundle
+     * Clear backlog for all topics on a namespace bundle
      *
      * @param namespace
      * @param bundle
@@ -781,7 +877,7 @@ public interface Namespaces {
     void clearNamespaceBundleBacklog(String namespace, String bundle) throws PulsarAdminException;
 
     /**
-     * Clear backlog for a given subscription on all destinations on a namespace bundle
+     * Clear backlog for a given subscription on all topics on a namespace bundle
      *
      * @param namespace
      * @param bundle
@@ -793,7 +889,7 @@ public interface Namespaces {
             throws PulsarAdminException;
 
     /**
-     * Unsubscribes the given subscription on all destinations on a namespace
+     * Unsubscribes the given subscription on all topics on a namespace
      *
      * @param namespace
      * @param subscription
@@ -802,7 +898,7 @@ public interface Namespaces {
     void unsubscribeNamespace(String namespace, String subscription) throws PulsarAdminException;
 
     /**
-     * Unsubscribes the given subscription on all destinations on a namespace bundle
+     * Unsubscribes the given subscription on all topics on a namespace bundle
      *
      * @param namespace
      * @param bundle
@@ -810,4 +906,170 @@ public interface Namespaces {
      * @throws PulsarAdminException
      */
     void unsubscribeNamespaceBundle(String namespace, String bundle, String subscription) throws PulsarAdminException;
+
+    /**
+     * Set the encryption required status for all topics within a namespace.
+     * <p>
+     * When encryption required is true, the broker will prevent to store unencrypted messages.
+     * <p>
+     * Request example:
+     *
+     * <pre>
+     * <code>true</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param encryptionRequired
+     *            whether message encryption is required or not
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setEncryptionRequiredStatus(String namespace, boolean encryptionRequired) throws PulsarAdminException;
+
+     /**
+     * Set the given subscription auth mode on all topics on a namespace
+     *
+     * @param namespace
+     * @param subscriptionAuthMode
+     * @throws PulsarAdminException
+     */
+    void setSubscriptionAuthMode(String namespace, SubscriptionAuthMode subscriptionAuthMode) throws PulsarAdminException;
+
+    /**
+     * Get the maxProducersPerTopic for a namespace.
+     * <p>
+     * Response example:
+     *
+     * <pre>
+     * <code>0</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    int getMaxProducersPerTopic(String namespace) throws PulsarAdminException;
+
+    /**
+     * Set maxProducersPerTopic for a namespace.
+     * <p>
+     * Request example:
+     *
+     * <pre>
+     * <code>10</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param maxProducersPerTopic
+     *            maxProducersPerTopic value for a namespace
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setMaxProducersPerTopic(String namespace, int maxProducersPerTopic) throws PulsarAdminException;
+
+    /**
+     * Get the maxProducersPerTopic for a namespace.
+     * <p>
+     * Response example:
+     *
+     * <pre>
+     * <code>0</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    int getMaxConsumersPerTopic(String namespace) throws PulsarAdminException;
+
+    /**
+     * Set maxConsumersPerTopic for a namespace.
+     * <p>
+     * Request example:
+     *
+     * <pre>
+     * <code>10</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param maxConsumersPerTopic
+     *            maxConsumersPerTopic value for a namespace
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setMaxConsumersPerTopic(String namespace, int maxConsumersPerTopic) throws PulsarAdminException;
+
+    /**
+     * Get the maxConsumersPerSubscription for a namespace.
+     * <p>
+     * Response example:
+     *
+     * <pre>
+     * <code>0</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    int getMaxConsumersPerSubscription(String namespace) throws PulsarAdminException;
+
+    /**
+     * Set maxConsumersPerSubscription for a namespace.
+     * <p>
+     * Request example:
+     *
+     * <pre>
+     * <code>10</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param maxConsumersPerSubscription
+     *            maxConsumersPerSubscription value for a namespace
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setMaxConsumersPerSubscription(String namespace, int maxConsumersPerSubscription) throws PulsarAdminException;
 }

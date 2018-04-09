@@ -16,15 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
- #include "HttpHelper.h"
+#include "HttpHelper.h"
 
- #include <curl/curl.h>
-
+#include <curl/curl.h>
 
 static int makeRequest(const std::string& method, const std::string& url, const std::string& body) {
     CURL* curl = curl_easy_init();
 
-    struct curl_slist *list = NULL;
+    struct curl_slist* list = NULL;
 
     list = curl_slist_append(list, "Content-Type: application/json");
 
@@ -42,12 +41,10 @@ static int makeRequest(const std::string& method, const std::string& url, const 
     long httpResult = 0;
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpResult);
     curl_easy_cleanup(curl);
-    return (int) httpResult;
+    return (int)httpResult;
 }
 
-int makePutRequest(const std::string& url, const std::string& body) {
-    return makeRequest("PUT", url, body);
-}
+int makePutRequest(const std::string& url, const std::string& body) { return makeRequest("PUT", url, body); }
 
 int makePostRequest(const std::string& url, const std::string& body) {
     return makeRequest("POST", url, body);

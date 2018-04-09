@@ -19,7 +19,8 @@
 /*
  * \class BatchMessageContainer
  *
- * \brief This class is a container for holding individual messages being published until they are batched and sent to broker.
+ * \brief This class is a container for holding individual messages being published until they are batched and
+ * sent to broker.
  *
  * \note This class is not thread safe.
  */
@@ -43,13 +44,10 @@
 namespace pulsar {
 
 class BatchMessageContainer {
- public:
-
+   public:
     struct MessageContainer {
         MessageContainer(Message message, SendCallback sendCallback)
-        : message_(message),
-          sendCallback_(sendCallback) {
-        }
+            : message_(message), sendCallback_(sendCallback) {}
         Message message_;
         SendCallback sendCallback_;
     };
@@ -68,10 +66,11 @@ class BatchMessageContainer {
 
     static void batchMessageCallBack(Result r, MessageContainerListPtr messages);
 
-    friend inline std::ostream& operator<<(std::ostream& os, const BatchMessageContainer& batchMessageContainer);
+    friend inline std::ostream& operator<<(std::ostream& os,
+                                           const BatchMessageContainer& batchMessageContainer);
     friend class ProducerImpl;
 
- private:
+   private:
     const CompressionType compressionType_;
 
     const unsigned int maxAllowedNumMessagesInBatch_;
@@ -86,14 +85,14 @@ class BatchMessageContainer {
 
     Message::MessageImplPtr impl_;
 
-    // This copy (to vector) is needed since OpSendMsg no long holds the individual message and w/o a container
+    // This copy (to vector) is needed since OpSendMsg no long holds the individual message and w/o a
+    // container
     // the impl_ Shared Pointer will delete the data.
     MessageContainerListPtr messagesContainerListPtr_;
 
     ProducerImpl& producer_;
 
     DeadlineTimerPtr timer_;
-
 
     unsigned long numberOfBatchesSent_;
 
@@ -113,30 +112,28 @@ class BatchMessageContainer {
 };
 
 bool BatchMessageContainer::hasSpaceInBatch(const Message& msg) const {
-    return (msg.impl_->payload.readableBytes() + this->batchSizeInBytes_
-            <= this->maxAllowedMessageBatchSizeInBytes_)
-            && (this->messagesContainerListPtr_->size() < this->maxAllowedNumMessagesInBatch_);
+    return (msg.impl_->payload.readableBytes() + this->batchSizeInBytes_ <=
+            this->maxAllowedMessageBatchSizeInBytes_) &&
+           (this->messagesContainerListPtr_->size() < this->maxAllowedNumMessagesInBatch_);
 }
 
-bool BatchMessageContainer::isEmpty() const {
-    return this->messagesContainerListPtr_->empty();
-}
+bool BatchMessageContainer::isEmpty() const { return this->messagesContainerListPtr_->empty(); }
 
 bool BatchMessageContainer::isFull() const {
-    return (this->batchSizeInBytes_ >= this->maxAllowedMessageBatchSizeInBytes_
-            || this->messagesContainerListPtr_->size() >= this->maxAllowedNumMessagesInBatch_);
+    return (this->batchSizeInBytes_ >= this->maxAllowedMessageBatchSizeInBytes_ ||
+            this->messagesContainerListPtr_->size() >= this->maxAllowedNumMessagesInBatch_);
 }
 
 std::ostream& operator<<(std::ostream& os, const BatchMessageContainer& b) {
-    os << "{ BatchContainer [size = " << b.messagesContainerListPtr_->size() << "] [batchSizeInBytes_ = "
-            << b.batchSizeInBytes_ << "] [maxAllowedMessageBatchSizeInBytes_ = "
-            << b.maxAllowedMessageBatchSizeInBytes_ << "] [maxAllowedNumMessagesInBatch_ = "
-            << b.maxAllowedNumMessagesInBatch_ << "] [topicName = " << b.topicName_
-            << "] [producerName_ = " << b.producerName_ << "] [batchSizeInBytes_ = "
-            << b.batchSizeInBytes_ << "] [numberOfBatchesSent = " << b.numberOfBatchesSent_
-            << "] [averageBatchSize = " << b.averageBatchSize_ << "]}";
+    os << "{ BatchContainer [size = " << b.messagesContainerListPtr_->size()
+       << "] [batchSizeInBytes_ = " << b.batchSizeInBytes_
+       << "] [maxAllowedMessageBatchSizeInBytes_ = " << b.maxAllowedMessageBatchSizeInBytes_
+       << "] [maxAllowedNumMessagesInBatch_ = " << b.maxAllowedNumMessagesInBatch_
+       << "] [topicName = " << b.topicName_ << "] [producerName_ = " << b.producerName_
+       << "] [batchSizeInBytes_ = " << b.batchSizeInBytes_
+       << "] [numberOfBatchesSent = " << b.numberOfBatchesSent_
+       << "] [averageBatchSize = " << b.averageBatchSize_ << "]}";
     return os;
 }
-
-}
+}  // namespace pulsar
 #endif /* LIB_BATCHMESSAGECONTAINER_H_ */

@@ -27,6 +27,7 @@ import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarHandler;
 import org.apache.pulsar.common.api.proto.PulsarApi;
@@ -53,6 +54,9 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
 
     private ProxyService service;
     String clientAuthRole = null;
+    String clientAuthData = null;
+    String clientAuthMethod = null;
+    AuthenticationDataSource authenticationData;
     private State state;
 
     private LookupProxyHandler lookupProxyHandler = null;
@@ -81,6 +85,10 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             .build("pulsar_proxy_new_connections", "Counter of connections being opened in the proxy").create()
             .register();
 
+    static final Counter rejectedConnections = Counter
+            .build("pulsar_proxy_rejected_connections", "Counter for connections rejected due to throttling").create()
+            .register();
+    
     public ProxyConnection(ProxyService proxyService) {
         super(30, TimeUnit.SECONDS);
         this.service = proxyService;
@@ -88,9 +96,25 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
     }
 
     @Override
+    public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
+        super.channelRegistered(ctx);
+        activeConnections.inc();
+        if (activeConnections.get() > service.getConfiguration().getMaxConcurrentInboundConnections()) {
+            ctx.close();
+            rejectedConnections.inc();
+            return;
+        }
+    }
+
+    @Override
+    public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
+        super.channelUnregistered(ctx);
+        activeConnections.dec();
+    }
+    
+    @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
-        activeConnections.inc();
         newConnections.inc();
         LOG.info("[{}] New connection opened", remoteAddress);
     }
@@ -98,7 +122,6 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         super.channelInactive(ctx);
-        activeConnections.dec();
 
         if (directProxyHandler != null && directProxyHandler.outboundChannel != null) {
             directProxyHandler.outboundChannel.close();
@@ -166,6 +189,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             // there and just pass bytes in both directions
             state = State.ProxyConnectionToBroker;
             directProxyHandler = new DirectProxyHandler(service, this, connect.getProxyToBrokerUrl());
+            cancelKeepAliveTask();
         } else {
             // Client is doing a lookup, we can consider the handshake complete and we'll take care of just topics and
             // partitions metadata lookups
@@ -210,13 +234,18 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
                 authMethod = connect.getAuthMethod().name().substring(10).toLowerCase();
             }
             String authData = connect.getAuthData().toStringUtf8();
+
+            if (service.getConfiguration().forwardAuthorizationCredentials()) {
+                clientAuthData = authData;
+                clientAuthMethod = authMethod;
+            }
             ChannelHandler sslHandler = ctx.channel().pipeline().get("tls");
             SSLSession sslSession = null;
             if (sslHandler != null) {
                 sslSession = ((SslHandler) sslHandler).engine().getSession();
             }
-            clientAuthRole = service.getAuthenticationService()
-                    .authenticate(new AuthenticationDataCommand(authData, remoteAddress, sslSession), authMethod);
+            authenticationData = new AuthenticationDataCommand(authData, remoteAddress, sslSession);
+            clientAuthRole = service.getAuthenticationService().authenticate(authenticationData, authMethod);
             LOG.info("[{}] Client successfully authenticated with {} role {}", remoteAddress, authMethod,
                     clientAuthRole);
             return true;

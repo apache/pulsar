@@ -21,11 +21,17 @@ package org.apache.bookkeeper.mledger.util;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 
+/**
+ * Conveniences to use with {@link CompletableFuture}.
+ */
 public class Futures {
+
+    /**
+     * Adapts a {@link CloseCallback} to a {@link CompletableFuture}.
+     */
     public static class CloseFuture extends CompletableFuture<Void> implements CloseCallback {
 
         @Override

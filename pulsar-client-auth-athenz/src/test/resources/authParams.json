@@ -1,0 +1,7 @@
+{
+	"tenantService": "test_service",
+	"privateKey": "./src/test/resources/tenant_private.pem",
+	"providerDomain": "test_provider",
+	"tenantDomain": "test_tenant",
+	"ztsUrl": "https://localhost:4443/"
+}

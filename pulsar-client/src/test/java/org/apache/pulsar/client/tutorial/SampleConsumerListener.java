@@ -20,34 +20,27 @@ package org.apache.pulsar.client.tutorial;
 
 import java.io.IOException;
 
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 public class SampleConsumerListener {
     public static void main(String[] args) throws PulsarClientException, InterruptedException, IOException {
-        PulsarClient pulsarClient = PulsarClient.create("http://localhost:8080");
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("http://localhost:8080").build();
 
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setMessageListener(new MessageListener() {
-            public void received(Consumer consumer, Message msg) {
-                log.info("Received message: {}", msg);
-                consumer.acknowledgeAsync(msg);
-            }
-        });
-
-        pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic", "my-subscriber-name", conf);
+        pulsarClient.newConsumer() //
+                .topic("persistent://my-property/use/my-ns/my-topic") //
+                .subscriptionName("my-subscription-name") //
+                .messageListener((consumer, msg) -> {
+                    log.info("Received message: {}", msg);
+                    consumer.acknowledgeAsync(msg);
+                }).subscribe();
 
         // Block main thread
         System.in.read();
 
         pulsarClient.close();
     }
-
-    private static final Logger log = LoggerFactory.getLogger(SampleConsumerListener.class);
 }

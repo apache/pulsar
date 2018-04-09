@@ -18,45 +18,62 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static org.junit.Assert.assertEquals;
+
+import static org.testng.Assert.assertEquals;
+
+import java.util.Map;
 
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
-import org.junit.Test;
+import org.testng.annotations.Test;
+
+import com.google.common.collect.Maps;
 
 /**
  * Unit test of {@link MessageBuilderImpl}.
  */
 public class MessageBuilderTest {
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testSetEventTimeNegative() {
-        MessageBuilder builder = MessageBuilder.create();
+        MessageBuilder<?> builder = MessageBuilder.create();
         builder.setEventTime(-1L);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testSetEventTimeZero() {
-        MessageBuilder builder = MessageBuilder.create();
+        MessageBuilder<?> builder = MessageBuilder.create();
         builder.setEventTime(0L);
     }
 
     @Test
     public void testSetEventTimePositive() {
         long eventTime = System.currentTimeMillis();
-        MessageBuilder builder = MessageBuilder.create();
+        MessageBuilder<?> builder = MessageBuilder.create();
         builder.setContent(new byte[0]);
         builder.setEventTime(eventTime);
-        Message msg = builder.build();
+        Message<?> msg = builder.build();
         assertEquals(eventTime, msg.getEventTime());
     }
 
     @Test
     public void testBuildMessageWithoutEventTime() {
-        MessageBuilder builder = MessageBuilder.create();
+        MessageBuilder<?> builder = MessageBuilder.create();
         builder.setContent(new byte[0]);
-        Message msg = builder.build();
+        Message<?> msg = builder.build();
         assertEquals(0L, msg.getEventTime());
+    }
+
+    @Test
+    public void testSetMessageProperties() {
+        MessageBuilder<?> builder = MessageBuilder.create();
+        builder.setContent(new byte[0]);
+        Map<String, String> map = Maps.newHashMap();
+        map.put("key1", "value1");
+        builder.setProperties(map);
+        Message<?> msg = builder.build();
+        assertEquals(map, msg.getProperties());
+        assertEquals("value1", msg.getProperty("key1"));
     }
 
 }

@@ -25,19 +25,14 @@
 using namespace boost::posix_time;
 
 class ProducerWorker {
- private:
+   private:
     boost::thread producerThread_;
     BlockingQueue<int>& queue_;
 
- public:
-    ProducerWorker(BlockingQueue<int>& queue)
-            : queue_(queue) {
+   public:
+    ProducerWorker(BlockingQueue<int>& queue) : queue_(queue) {}
 
-    }
-
-    void produce(int number) {
-        producerThread_ = boost::thread(&ProducerWorker::pushNumbers, this, number);
-    }
+    void produce(int number) { producerThread_ = boost::thread(&ProducerWorker::pushNumbers, this, number); }
 
     void pushNumbers(int number) {
         for (int i = 1; i <= number; i++) {
@@ -45,25 +40,18 @@ class ProducerWorker {
         }
     }
 
-    void join() {
-        producerThread_.join();
-    }
+    void join() { producerThread_.join(); }
 };
 
 class ConsumerWorker {
- private:
+   private:
     boost::thread consumerThread_;
     BlockingQueue<int>& queue_;
 
- public:
-    ConsumerWorker(BlockingQueue<int>& queue)
-            : queue_(queue) {
+   public:
+    ConsumerWorker(BlockingQueue<int>& queue) : queue_(queue) {}
 
-    }
-
-    void consume(int number) {
-        consumerThread_ = boost::thread(&ConsumerWorker::popNumbers, this, number);
-    }
+    void consume(int number) { consumerThread_ = boost::thread(&ConsumerWorker::popNumbers, this, number); }
 
     void popNumbers(int number) {
         for (int i = 1; i <= number; i++) {
@@ -72,9 +60,7 @@ class ConsumerWorker {
         }
     }
 
-    void join() {
-        consumerThread_.join();
-    }
+    void join() { consumerThread_.join(); }
 };
 
 TEST(BlockingQueueTest, testBasic) {
