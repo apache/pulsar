@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.apache.pulsar.client.util.MathUtils.signSafeMod;
+
 import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.TopicMetadata;
@@ -37,7 +39,7 @@ public class SinglePartitionMessageRouterImpl extends MessageRouterBase {
     public int choosePartition(Message<?> msg, TopicMetadata metadata) {
         // If the message has a key, it supersedes the single partition routing policy
         if (msg.hasKey()) {
-            return hash.makeHash(msg.getKey()) % metadata.numPartitions();
+            return signSafeMod(hash.makeHash(msg.getKey()), metadata.numPartitions());
         }
 
         return partitionIndex;
