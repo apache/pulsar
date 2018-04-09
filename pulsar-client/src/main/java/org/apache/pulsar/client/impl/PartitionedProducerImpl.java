@@ -168,7 +168,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
 
         int partition = routerPolicy.choosePartition(message, topicMetadata);
         checkArgument(partition >= 0 && partition < topicMetadata.numPartitions(),
-                "Illegal partition index chosen by the message routing policy");
+                "Illegal partition index chosen by the message routing policy: " + partition);
         return producers.get(partition).sendAsync(message);
     }
 
