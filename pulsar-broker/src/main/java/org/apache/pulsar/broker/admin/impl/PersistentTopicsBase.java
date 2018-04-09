@@ -471,7 +471,8 @@ public class PersistentTopicsBase extends AdminResource {
         if (topic.isReplicated()) {
             // Delete is disallowed on global topic
             log.error("[{}] Delete topic is forbidden on global namespace {}", clientAppId(), topicName);
-            throw new RestException(Status.FORBIDDEN, "Delete forbidden on global namespace");
+            throw new RestException(Status.FORBIDDEN, "Delete forbidden topic is replicated " +
+                    topic.getReplicators().keys());
         }
 
         try {
