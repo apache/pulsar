@@ -35,6 +35,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -324,6 +326,9 @@ public class NamespaceService {
         return future;
     }
 
+    static ConcurrentHashMap<NamespaceBundle, ConcurrentLinkedQueue<CompletableFuture<Optional<LookupResult>>>> acquireSameBundle =
+        new ConcurrentHashMap<>(16, 1);
+
     private void searchForCandidateBroker(NamespaceBundle bundle,
             CompletableFuture<Optional<LookupResult>> lookupFuture, boolean authoritative) {
         String candidateBroker = null;
@@ -364,32 +369,49 @@ public class NamespaceService {
 
         try {
             checkNotNull(candidateBroker);
-
             if (pulsar.getWebServiceAddress().equals(candidateBroker)) {
-                // Load manager decided that the local broker should try to become the owner
-                ownershipCache.tryAcquiringOwnership(bundle).thenAccept(ownerInfo -> {
-                    if (ownerInfo.isDisabled()) {
-                        if (LOG.isDebugEnabled()) {
-                            LOG.debug("Namespace bundle {} is currently being unloaded", bundle);
+                // if futures is null, then this is the first one in concurrent handing of this bundle
+                ConcurrentLinkedQueue<CompletableFuture<Optional<LookupResult>>> lookupFutures =
+                    acquireSameBundle.putIfAbsent(bundle, new ConcurrentLinkedQueue<>());
+                acquireSameBundle.get(bundle).add(lookupFuture);
+
+                if (lookupFutures == null) {
+                    pulsar.getExecutor().execute(() -> {
+                        // Load manager decided that the local broker should try to become the owner
+                        try {
+                            ownershipCache.tryAcquiringOwnership(bundle).thenAccept(ownerInfo -> {
+                                if (ownerInfo.isDisabled()) {
+                                    if (LOG.isDebugEnabled()) {
+                                        LOG.debug("Namespace bundle {} is currently being unloaded", bundle);
+                                    }
+                                    acquireSameBundle.get(bundle).forEach(future ->
+                                        lookupFuture.completeExceptionally(new IllegalStateException(
+                                            String.format("Namespace bundle %s is currently being unloaded", bundle))));
+                                    acquireSameBundle.remove(bundle);
+                                } else {
+                                    // Found owner for the namespace bundle
+                                    // Schedule the task to pre-load topics
+                                    pulsar.loadNamespaceTopics(bundle);
+                                    acquireSameBundle.get(bundle).forEach(future ->
+                                        future.complete(Optional.of(new LookupResult(ownerInfo))));
+                                    acquireSameBundle.remove(bundle);
+                                }
+                            }).exceptionally(exception -> {
+                                LOG.warn("Failed to acquire ownership for namespace bundle {}: ", bundle, exception.getMessage(),
+                                    exception);
+                                acquireSameBundle.get(bundle).forEach(future ->
+                                    future.completeExceptionally(new PulsarServerException(
+                                        "Failed to acquire ownership for namespace bundle " + bundle, exception)));
+                                acquireSameBundle.remove(bundle);
+                                return null;
+                            });
+                        } catch (Exception e) {
+                            LOG.warn("Error in trying to acquire namespace bundle ownership for {}: {}", bundle, e.getMessage(), e);
+                            acquireSameBundle.get(bundle).forEach(future -> future.completeExceptionally(e));
+                            acquireSameBundle.remove(bundle);
                         }
-                        lookupFuture.completeExceptionally(new IllegalStateException(
-                                String.format("Namespace bundle %s is currently being unloaded", bundle)));
-                    } else {
-                        // Found owner for the namespace bundle
-
-                        // Schedule the task to pre-load topics
-                        pulsar.loadNamespaceTopics(bundle);
-
-                        lookupFuture.complete(Optional.of(new LookupResult(ownerInfo)));
-                    }
-                }).exceptionally(exception -> {
-                    LOG.warn("Failed to acquire ownership for namespace bundle {}: ", bundle, exception.getMessage(),
-                            exception);
-                    lookupFuture.completeExceptionally(new PulsarServerException(
-                            "Failed to acquire ownership for namespace bundle " + bundle, exception));
-                    return null;
-                });
-
+                    });
+                }
             } else {
                 // Load managed decider some other broker should try to acquire ownership
 
