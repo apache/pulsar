@@ -38,6 +38,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.commons.lang3.tuple.Pair;
 
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.api.Commands;
@@ -122,9 +123,9 @@ public class TwoPhaseCompactor extends Compactor {
                                          id, ioe);
                             }
                         } else {
-                            String key = extractKey(m);
-                            if (key != null) {
-                                latestForKey.put(key, id);
+                            Pair<String,Integer> keyAndSize = extractKeyAndSize(m);
+                            if (keyAndSize != null) {
+                                latestForKey.put(keyAndSize.getLeft(), id);
                             }
                         }
 
@@ -214,10 +215,11 @@ public class TwoPhaseCompactor extends Compactor {
                             messageToAdd = Optional.of(m);
                         }
                     } else {
-                        String key = extractKey(m);
-                        if (key == null) { // pass through messages without a key
+                        Pair<String,Integer> keyAndSize = extractKeyAndSize(m);
+                        if (keyAndSize == null) { // pass through messages without a key
                             messageToAdd = Optional.of(m);
-                        } else if (latestForKey.get(key).equals(id)) {
+                        } else if (latestForKey.get(keyAndSize.getLeft()).equals(id)
+                                   && keyAndSize.getRight() > 0) {
                             messageToAdd = Optional.of(m);
                         } else {
                             m.close();
@@ -307,11 +309,11 @@ public class TwoPhaseCompactor extends Compactor {
         return bkf;
     }
 
-    private static String extractKey(RawMessage m) {
+    private static Pair<String,Integer> extractKeyAndSize(RawMessage m) {
         ByteBuf headersAndPayload = m.getHeadersAndPayload();
         MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
         if (msgMetadata.hasPartitionKey()) {
-            return msgMetadata.getPartitionKey();
+            return Pair.of(msgMetadata.getPartitionKey(), headersAndPayload.readableBytes());
         } else {
             return null;
         }
