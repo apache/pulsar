@@ -103,9 +103,6 @@ public class CmdFunctions extends CmdBase {
      */
     @Getter
     abstract class NamespaceCommand extends BaseCommand {
-        @Parameter(names = "--fqfn", description = "The Fully Qualified Function Name (FQFN) for the function", required = false)
-        protected String fqfn;
-
         @Parameter(names = "--tenant", description = "The function's tenant", required = true)
         protected String tenant;
 
@@ -118,7 +115,10 @@ public class CmdFunctions extends CmdBase {
      */
     @Getter
     abstract class FunctionCommand extends NamespaceCommand {
-        @Parameter(names = "--name", description = "The function's name", required = true)
+        @Parameter(names = "--fqfn", description = "The Fully Qualified Function Name (FQFN) for the function")
+        protected String fqfn;
+
+        @Parameter(names = "--name", description = "The function's name")
         protected String functionName;
     }
 
