@@ -26,6 +26,7 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -203,10 +204,7 @@ public class CmdFunctions extends CmdBase {
             }
 
             if (null != inputs) {
-                String[] topicNames = inputs.split(",");
-                for (int i = 0; i < topicNames.length; ++i) {
-                    functionConfigBuilder.addInputs(topicNames[i]);
-                }
+                Arrays.asList(inputs.split(",")).forEach(functionConfigBuilder::addInputs);
             }
             if (null != customSerdeInputString) {
                 Type type = new TypeToken<Map<String, String>>(){}.getType();
