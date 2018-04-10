@@ -53,9 +53,8 @@ import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
-import org.apache.bookkeeper.common.util.OrderedExecutor;
-import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -487,17 +486,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (log.isDebugEnabled()) {
             log.debug("[{}] asyncAddEntry size={} state={}", name, buffer.readableBytes(), state);
         }
-        final State state = STATE_UPDATER.get(this);
-        if (state == State.Fenced) {
-            callback.addFailed(new ManagedLedgerFencedException(), ctx);
-            return;
-        } else if (state == State.Terminated) {
-            callback.addFailed(new ManagedLedgerTerminatedException("Managed ledger was already terminated"), ctx);
-            return;
-        } else if (state == State.Closed) {
-            callback.addFailed(new ManagedLedgerException("Managed ledger was already closed"), ctx);
-            return;
-        }
 
         OpAddEntry addOperation = OpAddEntry.create(this, buffer, callback, ctx);
         pendingAddEntries.add(addOperation);
@@ -509,6 +497,18 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private synchronized void internalAsyncAddEntry(OpAddEntry addOperation) {
+        final State state = STATE_UPDATER.get(this);
+        if (state == State.Fenced) {
+            addOperation.failed(new ManagedLedgerFencedException());
+            return;
+        } else if (state == State.Terminated) {
+            addOperation.failed(new ManagedLedgerTerminatedException("Managed ledger was already terminated"));
+            return;
+        } else if (state == State.Closed) {
+            addOperation.failed(new ManagedLedgerAlreadyClosedException("Managed ledger was already closed"));
+            return;
+        }
+
         if (state == State.ClosingLedger || state == State.CreatingLedger) {
             // We don't have a ready ledger to write into
             // We are waiting for a new ledger to be created
