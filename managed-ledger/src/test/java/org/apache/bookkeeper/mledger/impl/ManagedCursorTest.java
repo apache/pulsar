@@ -2473,7 +2473,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         latch2.await();
 
         try {
-            bkc.openLedgerNoRecovery(ledgerId, mlConfig.getDigestType(), mlConfig.getPassword());
+            bkc.openLedgerNoRecovery(ledgerId, DigestType.fromApiDigestType(mlConfig.getDigestType()),
+                                     mlConfig.getPassword());
             fail("ledger should have deleted due to update-cursor failure");
         } catch (BKException e) {
             // ok
