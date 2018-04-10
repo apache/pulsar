@@ -32,6 +32,7 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * Simple Cassandra sink
+ * Takes in a KeyValue and writes it to a predefined keyspace/columnfamily/columnname.
  */
 public class CassandraSink<K, V> implements Sink<KeyValue<K, V>> {
 
