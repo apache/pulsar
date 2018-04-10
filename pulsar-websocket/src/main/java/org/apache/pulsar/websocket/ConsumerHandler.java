@@ -35,6 +35,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
+import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException;
 import org.apache.pulsar.client.api.PulsarClientException.ConsumerBusyException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -181,6 +182,14 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                 service.getExecutor().execute(() -> receiveMessage());
             }
         }).exceptionally(exception -> {
+            if (exception.getCause() instanceof AlreadyClosedException) {
+                log.info("[{}/{}] Consumer was closed while receiving msg from broker", consumer.getTopic(),
+                        subscription);
+            } else {
+                log.warn("[{}/{}] Error occurred while consumer handler was delivering msg to {}: {}",
+                        consumer.getTopic(), subscription, getRemote().getInetSocketAddress().toString(),
+                        exception.getMessage());
+            }
             return null;
         });
     }
