@@ -1507,7 +1507,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     @Override
     public boolean isReplicated() {
-        return replicators.size() > 1;
+        return !replicators.isEmpty();
     }
 
     public CompletableFuture<MessageId> terminate() {
