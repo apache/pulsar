@@ -187,6 +187,8 @@ public class ProducerHandler extends AbstractWebSocketHandler {
                 sendAckResponse(new ProducerAck(messageId, sendRequest.context));
             }
         }).exceptionally(exception -> {
+            log.warn("[{}] Error occurred while producer handler was sending msg from {}: {}", producer.getTopic(),
+                    getRemote().getInetSocketAddress().toString(), exception.getMessage());
             numMsgsFailed.increment();
             sendAckResponse(
                     new ProducerAck(UnknownError, exception.getMessage(), null, sendRequest.context));

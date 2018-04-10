@@ -92,6 +92,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     protected final ManagedLedgerConfig config;
     protected final ManagedLedgerImpl ledger;
     private final String name;
+    private final BookKeeper.DigestType digestType;
 
     protected volatile PositionImpl markDeletePosition;
     protected volatile PositionImpl readPosition;
@@ -180,6 +181,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         this.config = config;
         this.ledger = ledger;
         this.name = cursorName;
+        this.digestType = BookKeeper.DigestType.fromApiDigestType(config.getDigestType());
         STATE_UPDATER.set(this, State.Uninitialized);
         PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.set(this, 0);
         PENDING_READ_OPS_UPDATER.set(this, 0);
@@ -254,7 +256,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         // a new ledger and write the position into it
         ledger.mbean.startCursorLedgerOpenOp();
         long ledgerId = info.getCursorsLedgerId();
-        bookkeeper.asyncOpenLedger(ledgerId, config.getDigestType(), config.getPassword(), (rc, lh, ctx) -> {
+        bookkeeper.asyncOpenLedger(ledgerId, digestType, config.getPassword(), (rc, lh, ctx) -> {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Opened ledger {} for consumer {}. rc={}", ledger.getName(), ledgerId, name, rc);
             }
@@ -1366,7 +1368,10 @@ public class ManagedCursorImpl implements ManagedCursor {
         case Open:
             if (pendingReadOps > 0) {
                 // Wait until no read operation are pending
-                pendingMarkDeleteOps.add(mdEntry);
+                if (!pendingMarkDeleteOps.offer(mdEntry)) {
+                    callback.markDeleteFailed(new ManagedLedgerException("Cursor queue of mark-delete operations full"), ctx);
+                    return;
+                }
                 if (pendingReadOps == 0) {
                     // If the value changed while enqueuing, trigger a flush to make sure we don't delay current request
                     flushPendingMarkDeletes();
@@ -1922,7 +1927,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         ledger.mbean.startCursorLedgerCreateOp();
 
         bookkeeper.asyncCreateLedger(config.getMetadataEnsemblesize(), config.getMetadataWriteQuorumSize(),
-                config.getMetadataAckQuorumSize(), config.getDigestType(), config.getPassword(), (rc, lh, ctx) -> {
+                config.getMetadataAckQuorumSize(), digestType, config.getPassword(), (rc, lh, ctx) -> {
                     ledger.getExecutor().execute(safeRun(() -> {
                         ledger.mbean.endCursorLedgerCreateOp();
                         if (rc != BKException.Code.OK) {
