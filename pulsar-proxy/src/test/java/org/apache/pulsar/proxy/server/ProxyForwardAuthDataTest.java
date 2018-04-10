@@ -86,8 +86,8 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
         createAdminClient();
         final String proxyServiceUrl = "pulsar://localhost:" + servicePort;
         // create a client which connects to proxy and pass authData
-        String namespaceName = "my-property/use/my-ns";
-        String topicName = "persistent://my-property/use/my-ns/my-topic1";
+        String namespaceName = "prop/my-ns";
+        String topicName = "persistent://prop/my-ns/my-topic1";
         String subscriptionName = "my-subscriber-name";
         String clientAuthParams = "authParam:client";
         String proxyAuthParams = "authParam:proxy";

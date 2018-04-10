@@ -31,7 +31,6 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -47,7 +46,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
     @Override
     @BeforeMethod
     public void setup() throws Exception {
-        super.internalSetup();
+        super.baseSetup();
     }
 
     @Override
@@ -59,7 +58,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
     @Test(timeOut = testTimeout)
     public void testExclusiveSingleAckedNormalTopic() throws Exception {
         String key = "testExclusiveSingleAckedNormalTopic";
-        final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
+        final String topicName = "persistent://prop/ns-abc/topic-" + key;
         final String subscriptionName = "my-ex-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 10;
@@ -157,12 +156,11 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
     @Test(timeOut = testTimeout)
     public void testSharedSingleAckedPartitionedTopic() throws Exception {
         String key = "testSharedSingleAckedPartitionedTopic";
-        final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
+        final String topicName = "persistent://prop/ns-abc/topic-" + key;
         final String subscriptionName = "my-shared-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 20;
         final int numberOfPartitions = 3;
-        admin.properties().createProperty("prop", new PropertyAdmin());
         admin.persistentTopics().createPartitionedTopic(topicName, numberOfPartitions);
         // Special step to create partitioned topic
 
@@ -244,12 +242,11 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
     @Test(timeOut = testTimeout)
     public void testFailoverSingleAckedPartitionedTopic() throws Exception {
         String key = "testFailoverSingleAckedPartitionedTopic";
-        final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
+        final String topicName = "persistent://prop/ns-abc/topic-" + key;
         final String subscriptionName = "my-failover-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 10;
         final int numberOfPartitions = 3;
-        admin.properties().createProperty("prop", new PropertyAdmin());
         admin.persistentTopics().createPartitionedTopic(topicName, numberOfPartitions);
         // Special step to create partitioned topic
 
@@ -338,7 +335,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
     @Test(timeOut = testTimeout)
     public void testCheckUnAcknowledgedMessageTimer() throws PulsarClientException, InterruptedException {
         String key = "testCheckUnAcknowledgedMessageTimer";
-        final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
+        final String topicName = "persistent://prop/ns-abc/topic-" + key;
         final String subscriptionName = "my-ex-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 3;

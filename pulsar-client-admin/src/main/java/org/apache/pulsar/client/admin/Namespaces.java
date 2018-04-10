@@ -215,6 +215,28 @@ public interface Namespaces {
     void createNamespace(String namespace) throws PulsarAdminException;
 
     /**
+     * Create a new namespace.
+     * <p>
+     * Creates a new empty namespace with no policies attached.
+     *
+     * @param namespace
+     *            Namespace name
+     * @param clusters
+     *            Clusters in which the namespace will be present. If more than one cluster is present, replication
+     *            across clusters will be enabled.
+     *
+     * @throws NotAuthorizedException
+     *             You don't have admin permission
+     * @throws NotFoundException
+     *             Property or cluster does not exist
+     * @throws ConflictException
+     *             Namespace already exists
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void createNamespace(String namespace, Set<String> clusters) throws PulsarAdminException;
+
+    /**
      * Delete an existing namespace.
      * <p>
      * The namespace needs to be empty.
