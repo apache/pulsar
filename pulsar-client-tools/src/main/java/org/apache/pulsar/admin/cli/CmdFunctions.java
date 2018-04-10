@@ -28,6 +28,7 @@ import java.lang.reflect.Type;
 import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -106,9 +107,6 @@ public class CmdFunctions extends CmdBase {
      */
     @Getter
     abstract class NamespaceCommand extends BaseCommand {
-        @Parameter(names = "--fqfn", description = "The Fully Qualified Function Name (FQFN) for the function", required = false)
-        protected String fqfn;
-
         @Parameter(names = "--tenant", description = "The function's tenant", required = true)
         protected String tenant;
 
@@ -120,9 +118,47 @@ public class CmdFunctions extends CmdBase {
      * Function level command
      */
     @Getter
-    abstract class FunctionCommand extends NamespaceCommand {
-        @Parameter(names = "--name", description = "The function's name", required = true)
+    abstract class FunctionCommand extends BaseCommand {
+        @Parameter(names = "--fqfn", description = "The Fully Qualified Function Name (FQFN) for the function")
+        protected String fqfn;
+
+        @Parameter(names = "--tenant", description = "The function's tenant")
+        protected String tenant;
+
+        @Parameter(names = "--namespace", description = "The function's namespace")
+        protected String namespace;
+
+        @Parameter(names = "--name", description = "The function's name")
         protected String functionName;
+
+        @Override
+        void processArguments() throws Exception {
+            super.processArguments();
+
+            boolean usesSetters = (null != tenant || null != namespace || null != functionName);
+            boolean usesFqfn = (null != fqfn);
+
+            // Throw an exception if --fqfn is set alongside any combination of --tenant, --namespace, and --name
+            if (usesFqfn && usesSetters) {
+                throw new RuntimeException(
+                        "You must specify either a Fully Qualified Function Name (FQFN) or tenant, namespace, and function name");
+            } else if (usesFqfn) {
+                // If the --fqfn flag is used, parse tenant, namespace, and name using that flag
+                String[] fqfnParts = fqfn.split("/");
+                if (fqfnParts.length != 3) {
+                    throw new RuntimeException(
+                            "Fully qualified function names (FQFNs) must be of the form tenant/namespace/name");
+                }
+                tenant = fqfnParts[0];
+                namespace = fqfnParts[1];
+                functionName = fqfnParts[2];
+            } else {
+                if (null == tenant || null == namespace || null == functionName) {
+                    throw new RuntimeException(
+                            "You must specify a tenant, namespace, and name for the function or a Fully Qualified Function Name (FQFN)");
+                }
+            }
+        }
     }
 
     /**
@@ -138,7 +174,7 @@ public class CmdFunctions extends CmdBase {
         protected String namespace;
         @Parameter(names = "--name", description = "The function's name")
         protected String functionName;
-        @Parameter(names = "--className", description = "The function's class name", required = true)
+        @Parameter(names = "--className", description = "The function's class name")
         protected String className;
         @Parameter(
                 names = "--jar",
@@ -176,6 +212,8 @@ public class CmdFunctions extends CmdBase {
 
         @Override
         void processArguments() throws Exception {
+            super.processArguments();
+
             FunctionConfig.Builder functionConfigBuilder;
 
             // Initialize config builder either from a supplied YAML config file or from scratch
@@ -200,10 +238,7 @@ public class CmdFunctions extends CmdBase {
             }
 
             if (null != inputs) {
-                String[] topicNames = inputs.split(",");
-                for (int i = 0; i < topicNames.length; ++i) {
-                    functionConfigBuilder.addInputs(topicNames[i]);
-                }
+                Arrays.asList(inputs.split(",")).forEach(functionConfigBuilder::addInputs);
             }
             if (null != customSerdeInputString) {
                 Type type = new TypeToken<Map<String, String>>(){}.getType();
@@ -408,17 +443,6 @@ public class CmdFunctions extends CmdBase {
                         throw new RuntimeException("Serializer type mismatch " + typeArgs[1] + " vs " + serDeTypes[0]);
                     }
                 }
-            }
-        }
-
-        private void parseFullyQualifiedFunctionName(String fqfn, FunctionConfig.Builder functionConfigBuilder) {
-            String[] args = fqfn.split("/");
-            if (args.length != 3) {
-                throw new RuntimeException("Fully qualified function names must be of the form tenant/namespace/name");
-            } else {
-                functionConfigBuilder.setTenant(args[0]);
-                functionConfigBuilder.setNamespace(args[1]);
-                functionConfigBuilder.setName(args[2]);
             }
         }
 
@@ -771,5 +795,16 @@ public class CmdFunctions extends CmdBase {
         org.apache.pulsar.functions.proto.Function.FunctionConfig.Builder functionConfigBuilder = org.apache.pulsar.functions.proto.Function.FunctionConfig.newBuilder();
         Utils.mergeJson(FunctionsImpl.printJson(functionConfig), functionConfigBuilder);
         return functionConfigBuilder.build();
+    }
+
+    private void parseFullyQualifiedFunctionName(String fqfn, FunctionConfig.Builder functionConfigBuilder) {
+        String[] args = fqfn.split("/");
+        if (args.length != 3) {
+            throw new RuntimeException("Fully qualified function names (FQFNs) must be of the form tenant/namespace/name");
+        } else {
+            functionConfigBuilder.setTenant(args[0]);
+            functionConfigBuilder.setNamespace(args[1]);
+            functionConfigBuilder.setName(args[2]);
+        }
     }
 }
