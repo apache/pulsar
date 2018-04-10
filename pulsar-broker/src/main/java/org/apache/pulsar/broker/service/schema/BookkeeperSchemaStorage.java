@@ -21,28 +21,29 @@ package org.apache.pulsar.broker.service.schema;
 import static com.google.common.collect.Iterables.concat;
 import static com.google.common.collect.Lists.newArrayList;
 import static com.google.protobuf.ByteString.copyFrom;
-import static java.util.Collections.emptyMap;
 import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage.Functions.newSchemaEntry;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Charsets;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import javax.validation.constraints.NotNull;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
-import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.schema.SchemaVersion;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.zookeeper.CreateMode;
@@ -55,10 +56,12 @@ import org.apache.zookeeper.data.ACL;
 public class BookkeeperSchemaStorage implements SchemaStorage {
     private static final String SchemaPath = "/schemas";
     private static final List<ACL> Acl = ZooDefs.Ids.OPEN_ACL_UNSAFE;
+    private static final byte[] LedgerPassword = "".getBytes();
 
     private final PulsarService pulsar;
     private final ZooKeeper zooKeeper;
     private final ZooKeeperCache localZkCache;
+    private final ServiceConfiguration config;
     private BookKeeper bookKeeper;
 
     @VisibleForTesting
@@ -66,6 +69,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         this.pulsar = pulsar;
         this.localZkCache = pulsar.getLocalZkCache();
         this.zooKeeper = localZkCache.getZooKeeper();
+        this.config = pulsar.getConfiguration();
     }
 
     @VisibleForTesting
@@ -79,6 +83,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         }
     }
 
+    @Override
     public void start() throws IOException {
         this.bookKeeper = pulsar.getBookKeeperClientFactory().create(
             pulsar.getConfiguration(),
@@ -119,8 +124,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 .thenApply(entry ->
                     new StoredSchema(
                         entry.getSchemaData().toByteArray(),
-                        new LongSchemaVersion(schemaLocator.getInfo().getVersion()),
-                        emptyMap()
+                        new LongSchemaVersion(schemaLocator.getInfo().getVersion())
                     )
                 );
         });
@@ -156,8 +160,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 .thenApply(entry ->
                     new StoredSchema(
                         entry.getSchemaData().toByteArray(),
-                        new LongSchemaVersion(version),
-                        emptyMap()
+                        new LongSchemaVersion(version)
                     )
                 );
         });
@@ -377,14 +380,19 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     @NotNull
     private CompletableFuture<LedgerHandle> createLedger() {
         final CompletableFuture<LedgerHandle> future = new CompletableFuture<>();
-        bookKeeper.asyncCreateLedger(0, 0, DigestType.MAC, new byte[]{},
+        bookKeeper.asyncCreateLedger(
+            config.getManagedLedgerDefaultEnsembleSize(),
+            config.getManagedLedgerDefaultWriteQuorum(),
+            config.getManagedLedgerDefaultAckQuorum(),
+            config.getManagedLedgerDigestType(),
+            LedgerPassword,
             (rc, handle, ctx) -> {
                 if (rc != BKException.Code.OK) {
                     future.completeExceptionally(BKException.create(rc));
                 } else {
                     future.complete(handle);
                 }
-            }, null
+            }, null, Collections.emptyMap()
         );
         return future;
     }
@@ -392,7 +400,10 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     @NotNull
     private CompletableFuture<LedgerHandle> openLedger(Long ledgerId) {
         final CompletableFuture<LedgerHandle> future = new CompletableFuture<>();
-        bookKeeper.asyncOpenLedger(ledgerId, DigestType.MAC, new byte[]{},
+        bookKeeper.asyncOpenLedger(
+            ledgerId,
+            config.getManagedLedgerDigestType(),
+            LedgerPassword,
             (rc, handle, ctx) -> {
                 if (rc != BKException.Code.OK) {
                     future.completeExceptionally(BKException.create(rc));

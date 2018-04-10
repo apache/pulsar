@@ -72,8 +72,8 @@ import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.Stat;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
-import org.apache.bookkeeper.mledger.util.Pair;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
@@ -262,8 +262,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                             public void addComplete(Position position, Object ctx) {
                                 @SuppressWarnings("unchecked")
                                 Pair<ManagedLedger, ManagedCursor> pair = (Pair<ManagedLedger, ManagedCursor>) ctx;
-                                ManagedLedger ledger = pair.first;
-                                ManagedCursor cursor = pair.second;
+                                ManagedLedger ledger = pair.getLeft();
+                                ManagedCursor cursor = pair.getRight();
 
                                 assertEquals(ledger.getNumberOfEntries(), 1);
                                 assertEquals(ledger.getTotalSize(), "test".getBytes(Encoding).length);
@@ -308,7 +308,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                             public void addFailed(ManagedLedgerException exception, Object ctx) {
                                 fail(exception.getMessage());
                             }
-                        }, new Pair<ManagedLedger, ManagedCursor>(ledger, cursor));
+                        }, Pair.of(ledger, cursor));
                     }
 
                     @Override
@@ -2184,11 +2184,11 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         Pair<PositionImpl, Long> latestPositionAndCounter = ledger.getLastPositionAndCounter();
         Pair<PositionImpl, Long> earliestPositionAndCounter = ledger.getFirstPositionAndCounter();
 
-        assertEquals(latestPositionAndCounter.first.getNext(), p1);
-        assertEquals(earliestPositionAndCounter.first.getNext(), p2);
+        assertEquals(latestPositionAndCounter.getLeft().getNext(), p1);
+        assertEquals(earliestPositionAndCounter.getLeft().getNext(), p2);
 
-        assertEquals(latestPositionAndCounter.second.longValue(), totalInsertedEntries);
-        assertEquals(earliestPositionAndCounter.second.longValue(), totalInsertedEntries - earliestCursor.getNumberOfEntriesInBacklog());
+        assertEquals(latestPositionAndCounter.getRight().longValue(), totalInsertedEntries);
+        assertEquals(earliestPositionAndCounter.getRight().longValue(), totalInsertedEntries - earliestCursor.getNumberOfEntriesInBacklog());
 
         ledger.close();
 

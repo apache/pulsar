@@ -20,19 +20,16 @@ package org.apache.pulsar.broker.service.schema;
 
 import com.google.common.base.MoreObjects;
 import java.util.Arrays;
-import java.util.Map;
 import java.util.Objects;
 import org.apache.pulsar.common.schema.SchemaVersion;
 
 public class StoredSchema {
     public final byte[] data;
     public final SchemaVersion version;
-    public final Map<String, String> metadata;
 
-    public StoredSchema(byte[] data, SchemaVersion version, Map<String, String> metadata) {
+    StoredSchema(byte[] data, SchemaVersion version) {
         this.data = data;
         this.version = version;
-        this.metadata = metadata;
     }
 
     @Override
@@ -45,14 +42,13 @@ public class StoredSchema {
         }
         StoredSchema that = (StoredSchema) o;
         return Arrays.equals(data, that.data) &&
-            Objects.equals(version, that.version) &&
-            Objects.equals(metadata, that.metadata);
+            Objects.equals(version, that.version);
     }
 
     @Override
     public int hashCode() {
 
-        int result = Objects.hash(version, metadata);
+        int result = Objects.hash(version);
         result = 31 * result + Arrays.hashCode(data);
         return result;
     }
@@ -62,7 +58,6 @@ public class StoredSchema {
         return MoreObjects.toStringHelper(this)
             .add("data", data)
             .add("version", version)
-            .add("metadata", metadata)
             .toString();
     }
 }

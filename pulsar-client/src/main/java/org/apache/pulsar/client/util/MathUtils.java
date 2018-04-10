@@ -16,22 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.util.collections;
+package org.apache.pulsar.client.util;
 
-import lombok.Value;
+import lombok.experimental.UtilityClass;
 
-/**
- * Basic holder of a pair of values.
- *
- * Use as: <br/>
- * <pre><code>
- * Pair&lt;String, String&gt; p = Pair.of("a", "b");
- * p.getFirst();
- * p.getSecond();
- * </code></pre>
- */
-@Value(staticConstructor = "of")
-public class Pair<X, Y> {
-    private final X first;
-    private final Y second;
+@UtilityClass
+public class MathUtils {
+    /**
+     * Compute sign safe mod
+     *
+     * @param dividend
+     * @param divisor
+     * @return
+     */
+    public static int signSafeMod(long dividend, int divisor) {
+        int mod = (int) (dividend % divisor);
+
+        if (mod < 0) {
+            mod += divisor;
+        }
+
+        return mod;
+    }
 }
