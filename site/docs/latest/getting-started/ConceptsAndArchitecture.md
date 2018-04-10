@@ -204,28 +204,22 @@ Non-persistent messaging is usually faster than persistent messaging because bro
 
 #### Client API
 
-Producer and consumer can connect to non-persistent topic in a similar way, as persistent topic except topic name must start with `non-persistent`.
+Producers and consumers can connect to non-persistent topics in the same way as persistent topics, with the crucial difference that the topic name must start with `non-persistent`. All three subscription modes---[exclusive](#exclusive), [shared](#shared), and [failover](#failover)---are supported for non-persistent topics.
 
-Non-persistent topic supports all 3 different subscription-modes: **Exclusive**, **Shared**, **Failover** which are already explained in details at [GettingStarted](../../getting-started/ConceptsAndArchitecture). 
-
-
-##### Consumer API
+Here's an example [Java consumer](../../clients/Java#consumer) for a non-persistent topic:
 
 ```java
 PulsarClient client = PulsarClient.create("pulsar://localhost:6650");
+String npTopic = "non-persistent://sample/standalone/ns1/my-topic";
+String subscriptionName = "my-subscription-name";
 
-Consumer consumer = client.subscribe(
-            "non-persistent://sample/standalone/ns1/my-topic",
-            "my-subscribtion-name");
+Consumer consumer = client.subscribe(npTopic, subscriptionName);
 ```
 
-##### Producer API
+Here's an example [Java producer](../../clients/Java#producer) for the same non-persistent topic:
 
 ```java
-PulsarClient client = PulsarClient.create("pulsar://localhost:6650");
-
-Producer producer = client.createProducer(
-            "non-persistent://sample/standalone/ns1/my-topic");
+Producer producer = client.createProducer(npTopic);
 ```
 
 #### Broker configuration
