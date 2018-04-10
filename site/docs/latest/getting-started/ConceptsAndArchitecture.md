@@ -192,7 +192,7 @@ For code examples, see:
 
 {% include explanations/non-persistent-topics.md %}
 
-{% include admonition.html type="success" content='For more info on using non-persistent topics, see the [Non-persistent topics cookbook](../../cookbooks/non-persistent-topics).' %}
+{% include admonition.html type="success" content='For more info on using non-persistent topics, see the [Non-persistent messaging cookbook](../../cookbooks/non-persistent-topics).' %}
 
 In non-persistent topics, {% popover brokers %} immediately deliver messages to all connected subscribers *without persisting them* in [BookKeeper](#persistent-storage). If a subscriber is disconnected, the broker will not be able to deliver those in-transit messages, and subscribers will never be able to receive those messages again. Eliminating the persistent storage step makes messaging on non-persistent topics slightly faster than on persistent topics in some cases, but with the caveat that some of the core benefits of Pulsar are lost.
 
