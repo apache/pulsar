@@ -723,7 +723,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
         this.inputSerDe = new HashMap<>();
         instanceConfig.getFunctionConfig().getCustomSerdeInputsMap().forEach((k, v) -> this.inputSerDe.put(k, initializeSerDe(v, clsLoader, typeArgs, true)));
         for (String topicName : instanceConfig.getFunctionConfig().getInputsList()) {
-            this.inputSerDe.put(topicName, initializeDefaultSerDe(typeArgs, true));
+            // initialize Default-SerDe if custom-SerDe is not attached to the topic
+            if (!inputSerDe.containsKey(topicName)) {
+                this.inputSerDe.put(topicName, initializeDefaultSerDe(typeArgs, true));
+            }
         }
 
         if (Void.class.equals(typeArgs[0])) {
