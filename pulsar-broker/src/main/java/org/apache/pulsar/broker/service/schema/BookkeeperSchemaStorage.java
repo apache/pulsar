@@ -384,7 +384,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             config.getManagedLedgerDefaultEnsembleSize(),
             config.getManagedLedgerDefaultWriteQuorum(),
             config.getManagedLedgerDefaultAckQuorum(),
-            config.getManagedLedgerDigestType(),
+            BookKeeper.DigestType.fromApiDigestType(config.getManagedLedgerDigestType()),
             LedgerPassword,
             (rc, handle, ctx) -> {
                 if (rc != BKException.Code.OK) {
@@ -402,7 +402,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         final CompletableFuture<LedgerHandle> future = new CompletableFuture<>();
         bookKeeper.asyncOpenLedger(
             ledgerId,
-            config.getManagedLedgerDigestType(),
+            BookKeeper.DigestType.fromApiDigestType(config.getManagedLedgerDigestType()),
             LedgerPassword,
             (rc, handle, ctx) -> {
                 if (rc != BKException.Code.OK) {
