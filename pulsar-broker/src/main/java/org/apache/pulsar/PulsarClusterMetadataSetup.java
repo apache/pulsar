@@ -26,7 +26,9 @@ import org.apache.bookkeeper.client.BookKeeperAdmin;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.meta.HierarchicalLedgerManagerFactory;
 import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.pulsar.common.naming.TopicNames;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory.SessionType;
@@ -139,6 +141,20 @@ public class PulsarClusterMetadataSetup {
         try {
             globalZk.create("/admin/clusters/global", globalClusterDataJson, ZooDefs.Ids.OPEN_ACL_UNSAFE,
                     CreateMode.PERSISTENT);
+        } catch (NodeExistsException e) {
+            // Ignore
+        }
+
+        // Create public tenant
+        PropertyAdmin publicProperty = new PropertyAdmin();
+        byte[] publicPropertyDataJson = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(publicProperty);
+        try {
+            ZkUtils.createFullPathOptimistic(
+                globalZk,
+                POLICIES_ROOT + "/" + TopicNames.PUBLIC_PROPERTY,
+                publicPropertyDataJson,
+                ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                CreateMode.PERSISTENT);
         } catch (NodeExistsException e) {
             // Ignore
         }
