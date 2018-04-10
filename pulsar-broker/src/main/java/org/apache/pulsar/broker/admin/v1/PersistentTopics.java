@@ -40,6 +40,7 @@ import javax.ws.rs.core.Response;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.compaction.CompactionStatus;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
@@ -435,4 +436,17 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalTriggerCompaction(authoritative);
     }
 
+    @GET
+    @Path("/{property}/{cluster}/{namespace}/{topic}/compaction")
+    @ApiOperation(value = "Get the status of a compaction operation for a topic.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
+                            @ApiResponse(code = 404, message = "Topic does not exist, or compaction hasn't run") })
+    public CompactionStatus compactionStatus(
+            @PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(property, cluster, namespace, encodedTopic);
+        return internalCompactionStatus(authoritative);
+    }
 }

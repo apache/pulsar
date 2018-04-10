@@ -38,6 +38,11 @@ public class ManagedLedgerFactoryMBeanImpl implements ManagedLedgerFactoryMXBean
     public void refreshStats(long period, TimeUnit unit) {
         double seconds = unit.toMillis(period) / 1000.0;
 
+        if (seconds <= 0.0) {
+            // skip refreshing stats
+            return;
+        }
+
         cacheHits.calculateRate(seconds);
         cacheMisses.calculateRate(seconds);
         cacheEvictions.calculateRate(seconds);

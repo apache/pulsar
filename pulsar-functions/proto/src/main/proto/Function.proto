@@ -53,6 +53,9 @@ message FunctionConfig {
     bool autoAck = 13;
     repeated string inputs = 14;
     int32 parallelism = 15;
+    // Fully qualified function name
+    // (alternative to specifying tenant/namespace/name)
+    string fqfn = 16;
 }
 
 message PackageLocationMetaData {
@@ -64,11 +67,6 @@ message FunctionMetaData {
     PackageLocationMetaData packageLocation = 2;
     uint64 version = 3;
     uint64 createTime = 4;
-}
-
-message Snapshot {
-    repeated FunctionMetaData functionMetaDataList = 1;
-    bytes lastAppliedMessageId = 2;
 }
 
 message Instance {

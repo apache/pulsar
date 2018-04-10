@@ -70,6 +70,7 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.compaction.CompactionStatus;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
@@ -1927,4 +1928,39 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         verify(compactor, times(2)).compact(topicName);
     }
 
+    @Test
+    public void testCompactionStatus() throws Exception {
+        String topicName = "persistent://prop-xyz/use/ns1/topic1";
+
+        // create a topic by creating a producer
+        pulsarClient.newProducer().topic(topicName).create().close();
+        assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
+
+        assertEquals(admin.persistentTopics().compactionStatus(topicName).status,
+                     CompactionStatus.Status.NOT_RUN);
+
+        // mock actual compaction, we don't need to really run it
+        CompletableFuture<Long> promise = new CompletableFuture<Long>();
+        Compactor compactor = pulsar.getCompactor();
+        doReturn(promise).when(compactor).compact(topicName);
+        admin.persistentTopics().triggerCompaction(topicName);
+
+        assertEquals(admin.persistentTopics().compactionStatus(topicName).status,
+                     CompactionStatus.Status.RUNNING);
+
+        promise.complete(1L);
+
+        assertEquals(admin.persistentTopics().compactionStatus(topicName).status,
+                     CompactionStatus.Status.SUCCESS);
+
+        CompletableFuture<Long> errorPromise = new CompletableFuture<Long>();
+        doReturn(errorPromise).when(compactor).compact(topicName);
+        admin.persistentTopics().triggerCompaction(topicName);
+        errorPromise.completeExceptionally(new Exception("Failed at something"));
+
+        assertEquals(admin.persistentTopics().compactionStatus(topicName).status,
+                     CompactionStatus.Status.ERROR);
+        assertTrue(admin.persistentTopics().compactionStatus(topicName)
+                   .lastError.contains("Failed at something"));
+    }
 }
