@@ -1368,7 +1368,10 @@ public class ManagedCursorImpl implements ManagedCursor {
         case Open:
             if (pendingReadOps > 0) {
                 // Wait until no read operation are pending
-                pendingMarkDeleteOps.add(mdEntry);
+                if (!pendingMarkDeleteOps.offer(mdEntry)) {
+                    callback.markDeleteFailed(new ManagedLedgerException("Cursor queue of mark-delete operations full"), ctx);
+                    return;
+                }
                 if (pendingReadOps == 0) {
                     // If the value changed while enqueuing, trigger a flush to make sure we don't delay current request
                     flushPendingMarkDeletes();
