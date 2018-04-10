@@ -1,5 +1,5 @@
 ---
-title: Non-persistent topics
+title: Non-persistent messaging
 ---
 
 <!--

@@ -134,8 +134,8 @@ groups:
   docs:
   - title: Message deduplication
     endpoint: message-deduplication
-  - title: Non-persistent topics
-    endpoint: non-persistent-topics
+  - title: Non-persistent messaging
+    endpoint: non-persistent-messaging
   - title: Partitioned topics
     endpoint: PartitionedTopics
   - title: Retention and expiry
