@@ -240,8 +240,8 @@ public class CmdFunctionsTest {
                 "--inputs", inputTopicName,
                 "--output", outputTopicName,
                 "--fqfn", fqfn,
-                "--jar", "SomeJar.jar",
-                "--className", DummyFunction.class.getName(),
+                "--jar", testJar,
+                "--className", testClassName,
         });
 
         CreateFunction creater = cmd.getCreater();
