@@ -22,6 +22,7 @@ package org.apache.pulsar.client.impl;
 import java.util.Map;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.SchemaSerializationException;
 
 public class TopicMessageImpl<T> implements Message<T> {
 
@@ -104,7 +105,7 @@ public class TopicMessageImpl<T> implements Message<T> {
     }
 
     @Override
-    public T getValue() {
+    public T getValue() throws SchemaSerializationException{
         return msg.getValue();
     }
 }
