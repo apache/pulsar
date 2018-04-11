@@ -452,6 +452,8 @@ public class TopicReaderTest extends ProducerConsumerBase {
     @Test
     public void testMessageAvailableAfterRestart() throws Exception {
         String topic = "persistent://my-property/use/my-ns/testMessageAvailableAfterRestart";
+        String content = "my-message-1";
+
         // stop retention from cleaning up
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub1").subscribe().close();
 
@@ -461,7 +463,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         }
 
         try (Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create()) {
-            producer.send("my-message-1".getBytes());
+            producer.send(content.getBytes());
         }
 
         try (Reader<byte[]> reader = pulsarClient.newReader().topic(topic)
@@ -475,6 +477,10 @@ public class TopicReaderTest extends ProducerConsumerBase {
         try (Reader<byte[]> reader = pulsarClient.newReader().topic(topic)
             .startMessageId(MessageId.earliest).create()) {
             assertTrue(reader.hasMessageAvailable());
+
+            String readOut = new String(reader.readNext().getData());
+            assertTrue(readOut.equals(content));
+            assertFalse(reader.hasMessageAvailable());
         }
 
     }
