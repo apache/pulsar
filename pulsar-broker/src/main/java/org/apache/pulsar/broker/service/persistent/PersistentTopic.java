@@ -1075,7 +1075,12 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         nsStats.replicatorCount += topicStats.remotePublishersStats.size();
         replicators.forEach((cluster, replicator) -> {
             // Update replicator cursor state
-            ((PersistentReplicator) replicator).updateCursorState();
+            try {
+                ((PersistentReplicator) replicator).updateCursorState();
+            } catch (Exception e) {
+                log.warn("[{}] Failed to update cursro state ", topic, e);
+            }
+            
 
             // Update replicator stats
             ReplicatorStats rStat = replicator.getStats();
