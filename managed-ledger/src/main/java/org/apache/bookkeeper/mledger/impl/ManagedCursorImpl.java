@@ -1301,6 +1301,16 @@ public class ManagedCursorImpl implements ManagedCursor {
             final MarkDeleteCallback callback, final Object ctx) {
         checkNotNull(position);
         checkArgument(position instanceof PositionImpl);
+        
+        if (((PositionImpl) ledger.getLastConfirmedEntry()).compareTo((PositionImpl) position) <= 0) {
+            if (log.isDebugEnabled()) {
+                log.debug(
+                        "[{}] Failed mark delete due to invalid markDelete {} is ahead of last-confirmed-entry {} for cursor [{}]",
+                        ledger.getName(), position, ledger.getLastConfirmedEntry(), name);
+            }
+            callback.markDeleteFailed(new ManagedLedgerException("Invalid mark deleted position"), ctx);
+            return;
+        }
 
         if (STATE_UPDATER.get(this) == State.Closed) {
             callback.markDeleteFailed(new ManagedLedgerException("Cursor was already closed"), ctx);
@@ -1537,6 +1547,16 @@ public class ManagedCursorImpl implements ManagedCursor {
 
             for (Position pos : positions) {
                 PositionImpl position  = (PositionImpl) checkNotNull(pos);
+                
+                if (((PositionImpl) ledger.getLastConfirmedEntry()).compareTo(position) <= 0) {
+                    if (log.isDebugEnabled()) {
+                        log.debug(
+                                "[{}] Failed mark delete due to invalid markDelete {} is ahead of last-confirmed-entry {} for cursor [{}]",
+                                ledger.getName(), position, ledger.getLastConfirmedEntry(), name);
+                    }
+                    callback.deleteFailed(new ManagedLedgerException("Invalid mark deleted position"), ctx);
+                    return;
+                }
 
                 if (individualDeletedMessages.contains(position) || position.compareTo(markDeletePosition) <= 0) {
                     if (log.isDebugEnabled()) {
