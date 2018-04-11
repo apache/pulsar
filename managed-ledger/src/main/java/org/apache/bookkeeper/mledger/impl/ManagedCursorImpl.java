@@ -81,7 +81,9 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.commons.lang3.tuple.Pair;
+import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpmcArrayQueue;
+import org.jctools.queues.MpscLinkedQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -149,7 +151,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
-    private final MpmcArrayQueue<MarkDeleteEntry> pendingMarkDeleteOps = new MpmcArrayQueue<>(16);
+    private final MessagePassingQueue<MarkDeleteEntry> pendingMarkDeleteOps = MpscLinkedQueue.newMpscLinkedQueue();
 
     private static final AtomicIntegerFieldUpdater<ManagedCursorImpl> PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER =
         AtomicIntegerFieldUpdater.newUpdater(ManagedCursorImpl.class, "pendingMarkDeletedSubmittedCount");
@@ -1358,7 +1360,10 @@ public class ManagedCursorImpl implements ManagedCursor {
             startCreatingNewMetadataLedger();
             // fall through
         case SwitchingLedger:
-            pendingMarkDeleteOps.add(mdEntry);
+            if (!pendingMarkDeleteOps.offer(mdEntry)) {
+                callback.markDeleteFailed(new ManagedLedgerException("Cursor queue of mark-delete operations full"), ctx);
+                return;
+            }
             if (state != State.SwitchingLedger) {
                 // If state changed since we checked. Trigger a flush since we could have missed the current entry
                 flushPendingMarkDeletes();
