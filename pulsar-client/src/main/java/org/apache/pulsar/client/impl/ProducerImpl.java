@@ -293,7 +293,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
 
         if (schemaVersion.isPresent()) {
-            msgMetadata.setSchemaVersion(ByteString.copyFrom(schemaVersion.get()));
+            msgMetadataBuilder.setSchemaVersion(ByteString.copyFrom(schemaVersion.get()));
         }
 
         try {
