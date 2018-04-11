@@ -125,4 +125,9 @@ public interface AsyncCallbacks {
         void getInfoFailed(ManagedLedgerException exception, Object ctx);
     }
 
+    interface OffloadCallback {
+        void offloadComplete(Position pos, Object ctx);
+
+        void offloadFailed(ManagedLedgerException exception, Object ctx);
+    }
 }
