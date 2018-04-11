@@ -317,6 +317,14 @@ By default, BookKeeper provides all three forms of storage. Tiered storage enabl
 * Sealed ledger --> entries are immutable. When a ledger has been sealed it no longer needs to be stored on SSDs and can be transferred to an object storage system like Amazon S3 or Google Cloud Storage
 * Each topic is stored on a single [managed ledger](#managed-ledgers) (list of log segments in a fixed order, oldest first; all segments except the most recent are sealed; the most recent still accepts writes)
 
+Implementation:
+
+* Pulsar copies ledger segments as a whole from BookKeeper to object storage
+* Once copying is complete, the segment gets **tagged** in the ML segment list; the tag identifies the segment
+* Once the tag is added, the segment is deleted from BookKeeper
+* `ReadHandle` implementation reads from object storage
+* Interface for offloading; change ML to use offloading; triggering mechanism; implementation for S3
+
 ## Message retention and expiry
 
 By default, Pulsar message {% popover brokers %}:
