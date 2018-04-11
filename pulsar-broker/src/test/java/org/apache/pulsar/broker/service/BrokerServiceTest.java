@@ -697,7 +697,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
-                .maxConcurrentLookupRequests(0).build();
+                .maxConcurrentLookupRequests(0).maxLookupRequests(0).build();
 
         try {
             pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub").subscribe();
