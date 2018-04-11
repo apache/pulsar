@@ -1302,16 +1302,6 @@ public class ManagedCursorImpl implements ManagedCursor {
         checkNotNull(position);
         checkArgument(position instanceof PositionImpl);
         
-        if (((PositionImpl) ledger.getLastConfirmedEntry()).compareTo((PositionImpl) position) <= 0) {
-            if (log.isDebugEnabled()) {
-                log.debug(
-                        "[{}] Failed mark delete due to invalid markDelete {} is ahead of last-confirmed-entry {} for cursor [{}]",
-                        ledger.getName(), position, ledger.getLastConfirmedEntry(), name);
-            }
-            callback.markDeleteFailed(new ManagedLedgerException("Invalid mark deleted position"), ctx);
-            return;
-        }
-
         if (STATE_UPDATER.get(this) == State.Closed) {
             callback.markDeleteFailed(new ManagedLedgerException("Cursor was already closed"), ctx);
             return;
@@ -1332,6 +1322,16 @@ public class ManagedCursorImpl implements ManagedCursor {
             log.debug("[{}] Mark delete cursor {} up to position: {}", ledger.getName(), name, position);
         }
         PositionImpl newPosition = (PositionImpl) position;
+        
+        if (((PositionImpl) ledger.getLastConfirmedEntry()).compareTo(newPosition) < 0) {
+            if (log.isDebugEnabled()) {
+                log.debug(
+                        "[{}] Failed mark delete due to invalid markDelete {} is ahead of last-confirmed-entry {} for cursor [{}]",
+                        ledger.getName(), position, ledger.getLastConfirmedEntry(), name);
+            }
+            callback.markDeleteFailed(new ManagedLedgerException("Invalid mark deleted position"), ctx);
+            return;
+        }
 
         lock.writeLock().lock();
         try {
@@ -1548,7 +1548,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             for (Position pos : positions) {
                 PositionImpl position  = (PositionImpl) checkNotNull(pos);
                 
-                if (((PositionImpl) ledger.getLastConfirmedEntry()).compareTo(position) <= 0) {
+                if (((PositionImpl) ledger.getLastConfirmedEntry()).compareTo(position) < 0) {
                     if (log.isDebugEnabled()) {
                         log.debug(
                                 "[{}] Failed mark delete due to invalid markDelete {} is ahead of last-confirmed-entry {} for cursor [{}]",
