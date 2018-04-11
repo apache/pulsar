@@ -141,26 +141,24 @@ serviceUrl=http://pulsar.us-west.example.com:8080/
 
 ## Provisioning new tenants
 
-Pulsar was built as a fundamentally {% popover multi-tenant %} system. New tenants can be provisioned as Pulsar {% popover properties %}. Properties can be
+Pulsar was built as a fundamentally {% popover multi-tenant %} system.
 
-To allow a new tenant to use the system, we need to create a new {% popover property %}. You can create a new property using the [`pulsar-admin`](../../reference/CliTools#pulsar-admin-properties-create) CLI tool:
+To allow a new {% popover tenant %} to use the system, we need to create a new one. You can create a new tenant using the [`pulsar-admin`](../../reference/CliTools#pulsar-admin-tenants-create) CLI tool:
 
 ```shell
-$ bin/pulsar-admin properties create test-prop \
+$ bin/pulsar-admin tenants create test-prop \
   --allowed-clusters us-west \
   --admin-roles test-admin-role
 ```
 
-This will allow users who identify with role `test-admin-role` to administer the configuration for the property `test` which will only be allowed to use the cluster `us-west`. From now on, this tenant will be able to self-manage its resources.
+This will allow users who identify with role `test-admin-role` to administer the configuration for the tenant `test` which will only be allowed to use the cluster `us-west`. From now on, this tenant will be able to self-manage its resources.
 
-Once a tenant has been created, you will need to create {% popover namespaces %} for topics within that property.
+Once a tenant has been created, you will need to create {% popover namespaces %} for topics within that tenant.
 
-The first step is to create a namespace. A namespace is an administrative unit
-that can contain many topic. Common practice is to create a namespace for each
-different use case from a single tenant.
+The first step is to create a namespace. A namespace is an administrative unit that can contain many topics. A common practice is to create a namespace for each different use case from a single tenant.
 
 ```shell
-$ bin/pulsar-admin namespaces create test-prop/us-west/ns1
+$ bin/pulsar-admin namespaces create test-tenant/ns1
 ```
 
 ##### Testing producer and consumer
@@ -173,7 +171,7 @@ created the first time a producer or a consumer tries to use them.
 
 The topic name in this case could be:
 
-{% include topic.html p="test-prop" c="us-west" n="ns1" t="my-topic" %}
+{% include topic.html ten="test-tenant" n="ns1" t="my-topic" %}
 
 Start a consumer that will create a subscription on the topic and will wait
 for messages:

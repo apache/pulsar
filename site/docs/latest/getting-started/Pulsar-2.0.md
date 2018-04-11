@@ -1,10 +1,11 @@
 ---
 title: Pulsar 2.0
 hide_pulsar2_notification: true
+new: true
 tags: ["2.0", "tenants", "clients"]
 ---
 
-Pulsar 2.0 is a major new release for Pulsar that
+Pulsar 2.0 is a major new release for Pulsar that brings some bold changes to the platform.
 
 ## New features in Pulsar 2.0
 
@@ -13,6 +14,8 @@ Feature | Description
 [Pulsar Functions](../../functions/overview) | A lightweight compute option for Pulsar
 
 ## Major changes
+
+There are a few major changes that you should be aware of, as they may significantly impact your day-to-day usage.
 
 ### Properties versus tenants
 

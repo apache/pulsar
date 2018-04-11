@@ -95,27 +95,23 @@ Client libraries can provide their own listener implementations for consumers. T
 
 ### Topics
 
-As in other pub-sub systems, topics in Pulsar are named channels for transmitting messages from producers to consumers. Topic names are URLs that have a well-defined structure:
+As in other pub-sub systems, topics in Pulsar are named channels for transmitting messages from {% popover producers %} to {% popover consumers %}. Topic names are URLs that have a well-defined structure:
 
-{% include topic.html p="property" c="cluster" n="namespace" t="topic" %}
+{% include topic.html type="{persistent|non-persistent}" ten="tenant" n="namespace" t="topic" %}
 
-| Topic name component | Description                                                                                                                                                                                                                                  |
-|:---------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `persistent`         | It identifies type of topic. Pulsar supports two kind of topics: persistent and non-persistent. In persistent topic, all messages are durably [persisted](#persistent-storage) on disk (that means on multiple disks unless the {% popover broker %} is {% popover standalone %}), whereas [non-persistent](#non-persistent-topics) topic does not persist message into storage disk. |
-| `property`           | The topic's {% popover tenant %} within the instance. Tenants are essential to {% popover multi-tenancy %} in Pulsar and can be spread across clusters.                                                                                      |
-| `cluster`            | Where the topic is located. Typically there will be one {% popover cluster %} for each geographical region or data center.                                                                                                                   |
-| `namespace`          | The administrative unit of the topic, which acts as a grouping mechanism for related topics. Most topic configuration is performed at the [namespace](#namespace) level. Each property (tenant) can have multiple namespaces.                              |
-| `topic`              | The final part of the name. Topic names are freeform and have no special meaning in a Pulsar instance.                                                                                                                                       |
+Topic name component | Description
+:--------------------|:-----------
+`persistent`         | It identifies type of topic. Pulsar supports two kind of topics: persistent and non-persistent. In persistent topic, all messages are durably [persisted](#persistent-storage) on disk (that means on multiple disks unless the {% popover broker %} is {% popover standalone %}), whereas [non-persistent](#non-persistent-topics) topic does not persist message into storage disk.
+`tenant`             | The topic's {% popover tenant %} within the instance. Tenants are essential to {% popover multi-tenancy %} in Pulsar and can be spread across clusters.
+`namespace`          | The administrative unit of the topic, which acts as a grouping mechanism for related topics. Most topic configuration is performed at the [namespace](#namespace) level. Each tenant can have multiple namespaces.
+`topic`              | The final part of the name. Topic names are freeform and have no special meaning in a Pulsar instance.
 
 {% include admonition.html type="success" title="No need to explicitly create new topics"
-content="Application does not explicitly create the topic but attempting to write or receive message on a topic that does not yet exist, Pulsar will automatically create that topic under the [namespace](#namespace)." %}
+content="Application does not explicitly create the topic but attempting to write or receive messages on a topic that does not yet exist, Pulsar will automatically create that topic under the [namespace](#namespaces)." %}
 
-### Namespace
+### Namespaces
 
-A namespace is a logical nomenclature within a property. A property can create multiple namespaces via [admin API](../../admin-api/namespaces#create). For instance, a property with different applications can create a separate namespace for each application. A namespace allows the application to create and manage a hierarchy of topics. 
-For e.g.  `my-property/my-cluster/my-property-app1` is a namespace for the application  `my-property-app1` in cluster `my-cluster` for `my-property`. 
-Application can create any number of [topics](#topics) under the namespace.
-
+A namespace is a logical nomenclature within a tenant. A tenant can create multiple namespaces via the [admin API](../../admin-api/namespaces#create). For instance, a tenant with different applications can create a separate namespace for each application. A namespace allows the application to create and manage a hierarchy of topics. The topic `my-tenant/app1` is a namespace for the application `app1` for `my-tenant`. You can create any number of [topics](#topics) under the namespace.
 
 ### Subscription modes
 
@@ -239,13 +235,13 @@ In any Pulsar {% popover instance %}, there is an instance-wide cluster called `
 
 Global topic names have this basic structure (note the `global` cluster):
 
-{% include topic.html p="my-property" c="global" n="my-namespace" t="my-topic" %}
+{% include topic.html ten="my-tenant" n="my-namespace" t="my-topic" %}
 
 ## Metadata store
 
 Pulsar uses [Apache Zookeeper](https://zookeeper.apache.org/) for metadata storage, cluster configuration, and coordination. In a Pulsar instance:
 
-* A {% popover global ZooKeeper %} quorum stores configuration for {% popover properties %}, {% popover namespaces %}, and other entities that need to be globally consistent.
+* A {% popover global ZooKeeper %} quorum stores configuration for {% popover tenants %}, {% popover namespaces %}, and other entities that need to be globally consistent.
 * Each cluster has its own local ZooKeeper ensemble that stores {% popover cluster %}-specific configuration and coordination such as ownership metadata, broker load reports, BookKeeper {% popover ledger %} metadata, and more.
 
 When creating a [new cluster](../../admin/ClustersBrokers#initialize-cluster-metadata)
@@ -271,7 +267,7 @@ In addition to message data, *cursors* are also persistently stored in BookKeepe
 
 At the moment, Pulsar only supports persistent message storage. This accounts for the `persistent` in all {% popover topic %} names. Here's an example:
 
-{% include topic.html p="my-property" c="global" n="my-namespace" t="my-topic" %}
+{% include topic.html ten="my-property" n="my-namespace" t="my-topic" %}
 
 In the future, Pulsar will support ephemeral message storage.
 
@@ -362,21 +358,21 @@ More in-depth information can be found in [this post](https://blog.streaml.io/pu
 
 ## Multi-tenancy
 
-Pulsar was created from the ground up as a {% popover multi-tenant %} system. To support multi-tenancy, Pulsar has a concept of {% popover properties %}. Properties can be spread across {% popover clusters %} and can each have their own [authentication and authorization](../../admin/Authz) scheme applied to them. They are also the administrative unit at which [storage quotas](TODO), [message TTL](../../cookbooks/RetentionExpiry#time-to-live-ttl), and isolation policies can be managed.
+Pulsar was created from the ground up as a {% popover multi-tenant %} system. To support multi-tenancy, Pulsar has a concept of {% popover tenants %}. Tenants can be spread across {% popover clusters %} and can each have their own [authentication and authorization](../../admin/Authz) scheme applied to them. They are also the administrative unit at which storage quotas, [message TTL](../../cookbooks/RetentionExpiry#time-to-live-ttl), and isolation policies can be managed.
 
 The multi-tenant nature of Pulsar is reflected mostly visibly in topic URLs, which have this structure:
 
-{% include topic.html p="property" c="cluster" n="namespace" t="topic" %}
+{% include topic.html ten="tenant" n="namespace" t="topic" %}
 
-As you can see, the property is the most basic unit of categorization for topics (and even more fundamental than the {% popover cluster %}).
+As you can see, the tenant is the most basic unit of categorization for topics (more fundamental than the {% popover namespace %} and topic name).
 
-### Properties and namespaces
+### Tenants and namespaces
 
-{% include explanations/properties-namespaces.md %}
+{% include explanations/tenants-namespaces.md %}
 
 ## Authentication and Authorization
 
-Pulsar supports a pluggable [authentication](../../admin/Authz) mechanism which can be configured at broker and it also supports authorization to identify client and its access rights on topics and properties.
+Pulsar supports a pluggable [authentication](../../admin/Authz) mechanism which can be configured at broker and it also supports authorization to identify client and its access rights on topics and tenants.
 
 ## Client interface
 
