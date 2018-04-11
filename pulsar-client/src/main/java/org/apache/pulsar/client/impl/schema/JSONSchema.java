@@ -1,9 +1,9 @@
 package org.apache.pulsar.client.impl.schema;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
-import com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
+import com.kjetland.jackson.jsonSchema.JsonSchemaGenerator;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
@@ -54,7 +54,7 @@ public class JSONSchema<T> implements Schema<T> {
     public static <T> JSONSchema<T> of(Class<T> pojo, Map<String, String> properties) throws JsonProcessingException {
         ObjectMapper mapper = new ObjectMapper();
         JsonSchemaGenerator schemaGen = new JsonSchemaGenerator(mapper);
-        JsonSchema schema = schemaGen.generateSchema(pojo);
+        JsonNode schema = schemaGen.generateJsonSchema(pojo);
 
         SchemaInfo info = new SchemaInfo();
         info.setName("");
