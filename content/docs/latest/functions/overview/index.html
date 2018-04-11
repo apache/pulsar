@@ -942,8 +942,6 @@
 
 <p><img src="/img/pulsar-functions-word-count.png" alt="Pulsar Functions word count example" /></p>
 
-<p>Here, sentences are produced on the <code class="highlighter-rouge">sentences</code> topic. The Pulsar Function listens on that topic and whenever a message arrives it splits the sentence up into individual words and increments a <a href="#counters">counter</a> for each word every time that word is encountered. The value of that counter is then available to all <a href="#parallelism">instances</a> of the function.</p>
-
 <p>If you were writing the function in <a href="../api#java">Java</a> using the <a href="../api#java-sdk">Pulsar Functions SDK for Java</a>, you could write the function like this…</p>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">package</span> <span class="n">org</span><span class="o">.</span><span class="na">example</span><span class="o">.</span><span class="na">functions</span><span class="o">;</span>
@@ -1093,7 +1091,7 @@
   <li>Pulsar messages are always just bytes, but Pulsar Functions handles data types for you <em>unless</em> you need custom types</li>
 </ul>
 
-<h2 id="context">Function context</h2>
+<h3 id="context">Function context</h3>
 
 <p>Each Pulsar Function created using the <a href="#sdk">Pulsar Functions SDK</a> has access to a context object that both provides:</p>
 
@@ -1259,6 +1257,83 @@
     <span class="o">}</span>
 <span class="o">}</span>
 </code></pre></div></div>
+
+<h3 id="triggering">Triggering Pulsar Functions</h3>
+
+<p>Pulsar Functions running in <a href="#cluster-mode">cluster mode</a> can be <a href="../deployment#triggering">triggered</a> via the <a href="#cli">command line</a>. With triggering you can easily pass a specific value to a function and get the function’s return value <em>without</em> needing to worry about creating a client, sending a message to the right input topic, etc. Triggering can be very useful for—but is by no means limited to—testing and debugging purposes.</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    
+    <p>Triggering a function is ultimately no different from invoking a function by producing a message on one of the function’s input topics. The <a href="../../CliTools#pulsar-admin-functions-trigger"><code class="highlighter-rouge">pulsar-admin functions trigger</code></a> command is essentially a convenient mechanism for sending messages to functions without needing to use the <a href="../../CliTools#pulsar-client"><code class="highlighter-rouge">pulsar-client</code></a> tool or a language-specific client library.</p>
+
+  </div>
+</div>
+
+<p>Let’s take an example Pulsar Function written in Python (using the <a href="../api#python-native">native interface</a>) that simply reverses string inputs:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="nb">input</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">input</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+</code></pre></div></div>
+
+<p>If that function were running in a Pulsar cluster, it could be triggered like this:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions trigger <span class="se">\</span>
+  <span class="nt">--tenant</span> sample <span class="se">\</span>
+  <span class="nt">--namespace</span> ns1 <span class="se">\</span>
+  <span class="nt">--name</span> reverse-func <span class="se">\</span>
+  <span class="nt">--triggerValue</span> <span class="s2">"snoitcnuf raslup ot emoclew"</span>
+</code></pre></div></div>
+
+<p>That should return <code class="highlighter-rouge">welcome to pulsar functions</code> as the console output.</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="success">
+    
+    <p>Instead of passing in a string via the CLI, you can also trigger a Pulsar Function with the contents of a file using the <code class="highlighter-rouge">--triggerFile</code> flag.</p>
+
+  </div>
+</div>
 
 <h2 id="guarantees">Processing guarantees</h2>
 
