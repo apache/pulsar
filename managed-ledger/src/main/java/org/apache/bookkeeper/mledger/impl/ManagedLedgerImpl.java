@@ -2222,7 +2222,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public Position getLastConfirmedEntry() {
-        return lastConfirmedEntry;
+        PositionImpl lastMessagePosition = lastConfirmedEntry;
+        // bypass empty ledgers, find last ledger with Message.
+        while (lastMessagePosition.getEntryId() == -1) {
+            Map.Entry<Long, LedgerInfo> formerLedger = ledgers.lowerEntry(lastMessagePosition.getLedgerId());
+            if (formerLedger != null) {
+                LedgerInfo ledgerInfo = formerLedger.getValue();
+                lastMessagePosition = PositionImpl.get(ledgerInfo.getLedgerId(), ledgerInfo.getEntries() - 1);
+            } else {
+                break;
+            }
+        }
+
+        return lastMessagePosition;
     }
 
     public String getState() {
