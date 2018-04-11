@@ -304,6 +304,19 @@ In BookKeeper, *journal* files contain BookKeeper transaction logs. Before makin
 
 A future version of BookKeeper will support *non-persistent messaging* and thus multiple durability modes at the topic level. This will enable you to set the durability mode at the topic level, replacing the `persistent` in topic names with a `non-persistent` indicator.
 
+## Tiered storage
+
+BookKeeper storage can get expensive over time. Access patterns to BookKeeper ledgers:
+
+* Writes (low latency)
+* Tailing reads (low latency)
+* Catchup reads (latency is unimportant; throughput is important for some use cases)
+
+By default, BookKeeper provides all three forms of storage. Tiered storage enables you to use a non-BookKeeper system for catchup reads.
+
+* Sealed ledger --> entries are immutable. When a ledger has been sealed it no longer needs to be stored on SSDs and can be transferred to an object storage system like Amazon S3 or Google Cloud Storage
+* Each topic is stored on a single [managed ledger](#managed-ledgers) (list of log segments in a fixed order, oldest first; all segments except the most recent are sealed; the most recent still accepts writes)
+
 ## Message retention and expiry
 
 By default, Pulsar message {% popover brokers %}:
