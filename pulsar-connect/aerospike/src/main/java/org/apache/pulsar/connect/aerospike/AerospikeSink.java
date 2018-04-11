@@ -132,7 +132,7 @@ public class AerospikeSink<K, V> implements Sink<KeyValue<K, V>> {
             try {
                 queue.put(this);
             } catch (InterruptedException ex) {
-                throw new RuntimeException("Interrupted while being added to the queue");
+                throw new RuntimeException("Interrupted while being added to the queue" ,ex);
             }
         }
 
@@ -144,7 +144,7 @@ public class AerospikeSink<K, V> implements Sink<KeyValue<K, V>> {
             try {
                 queue.put(this);
             } catch (InterruptedException ex) {
-                throw new RuntimeException("Interrupted while being added to the queue");
+                throw new RuntimeException("Interrupted while being added to the queue", ex);
             }
         }
     }
