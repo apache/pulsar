@@ -106,8 +106,8 @@ groups:
     endpoint: overview
   - title: Clusters
     endpoint: clusters
-  - title: Properties
-    endpoint: properties
+  - title: Tenants
+    endpoint: tenants
   - title: Brokers
     endpoint: brokers
   - title: Namespaces
