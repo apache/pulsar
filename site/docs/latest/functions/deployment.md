@@ -104,9 +104,9 @@ $ bin/pulsar-admin functions update \
   --functionConfigFile function-config.yaml
 ```
 
-## Triggering functions
+## Triggering Pulsar Functions {#triggering}
 
-Whether a Pulsar Function is running in [local run](#local-run) or [cluster](#cluster-mode), you can **trigger** the function at any time using the command line. Triggering a function means that you send a message with a specific value to the function.
+If a Pulsar Function is running in [cluster mode](#cluster-mode), you can **trigger** it at any time using the command line. Triggering a function means that you send a message with a specific value to the function and get the function's output (if any) via the command line.
 
 {% include admonition.html type="info" content="Triggering a function is ultimately no different from invoking a function by producing a message on one of the function's input topics. The [`pulsar-admin functions trigger`](../../CliTools#pulsar-admin-functions-trigger) command is essentially a convenient mechanism for sending messages to functions without needing to use the [`pulsar-client`](../../CliTools#pulsar-client) tool or a language-specific client library." %}
 
