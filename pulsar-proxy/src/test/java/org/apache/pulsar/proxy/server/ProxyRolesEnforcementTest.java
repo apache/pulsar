@@ -162,7 +162,7 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
         providers.add(BasicAuthenticationProvider.class.getName());
         conf.setAuthenticationProviders(providers);
 
-        conf.setClusterName("use");
+        conf.setClusterName("test");
         Set<String> proxyRoles = new HashSet<String>();
         proxyRoles.add("proxy");
         conf.setProxyRoles(proxyRoles);
@@ -183,15 +183,15 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
         createAdminClient();
         final String proxyServiceUrl = "pulsar://localhost:" + servicePort;
         // create a client which connects to proxy and pass authData
-        String namespaceName = "prop/my-ns";
-        String topicName = "persistent://prop/my-ns/my-topic1";
+        String namespaceName = "my-property/my-ns";
+        String topicName = "persistent://my-property/my-ns/my-topic1";
         String subscriptionName = "my-subscriber-name";
         String clientAuthParams = "authParam:client";
         String proxyAuthParams = "authParam:proxy";
 
         admin.properties().createProperty("my-property",
-                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
-        admin.namespaces().createNamespace(namespaceName);
+                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace(namespaceName, Sets.newHashSet("test"));
 
         admin.namespaces().grantPermissionOnNamespace(namespaceName, "proxy",
                 Sets.newHashSet(AuthAction.consume, AuthAction.produce));
