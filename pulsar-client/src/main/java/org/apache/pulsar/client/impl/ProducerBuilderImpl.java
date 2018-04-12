@@ -34,8 +34,6 @@ import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
-import org.apache.pulsar.common.naming.TopicNames;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 
 import lombok.NonNull;
@@ -92,8 +90,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     @Override
     public ProducerBuilder<T> topic(String topicName) {
-        TopicName fqtn = TopicNames.getFullyQualifiedTopicName(topicName);
-        conf.setTopicName(fqtn.toString());
+        conf.setTopicName(topicName);
         return this;
     }
 
