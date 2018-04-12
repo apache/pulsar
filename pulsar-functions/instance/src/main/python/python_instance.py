@@ -119,9 +119,12 @@ class PythonInstance(object):
 
   def run(self):
     # Setup consumers and input deserializers
-    mode = pulsar._pulsar.ConsumerType.Exclusive
-    if self.atmost_once:
-      mode = pulsar._pulsar.ConsumerType.Shared
+    mode = pulsar._pulsar.ConsumerType.Shared
+    if self.instance_config.function_details.subscriptionType == Function_pb2.FunctionDetails.SubscriptionType.Value('EXCLUSIVE'):
+      mode = pulsar._pulsar.ConsumerType.Exclusive
+    elif self.instance_config.function_details.subscriptionType == Function_pb2.FunctionDetails.SubscriptionType.Value('FAILOVER'):
+      mode = pulsar._pulsar.ConsumerType.Failover
+
     subscription_name = str(self.instance_config.function_details.tenant) + "/" + \
                         str(self.instance_config.function_details.namespace) + "/" + \
                         str(self.instance_config.function_details.name)

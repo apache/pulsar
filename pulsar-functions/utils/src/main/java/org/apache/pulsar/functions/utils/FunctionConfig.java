@@ -44,7 +44,8 @@ public class FunctionConfig {
 
     public enum SubscriptionType {
         SHARED,
-        EXCLUSIVE
+        EXCLUSIVE,
+        FAILOVER
     }
 
     public enum Runtime {
