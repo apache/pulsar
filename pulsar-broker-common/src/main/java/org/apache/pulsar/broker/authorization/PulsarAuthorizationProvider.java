@@ -209,10 +209,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         }
 
         ZooKeeper globalZk = configCache.getZooKeeper();
-        final String property = namespaceName.getProperty();
-        final String cluster = namespaceName.getCluster();
-        final String namespace = namespaceName.getLocalName();
-        final String policiesPath = String.format("/%s/%s/%s/%s/%s", "admin", POLICIES, property, cluster, namespace);
+        final String policiesPath = String.format("/%s/%s/%s", "admin", POLICIES, namespaceName.toString());
 
         try {
             Stat nodeStat = new Stat();
@@ -225,22 +222,20 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
 
             configCache.policiesCache().invalidate(policiesPath);
 
-            log.info("[{}] Successfully granted access for role {}: {} - namespace {}/{}/{}", role, role, actions,
-                    property, cluster, namespace);
+            log.info("[{}] Successfully granted access for role {}: {} - namespace {}", role, role, actions,
+                    namespaceName);
             result.complete(null);
         } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to set permissions for namespace {}/{}/{}: does not exist", role, property, cluster,
-                    namespace);
-            result.completeExceptionally(new IllegalArgumentException("Namespace does not exist" + namespace));
+            log.warn("[{}] Failed to set permissions for namespace {}: does not exist", role, namespaceName);
+            result.completeExceptionally(new IllegalArgumentException("Namespace does not exist" + namespaceName));
         } catch (KeeperException.BadVersionException e) {
-            log.warn("[{}] Failed to set permissions for namespace {}/{}/{}: concurrent modification", role, property,
-                    cluster, namespace);
+            log.warn("[{}] Failed to set permissions for namespace {}: concurrent modification", role, namespaceName);
             result.completeExceptionally(new IllegalStateException(
                     "Concurrent modification on zk path: " + policiesPath + ", " + e.getMessage()));
         } catch (Exception e) {
-            log.error("[{}] Failed to get permissions for namespace {}/{}/{}", role, property, cluster, namespace, e);
+            log.error("[{}] Failed to get permissions for namespace {}", role, namespaceName, e);
             result.completeExceptionally(
-                    new IllegalStateException("Failed to get permissions for namespace " + namespace));
+                    new IllegalStateException("Failed to get permissions for namespace " + namespaceName));
         }
 
         return result;
