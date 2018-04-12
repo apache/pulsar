@@ -53,7 +53,7 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
-import org.apache.pulsar.functions.shaded.proto.Function.FunctionConfig;
+import org.apache.pulsar.functions.shaded.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.shaded.io.netty.buffer.ByteBuf;
 import org.apache.pulsar.functions.shaded.io.netty.buffer.ByteBufUtil;
 import org.apache.pulsar.functions.utils.Reflections;
@@ -182,7 +182,7 @@ public class CmdFunctionsTest {
         assertEquals(inputTopicName, creater.getInputs());
         assertEquals(outputTopicName, creater.getOutput());
 
-        verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
+        verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
 
     }
 
@@ -203,7 +203,7 @@ public class CmdFunctionsTest {
 
         CreateFunction creater = cmd.getCreater();
         assertEquals("tenant", creater.getFunctionConfig().getTenant());
-        verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
+        verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
     }
 
     @Test
@@ -223,7 +223,7 @@ public class CmdFunctionsTest {
         CreateFunction creater = cmd.getCreater();
         assertEquals("tenant", creater.getFunctionConfig().getTenant());
         assertEquals("namespace", creater.getFunctionConfig().getNamespace());
-        verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
+        verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
     }
 
     @Test
@@ -248,7 +248,7 @@ public class CmdFunctionsTest {
         assertEquals(tenant, creater.getFunctionConfig().getTenant());
         assertEquals(namespace, creater.getFunctionConfig().getNamespace());
         assertEquals(functionName, creater.getFunctionConfig().getName());
-        verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
+        verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
     }
 
     @Test
@@ -353,7 +353,7 @@ public class CmdFunctionsTest {
         assertEquals(inputTopicName, updater.getInputs());
         assertEquals(outputTopicName, updater.getOutput());
 
-        verify(functions, times(1)).updateFunction(any(FunctionConfig.class), anyString());
+        verify(functions, times(1)).updateFunction(any(FunctionDetails.class), anyString());
     }
 
     @Test
