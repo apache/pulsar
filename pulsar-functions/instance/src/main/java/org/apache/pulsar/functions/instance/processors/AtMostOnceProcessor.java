@@ -28,7 +28,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.functions.instance.InputMessage;
 import org.apache.pulsar.functions.instance.producers.AbstractOneOuputTopicProducers;
-import org.apache.pulsar.functions.proto.Function.FunctionConfig;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 
 /**
  * A message processor that process messages at-most-once.
@@ -39,16 +39,16 @@ class AtMostOnceProcessor extends MessageProcessorBase {
     private Producer producer;
 
     AtMostOnceProcessor(PulsarClient client,
-                        FunctionConfig functionConfig,
+                        FunctionDetails functionDetails,
                         SubscriptionType subType,
                         LinkedBlockingDeque<InputMessage> processQueue) {
-        super(client, functionConfig, subType, processQueue);
+        super(client, functionDetails, subType, processQueue);
     }
 
     @Override
     protected void postReceiveMessage(InputMessage message) {
         super.postReceiveMessage(message);
-        if (functionConfig.getAutoAck()) {
+        if (functionDetails.getAutoAck()) {
             message.ack();
         }
     }
@@ -75,7 +75,7 @@ class AtMostOnceProcessor extends MessageProcessorBase {
             try {
                 producer.close();
             } catch (PulsarClientException e) {
-                log.warn("Fail to close producer for processor {}", functionConfig.getOutput(), e);
+                log.warn("Fail to close producer for processor {}", functionDetails.getOutput(), e);
             }
         }
     }

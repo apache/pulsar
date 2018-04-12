@@ -20,21 +20,21 @@ package org.apache.pulsar.functions.proto;
 
 import static org.testng.Assert.assertEquals;
 
-import org.apache.pulsar.functions.proto.Function.FunctionConfig;
-import org.apache.pulsar.functions.proto.Function.FunctionConfig.ProcessingGuarantees;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails.ProcessingGuarantees;
 import org.testng.annotations.Test;
 
 /**
- * Unit test for {@link FunctionConfig}.
+ * Unit test for {@link FunctionDetails}.
  */
-public class FunctionConfigTest {
+public class FunctionDetailsTest {
 
     /**
      * Make sure the default processing guarantee is always `ATLEAST_ONCE`.
      */
     @Test
     public void testDefaultProcessingGuarantee() {
-        FunctionConfig fc = FunctionConfig.newBuilder().build();
+        FunctionDetails fc = FunctionDetails.newBuilder().build();
         assertEquals(ProcessingGuarantees.ATLEAST_ONCE, fc.getProcessingGuarantees());
     }
 

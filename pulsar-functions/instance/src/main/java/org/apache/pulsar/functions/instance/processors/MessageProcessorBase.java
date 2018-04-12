@@ -30,8 +30,8 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.instance.InputMessage;
-import org.apache.pulsar.functions.proto.Function.FunctionConfig;
-import org.apache.pulsar.functions.utils.FunctionConfigUtils;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 
 /**
  * The base implementation of {@link MessageProcessor}.
@@ -40,7 +40,7 @@ import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 abstract class MessageProcessorBase implements MessageProcessor {
 
     protected final PulsarClient client;
-    protected final FunctionConfig functionConfig;
+    protected final FunctionDetails functionDetails;
     protected final SubscriptionType subType;
     protected final LinkedBlockingDeque<InputMessage> processQueue;
 
@@ -51,11 +51,11 @@ abstract class MessageProcessorBase implements MessageProcessor {
     protected SerDe outputSerDe;
 
     protected MessageProcessorBase(PulsarClient client,
-                                   FunctionConfig functionConfig,
+                                   FunctionDetails functionDetails,
                                    SubscriptionType subType,
                                    LinkedBlockingDeque<InputMessage> processQueue) {
         this.client = client;
-        this.functionConfig = functionConfig;
+        this.functionDetails = functionDetails;
         this.subType = subType;
         this.processQueue = processQueue;
         this.inputConsumers = Maps.newConcurrentMap();
@@ -69,15 +69,15 @@ abstract class MessageProcessorBase implements MessageProcessor {
     public void setupInput(Map<String, SerDe> inputSerDe) throws Exception {
         log.info("Setting up input with input serdes: {}", inputSerDe);
         this.inputSerDe = inputSerDe;
-        for (Map.Entry<String, String> entry : functionConfig.getCustomSerdeInputsMap().entrySet()) {
+        for (Map.Entry<String, String> entry : functionDetails.getCustomSerdeInputsMap().entrySet()) {
             ConsumerConfiguration conf = createConsumerConfiguration(entry.getKey());
             this.inputConsumers.put(entry.getKey(), client.subscribe(entry.getKey(),
-                    FunctionConfigUtils.getFullyQualifiedName(functionConfig), conf));
+                    FunctionDetailsUtils.getFullyQualifiedName(functionDetails), conf));
         }
-        for (String topicName : functionConfig.getInputsList()) {
+        for (String topicName : functionDetails.getInputsList()) {
             ConsumerConfiguration conf = createConsumerConfiguration(topicName);
             this.inputConsumers.put(topicName, client.subscribe(topicName,
-                    FunctionConfigUtils.getFullyQualifiedName(functionConfig), conf));
+                    FunctionDetailsUtils.getFullyQualifiedName(functionDetails), conf));
         }
     }
 
@@ -126,9 +126,9 @@ abstract class MessageProcessorBase implements MessageProcessor {
     public void setupOutput(SerDe outputSerDe) throws Exception {
         this.outputSerDe = outputSerDe;
 
-        String outputTopic = functionConfig.getOutput();
+        String outputTopic = functionDetails.getOutput();
         if (outputTopic != null
-                && !functionConfig.getOutput().isEmpty()
+                && !functionDetails.getOutput().isEmpty()
                 && outputSerDe != null) {
             log.info("Starting producer for output topic {}", outputTopic);
             initializeOutputProducer(outputTopic);

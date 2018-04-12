@@ -71,8 +71,8 @@ public class FunctionStatsGeneratorTest {
         RuntimeSpawner runtimeSpawner = mock(RuntimeSpawner.class);
         doReturn(runtime).when(runtimeSpawner).getRuntime();
 
-        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionConfig(
-                Function.FunctionConfig.newBuilder()
+        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                Function.FunctionDetails.newBuilder()
                         .setTenant("test-tenant").setNamespace("test-namespace").setName("func-1")).build();
 
         Function.Instance instance = Function.Instance.newBuilder()

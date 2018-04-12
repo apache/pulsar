@@ -85,7 +85,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
     @Override
     public ProcessRuntime createContainer(InstanceConfig instanceConfig, String codeFile) {
         String instanceFile;
-        switch (instanceConfig.getFunctionConfig().getRuntime()) {
+        switch (instanceConfig.getFunctionDetails().getRuntime()) {
             case JAVA:
                 instanceFile = javaInstanceJarFile;
                 break;
@@ -93,7 +93,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
                 instanceFile = pythonInstanceFile;
                 break;
             default:
-                throw new RuntimeException("Unsupported Runtime " + instanceConfig.getFunctionConfig().getRuntime());
+                throw new RuntimeException("Unsupported Runtime " + instanceConfig.getFunctionDetails().getRuntime());
         }
         return new ProcessRuntime(
             instanceConfig,

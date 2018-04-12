@@ -50,15 +50,15 @@ public class FunctionMetaDataManagerTest {
                         mock(PulsarClient.class)));
 
         Map<String, Function.FunctionMetaData> functionMetaDataMap1 = new HashMap<>();
-        functionMetaDataMap1.put("func-1", Function.FunctionMetaData.newBuilder().setFunctionConfig(
-                        Function.FunctionConfig.newBuilder().setName("func-1")).build());
+        functionMetaDataMap1.put("func-1", Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                        Function.FunctionDetails.newBuilder().setName("func-1")).build());
         functionMetaDataMap1.put("func-2",
-                Function.FunctionMetaData.newBuilder().setFunctionConfig(
-                        Function.FunctionConfig.newBuilder().setName("func-2")).build());
+                Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                        Function.FunctionDetails.newBuilder().setName("func-2")).build());
         Map<String, Function.FunctionMetaData> functionMetaDataInfoMap2 = new HashMap<>();
         functionMetaDataInfoMap2.put("func-3",
-                Function.FunctionMetaData.newBuilder().setFunctionConfig(
-                        Function.FunctionConfig.newBuilder().setName("func-3")).build());
+                Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                        Function.FunctionDetails.newBuilder().setName("func-3")).build());
 
 
         functionMetaDataManager.functionMetaDataMap.put("tenant-1", new HashMap<>());
@@ -89,7 +89,7 @@ public class FunctionMetaDataManagerTest {
                         mock(SchedulerManager.class),
                         mock(PulsarClient.class)));
         Function.FunctionMetaData m1 = Function.FunctionMetaData.newBuilder()
-                .setFunctionConfig(Function.FunctionConfig.newBuilder().setName("func-1")).build();
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")).build();
 
         Mockito.doReturn(null).when(functionMetaDataManager).submit(any(Request.ServiceRequest.class));
         functionMetaDataManager.updateFunction(m1);
@@ -126,7 +126,7 @@ public class FunctionMetaDataManagerTest {
                         mock(PulsarClient.class)));
         Map<String, Function.FunctionMetaData> functionMetaDataMap = new HashMap<>();
         Function.FunctionMetaData m2 = Function.FunctionMetaData.newBuilder()
-                .setFunctionConfig(Function.FunctionConfig.newBuilder().setName("func-1")
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
                         .setNamespace("namespace-1").setTenant("tenant-1")).setVersion(version).build();
         functionMetaDataMap.put("func-1", m2);
         functionMetaDataManager.functionMetaDataMap.put("tenant-1", new HashMap<>());
@@ -145,7 +145,7 @@ public class FunctionMetaDataManagerTest {
                             Request.ServiceRequest.ServiceRequestType.UPDATE)) {
                         return false;
                     }
-                    if (!serviceRequest.getFunctionMetaData().getFunctionConfig().equals(m2.getFunctionConfig())) {
+                    if (!serviceRequest.getFunctionMetaData().getFunctionDetails().equals(m2.getFunctionDetails())) {
                         return false;
                     }
                     if (serviceRequest.getFunctionMetaData().getVersion() != (version + 1)) {
@@ -169,7 +169,7 @@ public class FunctionMetaDataManagerTest {
                         mock(SchedulerManager.class),
                         mock(PulsarClient.class)));
         Function.FunctionMetaData m1 = Function.FunctionMetaData.newBuilder()
-                .setFunctionConfig(Function.FunctionConfig.newBuilder().setName("func-1")
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
                         .setNamespace("namespace-1").setTenant("tenant-1")).setVersion(version).build();
         Map<String, Function.FunctionMetaData> functionMetaDataMap = new HashMap<>();
         functionMetaDataMap.put("func-1", m1);
@@ -190,7 +190,7 @@ public class FunctionMetaDataManagerTest {
                             Request.ServiceRequest.ServiceRequestType.DELETE)) {
                         return false;
                     }
-                    if (!serviceRequest.getFunctionMetaData().getFunctionConfig().equals(m1.getFunctionConfig())) {
+                    if (!serviceRequest.getFunctionMetaData().getFunctionDetails().equals(m1.getFunctionDetails())) {
                         return false;
                     }
                     if (serviceRequest.getFunctionMetaData().getVersion() != (version + 1)) {
@@ -251,7 +251,7 @@ public class FunctionMetaDataManagerTest {
 
         // worker has no record of function
         Function.FunctionMetaData m1 = Function.FunctionMetaData.newBuilder()
-                .setFunctionConfig(Function.FunctionConfig.newBuilder().setName("func-1")
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
                         .setNamespace("namespace-1").setTenant("tenant-1")).setVersion(version).build();
 
         Request.ServiceRequest serviceRequest = Request.ServiceRequest.newBuilder()
@@ -278,11 +278,11 @@ public class FunctionMetaDataManagerTest {
                         mock(PulsarClient.class)));
 
         Function.FunctionMetaData m3 = Function.FunctionMetaData.newBuilder()
-                .setFunctionConfig(Function.FunctionConfig.newBuilder().setName("func-1")
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
                         .setNamespace("namespace-1").setTenant("tenant-1")).setVersion(version).build();
         functionMetaDataManager.setFunctionMetaData(m3);
         Function.FunctionMetaData outdated = Function.FunctionMetaData.newBuilder()
-                .setFunctionConfig(Function.FunctionConfig.newBuilder().setName("func-1")
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
                         .setNamespace("namespace-1").setTenant("tenant-1")).setVersion(version - 1).build();
 
         serviceRequest = Request.ServiceRequest.newBuilder()
@@ -299,7 +299,7 @@ public class FunctionMetaDataManagerTest {
         verify(schedulerManager, times(0)).schedule();
 
         Function.FunctionMetaData outdated2 = Function.FunctionMetaData.newBuilder()
-                .setFunctionConfig(Function.FunctionConfig.newBuilder().setName("func-1")
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
                         .setNamespace("namespace-1").setTenant("tenant-1")).setVersion(version).build();
 
         serviceRequest = Request.ServiceRequest.newBuilder()
@@ -327,11 +327,11 @@ public class FunctionMetaDataManagerTest {
                         mock(PulsarClient.class)));
 
         Function.FunctionMetaData m4 = Function.FunctionMetaData.newBuilder()
-                .setFunctionConfig(Function.FunctionConfig.newBuilder().setName("func-1")
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
                         .setNamespace("namespace-1").setTenant("tenant-1")).setVersion(version).build();
         functionMetaDataManager.setFunctionMetaData(m4);
         Function.FunctionMetaData m5 = Function.FunctionMetaData.newBuilder()
-                .setFunctionConfig(Function.FunctionConfig.newBuilder().setName("func-1")
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
                         .setNamespace("namespace-1").setTenant("tenant-1")).setVersion(version + 1).build();
 
         serviceRequest = Request.ServiceRequest.newBuilder()
@@ -364,11 +364,11 @@ public class FunctionMetaDataManagerTest {
                         mock(PulsarClient.class)));
         // worker has no record of function
         Function.FunctionMetaData test = Function.FunctionMetaData.newBuilder()
-                .setFunctionConfig(Function.FunctionConfig.newBuilder().setName("func-2")
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-2")
                         .setNamespace("namespace-1").setTenant("tenant-1")).setVersion(version).build();
         functionMetaDataManager.setFunctionMetaData(test);
         Function.FunctionMetaData m1 = Function.FunctionMetaData.newBuilder()
-                .setFunctionConfig(Function.FunctionConfig.newBuilder().setName("func-1")
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
                         .setNamespace("namespace-1").setTenant("tenant-1")).setVersion(version).build();
         Request.ServiceRequest serviceRequest = Request.ServiceRequest.newBuilder()
                 .setServiceRequestType(Request.ServiceRequest.ServiceRequestType.UPDATE)
@@ -391,7 +391,7 @@ public class FunctionMetaDataManagerTest {
                         mock(PulsarClient.class)));
         functionMetaDataManager.setFunctionMetaData(test);
         Function.FunctionMetaData m2 = Function.FunctionMetaData.newBuilder()
-                .setFunctionConfig(Function.FunctionConfig.newBuilder().setName("func-1")
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
                         .setNamespace("namespace-1").setTenant("tenant-1")).setVersion(version).build();
         functionMetaDataManager.setFunctionMetaData(m2);
         serviceRequest = Request.ServiceRequest.newBuilder()
@@ -419,12 +419,12 @@ public class FunctionMetaDataManagerTest {
         functionMetaDataManager.setFunctionMetaData(test);
 
         Function.FunctionMetaData m3 = Function.FunctionMetaData.newBuilder()
-                .setFunctionConfig(Function.FunctionConfig.newBuilder().setName("func-1")
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
                         .setNamespace("namespace-1").setTenant("tenant-1")).setVersion(version ).build();
         functionMetaDataManager.setFunctionMetaData(m3);
 
         Function.FunctionMetaData m4 = Function.FunctionMetaData.newBuilder()
-                .setFunctionConfig(Function.FunctionConfig.newBuilder().setName("func-1")
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
                         .setNamespace("namespace-1").setTenant("tenant-1")).setVersion(version +1).build();
         serviceRequest = Request.ServiceRequest.newBuilder()
                 .setServiceRequestType(Request.ServiceRequest.ServiceRequestType.UPDATE)
