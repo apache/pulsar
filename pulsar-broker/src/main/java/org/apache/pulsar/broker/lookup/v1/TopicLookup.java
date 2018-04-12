@@ -36,6 +36,16 @@ import org.apache.pulsar.broker.lookup.TopicLookupBase;
 import org.apache.pulsar.broker.web.NoSwaggerDocumentation;
 import org.apache.pulsar.common.naming.TopicName;
 
+/**
+ * The path for this handler is marked as "v2" even though it refers to Pulsar 1.x topic name format.
+ *
+ * The lookup API was already <code>/v2/</code> in Pulsar 1.x. This was internally versioned at Yahoo to not clash with
+ * an earlier API.
+ *
+ * Since we're adding now the "Pulsar v2" we cannot rename this topic lookup into <code>/v1</code>. Rather the
+ * difference here would be : <code>lookup/v2/destination/persistent/prop/cluster/ns/topic</code> vs
+ * <code>lookup/v2/topic/persistent/prop/ns/topic</code>.
+ */
 @Path("/v2/destination/")
 @NoSwaggerDocumentation
 public class TopicLookup extends TopicLookupBase {
