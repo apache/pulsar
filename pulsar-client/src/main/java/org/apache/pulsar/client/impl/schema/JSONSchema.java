@@ -52,11 +52,11 @@ public class JSONSchema<T> implements Schema<T> {
     }
 
     @Override
-    public T decode(byte[] bytes) throws SchemaSerializationException {
+    public T decode(byte[] bytes) {
         try {
             return objectMapper.readValue(new String(bytes), pojo);
         } catch (IOException e) {
-            throw new SchemaSerializationException(e);
+            throw new RuntimeException(new SchemaSerializationException(e));
         }
     }
 

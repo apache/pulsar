@@ -205,7 +205,7 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     @Override
-    public T getValue() throws SchemaSerializationException {
+    public T getValue() {
         return schema.decode(getData());
     }
 

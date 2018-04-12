@@ -105,7 +105,7 @@ public class TopicMessageImpl<T> implements Message<T> {
     }
 
     @Override
-    public T getValue() throws SchemaSerializationException{
+    public T getValue() {
         return msg.getValue();
     }
 }
