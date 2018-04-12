@@ -20,6 +20,7 @@ package org.apache.pulsar.proxy.server.util;
 
 import java.io.Closeable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
@@ -32,6 +33,7 @@ import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperChildrenCache;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
+import org.apache.zookeeper.KeeperException.NoNodeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -95,16 +97,15 @@ public class ZookeeperCacheLoader implements Closeable {
         });
 
         // Do initial fetch of brokers list
-        availableBrokersSet = availableBrokersCache.get();
-        updateBrokerList(availableBrokersSet);
+        try {
+            updateBrokerList(availableBrokersCache.get());
+        } catch (NoNodeException nne) { // can happen if no broker started yet
+            updateBrokerList(Collections.emptySet());
+        }
     }
 
     public List<LoadManagerReport> getAvailableBrokers() {
         return availableBrokers;
-    }
-
-    public Set<String> getAvailableBrokersSet() {
-        return availableBrokersSet;
     }
 
     public ZooKeeperCache getLocalZkCache() {

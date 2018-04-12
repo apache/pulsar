@@ -57,7 +57,7 @@ public class RuntimeSpawner implements AutoCloseable {
     }
 
     public void start() throws Exception {
-        log.info("RuntimeSpawner starting function {} - {}", this.instanceConfig.getFunctionConfig().getName(),
+        log.info("RuntimeSpawner starting function {} - {}", this.instanceConfig.getFunctionDetails().getName(),
                 this.instanceConfig.getInstanceId());
         runtime = runtimeFactory.createContainer(this.instanceConfig, codeFile);
         runtime.start();

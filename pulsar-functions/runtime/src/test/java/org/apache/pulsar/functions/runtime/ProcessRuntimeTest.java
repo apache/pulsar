@@ -21,7 +21,7 @@ package org.apache.pulsar.functions.runtime;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.proto.Function.FunctionConfig;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.runtime.ProcessRuntime;
 import org.apache.pulsar.functions.runtime.ProcessRuntimeFactory;
 import org.apache.pulsar.functions.runtime.ThreadRuntime;
@@ -68,25 +68,25 @@ public class ProcessRuntimeTest {
         this.factory.close();
     }
 
-    FunctionConfig createFunctionConfig(FunctionConfig.Runtime runtime) {
-        FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
-        functionConfigBuilder.setRuntime(runtime);
-        functionConfigBuilder.setTenant(TEST_TENANT);
-        functionConfigBuilder.setNamespace(TEST_NAMESPACE);
-        functionConfigBuilder.setName(TEST_NAME);
-        functionConfigBuilder.setClassName("org.apache.pulsar.functions.utils.functioncache.AddFunction");
-        functionConfigBuilder.addInputs(TEST_NAME + "-input1");
-        functionConfigBuilder.addInputs(TEST_NAME + "-input2");
-        functionConfigBuilder.setOutput(TEST_NAME + "-output");
-        functionConfigBuilder.setOutputSerdeClassName("org.apache.pulsar.functions.runtime.serde.Utf8Serializer");
-        functionConfigBuilder.setLogTopic(TEST_NAME + "-log");
-        return functionConfigBuilder.build();
+    FunctionDetails createFunctionDetails(FunctionDetails.Runtime runtime) {
+        FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
+        functionDetailsBuilder.setRuntime(runtime);
+        functionDetailsBuilder.setTenant(TEST_TENANT);
+        functionDetailsBuilder.setNamespace(TEST_NAMESPACE);
+        functionDetailsBuilder.setName(TEST_NAME);
+        functionDetailsBuilder.setClassName("org.apache.pulsar.functions.utils.functioncache.AddFunction");
+        functionDetailsBuilder.addInputs(TEST_NAME + "-input1");
+        functionDetailsBuilder.addInputs(TEST_NAME + "-input2");
+        functionDetailsBuilder.setOutput(TEST_NAME + "-output");
+        functionDetailsBuilder.setOutputSerdeClassName("org.apache.pulsar.functions.runtime.serde.Utf8Serializer");
+        functionDetailsBuilder.setLogTopic(TEST_NAME + "-log");
+        return functionDetailsBuilder.build();
     }
 
-    InstanceConfig createJavaInstanceConfig(FunctionConfig.Runtime runtime) {
+    InstanceConfig createJavaInstanceConfig(FunctionDetails.Runtime runtime) {
         InstanceConfig config = new InstanceConfig();
 
-        config.setFunctionConfig(createFunctionConfig(runtime));
+        config.setFunctionDetails(createFunctionDetails(runtime));
         config.setFunctionId(java.util.UUID.randomUUID().toString());
         config.setFunctionVersion("1.0");
         config.setInstanceId(java.util.UUID.randomUUID().toString());
@@ -97,26 +97,27 @@ public class ProcessRuntimeTest {
 
     @Test
     public void testJavaConstructor() {
-        InstanceConfig config = createJavaInstanceConfig(FunctionConfig.Runtime.JAVA);
+        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA);
 
         ProcessRuntime container = factory.createContainer(config, userJarFile);
         List<String> args = container.getProcessArgs();
-        assertEquals(args.size(), 41);
+        assertEquals(args.size(), 43);
         args.remove(args.size() - 1);
         String expectedArgs = "java -cp " + javaInstanceJarFile + " -Dlog4j.configurationFile=java_instance_log4j2.yml "
-                + "-Dpulsar.log.dir=" + logDirectory + " -Dpulsar.log.file=" + config.getFunctionConfig().getName()
+                + "-Dpulsar.log.dir=" + logDirectory + "/functions" + " -Dpulsar.log.file=" + config.getFunctionDetails().getName()
                 + " org.apache.pulsar.functions.runtime.JavaInstanceMain"
                 + " --jar " + userJarFile + " --instance_id "
                 + config.getInstanceId() + " --function_id " + config.getFunctionId()
-                + " --function_version " + config.getFunctionVersion() + " --tenant " + config.getFunctionConfig().getTenant()
-                + " --namespace " + config.getFunctionConfig().getNamespace()
-                + " --name " + config.getFunctionConfig().getName()
-                + " --function_classname " + config.getFunctionConfig().getClassName()
-                + " --log_topic " + config.getFunctionConfig().getLogTopic()
+                + " --function_version " + config.getFunctionVersion() + " --tenant " + config.getFunctionDetails().getTenant()
+                + " --namespace " + config.getFunctionDetails().getNamespace()
+                + " --name " + config.getFunctionDetails().getName()
+                + " --function_classname " + config.getFunctionDetails().getClassName()
+                + " --subscription_type " + config.getFunctionDetails().getSubscriptionType()
+                + " --log_topic " + config.getFunctionDetails().getLogTopic()
                 + " --input_topics " + TEST_NAME + "-input1," + TEST_NAME + "-input2"
                 + " --auto_ack false"
-                + " --output_topic " + config.getFunctionConfig().getOutput()
-                + " --output_serde_classname " + config.getFunctionConfig().getOutputSerdeClassName()
+                + " --output_topic " + config.getFunctionDetails().getOutput()
+                + " --output_serde_classname " + config.getFunctionDetails().getOutputSerdeClassName()
                 + " --processing_guarantees ATLEAST_ONCE"
                 + " --pulsar_serviceurl " + pulsarServiceUrl
                 + " --max_buffered_tuples 1024 --port";
@@ -125,25 +126,26 @@ public class ProcessRuntimeTest {
 
     @Test
     public void testPythonConstructor() {
-        InstanceConfig config = createJavaInstanceConfig(FunctionConfig.Runtime.PYTHON);
+        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.PYTHON);
 
         ProcessRuntime container = factory.createContainer(config, userJarFile);
         List<String> args = container.getProcessArgs();
-        assertEquals(args.size(), 40);
+        assertEquals(args.size(), 42);
         args.remove(args.size() - 1);
         String expectedArgs = "python " + pythonInstanceFile
                 + " --py " + userJarFile + " --logging_directory "
-                + logDirectory + " --logging_file " + config.getFunctionConfig().getName() + " --instance_id "
+                + logDirectory + "/functions" + " --logging_file " + config.getFunctionDetails().getName() + " --instance_id "
                 + config.getInstanceId() + " --function_id " + config.getFunctionId()
-                + " --function_version " + config.getFunctionVersion() + " --tenant " + config.getFunctionConfig().getTenant()
-                + " --namespace " + config.getFunctionConfig().getNamespace()
-                + " --name " + config.getFunctionConfig().getName()
-                + " --function_classname " + config.getFunctionConfig().getClassName()
-                + " --log_topic " + config.getFunctionConfig().getLogTopic()
+                + " --function_version " + config.getFunctionVersion() + " --tenant " + config.getFunctionDetails().getTenant()
+                + " --namespace " + config.getFunctionDetails().getNamespace()
+                + " --name " + config.getFunctionDetails().getName()
+                + " --function_classname " + config.getFunctionDetails().getClassName()
+                + " --subscription_type " + config.getFunctionDetails().getSubscriptionType()
+                + " --log_topic " + config.getFunctionDetails().getLogTopic()
                 + " --input_topics " + TEST_NAME + "-input1," + TEST_NAME + "-input2"
                 + " --auto_ack false"
-                + " --output_topic " + config.getFunctionConfig().getOutput()
-                + " --output_serde_classname " + config.getFunctionConfig().getOutputSerdeClassName()
+                + " --output_topic " + config.getFunctionDetails().getOutput()
+                + " --output_serde_classname " + config.getFunctionDetails().getOutputSerdeClassName()
                 + " --processing_guarantees ATLEAST_ONCE"
                 + " --pulsar_serviceurl " + pulsarServiceUrl
                 + " --max_buffered_tuples 1024 --port";

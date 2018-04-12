@@ -25,7 +25,7 @@ import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
-import org.apache.pulsar.functions.proto.Function.FunctionConfig;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.InvocationTargetException;
@@ -48,17 +48,17 @@ public class JavaInstanceRunnableTest {
     }
 
     private static InstanceConfig createInstanceConfig(boolean addCustom, String outputSerde) {
-        FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
+        FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
         if (!addCustom) {
-            functionConfigBuilder.addInputs("TEST");
+            functionDetailsBuilder.addInputs("TEST");
         } else {
-            functionConfigBuilder.putCustomSerdeInputs("TEST", IntegerSerDe.class.getName());
+            functionDetailsBuilder.putCustomSerdeInputs("TEST", IntegerSerDe.class.getName());
         }
         if (outputSerde != null) {
-            functionConfigBuilder.setOutputSerdeClassName(outputSerde);
+            functionDetailsBuilder.setOutputSerdeClassName(outputSerde);
         }
         InstanceConfig instanceConfig = new InstanceConfig();
-        instanceConfig.setFunctionConfig(functionConfigBuilder.build());
+        instanceConfig.setFunctionDetails(functionDetailsBuilder.build());
         instanceConfig.setMaxBufferedTuples(1024);
         return instanceConfig;
     }

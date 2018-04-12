@@ -107,7 +107,7 @@ public class ClientCnx extends PulsarHandler {
     }
 
     public ClientCnx(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) {
-        super(30, TimeUnit.SECONDS);
+        super(conf.getKeepAliveIntervalSeconds(), TimeUnit.SECONDS);
         this.pendingLookupRequestSemaphore = new Semaphore(conf.getConcurrentLookupRequest(), true);
         this.authentication = conf.getAuthentication();
         this.eventLoopGroup = eventLoopGroup;
