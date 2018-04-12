@@ -30,7 +30,7 @@ import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.proto.Function.FunctionConfig;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
 
@@ -74,7 +74,7 @@ public class JavaInstanceMain {
     protected String logTopic;
 
     @Parameter(names = "--processing_guarantees", description = "Processing Guarantees\n", required = true)
-    protected FunctionConfig.ProcessingGuarantees processingGuarantees;
+    protected FunctionDetails.ProcessingGuarantees processingGuarantees;
 
     @Parameter(names = "--instance_id", description = "Instance Id\n", required = true)
     protected String instanceId;
@@ -103,6 +103,9 @@ public class JavaInstanceMain {
     @Parameter(names = "--auto_ack", description = "Enable Auto Acking?\n")
     protected String autoAck = "true";
 
+    @Parameter(names = "--subscription_type", description = "What subscription type to use")
+    protected FunctionDetails.SubscriptionType subscriptionType;
+
     private Server server;
 
     public JavaInstanceMain() { }
@@ -114,15 +117,15 @@ public class JavaInstanceMain {
         instanceConfig.setFunctionVersion(functionVersion);
         instanceConfig.setInstanceId(instanceId);
         instanceConfig.setMaxBufferedTuples(maxBufferedTuples);
-        FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
-        functionConfigBuilder.setTenant(tenant);
-        functionConfigBuilder.setNamespace(namespace);
-        functionConfigBuilder.setName(functionName);
-        functionConfigBuilder.setClassName(className);
+        FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
+        functionDetailsBuilder.setTenant(tenant);
+        functionDetailsBuilder.setNamespace(namespace);
+        functionDetailsBuilder.setName(functionName);
+        functionDetailsBuilder.setClassName(className);
         if (defaultSerdeInputTopics != null) {
             String[] inputTopics = defaultSerdeInputTopics.split(",");
             for (String inputTopic : inputTopics) {
-                functionConfigBuilder.addInputs(inputTopic);
+                functionDetailsBuilder.addInputs(inputTopic);
             }
         }
         if (customSerdeInputTopics != null && customSerdeClassnames != null) {
@@ -132,31 +135,32 @@ public class JavaInstanceMain {
                 throw new RuntimeException("Error specifying inputs");
             }
             for (int i = 0; i < inputTopics.length; ++i) {
-                functionConfigBuilder.putCustomSerdeInputs(inputTopics[i], inputSerdeClassNames[i]);
+                functionDetailsBuilder.putCustomSerdeInputs(inputTopics[i], inputSerdeClassNames[i]);
             }
         }
         if (outputSerdeClassName != null) {
-            functionConfigBuilder.setOutputSerdeClassName(outputSerdeClassName);
+            functionDetailsBuilder.setOutputSerdeClassName(outputSerdeClassName);
         }
         if (outputTopicName != null) {
-            functionConfigBuilder.setOutput(outputTopicName);
+            functionDetailsBuilder.setOutput(outputTopicName);
         }
         if (logTopic != null) {
-            functionConfigBuilder.setLogTopic(logTopic);
+            functionDetailsBuilder.setLogTopic(logTopic);
         }
-        functionConfigBuilder.setProcessingGuarantees(processingGuarantees);
+        functionDetailsBuilder.setProcessingGuarantees(processingGuarantees);
         if (autoAck.equals("true")) {
-            functionConfigBuilder.setAutoAck(true);
+            functionDetailsBuilder.setAutoAck(true);
         } else {
-            functionConfigBuilder.setAutoAck(false);
+            functionDetailsBuilder.setAutoAck(false);
         }
+        functionDetailsBuilder.setSubscriptionType(subscriptionType);
         if (userConfig != null && !userConfig.isEmpty()) {
             Type type = new TypeToken<Map<String, String>>(){}.getType();
             Map<String, String> userConfigMap = new Gson().fromJson(userConfig, type);
-            functionConfigBuilder.putAllUserConfig(userConfigMap);
+            functionDetailsBuilder.putAllUserConfig(userConfigMap);
         }
-        FunctionConfig functionConfig = functionConfigBuilder.build();
-        instanceConfig.setFunctionConfig(functionConfig);
+        FunctionDetails functionDetails = functionDetailsBuilder.build();
+        instanceConfig.setFunctionDetails(functionDetails);
 
         ThreadRuntimeFactory containerFactory = new ThreadRuntimeFactory(
                 "LocalRunnerThreadGroup",

@@ -46,7 +46,6 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
@@ -119,12 +118,12 @@ public class MembershipManagerTest {
 
         Mockito.doReturn(workerInfoList).when(membershipManager).getCurrentMembership();
 
-        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionConfig(
-                Function.FunctionConfig.newBuilder()
+        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                Function.FunctionDetails.newBuilder()
                         .setTenant("test-tenant").setNamespace("test-namespace").setName("func-1")).build();
 
-        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder().setFunctionConfig(
-                Function.FunctionConfig.newBuilder()
+        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                Function.FunctionDetails.newBuilder()
                         .setTenant("test-tenant").setNamespace("test-namespace").setName("func-2")).build();
 
         List<Function.FunctionMetaData> metaDataList = new LinkedList<>();
@@ -183,12 +182,12 @@ public class MembershipManagerTest {
 
         Mockito.doReturn(workerInfoList).when(membershipManager).getCurrentMembership();
 
-        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionConfig(
-                Function.FunctionConfig.newBuilder()
+        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                Function.FunctionDetails.newBuilder()
                         .setTenant("test-tenant").setNamespace("test-namespace").setName("func-1")).build();
 
-        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder().setFunctionConfig(
-                Function.FunctionConfig.newBuilder()
+        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                Function.FunctionDetails.newBuilder()
                         .setTenant("test-tenant").setNamespace("test-namespace").setName("func-2")).build();
 
         List<Function.FunctionMetaData> metaDataList = new LinkedList<>();
@@ -272,12 +271,12 @@ public class MembershipManagerTest {
 
         Mockito.doReturn(workerInfoList).when(membershipManager).getCurrentMembership();
 
-        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionConfig(
-                Function.FunctionConfig.newBuilder().setParallelism(1)
+        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                Function.FunctionDetails.newBuilder().setParallelism(1)
                         .setTenant("test-tenant").setNamespace("test-namespace").setName("func-1")).build();
 
-        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder().setFunctionConfig(
-                Function.FunctionConfig.newBuilder().setParallelism(1)
+        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                Function.FunctionDetails.newBuilder().setParallelism(1)
                         .setTenant("test-tenant").setNamespace("test-namespace").setName("func-2")).build();
 
         List<Function.FunctionMetaData> metaDataList = new LinkedList<>();

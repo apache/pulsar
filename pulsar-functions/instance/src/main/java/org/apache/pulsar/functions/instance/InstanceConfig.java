@@ -23,7 +23,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
-import org.apache.pulsar.functions.proto.Function.FunctionConfig;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 
 /**
  * This is the config passed to the Java Instance. Contains all the information
@@ -38,6 +38,6 @@ public class InstanceConfig {
     private String instanceId;
     private String functionId;
     private String functionVersion;
-    private FunctionConfig functionConfig;
+    private FunctionDetails functionDetails;
     private int maxBufferedTuples;
 }
