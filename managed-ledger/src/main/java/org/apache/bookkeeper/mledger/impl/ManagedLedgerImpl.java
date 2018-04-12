@@ -359,7 +359,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         STATE_UPDATER.set(this, State.LedgerOpened);
                         lastLedgerCreatedTimestamp = System.currentTimeMillis();
                         currentLedger = lh;
+
                         lastConfirmedEntry = new PositionImpl(lh.getId(), -1);
+                        // bypass empty ledgers, find last ledger with Message if possible.
+                        while (lastConfirmedEntry.getEntryId() == -1) {
+                            Map.Entry<Long, LedgerInfo> formerLedger = ledgers.lowerEntry(lastConfirmedEntry.getLedgerId());
+                            if (formerLedger != null) {
+                                LedgerInfo ledgerInfo = formerLedger.getValue();
+                                lastConfirmedEntry = PositionImpl.get(ledgerInfo.getLedgerId(), ledgerInfo.getEntries() - 1);
+                            } else {
+                                break;
+                            }
+                        }
+
                         LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lh.getId()).setTimestamp(0).build();
                         ledgers.put(lh.getId(), info);
 

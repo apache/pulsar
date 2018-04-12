@@ -106,6 +106,8 @@ class ProcessRuntime implements Runtime {
         args.add(instanceConfig.getFunctionDetails().getName());
         args.add("--function_classname");
         args.add(instanceConfig.getFunctionDetails().getClassName());
+        args.add("--subscription_type");
+        args.add(instanceConfig.getFunctionDetails().getSubscriptionType().toString());
         if (instanceConfig.getFunctionDetails().getLogTopic() != null &&
             !instanceConfig.getFunctionDetails().getLogTopic().isEmpty()) {
             args.add("--log_topic");
