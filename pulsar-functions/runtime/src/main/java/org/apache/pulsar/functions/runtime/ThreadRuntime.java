@@ -30,7 +30,7 @@ import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.instance.JavaInstanceRunnable;
-import org.apache.pulsar.functions.utils.FunctionConfigUtils;
+import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 
 /**
  * A function container implemented using java thread.
@@ -54,7 +54,7 @@ class ThreadRuntime implements Runtime {
                   PulsarClient pulsarClient,
                   String stateStorageServiceUrl) {
         this.instanceConfig = instanceConfig;
-        if (instanceConfig.getFunctionConfig().getRuntime() != Function.FunctionConfig.Runtime.JAVA) {
+        if (instanceConfig.getFunctionDetails().getRuntime() != Function.FunctionDetails.Runtime.JAVA) {
             throw new RuntimeException("Thread Container only supports Java Runtime");
         }
         this.javaInstanceRunnable = new JavaInstanceRunnable(
@@ -74,7 +74,7 @@ class ThreadRuntime implements Runtime {
         log.info("ThreadContainer starting function with instance config {}", instanceConfig);
         startupException = null;
         this.fnThread = new Thread(threadGroup, javaInstanceRunnable,
-                FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()));
+                FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
         this.fnThread.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
             @Override
             public void uncaughtException(Thread t, Throwable e) {

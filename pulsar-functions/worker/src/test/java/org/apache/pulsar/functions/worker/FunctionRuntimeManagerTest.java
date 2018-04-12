@@ -55,7 +55,7 @@ public class FunctionRuntimeManagerTest {
         }
 
         @Override
-        public void processRecord(InstanceCommunication.MetricsData record, Function.FunctionConfig functionConfig) {
+        public void processRecord(InstanceCommunication.MetricsData record, Function.FunctionDetails functionDetails) {
 
         }
 
@@ -95,12 +95,12 @@ public class FunctionRuntimeManagerTest {
                 mock(MembershipManager.class)
         ));
 
-        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionConfig(
-                Function.FunctionConfig.newBuilder()
+        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                Function.FunctionDetails.newBuilder()
                         .setTenant("test-tenant").setNamespace("test-namespace").setName("func-1")).build();
 
-        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder().setFunctionConfig(
-                Function.FunctionConfig.newBuilder()
+        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                Function.FunctionDetails.newBuilder()
                         .setTenant("test-tenant").setNamespace("test-namespace").setName("func-2")).build();
 
         Function.Assignment assignment1 = Function.Assignment.newBuilder()
@@ -188,12 +188,12 @@ public class FunctionRuntimeManagerTest {
                 mock(MembershipManager.class)
         ));
 
-        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionConfig(
-                Function.FunctionConfig.newBuilder()
+        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                Function.FunctionDetails.newBuilder()
                         .setTenant("test-tenant").setNamespace("test-namespace").setName("func-1")).build();
 
-        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder().setFunctionConfig(
-                Function.FunctionConfig.newBuilder()
+        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                Function.FunctionDetails.newBuilder()
                         .setTenant("test-tenant").setNamespace("test-namespace").setName("func-2")).build();
 
         Function.Assignment assignment1 = Function.Assignment.newBuilder()
@@ -285,12 +285,12 @@ public class FunctionRuntimeManagerTest {
                 mock(MembershipManager.class)
         ));
 
-        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionConfig(
-                Function.FunctionConfig.newBuilder()
+        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                Function.FunctionDetails.newBuilder()
                         .setTenant("test-tenant").setNamespace("test-namespace").setName("func-1")).build();
 
-        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder().setFunctionConfig(
-                Function.FunctionConfig.newBuilder()
+        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                Function.FunctionDetails.newBuilder()
                         .setTenant("test-tenant").setNamespace("test-namespace").setName("func-2")).build();
 
         Function.Assignment assignment1 = Function.Assignment.newBuilder()

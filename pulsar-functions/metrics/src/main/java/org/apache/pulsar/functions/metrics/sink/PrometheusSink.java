@@ -29,7 +29,7 @@ import com.google.common.cache.Cache;
 import lombok.Getter;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData;
-import org.apache.pulsar.functions.utils.FunctionConfigUtils;
+import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 
 /**
  * A web sink that exposes and endpoint that Prometheus can scrape
@@ -67,9 +67,9 @@ public class PrometheusSink extends AbstractWebSink {
         final StringBuilder sb = new StringBuilder();
 
         metrics.forEach((String source, Map<String, Double> sourceMetrics) -> {
-            String tenant = FunctionConfigUtils.extractTenantFromFQN(source);
-            String namespace = FunctionConfigUtils.extractNamespaceFromFQN(source);
-            String name = FunctionConfigUtils.extractFunctionNameFromFQN(source);
+            String tenant = FunctionDetailsUtils.extractTenantFromFQN(source);
+            String namespace = FunctionDetailsUtils.extractNamespaceFromFQN(source);
+            String name = FunctionDetailsUtils.extractFunctionNameFromFQN(source);
 
             sourceMetrics.forEach((String metricName, Double value) -> {
 
@@ -91,8 +91,8 @@ public class PrometheusSink extends AbstractWebSink {
     }
 
     @Override
-    public void processRecord(MetricsData record, Function.FunctionConfig functionConfig) {
-        final String source = FunctionConfigUtils.getFullyQualifiedName(functionConfig);
+    public void processRecord(MetricsData record, Function.FunctionDetails functionDetails) {
+        final String source = FunctionDetailsUtils.getFullyQualifiedName(functionDetails);
 
         Map<String, Double> sourceCache = metricsCache.getIfPresent(source);
         if (sourceCache == null) {

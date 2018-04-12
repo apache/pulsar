@@ -19,33 +19,12 @@
 
 package org.apache.pulsar.functions.utils;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import org.apache.pulsar.functions.proto.Function.FunctionConfig;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 
-import java.io.File;
-import java.io.IOException;
+public class FunctionDetailsUtils {
 
-public class FunctionConfigUtils {
-
-    public static String convertYamlToJson(File file) throws IOException {
-
-        ObjectMapper yamlReader = new ObjectMapper(new YAMLFactory());
-        Object obj = yamlReader.readValue(file, Object.class);
-
-        ObjectMapper jsonWriter = new ObjectMapper();
-        return jsonWriter.writeValueAsString(obj);
-    }
-
-    public static FunctionConfig.Builder loadConfig(File file) throws IOException {
-        String json = convertYamlToJson(file);
-        FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
-        Utils.mergeJson(json, functionConfigBuilder);
-        return functionConfigBuilder;
-    }
-
-    public static String getFullyQualifiedName(FunctionConfig functionConfig) {
-        return getFullyQualifiedName(functionConfig.getTenant(), functionConfig.getNamespace(), functionConfig.getName());
+    public static String getFullyQualifiedName(FunctionDetails FunctionDetails) {
+        return getFullyQualifiedName(FunctionDetails.getTenant(), FunctionDetails.getNamespace(), FunctionDetails.getName());
     }
 
     public static String getFullyQualifiedName(String tenant, String namespace, String functionName) {
@@ -64,34 +43,34 @@ public class FunctionConfigUtils {
         return fullyQualifiedName.split("/")[2];
     }
 
-    public static boolean areAllRequiredFieldsPresent(FunctionConfig functionConfig) {
-        if (functionConfig.getTenant() == null || functionConfig.getNamespace() == null
-                || functionConfig.getName() == null || functionConfig.getClassName() == null
-                || (functionConfig.getInputsCount() <= 0 && functionConfig.getCustomSerdeInputsCount() <= 0)
-                || functionConfig.getParallelism() <= 0) {
+    public static boolean areAllRequiredFieldsPresent(FunctionDetails FunctionDetails) {
+        if (FunctionDetails.getTenant() == null || FunctionDetails.getNamespace() == null
+                || FunctionDetails.getName() == null || FunctionDetails.getClassName() == null
+                || (FunctionDetails.getInputsCount() <= 0 && FunctionDetails.getCustomSerdeInputsCount() <= 0)
+                || FunctionDetails.getParallelism() <= 0) {
             return false;
         } else {
             return true;
         }
     }
 
-    public static String getDownloadFileName(FunctionConfig functionConfig) {
-        String[] hierarchy = functionConfig.getClassName().split("\\.");
+    public static String getDownloadFileName(FunctionDetails FunctionDetails) {
+        String[] hierarchy = FunctionDetails.getClassName().split("\\.");
         String fileName;
         if (hierarchy.length <= 0) {
-            fileName = functionConfig.getClassName();
+            fileName = FunctionDetails.getClassName();
         } else if (hierarchy.length == 1) {
             fileName =  hierarchy[0];
         } else {
             fileName = hierarchy[hierarchy.length - 2];
         }
-        switch (functionConfig.getRuntime()) {
+        switch (FunctionDetails.getRuntime()) {
             case JAVA:
                 return fileName + ".jar";
             case PYTHON:
                 return fileName + ".py";
             default:
-                throw new RuntimeException("Unknown runtime " + functionConfig.getRuntime());
+                throw new RuntimeException("Unknown runtime " + FunctionDetails.getRuntime());
         }
     }
 }
