@@ -264,7 +264,7 @@ public class CmdFunctions extends CmdBase {
                 functionConfig.setSubscriptionType(subscriptionType);
             }
             if (null != userConfigString) {
-                Type type = new TypeToken<Map<String, String>>().getType();
+                Type type = new TypeToken<Map<String, String>>(){}.getType();
                 Map<String, String> userConfigMap = new Gson().fromJson(userConfigString, type);
                 functionConfig.setUserConfig(userConfigMap);
             }
