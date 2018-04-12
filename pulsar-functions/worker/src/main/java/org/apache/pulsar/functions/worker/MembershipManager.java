@@ -47,7 +47,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.utils.FunctionConfigUtils;
+import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 
 /**
  * A simple implementation of leader election using a pulsar topic.
@@ -180,7 +180,7 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
         List<Function.FunctionMetaData> functionMetaDataList = functionMetaDataManager.getAllFunctionMetaData();
         Map<String, Function.FunctionMetaData> functionMetaDataMap = new HashMap<>();
         for (Function.FunctionMetaData entry : functionMetaDataList) {
-            functionMetaDataMap.put(FunctionConfigUtils.getFullyQualifiedName(entry.getFunctionConfig()), entry);
+            functionMetaDataMap.put(FunctionDetailsUtils.getFullyQualifiedName(entry.getFunctionDetails()), entry);
         }
         Map<String, Map<String, Function.Assignment>> currentAssignments = functionRuntimeManager.getCurrentAssignments();
         Map<String, Function.Assignment> assignmentMap = new HashMap<>();
@@ -193,8 +193,8 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
         Iterator<Map.Entry<Function.Instance, Long>> it = unsignedFunctionDurations.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<Function.Instance, Long> entry = it.next();
-            String fullyQualifiedFunctionName = FunctionConfigUtils.getFullyQualifiedName(
-                    entry.getKey().getFunctionMetaData().getFunctionConfig());
+            String fullyQualifiedFunctionName = FunctionDetailsUtils.getFullyQualifiedName(
+                    entry.getKey().getFunctionMetaData().getFunctionDetails());
             String fullyQualifiedInstanceId = Utils.getFullyQualifiedInstanceId(entry.getKey());
             //remove functions that don't exist anymore
             if (!functionMetaDataMap.containsKey(fullyQualifiedFunctionName)) {
@@ -215,9 +215,9 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
         // check for function instances that haven't been assigned
         for (Function.FunctionMetaData functionMetaData : functionMetaDataList) {
             Collection<Function.Assignment> assignments
-                    = FunctionRuntimeManager.findFunctionAssignments(functionMetaData.getFunctionConfig().getTenant(),
-                    functionMetaData.getFunctionConfig().getNamespace(),
-                    functionMetaData.getFunctionConfig().getName(),
+                    = FunctionRuntimeManager.findFunctionAssignments(functionMetaData.getFunctionDetails().getTenant(),
+                    functionMetaData.getFunctionDetails().getNamespace(),
+                    functionMetaData.getFunctionDetails().getName(),
                     currentAssignments);
 
             Set<Function.Instance> assignedInstances = assignments.stream()

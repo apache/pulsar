@@ -23,7 +23,7 @@ package proto;
 option java_package = "org.apache.pulsar.functions.proto";
 option java_outer_classname = "Function";
 
-message FunctionConfig {
+message FunctionDetails {
     enum ProcessingGuarantees {
         ATLEAST_ONCE = 0; // [default value]
         ATMOST_ONCE = 1;
@@ -63,7 +63,7 @@ message PackageLocationMetaData {
 }
 
 message FunctionMetaData {
-    FunctionConfig functionConfig = 1;
+    FunctionDetails functionDetails = 1;
     PackageLocationMetaData packageLocation = 2;
     uint64 version = 3;
     uint64 createTime = 4;
