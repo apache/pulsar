@@ -95,7 +95,7 @@ public class BrokersBase extends AdminResource {
             throw new RestException(e);
         }
     }
-    
+
     @POST
     @Path("/configuration/{configName}/{configValue}")
     @ApiOperation(value = "Update dynamic serviceconfiguration into zk only. This operation requires Pulsar super-user privileges.")
