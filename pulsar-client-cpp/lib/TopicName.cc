@@ -52,8 +52,19 @@ TopicName::TopicName() {}
 bool TopicName::init(const std::string& topicName) {
     topicName_ = topicName;
     if (topicName.find("://") == std::string::npos) {
-        LOG_ERROR("Topic name is not valid, domain not present - " << topicName);
-        return false;
+        std::string topicNameCopy_ = topicName;
+        std::vector<std::string> pathTokens;
+        boost::algorithm::split(pathTokens, topicNameCopy_, boost::algorithm::is_any_of("/"));
+        if (pathTokens.size() == 3) {
+          topicName_ = "persistent://" + pathTokens[0] + "/" + pathTokens[1] + "/" + pathTokens[2];
+          return true;
+        } if (pathTokens.size() == 1) else {
+          topicName_ = "persistent://public/default/" + pathTokens[0];
+          return true;
+        } else {
+          LOG_ERROR("Topic name is not valid, short topic name should be in the format of '<topic>' or '<property>/<namespace>/<topic>' - " << topicName);
+          return false;
+        }
     }
     parse(topicName_, domain_, property_, cluster_, namespacePortion_, localName_);
     if (localName_.empty()) {
@@ -69,17 +80,30 @@ void TopicName::parse(const std::string& topicName, std::string& domain, std::st
     boost::replace_first(topicNameCopy, "://", "/");
     std::vector<std::string> pathTokens;
     boost::algorithm::split(pathTokens, topicNameCopy, boost::algorithm::is_any_of("/"));
-    if (pathTokens.size() < 5) {
+    if (pathTokens.size() < 4) {
         LOG_ERROR("Topic name is not valid, does not have enough parts - " << topicName);
         return;
     }
     domain = pathTokens[0];
-    property = pathTokens[1];
-    cluster = pathTokens[2];
-    namespacePortion = pathTokens[3];
+    size_t numSlashIndexes;
+    if (pathTokens.size() == 4) {
+        // New topic name without cluster name
+        property = pathTokens[1]; 
+        cluster  = "";
+        namespacePortion = pathTokens[2];
+        localName = pathTokens[3];
+        numSlashIndexes = 3;
+    } else {
+        // Legacy topic name that includes cluster name
+        property = pathTokens[1];
+        cluster  = pathTokens[2];
+        namespacePortion = pathTokens[3];
+        localName = pathTokens[4];
+        numSlashIndexes = 4;
+    }
     size_t slashIndex = -1;
-    // find four '/', whatever is left is topic local name
-    for (int i = 0; i < 4; i++) {
+    // find `numSlashIndexes` '/', whatever is left is topic local name
+    for (int i = 0; i < numSlashIndexes; i++) {
         slashIndex = topicNameCopy.find('/', slashIndex + 1);
     }
     // get index to next char to '/'
@@ -125,8 +149,14 @@ bool TopicName::validate() {
     if (domain_.compare("persistent") != 0) {
         return false;
     }
+    // cluster_ can be empty
     if (!property_.empty() && !cluster_.empty() && !namespacePortion_.empty() && !localName_.empty()) {
+        // v1 topic format
         return NamedEntity::checkName(property_) && NamedEntity::checkName(cluster_) &&
+               NamedEntity::checkName(namespacePortion_);
+    } else if (!property_.empty() && !namespacePortion_.empty() && !localName_.empty()) {
+        // v2 topic format
+        return NamedEntity::checkName(property_) &&
                NamedEntity::checkName(namespacePortion_);
     } else {
         return false;
@@ -151,16 +181,26 @@ boost::shared_ptr<TopicName> TopicName::get(const std::string& topicName) {
 std::string TopicName::getLookupName() {
     std::stringstream ss;
     std::string seperator("/");
-    ss << domain_ << seperator << property_ << seperator << cluster_ << seperator << namespacePortion_
-       << seperator << getEncodedLocalName();
+    if (cluster_.empty()) {
+        ss << domain_ << seperator << property_ << seperator << namespacePortion_
+           << seperator << getEncodedLocalName();
+    } else {
+        ss << domain_ << seperator << property_ << seperator << cluster_ << seperator << namespacePortion_
+           << seperator << getEncodedLocalName();
+    }
     return ss.str();
 }
 
 std::string TopicName::toString() {
     std::stringstream ss;
     std::string seperator("/");
-    ss << domain_ << "://" << property_ << seperator << cluster_ << seperator << namespacePortion_
-       << seperator << localName_;
+    if (cluster_.empty()) {
+        ss << domain_ << "://" << property_ << seperator << namespacePortion_
+           << seperator << localName_;
+    } else {
+        ss << domain_ << "://" << property_ << seperator << cluster_ << seperator << namespacePortion_
+           << seperator << localName_;
+    }
     return ss.str();
 }
 
