@@ -144,6 +144,7 @@ flexible messaging model and an intuitive client API.</description>
     <hbc-core.version>2.2.0</hbc-core.version>
     <cassandra-driver-core.version>3.4.0</cassandra-driver-core.version>
     <aerospike-client.version>4.1.5</aerospike-client.version>
+    <rabbitmq-client.version>5.1.1</rabbitmq-client.version>
 
     <!-- test dependencies -->
     <disruptor.version>3.4.0</disruptor.version>
