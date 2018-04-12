@@ -42,8 +42,10 @@ public interface MessageProcessor extends AutoCloseable {
         FunctionDetails.SubscriptionType fnSubType = functionDetails.getSubscriptionType();
         ProcessingGuarantees processingGuarantees = functionDetails.getProcessingGuarantees();
         SubscriptionType subType;
-        if (null == fnSubType || FunctionDetails.SubscriptionType.SHARED == fnSubType) {
+        if (FunctionDetails.SubscriptionType.SHARED == fnSubType) {
             subType = SubscriptionType.Shared;
+        } else if (FunctionDetails.SubscriptionType.EXCLUSIVE == fnSubType) {
+            subType = SubscriptionType.Exclusive;
         } else {
             subType = SubscriptionType.Failover;
         }
