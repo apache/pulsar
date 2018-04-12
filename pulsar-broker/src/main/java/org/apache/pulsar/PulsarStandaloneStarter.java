@@ -31,6 +31,7 @@ import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.apache.pulsar.functions.worker.WorkerConfig;
@@ -203,13 +204,14 @@ public class PulsarStandaloneStarter {
         broker = new PulsarService(config, Optional.ofNullable(fnWorkerService));
         broker.start();
 
-        // Create a sample namespace
         URL webServiceUrl = new URL(
                 String.format("http://%s:%d", config.getAdvertisedAddress(), config.getWebServicePort()));
         final String brokerServiceUrl = String.format("pulsar://%s:%d", config.getAdvertisedAddress(),
                 config.getBrokerServicePort());
         admin = PulsarAdmin.builder().serviceHttpUrl(webServiceUrl.toString()).authentication(
                 config.getBrokerClientAuthenticationPlugin(), config.getBrokerClientAuthenticationParameters()).build();
+
+        // Create a sample namespace
         final String property = "sample";
         final String cluster = config.getClusterName();
         final String globalCluster = "global";
@@ -235,6 +237,22 @@ public class PulsarStandaloneStarter {
 
             if (!admin.namespaces().getNamespaces(property).contains(namespace)) {
                 admin.namespaces().createNamespace(namespace);
+            }
+        } catch (PulsarAdminException e) {
+            log.info(e.getMessage());
+        }
+
+        // Create a public tenant and default namespace
+        final String publicTenant = TopicName.PUBLIC_PROPERTY;
+        final String defaultNamespace = TopicName.PUBLIC_PROPERTY + "/" + TopicName.DEFAULT_NAMESPACE;
+        try {
+            if (!admin.properties().getProperties().contains(publicTenant)) {
+                admin.properties().createProperty(
+                    publicTenant,
+                    new PropertyAdmin(Sets.newHashSet(config.getSuperUserRoles()), Sets.newHashSet(cluster)));
+            }
+            if (!admin.namespaces().getNamespaces(publicTenant).contains(defaultNamespace)) {
+                admin.namespaces().createNamespace(defaultNamespace);
             }
         } catch (PulsarAdminException e) {
             log.info(e.getMessage());
