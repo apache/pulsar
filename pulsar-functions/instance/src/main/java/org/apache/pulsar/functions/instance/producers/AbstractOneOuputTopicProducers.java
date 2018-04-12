@@ -28,7 +28,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.instance.FunctionResultRouter;
 
-abstract class AbstractOneOuputTopicProducers implements Producers {
+public abstract class AbstractOneOuputTopicProducers implements Producers {
 
     protected final PulsarClient client;
     protected final String outputTopic;
@@ -42,7 +42,7 @@ abstract class AbstractOneOuputTopicProducers implements Producers {
         this.conf = newProducerConfiguration();
     }
 
-    protected ProducerConfiguration newProducerConfiguration() {
+    static ProducerConfiguration newProducerConfiguration() {
         ProducerConfiguration conf = new ProducerConfiguration();
         conf.setBlockIfQueueFull(true);
         conf.setBatchingEnabled(true);
@@ -58,11 +58,21 @@ abstract class AbstractOneOuputTopicProducers implements Producers {
 
     protected Producer createProducer(String topic)
             throws PulsarClientException {
+        return createProducer(client, topic);
+    }
+
+    public static Producer createProducer(PulsarClient client, String topic)
+            throws PulsarClientException {
         return client.createProducer(topic, newProducerConfiguration());
     }
 
     protected Producer createProducer(String topic, String producerName)
             throws PulsarClientException {
+        return createProducer(client, topic, producerName);
+    }
+
+    public static Producer createProducer(PulsarClient client, String topic, String producerName)
+        throws PulsarClientException {
         ProducerConfiguration newConf = newProducerConfiguration();
         newConf.setProducerName(producerName);
 
