@@ -76,13 +76,13 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
-import org.apache.pulsar.functions.proto.Function.FunctionConfig;
-import org.apache.pulsar.functions.proto.Function.FunctionConfig.ProcessingGuarantees;
+import org.apache.pulsar.functions.instance.processors.AtLeastOnceProcessor;
+import org.apache.pulsar.functions.instance.processors.MessageProcessor;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails.ProcessingGuarantees;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
-import org.apache.pulsar.functions.instance.producers.Producers;
-import org.apache.pulsar.functions.instance.producers.SimpleOneOuputTopicProducers;
-import org.apache.pulsar.functions.utils.FunctionConfigUtils;
+import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.apache.pulsar.functions.utils.Utils;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
@@ -208,16 +208,16 @@ public class JavaInstanceRunnableProcessTest {
     private static final String TEST_STORAGE_SERVICE_URL = "127.0.0.1:4181";
     private static final LinkedBlockingQueue<String> voidFunctionQueue = new LinkedBlockingQueue<>();
 
-    private FunctionConfig fnConfig;
+    private FunctionDetails functionDetails;
     private InstanceConfig config;
     private FunctionCacheManager fnCache;
     private PulsarClient mockClient;
     private FunctionStats mockFunctionStats;
 
     private final Map<Pair<String, String>, ProducerInstance> mockProducers
-        = Collections.synchronizedMap(new HashMap<>());
+            = Collections.synchronizedMap(new HashMap<>());
     private final Map<Pair<String, String>, ConsumerInstance> mockConsumers
-        = Collections.synchronizedMap(new HashMap<>());
+            = Collections.synchronizedMap(new HashMap<>());
     private StorageClient mockStorageClient;
     private Table<ByteBuf, ByteBuf> mockTable;
 
@@ -226,23 +226,23 @@ public class JavaInstanceRunnableProcessTest {
         mockProducers.clear();
         mockConsumers.clear();
 
-        fnConfig = FunctionConfig.newBuilder()
-            .setAutoAck(true)
-            .setClassName(TestFunction.class.getName())
-            .addInputs("test-src-topic")
-            .setName("test-function")
-            .setOutput("test-output-topic")
-            .setProcessingGuarantees(ProcessingGuarantees.ATLEAST_ONCE)
-            .setTenant("test-tenant")
-            .setNamespace("test-namespace")
-            .build();
+        functionDetails = FunctionDetails.newBuilder()
+                .setAutoAck(true)
+                .setClassName(TestFunction.class.getName())
+                .addInputs("test-src-topic")
+                .setName("test-function")
+                .setOutput("test-output-topic")
+                .setProcessingGuarantees(ProcessingGuarantees.ATLEAST_ONCE)
+                .setTenant("test-tenant")
+                .setNamespace("test-namespace")
+                .build();
 
         config = new InstanceConfig();
         config.setFunctionId("test-function-id");
         config.setFunctionVersion("v1");
         config.setInstanceId("test-instance-id");
         config.setMaxBufferedTuples(1000);
-        config.setFunctionConfig(fnConfig);
+        config.setFunctionDetails(functionDetails);
 
         mockClient = mock(PulsarClientImpl.class);
 
@@ -253,46 +253,46 @@ public class JavaInstanceRunnableProcessTest {
 
         ClassLoader clsLoader = JavaInstanceRunnableTest.class.getClassLoader();
         when(fnCache.getClassLoader(anyString()))
-            .thenReturn(clsLoader);
+                .thenReturn(clsLoader);
 
         // mock producer & consumer
         when(mockClient.createProducer(anyString(), any(ProducerConfiguration.class)))
-            .thenAnswer(invocationOnMock -> {
-                String topic = invocationOnMock.getArgumentAt(0, String.class);
-                ProducerConfiguration conf = invocationOnMock.getArgumentAt(1, ProducerConfiguration.class);
-                String producerName = conf.getProducerName();
+                .thenAnswer(invocationOnMock -> {
+                    String topic = invocationOnMock.getArgumentAt(0, String.class);
+                    ProducerConfiguration conf = invocationOnMock.getArgumentAt(1, ProducerConfiguration.class);
+                    String producerName = conf.getProducerName();
 
-                Pair<String, String> pair = Pair.of(topic, producerName);
-                ProducerInstance producerInstance = mockProducers.get(pair);
-                if (null == producerInstance) {
-                    Producer producer = mock(Producer.class);
-                    LinkedBlockingQueue<Message> msgQueue = new LinkedBlockingQueue<>();
-                    final ProducerInstance instance = new ProducerInstance(producer, msgQueue);
-                    producerInstance = instance;
-                    when(producer.getProducerName())
-                        .thenReturn(producerName);
-                    when(producer.getTopic())
-                        .thenReturn(topic);
-                    when(producer.sendAsync(any(Message.class)))
-                        .thenAnswer(invocationOnMock1 -> {
-                            Message msg = invocationOnMock1.getArgumentAt(0, Message.class);
-                            log.info("producer send message {}", msg);
+                    Pair<String, String> pair = Pair.of(topic, producerName);
+                    ProducerInstance producerInstance = mockProducers.get(pair);
+                    if (null == producerInstance) {
+                        Producer producer = mock(Producer.class);
+                        LinkedBlockingQueue<Message> msgQueue = new LinkedBlockingQueue<>();
+                        final ProducerInstance instance = new ProducerInstance(producer, msgQueue);
+                        producerInstance = instance;
+                        when(producer.getProducerName())
+                                .thenReturn(producerName);
+                        when(producer.getTopic())
+                                .thenReturn(topic);
+                        when(producer.sendAsync(any(Message.class)))
+                                .thenAnswer(invocationOnMock1 -> {
+                                    Message msg = invocationOnMock1.getArgumentAt(0, Message.class);
+                                    log.info("producer send message {}", msg);
 
-                            CompletableFuture<MessageId> future = new CompletableFuture<>();
-                            instance.addSendFuture(future);
-                            msgQueue.put(msg);
-                            return future;
-                        });
-                    when(producer.closeAsync()).thenReturn(FutureUtils.Void());
+                                    CompletableFuture<MessageId> future = new CompletableFuture<>();
+                                    instance.addSendFuture(future);
+                                    msgQueue.put(msg);
+                                    return future;
+                                });
+                        when(producer.closeAsync()).thenReturn(FutureUtils.Void());
 
-                    mockProducers.put(pair, producerInstance);
-                }
-                return producerInstance.getProducer();
-            });
+                        mockProducers.put(pair, producerInstance);
+                    }
+                    return producerInstance.getProducer();
+                });
         when(mockClient.subscribe(
-            anyString(),
-            anyString(),
-            any(ConsumerConfiguration.class)
+                anyString(),
+                anyString(),
+                any(ConsumerConfiguration.class)
         )).thenAnswer(invocationOnMock -> {
             String topic = invocationOnMock.getArgumentAt(0, String.class);
             String subscription = invocationOnMock.getArgumentAt(1, String.class);
@@ -308,26 +308,26 @@ public class JavaInstanceRunnableProcessTest {
                 when(consumer.getTopic()).thenReturn(topic);
                 when(consumer.getSubscription()).thenReturn(subscription);
                 when(consumer.acknowledgeAsync(any(Message.class)))
-                    .thenAnswer(invocationOnMock1 -> {
-                        Message msg = invocationOnMock1.getArgumentAt(0, Message.class);
-                        log.info("Ack message {} : message id = {}", msg, msg.getMessageId());
+                        .thenAnswer(invocationOnMock1 -> {
+                            Message msg = invocationOnMock1.getArgumentAt(0, Message.class);
+                            log.info("Ack message {} : message id = {}", msg, msg.getMessageId());
 
-                        instance.removeMessage(msg.getMessageId());
-                        return FutureUtils.Void();
-                    });
+                            instance.removeMessage(msg.getMessageId());
+                            return FutureUtils.Void();
+                        });
                 when(consumer.acknowledgeCumulativeAsync(any(Message.class)))
-                    .thenAnswer(invocationOnMock1 -> {
-                        Message msg = invocationOnMock1.getArgumentAt(0, Message.class);
-                        log.info("Ack message cumulatively message id = {}", msg, msg.getMessageId());
+                        .thenAnswer(invocationOnMock1 -> {
+                            Message msg = invocationOnMock1.getArgumentAt(0, Message.class);
+                            log.info("Ack message cumulatively message id = {}", msg, msg.getMessageId());
 
-                        instance.removeMessagesBefore(msg.getMessageId());
-                        return FutureUtils.Void();
-                    });
+                            instance.removeMessagesBefore(msg.getMessageId());
+                            return FutureUtils.Void();
+                        });
                 when(consumer.closeAsync())
-                    .thenAnswer(invocationOnMock1 -> {
-                        mockConsumers.remove(pair, instance);
-                        return FutureUtils.Void();
-                    });
+                        .thenAnswer(invocationOnMock1 -> {
+                            mockConsumers.remove(pair, instance);
+                            return FutureUtils.Void();
+                        });
                 doAnswer(invocationOnMock1 -> {
                     mockConsumers.remove(pair, instance);
                     return null;
@@ -353,11 +353,11 @@ public class JavaInstanceRunnableProcessTest {
 
         PowerMockito.mockStatic(StorageClientBuilder.class);
         PowerMockito.when(
-            StorageClientBuilder.newBuilder()
+                StorageClientBuilder.newBuilder()
         ).thenReturn(mockBuilder);
 
         when(adminClient.getStream(anyString(), anyString())).thenReturn(FutureUtils.value(
-            StreamProperties.newBuilder().build()));
+                StreamProperties.newBuilder().build()));
         mockTable = mock(Table.class);
         when(mockStorageClient.openTable(anyString())).thenReturn(FutureUtils.value(mockTable));
 
@@ -367,38 +367,38 @@ public class JavaInstanceRunnableProcessTest {
 
         mockFunctionStats = spy(new FunctionStats());
         PowerMockito.whenNew(FunctionStats.class)
-            .withNoArguments()
-            .thenReturn(mockFunctionStats);
+                .withNoArguments()
+                .thenReturn(mockFunctionStats);
 
         // Mock message builder
         PowerMockito.mockStatic(MessageBuilder.class);
         PowerMockito.when(MessageBuilder.create())
-            .thenAnswer(invocationOnMock -> {
+                .thenAnswer(invocationOnMock -> {
 
-                Message msg = mock(Message.class);
-                MessageBuilder builder = mock(MessageBuilder.class);
-                when(builder.setContent(any(byte[].class)))
-                    .thenAnswer(invocationOnMock1 -> {
-                        byte[] content = invocationOnMock1.getArgumentAt(0, byte[].class);
-                        when(msg.getData()).thenReturn(content);
-                        return builder;
-                    });
-                when(builder.setSequenceId(anyLong()))
-                    .thenAnswer(invocationOnMock1 -> {
-                        long seqId = invocationOnMock1.getArgumentAt(0, long.class);
-                        when(msg.getSequenceId()).thenReturn(seqId);
-                        return builder;
-                    });
-                when(builder.setProperty(anyString(), anyString()))
-                        .thenAnswer(invocationOnMock1 -> {
-                            String key = invocationOnMock1.getArgumentAt(0, String.class);
-                            String value = invocationOnMock1.getArgumentAt(1, String.class);
-                            when(msg.getProperty(eq(key))).thenReturn(value);
-                            return builder;
+                    Message msg = mock(Message.class);
+                    MessageBuilder builder = mock(MessageBuilder.class);
+                    when(builder.setContent(any(byte[].class)))
+                            .thenAnswer(invocationOnMock1 -> {
+                                byte[] content = invocationOnMock1.getArgumentAt(0, byte[].class);
+                                when(msg.getData()).thenReturn(content);
+                                return builder;
                             });
-                when(builder.build()).thenReturn(msg);
-                return builder;
-            });
+                    when(builder.setSequenceId(anyLong()))
+                            .thenAnswer(invocationOnMock1 -> {
+                                long seqId = invocationOnMock1.getArgumentAt(0, long.class);
+                                when(msg.getSequenceId()).thenReturn(seqId);
+                                return builder;
+                            });
+                    when(builder.setProperty(anyString(), anyString()))
+                            .thenAnswer(invocationOnMock1 -> {
+                                String key = invocationOnMock1.getArgumentAt(0, String.class);
+                                String value = invocationOnMock1.getArgumentAt(1, String.class);
+                                when(msg.getProperty(eq(key))).thenReturn(value);
+                                return builder;
+                            });
+                    when(builder.build()).thenReturn(msg);
+                    return builder;
+                });
     }
 
     /**
@@ -407,11 +407,11 @@ public class JavaInstanceRunnableProcessTest {
     @Test
     public void testSetupJavaInstance() throws Exception {
         JavaInstanceRunnable runnable = new JavaInstanceRunnable(
-            config,
-            fnCache,
-            "test-jar-file",
-            mockClient,
-            TEST_STORAGE_SERVICE_URL);
+                config,
+                fnCache,
+                "test-jar-file",
+                mockClient,
+                TEST_STORAGE_SERVICE_URL);
 
         runnable.setupJavaInstance();
 
@@ -419,17 +419,17 @@ public class JavaInstanceRunnableProcessTest {
 
         // 1. verify jar is loaded
         verify(fnCache, times(1))
-            .registerFunctionInstance(
-                eq(config.getFunctionId()),
-                eq(config.getInstanceId()),
-                eq(Arrays.asList("test-jar-file")),
-                eq(Collections.emptyList())
-            );
+                .registerFunctionInstance(
+                        eq(config.getFunctionId()),
+                        eq(config.getInstanceId()),
+                        eq(Arrays.asList("test-jar-file")),
+                        eq(Collections.emptyList())
+                );
         verify(fnCache, times(1))
-            .getClassLoader(eq(config.getFunctionId()));
+                .getClassLoader(eq(config.getFunctionId()));
 
         // 2. verify serde is setup
-        for (String inputTopic : fnConfig.getInputsList()) {
+        for (String inputTopic : functionDetails.getInputsList()) {
             assertTrue(runnable.getInputSerDe().containsKey(inputTopic));
             assertTrue(runnable.getInputSerDe().get(inputTopic) instanceof DefaultSerDe);
             DefaultSerDe serDe = (DefaultSerDe) runnable.getInputSerDe().get(inputTopic);
@@ -437,20 +437,20 @@ public class JavaInstanceRunnableProcessTest {
         }
 
         // 3. verify producers and consumers are setup
-        Producers producers = runnable.getOutputProducer();
-        assertTrue(producers instanceof SimpleOneOuputTopicProducers);
+        MessageProcessor processor = runnable.getProcessor();
+        assertTrue(processor instanceof AtLeastOnceProcessor);
         assertSame(mockProducers.get(Pair.of(
-            fnConfig.getOutput(),
-            null
-        )).getProducer(), ((SimpleOneOuputTopicProducers) producers).getProducer());
+                functionDetails.getOutput(),
+                null
+        )).getProducer(), ((AtLeastOnceProcessor) processor).getProducer());
 
-        assertEquals(mockConsumers.size(), runnable.getInputConsumers().size());
-        for (Map.Entry<String, Consumer> consumerEntry : runnable.getInputConsumers().entrySet()) {
+        assertEquals(mockConsumers.size(), processor.getInputConsumers().size());
+        for (Map.Entry<String, Consumer> consumerEntry : processor.getInputConsumers().entrySet()) {
             String topic = consumerEntry.getKey();
 
             Consumer mockConsumer = mockConsumers.get(Pair.of(
-                topic,
-                FunctionConfigUtils.getFullyQualifiedName(fnConfig))).getConsumer();
+                    topic,
+                    FunctionDetailsUtils.getFullyQualifiedName(functionDetails))).getConsumer();
             assertSame(mockConsumer, consumerEntry.getValue());
         }
 
@@ -464,7 +464,7 @@ public class JavaInstanceRunnableProcessTest {
         for (ConsumerInstance consumer : mockConsumers.values()) {
             verify(consumer.getConsumer(), times(1)).close();
         }
-        assertTrue(runnable.getInputConsumers().isEmpty());
+        assertTrue(processor.getInputConsumers().isEmpty());
 
         for (ProducerInstance producer : mockProducers.values()) {
             verify(producer.getProducer(), times(1)).close();
@@ -475,32 +475,32 @@ public class JavaInstanceRunnableProcessTest {
 
         // function is unregistered
         verify(fnCache, times(1)).unregisterFunctionInstance(
-            eq(config.getFunctionId()), eq(config.getInstanceId()));
+                eq(config.getFunctionId()), eq(config.getInstanceId()));
 
     }
 
     @Test
     public void testAtMostOnceProcessing() throws Exception {
-        FunctionConfig newFnConfig = FunctionConfig.newBuilder(fnConfig)
-            .setProcessingGuarantees(ProcessingGuarantees.ATMOST_ONCE)
-            .build();
-        config.setFunctionConfig(newFnConfig);
+        FunctionDetails newFunctionDetails = FunctionDetails.newBuilder(functionDetails)
+                .setProcessingGuarantees(ProcessingGuarantees.ATMOST_ONCE)
+                .build();
+        config.setFunctionDetails(newFunctionDetails);
 
         @Cleanup("shutdown")
         ExecutorService executorService = Executors.newSingleThreadExecutor();
 
         try (JavaInstanceRunnable runnable = new JavaInstanceRunnable(
-            config,
-            fnCache,
-            "test-jar-file",
-            mockClient,
-            null)) {
+                config,
+                fnCache,
+                "test-jar-file",
+                mockClient,
+                null)) {
 
             executorService.submit(runnable);
 
             Pair<String, String> consumerId = Pair.of(
-                newFnConfig.getInputs(0),
-                FunctionConfigUtils.getFullyQualifiedName(newFnConfig));
+                    newFunctionDetails.getInputs(0),
+                    FunctionDetailsUtils.getFullyQualifiedName(newFunctionDetails));
             ConsumerInstance consumerInstance = mockConsumers.get(consumerId);
             while (null == consumerInstance) {
                 TimeUnit.MILLISECONDS.sleep(20);
@@ -514,10 +514,10 @@ public class JavaInstanceRunnableProcessTest {
                 Message msg = mock(Message.class);
                 when(msg.getData()).thenReturn(("message-" + i).getBytes(UTF_8));
                 when(msg.getMessageId())
-                    .thenReturn(new MessageIdImpl(1L, i, 0));
+                        .thenReturn(new MessageIdImpl(1L, i, 0));
                 consumerInstance.addMessage(msg);
                 consumerInstance.getConf().getMessageListener()
-                    .received(consumerInstance.getConsumer(), msg);
+                        .received(consumerInstance.getConsumer(), msg);
             }
 
             // wait until all the messages are published
@@ -531,7 +531,7 @@ public class JavaInstanceRunnableProcessTest {
 
             // verify acknowledge before send completes
             verify(consumerInstance.getConsumer(), times(10))
-                .acknowledgeAsync(any(Message.class));
+                    .acknowledgeAsync(any(Message.class));
             assertEquals(0, consumerInstance.getNumMessages());
 
             // complete all the publishes
@@ -543,33 +543,33 @@ public class JavaInstanceRunnableProcessTest {
 
             // acknowledges count should remain same
             verify(consumerInstance.getConsumer(), times(10))
-                .acknowledgeAsync(any(Message.class));
+                    .acknowledgeAsync(any(Message.class));
         }
     }
 
     @Test
     public void testAtMostOnceProcessingFailures() throws Exception {
-        FunctionConfig newFnConfig = FunctionConfig.newBuilder(fnConfig)
-            .setProcessingGuarantees(ProcessingGuarantees.ATMOST_ONCE)
-            .setClassName(TestFailureFunction.class.getName())
-            .build();
-        config.setFunctionConfig(newFnConfig);
+        FunctionDetails newFunctionDetails = FunctionDetails.newBuilder(functionDetails)
+                .setProcessingGuarantees(ProcessingGuarantees.ATMOST_ONCE)
+                .setClassName(TestFailureFunction.class.getName())
+                .build();
+        config.setFunctionDetails(newFunctionDetails);
 
         @Cleanup("shutdown")
         ExecutorService executorService = Executors.newSingleThreadExecutor();
 
         try (JavaInstanceRunnable runnable = new JavaInstanceRunnable(
-            config,
-            fnCache,
-            "test-jar-file",
-            mockClient,
-            null)) {
+                config,
+                fnCache,
+                "test-jar-file",
+                mockClient,
+                null)) {
 
             executorService.submit(runnable);
 
             Pair<String, String> consumerId = Pair.of(
-                newFnConfig.getInputs(0),
-                FunctionConfigUtils.getFullyQualifiedName(newFnConfig));
+                    newFunctionDetails.getInputs(0),
+                    FunctionDetailsUtils.getFullyQualifiedName(newFunctionDetails));
             ConsumerInstance consumerInstance = mockConsumers.get(consumerId);
             while (null == consumerInstance) {
                 TimeUnit.MILLISECONDS.sleep(20);
@@ -583,10 +583,10 @@ public class JavaInstanceRunnableProcessTest {
                 Message msg = mock(Message.class);
                 when(msg.getData()).thenReturn(("message-" + i).getBytes(UTF_8));
                 when(msg.getMessageId())
-                    .thenReturn(new MessageIdImpl(1L, i, 0));
+                        .thenReturn(new MessageIdImpl(1L, i, 0));
                 consumerInstance.addMessage(msg);
                 consumerInstance.getConf().getMessageListener()
-                    .received(consumerInstance.getConsumer(), msg);
+                        .received(consumerInstance.getConsumer(), msg);
             }
 
             // wait until all the messages are published
@@ -604,7 +604,7 @@ public class JavaInstanceRunnableProcessTest {
 
             // verify acknowledge before send completes
             verify(consumerInstance.getConsumer(), times(10))
-                .acknowledgeAsync(any(Message.class));
+                    .acknowledgeAsync(any(Message.class));
             assertEquals(0, consumerInstance.getNumMessages());
 
             // complete all the publishes
@@ -616,33 +616,33 @@ public class JavaInstanceRunnableProcessTest {
 
             // acknowledges count should remain same
             verify(consumerInstance.getConsumer(), times(10))
-                .acknowledgeAsync(any(Message.class));
+                    .acknowledgeAsync(any(Message.class));
             assertEquals(0, consumerInstance.getNumMessages());
         }
     }
 
     @Test
     public void testAtLeastOnceProcessing() throws Exception {
-        FunctionConfig newFnConfig = FunctionConfig.newBuilder(fnConfig)
-            .setProcessingGuarantees(ProcessingGuarantees.ATLEAST_ONCE)
-            .build();
-        config.setFunctionConfig(newFnConfig);
+        FunctionDetails newFunctionDetails = FunctionDetails.newBuilder(functionDetails)
+                .setProcessingGuarantees(ProcessingGuarantees.ATLEAST_ONCE)
+                .build();
+        config.setFunctionDetails(newFunctionDetails);
 
         @Cleanup("shutdown")
         ExecutorService executorService = Executors.newSingleThreadExecutor();
 
         try (JavaInstanceRunnable runnable = new JavaInstanceRunnable(
-            config,
-            fnCache,
-            "test-jar-file",
-            mockClient,
-            null)) {
+                config,
+                fnCache,
+                "test-jar-file",
+                mockClient,
+                null)) {
 
             executorService.submit(runnable);
 
             Pair<String, String> consumerId = Pair.of(
-                newFnConfig.getInputs(0),
-                FunctionConfigUtils.getFullyQualifiedName(newFnConfig));
+                    newFunctionDetails.getInputs(0),
+                    FunctionDetailsUtils.getFullyQualifiedName(newFunctionDetails));
             ConsumerInstance consumerInstance = mockConsumers.get(consumerId);
             while (null == consumerInstance) {
                 TimeUnit.MILLISECONDS.sleep(20);
@@ -656,10 +656,10 @@ public class JavaInstanceRunnableProcessTest {
                 Message msg = mock(Message.class);
                 when(msg.getData()).thenReturn(("message-" + i).getBytes(UTF_8));
                 when(msg.getMessageId())
-                    .thenReturn(new MessageIdImpl(1L, i, 0));
+                        .thenReturn(new MessageIdImpl(1L, i, 0));
                 consumerInstance.addMessage(msg);
                 consumerInstance.getConf().getMessageListener()
-                    .received(consumerInstance.getConsumer(), msg);
+                        .received(consumerInstance.getConsumer(), msg);
             }
 
             // wait until all the messages are published
@@ -673,7 +673,7 @@ public class JavaInstanceRunnableProcessTest {
 
             // verify acknowledge before send completes
             verify(consumerInstance.getConsumer(), times(0))
-                .acknowledgeAsync(any(Message.class));
+                    .acknowledgeAsync(any(Message.class));
             assertEquals(10, consumerInstance.getNumMessages());
 
             // complete all the publishes
@@ -685,34 +685,34 @@ public class JavaInstanceRunnableProcessTest {
 
             // acknowledges count should remain same
             verify(consumerInstance.getConsumer(), times(10))
-                .acknowledgeAsync(any(Message.class));
+                    .acknowledgeAsync(any(Message.class));
             assertEquals(0, consumerInstance.getNumMessages());
         }
     }
 
     @Test
     public void testAtLeastOnceProcessingFailures() throws Exception {
-        FunctionConfig newFnConfig = FunctionConfig.newBuilder(fnConfig)
-            .setProcessingGuarantees(ProcessingGuarantees.ATLEAST_ONCE)
-            .setClassName(TestFailureFunction.class.getName())
-            .build();
-        config.setFunctionConfig(newFnConfig);
+        FunctionDetails newFunctionDetails = FunctionDetails.newBuilder(functionDetails)
+                .setProcessingGuarantees(ProcessingGuarantees.ATLEAST_ONCE)
+                .setClassName(TestFailureFunction.class.getName())
+                .build();
+        config.setFunctionDetails(newFunctionDetails);
 
         @Cleanup("shutdown")
         ExecutorService executorService = Executors.newSingleThreadExecutor();
 
         try (JavaInstanceRunnable runnable = new JavaInstanceRunnable(
-            config,
-            fnCache,
-            "test-jar-file",
-            mockClient,
-            null)) {
+                config,
+                fnCache,
+                "test-jar-file",
+                mockClient,
+                null)) {
 
             executorService.submit(runnable);
 
             Pair<String, String> consumerId = Pair.of(
-                newFnConfig.getInputs(0),
-                FunctionConfigUtils.getFullyQualifiedName(newFnConfig));
+                    newFunctionDetails.getInputs(0),
+                    FunctionDetailsUtils.getFullyQualifiedName(newFunctionDetails));
             ConsumerInstance consumerInstance = mockConsumers.get(consumerId);
             while (null == consumerInstance) {
                 TimeUnit.MILLISECONDS.sleep(20);
@@ -726,10 +726,10 @@ public class JavaInstanceRunnableProcessTest {
                 Message msg = mock(Message.class);
                 when(msg.getData()).thenReturn(("message-" + i).getBytes(UTF_8));
                 when(msg.getMessageId())
-                    .thenReturn(new MessageIdImpl(1L, i, 0));
+                        .thenReturn(new MessageIdImpl(1L, i, 0));
                 consumerInstance.addMessage(msg);
                 consumerInstance.getConf().getMessageListener()
-                    .received(consumerInstance.getConsumer(), msg);
+                        .received(consumerInstance.getConsumer(), msg);
             }
 
             // wait until all the messages are published
@@ -747,7 +747,7 @@ public class JavaInstanceRunnableProcessTest {
 
             // verify acknowledge before send completes
             verify(consumerInstance.getConsumer(), times(0))
-                .acknowledgeAsync(any(Message.class));
+                    .acknowledgeAsync(any(Message.class));
             assertEquals(10, consumerInstance.getNumMessages());
 
             // complete all the publishes
@@ -759,38 +759,38 @@ public class JavaInstanceRunnableProcessTest {
 
             // only 5 succeed messages are acknowledged
             verify(consumerInstance.getConsumer(), times(5))
-                .acknowledgeAsync(any(Message.class));
+                    .acknowledgeAsync(any(Message.class));
             assertEquals(5, consumerInstance.getNumMessages());
             for (int i = 0; i < 10; i++) {
                 assertEquals(
-                    i % 2 == 0,
-                    consumerInstance.containMessage(new MessageIdImpl(1L, i, 0)));
+                        i % 2 == 0,
+                        consumerInstance.containMessage(new MessageIdImpl(1L, i, 0)));
             }
         }
     }
 
     @Test
     public void testEffectivelyOnceProcessing() throws Exception {
-        FunctionConfig newFnConfig = FunctionConfig.newBuilder(fnConfig)
-            .setProcessingGuarantees(ProcessingGuarantees.EFFECTIVELY_ONCE)
-            .build();
-        config.setFunctionConfig(newFnConfig);
+        FunctionDetails newFunctionDetails = FunctionDetails.newBuilder(functionDetails)
+                .setProcessingGuarantees(ProcessingGuarantees.EFFECTIVELY_ONCE)
+                .build();
+        config.setFunctionDetails(newFunctionDetails);
 
         @Cleanup("shutdown")
         ExecutorService executorService = Executors.newSingleThreadExecutor();
 
         try (JavaInstanceRunnable runnable = new JavaInstanceRunnable(
-            config,
-            fnCache,
-            "test-jar-file",
-            mockClient,
-            null)) {
+                config,
+                fnCache,
+                "test-jar-file",
+                mockClient,
+                null)) {
 
             executorService.submit(runnable);
 
             Pair<String, String> consumerId = Pair.of(
-                newFnConfig.getInputs(0),
-                FunctionConfigUtils.getFullyQualifiedName(newFnConfig));
+                    newFunctionDetails.getInputs(0),
+                    FunctionDetailsUtils.getFullyQualifiedName(newFunctionDetails));
             ConsumerInstance consumerInstance = mockConsumers.get(consumerId);
             while (null == consumerInstance) {
                 TimeUnit.MILLISECONDS.sleep(20);
@@ -802,10 +802,10 @@ public class JavaInstanceRunnableProcessTest {
                 Message msg = mock(Message.class);
                 when(msg.getData()).thenReturn(("message-" + i).getBytes(UTF_8));
                 when(msg.getMessageId())
-                    .thenReturn(new MessageIdImpl(1L, i, 0));
+                        .thenReturn(new MessageIdImpl(1L, i, 0));
                 consumerInstance.addMessage(msg);
                 consumerInstance.getConf().getMessageListener()
-                    .received(consumerInstance.getConsumer(), msg);
+                        .received(consumerInstance.getConsumer(), msg);
             }
 
             ProducerInstance producerInstance;
@@ -821,14 +821,14 @@ public class JavaInstanceRunnableProcessTest {
                 assertEquals("message-" + i + "!", new String(msg.getData(), UTF_8));
                 // sequence id is not set for AT_MOST_ONCE processing
                 assertEquals(
-                    Utils.getSequenceId(
-                        new MessageIdImpl(1L, i, 0)),
-                    msg.getSequenceId());
+                        Utils.getSequenceId(
+                                new MessageIdImpl(1L, i, 0)),
+                        msg.getSequenceId());
             }
 
             // verify acknowledge before send completes
             verify(consumerInstance.getConsumer(), times(0))
-                .acknowledgeCumulativeAsync(any(Message.class));
+                    .acknowledgeCumulativeAsync(any(Message.class));
             assertEquals(10, consumerInstance.getNumMessages());
 
             // complete all the publishes
@@ -840,34 +840,34 @@ public class JavaInstanceRunnableProcessTest {
 
             // acknowledges count should remain same
             verify(consumerInstance.getConsumer(), times(10))
-                .acknowledgeCumulativeAsync(any(Message.class));
+                    .acknowledgeCumulativeAsync(any(Message.class));
             assertEquals(0, consumerInstance.getNumMessages());
         }
     }
 
     @Test
     public void testEffectivelyOnceProcessingFailures() throws Exception {
-        FunctionConfig newFnConfig = FunctionConfig.newBuilder(fnConfig)
-            .setProcessingGuarantees(ProcessingGuarantees.EFFECTIVELY_ONCE)
-            .setClassName(TestFailureFunction.class.getName())
-            .build();
-        config.setFunctionConfig(newFnConfig);
+        FunctionDetails newFunctionDetails = FunctionDetails.newBuilder(functionDetails)
+                .setProcessingGuarantees(ProcessingGuarantees.EFFECTIVELY_ONCE)
+                .setClassName(TestFailureFunction.class.getName())
+                .build();
+        config.setFunctionDetails(newFunctionDetails);
 
         @Cleanup("shutdown")
         ExecutorService executorService = Executors.newSingleThreadExecutor();
 
         try (JavaInstanceRunnable runnable = new JavaInstanceRunnable(
-            config,
-            fnCache,
-            "test-jar-file",
-            mockClient,
-            null)) {
+                config,
+                fnCache,
+                "test-jar-file",
+                mockClient,
+                null)) {
 
             executorService.submit(runnable);
 
             Pair<String, String> consumerId = Pair.of(
-                newFnConfig.getInputs(0),
-                FunctionConfigUtils.getFullyQualifiedName(newFnConfig));
+                    newFunctionDetails.getInputs(0),
+                    FunctionDetailsUtils.getFullyQualifiedName(newFunctionDetails));
             ConsumerInstance consumerInstance = mockConsumers.get(consumerId);
             while (null == consumerInstance) {
                 TimeUnit.MILLISECONDS.sleep(20);
@@ -880,13 +880,13 @@ public class JavaInstanceRunnableProcessTest {
                 Message msg = mock(Message.class);
                 when(msg.getData()).thenReturn(("message-" + i).getBytes(UTF_8));
                 when(msg.getMessageId())
-                    .thenReturn(new MessageIdImpl(1L, i, 0));
+                        .thenReturn(new MessageIdImpl(1L, i, 0));
 
                 msgs[i-1] = msg;
 
                 consumerInstance.addMessage(msg);
                 consumerInstance.getConf().getMessageListener()
-                    .received(consumerInstance.getConsumer(), msg);
+                        .received(consumerInstance.getConsumer(), msg);
             }
 
             ProducerInstance producerInstance;
@@ -899,15 +899,15 @@ public class JavaInstanceRunnableProcessTest {
             Message msg = producerInstance.msgQueue.take();
             assertEquals("message-1!", new String(msg.getData(), UTF_8));
             assertEquals(
-                Utils.getSequenceId(
-                    new MessageIdImpl(1L, 1, 0)),
-                msg.getSequenceId());
+                    Utils.getSequenceId(
+                            new MessageIdImpl(1L, 1, 0)),
+                    msg.getSequenceId());
             assertNull(producerInstance.msgQueue.poll());
 
             // the first result message is sent but the send future is not completed yet
             // so no acknowledge would happen
             verify(consumerInstance.getConsumer(), times(0))
-                .acknowledgeCumulativeAsync(any(Message.class));
+                    .acknowledgeCumulativeAsync(any(Message.class));
 
             // since the second message failed to process, for correctness, the instance
             // will close the existing consumer and resubscribe
@@ -920,21 +920,21 @@ public class JavaInstanceRunnableProcessTest {
             Message secondMsg = mock(Message.class);
             when(secondMsg.getData()).thenReturn("message-2".getBytes(UTF_8));
             when(secondMsg.getMessageId())
-                .thenReturn(new MessageIdImpl(1L, 2, 0));
+                    .thenReturn(new MessageIdImpl(1L, 2, 0));
             secondInstance.addMessage(secondMsg);
             secondInstance.getConf().getMessageListener()
-                .received(secondInstance.getConsumer(), secondMsg);
+                    .received(secondInstance.getConsumer(), secondMsg);
 
             Message secondReceivedMsg = producerInstance.msgQueue.take();
             assertEquals("message-2!", new String(secondReceivedMsg.getData(), UTF_8));
             assertEquals(
-                Utils.getSequenceId(
-                    new MessageIdImpl(1L, 2, 0)),
-                secondReceivedMsg.getSequenceId());
+                    Utils.getSequenceId(
+                            new MessageIdImpl(1L, 2, 0)),
+                    secondReceivedMsg.getSequenceId());
 
             // the first result message is sent
             verify(secondInstance.getConsumer(), times(0))
-                .acknowledgeCumulativeAsync(any(Message.class));
+                    .acknowledgeCumulativeAsync(any(Message.class));
 
             // complete all the publishes
             synchronized (producerInstance) {
@@ -946,41 +946,41 @@ public class JavaInstanceRunnableProcessTest {
 
             // all 2 messages are sent
             verify(consumerInstance.getConsumer(), times(1))
-                .acknowledgeCumulativeAsync(same(msgs[0]));
+                    .acknowledgeCumulativeAsync(same(msgs[0]));
             verify(consumerInstance.getConsumer(), times(0))
-                .acknowledgeCumulativeAsync(same(msgs[1]));
+                    .acknowledgeCumulativeAsync(same(msgs[1]));
             verify(consumerInstance.getConsumer(), times(0))
-                .acknowledgeCumulativeAsync(same(secondMsg));
+                    .acknowledgeCumulativeAsync(same(secondMsg));
             verify(secondInstance.getConsumer(), times(0))
-                .acknowledgeCumulativeAsync(same(msgs[0]));
+                    .acknowledgeCumulativeAsync(same(msgs[0]));
             verify(secondInstance.getConsumer(), times(0))
-                .acknowledgeCumulativeAsync(same(msgs[1]));
+                    .acknowledgeCumulativeAsync(same(msgs[1]));
         }
     }
 
     @Test
     public void testVoidFunction() throws Exception {
-        FunctionConfig newFnConfig = FunctionConfig.newBuilder(fnConfig)
-            .setProcessingGuarantees(ProcessingGuarantees.ATLEAST_ONCE)
-            .setClassName(TestVoidFunction.class.getName())
-            .build();
-        config.setFunctionConfig(newFnConfig);
+        FunctionDetails newFunctionDetails = FunctionDetails.newBuilder(functionDetails)
+                .setProcessingGuarantees(ProcessingGuarantees.ATLEAST_ONCE)
+                .setClassName(TestVoidFunction.class.getName())
+                .build();
+        config.setFunctionDetails(newFunctionDetails);
 
         @Cleanup("shutdown")
         ExecutorService executorService = Executors.newSingleThreadExecutor();
 
         try (JavaInstanceRunnable runnable = new JavaInstanceRunnable(
-            config,
-            fnCache,
-            "test-jar-file",
-            mockClient,
-            null)) {
+                config,
+                fnCache,
+                "test-jar-file",
+                mockClient,
+                null)) {
 
             executorService.submit(runnable);
 
             Pair<String, String> consumerId = Pair.of(
-                newFnConfig.getInputs(0),
-                FunctionConfigUtils.getFullyQualifiedName(newFnConfig));
+                    newFunctionDetails.getInputs(0),
+                    FunctionDetailsUtils.getFullyQualifiedName(newFunctionDetails));
             ConsumerInstance consumerInstance = mockConsumers.get(consumerId);
             while (null == consumerInstance) {
                 TimeUnit.MILLISECONDS.sleep(20);
@@ -992,10 +992,10 @@ public class JavaInstanceRunnableProcessTest {
                 Message msg = mock(Message.class);
                 when(msg.getData()).thenReturn(("message-" + i).getBytes(UTF_8));
                 when(msg.getMessageId())
-                    .thenReturn(new MessageIdImpl(1L, i, 0));
+                        .thenReturn(new MessageIdImpl(1L, i, 0));
                 consumerInstance.addMessage(msg);
                 consumerInstance.getConf().getMessageListener()
-                    .received(consumerInstance.getConsumer(), msg);
+                        .received(consumerInstance.getConsumer(), msg);
             }
 
             // wait until all the messages are published

@@ -16,26 +16,33 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.proto;
-
-import static org.testng.Assert.assertEquals;
-
-import org.apache.pulsar.functions.proto.Function.FunctionConfig;
-import org.apache.pulsar.functions.proto.Function.FunctionConfig.ProcessingGuarantees;
-import org.testng.annotations.Test;
+package org.apache.pulsar.common.util;
 
 /**
- * Unit test for {@link FunctionConfig}.
+ * A simple KeyValue class
  */
-public class FunctionConfigTest {
+public class KeyValue<K, V> {
+    private K key;
+    private V value;
 
-    /**
-     * Make sure the default processing guarantee is always `ATLEAST_ONCE`.
-     */
-    @Test
-    public void testDefaultProcessingGuarantee() {
-        FunctionConfig fc = FunctionConfig.newBuilder().build();
-        assertEquals(ProcessingGuarantees.ATLEAST_ONCE, fc.getProcessingGuarantees());
+    public KeyValue(K key, V value) {
+        setKey(key);
+        setValue(value);
     }
 
+    public K getKey() {
+        return key;
+    }
+
+    public V getValue() {
+        return value;
+    }
+
+    public void setKey(K key) {
+        this.key = key;
+    }
+
+    public void setValue(V value) {
+        this.value = value;
+    }
 }

@@ -22,17 +22,17 @@ package org.apache.pulsar.functions.instance;
 import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 import static org.apache.bookkeeper.stream.protocol.ProtocolConstants.DEFAULT_STREAM_CONF;
 
-import com.google.common.collect.Maps;
 import io.netty.buffer.ByteBuf;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.TimeUnit;
 
 import lombok.AccessLevel;
 import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
 import org.apache.bookkeeper.api.StorageClient;
@@ -48,46 +48,35 @@ import org.apache.logging.log4j.ThreadContext;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
-import org.apache.pulsar.client.api.*;
-import org.apache.pulsar.client.api.PulsarClientException.ProducerBusyException;
-import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.api.MessageBuilder;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
-import org.apache.pulsar.functions.proto.Function.FunctionConfig;
-import org.apache.pulsar.functions.proto.Function.FunctionConfig.ProcessingGuarantees;
+import org.apache.pulsar.functions.instance.processors.MessageProcessor;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.api.SerDe;
-import org.apache.pulsar.functions.instance.producers.MultiConsumersOneOuputTopicProducers;
-import org.apache.pulsar.functions.instance.producers.Producers;
-import org.apache.pulsar.functions.instance.producers.SimpleOneOuputTopicProducers;
 import org.apache.pulsar.functions.instance.state.StateContextImpl;
-import org.apache.pulsar.functions.utils.FunctionConfigUtils;
+import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.apache.pulsar.functions.utils.Reflections;
-import org.apache.pulsar.functions.utils.Utils;
 
 /**
  * A function container implemented using java thread.
  */
 @Slf4j
-public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEventListener {
+public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     // The class loader that used for loading functions
     private ClassLoader fnClassLoader;
     private final InstanceConfig instanceConfig;
-    private final FunctionConfig.ProcessingGuarantees processingGuarantees;
     private final FunctionCacheManager fnCache;
     private final LinkedBlockingDeque<InputMessage> queue;
     private final String jarFile;
 
     // input topic consumer & output topic producer
     private final PulsarClientImpl client;
-    @Getter(AccessLevel.PACKAGE)
-    private Producers outputProducer;
-    @Getter(AccessLevel.PACKAGE)
-    private final Map<String, Consumer> inputConsumers;
-    private LinkedList<String> inputTopicsToResubscribe = null;
+
     private LogAppender logAppender;
 
     // provide tables for storing states
@@ -106,20 +95,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
     private Map<String, SerDe> inputSerDe;
     private SerDe outputSerDe;
 
-    @Getter
-    @Setter
-    @ToString
-    private class InputMessage {
-        private Message actualMessage;
-        String topicName;
-        SerDe inputSerDe;
-        Consumer consumer;
-
-        public int getTopicPartition() {
-            MessageIdImpl msgId = (MessageIdImpl) actualMessage.getMessageId();
-            return msgId.getPartitionIndex();
-        }
-    }
+    @Getter(AccessLevel.PACKAGE)
+    // processor
+    private final MessageProcessor processor;
 
     // function stats
     private final FunctionStats stats;
@@ -130,27 +108,16 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
                                 PulsarClient pulsarClient,
                                 String stateStorageServiceUrl) {
         this.instanceConfig = instanceConfig;
-        this.processingGuarantees = instanceConfig.getFunctionConfig().getProcessingGuarantees();
         this.fnCache = fnCache;
         this.queue = new LinkedBlockingDeque<>(instanceConfig.getMaxBufferedTuples());
         this.jarFile = jarFile;
         this.client = (PulsarClientImpl) pulsarClient;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.stats = new FunctionStats();
-        this.inputConsumers = Maps.newConcurrentMap();
-    }
-
-    private SubscriptionType getSubscriptionType() {
-        if (processingGuarantees == ProcessingGuarantees.EFFECTIVELY_ONCE) {
-            return SubscriptionType.Failover;
-        } else {
-            if (instanceConfig.getFunctionConfig().getSubscriptionType() == null
-                || instanceConfig.getFunctionConfig().getSubscriptionType() == FunctionConfig.SubscriptionType.SHARED) {
-                return SubscriptionType.Shared;
-            } else {
-                return SubscriptionType.Failover;
-            }
-        }
+        this.processor = MessageProcessor.create(
+                client,
+                instanceConfig.getFunctionDetails(),
+                queue);
     }
 
     /**
@@ -158,10 +125,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
      */
     JavaInstance setupJavaInstance() throws Exception {
         // initialize the thread context
-        ThreadContext.put("function", FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()));
+        ThreadContext.put("function", FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
         ThreadContext.put("instance", instanceConfig.getInstanceId());
 
-        log.info("Starting Java Instance {}", instanceConfig.getFunctionConfig().getName());
+        log.info("Starting Java Instance {}", instanceConfig.getFunctionDetails().getName());
 
         // start the function thread
         loadJars();
@@ -169,7 +136,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
         ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
 
         Object object = Reflections.createInstance(
-                instanceConfig.getFunctionConfig().getClassName(),
+                instanceConfig.getFunctionDetails().getClassName(),
                 clsLoader);
         if (!(object instanceof Function) && !(object instanceof java.util.function.Function)) {
             throw new RuntimeException("User class must either be Function or java.util.Function");
@@ -189,13 +156,13 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
         // start the state table
         setupStateTable();
         // start the output producer
-        startOutputProducer();
+        processor.setupOutput(outputSerDe);
         // start the input consumer
-        startInputConsumer();
+        processor.setupInput(inputSerDe);
         // start any log topic handler
         setupLogHandler();
 
-        return new JavaInstance(instanceConfig, object, clsLoader, client, inputConsumers);
+        return new JavaInstance(instanceConfig, object, clsLoader, client, processor.getInputConsumers());
     }
 
     /**
@@ -206,9 +173,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
         try {
             javaInstance = setupJavaInstance();
             while (running) {
-                // some src topics might be put into resubscribe list because of processing failure
-                // so this is the chance to resubscribe to those topics.
-                resubscribeTopicsIfNeeded();
+                processor.prepareDequeueMessageFromProcessQueue();
 
                 JavaExecutionResult result;
                 InputMessage msg;
@@ -217,35 +182,13 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
                     log.debug("Received message: {}", msg.getActualMessage().getMessageId());
                 } catch (InterruptedException ie) {
                     log.info("Function thread {} is interrupted",
-                            FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()), ie);
+                            FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails()), ie);
                     break;
                 }
 
-                if (ProcessingGuarantees.EFFECTIVELY_ONCE == processingGuarantees) {
-                    // if the messages are received from old consumers, we discard it since new consumer was
-                    // re-created for the correctness of effectively-once
-                    if (msg.getConsumer() != inputConsumers.get(msg.getTopicName())) {
-                        continue;
-                    }
-                }
-
-                if (null != outputProducer) {
-                    // before processing the message, we have a producer connection setup for producing results.
-                    Producer producer = null;
-                    while (null == producer) {
-                        try {
-                            producer = outputProducer.getProducer(msg.getTopicName(), msg.getTopicPartition());
-                        } catch (PulsarClientException e) {
-                            // `ProducerBusy` is thrown when an producer with same name is still connected.
-                            // This can happen when a active consumer is changed for a given input topic partition
-                            // so we need to wait until the old active consumer release the produce connection.
-                            if (!(e instanceof ProducerBusyException)) {
-                                log.error("Failed to get a producer for producing results computed from input topic {}",
-                                    msg.getTopicName());
-                            }
-                            TimeUnit.MILLISECONDS.sleep(500);
-                        }
-                    }
+                if (!processor.prepareProcessMessage(msg)) {
+                    // the message can't be processed by the processor at this moment, retry it.
+                    continue;
                 }
 
                 // state object is per function, because we need to have the ability to know what updates
@@ -280,12 +223,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
 
                 if (null != stateContext) {
                     stateContext.flush()
-                        .thenRun(() -> processResult(msg, result, processAt, doneProcessing))
-                        .exceptionally(cause -> {
-                            // log the messages, since we DONT ack, pulsar consumer will re-deliver the messages.
-                            log.error("Failed to flush the state updates of message {}", msg, cause);
-                            return null;
-                        });
+                            .thenRun(() -> processResult(msg, result, processAt, doneProcessing))
+                            .exceptionally(cause -> {
+                                // log the messages, since we DONT ack, pulsar consumer will re-deliver the messages.
+                                log.error("Failed to flush the state updates of message {}", msg, cause);
+                                return null;
+                            });
                 } else {
                     processResult(msg, result, processAt, doneProcessing);
                 }
@@ -302,12 +245,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
         log.info("Loading JAR files for function {} from jarFile {}", instanceConfig, jarFile);
         // create the function class loader
         fnCache.registerFunctionInstance(
-            instanceConfig.getFunctionId(),
-            instanceConfig.getInstanceId(),
-            Arrays.asList(jarFile),
-            Collections.emptyList());
+                instanceConfig.getFunctionId(),
+                instanceConfig.getInstanceId(),
+                Arrays.asList(jarFile),
+                Collections.emptyList());
         log.info("Initialize function class loader for function {} at function cache manager",
-            instanceConfig.getFunctionConfig().getName());
+                instanceConfig.getFunctionDetails().getName());
 
         this.fnClassLoader = fnCache.getClassLoader(instanceConfig.getFunctionId());
         if (null == fnClassLoader) {
@@ -318,292 +261,90 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
         Thread.currentThread().setContextClassLoader(fnClassLoader);
     }
 
-    @Override
-    public void becameActive(Consumer consumer, int partitionId) {
-        // if the instance becomes active for a given topic partition,
-        // open a producer for the results computed from this topic partition.
-        if (null != outputProducer) {
-            try {
-                this.outputProducer.getProducer(consumer.getTopic(), partitionId);
-            } catch (PulsarClientException e) {
-                // this can be ignored, because producer can be lazily created when accessing it.
-                log.warn("Fail to create a producer for results computed from messages of topic: {}, partition: {}",
-                    consumer.getTopic(), partitionId);
-            }
-        }
-    }
-
-    @Override
-    public void becameInactive(Consumer consumer, int partitionId) {
-        if (null != outputProducer) {
-            // if I lost the ownership of a partition, close its corresponding topic partition.
-            // this is to allow the new active consumer be able to produce to the result topic.
-            this.outputProducer.closeProducer(consumer.getTopic(), partitionId);
-        }
-    }
-
     private void setupStateTable() throws Exception {
         if (null == stateStorageServiceUrl) {
             return;
         }
 
         String tableNs = String.format(
-            "%s_%s",
-            instanceConfig.getFunctionConfig().getTenant(),
-            instanceConfig.getFunctionConfig().getNamespace()
+                "%s_%s",
+                instanceConfig.getFunctionDetails().getTenant(),
+                instanceConfig.getFunctionDetails().getNamespace()
         ).replace('-', '_');
-        String tableName = instanceConfig.getFunctionConfig().getName();
+        String tableName = instanceConfig.getFunctionDetails().getName();
 
         // TODO (sijie): use endpoint for now
         StorageClientSettings settings = StorageClientSettings.newBuilder()
-            .addEndpoints(NetUtils.parseEndpoint(stateStorageServiceUrl))
-            .clientName("function-" + tableNs + "/" + tableName)
-            .build();
+                .addEndpoints(NetUtils.parseEndpoint(stateStorageServiceUrl))
+                .clientName("function-" + tableNs + "/" + tableName)
+                .build();
 
         // TODO (sijie): provide a better way to provision the state table for functions
         try (StorageAdminClient storageAdminClient = StorageClientBuilder.newBuilder()
-            .withSettings(settings)
-            .buildAdmin()) {
+                .withSettings(settings)
+                .buildAdmin()) {
             try {
                 result(storageAdminClient.getStream(tableNs, tableName));
             } catch (NamespaceNotFoundException nnfe) {
                 result(storageAdminClient.createNamespace(tableNs, NamespaceConfiguration.newBuilder()
-                    .setDefaultStreamConf(DEFAULT_STREAM_CONF)
-                    .build()));
+                        .setDefaultStreamConf(DEFAULT_STREAM_CONF)
+                        .build()));
                 result(storageAdminClient.createStream(tableNs, tableName, DEFAULT_STREAM_CONF));
             } catch (StreamNotFoundException snfe) {
                 result(storageAdminClient.createStream(tableNs, tableName, DEFAULT_STREAM_CONF));
             }
         }
 
-        log.info("Starting state table for function {}", instanceConfig.getFunctionConfig().getName());
+        log.info("Starting state table for function {}", instanceConfig.getFunctionDetails().getName());
         this.storageClient = StorageClientBuilder.newBuilder()
-            .withSettings(settings)
-            .withNamespace(tableNs)
-            .build();
+                .withSettings(settings)
+                .withNamespace(tableNs)
+                .build();
         this.stateTable = result(storageClient.openTable(tableName));
-    }
-
-    private void startOutputProducer() throws Exception {
-        if (instanceConfig.getFunctionConfig().getOutput() != null
-                && !instanceConfig.getFunctionConfig().getOutput().isEmpty()
-                && this.outputSerDe != null) {
-            log.info("Starting producer for output topic " + instanceConfig.getFunctionConfig().getOutput());
-
-            if (processingGuarantees == ProcessingGuarantees.EFFECTIVELY_ONCE) {
-                this.outputProducer = new MultiConsumersOneOuputTopicProducers(
-                    client, instanceConfig.getFunctionConfig().getOutput());
-            } else {
-                this.outputProducer = new SimpleOneOuputTopicProducers(
-                    client, instanceConfig.getFunctionConfig().getOutput());
-            }
-            this.outputProducer.initialize();
-        }
-    }
-
-    private void startInputConsumer() throws Exception {
-        log.info("Consumer map {}", instanceConfig.getFunctionConfig());
-        for (Map.Entry<String, String> entry : instanceConfig.getFunctionConfig().getCustomSerdeInputsMap().entrySet()) {
-            ConsumerConfiguration conf = createConsumerConfiguration(entry.getKey());
-            this.inputConsumers.put(entry.getKey(), client.subscribe(entry.getKey(),
-                    FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()), conf));
-        }
-        for (String topicName : instanceConfig.getFunctionConfig().getInputsList()) {
-            ConsumerConfiguration conf = createConsumerConfiguration(topicName);
-            this.inputConsumers.put(topicName, client.subscribe(topicName,
-                    FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()), conf));
-        }
-    }
-
-    private ConsumerConfiguration createConsumerConfiguration(String topicName) {
-        log.info("Starting Consumer for topic " + topicName);
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(getSubscriptionType());
-
-        SerDe inputSerde = inputSerDe.get(topicName);
-        conf.setMessageListener((consumer, msg) -> {
-            try {
-                InputMessage message = new InputMessage();
-                message.setConsumer(consumer);
-                message.setInputSerDe(inputSerde);
-                message.setActualMessage(msg);
-                message.setTopicName(topicName);
-                queue.put(message);
-                if (processingGuarantees == FunctionConfig.ProcessingGuarantees.ATMOST_ONCE) {
-                    if (instanceConfig.getFunctionConfig().getAutoAck()) {
-                        consumer.acknowledgeAsync(msg);
-                    }
-                }
-            } catch (InterruptedException e) {
-                log.error("Function container {} is interrupted on enqueuing messages",
-                        Thread.currentThread().getId(), e);
-            }
-        });
-
-        // for failover subscription, register a consumer event listener to react to active consumer changes.
-        if (getSubscriptionType() == SubscriptionType.Failover) {
-            conf.setConsumerEventListener(this);
-        }
-
-        return conf;
     }
 
     private void processResult(InputMessage msg,
                                JavaExecutionResult result,
                                long startTime, long endTime) {
-         if (result.getUserException() != null) {
+        if (result.getUserException() != null) {
             log.info("Encountered user exception when processing message {}", msg, result.getUserException());
             stats.incrementUserExceptions(result.getUserException());
-            handleProcessException(msg.getTopicName());
+            processor.handleProcessException(msg, result.getUserException());
         } else if (result.getSystemException() != null) {
             log.info("Encountered system exception when processing message {}", msg, result.getSystemException());
             stats.incrementSystemExceptions(result.getSystemException());
-            handleProcessException(msg.getTopicName());
+            processor.handleProcessException(msg, result.getSystemException());
         } else {
             stats.incrementSuccessfullyProcessed(endTime - startTime);
-            if (result.getResult() != null && outputProducer != null) {
+            if (result.getResult() != null && instanceConfig.getFunctionDetails().getOutput() != null) {
                 byte[] output;
                 try {
                     output = outputSerDe.serialize(result.getResult());
                 } catch (Exception ex) {
                     stats.incrementSerializationExceptions();
-                    handleProcessException(msg.getTopicName());
+                    processor.handleProcessException(msg, ex);
                     return;
                 }
                 if (output != null) {
-                    try {
-                        sendOutputMessage(msg, result, output);
-                    } catch (Throwable t) {
-                        log.error("Encountered error when sending result {} computed from src message {}",
-                            result, msg, t);
-                        handleProcessException(msg.getTopicName());
-                    }
-                } else if (processingGuarantees != ProcessingGuarantees.ATMOST_ONCE) {
-                    ackMessage(msg);
+                    sendOutputMessage(msg, output);
+                } else {
+                    processor.sendOutputMessage(msg, null);
                 }
-            } else if (processingGuarantees != ProcessingGuarantees.ATMOST_ONCE) {
-                ackMessage(msg);
-            }
-        }
-    }
-
-    private void ackMessage(InputMessage msg) {
-        if (instanceConfig.getFunctionConfig().getAutoAck()) {
-            if (ProcessingGuarantees.EFFECTIVELY_ONCE == processingGuarantees) {
-                msg.getConsumer().acknowledgeCumulativeAsync(msg.getActualMessage());
             } else {
-                msg.getConsumer().acknowledgeAsync(msg.getActualMessage());
+                // the function doesn't produce any result or the user doesn't want the result.
+                processor.sendOutputMessage(msg, null);
             }
         }
     }
 
     private void sendOutputMessage(InputMessage srcMsg,
-                                   JavaExecutionResult result,
                                    byte[] output) {
         MessageBuilder msgBuilder = MessageBuilder.create()
-            .setContent(output)
-            .setProperty("__pfn_input_topic__", srcMsg.getTopicName())
-            .setProperty("__pfn_input_msg_id__", new String(Base64.getEncoder().encode(srcMsg.getActualMessage().getMessageId().toByteArray())));
-        if (processingGuarantees == ProcessingGuarantees.EFFECTIVELY_ONCE) {
-            msgBuilder = msgBuilder
-                .setSequenceId(Utils.getSequenceId(srcMsg.getActualMessage().getMessageId()));
-        }
-        Producer producer;
-        try {
-            producer = outputProducer.getProducer(srcMsg.getTopicName(), srcMsg.getTopicPartition());
-        } catch (PulsarClientException e) {
-            log.error("Failed to get a producer for producing results computed from input topic {}",
-                srcMsg.getTopicName());
+                .setContent(output)
+                .setProperty("__pfn_input_topic__", srcMsg.getTopicName())
+                .setProperty("__pfn_input_msg_id__", new String(Base64.getEncoder().encode(srcMsg.getActualMessage().getMessageId().toByteArray())));
 
-            // if we fail to get a producer, put this message back to queue and reprocess it.
-            queue.offerFirst(srcMsg);
-            return;
-        }
-
-        Message destMsg = msgBuilder.build();
-        producer.sendAsync(destMsg)
-            .thenAccept(messageId -> {
-                if (processingGuarantees != ProcessingGuarantees.ATMOST_ONCE) {
-                    ackMessage(srcMsg);
-                }
-            })
-            .exceptionally(cause -> {
-                log.error("Failed to send the process result {} of message {} to output topic {}",
-                    result, srcMsg, instanceConfig.getFunctionConfig().getOutput(), cause);
-                handleProcessException(srcMsg.getTopicName());
-                return null;
-            });
-    }
-
-    private void handleProcessException(String srcTopic) {
-        // if the src message is coming from a shared subscription,
-        // we don't need any special logic on handling failures, just don't ack.
-        // the message will be redelivered to other consumer.
-        //
-        // BUT, if the src message is coming from a failover subscription,
-        // we need to stop processing messages and recreate consumer to reprocess
-        // the message. otherwise we might break the correctness of effectively-once
-        if (getSubscriptionType() != SubscriptionType.Shared) {
-            // in this case (effectively-once), we need to close the consumer
-            // release the partition and open the consumer again. so we guarantee
-            // that we always process messages in order
-            //
-            // but this is in pulsar's callback, so add this to a retry list. so we can
-            // retry on java instance's main thread.
-            addTopicToResubscribeList(srcTopic);
-        }
-    }
-
-    private synchronized void addTopicToResubscribeList(String topicName) {
-        if (null == inputTopicsToResubscribe) {
-            inputTopicsToResubscribe = new LinkedList<>();
-        }
-        inputTopicsToResubscribe.add(topicName);
-    }
-
-    private void resubscribeTopicsIfNeeded() {
-        List<String> topicsToResubscribe;
-        synchronized (this) {
-            topicsToResubscribe = inputTopicsToResubscribe;
-            inputTopicsToResubscribe = null;
-        }
-        if (null != topicsToResubscribe) {
-            for (String topic : topicsToResubscribe) {
-                resubscribe(topic);
-            }
-        }
-    }
-
-    private void resubscribe(String srcTopic) {
-        // if we can not produce a message to output topic, then close the consumer of the src topic
-        // and retry to instantiate a consumer again.
-        Consumer consumer = inputConsumers.remove(srcTopic);
-        if (consumer != null) {
-            // TODO (sijie): currently we have to close the entire consumer for a given topic. However
-            //               ideally we should do this in a finer granularity - we can close consumer
-            //               on a given partition, without impact other partitions.
-            try {
-                consumer.close();
-            } catch (PulsarClientException e) {
-                log.error("Failed to close consumer for input topic {} when handling produce exceptions",
-                    srcTopic, e);
-            }
-        }
-        // subscribe to the src topic again
-        ConsumerConfiguration conf = createConsumerConfiguration(srcTopic);
-        try {
-            inputConsumers.put(
-                srcTopic,
-                client.subscribe(
-                    srcTopic,
-                    FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()),
-                    conf
-                ));
-        } catch (PulsarClientException e) {
-            log.error("Failed to resubscribe to input topic {}. Added it to retry list and retry it later",
-                srcTopic, e);
-            addTopicToResubscribeList(srcTopic);
-        }
+        processor.sendOutputMessage(srcMsg, msgBuilder);
     }
 
     @Override
@@ -612,21 +353,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
             return;
         }
         running = false;
-        // stop the consumer first, so no more messages are coming in
-        inputConsumers.forEach((k, v) -> {
-            try {
-                v.close();
-            } catch (PulsarClientException e) {
-                log.warn("Failed to close consumer to input topic {}", k, e);
-            }
-        });
-        inputConsumers.clear();
 
-        // kill the result producer
-        if (null != outputProducer) {
-            outputProducer.close();
-            outputProducer = null;
-        }
+        processor.close();
 
         // kill the state table
         if (null != stateTable) {
@@ -639,8 +367,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
 
         // once the thread quits, clean up the instance
         fnCache.unregisterFunctionInstance(
-            instanceConfig.getFunctionId(),
-            instanceConfig.getInstanceId());
+                instanceConfig.getFunctionId(),
+                instanceConfig.getInstanceId());
         log.info("Unloading JAR files for function {}", instanceConfig);
     }
 
@@ -687,7 +415,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
     private static void addSystemMetrics(String metricName, double value, InstanceCommunication.MetricsData.Builder bldr) {
         InstanceCommunication.MetricsData.DataDigest digest =
                 InstanceCommunication.MetricsData.DataDigest.newBuilder()
-                .setCount(value).setSum(value).setMax(value).setMin(0).build();
+                        .setCount(value).setSum(value).setMax(value).setMin(0).build();
         bldr.putMetrics(metricName, digest);
     }
 
@@ -721,8 +449,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
 
     private void setupSerDe(Class<?>[] typeArgs, ClassLoader clsLoader) {
         this.inputSerDe = new HashMap<>();
-        instanceConfig.getFunctionConfig().getCustomSerdeInputsMap().forEach((k, v) -> this.inputSerDe.put(k, initializeSerDe(v, clsLoader, typeArgs, true)));
-        for (String topicName : instanceConfig.getFunctionConfig().getInputsList()) {
+        instanceConfig.getFunctionDetails().getCustomSerdeInputsMap().forEach((k, v) -> this.inputSerDe.put(k, initializeSerDe(v, clsLoader, typeArgs, true)));
+        for (String topicName : instanceConfig.getFunctionDetails().getInputsList()) {
             this.inputSerDe.put(topicName, initializeDefaultSerDe(typeArgs, true));
         }
 
@@ -745,12 +473,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
         }
 
         if (!Void.class.equals(typeArgs[1])) { // return type is not `Void.class`
-            if (instanceConfig.getFunctionConfig().getOutputSerdeClassName() == null
-                || instanceConfig.getFunctionConfig().getOutputSerdeClassName().isEmpty()
-                || instanceConfig.getFunctionConfig().getOutputSerdeClassName().equals(DefaultSerDe.class.getName())) {
+            if (instanceConfig.getFunctionDetails().getOutputSerdeClassName() == null
+                    || instanceConfig.getFunctionDetails().getOutputSerdeClassName().isEmpty()
+                    || instanceConfig.getFunctionDetails().getOutputSerdeClassName().equals(DefaultSerDe.class.getName())) {
                 outputSerDe = initializeDefaultSerDe(typeArgs, false);
             } else {
-                this.outputSerDe = initializeSerDe(instanceConfig.getFunctionConfig().getOutputSerdeClassName(), clsLoader, typeArgs, false);
+                this.outputSerDe = initializeSerDe(instanceConfig.getFunctionDetails().getOutputSerdeClassName(), clsLoader, typeArgs, false);
             }
             Class<?>[] outputSerdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, outputSerDe.getClass());
             if (outputSerDe.getClass().getName().equals(DefaultSerDe.class.getName())) {
@@ -765,10 +493,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
     }
 
     private void setupLogHandler() {
-        if (instanceConfig.getFunctionConfig().getLogTopic() != null &&
-                !instanceConfig.getFunctionConfig().getLogTopic().isEmpty()) {
-            logAppender = new LogAppender(client, instanceConfig.getFunctionConfig().getLogTopic(),
-                    FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()));
+        if (instanceConfig.getFunctionDetails().getLogTopic() != null &&
+                !instanceConfig.getFunctionDetails().getLogTopic().isEmpty()) {
+            logAppender = new LogAppender(client, instanceConfig.getFunctionDetails().getLogTopic(),
+                    FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
             logAppender.start();
         }
     }

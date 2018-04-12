@@ -46,6 +46,7 @@ import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -2473,7 +2474,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         latch2.await();
 
         try {
-            bkc.openLedgerNoRecovery(ledgerId, mlConfig.getDigestType(), mlConfig.getPassword());
+            bkc.openLedgerNoRecovery(ledgerId, DigestType.fromApiDigestType(mlConfig.getDigestType()),
+                                     mlConfig.getPassword());
             fail("ledger should have deleted due to update-cursor failure");
         } catch (BKException e) {
             // ok
@@ -2628,5 +2630,60 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(entries.size(), totalAddEntries / 2);
     }
 
+    @Test
+    public void testInvalidMarkDelete() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig());
+
+        ManagedCursor cursor = ledger.openCursor("c1");
+        Position readPosition = cursor.getReadPosition();
+        Position markDeletePosition = cursor.getMarkDeletedPosition();
+
+        List<Position> addedPositions = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            Position p = ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+            addedPositions.add(p);
+        }
+
+        // validate: cursor.asyncMarkDelete(..)
+        CountDownLatch markDeleteCallbackLatch = new CountDownLatch(1);
+        Position position = PositionImpl.get(100, 100);
+        AtomicBoolean markDeleteCallFailed = new AtomicBoolean(false);
+        cursor.asyncMarkDelete(position, new MarkDeleteCallback() {
+            @Override
+            public void markDeleteComplete(Object ctx) {
+                markDeleteCallbackLatch.countDown();
+            }
+
+            @Override
+            public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                markDeleteCallFailed.set(true);
+                markDeleteCallbackLatch.countDown();
+            }
+        }, null);
+        markDeleteCallbackLatch.await();
+        assertEquals(readPosition, cursor.getReadPosition());
+        assertEquals(markDeletePosition, cursor.getMarkDeletedPosition());
+
+        // validate : cursor.asyncDelete(..)
+        CountDownLatch deleteCallbackLatch = new CountDownLatch(1);
+        markDeleteCallFailed.set(false);
+        cursor.asyncDelete(position, new DeleteCallback() {
+            @Override
+            public void deleteComplete(Object ctx) {
+                deleteCallbackLatch.countDown();
+            }
+
+            @Override
+            public void deleteFailed(ManagedLedgerException exception, Object ctx) {
+                markDeleteCallFailed.set(true);
+                deleteCallbackLatch.countDown();
+            }
+        }, null);
+
+        deleteCallbackLatch.await();
+        assertEquals(readPosition, cursor.getReadPosition());
+        assertEquals(markDeletePosition, cursor.getMarkDeletedPosition());
+    }
+    
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);
 }

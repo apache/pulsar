@@ -153,7 +153,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
             return ret;
         }
         for (FunctionMetaData functionMetaData : this.functionMetaDataMap.get(tenant).get(namespace).values()) {
-            ret.add(functionMetaData.getFunctionConfig().getName());
+            ret.add(functionMetaData.getFunctionDetails().getName());
         }
         return ret;
     }
@@ -178,19 +178,19 @@ public class FunctionMetaDataManager implements AutoCloseable {
 
         long version = 0;
 
-        String tenant = functionMetaData.getFunctionConfig().getTenant();
+        String tenant = functionMetaData.getFunctionDetails().getTenant();
         if (!this.functionMetaDataMap.containsKey(tenant)) {
             this.functionMetaDataMap.put(tenant, new ConcurrentHashMap<>());
         }
 
         Map<String, Map<String, FunctionMetaData>> namespaces = this.functionMetaDataMap.get(tenant);
-        String namespace = functionMetaData.getFunctionConfig().getNamespace();
+        String namespace = functionMetaData.getFunctionDetails().getNamespace();
         if (!namespaces.containsKey(namespace)) {
             namespaces.put(namespace, new ConcurrentHashMap<>());
         }
 
         Map<String, FunctionMetaData> functionMetaDatas = namespaces.get(namespace);
-        String functionName = functionMetaData.getFunctionConfig().getName();
+        String functionName = functionMetaData.getFunctionDetails().getName();
         if (functionMetaDatas.containsKey(functionName)) {
             version = functionMetaDatas.get(functionName).getVersion() + 1;
         }
@@ -251,12 +251,12 @@ public class FunctionMetaDataManager implements AutoCloseable {
      */
 
     private boolean containsFunctionMetaData(FunctionMetaData functionMetaData) {
-        return containsFunctionMetaData(functionMetaData.getFunctionConfig());
+        return containsFunctionMetaData(functionMetaData.getFunctionDetails());
     }
 
-    private boolean containsFunctionMetaData(Function.FunctionConfig functionConfig) {
+    private boolean containsFunctionMetaData(Function.FunctionDetails functionDetails) {
         return containsFunctionMetaData(
-                functionConfig.getTenant(), functionConfig.getNamespace(), functionConfig.getName());
+                functionDetails.getTenant(), functionDetails.getNamespace(), functionDetails.getName());
     }
 
     private boolean containsFunctionMetaData(String tenant, String namespace, String functionName) {
@@ -274,9 +274,9 @@ public class FunctionMetaDataManager implements AutoCloseable {
     synchronized void proccessDeregister(Request.ServiceRequest deregisterRequest) {
 
         FunctionMetaData deregisterRequestFs = deregisterRequest.getFunctionMetaData();
-        String functionName = deregisterRequestFs.getFunctionConfig().getName();
-        String tenant = deregisterRequestFs.getFunctionConfig().getTenant();
-        String namespace = deregisterRequestFs.getFunctionConfig().getNamespace();
+        String functionName = deregisterRequestFs.getFunctionDetails().getName();
+        String tenant = deregisterRequestFs.getFunctionDetails().getTenant();
+        String namespace = deregisterRequestFs.getFunctionDetails().getNamespace();
 
         boolean needsScheduling = false;
 
@@ -363,25 +363,25 @@ public class FunctionMetaDataManager implements AutoCloseable {
 
     private boolean isRequestOutdated(Request.ServiceRequest serviceRequest) {
         FunctionMetaData requestFunctionMetaData = serviceRequest.getFunctionMetaData();
-        Function.FunctionConfig functionConfig = requestFunctionMetaData.getFunctionConfig();
-        FunctionMetaData currentFunctionMetaData = this.functionMetaDataMap.get(functionConfig.getTenant())
-                .get(functionConfig.getNamespace()).get(functionConfig.getName());
+        Function.FunctionDetails functionDetails = requestFunctionMetaData.getFunctionDetails();
+        FunctionMetaData currentFunctionMetaData = this.functionMetaDataMap.get(functionDetails.getTenant())
+                .get(functionDetails.getNamespace()).get(functionDetails.getName());
         return currentFunctionMetaData.getVersion() >= requestFunctionMetaData.getVersion();
     }
 
     @VisibleForTesting
     void setFunctionMetaData(FunctionMetaData functionMetaData) {
-        Function.FunctionConfig functionConfig = functionMetaData.getFunctionConfig();
-        if (!this.functionMetaDataMap.containsKey(functionConfig.getTenant())) {
-            this.functionMetaDataMap.put(functionConfig.getTenant(), new ConcurrentHashMap<>());
+        Function.FunctionDetails functionDetails = functionMetaData.getFunctionDetails();
+        if (!this.functionMetaDataMap.containsKey(functionDetails.getTenant())) {
+            this.functionMetaDataMap.put(functionDetails.getTenant(), new ConcurrentHashMap<>());
         }
 
-        if (!this.functionMetaDataMap.get(functionConfig.getTenant()).containsKey(functionConfig.getNamespace())) {
-            this.functionMetaDataMap.get(functionConfig.getTenant())
-                    .put(functionConfig.getNamespace(), new ConcurrentHashMap<>());
+        if (!this.functionMetaDataMap.get(functionDetails.getTenant()).containsKey(functionDetails.getNamespace())) {
+            this.functionMetaDataMap.get(functionDetails.getTenant())
+                    .put(functionDetails.getNamespace(), new ConcurrentHashMap<>());
         }
-        this.functionMetaDataMap.get(functionConfig.getTenant())
-                .get(functionConfig.getNamespace()).put(functionConfig.getName(), functionMetaData);
+        this.functionMetaDataMap.get(functionDetails.getTenant())
+                .get(functionDetails.getNamespace()).put(functionDetails.getName(), functionMetaData);
     }
 
     @VisibleForTesting

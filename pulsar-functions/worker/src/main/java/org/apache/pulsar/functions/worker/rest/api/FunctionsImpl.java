@@ -47,7 +47,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.FunctionConfig;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
@@ -87,12 +87,12 @@ public class FunctionsImpl {
                                      final @PathParam("functionName") String functionName,
                                      final @FormDataParam("data") InputStream uploadedInputStream,
                                      final @FormDataParam("data") FormDataContentDisposition fileDetail,
-                                     final @FormDataParam("functionConfig") String functionConfigJson) {
-        FunctionConfig functionConfig;
+                                     final @FormDataParam("functionDetails") String functionDetailsJson) {
+        FunctionDetails functionDetails;
         // validate parameters
         try {
-            functionConfig = validateUpdateRequestParams(tenant, namespace, functionName,
-                    uploadedInputStream, fileDetail, functionConfigJson);
+            functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
+                    uploadedInputStream, fileDetail, functionDetailsJson);
         } catch (IllegalArgumentException e) {
             log.error("Invalid register function request @ /{}/{}/{}",
                 tenant, namespace, functionName, e);
@@ -112,7 +112,7 @@ public class FunctionsImpl {
 
         // function state
         FunctionMetaData.Builder functionMetaDataBuilder = FunctionMetaData.newBuilder()
-                .setFunctionConfig(functionConfig)
+                .setFunctionDetails(functionDetails)
                 .setCreateTime(System.currentTimeMillis())
                 .setVersion(0);
 
@@ -136,13 +136,13 @@ public class FunctionsImpl {
                                    final @PathParam("functionName") String functionName,
                                    final @FormDataParam("data") InputStream uploadedInputStream,
                                    final @FormDataParam("data") FormDataContentDisposition fileDetail,
-                                   final @FormDataParam("functionConfig") String functionConfigJson) {
+                                   final @FormDataParam("functionDetails") String functionDetailsJson) {
 
-        FunctionConfig functionConfig;
+        FunctionDetails functionDetails;
         // validate parameters
         try {
-            functionConfig = validateUpdateRequestParams(tenant, namespace, functionName,
-                    uploadedInputStream, fileDetail, functionConfigJson);
+            functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
+                    uploadedInputStream, fileDetail, functionDetailsJson);
         } catch (IllegalArgumentException e) {
             log.error("Invalid update function request @ /{}/{}/{}",
                     tenant, namespace, functionName, e);
@@ -161,7 +161,7 @@ public class FunctionsImpl {
 
         // function state
         FunctionMetaData.Builder functionMetaDataBuilder = FunctionMetaData.newBuilder()
-                .setFunctionConfig(functionConfig)
+                .setFunctionDetails(functionDetails)
                 .setCreateTime(System.currentTimeMillis())
                 .setVersion(0);
 
@@ -262,8 +262,8 @@ public class FunctionsImpl {
         }
 
         FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, functionName);
-        String functionConfigJson = org.apache.pulsar.functions.utils.Utils.printJson(functionMetaData.getFunctionConfig());
-        return Response.status(Status.OK).entity(functionConfigJson).build();
+        String functionDetailsJson = org.apache.pulsar.functions.utils.Utils.printJson(functionMetaData.getFunctionDetails());
+        return Response.status(Status.OK).entity(functionDetailsJson).build();
     }
 
     @GET
@@ -302,8 +302,8 @@ public class FunctionsImpl {
             log.error("Got Exception Getting Status", e);
             FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
             functionStatusBuilder.setRunning(false);
-            String functionConfigJson = org.apache.pulsar.functions.utils.Utils.printJson(functionStatusBuilder.build());
-            return Response.status(Status.OK).entity(functionConfigJson).build();
+            String functionDetailsJson = org.apache.pulsar.functions.utils.Utils.printJson(functionStatusBuilder.build());
+            return Response.status(Status.OK).entity(functionDetailsJson).build();
         }
 
         String jsonResponse = org.apache.pulsar.functions.utils.Utils.printJson(functionStatus);
@@ -344,8 +344,8 @@ public class FunctionsImpl {
             log.error("Got Exception Getting Status", e);
             FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
             functionStatusBuilder.setRunning(false);
-            String functionConfigJson = org.apache.pulsar.functions.utils.Utils.printJson(functionStatusBuilder.build());
-            return Response.status(Status.OK).entity(functionConfigJson).build();
+            String functionDetailsJson = org.apache.pulsar.functions.utils.Utils.printJson(functionStatusBuilder.build());
+            return Response.status(Status.OK).entity(functionDetailsJson).build();
         }
 
         String jsonResponse = org.apache.pulsar.functions.utils.Utils.printJson(functionStatusList);
@@ -452,7 +452,7 @@ public class FunctionsImpl {
                                     final @PathParam("name") String functionName,
                                     final @FormDataParam("data") String input,
                                     final @FormDataParam("dataStream") InputStream uploadedInputStream) {
-        FunctionConfig functionConfig;
+        FunctionDetails functionDetails;
         // validate parameters
         try {
             validateTriggerRequestParams(tenant, namespace, functionName, input, uploadedInputStream);
@@ -475,12 +475,12 @@ public class FunctionsImpl {
 
         FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, functionName);
         String inputTopicToWrite;
-        if (functionMetaData.getFunctionConfig().getInputsList().size() > 0) {
-            inputTopicToWrite = functionMetaData.getFunctionConfig().getInputsList().get(0);
+        if (functionMetaData.getFunctionDetails().getInputsList().size() > 0) {
+            inputTopicToWrite = functionMetaData.getFunctionDetails().getInputsList().get(0);
         } else {
-            inputTopicToWrite = functionMetaData.getFunctionConfig().getCustomSerdeInputs().entrySet().iterator().next().getKey();
+            inputTopicToWrite = functionMetaData.getFunctionDetails().getCustomSerdeInputs().entrySet().iterator().next().getKey();
         }
-        String outputTopic = functionMetaData.getFunctionConfig().getOutput();
+        String outputTopic = functionMetaData.getFunctionDetails().getOutput();
         Reader reader = null;
         Producer producer = null;
         try {
@@ -577,12 +577,12 @@ public class FunctionsImpl {
         }
     }
 
-    private FunctionConfig validateUpdateRequestParams(String tenant,
+    private FunctionDetails validateUpdateRequestParams(String tenant,
                                              String namespace,
                                              String functionName,
                                              InputStream uploadedInputStream,
                                              FormDataContentDisposition fileDetail,
-                                             String functionConfigJson) throws IllegalArgumentException {
+                                             String functionDetailsJson) throws IllegalArgumentException {
         if (tenant == null) {
             throw new IllegalArgumentException("Tenant is not provided");
         }
@@ -595,42 +595,42 @@ public class FunctionsImpl {
         if (uploadedInputStream == null || fileDetail == null) {
             throw new IllegalArgumentException("Function Package is not provided");
         }
-        if (functionConfigJson == null) {
-            throw new IllegalArgumentException("FunctionConfig is not provided");
+        if (functionDetailsJson == null) {
+            throw new IllegalArgumentException("FunctionDetails is not provided");
         }
         try {
-            FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
-            org.apache.pulsar.functions.utils.Utils.mergeJson(functionConfigJson, functionConfigBuilder);
-            FunctionConfig functionConfig = functionConfigBuilder.build();
+            FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
+            org.apache.pulsar.functions.utils.Utils.mergeJson(functionDetailsJson, functionDetailsBuilder);
+            FunctionDetails functionDetails = functionDetailsBuilder.build();
 
             List<String> missingFields = new LinkedList<>();
-            if (functionConfig.getTenant() == null || functionConfig.getTenant().isEmpty()) {
+            if (functionDetails.getTenant() == null || functionDetails.getTenant().isEmpty()) {
                 missingFields.add("Tenant");
             }
-            if (functionConfig.getNamespace() == null || functionConfig.getNamespace().isEmpty()) {
+            if (functionDetails.getNamespace() == null || functionDetails.getNamespace().isEmpty()) {
                 missingFields.add("Namespace");
             }
-            if (functionConfig.getName() == null || functionConfig.getName().isEmpty()) {
+            if (functionDetails.getName() == null || functionDetails.getName().isEmpty()) {
                 missingFields.add("Name");
             }
-            if (functionConfig.getClassName() == null || functionConfig.getClassName().isEmpty()) {
+            if (functionDetails.getClassName() == null || functionDetails.getClassName().isEmpty()) {
                 missingFields.add("ClassName");
             }
-            if (functionConfig.getInputsCount() == 0 && functionConfig.getCustomSerdeInputsCount() == 0) {
+            if (functionDetails.getInputsCount() == 0 && functionDetails.getCustomSerdeInputsCount() == 0) {
                 missingFields.add("Input");
             }
             if (!missingFields.isEmpty()) {
                 String errorMessage = StringUtils.join(missingFields, ",");
                 throw new IllegalArgumentException(errorMessage + " is not provided");
             }
-            if (functionConfig.getParallelism() <= 0) {
+            if (functionDetails.getParallelism() <= 0) {
                 throw new IllegalArgumentException("Parallelism needs to be set to a positive number");
             }
-            return functionConfig;
+            return functionDetails;
         } catch (IllegalArgumentException ex) {
             throw ex;
         } catch (Exception ex) {
-            throw new IllegalArgumentException("Invalid FunctionConfig");
+            throw new IllegalArgumentException("Invalid FunctionDetails");
         }
     }
 

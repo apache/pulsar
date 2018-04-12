@@ -40,7 +40,7 @@ import InstanceCommunication_pb2
 
 Log = log.Log
 # Equivalent of the InstanceConfig in Java
-InstanceConfig = namedtuple('InstanceConfig', 'instance_id function_id function_version function_config max_buffered_tuples')
+InstanceConfig = namedtuple('InstanceConfig', 'instance_id function_id function_version function_details max_buffered_tuples')
 # This is the message that the consumers put on the queue for the function thread to process
 InternalMessage = namedtuple('InternalMessage', 'message topic serde consumer')
 InternalQuitMessage = namedtuple('InternalQuitMessage', 'quit')
@@ -95,8 +95,8 @@ class Stats(object):
       return self.latency / self.nsuccessfullyprocessed
 
 class PythonInstance(object):
-  def __init__(self, instance_id, function_id, function_version, function_config, max_buffered_tuples, user_code, log_topic, pulsar_client):
-    self.instance_config = InstanceConfig(instance_id, function_id, function_version, function_config, max_buffered_tuples)
+  def __init__(self, instance_id, function_id, function_version, function_details, max_buffered_tuples, user_code, log_topic, pulsar_client):
+    self.instance_config = InstanceConfig(instance_id, function_id, function_version, function_details, max_buffered_tuples)
     self.user_code = user_code
     self.queue = Queue.Queue(max_buffered_tuples)
     self.log_topic_handler = None
@@ -110,22 +110,25 @@ class PythonInstance(object):
     self.function_purefunction = None
     self.producer = None
     self.exeuction_thread = None
-    self.atmost_once = self.instance_config.function_config.processingGuarantees == Function_pb2.FunctionConfig.ProcessingGuarantees.Value('ATMOST_ONCE')
-    self.atleast_once = self.instance_config.function_config.processingGuarantees == Function_pb2.FunctionConfig.ProcessingGuarantees.Value('ATLEAST_ONCE')
-    self.auto_ack = self.instance_config.function_config.autoAck
+    self.atmost_once = self.instance_config.function_details.processingGuarantees == Function_pb2.FunctionDetails.ProcessingGuarantees.Value('ATMOST_ONCE')
+    self.atleast_once = self.instance_config.function_details.processingGuarantees == Function_pb2.FunctionDetails.ProcessingGuarantees.Value('ATLEAST_ONCE')
+    self.auto_ack = self.instance_config.function_details.autoAck
     self.contextimpl = None
     self.total_stats = Stats()
     self.current_stats = Stats()
 
   def run(self):
     # Setup consumers and input deserializers
-    mode = pulsar._pulsar.ConsumerType.Exclusive
-    if self.atmost_once:
-      mode = pulsar._pulsar.ConsumerType.Shared
-    subscription_name = str(self.instance_config.function_config.tenant) + "/" + \
-                        str(self.instance_config.function_config.namespace) + "/" + \
-                        str(self.instance_config.function_config.name)
-    for topic, serde in self.instance_config.function_config.customSerdeInputs.items():
+    mode = pulsar._pulsar.ConsumerType.Shared
+    if self.instance_config.function_details.subscriptionType == Function_pb2.FunctionDetails.SubscriptionType.Value('EXCLUSIVE'):
+      mode = pulsar._pulsar.ConsumerType.Exclusive
+    elif self.instance_config.function_details.subscriptionType == Function_pb2.FunctionDetails.SubscriptionType.Value('FAILOVER'):
+      mode = pulsar._pulsar.ConsumerType.Failover
+
+    subscription_name = str(self.instance_config.function_details.tenant) + "/" + \
+                        str(self.instance_config.function_details.namespace) + "/" + \
+                        str(self.instance_config.function_details.name)
+    for topic, serde in self.instance_config.function_details.customSerdeInputs.items():
       serde_kclass = util.import_class(os.path.dirname(self.user_code), serde)
       self.input_serdes[topic] = serde_kclass()
       Log.info("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
@@ -135,7 +138,7 @@ class PythonInstance(object):
         message_listener=partial(self.message_listener, topic, self.input_serdes[topic])
       )
 
-    for topic in self.instance_config.function_config.inputs:
+    for topic in self.instance_config.function_details.inputs:
       global DEFAULT_SERIALIZER
       serde_kclass = util.import_class(os.path.dirname(self.user_code), DEFAULT_SERIALIZER)
       self.input_serdes[topic] = serde_kclass()
@@ -146,10 +149,10 @@ class PythonInstance(object):
         message_listener=partial(self.message_listener, topic, self.input_serdes[topic])
       )
 
-    function_kclass = util.import_class(os.path.dirname(self.user_code), self.instance_config.function_config.className)
+    function_kclass = util.import_class(os.path.dirname(self.user_code), self.instance_config.function_details.className)
     if function_kclass is None:
-      Log.critical("Could not import User Function Module %s" % self.instance_config.function_config.className)
-      raise NameError("Could not import User Function Module %s" % self.instance_config.function_config.className)
+      Log.critical("Could not import User Function Module %s" % self.instance_config.function_details.className)
+      raise NameError("Could not import User Function Module %s" % self.instance_config.function_details.className)
     try:
       self.function_class = function_kclass()
     except:
@@ -233,9 +236,9 @@ class PythonInstance(object):
       msg.consumer.acknowledge(msg.message)
 
   def setup_output_serde(self):
-    if self.instance_config.function_config.outputSerdeClassName != None and \
-            len(self.instance_config.function_config.outputSerdeClassName) > 0:
-      serde_kclass = util.import_class(os.path.dirname(self.user_code), self.instance_config.function_config.outputSerdeClassName)
+    if self.instance_config.function_details.outputSerdeClassName != None and \
+            len(self.instance_config.function_details.outputSerdeClassName) > 0:
+      serde_kclass = util.import_class(os.path.dirname(self.user_code), self.instance_config.function_details.outputSerdeClassName)
       self.output_serde = serde_kclass()
     else:
       global DEFAULT_SERIALIZER
@@ -243,11 +246,11 @@ class PythonInstance(object):
       self.output_serde = serde_kclass()
 
   def setup_producer(self):
-    if self.instance_config.function_config.output != None and \
-            len(self.instance_config.function_config.output) > 0:
-      Log.info("Setting up producer for topic %s" % self.instance_config.function_config.output)
+    if self.instance_config.function_details.output != None and \
+            len(self.instance_config.function_details.output) > 0:
+      Log.info("Setting up producer for topic %s" % self.instance_config.function_details.output)
       self.producer = self.pulsar_client.create_producer(
-        str(self.instance_config.function_config.output),
+        str(self.instance_config.function_details.output),
         block_if_queue_full=True,
         batching_enabled=True,
         batching_max_publish_delay_ms=1,
