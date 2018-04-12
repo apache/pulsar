@@ -56,7 +56,6 @@ import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.shaded.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.shaded.io.netty.buffer.ByteBuf;
 import org.apache.pulsar.functions.shaded.io.netty.buffer.ByteBufUtil;
-import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
@@ -268,7 +267,7 @@ public class CmdFunctionsTest {
 
         CreateFunction creater = cmd.getCreater();
         assertEquals(testClassName, creater.getFunctionConfig().getName());
-        verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
+        verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
     }
 
     @Test
@@ -285,7 +284,7 @@ public class CmdFunctionsTest {
 
         CreateFunction creater = cmd.getCreater();
         assertEquals(inputTopicName + "-" + "ExclamationFunction" + "-output", creater.getFunctionConfig().getOutput());
-        verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
+        verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
     }
 
     @Test
