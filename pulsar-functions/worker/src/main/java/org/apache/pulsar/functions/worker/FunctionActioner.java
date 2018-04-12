@@ -33,7 +33,7 @@ import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
-import org.apache.pulsar.functions.utils.FunctionConfigUtils;
+import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -105,7 +105,7 @@ public class FunctionActioner implements AutoCloseable {
         Function.Instance instance = functionRuntimeInfo.getFunctionInstance();
         FunctionMetaData functionMetaData = instance.getFunctionMetaData();
         log.info("Starting function {} - {} ...",
-                functionMetaData.getFunctionConfig().getName(), instance.getInstanceId());
+                functionMetaData.getFunctionDetails().getName(), instance.getInstanceId());
         File pkgDir = new File(
                 workerConfig.getDownloadDirectory(),
                 getDownloadPackagePath(functionMetaData));
@@ -115,7 +115,7 @@ public class FunctionActioner implements AutoCloseable {
 
         File pkgFile = new File(
             pkgDir,
-            new File(FunctionConfigUtils.getDownloadFileName(functionMetaData.getFunctionConfig())).getName());
+            new File(FunctionDetailsUtils.getDownloadFileName(functionMetaData.getFunctionDetails())).getName());
 
         if (!pkgFile.exists()) {
             // download only when the package file doesn't exist
@@ -155,7 +155,7 @@ public class FunctionActioner implements AutoCloseable {
         }
 
         InstanceConfig instanceConfig = new InstanceConfig();
-        instanceConfig.setFunctionConfig(functionMetaData.getFunctionConfig());
+        instanceConfig.setFunctionDetails(functionMetaData.getFunctionDetails());
         // TODO: set correct function id and version when features implemented
         instanceConfig.setFunctionId(UUID.randomUUID().toString());
         instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
@@ -172,7 +172,7 @@ public class FunctionActioner implements AutoCloseable {
         Function.Instance instance = functionRuntimeInfo.getFunctionInstance();
         FunctionMetaData functionMetaData = instance.getFunctionMetaData();
         log.info("Stopping function {} - {}...",
-                functionMetaData.getFunctionConfig().getName(), instance.getInstanceId());
+                functionMetaData.getFunctionDetails().getName(), instance.getInstanceId());
         if (functionRuntimeInfo.getRuntimeSpawner() != null) {
             functionRuntimeInfo.getRuntimeSpawner().close();
             functionRuntimeInfo.setRuntimeSpawner(null);
@@ -188,7 +188,7 @@ public class FunctionActioner implements AutoCloseable {
                 FileUtils.deleteDirectory(pkgDir);
             } catch (IOException e) {
                 log.warn("Failed to delete package for function: {}",
-                        FunctionConfigUtils.getFullyQualifiedName(functionMetaData.getFunctionConfig()), e);
+                        FunctionDetailsUtils.getFullyQualifiedName(functionMetaData.getFunctionDetails()), e);
             }
         }
     }
@@ -196,9 +196,9 @@ public class FunctionActioner implements AutoCloseable {
     private String getDownloadPackagePath(FunctionMetaData functionMetaData) {
         return StringUtils.join(
                 new String[]{
-                        functionMetaData.getFunctionConfig().getTenant(),
-                        functionMetaData.getFunctionConfig().getNamespace(),
-                        functionMetaData.getFunctionConfig().getName(),
+                        functionMetaData.getFunctionDetails().getTenant(),
+                        functionMetaData.getFunctionDetails().getNamespace(),
+                        functionMetaData.getFunctionDetails().getName(),
                 },
                 File.separatorChar);
     }

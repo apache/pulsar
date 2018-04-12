@@ -131,27 +131,27 @@ class ContextImpl implements Context {
 
     @Override
     public String getOutputTopic() {
-        return config.getFunctionConfig().getOutput();
+        return config.getFunctionDetails().getOutput();
     }
 
     @Override
     public String getOutputSerdeClassName() {
-        return config.getFunctionConfig().getOutputSerdeClassName();
+        return config.getFunctionDetails().getOutputSerdeClassName();
     }
 
     @Override
     public String getTenant() {
-        return config.getFunctionConfig().getTenant();
+        return config.getFunctionDetails().getTenant();
     }
 
     @Override
     public String getNamespace() {
-        return config.getFunctionConfig().getNamespace();
+        return config.getFunctionDetails().getNamespace();
     }
 
     @Override
     public String getFunctionName() {
-        return config.getFunctionConfig().getName();
+        return config.getFunctionDetails().getName();
     }
 
     @Override
@@ -176,7 +176,7 @@ class ContextImpl implements Context {
 
     @Override
     public Optional<String> getUserConfigValue(String key) {
-        return Optional.ofNullable(config.getFunctionConfig().getUserConfigOrDefault(key, null));
+        return Optional.ofNullable(config.getFunctionDetails().getUserConfigOrDefault(key, null));
     }
 
     @Override
@@ -186,7 +186,7 @@ class ContextImpl implements Context {
 
     @Override
     public Map<String, String> getUserConfigMap() {
-        return config.getFunctionConfig().getUserConfigMap();
+        return config.getFunctionDetails().getUserConfigMap();
     }
 
     @Override

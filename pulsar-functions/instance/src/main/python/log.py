@@ -22,6 +22,8 @@
 
 ''' log.py '''
 import logging
+import os
+import errno
 from logging.handlers import RotatingFileHandler
 import pulsar
 
@@ -88,6 +90,13 @@ def init_rotating_logger(level, logfile, max_files, max_bytes):
   It also makes sure that any StreamHandler is removed, so as to avoid stdout/stderr
   constipation issues
   """
+  # create log directory if necessary
+  try:
+    os.makedirs(os.path.dirname(logfile))
+  except OSError as e:
+    if e.errno != errno.EEXIST:
+      raise
+
   logging.basicConfig()
 
   root_logger = logging.getLogger()
