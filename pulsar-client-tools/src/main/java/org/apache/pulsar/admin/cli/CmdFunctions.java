@@ -296,7 +296,7 @@ public class CmdFunctions extends CmdBase {
             if (functionConfig.getSubscriptionType() != null
                     && functionConfig.getSubscriptionType() != FunctionConfig.SubscriptionType.FAILOVER
                     && functionConfig.getProcessingGuarantees() != null
-                    && functionConfig.getProcessingGuarantees() != FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+                    && functionConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
                 throw new IllegalArgumentException("Effectively Once can only be acheived with Failover subscription");
             }
 
