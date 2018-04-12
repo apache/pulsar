@@ -44,7 +44,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
@@ -98,8 +98,8 @@ public class BrokerBkEnsemblesTests {
             admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl.toString()).build();
 
             admin.clusters().createCluster("usc", new ClusterData(adminUrl.toString()));
-            admin.properties().createProperty("prop",
-                    new PropertyAdmin(Sets.newHashSet("appid1"), Sets.newHashSet("usc")));
+            admin.tenants().createTenant("prop",
+                    new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet("usc")));
         } catch (Throwable t) {
             LOG.error("Error setting up broker test", t);
             Assert.fail("Broker test setup failed");

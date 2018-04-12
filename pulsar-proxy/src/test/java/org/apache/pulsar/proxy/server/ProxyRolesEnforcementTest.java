@@ -187,14 +187,13 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
         createAdminClient();
         final String proxyServiceUrl = "pulsar://localhost:" + servicePort;
         // create a client which connects to proxy and pass authData
-        String namespaceName = "my-property/global/my-ns";
-        String topicName = "persistent://my-property/global/my-ns/my-topic1";
+        String namespaceName = "my-property/my-ns";
+        String topicName = "persistent://my-property/my-ns/my-topic1";
         String subscriptionName = "my-subscriber-name";
         String clientAuthParams = "authParam:client";
         String proxyAuthParams = "authParam:proxy";
 
-        admin.namespaces().createNamespace(namespaceName);
-        admin.namespaces().setNamespaceReplicationClusters(namespaceName, Sets.newHashSet("test"));
+        admin.namespaces().createNamespace(namespaceName, Sets.newHashSet("test"));
 
         admin.namespaces().grantPermissionOnNamespace(namespaceName, "proxy",
                 Sets.newHashSet(AuthAction.consume, AuthAction.produce));

@@ -18,6 +18,12 @@
  */
 package org.apache.pulsar.compaction;
 
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import com.google.common.collect.Sets;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -25,6 +31,8 @@ import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.IntStream;
+
+import lombok.Cleanup;
 
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -37,19 +45,11 @@ import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.impl.RawMessageImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import lombok.Cleanup;
 
 public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
     private final Random r = new Random(0);
@@ -61,8 +61,8 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
         admin.clusters().createCluster("use",
                 new ClusterData("http://127.0.0.1:" + BROKER_WEBSERVICE_PORT));
-        admin.properties().createProperty("my-property",
-                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
+        admin.tenants().createTenant("my-property",
+                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
         admin.namespaces().createNamespace("my-property/use/my-ns");
     }
 

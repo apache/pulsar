@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.admin.v1;
 
 import io.swagger.annotations.Api;
-import org.apache.pulsar.broker.admin.impl.PropertiesBase;
+import org.apache.pulsar.broker.admin.impl.TenantsBase;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.Path;
@@ -29,6 +29,6 @@ import javax.ws.rs.core.MediaType;
 @Path("/properties")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-@Api(value = "/properties", description = "PropertiesBase admin apis", tags = "properties")
-public class Properties extends PropertiesBase {
+@Api(value = "/properties", description = "TenantsBase admin apis", tags = "properties")
+public class Properties extends TenantsBase {
 }

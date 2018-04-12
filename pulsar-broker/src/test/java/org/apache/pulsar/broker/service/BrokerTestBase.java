@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.service;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,8 +39,8 @@ public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
     public void baseSetup() throws Exception {
         super.internalSetup();
         admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
-        admin.properties().createProperty("prop",
-                new PropertyAdmin(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
+        admin.tenants().createTenant("prop",
+                new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("prop/ns-abc");
         admin.namespaces().setNamespaceReplicationClusters("prop/ns-abc", Sets.newHashSet("test"));
     }

@@ -26,11 +26,12 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 
-import com.google.common.collect.Lists;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
+
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -48,7 +49,7 @@ public class FunctionCacheManagerImplTest {
     @BeforeMethod
     public void setUp() {
         this.jarUrl = getClass().getClassLoader().getResource("multifunction.jar");
-        this.jarFiles = Lists.newArrayList(jarUrl.getPath());
+        this.jarFiles = new ArrayList<>(Collections.singletonList(jarUrl.getPath()));
         this.classpaths = Collections.emptyList();
         this.cacheManager = new FunctionCacheManagerImpl();
     }

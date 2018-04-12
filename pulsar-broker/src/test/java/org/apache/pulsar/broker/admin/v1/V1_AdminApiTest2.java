@@ -65,7 +65,7 @@ import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.testng.annotations.AfterMethod;
@@ -90,8 +90,8 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         // Setup namespaces
         admin.clusters().createCluster("use", new ClusterData("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT));
-        PropertyAdmin propertyAdmin = new PropertyAdmin(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use"));
-        admin.properties().createProperty("prop-xyz", propertyAdmin);
+        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use"));
+        admin.tenants().createTenant("prop-xyz", tenantInfo);
         admin.namespaces().createNamespace("prop-xyz/use/ns1");
     }
 
@@ -599,8 +599,8 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
         final String property = "peer-prop";
         Set<String> allowedClusters = Sets.newHashSet("us-west1", "us-west2", "us-west3", "us-west4", "us-east1",
                 "us-east2");
-        PropertyAdmin propConfig = new PropertyAdmin(Sets.newHashSet("test"), allowedClusters);
-        admin.properties().createProperty(property, propConfig);
+        TenantInfo propConfig = new TenantInfo(Sets.newHashSet("test"), allowedClusters);
+        admin.tenants().createTenant(property, propConfig);
 
         final String namespace = property + "/global/conflictPeer";
         admin.namespaces().createNamespace(namespace);
@@ -770,8 +770,8 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testTenantNameWithUnderscore() throws Exception {
-        PropertyAdmin propertyAdmin = new PropertyAdmin(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use"));
-        admin.properties().createProperty("prop_xyz", propertyAdmin);
+        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use"));
+        admin.tenants().createTenant("prop_xyz", tenantInfo);
 
         admin.namespaces().createNamespace("prop_xyz/use/my-namespace");
 
@@ -787,18 +787,18 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testTenantNameWithInvalidCharacters() throws Exception {
-        PropertyAdmin propertyAdmin = new PropertyAdmin(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use"));
+        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use"));
 
         // If we try to create property with invalid characters, it should fail immediately
         try {
-            admin.properties().createProperty("prop xyz", propertyAdmin);
+            admin.tenants().createTenant("prop xyz", tenantInfo);
             fail("Should have failed");
         } catch (PulsarAdminException e) {
             // Expected
         }
 
         try {
-            admin.properties().createProperty("prop&xyz", propertyAdmin);
+            admin.tenants().createTenant("prop&xyz", tenantInfo);
             fail("Should have failed");
         } catch (PulsarAdminException e) {
             // Expected

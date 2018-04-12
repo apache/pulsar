@@ -37,7 +37,7 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -77,7 +77,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         final String patternString = "persistent://my-property/my-ns/pattern-topic.*";
         Pattern pattern = Pattern.compile(patternString);
 
-        admin.properties().createProperty("prop", new PropertyAdmin());
+        admin.tenants().createTenant("prop", new TenantInfo());
         admin.persistentTopics().createPartitionedTopic(topicName2, 2);
         admin.persistentTopics().createPartitionedTopic(topicName3, 3);
 
@@ -135,7 +135,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         Pattern pattern = Pattern.compile("persistent://my-property/my-ns/pattern-topic.*");
 
         // 1. create partition
-        admin.properties().createProperty("prop", new PropertyAdmin());
+        admin.tenants().createTenant("prop", new TenantInfo());
         admin.persistentTopics().createPartitionedTopic(topicName2, 2);
         admin.persistentTopics().createPartitionedTopic(topicName3, 3);
 
@@ -276,7 +276,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         Pattern pattern = Pattern.compile("persistent://my-property/my-ns/pattern-topic.*");
 
         // 1. create partition
-        admin.properties().createProperty("prop", new PropertyAdmin());
+        admin.tenants().createTenant("prop", new TenantInfo());
         admin.persistentTopics().createPartitionedTopic(topicName2, 2);
         admin.persistentTopics().createPartitionedTopic(topicName3, 3);
 
@@ -359,7 +359,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         Pattern pattern = Pattern.compile("persistent://my-property/my-ns/pattern-topic.*");
 
         // 1. create partition
-        admin.properties().createProperty("prop", new PropertyAdmin());
+        admin.tenants().createTenant("prop", new TenantInfo());
         admin.persistentTopics().createPartitionedTopic(topicName2, 2);
         admin.persistentTopics().createPartitionedTopic(topicName3, 3);
 
@@ -462,7 +462,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         Pattern pattern = Pattern.compile("persistent://my-property/my-ns/pattern-topic.*");
 
         // 1. create partition
-        admin.properties().createProperty("prop", new PropertyAdmin());
+        admin.tenants().createTenant("prop", new TenantInfo());
         admin.persistentTopics().createPartitionedTopic(topicName2, 2);
         admin.persistentTopics().createPartitionedTopic(topicName3, 3);
 

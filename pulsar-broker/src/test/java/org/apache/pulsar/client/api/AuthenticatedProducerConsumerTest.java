@@ -39,7 +39,7 @@ import org.apache.pulsar.client.impl.auth.AuthenticationBasic;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -168,8 +168,8 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         authTls.configure(authParams);
         internalSetup(authTls);
 
-        admin.properties().createProperty("my-property",
-                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.tenants().createTenant("my-property",
+                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
 
         testSyncProducerAndConsumer(batchMessageDelayMs);
@@ -184,8 +184,8 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         authPassword.configure("{\"userId\":\"superUser\",\"password\":\"supepass\"}");
         internalSetup(authPassword);
 
-        admin.properties().createProperty("my-property",
-                new PropertyAdmin(Sets.newHashSet(), Sets.newHashSet("test")));
+        admin.tenants().createTenant("my-property",
+                new TenantInfo(Sets.newHashSet(), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
 
         testSyncProducerAndConsumer(batchMessageDelayMs);
@@ -200,8 +200,8 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         authPassword.configure("{\"userId\":\"superUser2\",\"password\":\"superpassword\"}");
         internalSetup(authPassword);
 
-        admin.properties().createProperty("my-property",
-                new PropertyAdmin(Sets.newHashSet(), Sets.newHashSet("test")));
+        admin.tenants().createTenant("my-property",
+                new TenantInfo(Sets.newHashSet(), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
 
         testSyncProducerAndConsumer(batchMessageDelayMs);
@@ -222,8 +222,8 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
 
         admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
                 "pulsar://localhost:" + BROKER_PORT, "pulsar+ssl://localhost:" + BROKER_PORT_TLS));
-        admin.properties().createProperty("my-property",
-                new PropertyAdmin(Sets.newHashSet("anonymousUser"), Sets.newHashSet("test")));
+        admin.tenants().createTenant("my-property",
+                new TenantInfo(Sets.newHashSet("anonymousUser"), Sets.newHashSet("test")));
 
         // make a PulsarAdmin instance as "anonymousUser" for http request
         admin.close();
@@ -301,8 +301,8 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
 
         admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
                 "pulsar://localhost:" + BROKER_PORT, "pulsar+ssl://localhost:" + BROKER_PORT_TLS));
-        admin.properties().createProperty("my-property",
-                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.tenants().createTenant("my-property",
+                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         String namespace = "my-property/my-ns";
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
 

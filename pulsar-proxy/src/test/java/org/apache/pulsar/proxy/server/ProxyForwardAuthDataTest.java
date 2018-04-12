@@ -20,6 +20,8 @@ package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.spy;
 
+import com.google.common.collect.Sets;
+
 import java.util.HashSet;
 import java.util.Set;
 
@@ -29,7 +31,6 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.AuthAction;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.apache.pulsar.proxy.server.ProxyRolesEnforcementTest.BasicAuthentication;
 import org.apache.pulsar.proxy.server.ProxyRolesEnforcementTest.BasicAuthenticationProvider;
 import org.slf4j.Logger;
@@ -38,8 +39,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Sets;
 
 public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(ProxyForwardAuthDataTest.class);
@@ -90,14 +89,13 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
         // Step 1: Create Admin Client
         final String proxyServiceUrl = "pulsar://localhost:" + servicePort;
         // create a client which connects to proxy and pass authData
-        String namespaceName = "my-property/global/my-ns";
-        String topicName = "persistent://my-property/global/my-ns/my-topic1";
+        String namespaceName = "my-property/my-ns";
+        String topicName = "persistent://my-property/my-ns/my-topic1";
         String subscriptionName = "my-subscriber-name";
         String clientAuthParams = "authParam:client";
         String proxyAuthParams = "authParam:proxy";
 
-        admin.namespaces().createNamespace(namespaceName);
-        admin.namespaces().setNamespaceReplicationClusters(namespaceName, Sets.newHashSet("test"));
+        admin.namespaces().createNamespace(namespaceName, Sets.newHashSet("test"));
         admin.namespaces().grantPermissionOnNamespace(namespaceName, "proxy",
                 Sets.newHashSet(AuthAction.consume, AuthAction.produce));
         admin.namespaces().grantPermissionOnNamespace(namespaceName, "client",
