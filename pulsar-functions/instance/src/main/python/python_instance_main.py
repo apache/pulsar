@@ -67,6 +67,7 @@ def main():
   parser.add_argument('--function_id', required=True, help='Function Id')
   parser.add_argument('--function_version', required=True, help='Function Version')
   parser.add_argument('--processing_guarantees', required=True, help='Processing Guarantees')
+  parser.add_argument('--subscription_type', required=True, help='Subscription Type')
   parser.add_argument('--pulsar_serviceurl', required=True, help='Pulsar Service Url')
   parser.add_argument('--port', required=True, help='Instance Port', type=int)
   parser.add_argument('--max_buffered_tuples', required=True, help='Maximum number of Buffered tuples')
@@ -109,6 +110,7 @@ def main():
   if args.output_serde_classname != None and len(args.output_serde_classname) != 0:
     function_details.outputSerdeClassName = args.output_serde_classname
   function_details.processingGuarantees = Function_pb2.FunctionDetails.ProcessingGuarantees.Value(args.processing_guarantees)
+  function_details.subscriptionType = Function_pb2.FunctionDetails.SubscriptionType.Values(args.subscription_type)
   if args.auto_ack == "true":
     function_details.autoAck = True
   else:

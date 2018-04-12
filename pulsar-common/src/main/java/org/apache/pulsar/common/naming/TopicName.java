@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +40,9 @@ import com.google.common.util.concurrent.UncheckedExecutionException;
 public class TopicName implements ServiceUnitId {
 
     private static final Logger log = LoggerFactory.getLogger(TopicName.class);
+
+    public static final String PUBLIC_PROPERTY = "public";
+    public static final String DEFAULT_NAMESPACE = "default";
 
     private static final String PARTITIONED_TOPIC_SUFFIX = "-partition-";
 
@@ -98,15 +102,29 @@ public class TopicName implements ServiceUnitId {
     }
 
     private TopicName(String completeTopicName) {
-        this.completeTopicName = completeTopicName;
         try {
-            // The topic name can be in two different forms:
+            // The topic name can be in two different forms, one is fully qualified topic name,
+            // the other one is short topic name
+            if (!completeTopicName.contains("://")) {
+                // The short topic name can be:
+                // - <topic>
+                // - <property>/<namespace>/<topic>
+                String[] parts = StringUtils.split(completeTopicName, '/');
+                if (parts.length == 3) {
+                    completeTopicName = TopicDomain.persistent.name() + "://" + completeTopicName;
+                } else if (parts.length == 1) {
+                    completeTopicName = TopicDomain.persistent.name() + "://" + PUBLIC_PROPERTY + "/" + DEFAULT_NAMESPACE + "/" + parts[0];
+                } else {
+                    throw new IllegalArgumentException(
+                        "Invalid short topic name '" + completeTopicName + "', it should be in the format of "
+                        + "<tenant>/<namespace>/<topic> or <topic>");
+                }
+            }
+            this.completeTopicName = completeTopicName;
+
+            // The fully qualified topic name can be in two different forms:
             // new:    persistent://property/namespace/topic
             // legacy: persistent://property/cluster/namespace/topic
-            if (!completeTopicName.contains("://")) {
-                throw new IllegalArgumentException(
-                        "Invalid topic name: " + completeTopicName + " -- Domain is missing");
-            }
 
             List<String> parts = Splitter.on("://").limit(2).splitToList(completeTopicName);
             this.domain = TopicDomain.getEnum(parts.get(0));
