@@ -101,7 +101,7 @@ public class ProcessRuntimeTest {
 
         ProcessRuntime container = factory.createContainer(config, userJarFile);
         List<String> args = container.getProcessArgs();
-        assertEquals(args.size(), 41);
+        assertEquals(args.size(), 43);
         args.remove(args.size() - 1);
         String expectedArgs = "java -cp " + javaInstanceJarFile + " -Dlog4j.configurationFile=java_instance_log4j2.yml "
                 + "-Dpulsar.log.dir=" + logDirectory + "/functions" + " -Dpulsar.log.file=" + config.getFunctionDetails().getName()
@@ -112,6 +112,7 @@ public class ProcessRuntimeTest {
                 + " --namespace " + config.getFunctionDetails().getNamespace()
                 + " --name " + config.getFunctionDetails().getName()
                 + " --function_classname " + config.getFunctionDetails().getClassName()
+                + " --subscription_type" + config.getFunctionDetails().getSubscriptionType()
                 + " --log_topic " + config.getFunctionDetails().getLogTopic()
                 + " --input_topics " + TEST_NAME + "-input1," + TEST_NAME + "-input2"
                 + " --auto_ack false"
@@ -129,7 +130,7 @@ public class ProcessRuntimeTest {
 
         ProcessRuntime container = factory.createContainer(config, userJarFile);
         List<String> args = container.getProcessArgs();
-        assertEquals(args.size(), 40);
+        assertEquals(args.size(), 42);
         args.remove(args.size() - 1);
         String expectedArgs = "python " + pythonInstanceFile
                 + " --py " + userJarFile + " --logging_directory "
@@ -139,6 +140,7 @@ public class ProcessRuntimeTest {
                 + " --namespace " + config.getFunctionDetails().getNamespace()
                 + " --name " + config.getFunctionDetails().getName()
                 + " --function_classname " + config.getFunctionDetails().getClassName()
+                + " --subscription_type" + config.getFunctionDetails().getSubscriptionType()
                 + " --log_topic " + config.getFunctionDetails().getLogTopic()
                 + " --input_topics " + TEST_NAME + "-input1," + TEST_NAME + "-input2"
                 + " --auto_ack false"

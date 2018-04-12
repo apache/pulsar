@@ -103,6 +103,9 @@ public class JavaInstanceMain {
     @Parameter(names = "--auto_ack", description = "Enable Auto Acking?\n")
     protected String autoAck = "true";
 
+    @Parameter(names = "--subscription_type", description = "What subscription type to use")
+    protected FunctionDetails.SubscriptionType subscriptionType;
+
     private Server server;
 
     public JavaInstanceMain() { }
@@ -150,6 +153,7 @@ public class JavaInstanceMain {
         } else {
             functionDetailsBuilder.setAutoAck(false);
         }
+        functionDetailsBuilder.setSubscriptionType(subscriptionType);
         if (userConfig != null && !userConfig.isEmpty()) {
             Type type = new TypeToken<Map<String, String>>(){}.getType();
             Map<String, String> userConfigMap = new Gson().fromJson(userConfig, type);
