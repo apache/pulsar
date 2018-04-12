@@ -72,17 +72,17 @@ class ProcessRuntime implements Runtime {
                                      String codeFile,
                                      String pulsarServiceUrl) {
         List<String> args = new LinkedList<>();
-        if (instanceConfig.getFunctionConfig().getRuntime() == Function.FunctionConfig.Runtime.JAVA) {
+        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
             args.add("java");
             args.add("-cp");
             args.add(instanceFile);
             args.add("-Dlog4j.configurationFile=java_instance_log4j2.yml");
             args.add("-Dpulsar.log.dir=" + logDirectory);
-            args.add("-Dpulsar.log.file=" + instanceConfig.getFunctionConfig().getName());
+            args.add("-Dpulsar.log.file=" + instanceConfig.getFunctionDetails().getName());
             args.add("org.apache.pulsar.functions.runtime.JavaInstanceMain");
             args.add("--jar");
             args.add(codeFile);
-        } else if (instanceConfig.getFunctionConfig().getRuntime() == Function.FunctionConfig.Runtime.PYTHON) {
+        } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON) {
             args.add("python");
             args.add(instanceFile);
             args.add("--py");
@@ -90,7 +90,7 @@ class ProcessRuntime implements Runtime {
             args.add("--logging_directory");
             args.add(logDirectory);
             args.add("--logging_file");
-            args.add(instanceConfig.getFunctionConfig().getName());
+            args.add(instanceConfig.getFunctionDetails().getName());
         }
         args.add("--instance_id");
         args.add(instanceConfig.getInstanceId());
@@ -99,22 +99,24 @@ class ProcessRuntime implements Runtime {
         args.add("--function_version");
         args.add(instanceConfig.getFunctionVersion());
         args.add("--tenant");
-        args.add(instanceConfig.getFunctionConfig().getTenant());
+        args.add(instanceConfig.getFunctionDetails().getTenant());
         args.add("--namespace");
-        args.add(instanceConfig.getFunctionConfig().getNamespace());
+        args.add(instanceConfig.getFunctionDetails().getNamespace());
         args.add("--name");
-        args.add(instanceConfig.getFunctionConfig().getName());
+        args.add(instanceConfig.getFunctionDetails().getName());
         args.add("--function_classname");
-        args.add(instanceConfig.getFunctionConfig().getClassName());
-        if (instanceConfig.getFunctionConfig().getLogTopic() != null &&
-            !instanceConfig.getFunctionConfig().getLogTopic().isEmpty()) {
+        args.add(instanceConfig.getFunctionDetails().getClassName());
+        args.add("--subscription_type");
+        args.add(instanceConfig.getFunctionDetails().getSubscriptionType().toString());
+        if (instanceConfig.getFunctionDetails().getLogTopic() != null &&
+            !instanceConfig.getFunctionDetails().getLogTopic().isEmpty()) {
             args.add("--log_topic");
-            args.add(instanceConfig.getFunctionConfig().getLogTopic());
+            args.add(instanceConfig.getFunctionDetails().getLogTopic());
         }
-        if (instanceConfig.getFunctionConfig().getCustomSerdeInputsCount() > 0) {
+        if (instanceConfig.getFunctionDetails().getCustomSerdeInputsCount() > 0) {
             String inputTopicString = "";
             String inputSerdeClassNameString = "";
-            for (Map.Entry<String, String> entry : instanceConfig.getFunctionConfig().getCustomSerdeInputsMap().entrySet()) {
+            for (Map.Entry<String, String> entry : instanceConfig.getFunctionDetails().getCustomSerdeInputsMap().entrySet()) {
                 if (inputTopicString.isEmpty()) {
                     inputTopicString = entry.getKey();
                 } else {
@@ -131,9 +133,9 @@ class ProcessRuntime implements Runtime {
             args.add("--custom_serde_classnames");
             args.add(inputSerdeClassNameString);
         }
-        if (instanceConfig.getFunctionConfig().getInputsCount() > 0) {
+        if (instanceConfig.getFunctionDetails().getInputsCount() > 0) {
             String inputTopicString = "";
-            for (String topicName : instanceConfig.getFunctionConfig().getInputsList()) {
+            for (String topicName : instanceConfig.getFunctionDetails().getInputsList()) {
                 if (inputTopicString.isEmpty()) {
                     inputTopicString = topicName;
                 } else {
@@ -144,28 +146,28 @@ class ProcessRuntime implements Runtime {
             args.add(inputTopicString);
         }
         args.add("--auto_ack");
-        if (instanceConfig.getFunctionConfig().getAutoAck()) {
+        if (instanceConfig.getFunctionDetails().getAutoAck()) {
             args.add("true");
         } else {
             args.add("false");
         }
-        if (instanceConfig.getFunctionConfig().getOutput() != null
-                && !instanceConfig.getFunctionConfig().getOutput().isEmpty()) {
+        if (instanceConfig.getFunctionDetails().getOutput() != null
+                && !instanceConfig.getFunctionDetails().getOutput().isEmpty()) {
             args.add("--output_topic");
-            args.add(instanceConfig.getFunctionConfig().getOutput());
+            args.add(instanceConfig.getFunctionDetails().getOutput());
         }
-        if (instanceConfig.getFunctionConfig().getOutputSerdeClassName() != null
-                && !instanceConfig.getFunctionConfig().getOutputSerdeClassName().isEmpty()) {
+        if (instanceConfig.getFunctionDetails().getOutputSerdeClassName() != null
+                && !instanceConfig.getFunctionDetails().getOutputSerdeClassName().isEmpty()) {
             args.add("--output_serde_classname");
-            args.add(instanceConfig.getFunctionConfig().getOutputSerdeClassName());
+            args.add(instanceConfig.getFunctionDetails().getOutputSerdeClassName());
         }
         args.add("--processing_guarantees");
-        args.add(String.valueOf(instanceConfig.getFunctionConfig().getProcessingGuarantees()));
+        args.add(String.valueOf(instanceConfig.getFunctionDetails().getProcessingGuarantees()));
         args.add("--pulsar_serviceurl");
         args.add(pulsarServiceUrl);
         args.add("--max_buffered_tuples");
         args.add(String.valueOf(instanceConfig.getMaxBufferedTuples()));
-        Map<String, String> userConfig = instanceConfig.getFunctionConfig().getUserConfigMap();
+        Map<String, String> userConfig = instanceConfig.getFunctionDetails().getUserConfigMap();
         if (userConfig != null && !userConfig.isEmpty()) {
             args.add("--user_config");
             args.add(new Gson().toJson(userConfig));

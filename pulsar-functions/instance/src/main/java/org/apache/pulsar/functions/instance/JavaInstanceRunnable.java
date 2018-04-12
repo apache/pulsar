@@ -58,7 +58,7 @@ import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.instance.state.StateContextImpl;
-import org.apache.pulsar.functions.utils.FunctionConfigUtils;
+import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.apache.pulsar.functions.utils.Reflections;
 
 /**
@@ -115,9 +115,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.stats = new FunctionStats();
         this.processor = MessageProcessor.create(
-            client,
-            instanceConfig.getFunctionConfig(),
-            queue);
+                client,
+                instanceConfig.getFunctionDetails(),
+                queue);
     }
 
     /**
@@ -125,10 +125,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
      */
     JavaInstance setupJavaInstance() throws Exception {
         // initialize the thread context
-        ThreadContext.put("function", FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()));
+        ThreadContext.put("function", FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
         ThreadContext.put("instance", instanceConfig.getInstanceId());
 
-        log.info("Starting Java Instance {}", instanceConfig.getFunctionConfig().getName());
+        log.info("Starting Java Instance {}", instanceConfig.getFunctionDetails().getName());
 
         // start the function thread
         loadJars();
@@ -136,7 +136,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
 
         Object object = Reflections.createInstance(
-                instanceConfig.getFunctionConfig().getClassName(),
+                instanceConfig.getFunctionDetails().getClassName(),
                 clsLoader);
         if (!(object instanceof Function) && !(object instanceof java.util.function.Function)) {
             throw new RuntimeException("User class must either be Function or java.util.Function");
@@ -182,7 +182,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     log.debug("Received message: {}", msg.getActualMessage().getMessageId());
                 } catch (InterruptedException ie) {
                     log.info("Function thread {} is interrupted",
-                            FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()), ie);
+                            FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails()), ie);
                     break;
                 }
 
@@ -223,12 +223,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
                 if (null != stateContext) {
                     stateContext.flush()
-                        .thenRun(() -> processResult(msg, result, processAt, doneProcessing))
-                        .exceptionally(cause -> {
-                            // log the messages, since we DONT ack, pulsar consumer will re-deliver the messages.
-                            log.error("Failed to flush the state updates of message {}", msg, cause);
-                            return null;
-                        });
+                            .thenRun(() -> processResult(msg, result, processAt, doneProcessing))
+                            .exceptionally(cause -> {
+                                // log the messages, since we DONT ack, pulsar consumer will re-deliver the messages.
+                                log.error("Failed to flush the state updates of message {}", msg, cause);
+                                return null;
+                            });
                 } else {
                     processResult(msg, result, processAt, doneProcessing);
                 }
@@ -245,12 +245,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         log.info("Loading JAR files for function {} from jarFile {}", instanceConfig, jarFile);
         // create the function class loader
         fnCache.registerFunctionInstance(
-            instanceConfig.getFunctionId(),
-            instanceConfig.getInstanceId(),
-            Arrays.asList(jarFile),
-            Collections.emptyList());
+                instanceConfig.getFunctionId(),
+                instanceConfig.getInstanceId(),
+                Arrays.asList(jarFile),
+                Collections.emptyList());
         log.info("Initialize function class loader for function {} at function cache manager",
-            instanceConfig.getFunctionConfig().getName());
+                instanceConfig.getFunctionDetails().getName());
 
         this.fnClassLoader = fnCache.getClassLoader(instanceConfig.getFunctionId());
         if (null == fnClassLoader) {
@@ -267,46 +267,46 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
 
         String tableNs = String.format(
-            "%s_%s",
-            instanceConfig.getFunctionConfig().getTenant(),
-            instanceConfig.getFunctionConfig().getNamespace()
+                "%s_%s",
+                instanceConfig.getFunctionDetails().getTenant(),
+                instanceConfig.getFunctionDetails().getNamespace()
         ).replace('-', '_');
-        String tableName = instanceConfig.getFunctionConfig().getName();
+        String tableName = instanceConfig.getFunctionDetails().getName();
 
         // TODO (sijie): use endpoint for now
         StorageClientSettings settings = StorageClientSettings.newBuilder()
-            .addEndpoints(NetUtils.parseEndpoint(stateStorageServiceUrl))
-            .clientName("function-" + tableNs + "/" + tableName)
-            .build();
+                .addEndpoints(NetUtils.parseEndpoint(stateStorageServiceUrl))
+                .clientName("function-" + tableNs + "/" + tableName)
+                .build();
 
         // TODO (sijie): provide a better way to provision the state table for functions
         try (StorageAdminClient storageAdminClient = StorageClientBuilder.newBuilder()
-            .withSettings(settings)
-            .buildAdmin()) {
+                .withSettings(settings)
+                .buildAdmin()) {
             try {
                 result(storageAdminClient.getStream(tableNs, tableName));
             } catch (NamespaceNotFoundException nnfe) {
                 result(storageAdminClient.createNamespace(tableNs, NamespaceConfiguration.newBuilder()
-                    .setDefaultStreamConf(DEFAULT_STREAM_CONF)
-                    .build()));
+                        .setDefaultStreamConf(DEFAULT_STREAM_CONF)
+                        .build()));
                 result(storageAdminClient.createStream(tableNs, tableName, DEFAULT_STREAM_CONF));
             } catch (StreamNotFoundException snfe) {
                 result(storageAdminClient.createStream(tableNs, tableName, DEFAULT_STREAM_CONF));
             }
         }
 
-        log.info("Starting state table for function {}", instanceConfig.getFunctionConfig().getName());
+        log.info("Starting state table for function {}", instanceConfig.getFunctionDetails().getName());
         this.storageClient = StorageClientBuilder.newBuilder()
-            .withSettings(settings)
-            .withNamespace(tableNs)
-            .build();
+                .withSettings(settings)
+                .withNamespace(tableNs)
+                .build();
         this.stateTable = result(storageClient.openTable(tableName));
     }
 
     private void processResult(InputMessage msg,
                                JavaExecutionResult result,
                                long startTime, long endTime) {
-         if (result.getUserException() != null) {
+        if (result.getUserException() != null) {
             log.info("Encountered user exception when processing message {}", msg, result.getUserException());
             stats.incrementUserExceptions(result.getUserException());
             processor.handleProcessException(msg, result.getUserException());
@@ -316,7 +316,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             processor.handleProcessException(msg, result.getSystemException());
         } else {
             stats.incrementSuccessfullyProcessed(endTime - startTime);
-            if (result.getResult() != null && instanceConfig.getFunctionConfig().getOutput() != null) {
+            if (result.getResult() != null && instanceConfig.getFunctionDetails().getOutput() != null) {
                 byte[] output;
                 try {
                     output = outputSerDe.serialize(result.getResult());
@@ -340,9 +340,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private void sendOutputMessage(InputMessage srcMsg,
                                    byte[] output) {
         MessageBuilder msgBuilder = MessageBuilder.create()
-            .setContent(output)
-            .setProperty("__pfn_input_topic__", srcMsg.getTopicName())
-            .setProperty("__pfn_input_msg_id__", new String(Base64.getEncoder().encode(srcMsg.getActualMessage().getMessageId().toByteArray())));
+                .setContent(output)
+                .setProperty("__pfn_input_topic__", srcMsg.getTopicName())
+                .setProperty("__pfn_input_msg_id__", new String(Base64.getEncoder().encode(srcMsg.getActualMessage().getMessageId().toByteArray())));
 
         processor.sendOutputMessage(srcMsg, msgBuilder);
     }
@@ -367,8 +367,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
         // once the thread quits, clean up the instance
         fnCache.unregisterFunctionInstance(
-            instanceConfig.getFunctionId(),
-            instanceConfig.getInstanceId());
+                instanceConfig.getFunctionId(),
+                instanceConfig.getInstanceId());
         log.info("Unloading JAR files for function {}", instanceConfig);
     }
 
@@ -415,7 +415,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private static void addSystemMetrics(String metricName, double value, InstanceCommunication.MetricsData.Builder bldr) {
         InstanceCommunication.MetricsData.DataDigest digest =
                 InstanceCommunication.MetricsData.DataDigest.newBuilder()
-                .setCount(value).setSum(value).setMax(value).setMin(0).build();
+                        .setCount(value).setSum(value).setMax(value).setMin(0).build();
         bldr.putMetrics(metricName, digest);
     }
 
@@ -449,8 +449,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private void setupSerDe(Class<?>[] typeArgs, ClassLoader clsLoader) {
         this.inputSerDe = new HashMap<>();
-        instanceConfig.getFunctionConfig().getCustomSerdeInputsMap().forEach((k, v) -> this.inputSerDe.put(k, initializeSerDe(v, clsLoader, typeArgs, true)));
-        for (String topicName : instanceConfig.getFunctionConfig().getInputsList()) {
+        instanceConfig.getFunctionDetails().getCustomSerdeInputsMap().forEach((k, v) -> this.inputSerDe.put(k, initializeSerDe(v, clsLoader, typeArgs, true)));
+        for (String topicName : instanceConfig.getFunctionDetails().getInputsList()) {
             this.inputSerDe.put(topicName, initializeDefaultSerDe(typeArgs, true));
         }
 
@@ -473,12 +473,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
 
         if (!Void.class.equals(typeArgs[1])) { // return type is not `Void.class`
-            if (instanceConfig.getFunctionConfig().getOutputSerdeClassName() == null
-                || instanceConfig.getFunctionConfig().getOutputSerdeClassName().isEmpty()
-                || instanceConfig.getFunctionConfig().getOutputSerdeClassName().equals(DefaultSerDe.class.getName())) {
+            if (instanceConfig.getFunctionDetails().getOutputSerdeClassName() == null
+                    || instanceConfig.getFunctionDetails().getOutputSerdeClassName().isEmpty()
+                    || instanceConfig.getFunctionDetails().getOutputSerdeClassName().equals(DefaultSerDe.class.getName())) {
                 outputSerDe = initializeDefaultSerDe(typeArgs, false);
             } else {
-                this.outputSerDe = initializeSerDe(instanceConfig.getFunctionConfig().getOutputSerdeClassName(), clsLoader, typeArgs, false);
+                this.outputSerDe = initializeSerDe(instanceConfig.getFunctionDetails().getOutputSerdeClassName(), clsLoader, typeArgs, false);
             }
             Class<?>[] outputSerdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, outputSerDe.getClass());
             if (outputSerDe.getClass().getName().equals(DefaultSerDe.class.getName())) {
@@ -493,10 +493,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     private void setupLogHandler() {
-        if (instanceConfig.getFunctionConfig().getLogTopic() != null &&
-                !instanceConfig.getFunctionConfig().getLogTopic().isEmpty()) {
-            logAppender = new LogAppender(client, instanceConfig.getFunctionConfig().getLogTopic(),
-                    FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()));
+        if (instanceConfig.getFunctionDetails().getLogTopic() != null &&
+                !instanceConfig.getFunctionDetails().getLogTopic().isEmpty()) {
+            logAppender = new LogAppender(client, instanceConfig.getFunctionDetails().getLogTopic(),
+                    FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
             logAppender.start();
         }
     }
