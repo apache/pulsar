@@ -36,6 +36,7 @@ import Function_pb2
 import log
 import server
 import python_instance
+import util
 
 to_run = True
 Log = log.Log
@@ -76,7 +77,9 @@ def main():
   parser.add_argument('--log_topic', required=False, help='Topic to send Log Messages')
 
   args = parser.parse_args()
-  log_file = os.path.join(args.logging_directory, args.logging_file + ".log.0")
+  log_file = os.path.join(args.logging_directory,
+                          util.getFullyQualifiedFunctionName(args.tenant, args.namespace, args.name),
+                          "%s-%s.log" % (args.logging_file, args.instance_id))
   log.init_rotating_logger(level=logging.INFO, logfile=log_file,
                            max_files=5, max_bytes=10 * 1024 * 1024)
 
