@@ -264,9 +264,10 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder maxNumberOfRejectedRequestPerConnection(int maxNumberOfRejectedRequestPerConnection);
 
     /**
-     * Set keep alive interval in seconds for each client-broker-connection. <i>(default: 5000)</i>.
+     * Set keep alive interval in seconds for each client-broker-connection. <i>(default: 30)</i>.
      *
      * @param keepAliveIntervalSeconds
+     * @param unit time unit for {@code statsInterval}
      */
-    ClientBuilder keepAliveIntervalSeconds(int keepAliveIntervalSeconds);
+    ClientBuilder keepAliveInterval(int keepAliveIntervalSeconds, TimeUnit unit);
 }
