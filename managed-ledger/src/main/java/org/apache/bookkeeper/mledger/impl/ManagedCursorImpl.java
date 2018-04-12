@@ -81,7 +81,9 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.commons.lang3.tuple.Pair;
+import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpmcArrayQueue;
+import org.jctools.queues.MpscLinkedQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,6 +94,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     protected final ManagedLedgerConfig config;
     protected final ManagedLedgerImpl ledger;
     private final String name;
+    private final BookKeeper.DigestType digestType;
 
     protected volatile PositionImpl markDeletePosition;
     protected volatile PositionImpl readPosition;
@@ -148,7 +151,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
-    private final MpmcArrayQueue<MarkDeleteEntry> pendingMarkDeleteOps = new MpmcArrayQueue<>(16);
+    private final MessagePassingQueue<MarkDeleteEntry> pendingMarkDeleteOps = MpscLinkedQueue.newMpscLinkedQueue();
 
     private static final AtomicIntegerFieldUpdater<ManagedCursorImpl> PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER =
         AtomicIntegerFieldUpdater.newUpdater(ManagedCursorImpl.class, "pendingMarkDeletedSubmittedCount");
@@ -180,6 +183,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         this.config = config;
         this.ledger = ledger;
         this.name = cursorName;
+        this.digestType = BookKeeper.DigestType.fromApiDigestType(config.getDigestType());
         STATE_UPDATER.set(this, State.Uninitialized);
         PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.set(this, 0);
         PENDING_READ_OPS_UPDATER.set(this, 0);
@@ -254,7 +258,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         // a new ledger and write the position into it
         ledger.mbean.startCursorLedgerOpenOp();
         long ledgerId = info.getCursorsLedgerId();
-        bookkeeper.asyncOpenLedger(ledgerId, config.getDigestType(), config.getPassword(), (rc, lh, ctx) -> {
+        bookkeeper.asyncOpenLedger(ledgerId, digestType, config.getPassword(), (rc, lh, ctx) -> {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Opened ledger {} for consumer {}. rc={}", ledger.getName(), ledgerId, name, rc);
             }
@@ -1297,7 +1301,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             final MarkDeleteCallback callback, final Object ctx) {
         checkNotNull(position);
         checkArgument(position instanceof PositionImpl);
-
+        
         if (STATE_UPDATER.get(this) == State.Closed) {
             callback.markDeleteFailed(new ManagedLedgerException("Cursor was already closed"), ctx);
             return;
@@ -1318,6 +1322,16 @@ public class ManagedCursorImpl implements ManagedCursor {
             log.debug("[{}] Mark delete cursor {} up to position: {}", ledger.getName(), name, position);
         }
         PositionImpl newPosition = (PositionImpl) position;
+        
+        if (((PositionImpl) ledger.getLastConfirmedEntry()).compareTo(newPosition) < 0) {
+            if (log.isDebugEnabled()) {
+                log.debug(
+                        "[{}] Failed mark delete due to invalid markDelete {} is ahead of last-confirmed-entry {} for cursor [{}]",
+                        ledger.getName(), position, ledger.getLastConfirmedEntry(), name);
+            }
+            callback.markDeleteFailed(new ManagedLedgerException("Invalid mark deleted position"), ctx);
+            return;
+        }
 
         lock.writeLock().lock();
         try {
@@ -1356,7 +1370,10 @@ public class ManagedCursorImpl implements ManagedCursor {
             startCreatingNewMetadataLedger();
             // fall through
         case SwitchingLedger:
-            pendingMarkDeleteOps.add(mdEntry);
+            if (!pendingMarkDeleteOps.offer(mdEntry)) {
+                callback.markDeleteFailed(new ManagedLedgerException("Cursor queue of mark-delete operations full"), ctx);
+                return;
+            }
             if (state != State.SwitchingLedger) {
                 // If state changed since we checked. Trigger a flush since we could have missed the current entry
                 flushPendingMarkDeletes();
@@ -1366,7 +1383,10 @@ public class ManagedCursorImpl implements ManagedCursor {
         case Open:
             if (pendingReadOps > 0) {
                 // Wait until no read operation are pending
-                pendingMarkDeleteOps.add(mdEntry);
+                if (!pendingMarkDeleteOps.offer(mdEntry)) {
+                    callback.markDeleteFailed(new ManagedLedgerException("Cursor queue of mark-delete operations full"), ctx);
+                    return;
+                }
                 if (pendingReadOps == 0) {
                     // If the value changed while enqueuing, trigger a flush to make sure we don't delay current request
                     flushPendingMarkDeletes();
@@ -1527,6 +1547,16 @@ public class ManagedCursorImpl implements ManagedCursor {
 
             for (Position pos : positions) {
                 PositionImpl position  = (PositionImpl) checkNotNull(pos);
+                
+                if (((PositionImpl) ledger.getLastConfirmedEntry()).compareTo(position) < 0) {
+                    if (log.isDebugEnabled()) {
+                        log.debug(
+                                "[{}] Failed mark delete due to invalid markDelete {} is ahead of last-confirmed-entry {} for cursor [{}]",
+                                ledger.getName(), position, ledger.getLastConfirmedEntry(), name);
+                    }
+                    callback.deleteFailed(new ManagedLedgerException("Invalid mark deleted position"), ctx);
+                    return;
+                }
 
                 if (individualDeletedMessages.contains(position) || position.compareTo(markDeletePosition) <= 0) {
                     if (log.isDebugEnabled()) {
@@ -1922,7 +1952,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         ledger.mbean.startCursorLedgerCreateOp();
 
         bookkeeper.asyncCreateLedger(config.getMetadataEnsemblesize(), config.getMetadataWriteQuorumSize(),
-                config.getMetadataAckQuorumSize(), config.getDigestType(), config.getPassword(), (rc, lh, ctx) -> {
+                config.getMetadataAckQuorumSize(), digestType, config.getPassword(), (rc, lh, ctx) -> {
                     ledger.getExecutor().execute(safeRun(() -> {
                         ledger.mbean.endCursorLedgerCreateOp();
                         if (rc != BKException.Code.OK) {

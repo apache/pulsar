@@ -79,6 +79,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
                 this.logDirectory = Paths.get("logs").toFile().getAbsolutePath();
             }
         }
+        this.logDirectory = this.logDirectory + "/functions";
     }
 
     @Override

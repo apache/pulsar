@@ -34,6 +34,8 @@
   <modules>
     <module>core</module>
     <module>twitter</module>
+    <module>cassandra</module>
+    <module>aerospike</module>
   </modules>
 
 </project>
