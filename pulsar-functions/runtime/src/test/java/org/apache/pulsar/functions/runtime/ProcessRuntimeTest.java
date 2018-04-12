@@ -112,7 +112,7 @@ public class ProcessRuntimeTest {
                 + " --namespace " + config.getFunctionDetails().getNamespace()
                 + " --name " + config.getFunctionDetails().getName()
                 + " --function_classname " + config.getFunctionDetails().getClassName()
-                + " --subscription_type" + config.getFunctionDetails().getSubscriptionType()
+                + " --subscription_type " + config.getFunctionDetails().getSubscriptionType()
                 + " --log_topic " + config.getFunctionDetails().getLogTopic()
                 + " --input_topics " + TEST_NAME + "-input1," + TEST_NAME + "-input2"
                 + " --auto_ack false"
@@ -140,7 +140,7 @@ public class ProcessRuntimeTest {
                 + " --namespace " + config.getFunctionDetails().getNamespace()
                 + " --name " + config.getFunctionDetails().getName()
                 + " --function_classname " + config.getFunctionDetails().getClassName()
-                + " --subscription_type" + config.getFunctionDetails().getSubscriptionType()
+                + " --subscription_type " + config.getFunctionDetails().getSubscriptionType()
                 + " --log_topic " + config.getFunctionDetails().getLogTopic()
                 + " --input_topics " + TEST_NAME + "-input1," + TEST_NAME + "-input2"
                 + " --auto_ack false"
