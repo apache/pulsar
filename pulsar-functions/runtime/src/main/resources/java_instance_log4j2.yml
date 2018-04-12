@@ -116,10 +116,10 @@ Configuration:
                   -
                     RollingFile:
                       name: "Rolling-${ctx:function}"
-                      fileName : "${sys:pulsar.log.dir}/functions/${ctx:function}/function.log"
-                      filePattern : "${sys:pulsar.log.dir}/functions/${ctx:function}-%d{MM-dd-yyyy}-%i.log.gz"
+                      fileName : "${sys:pulsar.log.dir}/${ctx:function}/${sys:pulsar.log.file}-${ctx:instance}.log"
+                      filePattern : "${sys:pulsar.log.dir}/${ctx:function}/${sys:pulsar.log.file}-${ctx:instance}-%d{MM-dd-yyyy}-%i.log.gz"
                       PatternLayout:
-                        Pattern: "%d{ABSOLUTE} %level{length=5} [%thread] [instance: %X{instance}] %logger{1} - %msg%n"
+                        Pattern: "%d{ABSOLUTE} %level{length=5} [%thread] [instance-%X{instance}] %logger{1} - %msg%n"
                       Policies:
                         TimeBasedTriggeringPolicy:
                           interval: 1
