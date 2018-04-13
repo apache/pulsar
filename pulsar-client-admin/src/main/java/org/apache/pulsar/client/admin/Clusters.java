@@ -27,6 +27,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
+import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
@@ -227,6 +228,28 @@ public interface Clusters {
     void createNamespaceIsolationPolicy(String cluster, String policyName, NamespaceIsolationData namespaceIsolationData)
             throws PulsarAdminException;
 
+    
+    /**
+     * Returns list of active brokers with namespace-isolation policies attached to it.
+     * 
+     * @param cluster
+     * @return
+     * @throws PulsarAdminException
+     */
+    List<BrokerNamespaceIsolationData> getBrokersWithNamespaceIsolationPolicy(String cluster)
+            throws PulsarAdminException;
+
+    /**
+     * Returns active broker with namespace-isolation policies attached to it.
+     * 
+     * @param cluster
+     * @param broker
+     * @return
+     * @throws PulsarAdminException
+     */
+    BrokerNamespaceIsolationData getBrokerWithNamespaceIsolationPolicy(String cluster, String broker)
+            throws PulsarAdminException;
+    
 
     /**
      * Update a namespace isolation policy for a cluster
