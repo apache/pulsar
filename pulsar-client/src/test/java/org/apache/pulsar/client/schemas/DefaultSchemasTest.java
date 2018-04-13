@@ -1,8 +1,6 @@
 package org.apache.pulsar.client.schemas;
 
-import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
-import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -15,9 +13,6 @@ import org.testng.annotations.Test;
 import java.util.Arrays;
 
 public class DefaultSchemasTest {
-    private static final String TOPIC = "test-topic";
-    private static final String SUBSCRIPTION = "sub-1";
-
     private PulsarClient client;
 
     @BeforeClass
@@ -26,14 +21,14 @@ public class DefaultSchemasTest {
     }
 
     @Test
-    public void testConsumerInstantiation() throws PulsarClientException {
+    public void testConsumerInstantiation() {
         ConsumerBuilder<String> stringConsumerBuilder = client.newConsumer(new StringSchema());
         ConsumerBuilder<Boolean> booleanConsumerBuilder = client.newConsumer(new BooleanSchema());
         Arrays.asList(stringConsumerBuilder, booleanConsumerBuilder).forEach(Assert::assertNotNull);
     }
 
     @Test
-    public void testProducerInstantiation() throws PulsarClientException {
+    public void testProducerInstantiation() {
         ProducerBuilder<String> stringProducerBuilder = client.newProducer(new StringSchema());
         ProducerBuilder<Boolean> booleanProducerBuilder = client.newProducer(new BooleanSchema());
         Arrays.asList(stringProducerBuilder, booleanProducerBuilder).forEach(Assert::assertNotNull);
