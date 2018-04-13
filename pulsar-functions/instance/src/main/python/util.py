@@ -64,3 +64,6 @@ def import_class_from_path(from_path, full_class_name):
       Log.info("Import failed class_name %s from path %s" % (class_name, from_path))
       Log.info(e, exc_info=True)
       return None
+
+def getFullyQualifiedFunctionName(tenant, namespace, name):
+  return "%s/%s/%s" % (tenant, namespace, name)

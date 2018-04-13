@@ -23,7 +23,7 @@ import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.policies.data.*;
-import org.apache.pulsar.functions.shaded.proto.Function.FunctionConfig;
+import org.apache.pulsar.functions.shaded.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.shaded.proto.InstanceCommunication.FunctionStatusList;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
@@ -68,16 +68,16 @@ public class FunctionsImpl extends BaseResource implements Functions {
     }
 
     @Override
-    public FunctionConfig getFunction(String tenant, String namespace, String function) throws PulsarAdminException {
+    public FunctionDetails getFunction(String tenant, String namespace, String function) throws PulsarAdminException {
         try {
              Response response = request(functions.path(tenant).path(namespace).path(function)).get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw new ClientErrorException(response);
             }
             String jsonResponse = response.readEntity(String.class);
-            FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
-            mergeJson(jsonResponse, functionConfigBuilder);
-            return functionConfigBuilder.build();
+            FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
+            mergeJson(jsonResponse, functionDetailsBuilder);
+            return functionDetailsBuilder.build();
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -101,16 +101,16 @@ public class FunctionsImpl extends BaseResource implements Functions {
     }
 
     @Override
-    public void createFunction(FunctionConfig functionConfig, String fileName) throws PulsarAdminException {
+    public void createFunction(FunctionDetails functionDetails, String fileName) throws PulsarAdminException {
         try {
             final FormDataMultiPart mp = new FormDataMultiPart();
 
             mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
 
-            mp.bodyPart(new FormDataBodyPart("functionConfig",
-                printJson(functionConfig),
+            mp.bodyPart(new FormDataBodyPart("functionDetails",
+                printJson(functionDetails),
                 MediaType.APPLICATION_JSON_TYPE));
-            request(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace()).path(functionConfig.getName()))
+            request(functions.path(functionDetails.getTenant()).path(functionDetails.getNamespace()).path(functionDetails.getName()))
                     .post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
@@ -128,16 +128,16 @@ public class FunctionsImpl extends BaseResource implements Functions {
     }
 
     @Override
-    public void updateFunction(FunctionConfig functionConfig, String fileName) throws PulsarAdminException {
+    public void updateFunction(FunctionDetails functionDetails, String fileName) throws PulsarAdminException {
         try {
             final FormDataMultiPart mp = new FormDataMultiPart();
             if (fileName != null) {
                 mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
             }
-            mp.bodyPart(new FormDataBodyPart("functionConfig",
-                printJson(functionConfig),
+            mp.bodyPart(new FormDataBodyPart("functionDetails",
+                printJson(functionDetails),
                 MediaType.APPLICATION_JSON_TYPE));
-            request(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace()).path(functionConfig.getName()))
+            request(functions.path(functionDetails.getTenant()).path(functionDetails.getNamespace()).path(functionDetails.getName()))
                     .put(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);

@@ -181,13 +181,13 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     .filter(
                             assignment ->
                                     (tenant.equals(assignment.getInstance()
-                                            .getFunctionMetaData().getFunctionConfig()
+                                            .getFunctionMetaData().getFunctionDetails()
                                             .getTenant())
                                             && namespace.equals((assignment.getInstance()
-                                            .getFunctionMetaData().getFunctionConfig()
+                                            .getFunctionMetaData().getFunctionDetails()
                                             .getNamespace()))
                                             && functionName.equals(assignment.getInstance()
-                                            .getFunctionMetaData().getFunctionConfig()
+                                            .getFunctionMetaData().getFunctionDetails()
                                             .getName())))
                     .collect(Collectors.toList()));
         }
@@ -316,9 +316,9 @@ public class FunctionRuntimeManager implements AutoCloseable{
         for (Assignment assignment : assignments) {
 
             InstanceCommunication.FunctionStatus functionStatus = this.getFunctionInstanceStatus(
-                    assignment.getInstance().getFunctionMetaData().getFunctionConfig().getTenant(),
-                    assignment.getInstance().getFunctionMetaData().getFunctionConfig().getNamespace(),
-                    assignment.getInstance().getFunctionMetaData().getFunctionConfig().getName(),
+                    assignment.getInstance().getFunctionMetaData().getFunctionDetails().getTenant(),
+                    assignment.getInstance().getFunctionMetaData().getFunctionDetails().getNamespace(),
+                    assignment.getInstance().getFunctionMetaData().getFunctionDetails().getName(),
                     assignment.getInstance().getInstanceId());
 
             functionStatusListBuilder.addFunctionStatusList(functionStatus);
@@ -468,9 +468,9 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
     private Assignment findAssignment(Assignment assignment) {
         return findAssignment(
-                assignment.getInstance().getFunctionMetaData().getFunctionConfig().getTenant(),
-                assignment.getInstance().getFunctionMetaData().getFunctionConfig().getNamespace(),
-                assignment.getInstance().getFunctionMetaData().getFunctionConfig().getName(),
+                assignment.getInstance().getFunctionMetaData().getFunctionDetails().getTenant(),
+                assignment.getInstance().getFunctionMetaData().getFunctionDetails().getNamespace(),
+                assignment.getInstance().getFunctionMetaData().getFunctionDetails().getName(),
                 assignment.getInstance().getInstanceId()
         );
     }

@@ -24,7 +24,7 @@ import static org.testng.Assert.assertNotNull;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
-import org.apache.pulsar.functions.proto.Function.FunctionConfig;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.testng.annotations.Test;
 
 import java.util.HashMap;
@@ -32,11 +32,11 @@ import java.util.HashMap;
 public class JavaInstanceTest {
 
     private static InstanceConfig createInstanceConfig() {
-        FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
-        functionConfigBuilder.addInputs("TEST");
-        functionConfigBuilder.setOutputSerdeClassName(DefaultSerDe.class.getName());
+        FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
+        functionDetailsBuilder.addInputs("TEST");
+        functionDetailsBuilder.setOutputSerdeClassName(DefaultSerDe.class.getName());
         InstanceConfig instanceConfig = new InstanceConfig();
-        instanceConfig.setFunctionConfig(functionConfigBuilder.build());
+        instanceConfig.setFunctionDetails(functionDetailsBuilder.build());
         return instanceConfig;
     }
 
