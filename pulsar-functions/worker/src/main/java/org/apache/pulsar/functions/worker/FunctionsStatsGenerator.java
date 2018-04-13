@@ -56,11 +56,11 @@ public class FunctionsStatsGenerator {
                                 InstanceCommunication.MetricsData.DataDigest dataDigest = metricsEntry.getValue();
 
                                 String tenant = functionRuntimeInfo.getFunctionInstance()
-                                        .getFunctionMetaData().getFunctionConfig().getTenant();
+                                        .getFunctionMetaData().getFunctionDetails().getTenant();
                                 String namespace = functionRuntimeInfo.getFunctionInstance()
-                                        .getFunctionMetaData().getFunctionConfig().getNamespace();
+                                        .getFunctionMetaData().getFunctionDetails().getNamespace();
                                 String name = functionRuntimeInfo.getFunctionInstance()
-                                        .getFunctionMetaData().getFunctionConfig().getName();
+                                        .getFunctionMetaData().getFunctionDetails().getName();
                                 int instanceId = functionRuntimeInfo.getFunctionInstance().getInstanceId();
                                 String qualifiedNamespace = String.format("%s/%s", tenant, namespace);
 

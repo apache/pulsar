@@ -22,8 +22,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.fail;
 
-import org.apache.pulsar.common.naming.TopicDomain;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.Codec;
 import org.testng.annotations.Test;
 
@@ -33,7 +31,7 @@ public class TopicNameTest {
     @Test
     void topic() {
         try {
-            assertEquals(TopicName.get("property.namespace:topic").getNamespace(), "property.namespace");
+            TopicName.get("://property.namespace:topic").getNamespace();
             fail("Should have thrown exception");
         } catch (IllegalArgumentException e) {
             // Expected
@@ -70,42 +68,42 @@ public class TopicNameTest {
                 "topic");
 
         try {
-            TopicName.get("property.namespace:my-topic").getDomain();
+            TopicName.get("://property.namespace:my-topic").getDomain();
             fail("Should have raised exception");
         } catch (IllegalArgumentException e) {
             // Ok
         }
 
         try {
-            TopicName.get("property.namespace:my-topic").getProperty();
+            TopicName.get("://property.namespace:my-topic").getProperty();
             fail("Should have raised exception");
         } catch (IllegalArgumentException e) {
             // Ok
         }
 
         try {
-            TopicName.get("property.namespace:my-topic").getCluster();
+            TopicName.get("://property.namespace:my-topic").getCluster();
             fail("Should have raised exception");
         } catch (IllegalArgumentException e) {
             // Ok
         }
 
         try {
-            TopicName.get("property.namespace:my-topic").getNamespacePortion();
+            TopicName.get("://property.namespace:my-topic").getNamespacePortion();
             fail("Should have raised exception");
         } catch (IllegalArgumentException e) {
             // Ok
         }
 
         try {
-            TopicName.get("property.namespace:my-topic").getLocalName();
+            TopicName.get("://property.namespace:my-topic").getLocalName();
             fail("Should have raised exception");
         } catch (IllegalArgumentException e) {
             // Ok
         }
 
         try {
-            TopicName.get("property.namespace");
+            TopicName.get("://property.namespace");
             fail("Should have raised exception");
         } catch (IllegalArgumentException e) {
             // Ok
@@ -164,14 +162,14 @@ public class TopicNameTest {
                 .getPersistenceNamingEncoding(), "property/cluster/namespace/persistent/topic");
 
         try {
-            TopicName.get("property.namespace");
+            TopicName.get("://property.namespace");
             fail("Should have raied exception");
         } catch (IllegalArgumentException e) {
             // Ok
         }
 
         try {
-            TopicName.get("property/cluster/namespace");
+            TopicName.get("://property/cluster/namespace");
             fail("Should have raied exception");
         } catch (IllegalArgumentException e) {
             // Ok
@@ -239,5 +237,34 @@ public class TopicNameTest {
         assertEquals(topicName.getEncodedLocalName(), "topic");
         assertEquals(topicName.getPartitionedTopicName(), "persistent://property/namespace/topic");
         assertEquals(topicName.getPersistenceNamingEncoding(), "property/namespace/persistent/topic");
+    }
+
+    @Test
+    public void testShortTopicName() throws Exception {
+        TopicName tn = TopicName.get("short-topic");
+        assertEquals(TopicDomain.persistent, tn.getDomain());
+        assertEquals(TopicName.PUBLIC_PROPERTY, tn.getProperty());
+        assertEquals(TopicName.DEFAULT_NAMESPACE, tn.getNamespacePortion());
+        assertEquals("short-topic", tn.getLocalName());
+
+        tn = TopicName.get("test-tenant/test-namespace/test-short-topic");
+        assertEquals(TopicDomain.persistent, tn.getDomain());
+        assertEquals("test-tenant", tn.getProperty());
+        assertEquals("test-namespace", tn.getNamespacePortion());
+        assertEquals("test-short-topic", tn.getLocalName());
+
+        try {
+            TopicName.get("pulsar/cluster/namespace/test");
+            fail("Should have raised exception");
+        } catch (IllegalArgumentException e) {
+            // Ok
+        }
+
+        try {
+            TopicName.get("pulsar/cluster");
+            fail("Should have raised exception");
+        } catch (IllegalArgumentException e) {
+            // Ok
+        }
     }
 }

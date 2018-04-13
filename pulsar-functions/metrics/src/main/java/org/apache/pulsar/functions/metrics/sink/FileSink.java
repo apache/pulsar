@@ -29,7 +29,7 @@ import java.util.logging.Logger;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.metrics.MetricsSink;
-import org.apache.pulsar.functions.utils.FunctionConfigUtils;
+import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.apache.pulsar.functions.utils.Utils;
 
 /**
@@ -82,9 +82,9 @@ public class FileSink implements MetricsSink {
     }
 
     @Override
-    public void processRecord(InstanceCommunication.MetricsData record, Function.FunctionConfig functionConfig) {
+    public void processRecord(InstanceCommunication.MetricsData record, Function.FunctionDetails FunctionDetails) {
         if (isFileStart) {
-            String filenamePrefix = filenameKey + "." + FunctionConfigUtils.getFullyQualifiedName(functionConfig);
+            String filenamePrefix = filenameKey + "." + FunctionDetailsUtils.getFullyQualifiedName(FunctionDetails);
             writer = openNewFile(String.format("%s.%d", filenamePrefix, currentFileIndex));
 
             writer.print("[");
