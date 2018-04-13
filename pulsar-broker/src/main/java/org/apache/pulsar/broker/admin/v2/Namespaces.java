@@ -128,7 +128,7 @@ public class Namespaces extends NamespacesBase {
     }
 
     @DELETE
-    @Path("/{property}/{namespace}/bundle/{bundle}")
+    @Path("/{property}/{namespace}/{bundle}")
     @ApiOperation(value = "Delete a namespace bundle and all the topics under it.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),

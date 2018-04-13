@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.namespace;
 
 import static org.testng.Assert.assertTrue;
 
+import com.google.common.collect.Sets;
+
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.api.Producer;
 import org.testng.annotations.AfterMethod;
@@ -42,23 +44,25 @@ public class NamespaceUnloadingTest extends BrokerTestBase {
 
     @Test
     public void testUnloadNotLoadedNamespace() throws Exception {
-        admin.namespaces().createNamespace("prop/use/ns-test-1");
+        admin.namespaces().createNamespace("prop/ns-test-1");
+        admin.namespaces().setNamespaceReplicationClusters("prop/ns-test-1", Sets.newHashSet("test"));
 
-        assertTrue(admin.namespaces().getNamespaces("prop", "use").contains("prop/use/ns-test-1"));
+        assertTrue(admin.namespaces().getNamespaces("prop").contains("prop/ns-test-1"));
 
-        admin.namespaces().unload("prop/use/ns-test-1");
+        admin.namespaces().unload("prop/ns-test-1");
     }
 
     @Test
     public void testUnloadPartiallyLoadedNamespace() throws Exception {
-        admin.namespaces().createNamespace("prop/use/ns-test-2", 16);
+        admin.namespaces().createNamespace("prop/ns-test-2", 16);
+        admin.namespaces().setNamespaceReplicationClusters("prop/ns-test-2", Sets.newHashSet("test"));
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://prop/use/ns-test-2/my-topic")
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://prop/ns-test-2/my-topic")
                 .create();
 
-        assertTrue(admin.namespaces().getNamespaces("prop", "use").contains("prop/use/ns-test-2"));
+        assertTrue(admin.namespaces().getNamespaces("prop").contains("prop/ns-test-2"));
 
-        admin.namespaces().unload("prop/use/ns-test-2");
+        admin.namespaces().unload("prop/ns-test-2");
 
         producer.close();
     }
