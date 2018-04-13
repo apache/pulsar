@@ -121,7 +121,7 @@ var activeTableTab = "activeTableTab";
 </tr>
 <tr id="i0" class="altColor">
 <td class="colFirst"><code>void</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#createFunction-FunctionConfig-java.lang.String-">createFunction</a></span>(FunctionConfig&nbsp;functionConfig,
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#createFunction-FunctionDetails-java.lang.String-">createFunction</a></span>(FunctionDetails&nbsp;functionDetails,
               String&nbsp;fileName)</code>
 <div class="block">Create a new function.</div>
 </td>
@@ -135,7 +135,7 @@ var activeTableTab = "activeTableTab";
 </td>
 </tr>
 <tr id="i2" class="altColor">
-<td class="colFirst"><code>FunctionConfig</code></td>
+<td class="colFirst"><code>FunctionDetails</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#getFunction-java.lang.String-java.lang.String-java.lang.String-">getFunction</a></span>(String&nbsp;tenant,
            String&nbsp;namespace,
            String&nbsp;function)</code>
@@ -169,7 +169,7 @@ var activeTableTab = "activeTableTab";
 </tr>
 <tr id="i6" class="altColor">
 <td class="colFirst"><code>void</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#updateFunction-FunctionConfig-java.lang.String-">updateFunction</a></span>(FunctionConfig&nbsp;functionConfig,
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#updateFunction-FunctionDetails-java.lang.String-">updateFunction</a></span>(FunctionDetails&nbsp;functionDetails,
               String&nbsp;fileName)</code>
 <div class="block">Update the configuration for a function.</div>
 </td>
@@ -220,10 +220,10 @@ var activeTableTab = "activeTableTab";
 <ul class="blockList">
 <li class="blockList">
 <h4>getFunction</h4>
-<pre>FunctionConfig&nbsp;getFunction(String&nbsp;tenant,
-                           String&nbsp;namespace,
-                           String&nbsp;function)
-                    throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<pre>FunctionDetails&nbsp;getFunction(String&nbsp;tenant,
+                            String&nbsp;namespace,
+                            String&nbsp;function)
+                     throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
 <div class="block">Get the configuration for the specified function.
  <p>
  Response Example:
@@ -245,38 +245,38 @@ var activeTableTab = "activeTableTab";
 </dl>
 </li>
 </ul>
-<a name="createFunction-FunctionConfig-java.lang.String-">
+<a name="createFunction-FunctionDetails-java.lang.String-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>createFunction</h4>
-<pre>void&nbsp;createFunction(FunctionConfig&nbsp;functionConfig,
+<pre>void&nbsp;createFunction(FunctionDetails&nbsp;functionDetails,
                     String&nbsp;fileName)
              throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
 <div class="block">Create a new function.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>functionConfig</code> - the function configuration object</dd>
+<dd><code>functionDetails</code> - the function configuration object</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code> - Unexpected error</dd>
 </dl>
 </li>
 </ul>
-<a name="updateFunction-FunctionConfig-java.lang.String-">
+<a name="updateFunction-FunctionDetails-java.lang.String-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>updateFunction</h4>
-<pre>void&nbsp;updateFunction(FunctionConfig&nbsp;functionConfig,
+<pre>void&nbsp;updateFunction(FunctionDetails&nbsp;functionDetails,
                     String&nbsp;fileName)
              throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
 <div class="block">Update the configuration for a function.
  <p></div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>functionConfig</code> - the function configuration object</dd>
+<dd><code>functionDetails</code> - the function configuration object</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotAuthorizedException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotAuthorizedException</a></code> - You don't have admin permission to create the cluster</dd>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotFoundException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotFoundException</a></code> - Cluster doesn't exist</dd>
