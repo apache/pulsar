@@ -6,7 +6,6 @@ import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.schemas.BooleanSchema;
 import org.apache.pulsar.client.api.schemas.StringSchema;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
@@ -25,54 +24,31 @@ public class DefaultSchemasTest {
     @Test
     public void testConsumerInstantiation() {
         ConsumerBuilder<String> stringConsumerBuilder = client.newConsumer(new StringSchema());
-        ConsumerBuilder<Boolean> booleanConsumerBuilder = client.newConsumer(new BooleanSchema());
-        Arrays.asList(stringConsumerBuilder, booleanConsumerBuilder).forEach(Assert::assertNotNull);
+        Arrays.asList(stringConsumerBuilder).forEach(Assert::assertNotNull);
     }
 
     @Test
     public void testProducerInstantiation() {
         ProducerBuilder<String> stringProducerBuilder = client.newProducer(new StringSchema());
-        ProducerBuilder<Boolean> booleanProducerBuilder = client.newProducer(new BooleanSchema());
-        Arrays.asList(stringProducerBuilder, booleanProducerBuilder).forEach(Assert::assertNotNull);
+        Arrays.asList(stringProducerBuilder).forEach(Assert::assertNotNull);
     }
 
     @Test
     public void testStringSchema() {
-        byte[] bytes = "hello world".getBytes();
+        String testString = "hello world️";
+        byte[] bytes = testString.getBytes();
         StringSchema stringSchema = new StringSchema();
-        Assert.assertEquals(stringSchema.decode(bytes), "hello world");
-        Assert.assertEquals(stringSchema.encode("hello world"), bytes);
+        Assert.assertEquals(stringSchema.decode(bytes), testString);
+        Assert.assertEquals(stringSchema.encode(testString), bytes);
 
         Message<String> msg1 = MessageBuilder.create(stringSchema)
                 .setContent(bytes)
                 .build();
-        Assert.assertEquals(stringSchema.decode(msg1.getData()), "hello world");
+        Assert.assertEquals(stringSchema.decode(msg1.getData()), testString);
 
         Message<String> msg2 = MessageBuilder.create(stringSchema)
-                .setValue("hello world")
+                .setValue(testString)
                 .build();
-        Assert.assertEquals(stringSchema.encode("hello world"), msg2.getData());
-    }
-
-    @Test
-    public void testBooleanSchema() {
-        BooleanSchema booleanSchema = new BooleanSchema();
-        Assert.assertTrue(booleanSchema.decode(new byte[]{1}));
-        Assert.assertFalse(booleanSchema.decode(new byte[]{0}));
-        Assert.assertFalse(booleanSchema.decode(new byte[]{8}));
-        Assert.assertFalse(booleanSchema.decode("some string".getBytes()));
-
-        Assert.assertEquals(booleanSchema.encode(true), new byte[]{1});
-        Assert.assertEquals(booleanSchema.encode(false), new byte[]{0});
-
-        Message<Boolean> msg1 = MessageBuilder.create(booleanSchema)
-                .setContent(new byte[]{1})
-                .build();
-        Assert.assertTrue(msg1.getValue());
-
-        Message<Boolean> msg2 = MessageBuilder.create(booleanSchema)
-                .setValue(false)
-                .build();
-        Assert.assertFalse(msg2.getValue());
+        Assert.assertEquals(stringSchema.encode(testString), msg2.getData());
     }
 }
