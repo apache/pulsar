@@ -1790,7 +1790,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     /**
      * This test-case verifies that broker should support both url/uri encoding for topic-name. It calls below api with
-     * url-encoded and also uri-encoded topic-name in http request: a. PartitionedMetadataLookup b. TopicLookup c. Topic
+     * url-encoded and also uri-encoded topic-name in http request: a. PartitionedMetadataLookup b. TopicLookupBase c. Topic
      * Stats
      *
      * @param topicName

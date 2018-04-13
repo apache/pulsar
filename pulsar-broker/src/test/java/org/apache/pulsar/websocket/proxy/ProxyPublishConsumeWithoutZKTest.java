@@ -57,7 +57,7 @@ public class ProxyPublishConsumeWithoutZKTest extends ProducerConsumerBase {
         port = PortManager.nextFreePort();
         WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
         config.setWebServicePort(port);
-        config.setClusterName("use");
+        config.setClusterName("test");
         config.setServiceUrl(pulsar.getWebServiceAddress());
         config.setServiceUrlTls(pulsar.getWebServiceAddressTls());
         service = spy(new WebSocketService(config));
@@ -77,10 +77,10 @@ public class ProxyPublishConsumeWithoutZKTest extends ProducerConsumerBase {
 
     @Test(timeOut=30000)
     public void socketTest() throws Exception {
-        
-        String consumerUri = "ws://localhost:" + port + "/ws/consumer/persistent/my-property/use/my-ns/my-topic/my-sub";
-        String producerUri = "ws://localhost:" + port + "/ws/producer/persistent/my-property/use/my-ns/my-topic/";
-        
+
+        String consumerUri = "ws://localhost:" + port + "/ws/v2/consumer/persistent/my-property/my-ns/my-topic/my-sub";
+        String producerUri = "ws://localhost:" + port + "/ws/v2/producer/persistent/my-property/my-ns/my-topic/";
+
         URI consumeUri = URI.create(consumerUri);
         URI produceUri = URI.create(producerUri);
 
@@ -101,7 +101,7 @@ public class ProxyPublishConsumeWithoutZKTest extends ProducerConsumerBase {
             // let it connect
             Assert.assertTrue(consumerFuture.get().isOpen());
             Assert.assertTrue(producerFuture.get().isOpen());
-            
+
             while (consumeSocket.getReceivedMessagesCount() < 10) {
                 Thread.sleep(10);
             }

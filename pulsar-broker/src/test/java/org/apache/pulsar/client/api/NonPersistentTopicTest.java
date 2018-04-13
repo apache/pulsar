@@ -103,7 +103,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     public void testNonPersistentTopic(SubscriptionType type) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String topic = "non-persistent://my-property/use/my-ns/unacked-topic";
+        final String topic = "non-persistent://my-property/my-ns/unacked-topic";
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("subscriber-1").subscriptionType(type).subscribe();
 
@@ -142,7 +142,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     public void testPartitionedNonPersistentTopic(SubscriptionType type) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String topic = "non-persistent://my-property/use/my-ns/partitioned-topic";
+        final String topic = "non-persistent://my-property/my-ns/partitioned-topic";
         admin.nonPersistentTopics().createPartitionedTopic(topic, 5);
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("subscriber-1")
                 .subscriptionType(type).subscribe();
@@ -186,7 +186,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         final int numPartitions = 5;
-        final String topic = "non-persistent://my-property/use/my-ns/partitioned-topic";
+        final String topic = "non-persistent://my-property/my-ns/partitioned-topic";
         admin.nonPersistentTopics().createPartitionedTopic(topic, numPartitions);
 
         PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:" + BROKER_PORT)
@@ -241,7 +241,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     public void testConsumerInternalQueueMaxOut(SubscriptionType type) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String topic = "non-persistent://my-property/use/my-ns/unacked-topic";
+        final String topic = "non-persistent://my-property/my-ns/unacked-topic";
         final int queueSize = 10;
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic)
                 .receiverQueueSize(queueSize).subscriptionName("subscriber-1").subscriptionType(type).subscribe();
@@ -284,7 +284,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     public void testProducerRateLimit() throws Exception {
         int defaultNonPersistentMessageRate = conf.getMaxConcurrentNonPersistentMessagePerConnection();
         try {
-            final String topic = "non-persistent://my-property/use/my-ns/unacked-topic";
+            final String topic = "non-persistent://my-property/my-ns/unacked-topic";
             // restart broker with lower publish rate limit
             conf.setMaxConcurrentNonPersistentMessagePerConnection(1);
             stopBroker();
@@ -343,7 +343,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     public void testMultipleSubscription() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String topic = "non-persistent://my-property/use/my-ns/unacked-topic";
+        final String topic = "non-persistent://my-property/my-ns/unacked-topic";
         ConsumerImpl<byte[]> consumer1Shared = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("subscriber-shared").subscriptionType(SubscriptionType.Shared).subscribe();
 
@@ -421,7 +421,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     @Test
     public void testTopicStats() throws Exception {
 
-        final String topicName = "non-persistent://my-property/use/my-ns/unacked-topic";
+        final String topicName = "non-persistent://my-property/my-ns/unacked-topic";
         final String subName = "non-persistent";
         final int timeWaitToSync = 100;
 
@@ -629,7 +629,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     @Test(dataProvider = "loadManager")
     public void testLoadManagerAssignmentForNonPersistentTestAssignment(String loadManagerName) throws Exception {
 
-        final String namespace = "my-property/use/my-ns";
+        final String namespace = "my-property/my-ns";
         final String topicName = "non-persistent://" + namespace + "/loadManager";
         final String defaultLoadManagerName = conf.getLoadManagerClassName();
         final boolean defaultENableNonPersistentTopic = conf.isEnableNonPersistentTopics();
@@ -684,7 +684,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     @Test
     public void testNonPersistentTopicUnderPersistentNamespace() throws Exception {
 
-        final String namespace = "my-property/use/my-ns";
+        final String namespace = "my-property/my-ns";
         final String topicName = "non-persistent://" + namespace + "/persitentNamespace";
 
         final boolean defaultENableNonPersistentTopic = conf.isEnableNonPersistentTopics();
@@ -716,7 +716,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     @Test(dataProvider = "loadManager")
     public void testNonPersistentBrokerModeRejectPersistentTopic(String loadManagerName) throws Exception {
 
-        final String namespace = "my-property/use/my-ns";
+        final String namespace = "my-property/my-ns";
         final String topicName = "persistent://" + namespace + "/loadManager";
         final String defaultLoadManagerName = conf.getLoadManagerClassName();
         final boolean defaultEnablePersistentTopic = conf.isEnablePersistentTopics();
@@ -776,7 +776,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
         int defaultNonPersistentMessageRate = conf.getMaxConcurrentNonPersistentMessagePerConnection();
         try {
-            final String topicName = "non-persistent://my-property/use/my-ns/stats-topic";
+            final String topicName = "non-persistent://my-property/my-ns/stats-topic";
             // restart broker with lower publish rate limit
             conf.setMaxConcurrentNonPersistentMessagePerConnection(1);
             stopBroker();

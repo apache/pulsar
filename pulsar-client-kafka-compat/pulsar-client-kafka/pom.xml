@@ -37,10 +37,6 @@
   <description>Drop-in replacement for Kafka client library that publishes and consumes
   messages on Pulsar topics</description>
 
-  <properties>
-    <kafka.version>0.10.2.1</kafka.version>
-  </properties>
-
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -51,7 +47,7 @@
     <dependency>
       <groupId>org.apache.kafka</groupId>
       <artifactId>kafka-clients</artifactId>
-      <version>${kafka.version}</version>
+      <version>${kafka-client.version}</version>
       <exclusions>
         <exclusion>
           <groupId>net.jpountz.lz4</groupId>
