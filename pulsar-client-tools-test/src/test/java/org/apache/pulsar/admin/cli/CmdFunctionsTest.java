@@ -301,7 +301,7 @@ public class CmdFunctionsTest {
         assertEquals(tenant, getter.getTenant());
         assertEquals(namespace, getter.getNamespace());
 
-        verify(functions, times(1)).getFunction(eq(tenant), eq(namespace), eq(fnName));
+        verify(functions, times(1)).getFunction(eq(tenant), eq(namespace), eq(TEST_FUNCTION_NAME));
     }
 
     @Test
@@ -321,7 +321,7 @@ public class CmdFunctionsTest {
         assertEquals(tenant, deleter.getTenant());
         assertEquals(namespace, deleter.getNamespace());
 
-        verify(functions, times(1)).deleteFunction(eq(tenant), eq(namespace), eq(fnName));
+        verify(functions, times(1)).deleteFunction(eq(tenant), eq(namespace), eq(TEST_FUNCTION_NAME));
     }
 
     @Test
