@@ -36,7 +36,7 @@ cluster:
 configuration-store:
   q: What is the configuration store?
   def: |
-    Pulsar's configuration store (previously known as global ZooKeeper) is a ZooKeeper quorum that is used for configuration-specific tasks. A multi-cluster Pulsar installation requires just configuration store across all clusters.
+    Pulsar's configuration store (previously known as global ZooKeeper) is a ZooKeeper quorum that is used for configuration-specific tasks. A multi-cluster Pulsar installation requires just one configuration store across all clusters.
 consumer:
   q: What is a consumer?
   def: A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers.

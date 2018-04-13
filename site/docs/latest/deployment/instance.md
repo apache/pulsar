@@ -29,7 +29,7 @@ tags: [admin, deployment, instance, bare metal]
 
 A Pulsar *instance* consists of multiple Pulsar {% popover clusters %} working in unison. Clusters can be distributed across data centers or geographical regions and can replicate amongst themselves using [geo-replication](../../admin/GeoReplication). Deploying a multi-cluster Pulsar instance involves the following basic steps:
 
-* Deploying two separate [ZooKeeper](#deploying-zookeeper) quorums: a [local](#deploying-local-zookeeper) quorum for each cluster in the instance and a [global](#deploying-global-zookeeper) quorum for instance-wide tasks
+* Deploying two separate [ZooKeeper](#deploying-zookeeper) quorums: a [local](#deploying-local-zookeeper) quorum for each cluster in the instance and a [configuration store](#configuration-store) quorum for instance-wide tasks
 * Initializing [cluster metadata](#cluster-metadata-initialization) for each cluster
 * Deploying a [BookKeeper cluster](#deploying-bookkeeper) of {% popover bookies %} in each Pulsar cluster
 * Deploying [brokers](#deploying-brokers) in each Pulsar cluster
@@ -48,7 +48,7 @@ This guide shows you how to deploy Pulsar in production in a non-Kubernetes. If 
 
 ## Cluster metadata initialization
 
-Once you've set up local and global ZooKeeper for your instance, there is some metadata that needs to be written to ZooKeeper for each cluster in your instance. It only needs to be written once.
+Once you've set up the cluster-specific ZooKeeper and {% popover configuration store %} quorums for your instance, there is some metadata that needs to be written to ZooKeeper for each cluster in your instance. **It only needs to be written once**.
 
 You can initialize this metadata using the [`initialize-cluster-metadata`](../../reference/CliTools#pulsar-initialize-cluster-metadata) command of the [`pulsar`](../../reference/CliTools#pulsar) CLI tool. Here's an example:
 
@@ -56,7 +56,7 @@ You can initialize this metadata using the [`initialize-cluster-metadata`](../..
 $ bin/pulsar initialize-cluster-metadata \
   --cluster us-west \
   --zookeeper zk1.us-west.example.com:2181 \
-  --global-zookeeper zk1.us-west.example.com:2184 \
+  --configuration-store zk1.us-west.example.com:2184 \
   --web-service-url http://pulsar.us-west.example.com:8080/ \
   --web-service-url-tls https://pulsar.us-west.example.com:8443/ \
   --broker-service-url pulsar://pulsar.us-west.example.com:6650/ \
@@ -67,13 +67,9 @@ As you can see from the example above, the following needs to be specified:
 
 * The name of the cluster
 * The local ZooKeeper connection string for the cluster
-* The global ZooKeeper connection string for the entire instance
+* The {% popover configuration store %} connection string for the entire instance
 * The web service URL for the cluster
 * A broker service URL enabling interaction with the {% popover brokers %} in the cluster
-
-{% include admonition.html type="info" title="Global cluster" content='
-In each Pulsar instance, there is a `global` cluster that you can administer just like other clusters. The `global` cluster enables you to do things like create global topics.
-' %}
 
 If you're using [TLS](../../admin/Authz#tls-client-auth), you'll also need to specify a TLS web service URL for the cluster as well as a TLS broker service URL for the brokers in the cluster.
 
@@ -91,7 +87,7 @@ Once you've set up ZooKeeper, initialized cluster metadata, and spun up BookKeep
 
 Brokers can be configured using the [`conf/broker.conf`](../../reference/Configuration#broker) configuration file.
 
-The most important element of broker configuration is ensuring that each broker is aware of its local ZooKeeper quorum as well as the global ZooKeeper quorum. Make sure that you set the [`zookeeperServers`](../../reference/Configuration#broker-zookeeperServers) parameter to reflect the local quorum and the [`globalZookeeperServers`](../../reference/Configuration#broker-globalZookeeperServers) parameter to reflect the global quorum (although you'll need to specify only those global ZooKeeper servers located in the same cluster).
+The most important element of broker configuration is ensuring that each broker is aware of its local ZooKeeper quorum as well as the global ZooKeeper quorum. Make sure that you set the [`zookeeperServers`](../../reference/Configuration#broker-zookeeperServers) parameter to reflect the local quorum and the [`configurationStoreServers`](../../reference/Configuration#broker-configurationStoreServers) parameter to reflect the configuration store quorum (although you'll need to specify only those ZooKeeper servers located in the same cluster).
 
 You also need to specify the name of the {% popover cluster %} to which the broker belongs using the [`clusterName`](../../reference/Configuration#broker-clusterName) parameter.
 
@@ -101,8 +97,8 @@ Here's an example configuration:
 # Local ZooKeeper servers
 zookeeperServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
 
-# Global Zookeeper quorum connection string.
-globalZookeeperServers=zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184
+# Configuration store quorum connection string.
+configurationStoreServers=zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184
 
 clusterName=us-west
 ```
