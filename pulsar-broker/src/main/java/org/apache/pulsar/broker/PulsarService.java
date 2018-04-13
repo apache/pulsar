@@ -19,13 +19,15 @@
 package org.apache.pulsar.broker;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.broker.admin.impl.NamespacesBase.getBundles;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
-import java.net.URL;
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -38,11 +40,18 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
+
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
-import org.apache.bookkeeper.common.util.OrderedScheduler;
+import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
+import org.apache.pulsar.common.conf.InternalConfigurationData;
+import org.apache.pulsar.common.naming.NamedEntity;
+import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.TwoPhaseCompactor;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -72,6 +81,7 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.functions.worker.Utils;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.utils.PulsarBrokerVersionStringUtils;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
@@ -84,15 +94,21 @@ import org.apache.pulsar.zookeeper.LocalZooKeeperConnectionService;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperBkClientFactoryImpl;
+import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.ws.rs.core.Response;
+
 /**
  * Main class for Pulsar broker service
  */
+
 public class PulsarService implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarService.class);
     private ServiceConfiguration config = null;
@@ -390,6 +406,12 @@ public class PulsarService implements AutoCloseable {
             });
 
             leaderElectionService.start();
+
+            // start function worker service if necessary
+            this.startWorkerService();
+
+            LOG.info("Starting Pulsar Broker service; version: '{}'", ( brokerVersion != null ? brokerVersion : "unknown" )  );
+
             webService.start();
 
             this.metricsGenerator = new MetricsGenerator(this);
@@ -784,5 +806,103 @@ public class PulsarService implements AutoCloseable {
 
     public SchemaRegistryService getSchemaRegistryService() {
         return schemaRegistryService;
+    }
+
+    private void startWorkerService() throws InterruptedException, IOException, KeeperException {
+        if (functionWorkerService.isPresent()) {
+            LOG.info("Starting function worker service");
+            String namespace = functionWorkerService.get()
+                    .getWorkerConfig().getPulsarFunctionsNamespace();
+            String[] a = functionWorkerService.get().getWorkerConfig().getPulsarFunctionsNamespace().split("/");
+            String property = a[0];
+            String cluster = a[1];
+
+                /*
+                multiple brokers may be trying to create the property, cluster, and namespace
+                for function worker service this in parallel. The function worker service uses the namespace
+                to create topics for internal function
+                */
+
+            // create property for function worker service
+            try {
+                NamedEntity.checkName(property);
+                this.getGlobalZkCache().getZooKeeper().create(
+                        AdminResource.path(POLICIES, property),
+                        ObjectMapperFactory.getThreadLocal().writeValueAsBytes(
+                                new PropertyAdmin(
+                                        Sets.newHashSet(config.getSuperUserRoles()),
+                                        Sets.newHashSet(cluster))),
+                        ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+                LOG.info("Created property {} for function worker", property);
+            } catch (KeeperException.NodeExistsException e) {
+                LOG.debug("Failed to create already existing property {} for function worker service", cluster, e);
+            } catch (IllegalArgumentException e) {
+                LOG.error("Failed to create property with invalid name {} for function worker service", cluster, e);
+                throw e;
+            } catch (Exception e) {
+                LOG.error("Failed to create property {} for function worker", cluster, e);
+                throw e;
+            }
+
+            // create cluster for function worker service
+            try {
+                NamedEntity.checkName(cluster);
+                ClusterData clusterData = new ClusterData(this.getWebServiceAddress(), null /* serviceUrlTls */,
+                        brokerServiceUrl, null /* brokerServiceUrlTls */);
+                this.getGlobalZkCache().getZooKeeper().create(
+                        AdminResource.path("clusters", cluster),
+                        ObjectMapperFactory.getThreadLocal().writeValueAsBytes(clusterData),
+                        ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+                LOG.info("Created cluster {} for function worker", cluster);
+            } catch (KeeperException.NodeExistsException e) {
+                LOG.debug("Failed to create already existing cluster {} for function worker service", cluster, e);
+            } catch (IllegalArgumentException e) {
+                LOG.error("Failed to create cluster with invalid name {} for function worker service", cluster, e);
+                throw e;
+            } catch (Exception e) {
+                LOG.error("Failed to create cluster {} for function worker service", cluster, e);
+                throw e;
+            }
+
+            // create namespace for function worker service
+            try {
+                Policies policies = new Policies();
+                int defaultNumberOfBundles = this.getConfiguration().getDefaultNumberOfNamespaceBundles();
+                policies.bundles = getBundles(defaultNumberOfBundles);
+
+                this.getConfigurationCache().policiesCache().invalidate(AdminResource.path(POLICIES, namespace));
+                ZkUtils.createFullPathOptimistic(this.getGlobalZkCache().getZooKeeper(),
+                        AdminResource.path(POLICIES, namespace),
+                        ObjectMapperFactory.getThreadLocal().writeValueAsBytes(policies),
+                        ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                        CreateMode.PERSISTENT);
+                LOG.info("Created namespace {} for function worker service", namespace);
+            } catch (KeeperException.NodeExistsException e) {
+                LOG.debug("Failed to create already existing namespace {} for function worker service", namespace);
+            } catch (Exception e) {
+                LOG.error("Failed to create namespace {}", namespace, e);
+                throw e;
+            }
+
+            InternalConfigurationData internalConf = new InternalConfigurationData(
+                    this.getConfiguration().getZookeeperServers(),
+                    this.getConfiguration().getGlobalZookeeperServers(),
+                    new ClientConfiguration().getZkLedgersRootPath());
+
+            URI dlogURI;
+            try {
+                // initializing dlog namespace for function worker
+                dlogURI = Utils.initializeDlogNamespace(
+                        internalConf.getZookeeperServers(),
+                        internalConf.getLedgersRootPath());
+            } catch (IOException ioe) {
+                LOG.error("Failed to initialize dlog namespace at zookeeper {} for storing function packages",
+                        internalConf.getZookeeperServers(), ioe);
+                throw ioe;
+            }
+            LOG.info("Function worker service setup completed");
+            functionWorkerService.get().start(dlogURI);
+            LOG.info("Function worker service started");
+        }
     }
 }
