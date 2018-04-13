@@ -1,5 +1,7 @@
 package org.apache.pulsar.client.schemas;
 
+import static org.testng.Assert.assertEquals;
+
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
@@ -38,8 +40,8 @@ public class DefaultSchemasTest {
         String testString = "hello world️";
         byte[] bytes = testString.getBytes();
         StringSchema stringSchema = new StringSchema();
-        Assert.assertEquals(stringSchema.decode(bytes), testString);
-        Assert.assertEquals(stringSchema.encode(testString), bytes);
+        assertEquals(stringSchema.decode(bytes), testString);
+        assertEquals(stringSchema.encode(testString), bytes);
 
         Message<String> msg1 = MessageBuilder.create(stringSchema)
                 .setContent(bytes)
