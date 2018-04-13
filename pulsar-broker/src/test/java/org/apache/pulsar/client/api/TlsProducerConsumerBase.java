@@ -92,6 +92,6 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
                 "pulsar://localhost:" + BROKER_PORT, "pulsar+ssl://localhost:" + BROKER_PORT_TLS));
         admin.properties().createProperty("my-property",
                 new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
-        admin.namespaces().createNamespace("my-property/use/my-ns");
+        admin.namespaces().createNamespace("my-property/my-ns");
     }
 }

@@ -51,7 +51,7 @@ import org.apache.storm.tuple.Values;
 public class PulsarSpoutTest extends ProducerConsumerBase {
 
     public final String serviceUrl = "http://127.0.0.1:" + BROKER_WEBSERVICE_PORT;
-    public final String topic = "persistent://my-property/use/my-ns/my-topic1";
+    public final String topic = "persistent://my-property/my-ns/my-topic1";
     public final String subscriptionName = "my-subscriber-name";
 
     protected PulsarSpoutConfiguration pulsarSpoutConf;
@@ -323,7 +323,7 @@ public class PulsarSpoutTest extends ProducerConsumerBase {
         PulsarSpout spoutWithNoAuth = new PulsarSpout(pulsarSpoutConf, new ClientConfiguration());
         TestUtil.testSerializability(spoutWithNoAuth);
     }
-    
+
     @Test
     public void testFailedConsumer() throws Exception {
         PulsarSpoutConfiguration pulsarSpoutConf = new PulsarSpoutConfiguration();

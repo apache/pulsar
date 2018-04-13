@@ -43,7 +43,7 @@ public class ConsumeBaseExceptionTest extends ProducerConsumerBase {
 
     @Test
     public void testClosedConsumer() throws PulsarClientException {
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://prop/cluster/ns/topicName")
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/topicName")
                 .subscriptionName("my-subscription").subscribe();
         consumer.close();
         Assert.assertTrue(consumer.receiveAsync().isCompletedExceptionally());
@@ -61,7 +61,7 @@ public class ConsumeBaseExceptionTest extends ProducerConsumerBase {
     @Test
     public void testListener() throws PulsarClientException {
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://prop/cluster/ns/topicName")
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/topicName")
                 .subscriptionName("my-subscription").messageListener((consumer1, msg) -> {
 
                 }).subscribe();
