@@ -194,7 +194,7 @@ At the highest level, a Pulsar {% popover instance %} is composed of one or more
 
 In a Pulsar cluster:
 
-* One or more {% popover brokers %} handles and load balances incoming messages from {% popover producers %}, dispatches messages to {% popover consumers %}, communicates with {% popover global ZooKeeper %} to handle various coordination tasks, stores messages in {% popover BookKeeper %} instances (aka {% popover bookies %}), relies on a cluster-specific {% popover ZooKeeper %} cluster for certain tasks, and more.
+* One or more {% popover brokers %} handles and load balances incoming messages from {% popover producers %}, dispatches messages to {% popover consumers %}, communicates with the Pulsar {% popover configuration store %} to handle various coordination tasks, stores messages in {% popover BookKeeper %} instances (aka {% popover bookies %}), relies on a cluster-specific {% popover ZooKeeper %} cluster for certain tasks, and more.
 * A {% popover BookKeeper %} cluster consisting of one more or more {% popover bookies %} handles [persistent storage](#persistent-storage) of messages.
 * A {% popover ZooKeeper %} cluster specific to that cluster handles
 
@@ -202,7 +202,7 @@ The diagram below provides an illustration of a Pulsar cluster:
 
 ![Architecture Diagram](/img/pulsar_system_architecture.png)
 
-At the broader {% popover instance %} level, an instance-wide ZooKeeper cluster called {% popover global ZooKeeper %} handles coordination tasks involving multiple clusters, for example [geo-replication](#replication).
+At the broader {% popover instance %} level, an instance-wide ZooKeeper cluster called the {% popover configuration store %} handles coordination tasks involving multiple clusters, for example [geo-replication](#replication).
 
 ## Brokers
 
@@ -229,19 +229,11 @@ Clusters can replicate amongst themselves using [geo-replication](#geo-replicati
 
 {% include admonition.html type="info" content="For a guide to managing Pulsar clusters, see the [Clusters and brokers](../../admin/ClustersBrokers#managing-clusters) guide." %}
 
-### Global cluster
-
-In any Pulsar {% popover instance %}, there is an instance-wide cluster called `global` that you can use to mange non-cluster-specific namespaces and topics. The `global` cluster is created for you automatically when you [initialize metadata](../../admin/ClustersBrokers#initialize-cluster-metadata) for the first cluster in your instance.
-
-Global topic names have this basic structure (note the `global` cluster):
-
-{% include topic.html ten="my-tenant" n="my-namespace" t="my-topic" %}
-
 ## Metadata store
 
 Pulsar uses [Apache Zookeeper](https://zookeeper.apache.org/) for metadata storage, cluster configuration, and coordination. In a Pulsar instance:
 
-* A {% popover global ZooKeeper %} quorum stores configuration for {% popover tenants %}, {% popover namespaces %}, and other entities that need to be globally consistent.
+* A {% popover configuration store %} quorum stores configuration for {% popover tenants %}, {% popover namespaces %}, and other entities that need to be globally consistent.
 * Each cluster has its own local ZooKeeper ensemble that stores {% popover cluster %}-specific configuration and coordination such as ownership metadata, broker load reports, BookKeeper {% popover ledger %} metadata, and more.
 
 When creating a [new cluster](../../admin/ClustersBrokers#initialize-cluster-metadata)
@@ -401,12 +393,12 @@ The **Pulsar proxy** provides a solution to this problem by acting as a single g
 
 {% include admonition.html type="success" content="For the sake of performance and fault tolerance, you can run as many instances of the Pulsar proxy as you'd like." %}
 
-Architecturally, the Pulsar proxy gets all the information it requires from ZooKeeper. When starting the proxy on a machine, you only need to provide ZooKeeper connection strings for the cluster-specific and {% popover global ZooKeeper %} clusters. Here's an example:
+Architecturally, the Pulsar proxy gets all the information it requires from ZooKeeper. When starting the proxy on a machine, you only need to provide ZooKeeper connection strings for the cluster-specific and instance-wide {% popover configuration store %} clusters. Here's an example:
 
 ```bash
 $ bin/pulsar proxy \
   --zookeeper-servers zk-0,zk-1,zk-2 \
-  --global-zookeeper-servers zk-0,zk-1,zk-2
+  --configuration-store-servers zk-0,zk-1,zk-2
 ```
 
 {% include admonition.html type="info" title="Pulsar proxy docs" content='

@@ -33,6 +33,9 @@ broker:
 cluster:
   q: What is a cluster?
   def: A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication.
+configuration-store:
+  q: What is the configuration store?
+  def: Pulsar's configuration store (previously known as "global ZooKeeper") is a ZooKeeper quorum that is used for configuration-specific tasks. A multi-cluster Pulsar installation requires just configuration store across all clusters.
 consumer:
   q: What is a consumer?
   def: A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers.
@@ -51,9 +54,6 @@ geo-replication:
 global-topic:
   q: What is a global topic?
   def: A topic that belongs to a global, instance-wide namespace and thus isn't tied to any specific cluster.
-global-zookeeper:
-  q: What is global ZooKeeper?
-  def: "A ZooKeeper cluster that Pulsar uses for instance-wide, rather than cluster-specific, tasks."
 instance:
   q: What is a Pulsar instance?
   def: A group of Pulsar clusters that act together as a single unit.
@@ -116,4 +116,4 @@ unacknowledged:
 zookeeper:
   q: What is ZooKeeper?
   def: |
-    ZooKeeper is a service that Pulsar uses for coordination-related tasks.<br /><br />A Pulsar instance relies on both a local ZooKeeper for cluster-specific tasks and a global ZooKeeper for instance-wide tasks.
+    ZooKeeper is a service that Pulsar uses for coordination-related tasks.<br /><br />A Pulsar instance relies on both a local ZooKeeper for cluster-specific tasks and a ZooKeeper configuration store for instance-wide tasks.
