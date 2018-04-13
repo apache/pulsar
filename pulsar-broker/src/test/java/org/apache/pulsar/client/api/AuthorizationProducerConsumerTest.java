@@ -71,7 +71,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         providers.add(TestAuthenticationProvider.class.getName());
         conf.setAuthenticationProviders(providers);
 
-        conf.setClusterName("use");
+        conf.setClusterName("test");
 
         super.init();
     }
@@ -115,27 +115,27 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
                 .authentication(authenticationInvalidRole).build();
 
         admin.properties().createProperty("my-property",
-                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
-        admin.namespaces().createNamespace("my-property/use/my-ns");
+                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
 
         // (1) Valid Producer and consumer creation
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic")
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic")
                 .subscriptionName("my-subscriber-name").subscribe();
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic")
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic")
                 .create();
         consumer.close();
         producer.close();
 
         // (2) InValid user auth-role will be rejected by authorization service
         try {
-            consumer = pulsarClientInvalidRole.newConsumer().topic("persistent://my-property/use/my-ns/my-topic")
+            consumer = pulsarClientInvalidRole.newConsumer().topic("persistent://my-property/my-ns/my-topic")
                     .subscriptionName("my-subscriber-name").subscribe();
             Assert.fail("should have failed with authorization error");
         } catch (PulsarClientException.AuthorizationException pa) {
             // Ok
         }
         try {
-            producer = pulsarClientInvalidRole.newProducer().topic("persistent://my-property/use/my-ns/my-topic")
+            producer = pulsarClientInvalidRole.newProducer().topic("persistent://my-property/my-ns/my-topic")
                     .create();
             Assert.fail("should have failed with authorization error");
         } catch (PulsarClientException.AuthorizationException pa) {
@@ -164,17 +164,17 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).authentication(authentication).build();
 
         admin.properties().createProperty("prop-prefix",
-                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
-        admin.namespaces().createNamespace("prop-prefix/use/ns");
+                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace("prop-prefix/ns", Sets.newHashSet("test"));
 
         // (1) Valid subscription name will be approved by authorization service
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://prop-prefix/use/ns/t1")
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://prop-prefix/ns/t1")
                 .subscriptionName(clientRole + "-sub1").subscribe();
         consumer.close();
 
         // (2) InValid subscription name will be rejected by authorization service
         try {
-            consumer = pulsarClient.newConsumer().topic("persistent://prop-prefix/use/ns/t1").subscriptionName("sub1")
+            consumer = pulsarClient.newConsumer().topic("persistent://prop-prefix/ns/t1").subscriptionName("sub1")
                     .subscribe();
             Assert.fail("should have failed with authorization error");
         } catch (PulsarClientException.AuthorizationException pa) {

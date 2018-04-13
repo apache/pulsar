@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.api;
+package org.apache.pulsar.client.api.v1;
 
 import com.google.common.collect.Sets;
 
@@ -29,7 +29,7 @@ import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 
-public abstract class ProducerConsumerBase extends MockedPulsarServiceBaseTest {
+public abstract class V1_ProducerConsumerBase extends MockedPulsarServiceBaseTest {
     protected String methodName;
 
     @BeforeMethod
@@ -38,11 +38,10 @@ public abstract class ProducerConsumerBase extends MockedPulsarServiceBaseTest {
     }
 
     public void producerBaseSetup() throws Exception {
-        admin.clusters().createCluster("test", new ClusterData("http://127.0.0.1:" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("use", new ClusterData("http://127.0.0.1:" + BROKER_WEBSERVICE_PORT));
         admin.properties().createProperty("my-property",
-                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
-        admin.namespaces().createNamespace("my-property/my-ns");
-        admin.namespaces().setNamespaceReplicationClusters("my-property/my-ns", Sets.newHashSet("test"));
+                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
+        admin.namespaces().createNamespace("my-property/use/my-ns");
     }
 
     protected void testMessageOrderAndDuplicates(Set<String> messagesReceived, String receivedMessage,

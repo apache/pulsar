@@ -119,10 +119,10 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     @Test
     public void testDisconnectClientWithoutClosingConnection() throws Exception {
 
-        final String ns1 = "my-property/use/con-ns1";
-        final String ns2 = "my-property/use/con-ns2";
-        admin.namespaces().createNamespace(ns1);
-        admin.namespaces().createNamespace(ns2);
+        final String ns1 = "my-property/con-ns1";
+        final String ns2 = "my-property/con-ns2";
+        admin.namespaces().createNamespace(ns1, Sets.newHashSet("test"));
+        admin.namespaces().createNamespace(ns2, Sets.newHashSet("test"));
 
         final String topic1 = "persistent://" + ns1 + "/my-topic";
         final String topic2 = "persistent://" + ns2 + "/my-topic";
@@ -239,10 +239,10 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     @Test
     public void testCloseBrokerService() throws Exception {
 
-        final String ns1 = "my-property/use/brok-ns1";
-        final String ns2 = "my-property/use/brok-ns2";
-        admin.namespaces().createNamespace(ns1);
-        admin.namespaces().createNamespace(ns2);
+        final String ns1 = "my-property/brok-ns1";
+        final String ns2 = "my-property/brok-ns2";
+        admin.namespaces().createNamespace(ns1, Sets.newHashSet("test"));
+        admin.namespaces().createNamespace(ns2, Sets.newHashSet("test"));
 
         final String topic1 = "persistent://" + ns1 + "/my-topic";
         final String topic2 = "persistent://" + ns2 + "/my-topic";
@@ -293,7 +293,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         final int batchMessageDelayMs = 1000;
-        final String topicName = "persistent://my-property/use/my-ns/my-topic1";
+        final String topicName = "persistent://my-property/my-ns/my-topic1";
         final String subscriptionName = "my-subscriber-name" + subType;
 
         ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
@@ -367,7 +367,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     @Test(timeOut = 10000, dataProvider = "subType")
     public void testResetCursor(SubscriptionType subType) throws Exception {
         final RetentionPolicies policy = new RetentionPolicies(60, 52 * 1024);
-        final TopicName topicName = TopicName.get("persistent://my-property/use/my-ns/unacked-topic");
+        final TopicName topicName = TopicName.get("persistent://my-property/my-ns/unacked-topic");
         final int warmup = 20;
         final int testSize = 150;
         final List<Message<byte[]>> received = new ArrayList<>();
