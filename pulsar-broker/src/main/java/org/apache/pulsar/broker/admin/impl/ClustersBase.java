@@ -40,12 +40,15 @@ import javax.ws.rs.core.Response.Status;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
+import static org.apache.pulsar.broker.namespace.NamespaceService.NAMESPACE_ISOLATION_POLICIES;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.NamedEntity;
+import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
+import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicyImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
@@ -56,6 +59,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonGenerationException;
 import com.fasterxml.jackson.databind.JsonMappingException;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import io.swagger.annotations.ApiOperation;
@@ -262,7 +266,7 @@ public class ClustersBase extends AdminResource {
             }
 
             // check the namespaceIsolationPolicies associated with the cluster
-            String path = path("clusters", cluster, "namespaceIsolationPolicies");
+            String path = path("clusters", cluster, NAMESPACE_ISOLATION_POLICIES);
             Optional<NamespaceIsolationPolicies> nsIsolationPolicies = namespaceIsolationPoliciesCache().get(path);
 
             // Need to delete the isolation policies if present
@@ -332,7 +336,7 @@ public class ClustersBase extends AdminResource {
 
         try {
             NamespaceIsolationPolicies nsIsolationPolicies = namespaceIsolationPoliciesCache()
-                    .get(path("clusters", cluster, "namespaceIsolationPolicies"))
+                    .get(path("clusters", cluster, NAMESPACE_ISOLATION_POLICIES))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                             "NamespaceIsolationPolicies for cluster " + cluster + " does not exist"));
             // construct the response to NamespaceisolationData map
@@ -356,7 +360,7 @@ public class ClustersBase extends AdminResource {
 
         try {
             NamespaceIsolationPolicies nsIsolationPolicies = namespaceIsolationPoliciesCache()
-                    .get(path("clusters", cluster, "namespaceIsolationPolicies"))
+                    .get(path("clusters", cluster, NAMESPACE_ISOLATION_POLICIES))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                             "NamespaceIsolationPolicies for cluster " + cluster + " does not exist"));
             // construct the response to NamespaceisolationData map
@@ -374,6 +378,105 @@ public class ClustersBase extends AdminResource {
         }
     }
 
+    @GET
+    @Path("/{cluster}/namespaceIsolationPolicies/brokers")
+    @ApiOperation(value = "Get list of brokers with namespace-isolation policies attached to them", response = BrokerNamespaceIsolationData.class)
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace-isolation policies not found"),
+            @ApiResponse(code = 412, message = "Cluster doesn't exist") })
+    public List<BrokerNamespaceIsolationData> getBrokersWithNamespaceIsolationPolicy(
+            @PathParam("cluster") String cluster) {
+        validateSuperUserAccess();
+        validateClusterExists(cluster);
+
+        Set<String> availableBrokers;
+        final String nsIsolationPoliciesPath = AdminResource.path("clusters", cluster, NAMESPACE_ISOLATION_POLICIES);
+        Map<String, NamespaceIsolationData> nsPolicies;
+        try {
+            availableBrokers = pulsar().getLoadManager().get().getAvailableBrokers();
+        } catch (Exception e) {
+            log.error("[{}] Failed to get list of brokers in cluster {}", clientAppId(), cluster, e);
+            throw new RestException(e);
+        }
+        try {
+            Optional<NamespaceIsolationPolicies> nsPoliciesResult = namespaceIsolationPoliciesCache()
+                    .get(nsIsolationPoliciesPath);
+            if (!nsPoliciesResult.isPresent()) {
+                throw new RestException(Status.NOT_FOUND, "namespace-isolation policies not found for " + cluster);
+            }
+            nsPolicies = nsPoliciesResult.get().getPolicies();
+        } catch (Exception e) {
+            log.error("[{}] Failed to get namespace isolation-policies {}", clientAppId(), cluster, e);
+            throw new RestException(e);
+        }
+        return availableBrokers.stream().map(broker -> {
+            BrokerNamespaceIsolationData brokerIsolationData = new BrokerNamespaceIsolationData();
+            brokerIsolationData.brokerName = broker;
+            if (nsPolicies != null) {
+                nsPolicies.forEach((name, policyData) -> {
+                    NamespaceIsolationPolicyImpl nsPolicyImpl = new NamespaceIsolationPolicyImpl(policyData);
+                    if (nsPolicyImpl.isPrimaryBroker(broker) || nsPolicyImpl.isSecondaryBroker(broker)) {
+                        if (brokerIsolationData.namespaceRegex == null) {
+                            brokerIsolationData.namespaceRegex = Lists.newArrayList();
+                        }
+                        brokerIsolationData.namespaceRegex.addAll(policyData.namespaces);
+                    }
+                });
+            }
+            return brokerIsolationData;
+        }).collect(Collectors.toList());
+    }
+
+    @GET
+    @Path("/{cluster}/namespaceIsolationPolicies/brokers/{broker}")
+    @ApiOperation(value = "Get a broker with namespace-isolation policies attached to it", response = BrokerNamespaceIsolationData.class)
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace-isolation policies/ Broker not found"),
+            @ApiResponse(code = 412, message = "Cluster doesn't exist") })
+    public BrokerNamespaceIsolationData getBrokerWithNamespaceIsolationPolicy(@PathParam("cluster") String cluster,
+            @PathParam("broker") String broker) {
+        validateSuperUserAccess();
+        validateClusterExists(cluster);
+
+        Set<String> availableBrokers;
+        final String nsIsolationPoliciesPath = AdminResource.path("clusters", cluster, NAMESPACE_ISOLATION_POLICIES);
+        Map<String, NamespaceIsolationData> nsPolicies;
+        try {
+            availableBrokers = pulsar().getLoadManager().get().getAvailableBrokers();
+        } catch (Exception e) {
+            log.error("[{}] Failed to get list of brokers in cluster {}", clientAppId(), cluster, e);
+            throw new RestException(e);
+        }
+        if (availableBrokers == null || !availableBrokers.contains(broker)) {
+            throw new RestException(Status.NOT_FOUND, "Broker is not part of active broker list " + broker);
+        }
+        try {
+            Optional<NamespaceIsolationPolicies> nsPoliciesResult = namespaceIsolationPoliciesCache()
+                    .get(nsIsolationPoliciesPath);
+            if (!nsPoliciesResult.isPresent()) {
+                throw new RestException(Status.NOT_FOUND, "namespace-isolation policies not found for " + cluster);
+            }
+            nsPolicies = nsPoliciesResult.get().getPolicies();
+        } catch (Exception e) {
+            log.error("[{}] Failed to get namespace isolation-policies {}", clientAppId(), cluster, e);
+            throw new RestException(e);
+        }
+        BrokerNamespaceIsolationData brokerIsolationData = new BrokerNamespaceIsolationData();
+        brokerIsolationData.brokerName = broker;
+        if (nsPolicies != null) {
+            nsPolicies.forEach((name, policyData) -> {
+                NamespaceIsolationPolicyImpl nsPolicyImpl = new NamespaceIsolationPolicyImpl(policyData);
+                if (nsPolicyImpl.isPrimaryBroker(broker) || nsPolicyImpl.isSecondaryBroker(broker)) {
+                    if (brokerIsolationData.namespaceRegex == null) {
+                        brokerIsolationData.namespaceRegex = Lists.newArrayList();
+                    }
+                    brokerIsolationData.namespaceRegex.addAll(policyData.namespaces);
+                }
+            });
+        }
+        return brokerIsolationData;
+    }
+    
     @POST
     @Path("/{cluster}/namespaceIsolationPolicies/{policyName}")
     @ApiOperation(value = "Set namespace isolation policy")
@@ -389,7 +492,7 @@ public class ClustersBase extends AdminResource {
             // validate the policy data before creating the node
             policyData.validate();
 
-            String nsIsolationPolicyPath = path("clusters", cluster, "namespaceIsolationPolicies");
+            String nsIsolationPolicyPath = path("clusters", cluster, NAMESPACE_ISOLATION_POLICIES);
             NamespaceIsolationPolicies nsIsolationPolicies = namespaceIsolationPoliciesCache()
                     .get(nsIsolationPolicyPath).orElseGet(() -> {
                         try {
@@ -458,7 +561,7 @@ public class ClustersBase extends AdminResource {
 
         try {
 
-            String nsIsolationPolicyPath = path("clusters", cluster, "namespaceIsolationPolicies");
+            String nsIsolationPolicyPath = path("clusters", cluster, NAMESPACE_ISOLATION_POLICIES);
             NamespaceIsolationPolicies nsIsolationPolicies = namespaceIsolationPoliciesCache()
                     .get(nsIsolationPolicyPath).orElseGet(() -> {
                         try {
