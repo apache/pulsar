@@ -74,6 +74,8 @@ unshaded pulsar kafka client wrapper.
 </dependency>
 ```
 
+When using this dependency, you need to construct producer using `org.apache.kafka.clients.producer.PulsarKafkaProducer`
+instead of `org.apache.kafka.clients.producer.KafkaProducer` and `org.apache.kafka.clients.producer.PulsarKafkaConsumer` for consumers.
 
 ## Producer example
 
