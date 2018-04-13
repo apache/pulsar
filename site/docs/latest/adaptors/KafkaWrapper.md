@@ -60,6 +60,21 @@ thing that needs to be adjusted is the configuration, to make sure to point the
 producers and consumers to Pulsar service rather than Kafka and to use a particular
 Pulsar topic.
 
+## Using the Pulsar Kafka compatibility wrapper together with existing kafka client.
+
+When migrating from Kafka to Pulsar, the application might have to use the original kafka client
+and the pulsar kafka wrapper together during migration. Then you should consider using the
+unshaded pulsar kafka client wrapper.
+
+```xml
+<dependency>
+  <groupId>org.apache.pulsar</groupId>
+  <artifactId>pulsar-client-kafka-original</artifactId>
+  <version>{{ site.current_version }}</version>
+</dependency>
+```
+
+
 ## Producer example
 
 ```java
