@@ -44,7 +44,6 @@ import org.slf4j.LoggerFactory;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.ea.agentloader.AgentLoader;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 public class PulsarStandaloneStarter {
@@ -258,11 +257,7 @@ public class PulsarStandaloneStarter {
         } catch (PulsarAdminException e) {
             log.info(e.getMessage());
         }
-
-        if (null != fnWorkerService) {
-            fnWorkerService.start();
-        }
-
+        
         log.debug("--- setup completed ---");
     }
 
