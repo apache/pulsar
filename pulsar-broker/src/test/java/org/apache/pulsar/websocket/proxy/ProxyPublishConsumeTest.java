@@ -443,7 +443,15 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         Response response = (Response) invocationBuilder.get();
         String responseStr = response.readEntity(String.class);
         final Gson gson = new Gson();
-        final List<Metrics> data = gson.fromJson(responseStr, new TypeToken<List<Metrics>>() {
+        List<Metrics> data = gson.fromJson(responseStr, new TypeToken<List<Metrics>>() {
+        }.getType());
+        Assert.assertFalse(data.isEmpty());
+        // re-generate metrics
+        service.getProxyStats().generate();
+        invocationBuilder = webTarget.request(MediaType.APPLICATION_JSON);
+        response = (Response) invocationBuilder.get();
+        responseStr = response.readEntity(String.class);
+        data = gson.fromJson(responseStr, new TypeToken<List<Metrics>>() {
         }.getType());
         Assert.assertFalse(data.isEmpty());
     }
