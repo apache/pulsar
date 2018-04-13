@@ -91,7 +91,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
         System.setProperty("pulsar.auth.basic.conf", BASIC_CONF_FILE_PATH);
         conf.setAuthenticationProviders(providers);
 
-        conf.setClusterName("use");
+        conf.setClusterName("test");
 
         super.init();
 
@@ -117,8 +117,8 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
                 .build();
 
         admin.properties().createProperty("my-property",
-                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
-        admin.namespaces().createNamespace("my-property/use/my-ns");
+                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
     }
 
     @AfterMethod
@@ -161,7 +161,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
         setup();
 
         try {
-            pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic")
+            pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic")
                     .subscriptionName("my-subscriber-name").subscribe();
             if (hostnameVerificationEnabled) {
                 Assert.fail("Connection should be failed due to hostnameVerification enabled");
@@ -197,10 +197,10 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
 
         setup();
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic")
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic")
                 .subscriptionName("my-subscriber-name").subscribe();
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic")
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic")
                 .create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;

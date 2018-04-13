@@ -38,10 +38,11 @@ public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
 
     public void baseSetup() throws Exception {
         super.internalSetup();
-        admin.clusters().createCluster("use", new ClusterData(brokerUrl.toString()));
+        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
         admin.properties().createProperty("prop",
-                new PropertyAdmin(Sets.newHashSet("appid1"), Sets.newHashSet("use")));
-        admin.namespaces().createNamespace("prop/use/ns-abc");
+                new PropertyAdmin(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace("prop/ns-abc");
+        admin.namespaces().setNamespaceReplicationClusters("prop/ns-abc", Sets.newHashSet("test"));
     }
 
     void rolloverPerIntervalStats() {

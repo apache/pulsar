@@ -77,7 +77,7 @@ public class BatchMessageTest extends BrokerTestBase {
     public void testSimpleBatchProducerWithFixedBatchSize(CompressionType compressionType) throws Exception {
         int numMsgs = 50;
         int numMsgsInBatch = numMsgs / 2;
-        final String topicName = "persistent://prop/use/ns-abc/testSimpleBatchProducerWithFixedBatchSize";
+        final String topicName = "persistent://prop/ns-abc/testSimpleBatchProducerWithFixedBatchSize";
         final String subscriptionName = "sub-1" + compressionType.toString();
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
@@ -120,7 +120,7 @@ public class BatchMessageTest extends BrokerTestBase {
     @Test(dataProvider = "codec")
     public void testSimpleBatchProducerWithFixedBatchTime(CompressionType compressionType) throws Exception {
         int numMsgs = 100;
-        final String topicName = "persistent://prop/use/ns-abc/testSimpleBatchProducerWithFixedBatchTime";
+        final String topicName = "persistent://prop/ns-abc/testSimpleBatchProducerWithFixedBatchTime";
         final String subscriptionName = "time-sub-1" + compressionType.toString();
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
@@ -155,7 +155,7 @@ public class BatchMessageTest extends BrokerTestBase {
     @Test(dataProvider = "codec")
     public void testSimpleBatchProducerWithFixedBatchSizeAndTime(CompressionType compressionType) throws Exception {
         int numMsgs = 100;
-        final String topicName = "persistent://prop/use/ns-abc/testSimpleBatchProducerWithFixedBatchSizeAndTime";
+        final String topicName = "persistent://prop/ns-abc/testSimpleBatchProducerWithFixedBatchSizeAndTime";
         final String subscriptionName = "time-size-sub-1" + compressionType.toString();
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
@@ -192,7 +192,7 @@ public class BatchMessageTest extends BrokerTestBase {
     public void testBatchProducerWithLargeMessage(CompressionType compressionType) throws Exception {
         int numMsgs = 50;
         int numMsgsInBatch = numMsgs / 2;
-        final String topicName = "persistent://prop/use/finance/testBatchProducerWithLargeMessage";
+        final String topicName = "persistent://prop/ns-abc/testBatchProducerWithLargeMessage";
         final String subscriptionName = "large-message-sub-1" + compressionType.toString();
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
@@ -247,7 +247,7 @@ public class BatchMessageTest extends BrokerTestBase {
     public void testSimpleBatchProducerConsumer(CompressionType compressionType) throws Exception {
         int numMsgs = 500;
         int numMsgsInBatch = numMsgs / 20;
-        final String topicName = "persistent://prop/use/ns-abc/testSimpleBatchProducerConsumer";
+        final String topicName = "persistent://prop/ns-abc/testSimpleBatchProducerConsumer";
         final String subscriptionName = "pc-sub-1" + compressionType.toString();
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
@@ -296,7 +296,7 @@ public class BatchMessageTest extends BrokerTestBase {
     public void testSimpleBatchSyncProducerWithFixedBatchSize() throws Exception {
         int numMsgs = 10;
         int numMsgsInBatch = numMsgs / 2;
-        final String topicName = "persistent://prop/use/ns-abc/testSimpleBatchSyncProducerWithFixedBatchSize";
+        final String topicName = "persistent://prop/ns-abc/testSimpleBatchSyncProducerWithFixedBatchSize";
         final String subscriptionName = "syncsub-1";
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
@@ -339,7 +339,7 @@ public class BatchMessageTest extends BrokerTestBase {
     public void testSimpleBatchProducerConsumer1kMessages() throws Exception {
         int numMsgs = 2000;
         int numMsgsInBatch = 4;
-        final String topicName = "persistent://prop/use/ns-abc/testSimpleBatchProducerConsumer1kMessages";
+        final String topicName = "persistent://prop/ns-abc/testSimpleBatchProducerConsumer1kMessages";
         final String subscriptionName = "pc1k-sub-1";
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
@@ -403,7 +403,7 @@ public class BatchMessageTest extends BrokerTestBase {
     public void testOutOfOrderAcksForBatchMessage() throws Exception {
         int numMsgs = 40;
         int numMsgsInBatch = numMsgs / 4;
-        final String topicName = "persistent://prop/use/ns-abc/testOutOfOrderAcksForBatchMessage";
+        final String topicName = "persistent://prop/ns-abc/testOutOfOrderAcksForBatchMessage";
         final String subscriptionName = "oooack-sub-1";
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
@@ -469,7 +469,7 @@ public class BatchMessageTest extends BrokerTestBase {
     public void testNonBatchCumulativeAckAfterBatchPublish() throws Exception {
         int numMsgs = 10;
         int numMsgsInBatch = numMsgs;
-        final String topicName = "persistent://prop/use/ns-abc/testNonBatchCumulativeAckAfterBatchPublish";
+        final String topicName = "persistent://prop/ns-abc/testNonBatchCumulativeAckAfterBatchPublish";
         final String subscriptionName = "nbcaabp-sub-1";
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
@@ -523,7 +523,7 @@ public class BatchMessageTest extends BrokerTestBase {
     public void testBatchAndNonBatchCumulativeAcks() throws Exception {
         int numMsgs = 50;
         int numMsgsInBatch = numMsgs / 10;
-        final String topicName = "persistent://prop/use/ns-abc/testBatchAndNonBatchCumulativeAcks";
+        final String topicName = "persistent://prop/ns-abc/testBatchAndNonBatchCumulativeAcks";
         final String subscriptionName = "bnb-sub-1";
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
@@ -586,7 +586,7 @@ public class BatchMessageTest extends BrokerTestBase {
     @Test(timeOut = 3000)
     public void testConcurrentBatchMessageAck() throws Exception {
         int numMsgs = 10;
-        final String topicName = "persistent://prop/use/ns-abc/testConcurrentAck";
+        final String topicName = "persistent://prop/ns-abc/testConcurrentAck";
         final String subscriptionName = "sub-1";
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)

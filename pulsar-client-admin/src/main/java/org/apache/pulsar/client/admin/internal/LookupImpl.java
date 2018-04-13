@@ -38,9 +38,9 @@ public class LookupImpl extends BaseResource implements Lookup {
         v2lookup = web.path("/lookup/v2");
     }
 
-    private PulsarAdminException getLookupApiException(Exception e) {
+    private PulsarAdminException getLookupApiException(WebTarget target, Exception e) {
         if (e instanceof ClientErrorException) {
-            return new PulsarAdminException((ClientErrorException) e, e.getMessage());
+            return new PulsarAdminException((ClientErrorException) e, e.getMessage() + " at " + target.getUri());
         } else {
             return getApiException(e);
         }
@@ -48,26 +48,32 @@ public class LookupImpl extends BaseResource implements Lookup {
 
     @Override
     public String lookupTopic(String topic) throws PulsarAdminException {
+        TopicName topicName = TopicName.get(topic);
+        String prefix = topicName.isV2() ? "/topic" : "/destination";
+        WebTarget target = v2lookup.path(prefix).path(topicName.getLookupName());
+
         try {
-            TopicName topicName = TopicName.get(topic);
-            return doTopicLookup(v2lookup.path("/destination"), topicName);
+            return doTopicLookup(target);
         } catch (Exception e) {
-            throw getLookupApiException(e);
+            throw getLookupApiException(target, e);
         }
     }
 
     @Override
     public String getBundleRange(String topic) throws PulsarAdminException {
+        TopicName topicName = TopicName.get(topic);
+        String prefix = topicName.isV2() ? "/topic" : "/destination";
+        WebTarget target = v2lookup.path(prefix).path(topicName.getLookupName()).path("bundle");
+
         try {
-            TopicName destName = TopicName.get(topic);
-            return request(v2lookup.path("/destination").path(destName.getLookupName()).path("bundle")).get(String.class);
+            return request(target).get(String.class);
         } catch (Exception e) {
-            throw getLookupApiException(e);
+            throw getLookupApiException(target, e);
         }
     }
 
-    private String doTopicLookup(WebTarget lookupResource, TopicName destName) throws PulsarAdminException {
-        LookupData lookupData = request(lookupResource.path(destName.getLookupName())).get(LookupData.class);
+    private String doTopicLookup(WebTarget lookupResource) throws PulsarAdminException {
+        LookupData lookupData = request(lookupResource).get(LookupData.class);
         if (useTls) {
             return lookupData.getBrokerUrlTls();
         } else {
