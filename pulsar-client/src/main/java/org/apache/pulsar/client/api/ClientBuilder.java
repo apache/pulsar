@@ -256,7 +256,7 @@ public interface ClientBuilder extends Serializable, Cloneable {
 
     /**
      * Number of max lookup-requests allowed on each broker-connection to prevent overload on broker.
-     * <i>(default: 20000)</i> It should not be smaller than maxConcurrentLookupRequests.
+     * <i>(default: 50000)</i> It should be bigger than maxConcurrentLookupRequests.
      * Requests that inside maxConcurrentLookupRequests already send to broker, and requests beyond
      * maxConcurrentLookupRequests and under maxLookupRequests will wait in each client cnx.
      *
