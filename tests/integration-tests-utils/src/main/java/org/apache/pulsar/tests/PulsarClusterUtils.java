@@ -186,13 +186,13 @@ public class PulsarClusterUtils {
 
     public static boolean waitAllBrokersUp(DockerClient docker, String cluster) {
         return brokerSet(docker, cluster).stream()
-            .map((b) -> waitBrokerUp(docker, b, 10, TimeUnit.SECONDS))
+            .map((b) -> waitBrokerUp(docker, b, 60, TimeUnit.SECONDS))
             .reduce(true, (accum, res) -> accum && res);
     }
 
     public static boolean waitAllBrokersDown(DockerClient docker, String cluster) {
         return brokerSet(docker, cluster).stream()
-            .map((b) -> waitBrokerDown(docker, b, 10, TimeUnit.SECONDS))
+            .map((b) -> waitBrokerDown(docker, b, 60, TimeUnit.SECONDS))
             .reduce(true, (accum, res) -> accum && res);
     }
 
@@ -263,7 +263,7 @@ public class PulsarClusterUtils {
 
     public static boolean waitAllProxiesUp(DockerClient docker, String cluster) {
         return proxySet(docker, cluster).stream()
-            .map((b) -> waitProxyUp(docker, b, 10, TimeUnit.SECONDS))
+            .map((b) -> waitProxyUp(docker, b, 60, TimeUnit.SECONDS))
             .reduce(true, (accum, res) -> accum && res);
     }
 
