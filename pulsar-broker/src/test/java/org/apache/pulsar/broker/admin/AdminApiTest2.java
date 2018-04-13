@@ -27,6 +27,8 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -54,9 +56,13 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
+import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
+import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.FailureDomain;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -65,6 +71,7 @@ import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -803,6 +810,49 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
             fail("Should have failed");
         } catch (PulsarAdminException e) {
             // Expected
+        }
+    }
+    
+    @Test
+    public void brokerNamespaceIsolationPolicies() throws Exception {
+
+        // create
+        String policyName1 = "policy-1";
+        String namespaceRegex = "other/use/other.*";
+        String cluster = "use";
+        String brokerName = pulsar.getAdvertisedAddress();
+        String brokerAddress = brokerName + ":" + pulsar.getConfiguration().getWebServicePort();
+        NamespaceIsolationData nsPolicyData1 = new NamespaceIsolationData();
+        nsPolicyData1.namespaces = new ArrayList<String>();
+        nsPolicyData1.namespaces.add(namespaceRegex);
+        nsPolicyData1.primary = new ArrayList<String>();
+        nsPolicyData1.primary.add(brokerName + ":[0-9]*");
+        nsPolicyData1.secondary = new ArrayList<String>();
+        nsPolicyData1.secondary.add(brokerName + ".*");
+        nsPolicyData1.auto_failover_policy = new AutoFailoverPolicyData();
+        nsPolicyData1.auto_failover_policy.policy_type = AutoFailoverPolicyType.min_available;
+        nsPolicyData1.auto_failover_policy.parameters = new HashMap<String, String>();
+        nsPolicyData1.auto_failover_policy.parameters.put("min_limit", "1");
+        nsPolicyData1.auto_failover_policy.parameters.put("usage_threshold", "100");
+        admin.clusters().createNamespaceIsolationPolicy(cluster, policyName1, nsPolicyData1);
+
+        List<BrokerNamespaceIsolationData> brokerIsolationDataList = admin.clusters()
+                .getBrokersWithNamespaceIsolationPolicy(cluster);
+        assertEquals(brokerIsolationDataList.size(), 1);
+        assertEquals(brokerIsolationDataList.get(0).brokerName, brokerAddress);
+        assertEquals(brokerIsolationDataList.get(0).namespaceRegex.size(), 1);
+        assertEquals(brokerIsolationDataList.get(0).namespaceRegex.get(0), namespaceRegex);
+
+        BrokerNamespaceIsolationData brokerIsolationData = admin.clusters()
+                .getBrokerWithNamespaceIsolationPolicy(cluster, brokerAddress);
+        assertEquals(brokerIsolationData.brokerName, brokerAddress);
+        assertEquals(brokerIsolationData.namespaceRegex.size(), 1);
+        assertEquals(brokerIsolationData.namespaceRegex.get(0), namespaceRegex);
+
+        try {
+            admin.clusters().getBrokerWithNamespaceIsolationPolicy(cluster, "invalid-broker");
+            Assert.fail("should have failed due to invalid broker address");
+        } catch (PulsarAdminException.NotFoundException e) {// expected
         }
     }
 }

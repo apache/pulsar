@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.loadbalance.impl;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -121,5 +122,10 @@ public class ModularLoadManagerWrapper implements LoadManager {
 
     public ModularLoadManager getLoadManager() {
         return loadManager;
+    }
+
+    @Override
+    public Set<String> getAvailableBrokers() throws Exception {
+        return loadManager.getAvailableBrokers();
     }
 }
