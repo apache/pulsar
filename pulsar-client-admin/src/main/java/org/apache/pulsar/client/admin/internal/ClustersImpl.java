@@ -31,6 +31,7 @@ import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.client.admin.Clusters;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.ErrorData;
@@ -119,6 +120,30 @@ public class ClustersImpl extends BaseResource implements Clusters {
             return request(adminClusters.path(cluster).path("namespaceIsolationPolicies")).get(
                     new GenericType<Map<String, NamespaceIsolationData>>() {
                     });
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    
+    @Override
+    public List<BrokerNamespaceIsolationData> getBrokersWithNamespaceIsolationPolicy(String cluster)
+            throws PulsarAdminException {
+        try {
+            return request(adminClusters.path(cluster).path("namespaceIsolationPolicies").path("brokers"))
+                    .get(new GenericType<List<BrokerNamespaceIsolationData>>() {
+                    });
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public BrokerNamespaceIsolationData getBrokerWithNamespaceIsolationPolicy(String cluster, String broker)
+            throws PulsarAdminException {
+        try {
+            return request(adminClusters.path(cluster).path("namespaceIsolationPolicies").path("brokers").path(broker))
+                    .get(BrokerNamespaceIsolationData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }

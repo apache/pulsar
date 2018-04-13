@@ -1248,7 +1248,7 @@ public abstract class NamespacesBase extends AdminResource {
         return new BundlesData(bundles);
     }
 
-    protected BundlesData getBundles(int numBundles) {
+    public static BundlesData getBundles(int numBundles) {
         if (numBundles <= 0 || numBundles > MAX_BUNDLES) {
             throw new RestException(Status.BAD_REQUEST,
                     "Invalid number of bundles. Number of numbles has to be in the range of (0, 2^32].");

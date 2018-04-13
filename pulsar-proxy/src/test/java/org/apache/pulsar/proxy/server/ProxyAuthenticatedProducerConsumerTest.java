@@ -61,7 +61,7 @@ public class ProxyAuthenticatedProducerConsumerTest extends ProducerConsumerBase
 
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
-    private final String configClusterName = "use";
+    private final String configClusterName = "test";
 
     @BeforeMethod
     @Override
@@ -162,12 +162,12 @@ public class ProxyAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         admin.clusters().createCluster(configClusterName, new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
                 "pulsar://localhost:" + BROKER_PORT, "pulsar+ssl://localhost:" + BROKER_PORT_TLS));
         admin.properties().createProperty("my-property",
-                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
-        admin.namespaces().createNamespace("my-property/use/my-ns");
+                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
 
-        Consumer<byte[]> consumer = proxyClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
+        Consumer<byte[]> consumer = proxyClient.newConsumer().topic("persistent://my-property/my-ns/my-topic1")
                 .subscriptionName("my-subscriber-name").subscribe();
-        Producer<byte[]> producer = proxyClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1")
+        Producer<byte[]> producer = proxyClient.newProducer().topic("persistent://my-property/my-ns/my-topic1")
                 .create();
         final int msgs = 10;
         for (int i = 0; i < msgs; i++) {

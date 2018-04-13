@@ -36,6 +36,8 @@
     <module>twitter</module>
     <module>cassandra</module>
     <module>aerospike</module>
+    <module>kafka</module>
+    <module>rabbitmq</module>
   </modules>
 
 </project>
