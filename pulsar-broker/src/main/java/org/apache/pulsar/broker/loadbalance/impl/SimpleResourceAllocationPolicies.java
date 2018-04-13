@@ -26,6 +26,7 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.LoadReport;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.loadbalance.ServiceUnit;
+import static org.apache.pulsar.broker.namespace.NamespaceService.NAMESPACE_ISOLATION_POLICIES;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.NamespaceIsolationPolicy;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
@@ -51,7 +52,7 @@ public class SimpleResourceAllocationPolicies {
     private Optional<NamespaceIsolationPolicies> getIsolationPolicies(String clusterName) {
         try {
             return namespaceIsolationPolicies
-                    .get(AdminResource.path("clusters", clusterName, "namespaceIsolationPolicies"));
+                    .get(AdminResource.path("clusters", clusterName, NAMESPACE_ISOLATION_POLICIES));
         } catch (Exception e) {
             LOG.warn("GetIsolationPolicies: Unable to get the namespaceIsolationPolicies [{}]", e);
             return Optional.empty();
