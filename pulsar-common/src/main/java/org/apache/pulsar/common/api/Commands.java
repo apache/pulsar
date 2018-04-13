@@ -426,6 +426,7 @@ public class Commands {
         return res;
     }
 
+    @VisibleForTesting
     public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
                 Map<String, String> metadata) {
         return newProducer(topic, producerId, requestId, producerName, false, metadata);

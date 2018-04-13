@@ -1656,4 +1656,13 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             .getSchemaRegistryService()
             .putSchemaIfAbsent(id, schema);
     }
+
+    @Override
+    public CompletableFuture<Boolean> isSchemaCompatible(SchemaData schema) {
+        String base = TopicName.get(getName()).getPartitionedTopicName();
+        String id = TopicName.get(base).getSchemaName();
+        return brokerService.pulsar()
+            .getSchemaRegistryService()
+            .isCompatibleWithLatestVersion(id, schema);
+    }
 }

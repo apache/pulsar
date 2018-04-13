@@ -25,6 +25,7 @@ import static org.apache.pulsar.broker.lookup.TopicLookup.lookupTopicAsync;
 import static org.apache.pulsar.common.api.Commands.newLookupErrorResponse;
 import static org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion.v5;
 
+import com.google.common.base.Strings;
 import com.google.protobuf.GeneratedMessageLite;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
@@ -91,6 +92,7 @@ import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.schema.SchemaVersion;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -622,9 +624,25 @@ public class ServerCnx extends PulsarHandler {
                         }
 
                         service.getOrCreateTopic(topicName.toString())
-                                .thenCompose(topic -> topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
-                                                                      subType, priorityLevel, consumerName, isDurable,
-                                                                      startMessageId, metadata, readCompacted, initialPosition))
+                                .thenCompose(topic -> {
+                                    if (subscribe.hasSchema()) {
+                                        return topic.isSchemaCompatible(getSchema(subscribe.getSchema())).thenCompose(isCompatible -> {
+                                            if (isCompatible) {
+                                                return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
+                                                    subType, priorityLevel, consumerName, isDurable,
+                                                    startMessageId, metadata, readCompacted, initialPosition);
+                                            } else {
+                                                return FutureUtil.failedFuture(new BrokerServiceException(
+                                                    "Trying to subscribe with incompatible schema"
+                                                ));
+                                            }
+                                        });
+                                    } else {
+                                        return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
+                                            subType, priorityLevel, consumerName, isDurable,
+                                            startMessageId, metadata, readCompacted, initialPosition);
+                                    }
+                                })
                                 .thenAccept(consumer -> {
                                     if (consumerFuture.complete(consumer)) {
                                         log.info("[{}] Created subscription on topic {} / {}", remoteAddress, topicName,
@@ -721,7 +739,7 @@ public class ServerCnx extends PulsarHandler {
             .data(protocolSchema.getSchemaData().toByteArray())
             .isDeleted(false)
             .timestamp(System.currentTimeMillis())
-            .user(originalPrincipal)
+            .user(Strings.nullToEmpty(originalPrincipal))
             .type(getType(protocolSchema.getType()))
             .props(protocolSchema.getPropertiesList().stream().collect(
                 Collectors.toMap(

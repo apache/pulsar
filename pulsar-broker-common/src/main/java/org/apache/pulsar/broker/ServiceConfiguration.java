@@ -438,6 +438,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean preferLaterVersions = false;
 
     private String schemaRegistryStorageClassName = "org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory";
+    private Set<String> schemaRegistryCompatibilityCheckers = Sets.newHashSet(
+        "org.apache.pulsar.broker.service.schema.JsonSchemaCompatibilityCheck"
+    );
 
     /**** --- WebSocket --- ****/
     // Number of IO threads in Pulsar Client used in WebSocket proxy
@@ -1504,6 +1507,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setSchemaRegistryStorageClassName(String className) {
         schemaRegistryStorageClassName = className;
+    }
+
+    public Set<String> getSchemaRegistryCompatibilityCheckers() {
+        return schemaRegistryCompatibilityCheckers;
+    }
+
+    public void setSchemaRegistryCompatibilityCheckers(Set<String> schemaRegistryCompatibilityCheckers) {
+        this.schemaRegistryCompatibilityCheckers = schemaRegistryCompatibilityCheckers;
     }
 
     public boolean authenticateOriginalAuthData() {

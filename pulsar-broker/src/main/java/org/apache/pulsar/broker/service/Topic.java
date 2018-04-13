@@ -130,4 +130,6 @@ public interface Topic {
     Position getLastMessageId();
 
     CompletableFuture<SchemaVersion> addSchema(SchemaData schema);
+
+    CompletableFuture<Boolean> isSchemaCompatible(SchemaData schema);
 }
