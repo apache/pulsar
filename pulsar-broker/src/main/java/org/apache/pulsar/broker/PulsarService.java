@@ -408,99 +408,7 @@ public class PulsarService implements AutoCloseable {
             leaderElectionService.start();
 
             // start function worker service if necessary
-            if (functionWorkerService.isPresent()) {
-
-                String namespace = functionWorkerService.get()
-                        .getWorkerConfig().getPulsarFunctionsNamespace();
-                String[] a = functionWorkerService.get().getWorkerConfig().getPulsarFunctionsNamespace().split("/");
-                String property = a[0];
-                String cluster = a[1];
-
-                /*
-                multiple brokers may be trying to create the property, cluster, and namespace
-                for function worker service this in parallel. The function worker service uses the namespace
-                to create topics for internal function
-                */
-
-                // create property for function worker service
-                try {
-                    NamedEntity.checkName(property);
-                    this.getGlobalZkCache().getZooKeeper().create(
-                            AdminResource.path(POLICIES, property),
-                            ObjectMapperFactory.getThreadLocal().writeValueAsBytes(
-                                    new PropertyAdmin(
-                                            Sets.newHashSet(config.getSuperUserRoles()),
-                                            Sets.newHashSet(cluster))),
-                            ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-                    LOG.info("Created property {} for function worker", property);
-                } catch (KeeperException.NodeExistsException e) {
-                    LOG.debug("Failed to create already existing property {} for function worker service", cluster, e);
-                } catch (IllegalArgumentException e) {
-                    LOG.error("Failed to create property with invalid name {} for function worker service", cluster, e);
-                    throw e;
-                } catch (Exception e) {
-                    LOG.error("Failed to create property {} for function worker", cluster, e);
-                    throw e;
-                }
-
-                // create cluster for function worker service
-                try {
-                    NamedEntity.checkName(cluster);
-                    ClusterData clusterData = new ClusterData(this.getWebServiceAddress(), null /* serviceUrlTls */,
-                            brokerServiceUrl, null /* brokerServiceUrlTls */);
-                    this.getGlobalZkCache().getZooKeeper().create(
-                            AdminResource.path("clusters", cluster),
-                            ObjectMapperFactory.getThreadLocal().writeValueAsBytes(clusterData),
-                            ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-                    LOG.info("Created cluster {} for function worker", cluster);
-                } catch (KeeperException.NodeExistsException e) {
-                    LOG.debug("Failed to create already existing cluster {} for function worker service", cluster, e);
-                } catch (IllegalArgumentException e) {
-                    LOG.error("Failed to create cluster with invalid name {} for function worker service", cluster, e);
-                    throw e;
-                } catch (Exception e) {
-                    LOG.error("Failed to create cluster {} for function worker service", cluster, e);
-                    throw e;
-                }
-
-                // create namespace for function worker service
-                try {
-                    Policies policies = new Policies();
-                    int defaultNumberOfBundles = this.getConfiguration().getDefaultNumberOfNamespaceBundles();
-                    policies.bundles = getBundles(defaultNumberOfBundles);
-
-                    this.getConfigurationCache().policiesCache().invalidate(AdminResource.path(POLICIES, namespace));
-                    ZkUtils.createFullPathOptimistic(this.getGlobalZkCache().getZooKeeper(),
-                            AdminResource.path(POLICIES, namespace),
-                            ObjectMapperFactory.getThreadLocal().writeValueAsBytes(policies),
-                            ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                            CreateMode.PERSISTENT);
-                    LOG.info("Created namespace {} for function worker service", namespace);
-                } catch (KeeperException.NodeExistsException e) {
-                    LOG.debug("Failed to create already existing namespace {} for function worker service", namespace);
-                } catch (Exception e) {
-                    LOG.error("Failed to create namespace {}", namespace, e);
-                    throw e;
-                }
-
-                InternalConfigurationData internalConf = new InternalConfigurationData(
-                        this.getConfiguration().getZookeeperServers(),
-                        this.getConfiguration().getGlobalZookeeperServers(),
-                        new ClientConfiguration().getZkLedgersRootPath());
-
-                URI dlogURI;
-                try {
-                    // initializing dlog namespace for function worker
-                    dlogURI = Utils.initializeDlogNamespace(
-                            internalConf.getZookeeperServers(),
-                            internalConf.getLedgersRootPath());
-                } catch (IOException ioe) {
-                    LOG.error("Failed to initialize dlog namespace at zookeeper {} for storing function packages",
-                            internalConf.getZookeeperServers(), ioe);
-                    throw ioe;
-                }
-                functionWorkerService.get().start(dlogURI);
-            }
+            this.startWorkerService();
 
             LOG.info("Starting Pulsar Broker service; version: '{}'", ( brokerVersion != null ? brokerVersion : "unknown" )  );
 
@@ -898,5 +806,103 @@ public class PulsarService implements AutoCloseable {
 
     public SchemaRegistryService getSchemaRegistryService() {
         return schemaRegistryService;
+    }
+
+    private void startWorkerService() throws InterruptedException, IOException, KeeperException {
+        if (functionWorkerService.isPresent()) {
+            LOG.info("Starting function worker service");
+            String namespace = functionWorkerService.get()
+                    .getWorkerConfig().getPulsarFunctionsNamespace();
+            String[] a = functionWorkerService.get().getWorkerConfig().getPulsarFunctionsNamespace().split("/");
+            String property = a[0];
+            String cluster = a[1];
+
+                /*
+                multiple brokers may be trying to create the property, cluster, and namespace
+                for function worker service this in parallel. The function worker service uses the namespace
+                to create topics for internal function
+                */
+
+            // create property for function worker service
+            try {
+                NamedEntity.checkName(property);
+                this.getGlobalZkCache().getZooKeeper().create(
+                        AdminResource.path(POLICIES, property),
+                        ObjectMapperFactory.getThreadLocal().writeValueAsBytes(
+                                new PropertyAdmin(
+                                        Sets.newHashSet(config.getSuperUserRoles()),
+                                        Sets.newHashSet(cluster))),
+                        ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+                LOG.info("Created property {} for function worker", property);
+            } catch (KeeperException.NodeExistsException e) {
+                LOG.debug("Failed to create already existing property {} for function worker service", cluster, e);
+            } catch (IllegalArgumentException e) {
+                LOG.error("Failed to create property with invalid name {} for function worker service", cluster, e);
+                throw e;
+            } catch (Exception e) {
+                LOG.error("Failed to create property {} for function worker", cluster, e);
+                throw e;
+            }
+
+            // create cluster for function worker service
+            try {
+                NamedEntity.checkName(cluster);
+                ClusterData clusterData = new ClusterData(this.getWebServiceAddress(), null /* serviceUrlTls */,
+                        brokerServiceUrl, null /* brokerServiceUrlTls */);
+                this.getGlobalZkCache().getZooKeeper().create(
+                        AdminResource.path("clusters", cluster),
+                        ObjectMapperFactory.getThreadLocal().writeValueAsBytes(clusterData),
+                        ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+                LOG.info("Created cluster {} for function worker", cluster);
+            } catch (KeeperException.NodeExistsException e) {
+                LOG.debug("Failed to create already existing cluster {} for function worker service", cluster, e);
+            } catch (IllegalArgumentException e) {
+                LOG.error("Failed to create cluster with invalid name {} for function worker service", cluster, e);
+                throw e;
+            } catch (Exception e) {
+                LOG.error("Failed to create cluster {} for function worker service", cluster, e);
+                throw e;
+            }
+
+            // create namespace for function worker service
+            try {
+                Policies policies = new Policies();
+                int defaultNumberOfBundles = this.getConfiguration().getDefaultNumberOfNamespaceBundles();
+                policies.bundles = getBundles(defaultNumberOfBundles);
+
+                this.getConfigurationCache().policiesCache().invalidate(AdminResource.path(POLICIES, namespace));
+                ZkUtils.createFullPathOptimistic(this.getGlobalZkCache().getZooKeeper(),
+                        AdminResource.path(POLICIES, namespace),
+                        ObjectMapperFactory.getThreadLocal().writeValueAsBytes(policies),
+                        ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                        CreateMode.PERSISTENT);
+                LOG.info("Created namespace {} for function worker service", namespace);
+            } catch (KeeperException.NodeExistsException e) {
+                LOG.debug("Failed to create already existing namespace {} for function worker service", namespace);
+            } catch (Exception e) {
+                LOG.error("Failed to create namespace {}", namespace, e);
+                throw e;
+            }
+
+            InternalConfigurationData internalConf = new InternalConfigurationData(
+                    this.getConfiguration().getZookeeperServers(),
+                    this.getConfiguration().getGlobalZookeeperServers(),
+                    new ClientConfiguration().getZkLedgersRootPath());
+
+            URI dlogURI;
+            try {
+                // initializing dlog namespace for function worker
+                dlogURI = Utils.initializeDlogNamespace(
+                        internalConf.getZookeeperServers(),
+                        internalConf.getLedgersRootPath());
+            } catch (IOException ioe) {
+                LOG.error("Failed to initialize dlog namespace at zookeeper {} for storing function packages",
+                        internalConf.getZookeeperServers(), ioe);
+                throw ioe;
+            }
+            LOG.info("Function worker service setup completed");
+            functionWorkerService.get().start(dlogURI);
+            LOG.info("Function worker service started");
+        }
     }
 }

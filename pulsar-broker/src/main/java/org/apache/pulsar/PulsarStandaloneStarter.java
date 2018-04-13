@@ -257,7 +257,7 @@ public class PulsarStandaloneStarter {
         } catch (PulsarAdminException e) {
             log.info(e.getMessage());
         }
-        
+
         log.debug("--- setup completed ---");
     }
 
