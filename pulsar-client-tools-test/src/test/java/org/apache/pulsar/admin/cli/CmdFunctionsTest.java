@@ -79,12 +79,14 @@ public class CmdFunctionsTest {
         return new org.powermock.modules.testng.PowerMockObjectFactory();
     }
 
-    private static final String TEST_NAME = "test_name";
+    private static final String TEST_FUNCTION_NAME = "test-function";
+    private static final String TEST_INPUT_TOPIC = "persistent://tenant/standalone/namespace/input-topic";
+    private static final String TEST_OUTPUT_TOPIC = "persistent://tenant/standalone/namespace/output-topic";
+    private static final String TEST_JAR = "src/test/resources/pulsar-functions-api-examples.jar";
+    private static final String TEST_CLASS_NAME = "org.apache.pulsar.functions.api.examples.ExclamationFunction";
 
     private Functions functions;
     private CmdFunctions cmd;
-    private final String testJar = "src/test/resources/pulsar-functions-api-examples.jar";
-    private final String testClassName = "org.apache.pulsar.functions.api.examples.ExclamationFunction";
 
     private String generateCustomSerdeInputs(String topic, String serde) {
         Map<String, String> map = new HashMap<>();
@@ -116,19 +118,22 @@ public class CmdFunctionsTest {
         cmd.run(new String[] { "localrun" });
 
         LocalRunner runner = cmd.getLocalRunner();
+        assertNull(runner.getTenant());
+        assertNull(runner.getNamespace());
         assertNull(runner.getFunctionName());
         assertNull(runner.getInputs());
         assertNull(runner.getOutput());
         assertNull(runner.getFnConfigFile());
+        assertNull(runner.getClassName());
     }
 
     /*
     TODO(sijie):- Can we fix this?
     @Test
     public void testLocalRunnerCmdSettings() throws Exception {
-        String fnName = TEST_NAME + "-function";
-        String sourceTopicName = TEST_NAME + "-source-topic";
-        String output = TEST_NAME + "-sink-topic";
+        String fnName = TEST_FUNCTION_NAME + "-function";
+        String sourceTopicName = TEST_FUNCTION_NAME + "-source-topic";
+        String output = TEST_FUNCTION_NAME + "-sink-topic";
         cmd.run(new String[] {
             "localrun",
             "--name", fnName,
@@ -162,24 +167,27 @@ public class CmdFunctionsTest {
 
     @Test
     public void testCreateFunction() throws Exception {
-        String fnName = TEST_NAME + "-function";
-        String inputTopicName = "persistent://tenant/standalone/namespace/input-topic";
-        String outputTopicName = "persistent://tenant/standalone/namespace/output-topic";
+        String tenant = "sample";
+        String namespace = "ns1";
+
         cmd.run(new String[] {
             "create",
-            "--name", fnName,
-            "--inputs", inputTopicName,
-            "--output", outputTopicName,
-            "--jar", testJar,
-            "--tenant", "sample",
-            "--namespace", "ns1",
-            "--className", testClassName,
+            "--name", TEST_FUNCTION_NAME,
+            "--inputs", TEST_INPUT_TOPIC,
+            "--output", TEST_OUTPUT_TOPIC,
+            "--jar", TEST_JAR,
+            "--tenant", tenant,
+            "--namespace", namespace,
+            "--className", TEST_CLASS_NAME,
         });
 
         CreateFunction creater = cmd.getCreater();
-        assertEquals(fnName, creater.getFunctionName());
-        assertEquals(inputTopicName, creater.getInputs());
-        assertEquals(outputTopicName, creater.getOutput());
+        assertEquals(namespace, creater.getNamespace());
+        assertEquals(TEST_FUNCTION_NAME, creater.getFunctionName());
+        assertEquals(TEST_INPUT_TOPIC, creater.getInputs());
+        assertEquals(TEST_OUTPUT_TOPIC, creater.getOutput());
+        assertEquals(TEST_JAR, creater.getJarFilePath());
+        assertEquals(TEST_CLASS_NAME, creater.getClassName());
 
         verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
 
@@ -187,48 +195,41 @@ public class CmdFunctionsTest {
 
     @Test
     public void testCreateWithoutTenant() throws Exception {
-        String fnName = TEST_NAME + "-function";
-        String inputTopicName = "persistent://tenant/standalone/namespace/input-topic";
-        String outputTopicName = "persistent://tenant/standalone/namespace/output-topic";
         cmd.run(new String[] {
                 "create",
-                "--name", fnName,
-                "--inputs", inputTopicName,
-                "--output", outputTopicName,
-                "--jar", testJar,
+                "--name", TEST_FUNCTION_NAME,
+                "--inputs", TEST_INPUT_TOPIC,
+                "--output", TEST_OUTPUT_TOPIC,
+                "--jar", TEST_JAR,
                 "--namespace", "ns1",
-                "--className", testClassName,
+                "--className", TEST_CLASS_NAME,
         });
 
         CreateFunction creater = cmd.getCreater();
-        assertEquals("tenant", creater.getFunctionConfig().getTenant());
+        assertEquals("tenant", creater.getTenant());
         verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
     }
 
     @Test
     public void testCreateWithoutNamespace() throws Exception {
-        String fnName = TEST_NAME + "-function";
-        String inputTopicName = "persistent://tenant/standalone/namespace/input-topic";
-        String outputTopicName = "persistent://tenant/standalone/namespace/output-topic";
         cmd.run(new String[] {
                 "create",
-                "--name", fnName,
-                "--inputs", inputTopicName,
-                "--output", outputTopicName,
-                "--jar", testJar,
-                "--className", testClassName,
+                "--name", TEST_FUNCTION_NAME,
+                "--inputs", TEST_INPUT_TOPIC,
+                "--output", TEST_OUTPUT_TOPIC,
+                "--jar", TEST_JAR,
+                "--className", TEST_CLASS_NAME,
         });
 
         CreateFunction creater = cmd.getCreater();
-        assertEquals("tenant", creater.getFunctionConfig().getTenant());
-        assertEquals("namespace", creater.getFunctionConfig().getNamespace());
+        assertEquals("tenant", creater.getTenant());
+        assertEquals("namespace", creater.getNamespace());
+        assertEquals(TEST_FUNCTION_NAME, creater.getFunctionName());
         verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
     }
 
     @Test
     public void testCreateUsingFullyQualifiedFunctionName() throws Exception {
-        String inputTopicName = "persistent://tenant/standalone/namespace/input-topic";
-        String outputTopicName = "persistent://tenant/standalone/namespace/output-topic";
         String tenant = "sample";
         String namespace = "ns1";
         String functionName = "func";
@@ -236,71 +237,67 @@ public class CmdFunctionsTest {
 
         cmd.run(new String[] {
                 "create",
-                "--inputs", inputTopicName,
-                "--output", outputTopicName,
+                "--inputs", TEST_INPUT_TOPIC,
+                "--output", TEST_OUTPUT_TOPIC,
                 "--fqfn", fqfn,
-                "--jar", testJar,
-                "--className", testClassName,
+                "--jar", TEST_JAR,
+                "--className", TEST_CLASS_NAME,
         });
 
         CreateFunction creater = cmd.getCreater();
-        assertEquals(tenant, creater.getFunctionConfig().getTenant());
-        assertEquals(namespace, creater.getFunctionConfig().getNamespace());
-        assertEquals(functionName, creater.getFunctionConfig().getName());
+        assertEquals(tenant, creater.getTenant());
+        assertEquals(namespace, creater.getNamespace());
+        assertEquals(functionName, creater.getFunctionName());
         verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
     }
 
     @Test
     public void testCreateWithoutFunctionName() throws Exception {
-        String inputTopicName = TEST_NAME + "-input-topic";
-        String outputTopicName = TEST_NAME + "-output-topic";
         cmd.run(new String[] {
                 "create",
-                "--inputs", inputTopicName,
-                "--output", outputTopicName,
-                "--jar", testJar,
+                "--inputs", TEST_INPUT_TOPIC,
+                "--output", TEST_OUTPUT_TOPIC,
+                "--jar", TEST_JAR,
                 "--tenant", "sample",
                 "--namespace", "ns1",
-                "--className", testClassName,
+                "--className", TEST_CLASS_NAME,
         });
 
         CreateFunction creater = cmd.getCreater();
-        assertEquals("ExclamationFunction", creater.getFunctionConfig().getName());
+        assertEquals("ExclamationFunction", creater.getFunctionName());
         verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
     }
 
     @Test
     public void testCreateWithoutOutputTopic() throws Exception {
-        String inputTopicName = TEST_NAME + "-input-topic";
         cmd.run(new String[] {
                 "create",
-                "--inputs", inputTopicName,
-                "--jar", testJar,
+                "--inputs", TEST_INPUT_TOPIC,
+                "--jar", TEST_JAR,
                 "--tenant", "sample",
                 "--namespace", "ns1",
-                "--className", testClassName,
+                "--className", TEST_CLASS_NAME,
         });
 
         CreateFunction creater = cmd.getCreater();
-        assertEquals(inputTopicName + "-" + "ExclamationFunction" + "-output", creater.getFunctionConfig().getOutput());
+        assertEquals(String.format("%s-ExclamationFunction-output", TEST_INPUT_TOPIC), creater.getOutput());
         verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
     }
 
     @Test
     public void testGetFunction() throws Exception {
-        String tenant = TEST_NAME + "-tenant";
-        String namespace = TEST_NAME + "-namespace";
-        String fnName = TEST_NAME + "-function";
+        String tenant = TEST_FUNCTION_NAME + "-tenant";
+        String namespace = TEST_FUNCTION_NAME + "-namespace";
 
         cmd.run(new String[] {
             "get",
-            "--name", fnName,
+            "--name", TEST_FUNCTION_NAME,
             "--tenant", tenant,
             "--namespace", namespace
         });
 
         GetFunction getter = cmd.getGetter();
-        assertEquals(fnName, getter.getFunctionName());
+        assertEquals(TEST_FUNCTION_NAME, getter.getFunctionName());
         assertEquals(tenant, getter.getTenant());
         assertEquals(namespace, getter.getNamespace());
 
@@ -309,19 +306,18 @@ public class CmdFunctionsTest {
 
     @Test
     public void testDeleteFunction() throws Exception {
-        String tenant = TEST_NAME + "-tenant";
-        String namespace = TEST_NAME + "-namespace";
-        String fnName = TEST_NAME + "-function";
+        String tenant = TEST_FUNCTION_NAME + "-tenant";
+        String namespace = TEST_FUNCTION_NAME + "-namespace";
 
         cmd.run(new String[] {
             "delete",
-            "--name", fnName,
+            "--name", TEST_FUNCTION_NAME,
             "--tenant", tenant,
             "--namespace", namespace
         });
 
         DeleteFunction deleter = cmd.getDeleter();
-        assertEquals(fnName, deleter.getFunctionName());
+        assertEquals(TEST_FUNCTION_NAME, deleter.getFunctionName());
         assertEquals(tenant, deleter.getTenant());
         assertEquals(namespace, deleter.getNamespace());
 
@@ -330,35 +326,29 @@ public class CmdFunctionsTest {
 
     @Test
     public void testUpdateFunction() throws Exception {
-        String fnName = TEST_NAME + "-function";
-        String inputTopicName = TEST_NAME + "-input-topic";
-        String outputTopicName = TEST_NAME + "-output-topic";
-
-
-
         cmd.run(new String[] {
             "update",
-            "--name", fnName,
-            "--inputs", inputTopicName,
-            "--output", outputTopicName,
-            "--jar", testJar,
+            "--name", TEST_FUNCTION_NAME,
+            "--inputs", TEST_INPUT_TOPIC,
+            "--output", TEST_OUTPUT_TOPIC,
+            "--jar", TEST_JAR,
             "--tenant", "sample",
             "--namespace", "ns1",
-            "--className", testClassName,
+            "--className", TEST_CLASS_NAME,
         });
 
         UpdateFunction updater = cmd.getUpdater();
-        assertEquals(fnName, updater.getFunctionName());
-        assertEquals(inputTopicName, updater.getInputs());
-        assertEquals(outputTopicName, updater.getOutput());
+        assertEquals(TEST_FUNCTION_NAME, updater.getFunctionName());
+        assertEquals(TEST_INPUT_TOPIC, updater.getInputs());
+        assertEquals(TEST_OUTPUT_TOPIC, updater.getOutput());
 
         verify(functions, times(1)).updateFunction(any(FunctionDetails.class), anyString());
     }
 
     @Test
     public void testListFunctions() throws Exception {
-        String tenant = TEST_NAME + "-tenant";
-        String namespace = TEST_NAME + "-namespace";
+        String tenant = TEST_FUNCTION_NAME + "-tenant";
+        String namespace = TEST_FUNCTION_NAME + "-namespace";
 
         cmd.run(new String[] {
             "list",
@@ -375,19 +365,16 @@ public class CmdFunctionsTest {
 
     @Test
     public void testNonExistentJarFails() throws IllegalArgumentException {
-        String fnName = TEST_NAME + "-function";
-        String tenant = TEST_NAME + "-tenant";
-        String namespace = TEST_NAME + "-namespace";
-        String inputTopicName = TEST_NAME + "-input-topic";
-        String outputTopicName = TEST_NAME + "-output-topic";
+        String tenant = TEST_FUNCTION_NAME + "-tenant";
+        String namespace = TEST_FUNCTION_NAME + "-namespace";
 
         cmd.run(new String[] {
                 "create",
                 "--tenant", tenant,
                 "--namespace", namespace,
-                "--name", fnName,
-                "--inputs", inputTopicName,
-                "--output", outputTopicName,
+                "--name", TEST_FUNCTION_NAME,
+                "--inputs", TEST_INPUT_TOPIC,
+                "--output", TEST_OUTPUT_TOPIC,
                 "--jar", "non-existent-jar.jar",
                 "--className", "org.apache.pulsar.functions.api.examples.DoesNotExist"
         });
@@ -395,9 +382,9 @@ public class CmdFunctionsTest {
 
     @Test
     public void testStateGetter() throws Exception {
-        String tenant = TEST_NAME + "_tenant";
-        String namespace = TEST_NAME + "_namespace";
-        String fnName = TEST_NAME + "_function";
+        String tenant = TEST_FUNCTION_NAME + "_tenant";
+        String namespace = TEST_FUNCTION_NAME + "_namespace";
+        String fnName = TEST_FUNCTION_NAME + "_function";
 
         mockStatic(StorageClientBuilder.class);
 
