@@ -81,7 +81,6 @@ public class CmdFunctionsTest {
 
     private static final String TEST_NAME = "test_name";
 
-    private PulsarAdmin admin;
     private Functions functions;
     private CmdFunctions cmd;
     private final String testJar = "src/test/resources/pulsar-functions-api-examples.jar";
@@ -95,7 +94,7 @@ public class CmdFunctionsTest {
 
     @BeforeMethod
     public void setup() throws Exception {
-        this.admin = mock(PulsarAdmin.class);
+        PulsarAdmin admin = mock(PulsarAdmin.class);
         this.functions = mock(Functions.class);
         when(admin.functions()).thenReturn(functions);
         when(admin.getServiceUrl()).thenReturn("http://localhost:1234");
@@ -164,8 +163,8 @@ public class CmdFunctionsTest {
     @Test
     public void testCreateFunction() throws Exception {
         String fnName = TEST_NAME + "-function";
-        String inputTopicName = TEST_NAME + "-input-topic";
-        String outputTopicName = TEST_NAME + "-output-topic";
+        String inputTopicName = "persistent://tenant/standalone/namespace/input-topic";
+        String outputTopicName = "persistent://tenant/standalone/namespace/output-topic";
         cmd.run(new String[] {
             "create",
             "--name", fnName,
@@ -228,8 +227,8 @@ public class CmdFunctionsTest {
 
     @Test
     public void testCreateUsingFullyQualifiedFunctionName() throws Exception {
-        String inputTopicName = TEST_NAME + "-input-topic";
-        String outputTopicName = TEST_NAME + "-output-topic";
+        String inputTopicName = "persistent://tenant/standalone/namespace/input-topic";
+        String outputTopicName = "persistent://tenant/standalone/namespace/output-topic";
         String tenant = "sample";
         String namespace = "ns1";
         String functionName = "func";
