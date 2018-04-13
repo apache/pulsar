@@ -18,14 +18,18 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.common.policies.data.TenantInfo;
-
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.CommaParameterSplitter;
 import com.google.common.collect.Sets;
+
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
+
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 
 @Parameters(commandDescription = "Operations about tenants")
 public class CmdTenants extends CmdBase {
@@ -55,38 +59,57 @@ public class CmdTenants extends CmdBase {
         private java.util.List<String> params;
 
         @Parameter(names = { "--admin-roles",
-                "-r" }, description = "Comma separated Admin roles", required = true, splitter = CommaParameterSplitter.class)
-        private java.util.List<String> adminRoles;
+                "-r" }, description = "Comma separated list of auth principal allowed to administrate the tenant", required = false, splitter = CommaParameterSplitter.class)
+        private Set<String> adminRoles;
 
         @Parameter(names = { "--allowed-clusters",
-                "-c" }, description = "Comma separated allowed clusters", required = true, splitter = CommaParameterSplitter.class)
-        private java.util.List<String> allowedClusters;
+                "-c" }, description = "Comma separated allowed clusters. If empty, the tenant will have access to all clusters", required = false, splitter = CommaParameterSplitter.class)
+        private Set<String> allowedClusters;
 
         @Override
         void run() throws PulsarAdminException {
             String tenant = getOneArgument(params);
+
+            if (adminRoles == null) {
+                adminRoles = Collections.emptySet();
+            }
+
+            if (allowedClusters == null || allowedClusters.isEmpty()) {
+                // Default to all available cluster
+                allowedClusters = new HashSet<>(admin.clusters().getClusters());
+            }
+
             TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet(adminRoles), Sets.newHashSet(allowedClusters));
             admin.tenants().createTenant(tenant, tenantInfo);
         }
     }
 
-    @Parameters(commandDescription = "Updates a tenant")
+    @Parameters(commandDescription = "Updates the configuration for a tenant")
     private class Update extends CliCommand {
         @Parameter(description = "tenant-name", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = { "--admin-roles",
-                "-r" }, description = "Comma separated Admin roles", required = true, splitter = CommaParameterSplitter.class)
-        private java.util.List<String> adminRoles;
+                "-r" }, description = "Comma separated list of auth principal allowed to administrate the tenant. If empty the current set of roles won't be modified", required = false, splitter = CommaParameterSplitter.class)
+        private Set<String> adminRoles;
 
         @Parameter(names = { "--allowed-clusters",
-                "-c" }, description = "Comma separated allowed clusters", required = true, splitter = CommaParameterSplitter.class)
-        private java.util.List<String> allowedClusters;
+                "-c" }, description = "Comma separated allowed clusters. If omitted, the current set of clusters will be preserved", required = false, splitter = CommaParameterSplitter.class)
+        private Set<String> allowedClusters;
 
         @Override
         void run() throws PulsarAdminException {
             String tenant = getOneArgument(params);
-            TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet(adminRoles), Sets.newHashSet(allowedClusters));
+
+            if (adminRoles == null) {
+                adminRoles = admin.tenants().getTenantInfo(tenant).getAdminRoles();
+            }
+
+            if (allowedClusters == null) {
+                allowedClusters = admin.tenants().getTenantInfo(tenant).getAllowedClusters();
+            }
+
+            TenantInfo tenantInfo = new TenantInfo(adminRoles, allowedClusters);
             admin.tenants().updateTenant(tenant, tenantInfo);
         }
     }
