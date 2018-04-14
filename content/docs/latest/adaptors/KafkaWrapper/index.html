@@ -1564,6 +1564,22 @@ thing that needs to be adjusted is the configuration, to make sure to point the
 producers and consumers to Pulsar service rather than Kafka and to use a particular
 Pulsar topic.</p>
 
+<h2 id="using-the-pulsar-kafka-compatibility-wrapper-together-with-existing-kafka-client">Using the Pulsar Kafka compatibility wrapper together with existing kafka client.</h2>
+
+<p>When migrating from Kafka to Pulsar, the application might have to use the original kafka client
+and the pulsar kafka wrapper together during migration. Then you should consider using the
+unshaded pulsar kafka client wrapper.</p>
+
+<div class="language-xml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">&lt;dependency&gt;</span>
+  <span class="nt">&lt;groupId&gt;</span>org.apache.pulsar<span class="nt">&lt;/groupId&gt;</span>
+  <span class="nt">&lt;artifactId&gt;</span>pulsar-client-kafka-original<span class="nt">&lt;/artifactId&gt;</span>
+  <span class="nt">&lt;version&gt;</span>1.22.0-incubating<span class="nt">&lt;/version&gt;</span>
+<span class="nt">&lt;/dependency&gt;</span>
+</code></pre></div></div>
+
+<p>When using this dependency, you need to construct producer using <code class="highlighter-rouge">org.apache.kafka.clients.producer.PulsarKafkaProducer</code>
+instead of <code class="highlighter-rouge">org.apache.kafka.clients.producer.KafkaProducer</code> and <code class="highlighter-rouge">org.apache.kafka.clients.producer.PulsarKafkaConsumer</code> for consumers.</p>
+
 <h2 id="producer-example">Producer example</h2>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Topic needs to be a regular Pulsar topic</span>

@@ -196,10 +196,16 @@
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/common/policies/data/BrokerAssignment.html" title="enum in org.apache.pulsar.common.policies.data"><span class="typeNameLink">BrokerAssignment</span></a> - Enum in <a href="org/apache/pulsar/common/policies/data/package-summary.html">org.apache.pulsar.common.policies.data</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/BrokerNamespaceIsolationData.html#brokerName">brokerName</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/BrokerNamespaceIsolationData.html" title="class in org.apache.pulsar.common.policies.data">BrokerNamespaceIsolationData</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentOfflineTopicStats.html#brokerName">brokerName</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentOfflineTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentOfflineTopicStats</a></dt>
 <dd>
 <div class="block">Broker host where this stat was generated</div>
 </dd>
+<dt><a href="org/apache/pulsar/common/policies/data/BrokerNamespaceIsolationData.html" title="class in org.apache.pulsar.common.policies.data"><span class="typeNameLink">BrokerNamespaceIsolationData</span></a> - Class in <a href="org/apache/pulsar/common/policies/data/package-summary.html">org.apache.pulsar.common.policies.data</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/BrokerNamespaceIsolationData.html#BrokerNamespaceIsolationData--">BrokerNamespaceIsolationData()</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/BrokerNamespaceIsolationData.html" title="class in org.apache.pulsar.common.policies.data">BrokerNamespaceIsolationData</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/client/admin/Brokers.html" title="interface in org.apache.pulsar.client.admin"><span class="typeNameLink">Brokers</span></a> - Interface in <a href="org/apache/pulsar/client/admin/package-summary.html">org.apache.pulsar.client.admin</a></dt>
 <dd>
 <div class="block">Admin interface for brokers management.</div>
@@ -335,6 +341,10 @@
 <div class="block">Create a new namespace.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#createNamespace-java.lang.String-">createNamespace(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
+<dd>
+<div class="block">Create a new namespace.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#createNamespace-java.lang.String-java.util.Set-">createNamespace(String, Set&lt;String&gt;)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
 <dd>
 <div class="block">Create a new namespace.</div>
 </dd>
@@ -502,6 +512,8 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/BacklogQuota.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/BacklogQuota.html" title="class in org.apache.pulsar.common.policies.data">BacklogQuota</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/BrokerNamespaceIsolationData.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/BrokerNamespaceIsolationData.html" title="class in org.apache.pulsar.common.policies.data">BrokerNamespaceIsolationData</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/BundlesData.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/BundlesData.html" title="class in org.apache.pulsar.common.policies.data">BundlesData</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ClusterData.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ClusterData.html" title="class in org.apache.pulsar.common.policies.data">ClusterData</a></dt>
@@ -646,6 +658,14 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ClusterData.html#getBrokerServiceUrlTls--">getBrokerServiceUrlTls()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ClusterData.html" title="class in org.apache.pulsar.common.policies.data">ClusterData</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Clusters.html#getBrokersWithNamespaceIsolationPolicy-java.lang.String-">getBrokersWithNamespaceIsolationPolicy(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Clusters.html" title="interface in org.apache.pulsar.client.admin">Clusters</a></dt>
+<dd>
+<div class="block">Returns list of active brokers with namespace-isolation policies attached to it.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Clusters.html#getBrokerWithNamespaceIsolationPolicy-java.lang.String-java.lang.String-">getBrokerWithNamespaceIsolationPolicy(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Clusters.html" title="interface in org.apache.pulsar.client.admin">Clusters</a></dt>
+<dd>
+<div class="block">Returns active broker with namespace-isolation policies attached to it.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Lookup.html#getBundleRange-java.lang.String-">getBundleRange(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Lookup.html" title="interface in org.apache.pulsar.client.admin">Lookup</a></dt>
 <dd>
 <div class="block">Get a bundle range of a topic</div>
@@ -1270,6 +1290,8 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NamespaceOwnershipStatus.html#NamespaceOwnershipStatus--">NamespaceOwnershipStatus()</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NamespaceOwnershipStatus.html" title="class in org.apache.pulsar.common.policies.data">NamespaceOwnershipStatus</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NamespaceOwnershipStatus.html#NamespaceOwnershipStatus-org.apache.pulsar.common.policies.data.BrokerAssignment-boolean-boolean-">NamespaceOwnershipStatus(BrokerAssignment, boolean, boolean)</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NamespaceOwnershipStatus.html" title="class in org.apache.pulsar.common.policies.data">NamespaceOwnershipStatus</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/BrokerNamespaceIsolationData.html#namespaceRegex">namespaceRegex</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/BrokerNamespaceIsolationData.html" title="class in org.apache.pulsar.common.policies.data">BrokerNamespaceIsolationData</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin"><span class="typeNameLink">Namespaces</span></a> - Interface in <a href="org/apache/pulsar/client/admin/package-summary.html">org.apache.pulsar.client.admin</a></dt>
 <dd>
