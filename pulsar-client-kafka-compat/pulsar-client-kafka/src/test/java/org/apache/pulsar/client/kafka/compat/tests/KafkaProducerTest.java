@@ -53,7 +53,7 @@ public class KafkaProducerTest extends BrokerTestBase {
 
     @Test
     public void testSimpleProducer() throws Exception {
-        String topic = "persistent://sample/standalone/ns/testSimpleProducer";
+        String topic = "persistent://prop/ns-abc/testSimpleProducer";
 
         Consumer<byte[]> pulsarConsumer = pulsarClient.newConsumer().topic(topic).subscriptionName("my-subscription")
                 .subscribe();
@@ -82,7 +82,7 @@ public class KafkaProducerTest extends BrokerTestBase {
 
     @Test(timeOut = 10000)
     public void testProducerCallback() throws Exception {
-        String topic = "persistent://sample/standalone/ns/testProducerCallback";
+        String topic = "persistent://prop/ns-abc/testProducerCallback";
 
         Consumer<byte[]> pulsarConsumer = pulsarClient.newConsumer().topic(topic).subscriptionName("my-subscription")
                 .subscribe();

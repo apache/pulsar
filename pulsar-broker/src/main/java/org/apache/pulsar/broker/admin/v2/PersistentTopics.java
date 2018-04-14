@@ -330,6 +330,19 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalExpireMessagesForAllSubscriptions(expireTimeInSeconds, authoritative);
     }
 
+    @PUT
+    @Path("/{property}/{namespace}/{topic}/subscription/{subscriptionName}")
+    @ApiOperation(value = "Reset subscription to message position closest to given position.", notes = "Creates a subscription on the topic at the specified message id")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic/Subscription does not exist"),
+            @ApiResponse(code = 405, message = "Not supported for partitioned topics") })
+    public void createSubscription(@PathParam("property") String property, @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String topic, @PathParam("subscriptionName") String subscriptionName,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative, MessageIdImpl messageId) {
+        validateTopicName(property, namespace, topic);
+        internalCreateSubscription(subscriptionName, messageId, authoritative);
+    }
+
     @POST
     @Path("/{property}/{namespace}/{topic}/subscription/{subName}/resetcursor/{timestamp}")
     @ApiOperation(value = "Reset subscription to message position closest to absolute timestamp (in ms).", notes = "It fence cursor and disconnects all active consumers before reseting cursor.")

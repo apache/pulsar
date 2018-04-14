@@ -302,49 +302,10 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
             @ApiResponse(code = 412, message = "Invalid antiAffinityGroup") })
-    public void setNamespaceAntiAffinityGroup(@PathParam("property") String property, @PathParam("cluster") String cluster,
-                                              @PathParam("namespace") String namespace, String antiAffinityGroup) {
-        validateAdminAccessOnProperty(property);
-        validatePoliciesReadOnlyAccess();
-
-        log.info("[{}] Setting anti-affinity group {} for {}/{}/{}", clientAppId(), antiAffinityGroup, property,
-                cluster, namespace);
-
-        if (isBlank(antiAffinityGroup)) {
-            throw new RestException(Status.PRECONDITION_FAILED, "antiAffinityGroup can't be empty");
-        }
-
-        NamespaceName nsName = NamespaceName.get(property, cluster, namespace);
-        Map.Entry<Policies, Stat> policiesNode = null;
-
-        try {
-            // Force to read the data s.t. the watch to the cache content is setup.
-            policiesNode = policiesCache().getWithStat(path(POLICIES, property, cluster, namespace))
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace " + nsName + " does not exist"));
-            policiesNode.getKey().antiAffinityGroup = antiAffinityGroup;
-
-            // Write back the new policies into zookeeper
-            globalZk().setData(path(POLICIES, property, cluster, namespace),
-                    jsonMapper().writeValueAsBytes(policiesNode.getKey()), policiesNode.getValue().getVersion());
-            policiesCache().invalidate(path(POLICIES, property, cluster, namespace));
-
-            log.info("[{}] Successfully updated the antiAffinityGroup {} on namespace {}/{}/{}", clientAppId(),
-                    antiAffinityGroup, property, cluster, namespace);
-        } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to update the antiAffinityGroup for namespace {}/{}/{}: does not exist", clientAppId(),
-                    property, cluster, namespace);
-            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
-        } catch (KeeperException.BadVersionException e) {
-            log.warn(
-                    "[{}] Failed to update the antiAffinityGroup on namespace {}/{}/{} expected policy node version={} : concurrent modification",
-                    clientAppId(), property, cluster, namespace, policiesNode.getValue().getVersion());
-
-            throw new RestException(Status.CONFLICT, "Concurrent modification");
-        } catch (Exception e) {
-            log.error("[{}] Failed to update the antiAffinityGroup on namespace {}/{}/{}", clientAppId(), property, cluster,
-                    namespace, e);
-            throw new RestException(e);
-        }
+    public void setNamespaceAntiAffinityGroup(@PathParam("property") String property,
+            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace, String antiAffinityGroup) {
+        validateNamespaceName(property, cluster, namespace);
+        internalSetNamespaceAntiAffinityGroup(antiAffinityGroup);
     }
 
     @GET
@@ -352,10 +313,10 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get anti-affinity group of a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
-    public String getNamespaceAntiAffinityGroup(@PathParam("property") String property, @PathParam("cluster") String cluster,
-                                                @PathParam("namespace") String namespace) {
-        validateAdminAccessOnProperty(property);
-        return getNamespacePolicies(property, cluster, namespace).antiAffinityGroup;
+    public String getNamespaceAntiAffinityGroup(@PathParam("property") String property,
+            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, cluster, namespace);
+        return internalGetNamespaceAntiAffinityGroup();
     }
 
     @GET
@@ -365,29 +326,7 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 412, message = "Cluster not exist/Anti-affinity group can't be empty.") })
     public List<String> getAntiAffinityNamespaces(@PathParam("cluster") String cluster,
                                                   @PathParam("group") String antiAffinityGroup, @QueryParam("property") String property) {
-        validateAdminAccessOnProperty(property);
-
-        log.info("[{}]-{} Finding namespaces for {} in {}", clientAppId(), property, antiAffinityGroup, cluster);
-
-        if (isBlank(antiAffinityGroup)) {
-            throw new RestException(Status.PRECONDITION_FAILED, "anti-affinity group can't be empty.");
-        }
-        validateClusterExists(cluster);
-        List<String> namespaces = Lists.newArrayList();
-        try {
-            for (String prop : globalZk().getChildren(POLICIES_ROOT, false)) {
-                for (String namespace : globalZk().getChildren(path(POLICIES, prop, cluster), false)) {
-                    Optional<Policies> policies = policiesCache()
-                            .get(AdminResource.path(POLICIES, prop, cluster, namespace));
-                    if (policies.isPresent() && antiAffinityGroup.equalsIgnoreCase(policies.get().antiAffinityGroup)) {
-                        namespaces.add(String.format("%s/%s/%s", prop, cluster, namespace));
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.warn("Failed to list of properties/namespace from global-zk", e);
-        }
-        return namespaces;
+        return internalGetAntiAffinityNamespaces(cluster, antiAffinityGroup, property);
     }
 
     @DELETE
@@ -398,37 +337,9 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 409, message = "Concurrent modification") })
     public void removeNamespaceAntiAffinityGroup(@PathParam("property") String property,
                                                  @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
-        validateAdminAccessOnProperty(property);
-        validatePoliciesReadOnlyAccess();
-
-        log.info("[{}] Deleting anti-affinity group for {}/{}/{}", clientAppId(), property, cluster, namespace);
-
-        try {
-            Stat nodeStat = new Stat();
-            final String path = path(POLICIES, property, cluster, namespace);
-            byte[] content = globalZk().getData(path, null, nodeStat);
-            Policies policies = jsonMapper().readValue(content, Policies.class);
-            policies.antiAffinityGroup = null;
-            globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
-            policiesCache().invalidate(path(POLICIES, property, cluster, namespace));
-            log.info("[{}] Successfully removed anti-affinity group for a namespace={}/{}/{}", clientAppId(), property,
-                    cluster, namespace);
-
-        } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to remove anti-affinity group for namespace {}/{}/{}: does not exist", clientAppId(),
-                    property, cluster, namespace);
-            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
-        } catch (KeeperException.BadVersionException e) {
-            log.warn("[{}] Failed to remove anti-affinity group for namespace {}/{}/{}: concurrent modification",
-                    clientAppId(), property, cluster, namespace);
-            throw new RestException(Status.CONFLICT, "Concurrent modification");
-        } catch (Exception e) {
-            log.error("[{}] Failed to remove anti-affinity group for namespace {}/{}/{}", clientAppId(), property,
-                    cluster, namespace, e);
-            throw new RestException(e);
-        }
+        validateNamespaceName(property, cluster, namespace);
+        internalRemoveNamespaceAntiAffinityGroup();
     }
-
 
     @POST
     @Path("/{property}/{cluster}/{namespace}/deduplication")

@@ -69,7 +69,7 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
         PulsarClient client1 = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort())
                 .build();
         Producer<byte[]> producer1 = client1.newProducer().topic("persistent://sample/test/local/producer-topic-1").create();
-        
+
         LOG.info("Creating producer 2");
         PulsarClient client2 = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort())
                 .build();
@@ -84,6 +84,6 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
         }
         Assert.assertEquals(ProxyConnection.rejectedConnections.get(), 1.0d);
     }
-    
+
     private static final Logger LOG = LoggerFactory.getLogger(ProxyConnectionThrottlingTest.class);
 }

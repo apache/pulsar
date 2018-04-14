@@ -23,9 +23,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-
 import java.util.EnumSet;
 
 import org.apache.pulsar.client.admin.BrokerStats;
@@ -52,6 +49,9 @@ import org.mockito.ArgumentMatcher;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
+
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 @Test
 public class PulsarAdminToolTest {
@@ -426,6 +426,21 @@ public class PulsarAdminToolTest {
         verify(mockResourceQuotas).resetNamespaceBundleResourceQuota("myprop/clust/ns1", "0x80000000_0xffffffff");
     }
 
+    @Test
+    void namespaceIsolationPolicy() throws Exception {
+        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
+        Clusters mockClusters = mock(Clusters.class);
+        when(admin.clusters()).thenReturn(mockClusters);
+
+        CmdNamespaceIsolationPolicy nsIsolationPoliciesCmd = new CmdNamespaceIsolationPolicy(admin);
+
+        nsIsolationPoliciesCmd.run(split("brokers use"));
+        verify(mockClusters).getBrokersWithNamespaceIsolationPolicy("use");
+
+        nsIsolationPoliciesCmd.run(split("broker use --broker my-broker"));
+        verify(mockClusters).getBrokerWithNamespaceIsolationPolicy("use", "my-broker");
+    }
+    
     @Test
     void persistentTopics() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);

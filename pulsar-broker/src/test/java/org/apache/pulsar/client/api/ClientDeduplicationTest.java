@@ -43,8 +43,8 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
 
     @Test
     public void testProducerSequenceAfterReconnect() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/testProducerSequenceAfterReconnect";
-        admin.namespaces().setDeduplicationStatus("my-property/use/my-ns", true);
+        String topic = "persistent://my-property/my-ns/testProducerSequenceAfterReconnect";
+        admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic)
                 .producerName("my-producer-name");
@@ -74,8 +74,8 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
 
     @Test
     public void testProducerSequenceAfterRestart() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/testProducerSequenceAfterRestart";
-        admin.namespaces().setDeduplicationStatus("my-property/use/my-ns", true);
+        String topic = "persistent://my-property/my-ns/testProducerSequenceAfterRestart";
+        admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic)
                 .producerName("my-producer-name");
@@ -108,8 +108,8 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
 
     @Test(timeOut = 30000)
     public void testProducerDeduplication() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/testProducerDeduplication";
-        admin.namespaces().setDeduplicationStatus("my-property/use/my-ns", true);
+        String topic = "persistent://my-property/my-ns/testProducerDeduplication";
+        admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
 
         // Set infinite timeout
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic)
