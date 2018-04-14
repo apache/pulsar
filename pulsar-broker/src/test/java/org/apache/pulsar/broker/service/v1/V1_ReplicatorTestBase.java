@@ -16,9 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service;
+package org.apache.pulsar.broker.service.v1;
 
 import static org.testng.Assert.assertEquals;
+
+import com.google.common.collect.Sets;
 
 import java.net.URL;
 import java.util.ArrayList;
@@ -32,6 +34,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -49,10 +52,7 @@ import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-
-public class ReplicatorTestBase {
+public class V1_ReplicatorTestBase {
     URL url1;
     URL urlTls1;
     ServiceConfiguration config1 = new ServiceConfiguration();
@@ -97,7 +97,7 @@ public class ReplicatorTestBase {
     }
 
     void setup() throws Exception {
-        log.info("--- Starting ReplicatorTestBase::setup ---");
+        log.info("--- Starting V1_ReplicatorTestBase::setup ---");
         int globalZKPort = PortManager.nextFreePort();
         globalZkS = new ZookeeperServerTest(globalZKPort);
         globalZkS.start();
@@ -216,10 +216,10 @@ public class ReplicatorTestBase {
         admin1.clusters().createCluster("global", new ClusterData("http://global:8080", "https://global:8443"));
         admin1.properties().createProperty("pulsar",
                 new PropertyAdmin(Sets.newHashSet("appid1", "appid2", "appid3"), Sets.newHashSet("r1", "r2", "r3")));
-        admin1.namespaces().createNamespace("pulsar/ns");
-        admin1.namespaces().setNamespaceReplicationClusters("pulsar/ns", Sets.newHashSet("r1", "r2", "r3"));
-        admin1.namespaces().createNamespace("pulsar/ns1");
-        admin1.namespaces().setNamespaceReplicationClusters("pulsar/ns1", Sets.newHashSet("r1", "r2"));
+        admin1.namespaces().createNamespace("pulsar/global/ns");
+        admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns", Sets.newHashSet("r1", "r2", "r3"));
+        admin1.namespaces().createNamespace("pulsar/global/ns1");
+        admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns1", Sets.newHashSet("r1", "r2"));
 
         assertEquals(admin2.clusters().getCluster("r1").getServiceUrl(), url1.toString());
         assertEquals(admin2.clusters().getCluster("r2").getServiceUrl(), url2.toString());
@@ -229,7 +229,7 @@ public class ReplicatorTestBase {
         assertEquals(admin2.clusters().getCluster("r3").getBrokerServiceUrl(), pulsar3.getBrokerServiceUrl());
 
         Thread.sleep(100);
-        log.info("--- ReplicatorTestBase::setup completed ---");
+        log.info("--- V1_ReplicatorTestBase::setup completed ---");
 
     }
 
@@ -371,5 +371,5 @@ public class ReplicatorTestBase {
         }
     }
 
-    private static final Logger log = LoggerFactory.getLogger(ReplicatorTestBase.class);
+    private static final Logger log = LoggerFactory.getLogger(V1_ReplicatorTestBase.class);
 }

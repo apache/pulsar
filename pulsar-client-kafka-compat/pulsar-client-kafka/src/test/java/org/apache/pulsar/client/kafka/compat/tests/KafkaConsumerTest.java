@@ -61,7 +61,7 @@ public class KafkaConsumerTest extends BrokerTestBase {
 
     @Test
     public void testSimpleConsumer() throws Exception {
-        String topic = "persistent://sample/standalone/ns/testSimpleConsumer";
+        String topic = "persistent://prop/ns-abc/testSimpleConsumer";
 
         Properties props = new Properties();
         props.put("bootstrap.servers", lookupUrl.toString());
@@ -99,7 +99,7 @@ public class KafkaConsumerTest extends BrokerTestBase {
 
     @Test
     public void testConsumerAutoCommit() throws Exception {
-        String topic = "persistent://sample/standalone/ns/testConsumerAutoCommit";
+        String topic = "persistent://prop/ns-abc/testConsumerAutoCommit";
 
         Properties props = new Properties();
         props.put("bootstrap.servers", lookupUrl.toString());
