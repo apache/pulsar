@@ -222,8 +222,8 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         log.info("-- Starting {} test --", methodName);
 
         final String namespace = "my-property/throttling_ns";
-        final String topicName = "persistent://" + namespace + "/throttlingAll";
-        final String subName = "my-subscriber-name";
+        final String topicName = "persistent://" + namespace + "/throttlingAll-" + System.nanoTime();
+        final String subName = "my-subscriber-name-" + subscription;
 
         final int byteRate = 100;
         DispatchRate dispatchRate = new DispatchRate(-1, byteRate, 1);
@@ -280,7 +280,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
             producer.send(new byte[byteRate / 10]);
         }
         latch.await();
-        Assert.assertEquals(totalReceived.get(), numProducedMessages);
+        Assert.assertEquals(totalReceived.get(), numProducedMessages, 10);
         long end = System.currentTimeMillis();
         log.info("-- end - start: {} ", end - start);
 
