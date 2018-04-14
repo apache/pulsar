@@ -22,11 +22,13 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
+
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
@@ -68,11 +70,11 @@ class EffectivelyOnceProcessor extends MessageProcessorBase implements ConsumerE
     }
 
     @Override
-    protected ConsumerConfiguration createConsumerConfiguration(String topicName) {
-        ConsumerConfiguration conf = super.createConsumerConfiguration(topicName);
+    protected ConsumerBuilder<byte[]> createConsumerBuilder(String topicName) {
+        ConsumerBuilder<byte[]> builder = super.createConsumerBuilder(topicName);
         // for effectively-once processor, register a consumer event listener to react to active consumer changes.
-        conf.setConsumerEventListener(this);
-        return conf;
+        builder.consumerEventListener(this);
+        return builder;
     }
 
     @Override
@@ -129,7 +131,7 @@ class EffectivelyOnceProcessor extends MessageProcessorBase implements ConsumerE
 
             if (null != outputProducer) {
                 // before processing the message, we have a producer connection setup for producing results.
-                Producer producer = null;
+                Producer<byte[]> producer = null;
                 while (null == producer) {
                     try {
                         producer = outputProducer.getProducer(msg.getTopicName(), msg.getTopicPartition());
@@ -153,7 +155,7 @@ class EffectivelyOnceProcessor extends MessageProcessorBase implements ConsumerE
 
     @Override
     public void sendOutputMessage(InputMessage inputMsg,
-                                  MessageBuilder outputMsgBuilder) {
+                                  MessageBuilder<byte[]> outputMsgBuilder) {
         if (null == outputMsgBuilder) {
             inputMsg.ackCumulative();
             return;
@@ -163,7 +165,7 @@ class EffectivelyOnceProcessor extends MessageProcessorBase implements ConsumerE
         outputMsgBuilder = outputMsgBuilder
             .setSequenceId(Utils.getSequenceId(inputMsg.getActualMessage().getMessageId()));
 
-        Producer producer;
+        Producer<byte[]> producer;
         try {
             producer = outputProducer.getProducer(inputMsg.getTopicName(), inputMsg.getTopicPartition());
         } catch (PulsarClientException e) {
@@ -175,7 +177,7 @@ class EffectivelyOnceProcessor extends MessageProcessorBase implements ConsumerE
             return;
         }
 
-        Message outputMsg = outputMsgBuilder.build();
+        Message<byte[]> outputMsg = outputMsgBuilder.build();
         producer.sendAsync(outputMsg)
             .thenAccept(messageId -> inputMsg.ackCumulative())
             .exceptionally(cause -> {
@@ -232,7 +234,7 @@ class EffectivelyOnceProcessor extends MessageProcessorBase implements ConsumerE
     private void resubscribe(String srcTopic) {
         // if we can not produce a message to output topic, then close the consumer of the src topic
         // and retry to instantiate a consumer again.
-        Consumer consumer = inputConsumers.remove(srcTopic);
+        Consumer<byte[]> consumer = inputConsumers.remove(srcTopic);
         if (consumer != null) {
             // TODO (sijie): currently we have to close the entire consumer for a given topic. However
             //               ideally we should do this in a finer granularity - we can close consumer
@@ -245,15 +247,10 @@ class EffectivelyOnceProcessor extends MessageProcessorBase implements ConsumerE
             }
         }
         // subscribe to the src topic again
-        ConsumerConfiguration conf = createConsumerConfiguration(srcTopic);
+        ConsumerBuilder<byte[]> builder = createConsumerBuilder(srcTopic);
         try {
-            inputConsumers.put(
-                srcTopic,
-                client.subscribe(
-                    srcTopic,
-                    FunctionDetailsUtils.getFullyQualifiedName(functionDetails),
-                    conf
-                ));
+            inputConsumers.put(srcTopic, builder.topic(srcTopic)
+                    .subscriptionName(FunctionDetailsUtils.getFullyQualifiedName(functionDetails)).subscribe());
         } catch (PulsarClientException e) {
             log.error("Failed to resubscribe to input topic {}. Added it to retry list and retry it later",
                 srcTopic, e);

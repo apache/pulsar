@@ -19,11 +19,12 @@
 package org.apache.pulsar.functions.instance.producers;
 
 import java.util.concurrent.TimeUnit;
+
 import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.HashingScheme;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
-import org.apache.pulsar.client.api.ProducerConfiguration.HashingScheme;
-import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
+import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.instance.FunctionResultRouter;
@@ -32,51 +33,45 @@ public abstract class AbstractOneOuputTopicProducers implements Producers {
 
     protected final PulsarClient client;
     protected final String outputTopic;
-    protected final ProducerConfiguration conf;
+    protected final ProducerBuilder<byte[]> producerBuilder;
 
     AbstractOneOuputTopicProducers(PulsarClient client,
                                    String outputTopic)
             throws PulsarClientException {
         this.client = client;
         this.outputTopic = outputTopic;
-        this.conf = newProducerConfiguration();
+        this.producerBuilder = newProducerBuilder(client);
     }
 
-    static ProducerConfiguration newProducerConfiguration() {
-        ProducerConfiguration conf = new ProducerConfiguration();
-        conf.setBlockIfQueueFull(true);
-        conf.setBatchingEnabled(true);
-        conf.setBatchingMaxPublishDelay(1, TimeUnit.MILLISECONDS);
-        conf.setMaxPendingMessages(1000000);
-        conf.setCompressionType(CompressionType.LZ4);
-        conf.setHashingScheme(HashingScheme.Murmur3_32Hash);
-        conf.setMessageRoutingMode(MessageRoutingMode.CustomPartition);
+    static ProducerBuilder<byte[]> newProducerBuilder(PulsarClient client) {
         // use function result router to deal with different processing guarantees.
-        conf.setMessageRouter(FunctionResultRouter.of());
-        return conf;
+        return client.newProducer() //
+                .blockIfQueueFull(true) //
+                .enableBatching(true) //
+                .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS) //
+                .compressionType(CompressionType.LZ4) //
+                .hashingScheme(HashingScheme.Murmur3_32Hash) //
+                .messageRoutingMode(MessageRoutingMode.CustomPartition) //
+                .messageRouter(FunctionResultRouter.of());
     }
 
-    protected Producer createProducer(String topic)
+    protected Producer<byte[]> createProducer(String topic)
             throws PulsarClientException {
         return createProducer(client, topic);
     }
 
-    public static Producer createProducer(PulsarClient client, String topic)
+    public static Producer<byte[]> createProducer(PulsarClient client, String topic)
             throws PulsarClientException {
-        return client.createProducer(topic, newProducerConfiguration());
+        return newProducerBuilder(client).topic(topic).create();
     }
 
-    protected Producer createProducer(String topic, String producerName)
+    protected Producer<byte[]> createProducer(String topic, String producerName)
             throws PulsarClientException {
         return createProducer(client, topic, producerName);
     }
 
-    public static Producer createProducer(PulsarClient client, String topic, String producerName)
-        throws PulsarClientException {
-        ProducerConfiguration newConf = newProducerConfiguration();
-        newConf.setProducerName(producerName);
-
-        return client.createProducer(topic, newConf);
+    public static Producer<byte[]> createProducer(PulsarClient client, String topic, String producerName)
+            throws PulsarClientException {
+        return newProducerBuilder(client).topic(topic).producerName(producerName).create();
     }
-
 }

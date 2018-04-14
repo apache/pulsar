@@ -18,24 +18,6 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import java.util.concurrent.atomic.AtomicReference;
-import org.apache.distributedlog.api.namespace.Namespace;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
-import org.apache.pulsar.client.api.ConsumerEventListener;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.Reader;
-import org.apache.pulsar.client.api.ReaderBuilder;
-import org.apache.pulsar.functions.proto.Function;
-import org.mockito.ArgumentMatcher;
-import org.mockito.Mockito;
-import org.testng.Assert;
-import org.testng.annotations.Test;
-
-import java.util.Collection;
-import java.util.LinkedList;
-import java.util.List;
-
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.argThat;
@@ -48,6 +30,26 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+
+import java.util.Collection;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
+
+import org.apache.distributedlog.api.namespace.Namespace;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerConfiguration;
+import org.apache.pulsar.client.api.ConsumerEventListener;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.ReaderBuilder;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.functions.proto.Function;
+import org.mockito.ArgumentMatcher;
+import org.mockito.Mockito;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 public class MembershipManagerTest {
 
@@ -63,17 +65,15 @@ public class MembershipManagerTest {
 
     @Test
     public void testConsumerEventListener() throws Exception {
-        PulsarClient mockClient = mock(PulsarClient.class);
-        Consumer mockConsumer = mock(Consumer.class);
+        PulsarClientImpl mockClient = mock(PulsarClientImpl.class);
+        Consumer<byte[]> mockConsumer = mock(Consumer.class);
 
         AtomicReference<ConsumerEventListener> listenerHolder = new AtomicReference<>();
-        when(mockClient.subscribe(
-            eq(workerConfig.getClusterCoordinationTopic()),
-            eq(MembershipManager.COORDINATION_TOPIC_SUBSCRIPTION),
-            any(ConsumerConfiguration.class)
+        when(mockClient.subscribeAsync(
+            any(ConsumerConfigurationData.class)
         )).thenAnswer(invocationOnMock -> {
 
-            ConsumerConfiguration conf = invocationOnMock.getArgumentAt(2, ConsumerConfiguration.class);
+            ConsumerConfigurationData<byte[]> conf = invocationOnMock.getArgumentAt(0, ConsumerConfigurationData.class);
             listenerHolder.set(conf.getConsumerEventListener());
 
             return mockConsumer;
@@ -82,10 +82,8 @@ public class MembershipManagerTest {
         MembershipManager membershipManager = spy(new MembershipManager(workerConfig, mockClient));
         assertFalse(membershipManager.isLeader());
         verify(mockClient, times(1))
-            .subscribe(
-                eq(workerConfig.getClusterCoordinationTopic()),
-                eq(MembershipManager.COORDINATION_TOPIC_SUBSCRIPTION),
-                any(ConsumerConfiguration.class));
+            .subscribeAsync(
+                any(ConsumerConfigurationData.class));
 
         listenerHolder.get().becameActive(mockConsumer, 0);
         assertTrue(membershipManager.isLeader());
@@ -98,7 +96,7 @@ public class MembershipManagerTest {
     public void testCheckFailuresNoFailures() throws Exception {
         SchedulerManager schedulerManager = mock(SchedulerManager.class);
         PulsarClient pulsarClient = mock(PulsarClient.class);
-        ReaderBuilder readerBuilder = mock(ReaderBuilder.class);
+        ReaderBuilder<byte[]> readerBuilder = mock(ReaderBuilder.class);
         doReturn(readerBuilder).when(pulsarClient).newReader();
         doReturn(readerBuilder).when(readerBuilder).topic(anyString());
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
@@ -162,7 +160,7 @@ public class MembershipManagerTest {
         workerConfig.setRescheduleTimeoutMs(30000);
         SchedulerManager schedulerManager = mock(SchedulerManager.class);
         PulsarClient pulsarClient = mock(PulsarClient.class);
-        ReaderBuilder readerBuilder = mock(ReaderBuilder.class);
+        ReaderBuilder<byte[]> readerBuilder = mock(ReaderBuilder.class);
         doReturn(readerBuilder).when(pulsarClient).newReader();
         doReturn(readerBuilder).when(readerBuilder).topic(anyString());
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
@@ -251,7 +249,7 @@ public class MembershipManagerTest {
         workerConfig.setRescheduleTimeoutMs(30000);
         SchedulerManager schedulerManager = mock(SchedulerManager.class);
         PulsarClient pulsarClient = mock(PulsarClient.class);
-        ReaderBuilder readerBuilder = mock(ReaderBuilder.class);
+        ReaderBuilder<byte[]> readerBuilder = mock(ReaderBuilder.class);
         doReturn(readerBuilder).when(pulsarClient).newReader();
         doReturn(readerBuilder).when(readerBuilder).topic(anyString());
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());

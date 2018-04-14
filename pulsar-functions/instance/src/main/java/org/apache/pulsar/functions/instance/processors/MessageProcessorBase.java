@@ -19,12 +19,15 @@
 package org.apache.pulsar.functions.instance.processors;
 
 import com.google.common.collect.Maps;
+
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingDeque;
+
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -45,7 +48,7 @@ abstract class MessageProcessorBase implements MessageProcessor {
     protected final LinkedBlockingDeque<InputMessage> processQueue;
 
     @Getter
-    protected final Map<String, Consumer> inputConsumers;
+    protected final Map<String, Consumer<byte[]>> inputConsumers;
     protected Map<String, SerDe> inputSerDe;
 
     protected SerDe outputSerDe;
@@ -70,14 +73,14 @@ abstract class MessageProcessorBase implements MessageProcessor {
         log.info("Setting up input with input serdes: {}", inputSerDe);
         this.inputSerDe = inputSerDe;
         for (Map.Entry<String, String> entry : functionDetails.getCustomSerdeInputsMap().entrySet()) {
-            ConsumerConfiguration conf = createConsumerConfiguration(entry.getKey());
-            this.inputConsumers.put(entry.getKey(), client.subscribe(entry.getKey(),
-                    FunctionDetailsUtils.getFullyQualifiedName(functionDetails), conf));
+            ConsumerBuilder<byte[]> builder = createConsumerBuilder(entry.getKey());
+            this.inputConsumers.put(entry.getKey(), builder.topic(entry.getKey())
+                    .subscriptionName(FunctionDetailsUtils.getFullyQualifiedName(functionDetails)).subscribe());
         }
         for (String topicName : functionDetails.getInputsList()) {
-            ConsumerConfiguration conf = createConsumerConfiguration(topicName);
-            this.inputConsumers.put(topicName, client.subscribe(topicName,
-                    FunctionDetailsUtils.getFullyQualifiedName(functionDetails), conf));
+            ConsumerBuilder<byte[]> builder= createConsumerBuilder(topicName);
+            this.inputConsumers.put(topicName, builder.topic(topicName)
+                    .subscriptionName(FunctionDetailsUtils.getFullyQualifiedName(functionDetails)).subscribe());
         }
     }
 
@@ -85,13 +88,13 @@ abstract class MessageProcessorBase implements MessageProcessor {
         return subType;
     }
 
-    protected ConsumerConfiguration createConsumerConfiguration(String topicName) {
-        log.info("Starting Consumer for topic " + topicName);
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(getSubscriptionType());
+    protected ConsumerBuilder<byte[]> createConsumerBuilder(String topicName) {
+        log.info("Starting Consumer for topic {}", topicName);
+        ConsumerBuilder<byte[]> builder = client.newConsumer();
+        builder.subscriptionType(getSubscriptionType());
 
         SerDe inputSerde = inputSerDe.get(topicName);
-        conf.setMessageListener((consumer, msg) -> {
+        builder.messageListener((consumer, msg) -> {
             try {
                 InputMessage message = new InputMessage();
                 message.setConsumer(consumer);
@@ -105,7 +108,7 @@ abstract class MessageProcessorBase implements MessageProcessor {
                         Thread.currentThread().getId(), e);
             }
         });
-        return conf;
+        return builder;
     }
 
     /**

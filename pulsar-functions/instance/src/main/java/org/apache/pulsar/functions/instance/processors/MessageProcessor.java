@@ -84,7 +84,7 @@ public interface MessageProcessor extends AutoCloseable {
      *
      * @return the map of input consumers.
      */
-    Map<String, Consumer> getInputConsumers();
+    Map<String, Consumer<byte[]>> getInputConsumers();
 
     /**
      * Setup the output with a provided <i>outputSerDe</i>. The implementation of this processor is responsible for
@@ -130,7 +130,7 @@ public interface MessageProcessor extends AutoCloseable {
      * @param outputMsgBuilder output message builder. it can be null.
      */
     void sendOutputMessage(InputMessage inputMsg,
-                           MessageBuilder outputMsgBuilder);
+                           MessageBuilder<byte[]> outputMsgBuilder);
 
     /**
      * Handle the process exception when processing input message <i>inputMsg</i>.

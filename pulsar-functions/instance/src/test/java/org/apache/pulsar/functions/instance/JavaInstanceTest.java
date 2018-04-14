@@ -55,5 +55,6 @@ public class JavaInstanceTest {
         JavaExecutionResult result = instance.handleMessage(MessageId.earliest, "random", testString);
         assertNotNull(result.getResult());
         assertEquals(new String(testString + "-lambda"), result.getResult());
+        instance.close();
     }
 }

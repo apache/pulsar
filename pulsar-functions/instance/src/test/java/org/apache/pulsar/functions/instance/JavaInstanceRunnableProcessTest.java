@@ -25,7 +25,6 @@ import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.same;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -38,6 +37,7 @@ import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 
 import io.netty.buffer.ByteBuf;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -52,9 +52,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+
 import lombok.Cleanup;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.bookkeeper.api.StorageClient;
 import org.apache.bookkeeper.api.kv.Table;
 import org.apache.bookkeeper.clients.StorageClientBuilder;
@@ -64,15 +66,14 @@ import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.bookkeeper.stream.proto.StreamProperties;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
-import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
@@ -80,10 +81,10 @@ import org.apache.pulsar.functions.instance.processors.AtLeastOnceProcessor;
 import org.apache.pulsar.functions.instance.processors.MessageProcessor;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails.ProcessingGuarantees;
-import org.apache.pulsar.functions.utils.Reflections;
-import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
+import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -145,22 +146,25 @@ public class JavaInstanceRunnableProcessTest {
 
     @Data
     private static class ConsumerInstance {
-        private final Consumer consumer;
-        private final ConsumerConfiguration conf;
-        private final TreeMap<MessageId, Message> messages;
+        private final Consumer<byte[]> consumer;
+        private final ConsumerConfigurationData<byte[]> conf;
+        private final TreeMap<MessageId, Message<?>> messages;
 
-        public ConsumerInstance(Consumer consumer,
-                                ConsumerConfiguration conf) {
+        public ConsumerInstance(Consumer<byte[]> consumer, ConsumerConfigurationData<byte[]> conf) {
             this.consumer = consumer;
-            this.conf = conf;
             this.messages = new TreeMap<>();
+            this.conf = conf;
+        }
+
+        public ConsumerConfigurationData<byte[]> getConf() {
+            return conf;
         }
 
         public synchronized int getNumMessages() {
             return this.messages.size();
         }
 
-        public synchronized void addMessage(Message message) {
+        public synchronized void addMessage(Message<?> message) {
             this.messages.put(message.getMessageId(), message);
         }
 
@@ -187,12 +191,12 @@ public class JavaInstanceRunnableProcessTest {
 
     @Data
     private static class ProducerInstance {
-        private final Producer producer;
-        private final LinkedBlockingQueue<Message> msgQueue;
+        private final Producer<?> producer;
+        private final LinkedBlockingQueue<Message<byte[]>> msgQueue;
         private final List<CompletableFuture<MessageId>> sendFutures;
 
-        public ProducerInstance(Producer producer,
-                                LinkedBlockingQueue<Message> msgQueue) {
+        public ProducerInstance(Producer<?> producer,
+                                LinkedBlockingQueue<Message<byte[]>> msgQueue) {
             this.producer = producer;
             this.msgQueue = msgQueue;
             this.sendFutures = new LinkedList<>();
@@ -211,7 +215,7 @@ public class JavaInstanceRunnableProcessTest {
     private FunctionDetails functionDetails;
     private InstanceConfig config;
     private FunctionCacheManager fnCache;
-    private PulsarClient mockClient;
+    private PulsarClientImpl mockClient;
     private FunctionStats mockFunctionStats;
 
     private final Map<Pair<String, String>, ProducerInstance> mockProducers
@@ -256,17 +260,17 @@ public class JavaInstanceRunnableProcessTest {
                 .thenReturn(clsLoader);
 
         // mock producer & consumer
-        when(mockClient.createProducer(anyString(), any(ProducerConfiguration.class)))
+        when(mockClient.createProducerAsync(any(ProducerConfigurationData.class)))
                 .thenAnswer(invocationOnMock -> {
-                    String topic = invocationOnMock.getArgumentAt(0, String.class);
-                    ProducerConfiguration conf = invocationOnMock.getArgumentAt(1, ProducerConfiguration.class);
+                    ProducerConfigurationData conf = invocationOnMock.getArgumentAt(0, ProducerConfigurationData.class);
+                    String topic = conf.getTopicName();
                     String producerName = conf.getProducerName();
 
                     Pair<String, String> pair = Pair.of(topic, producerName);
                     ProducerInstance producerInstance = mockProducers.get(pair);
                     if (null == producerInstance) {
-                        Producer producer = mock(Producer.class);
-                        LinkedBlockingQueue<Message> msgQueue = new LinkedBlockingQueue<>();
+                        Producer<byte[]> producer = mock(Producer.class);
+                        LinkedBlockingQueue<Message<byte[]>> msgQueue = new LinkedBlockingQueue<>();
                         final ProducerInstance instance = new ProducerInstance(producer, msgQueue);
                         producerInstance = instance;
                         when(producer.getProducerName())
@@ -275,7 +279,7 @@ public class JavaInstanceRunnableProcessTest {
                                 .thenReturn(topic);
                         when(producer.sendAsync(any(Message.class)))
                                 .thenAnswer(invocationOnMock1 -> {
-                                    Message msg = invocationOnMock1.getArgumentAt(0, Message.class);
+                                    Message<byte[]> msg = invocationOnMock1.getArgumentAt(0, Message.class);
                                     log.info("producer send message {}", msg);
 
                                     CompletableFuture<MessageId> future = new CompletableFuture<>();
@@ -287,21 +291,21 @@ public class JavaInstanceRunnableProcessTest {
 
                         mockProducers.put(pair, producerInstance);
                     }
-                    return producerInstance.getProducer();
+                    return CompletableFuture.completedFuture(producerInstance.getProducer());
                 });
-        when(mockClient.subscribe(
-                anyString(),
-                anyString(),
-                any(ConsumerConfiguration.class)
+
+        when(mockClient.subscribeAsync(
+                any(ConsumerConfigurationData.class)
         )).thenAnswer(invocationOnMock -> {
+            ConsumerConfigurationData<byte[]> conf = invocationOnMock.getArgumentAt(0, ConsumerConfigurationData.class);
             String topic = invocationOnMock.getArgumentAt(0, String.class);
             String subscription = invocationOnMock.getArgumentAt(1, String.class);
-            ConsumerConfiguration conf = invocationOnMock.getArgumentAt(2, ConsumerConfiguration.class);
+
 
             Pair<String, String> pair = Pair.of(topic, subscription);
             ConsumerInstance consumerInstance = mockConsumers.get(pair);
             if (null == consumerInstance) {
-                Consumer consumer = mock(Consumer.class);
+                Consumer<byte[]> consumer = mock(Consumer.class);
 
                 ConsumerInstance instance = new ConsumerInstance(consumer, conf);
                 consumerInstance = instance;
@@ -309,7 +313,7 @@ public class JavaInstanceRunnableProcessTest {
                 when(consumer.getSubscription()).thenReturn(subscription);
                 when(consumer.acknowledgeAsync(any(Message.class)))
                         .thenAnswer(invocationOnMock1 -> {
-                            Message msg = invocationOnMock1.getArgumentAt(0, Message.class);
+                            Message<?> msg = invocationOnMock1.getArgumentAt(0, Message.class);
                             log.info("Ack message {} : message id = {}", msg, msg.getMessageId());
 
                             instance.removeMessage(msg.getMessageId());
@@ -317,7 +321,7 @@ public class JavaInstanceRunnableProcessTest {
                         });
                 when(consumer.acknowledgeCumulativeAsync(any(Message.class)))
                         .thenAnswer(invocationOnMock1 -> {
-                            Message msg = invocationOnMock1.getArgumentAt(0, Message.class);
+                            Message<?> msg = invocationOnMock1.getArgumentAt(0, Message.class);
                             log.info("Ack message cumulatively message id = {}", msg, msg.getMessageId());
 
                             instance.removeMessagesBefore(msg.getMessageId());
@@ -328,7 +332,8 @@ public class JavaInstanceRunnableProcessTest {
                             mockConsumers.remove(pair, instance);
                             return FutureUtils.Void();
                         });
-                doAnswer(invocationOnMock1 -> {
+
+                doAnswer(x -> {
                     mockConsumers.remove(pair, instance);
                     return null;
                 }).when(consumer).close();
@@ -336,7 +341,7 @@ public class JavaInstanceRunnableProcessTest {
 
                 mockConsumers.put(pair, consumerInstance);
             }
-            return consumerInstance.getConsumer();
+            return CompletableFuture.completedFuture(consumerInstance.getConsumer());
         });
 
         //
@@ -445,10 +450,10 @@ public class JavaInstanceRunnableProcessTest {
         )).getProducer(), ((AtLeastOnceProcessor) processor).getProducer());
 
         assertEquals(mockConsumers.size(), processor.getInputConsumers().size());
-        for (Map.Entry<String, Consumer> consumerEntry : processor.getInputConsumers().entrySet()) {
+        for (Map.Entry<String, Consumer<byte[]>> consumerEntry : processor.getInputConsumers().entrySet()) {
             String topic = consumerEntry.getKey();
 
-            Consumer mockConsumer = mockConsumers.get(Pair.of(
+            Consumer<?> mockConsumer = mockConsumers.get(Pair.of(
                     topic,
                     FunctionDetailsUtils.getFullyQualifiedName(functionDetails))).getConsumer();
             assertSame(mockConsumer, consumerEntry.getValue());
@@ -511,7 +516,7 @@ public class JavaInstanceRunnableProcessTest {
 
             // once we get consumer id, simulate receiving 10 messages from consumer
             for (int i = 0; i < 10; i++) {
-                Message msg = mock(Message.class);
+                Message<byte[]> msg = mock(Message.class);
                 when(msg.getData()).thenReturn(("message-" + i).getBytes(UTF_8));
                 when(msg.getMessageId())
                         .thenReturn(new MessageIdImpl(1L, i, 0));
@@ -522,7 +527,7 @@ public class JavaInstanceRunnableProcessTest {
 
             // wait until all the messages are published
             for (int i = 0; i < 10; i++) {
-                Message msg = producerInstance.msgQueue.take();
+                Message<?> msg = producerInstance.msgQueue.take();
 
                 assertEquals("message-" + i + "!", new String(msg.getData(), UTF_8));
                 // sequence id is not set for AT_MOST_ONCE processing

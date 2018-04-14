@@ -36,7 +36,7 @@ import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 @Slf4j
 class AtMostOnceProcessor extends MessageProcessorBase {
 
-    private Producer producer;
+    private Producer<byte[]> producer;
 
     AtMostOnceProcessor(PulsarClient client,
                         FunctionDetails functionDetails,
@@ -59,12 +59,12 @@ class AtMostOnceProcessor extends MessageProcessorBase {
     }
 
     @Override
-    public void sendOutputMessage(InputMessage inputMsg, MessageBuilder outputMsgBuilder) {
+    public void sendOutputMessage(InputMessage inputMsg, MessageBuilder<byte[]> outputMsgBuilder) {
         if (null == outputMsgBuilder) {
             return;
         }
 
-        Message outputMsg = outputMsgBuilder.build();
+        Message<byte[]> outputMsg = outputMsgBuilder.build();
         producer.sendAsync(outputMsg);
     }
 

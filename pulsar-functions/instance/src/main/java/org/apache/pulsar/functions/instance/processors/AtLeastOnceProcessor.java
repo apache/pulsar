@@ -38,7 +38,7 @@ import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 public class AtLeastOnceProcessor extends MessageProcessorBase {
 
     @Getter
-    private Producer producer;
+    private Producer<byte[]> producer;
 
     AtLeastOnceProcessor(PulsarClient client,
                          FunctionDetails functionDetails,
@@ -53,13 +53,13 @@ public class AtLeastOnceProcessor extends MessageProcessorBase {
     }
 
     @Override
-    public void sendOutputMessage(InputMessage inputMsg, MessageBuilder outputMsgBuilder) {
+    public void sendOutputMessage(InputMessage inputMsg, MessageBuilder<byte[]> outputMsgBuilder) {
         if (null == outputMsgBuilder) {
             inputMsg.ack();
             return;
         }
 
-        Message outputMsg = outputMsgBuilder.build();
+        Message<byte[]> outputMsg = outputMsgBuilder.build();
         producer.sendAsync(outputMsg)
             .thenAccept(msgId -> inputMsg.ack());
     }
