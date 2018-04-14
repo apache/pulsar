@@ -69,7 +69,8 @@ bool TopicName::init(const std::string& topicName) {
     }
     isV2Topic_ = parse(topicName_, domain_, property_, cluster_, namespacePortion_, localName_);
     if (isV2Topic_ && !cluster_.empty()) {
-        LOG_ERROR("V2 Topic name is not valid, cluster is not empty - " << topicName_ << " : cluster " << cluster_);
+        LOG_ERROR("V2 Topic name is not valid, cluster is not empty - " << topicName_ << " : cluster "
+                                                                        << cluster_);
         return false;
     } else if (!isV2Topic_ && cluster_.empty()) {
         LOG_ERROR("V1 Topic name is not valid, cluster is empty - " << topicName_);
@@ -110,7 +111,7 @@ bool TopicName::parse(const std::string& topicName, std::string& domain, std::st
         namespacePortion = pathTokens[3];
         localName = pathTokens[4];
         numSlashIndexes = 4;
-        isV2Topic = false; 
+        isV2Topic = false;
     }
     size_t slashIndex = -1;
     // find `numSlashIndexes` '/', whatever is left is topic local name
@@ -164,7 +165,8 @@ bool TopicName::validate() {
         return false;
     }
     // cluster_ can be empty
-    if (!isV2Topic_ && !property_.empty() && !cluster_.empty() && !namespacePortion_.empty() && !localName_.empty()) {
+    if (!isV2Topic_ && !property_.empty() && !cluster_.empty() && !namespacePortion_.empty() &&
+        !localName_.empty()) {
         // v1 topic format
         return NamedEntity::checkName(property_) && NamedEntity::checkName(cluster_) &&
                NamedEntity::checkName(namespacePortion_);
