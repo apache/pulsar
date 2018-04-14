@@ -23,6 +23,8 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
+import com.google.common.collect.Lists;
+
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
@@ -51,8 +53,6 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Lists;
 
 public class BatchMessageTest extends BrokerTestBase {
 
@@ -372,7 +372,6 @@ public class BatchMessageTest extends BrokerTestBase {
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
 
         // allow stats to be updated..
-        Thread.sleep(5000);
         LOG.info("[{}] checking backlog stats..");
         rolloverPerIntervalStats();
         assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(), numMsgs / numMsgsInBatch);
@@ -387,10 +386,10 @@ public class BatchMessageTest extends BrokerTestBase {
         if (lastunackedMsg != null) {
             consumer.acknowledgeCumulative(lastunackedMsg);
         }
-        Thread.sleep(100);
-        assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(), 0);
+
         consumer.close();
         producer.close();
+        assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(), 0);
     }
 
     // test for ack holes
