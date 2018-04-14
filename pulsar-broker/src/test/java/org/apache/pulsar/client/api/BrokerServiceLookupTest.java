@@ -174,9 +174,9 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         PulsarClient pulsarClient2 = PulsarClient.builder().serviceUrl(brokerServiceUrl.toString()).build();
 
         // load namespace-bundle by calling Broker2
-        Consumer<byte[]> consumer = pulsarClient2.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
+        Consumer<byte[]> consumer = pulsarClient2.newConsumer().topic("persistent://my-property/my-ns/my-topic1")
                 .subscriptionName("my-subscriber-name").subscribe();
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1")
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic1")
                 .create();
 
         for (int i = 0; i < 10; i++) {
@@ -304,7 +304,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         int numPartitions = 8;
-        TopicName topicName = TopicName.get("persistent://my-property/use/my-ns/my-partitionedtopic1");
+        TopicName topicName = TopicName.get("persistent://my-property/my-ns/my-partitionedtopic1");
 
         admin.persistentTopics().createPartitionedTopic(topicName.toString(), numPartitions);
 
@@ -430,7 +430,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         URI brokerServiceUrl = new URI("pulsar://localhost:" + conf2.getBrokerServicePort());
         PulsarClient pulsarClient2 = PulsarClient.builder().serviceUrl(brokerServiceUrl.toString()).build();
 
-        final String lookupResourceUrl = "/lookup/v2/destination/persistent/my-property/use/my-ns/my-topic1";
+        final String lookupResourceUrl = "/lookup/v2/topic/persistent/my-property/my-ns/my-topic1";
 
         // set client cert_key file
         KeyManager[] keyManagers = null;
@@ -798,7 +798,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
         log.info("-- Starting {} test --", methodName);
 
-        final String namespace = "my-property/use/my-ns";
+        final String namespace = "my-property/my-ns";
         // (1) Start broker-1
         ServiceConfiguration conf2 = new ServiceConfiguration();
         conf2.setAdvertisedAddress("localhost");
@@ -903,7 +903,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         final String loadBalancerName = conf.getLoadManagerClassName();
 
         try {
-            final String namespace = "my-property/use/my-ns";
+            final String namespace = "my-property/my-ns";
             // (1) Start broker-1
             ServiceConfiguration conf2 = new ServiceConfiguration();
             conf2.setAdvertisedAddress("localhost");

@@ -18,10 +18,6 @@
  */
 package org.apache.pulsar.broker.lookup;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
-import java.net.URI;
-
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.common.lookup.data.LookupData;
 
@@ -69,5 +65,5 @@ public class LookupResult {
     public String toString() {
 		return "LookupResult [type=" + type + ", lookupData=" + lookupData + "]";
     }
-    
+
 }

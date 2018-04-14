@@ -122,7 +122,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         // Run a set of producer tasks to create the topics
         List<Future<Void>> results = Lists.newArrayList();
         for (int i = 0; i < 10; i++) {
-            final TopicName dest = TopicName.get(String.format("persistent://pulsar/global/ns/topic-%d", i));
+            final TopicName dest = TopicName.get(String.format("persistent://pulsar/ns/topic-%d", i));
 
             results.add(executor.submit(new Callable<Void>() {
                 @Override
@@ -168,7 +168,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         Assert.assertNotNull(replicationClients3.get("r2"));
 
         // Case 1: Update the global namespace replication configuration to only contains the local cluster itself
-        admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns", Sets.newHashSet("r1"));
+        admin1.namespaces().setNamespaceReplicationClusters("pulsar/ns", Sets.newHashSet("r1"));
 
         // Wait for config changes to be updated.
         Thread.sleep(1000L);
@@ -182,7 +182,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         Assert.assertNotNull(replicationClients3.get("r2"));
 
         // Case 2: Update the configuration back
-        admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns", Sets.newHashSet("r1", "r2", "r3"));
+        admin1.namespaces().setNamespaceReplicationClusters("pulsar/ns", Sets.newHashSet("r1", "r2", "r3"));
 
         // Wait for config changes to be updated.
         Thread.sleep(1000L);
@@ -204,7 +204,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         log.info("--- Starting ReplicatorTest::testConcurrentReplicator ---");
 
-        final String namespace = "pulsar/global/concurrent";
+        final String namespace = "pulsar/concurrent";
         admin1.namespaces().createNamespace(namespace);
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
         final TopicName topicName = TopicName.get(String.format("persistent://" + namespace + "/topic-%d", 0));
@@ -259,10 +259,10 @@ public class ReplicatorTest extends ReplicatorTestBase {
         Assert.assertNotNull(pulsar1, "pulsar1 is null");
         Assert.assertNotNull(pulsar1.getNamespaceService(), "pulsar1.getNamespaceService() is null");
         NamespaceBundle globalNsBundle = pulsar1.getNamespaceService().getNamespaceBundleFactory()
-                .getFullBundle(NamespaceName.get("pulsar/global/ns"));
+                .getFullBundle(NamespaceName.get("pulsar/ns"));
         ownerCache.tryAcquiringOwnership(globalNsBundle);
         Assert.assertNotNull(ownerCache.getOwnedBundle(globalNsBundle),
-                "pulsar1.getNamespaceService().getOwnedServiceUnit(NamespaceName.get(\"pulsar/global/ns\")) is null");
+                "pulsar1.getNamespaceService().getOwnedServiceUnit(NamespaceName.get(\"pulsar/ns\")) is null");
         Field stateField = OwnedBundle.class.getDeclaredField("isActive");
         stateField.setAccessible(true);
         // set the namespace to be disabled
@@ -270,7 +270,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         // Make sure the namespace config update failed
         try {
-            admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns", Sets.newHashSet("r1"));
+            admin1.namespaces().setNamespaceReplicationClusters("pulsar/ns", Sets.newHashSet("r1"));
             fail("Should have raised exception");
         } catch (PreconditionFailedException pfe) {
             // OK
@@ -292,7 +292,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         SortedSet<String> testDests = new TreeSet<String>();
         List<Future<Void>> results = Lists.newArrayList();
         for (int i = 0; i < 3; i++) {
-            final TopicName dest = TopicName.get(String.format("persistent://pulsar/global/ns/repltopic-%d", i));
+            final TopicName dest = TopicName.get(String.format("persistent://pulsar/ns/repltopic-%d", i));
             testDests.add(dest.toString());
 
             results.add(executor.submit(new Callable<Void>() {
@@ -392,7 +392,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         SortedSet<String> testDests = new TreeSet<String>();
         List<Future<Void>> results = Lists.newArrayList();
         for (int i = 0; i < 10; i++) {
-            final TopicName dest = TopicName.get(String.format("persistent://pulsar/global/ns/repltopic-%d", i));
+            final TopicName dest = TopicName.get(String.format("persistent://pulsar/ns/repltopic-%d", i));
             testDests.add(dest.toString());
 
             results.add(executor.submit(new Callable<Void>() {
@@ -466,7 +466,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         try {
             // 1. Create a consumer using the reserved consumer id prefix "pulsar.repl."
 
-            final TopicName dest = TopicName.get(String.format("persistent://pulsar/global/ns/res-cons-id"));
+            final TopicName dest = TopicName.get(String.format("persistent://pulsar/ns/res-cons-id"));
 
             // Create another consumer using replication prefix as sub id
             MessageConsumer consumer = new MessageConsumer(url2, dest, "pulsar.repl.");
@@ -483,7 +483,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         SortedSet<String> testDests = new TreeSet<String>();
 
-        final TopicName dest = TopicName.get("persistent://pulsar/global/ns/peekAndSeekTopic");
+        final TopicName dest = TopicName.get("persistent://pulsar/ns/peekAndSeekTopic");
         testDests.add(dest.toString());
 
         MessageProducer producer1 = new MessageProducer(url1, dest);
@@ -508,7 +508,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         // This test is to verify that reset cursor fails on global topic
         SortedSet<String> testDests = new TreeSet<String>();
 
-        final TopicName dest = TopicName.get("persistent://pulsar/global/ns/clearBacklogTopic");
+        final TopicName dest = TopicName.get("persistent://pulsar/ns/clearBacklogTopic");
         testDests.add(dest.toString());
 
         MessageProducer producer1 = new MessageProducer(url1, dest);
@@ -539,7 +539,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         SortedSet<String> testDests = new TreeSet<String>();
         List<Future<Void>> results = Lists.newArrayList();
         for (int i = 0; i < 1; i++) {
-            final TopicName dest = TopicName.get(String.format("persistent://pulsar/global/ns/resetrepltopic-%d", i));
+            final TopicName dest = TopicName.get(String.format("persistent://pulsar/ns/resetrepltopic-%d", i));
             testDests.add(dest.toString());
 
             results.add(executor.submit(new Callable<Void>() {
@@ -584,7 +584,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         SortedSet<String> testDests = new TreeSet<String>();
         List<Future<Void>> results = Lists.newArrayList();
         for (int i = 0; i < 3; i++) {
-            final TopicName dest = TopicName.get(String.format("persistent://pulsar/global/ns/repltopicbatch-%d", i));
+            final TopicName dest = TopicName.get(String.format("persistent://pulsar/ns/repltopicbatch-%d", i));
             testDests.add(dest.toString());
 
             results.add(executor.submit(new Callable<Void>() {
@@ -657,7 +657,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
     @Test(timeOut = 30000)
     public void testDeleteReplicatorFailure() throws Exception {
         log.info("--- Starting ReplicatorTest::testDeleteReplicatorFailure ---");
-        final String topicName = "persistent://pulsar/global/ns/repltopicbatch";
+        final String topicName = "persistent://pulsar/ns/repltopicbatch";
         final TopicName dest = TopicName.get(topicName);
         MessageProducer producer1 = new MessageProducer(url1, dest);
         PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopicReference(topicName).get();
@@ -698,7 +698,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
     @Test(priority = 5, timeOut = 30000)
     public void testReplicatorProducerClosing() throws Exception {
         log.info("--- Starting ReplicatorTest::testDeleteReplicatorFailure ---");
-        final String topicName = "persistent://pulsar/global/ns/repltopicbatch";
+        final String topicName = "persistent://pulsar/ns/repltopicbatch";
         final TopicName dest = TopicName.get(topicName);
         MessageProducer producer1 = new MessageProducer(url1, dest);
         PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopicReference(topicName).get();
@@ -732,11 +732,11 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         for (RetentionPolicy policy : policies) {
             // Use 1Mb quota by default
-            admin1.namespaces().setBacklogQuota("pulsar/global/ns1", new BacklogQuota(1 * 1024 * 1024, policy));
+            admin1.namespaces().setBacklogQuota("pulsar/ns1", new BacklogQuota(1 * 1024 * 1024, policy));
             Thread.sleep(200);
 
             TopicName dest = TopicName
-                    .get(String.format("persistent://pulsar/global/ns1/%s-%d", policy, System.currentTimeMillis()));
+                    .get(String.format("persistent://pulsar/ns1/%s-%d", policy, System.currentTimeMillis()));
 
             // Producer on r1
             MessageProducer producer1 = new MessageProducer(url1, dest);
@@ -755,7 +755,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
             Thread.sleep(500);
 
             // Restrict backlog quota limit to 1 byte to stop replication
-            admin1.namespaces().setBacklogQuota("pulsar/global/ns1", new BacklogQuota(1, policy));
+            admin1.namespaces().setBacklogQuota("pulsar/ns1", new BacklogQuota(1, policy));
 
             Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA + 1) * 1000);
 
@@ -797,7 +797,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
     @Test(timeOut = 15000)
     public void testCloseReplicatorStartProducer() throws Exception {
 
-        TopicName dest = TopicName.get("persistent://pulsar/global/ns1/closeCursor");
+        TopicName dest = TopicName.get("persistent://pulsar/ns1/closeCursor");
         // Producer on r1
         MessageProducer producer1 = new MessageProducer(url1, dest);
         // Consumer on r1
@@ -851,7 +851,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
     @Test(timeOut = 30000)
     public void verifyChecksumAfterReplication() throws Exception {
-        final String topicName = "persistent://pulsar/global/ns/checksumAfterReplication";
+        final String topicName = "persistent://pulsar/ns/checksumAfterReplication";
 
         PulsarClient c1 = PulsarClient.builder().serviceUrl(url1.toString()).build();
         Producer<byte[]> p1 = c1.newProducer().topic(topicName)
@@ -889,7 +889,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         log.info("--- Starting ReplicatorTest::{} --- ", methodName);
 
-        final String namespace = "pulsar/global/partitionedNs-" + isPartitionedTopic;
+        final String namespace = "pulsar/partitionedNs-" + isPartitionedTopic;
         final String persistentTopicName = "persistent://" + namespace + "/partTopic-" + isPartitionedTopic;
         final String nonPersistentTopicName = "non-persistent://" + namespace + "/partTopic-" + isPartitionedTopic;
         BrokerService brokerService = pulsar1.getBrokerService();

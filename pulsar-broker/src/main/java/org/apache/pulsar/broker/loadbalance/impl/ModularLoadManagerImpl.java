@@ -335,6 +335,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         }
     }
 
+    @Override
     public Set<String> getAvailableBrokers() {
         try {
             return availableActiveBrokers.get();

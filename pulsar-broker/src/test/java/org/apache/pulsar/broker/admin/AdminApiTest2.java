@@ -22,11 +22,16 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -54,9 +59,13 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
+import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
+import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.FailureDomain;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -65,14 +74,11 @@ import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 
 public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
@@ -90,10 +96,10 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         mockPulsarSetup.setup();
 
         // Setup namespaces
-        admin.clusters().createCluster("use", new ClusterData("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT));
-        PropertyAdmin propertyAdmin = new PropertyAdmin(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use"));
+        admin.clusters().createCluster("test", new ClusterData("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT));
+        PropertyAdmin propertyAdmin = new PropertyAdmin(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.properties().createProperty("prop-xyz", propertyAdmin);
-        admin.namespaces().createNamespace("prop-xyz/use/ns1");
+        admin.namespaces().createNamespace("prop-xyz/ns1", Sets.newHashSet("test"));
     }
 
     @AfterMethod
@@ -136,7 +142,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         final String subName2 = topicName + "-my-sub-2";
         final int startPartitions = 4;
         final int newPartitions = 8;
-        final String partitionedTopicName = "persistent://prop-xyz/use/ns1/" + topicName;
+        final String partitionedTopicName = "persistent://prop-xyz/ns1/" + topicName;
 
         URL pulsarUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
 
@@ -188,7 +194,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         assertEquals(Sets.newHashSet(admin.persistentTopics().getSubscriptions(newPartitionTopicName)),
                 Sets.newHashSet(subName1, subName2));
 
-        assertEquals(Sets.newHashSet(admin.persistentTopics().getList("prop-xyz/use/ns1")).size(), newPartitions);
+        assertEquals(Sets.newHashSet(admin.persistentTopics().getList("prop-xyz/ns1")).size(), newPartitions);
 
         // test cumulative stats for partitioned topic
         PartitionedTopicStats topicStats = admin.persistentTopics().getPartitionedStats(partitionedTopicName, false);
@@ -229,9 +235,9 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     public void nonPersistentTopics() throws Exception {
         final String topicName = "nonPersistentTopic";
 
-        final String persistentTopicName = "non-persistent://prop-xyz/use/ns1/" + topicName;
+        final String persistentTopicName = "non-persistent://prop-xyz/ns1/" + topicName;
         // Force to create a topic
-        publishMessagesOnTopic("non-persistent://prop-xyz/use/ns1/" + topicName, 0, 0);
+        publishMessagesOnTopic("non-persistent://prop-xyz/ns1/" + topicName, 0, 0);
 
         // create consumer and subscription
         URL pulsarUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
@@ -240,7 +246,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         Consumer<byte[]> consumer = client.newConsumer().topic(persistentTopicName).subscriptionName("my-sub")
                 .subscribe();
 
-        publishMessagesOnTopic("non-persistent://prop-xyz/use/ns1/" + topicName, 10, 0);
+        publishMessagesOnTopic("non-persistent://prop-xyz/ns1/" + topicName, 10, 0);
 
         NonPersistentTopicStats topicStats = admin.nonPersistentTopics().getStats(persistentTopicName);
         assertEquals(topicStats.getSubscriptions().keySet(), Sets.newTreeSet(Lists.newArrayList("my-sub")));
@@ -258,7 +264,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.getPublishers().size(), 0);
 
         // test partitioned-topic
-        final String partitionedTopicName = "non-persistent://prop-xyz/use/ns1/paritioned";
+        final String partitionedTopicName = "non-persistent://prop-xyz/ns1/paritioned";
         assertEquals(admin.nonPersistentTopics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 0);
         admin.nonPersistentTopics().createPartitionedTopic(partitionedTopicName, 5);
         assertEquals(admin.nonPersistentTopics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 5);
@@ -287,8 +293,8 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     @Test
     public void testSetPersistencepolicies() throws Exception {
 
-        final String namespace = "prop-xyz/use/ns2";
-        admin.namespaces().createNamespace(namespace);
+        final String namespace = "prop-xyz/ns2";
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
 
         assertEquals(admin.namespaces().getPersistence(namespace), new PersistencePolicies(1, 1, 1, 0.0));
         admin.namespaces().setPersistence(namespace, new PersistencePolicies(3, 3, 3, 10.0));
@@ -325,9 +331,9 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     @Test
     public void testUpdatePersistencePolicyUpdateManagedCursor() throws Exception {
 
-        final String namespace = "prop-xyz/use/ns2";
+        final String namespace = "prop-xyz/ns2";
         final String topicName = "persistent://" + namespace + "/topic1";
-        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
 
         admin.namespaces().setPersistence(namespace, new PersistencePolicies(3, 3, 3, 50.0));
         assertEquals(admin.namespaces().getPersistence(namespace), new PersistencePolicies(3, 3, 3, 50.0));
@@ -368,9 +374,9 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     @Test(dataProvider = "topicType")
     public void testUnloadTopic(final String topicType) throws Exception {
 
-        final String namespace = "prop-xyz/use/ns2";
+        final String namespace = "prop-xyz/ns2";
         final String topicName = topicType + "://" + namespace + "/topic1";
-        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
 
         // create a topic by creating a producer
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
@@ -429,7 +435,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         final int totalProducedMessages = 50;
 
         // set retention
-        admin.namespaces().setRetention("prop-xyz/use/ns1", new RetentionPolicies(10, 10));
+        admin.namespaces().setRetention("prop-xyz/ns1", new RetentionPolicies(10, 10));
 
         // create consumer and subscription
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-sub")
@@ -652,8 +658,6 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     public void clusterFailureDomain() throws PulsarAdminException {
 
         final String cluster = pulsar.getConfiguration().getClusterName();
-        admin.clusters().createCluster(cluster,
-                new ClusterData(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls()));
         // create
         FailureDomain domain = new FailureDomain();
         domain.setBrokers(Sets.newHashSet("b1", "b2", "b3"));
@@ -685,7 +689,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
     @Test
     public void namespaceAntiAffinity() throws PulsarAdminException {
-        final String namespace = "prop-xyz/use/ns1";
+        final String namespace = "prop-xyz/ns1";
         final String antiAffinityGroup = "group";
         assertTrue(isBlank(admin.namespaces().getNamespaceAntiAffinityGroup(namespace)));
         admin.namespaces().setNamespaceAntiAffinityGroup(namespace, antiAffinityGroup);
@@ -693,32 +697,33 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         admin.namespaces().deleteNamespaceAntiAffinityGroup(namespace);
         assertTrue(isBlank(admin.namespaces().getNamespaceAntiAffinityGroup(namespace)));
 
-        final String ns1 = "prop-xyz/use/antiAG1";
-        final String ns2 = "prop-xyz/use/antiAG2";
-        final String ns3 = "prop-xyz/use/antiAG3";
-        admin.namespaces().createNamespace(ns1);
-        admin.namespaces().createNamespace(ns2);
-        admin.namespaces().createNamespace(ns3);
+        final String ns1 = "prop-xyz/antiAG1";
+        final String ns2 = "prop-xyz/antiAG2";
+        final String ns3 = "prop-xyz/antiAG3";
+        admin.namespaces().createNamespace(ns1, Sets.newHashSet("test"));
+        admin.namespaces().createNamespace(ns2, Sets.newHashSet("test"));
+        admin.namespaces().createNamespace(ns3, Sets.newHashSet("test"));
         admin.namespaces().setNamespaceAntiAffinityGroup(ns1, antiAffinityGroup);
         admin.namespaces().setNamespaceAntiAffinityGroup(ns2, antiAffinityGroup);
         admin.namespaces().setNamespaceAntiAffinityGroup(ns3, antiAffinityGroup);
 
         Set<String> namespaces = new HashSet<>(
-                admin.namespaces().getAntiAffinityNamespaces("dummy", "use", antiAffinityGroup));
+                admin.namespaces().getAntiAffinityNamespaces("prop-xyz", "test", antiAffinityGroup));
         assertEquals(namespaces.size(), 3);
         assertTrue(namespaces.contains(ns1));
         assertTrue(namespaces.contains(ns2));
         assertTrue(namespaces.contains(ns3));
 
-        List<String> namespaces2 = admin.namespaces().getAntiAffinityNamespaces("dummy", "use", "invalid-group");
+        List<String> namespaces2 = admin.namespaces().getAntiAffinityNamespaces("prop-xyz", "test", "invalid-group");
         assertEquals(namespaces2.size(), 0);
     }
 
     @Test
     public void testNonPersistentTopics() throws Exception {
-        final String namespace = "prop-xyz/use/ns2";
+        final String namespace = "prop-xyz/ns2";
         final String topicName = "non-persistent://" + namespace + "/topic";
         admin.namespaces().createNamespace(namespace, 20);
+        admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("test"));
         int totalTopics = 100;
 
         Set<String> topicNames = Sets.newHashSet();
@@ -743,7 +748,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     public void testPublishConsumerStats() throws Exception {
         final String topicName = "statTopic";
         final String subscriberName = topicName + "-my-sub-1";
-        final String topic = "persistent://prop-xyz/use/ns1/" + topicName;
+        final String topic = "persistent://prop-xyz/ns1/" + topicName;
         final String producerName = "myProducer";
 
         URL pulsarUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
@@ -791,10 +796,10 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testTenantNameWithUnderscore() throws Exception {
-        PropertyAdmin propertyAdmin = new PropertyAdmin(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use"));
+        PropertyAdmin propertyAdmin = new PropertyAdmin(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.properties().createProperty("prop_xyz", propertyAdmin);
 
-        admin.namespaces().createNamespace("prop_xyz/use/my-namespace");
+        admin.namespaces().createNamespace("prop_xyz/my-namespace", Sets.newHashSet("test"));
 
         String topic = "persistent://prop_xyz/use/my-namespace/my-topic";
 
@@ -808,7 +813,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testTenantNameWithInvalidCharacters() throws Exception {
-        PropertyAdmin propertyAdmin = new PropertyAdmin(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use"));
+        PropertyAdmin propertyAdmin = new PropertyAdmin(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
 
         // If we try to create property with invalid characters, it should fail immediately
         try {
@@ -823,6 +828,49 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
             fail("Should have failed");
         } catch (PulsarAdminException e) {
             // Expected
+        }
+    }
+    
+    @Test
+    public void brokerNamespaceIsolationPolicies() throws Exception {
+
+        // create
+        String policyName1 = "policy-1";
+        String namespaceRegex = "other/use/other.*";
+        String cluster = "use";
+        String brokerName = pulsar.getAdvertisedAddress();
+        String brokerAddress = brokerName + ":" + pulsar.getConfiguration().getWebServicePort();
+        NamespaceIsolationData nsPolicyData1 = new NamespaceIsolationData();
+        nsPolicyData1.namespaces = new ArrayList<String>();
+        nsPolicyData1.namespaces.add(namespaceRegex);
+        nsPolicyData1.primary = new ArrayList<String>();
+        nsPolicyData1.primary.add(brokerName + ":[0-9]*");
+        nsPolicyData1.secondary = new ArrayList<String>();
+        nsPolicyData1.secondary.add(brokerName + ".*");
+        nsPolicyData1.auto_failover_policy = new AutoFailoverPolicyData();
+        nsPolicyData1.auto_failover_policy.policy_type = AutoFailoverPolicyType.min_available;
+        nsPolicyData1.auto_failover_policy.parameters = new HashMap<String, String>();
+        nsPolicyData1.auto_failover_policy.parameters.put("min_limit", "1");
+        nsPolicyData1.auto_failover_policy.parameters.put("usage_threshold", "100");
+        admin.clusters().createNamespaceIsolationPolicy(cluster, policyName1, nsPolicyData1);
+
+        List<BrokerNamespaceIsolationData> brokerIsolationDataList = admin.clusters()
+                .getBrokersWithNamespaceIsolationPolicy(cluster);
+        assertEquals(brokerIsolationDataList.size(), 1);
+        assertEquals(brokerIsolationDataList.get(0).brokerName, brokerAddress);
+        assertEquals(brokerIsolationDataList.get(0).namespaceRegex.size(), 1);
+        assertEquals(brokerIsolationDataList.get(0).namespaceRegex.get(0), namespaceRegex);
+
+        BrokerNamespaceIsolationData brokerIsolationData = admin.clusters()
+                .getBrokerWithNamespaceIsolationPolicy(cluster, brokerAddress);
+        assertEquals(brokerIsolationData.brokerName, brokerAddress);
+        assertEquals(brokerIsolationData.namespaceRegex.size(), 1);
+        assertEquals(brokerIsolationData.namespaceRegex.get(0), namespaceRegex);
+
+        try {
+            admin.clusters().getBrokerWithNamespaceIsolationPolicy(cluster, "invalid-broker");
+            Assert.fail("should have failed due to invalid broker address");
+        } catch (PulsarAdminException.NotFoundException e) {// expected
         }
     }
 }
