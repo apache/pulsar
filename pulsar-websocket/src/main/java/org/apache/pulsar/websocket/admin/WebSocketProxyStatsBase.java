@@ -18,20 +18,13 @@
  */
 package org.apache.pulsar.websocket.admin;
 
-import static org.apache.pulsar.common.util.Codec.decode;
+import com.google.common.collect.Maps;
 
 import java.util.Collection;
 import java.util.Map;
 
-import javax.ws.rs.Encoded;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
 
-import com.google.common.collect.Maps;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.websocket.stats.ProxyTopicStat;
@@ -40,22 +33,10 @@ import org.apache.pulsar.websocket.stats.ProxyTopicStat.ProducerStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
+public class WebSocketProxyStatsBase extends WebSocketWebResource {
+    private static final Logger LOG = LoggerFactory.getLogger(WebSocketProxyStatsBase.class);
 
-@Path("/proxy-stats")
-@Api(value = "/proxy", description = "Stats for web-socket proxy", tags = "proxy-stats")
-@Produces(MediaType.APPLICATION_JSON)
-public class WebSocketProxyStats extends WebSocketWebResource {
-    private static final Logger LOG = LoggerFactory.getLogger(WebSocketProxyStats.class);
-
-    @GET
-    @Path("/metrics")
-    @ApiOperation(value = "Gets the metrics for Monitoring", notes = "Requested should be executed by Monitoring agent on each proxy to fetch the metrics", response = Metrics.class, responseContainer = "List")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
-    public Collection<Metrics> getMetrics() throws Exception {
+    protected Collection<Metrics> internalGetMetrics() throws Exception {
         // Ensure super user access only
         validateSuperUserAccess();
         try {
@@ -66,57 +47,44 @@ public class WebSocketProxyStats extends WebSocketWebResource {
         }
     }
 
-    @GET
-    @Path("/{property}/{cluster}/{namespace}/{topic}/stats")
-    @ApiOperation(value = "Get the stats for the topic.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist") })
-    public ProxyTopicStat getStats(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String topic) {
-        topic = decode(topic);
-        TopicName topicName = TopicName.get("persistent", property, cluster, namespace, topic);
+    protected ProxyTopicStat internalGetStats(TopicName topicName) {
         validateUserAccess(topicName);
-        ProxyTopicStat stats = getStat(topicName.toString());
+        ProxyTopicStat stats = getStat(topicName);
         if (stats == null) {
             throw new RestException(Status.NOT_FOUND, "Topic does not exist");
         }
         return stats;
     }
 
-    @GET
-    @Path("/stats")
-    @ApiOperation(value = "Get the stats for the topic.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
-    public Map<String, ProxyTopicStat> getProxyStats() {
+    protected Map<String, ProxyTopicStat> internalGetProxyStats() {
         validateSuperUserAccess();
         return getStat();
     }
 
-    public ProxyTopicStat getStat(String topicName) {
-
-        if (!service().getProducers().containsKey(topicName)
-        		&& !service().getConsumers().containsKey(topicName)
-        		&& !service().getReaders().containsKey(topicName)) {
-            LOG.warn("topic doesn't exist {}", topicName);
+    private ProxyTopicStat getStat(TopicName topicName) {
+        String topicNameStr = topicName.toString();
+        if (!service().getProducers().containsKey(topicNameStr) && !service().getConsumers().containsKey(topicNameStr)
+                && !service().getReaders().containsKey(topicNameStr)) {
+            LOG.warn("topic doesn't exist {}", topicNameStr);
             throw new RestException(Status.NOT_FOUND, "Topic does not exist");
         }
         ProxyTopicStat topicStat = new ProxyTopicStat();
-        if (service().getProducers().containsKey(topicName)){
-            service().getProducers().get(topicName).forEach(handler -> {
+        if (service().getProducers().containsKey(topicNameStr)) {
+            service().getProducers().get(topicNameStr).forEach(handler -> {
                 ProducerStats stat = new ProducerStats(handler);
                 topicStat.producerStats.add(stat);
 
             });
         }
 
-        if (service().getConsumers().containsKey(topicName)){
-            service().getConsumers().get(topicName).forEach(handler -> {
+        if (service().getConsumers().containsKey(topicNameStr)) {
+            service().getConsumers().get(topicNameStr).forEach(handler -> {
                 topicStat.consumerStats.add(new ConsumerStats(handler));
             });
         }
 
-        if (service().getReaders().containsKey(topicName)){
-            service().getReaders().get(topicName).forEach(handler -> {
+        if (service().getReaders().containsKey(topicNameStr)) {
+            service().getReaders().get(topicNameStr).forEach(handler -> {
                 topicStat.consumerStats.add(new ConsumerStats(handler));
             });
         }

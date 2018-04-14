@@ -57,10 +57,10 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                                      final @PathParam("functionName") String functionName,
                                      final @FormDataParam("data") InputStream uploadedInputStream,
                                      final @FormDataParam("data") FormDataContentDisposition fileDetail,
-                                     final @FormDataParam("functionConfig") String functionConfigJson) {
+                                     final @FormDataParam("functionDetails") String functionDetailsJson) {
 
         return functions.registerFunction(
-            tenant, namespace, functionName, uploadedInputStream, fileDetail, functionConfigJson);
+            tenant, namespace, functionName, uploadedInputStream, fileDetail, functionDetailsJson);
 
     }
 
@@ -72,10 +72,10 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                                    final @PathParam("functionName") String functionName,
                                    final @FormDataParam("data") InputStream uploadedInputStream,
                                    final @FormDataParam("data") FormDataContentDisposition fileDetail,
-                                   final @FormDataParam("functionConfig") String functionConfigJson) {
+                                   final @FormDataParam("functionDetails") String functionDetailsJson) {
 
         return functions.updateFunction(
-            tenant, namespace, functionName, uploadedInputStream, fileDetail, functionConfigJson);
+            tenant, namespace, functionName, uploadedInputStream, fileDetail, functionDetailsJson);
 
     }
 

@@ -27,8 +27,8 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.instance.InputMessage;
-import org.apache.pulsar.functions.proto.Function.FunctionConfig;
-import org.apache.pulsar.functions.proto.Function.FunctionConfig.ProcessingGuarantees;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails.ProcessingGuarantees;
 
 /**
  * A processor that processes messages, used by {@link org.apache.pulsar.functions.instance.JavaInstanceRunnable}.
@@ -37,13 +37,15 @@ import org.apache.pulsar.functions.proto.Function.FunctionConfig.ProcessingGuara
 public interface MessageProcessor extends AutoCloseable {
 
     static MessageProcessor create(PulsarClient client,
-                                   FunctionConfig functionConfig,
+                                   FunctionDetails functionDetails,
                                    LinkedBlockingDeque<InputMessage> processQeueue) {
-        FunctionConfig.SubscriptionType fnSubType = functionConfig.getSubscriptionType();
-        ProcessingGuarantees processingGuarantees = functionConfig.getProcessingGuarantees();
+        FunctionDetails.SubscriptionType fnSubType = functionDetails.getSubscriptionType();
+        ProcessingGuarantees processingGuarantees = functionDetails.getProcessingGuarantees();
         SubscriptionType subType;
-        if (null == fnSubType || FunctionConfig.SubscriptionType.SHARED == fnSubType) {
+        if (FunctionDetails.SubscriptionType.SHARED == fnSubType) {
             subType = SubscriptionType.Shared;
+        } else if (FunctionDetails.SubscriptionType.EXCLUSIVE == fnSubType) {
+            subType = SubscriptionType.Exclusive;
         } else {
             subType = SubscriptionType.Failover;
         }
@@ -51,18 +53,18 @@ public interface MessageProcessor extends AutoCloseable {
         if (processingGuarantees == ProcessingGuarantees.EFFECTIVELY_ONCE) {
             return new EffectivelyOnceProcessor(
                 client,
-                functionConfig,
+                functionDetails,
                 processQeueue);
         } else if (processingGuarantees == ProcessingGuarantees.ATMOST_ONCE) {
             return new AtMostOnceProcessor(
                 client,
-                functionConfig,
+                functionDetails,
                 subType,
                 processQeueue);
         } else {
             return new AtLeastOnceProcessor(
                 client,
-                functionConfig,
+                functionDetails,
                 subType,
                 processQeueue);
         }

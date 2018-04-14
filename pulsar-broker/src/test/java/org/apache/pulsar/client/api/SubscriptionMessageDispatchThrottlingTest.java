@@ -18,9 +18,11 @@
  */
 package org.apache.pulsar.client.api;
 
+import com.google.common.collect.Sets;
+
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
@@ -46,7 +48,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
                                                              DispatchRateType dispatchRateType) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String namespace = "my-property/use/throttling_ns";
+        final String namespace = "my-property/throttling_ns";
         final String topicName = "persistent://" + namespace + "/throttlingBlock";
         final String subName = "my-subscriber-name";
 
@@ -58,7 +60,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
             dispatchRate = new DispatchRate(-1, messageRate, 360);
         }
 
-        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         admin.namespaces().setSubscriptionDispatchRate(namespace, dispatchRate);
         // create producer, topic and consumer
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
@@ -134,13 +136,13 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String namespace = "my-property/use/throttling_ns";
+        final String namespace = "my-property/throttling_ns";
         final String topicName = "persistent://" + namespace + "/throttlingAll";
         final String subName = "my-subscriber-name";
 
         final int messageRate = 10;
         DispatchRate dispatchRate = new DispatchRate(messageRate, -1, 1);
-        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         admin.namespaces().setSubscriptionDispatchRate(namespace, dispatchRate);
         final int numProducedMessages = 30;
         final CountDownLatch latch = new CountDownLatch(numProducedMessages);
@@ -219,13 +221,13 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
     public void testBytesRateLimitingReceiveAllMessagesAfterThrottling(SubscriptionType subscription) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String namespace = "my-property/use/throttling_ns";
-        final String topicName = "persistent://" + namespace + "/throttlingAll";
-        final String subName = "my-subscriber-name";
+        final String namespace = "my-property/throttling_ns";
+        final String topicName = "persistent://" + namespace + "/throttlingAll-" + System.nanoTime();
+        final String subName = "my-subscriber-name-" + subscription;
 
         final int byteRate = 100;
         DispatchRate dispatchRate = new DispatchRate(-1, byteRate, 1);
-        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         admin.namespaces().setSubscriptionDispatchRate(namespace, dispatchRate);
         final int numProducedMessages = 30;
         final CountDownLatch latch = new CountDownLatch(numProducedMessages);
@@ -278,7 +280,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
             producer.send(new byte[byteRate / 10]);
         }
         latch.await();
-        Assert.assertEquals(totalReceived.get(), numProducedMessages);
+        Assert.assertEquals(totalReceived.get(), numProducedMessages, 10);
         long end = System.currentTimeMillis();
         log.info("-- end - start: {} ", end - start);
 
@@ -299,13 +301,13 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
     public void testRateLimitingMultipleConsumers() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String namespace = "my-property/use/throttling_ns";
+        final String namespace = "my-property/throttling_ns";
         final String topicName = "persistent://" + namespace + "/throttlingMultipleConsumers";
         final String subName = "my-subscriber-name";
 
         final int messageRate = 5;
         DispatchRate dispatchRate = new DispatchRate(messageRate, -1, 360);
-        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         admin.namespaces().setSubscriptionDispatchRate(namespace, dispatchRate);
 
         final int numProducedMessages = 500;
@@ -381,7 +383,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
     public void testClusterRateLimitingConfiguration(SubscriptionType subscription) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String namespace = "my-property/use/throttling_ns";
+        final String namespace = "my-property/throttling_ns";
         final String topicName = "persistent://" + namespace + "/throttlingBlock";
         final String subName = "my-subscriber-name";
 
@@ -401,7 +403,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         }
         Assert.assertNotEquals(pulsar.getConfiguration().getDispatchThrottlingRatePerSubscriptionInMsg(), initValue);
 
-        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         // create producer and topic
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
@@ -452,7 +454,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
     public void testClusterPolicyOverrideConfiguration() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String namespace = "my-property/use/throttling_ns";
+        final String namespace = "my-property/throttling_ns";
         final String topicName1 = "persistent://" + namespace + "/throttlingOverride1";
         final String topicName2 = "persistent://" + namespace + "/throttlingOverride2";
         final String subName1 = "my-subscriber-name1";
@@ -474,7 +476,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         }
         Assert.assertNotEquals(pulsar.getConfiguration().getDispatchThrottlingRatePerSubscriptionInMsg(), initValue);
 
-        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
 
         // create producer and topic
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName1).create();

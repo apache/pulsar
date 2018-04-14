@@ -47,7 +47,7 @@ import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
-import org.apache.pulsar.functions.proto.Function.FunctionConfig;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.Utils;
@@ -295,40 +295,40 @@ public class FunctionApiV2ResourceTest {
         Integer parallelism,
         String missingFieldName
     ) throws IOException {
-        FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
+        FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
         if (tenant != null) {
-            functionConfigBuilder.setTenant(tenant);
+            functionDetailsBuilder.setTenant(tenant);
         }
         if (namespace != null) {
-            functionConfigBuilder.setNamespace(namespace);
+            functionDetailsBuilder.setNamespace(namespace);
         }
         if (function != null) {
-            functionConfigBuilder.setName(function);
+            functionDetailsBuilder.setName(function);
         }
         if (outputTopic != null) {
-            functionConfigBuilder.setOutput(outputTopic);
+            functionDetailsBuilder.setOutput(outputTopic);
         }
         if (inputTopic != null && inputSerdeClassName != null) {
-            functionConfigBuilder.putCustomSerdeInputs(inputTopic, inputSerdeClassName);
+            functionDetailsBuilder.putCustomSerdeInputs(inputTopic, inputSerdeClassName);
         }
         if (outputSerdeClassName != null) {
-            functionConfigBuilder.setOutputSerdeClassName(outputSerdeClassName);
+            functionDetailsBuilder.setOutputSerdeClassName(outputSerdeClassName);
         }
         if (className != null) {
-            functionConfigBuilder.setClassName(className);
+            functionDetailsBuilder.setClassName(className);
         }
         if (parallelism != null) {
-            functionConfigBuilder.setParallelism(parallelism);
+            functionDetailsBuilder.setParallelism(parallelism);
         }
 
-        FunctionConfig functionConfig = functionConfigBuilder.build();
+        FunctionDetails functionDetails = functionDetailsBuilder.build();
         Response response = resource.registerFunction(
                 tenant,
                 namespace,
                 function,
                 inputStream,
                 details,
-                org.apache.pulsar.functions.utils.Utils.printJson(functionConfig));
+                org.apache.pulsar.functions.utils.Utils.printJson(functionDetails));
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         if (missingFieldName.equals("parallelism")) {
@@ -339,7 +339,7 @@ public class FunctionApiV2ResourceTest {
     }
 
     private Response registerDefaultFunction() throws IOException {
-        FunctionConfig functionConfig = FunctionConfig.newBuilder()
+        FunctionDetails functionDetails = FunctionDetails.newBuilder()
                 .setTenant(tenant).setNamespace(namespace).setName(function)
                 .setOutput(outputTopic).putCustomSerdeInputs(inputTopic, inputSerdeClassName)
                 .setOutputSerdeClassName(outputSerdeClassName)
@@ -351,7 +351,7 @@ public class FunctionApiV2ResourceTest {
             function,
             mockedInputStream,
             mockedFormData,
-            org.apache.pulsar.functions.utils.Utils.printJson(functionConfig));
+            org.apache.pulsar.functions.utils.Utils.printJson(functionDetails));
     }
 
     @Test
@@ -615,40 +615,40 @@ public class FunctionApiV2ResourceTest {
         Integer parallelism,
         String missingFieldName
     ) throws IOException {
-        FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
+        FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
         if (tenant != null) {
-            functionConfigBuilder.setTenant(tenant);
+            functionDetailsBuilder.setTenant(tenant);
         }
         if (namespace != null) {
-            functionConfigBuilder.setNamespace(namespace);
+            functionDetailsBuilder.setNamespace(namespace);
         }
         if (function != null) {
-            functionConfigBuilder.setName(function);
+            functionDetailsBuilder.setName(function);
         }
         if (outputTopic != null) {
-            functionConfigBuilder.setOutput(outputTopic);
+            functionDetailsBuilder.setOutput(outputTopic);
         }
         if (inputTopic != null && inputSerdeClassName != null) {
-            functionConfigBuilder.putCustomSerdeInputs(inputTopic, inputSerdeClassName);
+            functionDetailsBuilder.putCustomSerdeInputs(inputTopic, inputSerdeClassName);
         }
         if (outputSerdeClassName != null) {
-            functionConfigBuilder.setOutputSerdeClassName(outputSerdeClassName);
+            functionDetailsBuilder.setOutputSerdeClassName(outputSerdeClassName);
         }
         if (className != null) {
-            functionConfigBuilder.setClassName(className);
+            functionDetailsBuilder.setClassName(className);
         }
         if (parallelism != null) {
-            functionConfigBuilder.setParallelism(parallelism);
+            functionDetailsBuilder.setParallelism(parallelism);
         }
 
-        FunctionConfig functionConfig = functionConfigBuilder.build();
+        FunctionDetails functionDetails = functionDetailsBuilder.build();
         Response response = resource.updateFunction(
             tenant,
             namespace,
             function,
             inputStream,
             details,
-            org.apache.pulsar.functions.utils.Utils.printJson(functionConfig));
+            org.apache.pulsar.functions.utils.Utils.printJson(functionDetails));
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         if (missingFieldName.equals("parallelism")) {
@@ -659,7 +659,7 @@ public class FunctionApiV2ResourceTest {
     }
 
     private Response updateDefaultFunction() throws IOException {
-        FunctionConfig functionConfig = FunctionConfig.newBuilder()
+        FunctionDetails functionDetails = FunctionDetails.newBuilder()
                 .setTenant(tenant).setNamespace(namespace).setName(function)
                 .setOutput(outputTopic).putCustomSerdeInputs(inputTopic, inputSerdeClassName)
                 .setOutputSerdeClassName(outputSerdeClassName)
@@ -671,7 +671,7 @@ public class FunctionApiV2ResourceTest {
             function,
             mockedInputStream,
             mockedFormData,
-            org.apache.pulsar.functions.utils.Utils.printJson(functionConfig));
+            org.apache.pulsar.functions.utils.Utils.printJson(functionDetails));
     }
 
     @Test
@@ -933,19 +933,19 @@ public class FunctionApiV2ResourceTest {
     public void testGetFunctionSuccess() throws Exception {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
-        FunctionConfig functionConfig = FunctionConfig.newBuilder()
+        FunctionDetails functionDetails = FunctionDetails.newBuilder()
                 .setClassName(className)
                 .putCustomSerdeInputs(inputTopic, inputSerdeClassName)
                 .setOutputSerdeClassName(outputSerdeClassName)
                 .setName(function)
                 .setNamespace(namespace)
-                .setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATMOST_ONCE)
+                .setProcessingGuarantees(FunctionDetails.ProcessingGuarantees.ATMOST_ONCE)
                 .setOutput(outputTopic)
                 .setTenant(tenant)
                 .setParallelism(parallelism).build();
         FunctionMetaData metaData = FunctionMetaData.newBuilder()
             .setCreateTime(System.currentTimeMillis())
-            .setFunctionConfig(functionConfig)
+            .setFunctionDetails(functionDetails)
             .setPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath("/path/to/package"))
             .setVersion(1234)
             .build();
@@ -954,7 +954,7 @@ public class FunctionApiV2ResourceTest {
         Response response = getDefaultFunctionInfo();
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
         assertEquals(
-            org.apache.pulsar.functions.utils.Utils.printJson(functionConfig),
+            org.apache.pulsar.functions.utils.Utils.printJson(functionDetails),
             response.getEntity());
     }
 

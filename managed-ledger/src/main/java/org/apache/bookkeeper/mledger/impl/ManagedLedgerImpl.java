@@ -42,6 +42,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -61,6 +63,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.OffloadCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -92,7 +95,6 @@ import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
-import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -202,7 +204,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * Queue of pending entries to be added to the managed ledger. Typically entries are queued when a new ledger is
      * created asynchronously and hence there is no ready ledger to write into.
      */
-    final GrowableArrayBlockingQueue<OpAddEntry> pendingAddEntries = new GrowableArrayBlockingQueue<>();
+    final ConcurrentLinkedQueue<OpAddEntry> pendingAddEntries = new ConcurrentLinkedQueue<>();
 
     // //////////////////////////////////////////////////////////////////////
 
@@ -357,7 +359,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         STATE_UPDATER.set(this, State.LedgerOpened);
                         lastLedgerCreatedTimestamp = System.currentTimeMillis();
                         currentLedger = lh;
+
                         lastConfirmedEntry = new PositionImpl(lh.getId(), -1);
+                        // bypass empty ledgers, find last ledger with Message if possible.
+                        while (lastConfirmedEntry.getEntryId() == -1) {
+                            Map.Entry<Long, LedgerInfo> formerLedger = ledgers.lowerEntry(lastConfirmedEntry.getLedgerId());
+                            if (formerLedger != null) {
+                                LedgerInfo ledgerInfo = formerLedger.getValue();
+                                lastConfirmedEntry = PositionImpl.get(ledgerInfo.getLedgerId(), ledgerInfo.getEntries() - 1);
+                            } else {
+                                break;
+                            }
+                        }
+
                         LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lh.getId()).setTimestamp(0).build();
                         ledgers.put(lh.getId(), info);
 
@@ -488,10 +502,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         OpAddEntry addOperation = OpAddEntry.create(this, buffer, callback, ctx);
-        pendingAddEntries.add(addOperation);
 
         // Jump to specific thread to avoid contention from writers writing from different threads
         executor.executeOrdered(name, safeRun(() -> {
+            pendingAddEntries.add(addOperation);
+
             internalAsyncAddEntry(addOperation);
         }));
     }
@@ -1197,7 +1212,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         // Process all the pending addEntry requests
-        for (OpAddEntry op : pendingAddEntries.toList()) {
+        for (OpAddEntry op : pendingAddEntries) {
             op.setLedger(currentLedger);
             ++currentLedgerEntries;
             currentLedgerSize += op.data.readableBytes();
@@ -1815,6 +1830,39 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 callback.deleteLedgerFailed(e, ctx);
             }
         });
+    }
+
+    @Override
+    public Position offloadPrefix(Position pos) throws InterruptedException, ManagedLedgerException {
+        CompletableFuture<Position> promise = new CompletableFuture<>();
+
+        asyncOffloadPrefix(pos, new OffloadCallback() {
+                @Override
+                public void offloadComplete(Position offloadedTo, Object ctx) {
+                    promise.complete(offloadedTo);
+                }
+
+                @Override
+                public void offloadFailed(ManagedLedgerException e, Object ctx) {
+                    promise.completeExceptionally(e);
+                }
+            }, null);
+
+        try {
+            return promise.get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
+        } catch (TimeoutException te) {
+            throw new ManagedLedgerException("Timeout during managed ledger offload operation");
+        } catch (ExecutionException e) {
+            log.error("[{}] Error offloading. pos = {}", name, pos, e.getCause());
+            throw ManagedLedgerException.getManagedLedgerException(e.getCause());
+        }
+    }
+
+
+
+    @Override
+    public void asyncOffloadPrefix(Position pos, OffloadCallback callback, Object ctx) {
+        callback.offloadFailed(new ManagedLedgerException("Not implemented"), ctx);
     }
 
     /**

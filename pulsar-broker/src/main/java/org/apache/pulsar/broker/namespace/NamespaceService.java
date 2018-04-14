@@ -119,6 +119,8 @@ public class NamespaceService {
     public static final Pattern SLA_NAMESPACE_PATTERN = Pattern.compile(SLA_NAMESPACE_PROPERTY + "/[^/]+/([^:]+:\\d+)");
     public static final String HEARTBEAT_NAMESPACE_FMT = "pulsar/%s/%s:%s";
     public static final String SLA_NAMESPACE_FMT = SLA_NAMESPACE_PROPERTY + "/%s/%s:%s";
+    
+    public static final String NAMESPACE_ISOLATION_POLICIES = "namespaceIsolationPolicies";
 
     /**
      * Default constructor.
@@ -519,7 +521,7 @@ public class NamespaceService {
     private NamespaceIsolationPolicies getLocalNamespaceIsolationPolicies() throws Exception {
         String localCluster = pulsar.getConfiguration().getClusterName();
         return pulsar.getConfigurationCache().namespaceIsolationPoliciesCache()
-                .get(AdminResource.path("clusters", localCluster, "namespaceIsolationPolicies")).orElseGet(() -> {
+                .get(AdminResource.path("clusters", localCluster, NAMESPACE_ISOLATION_POLICIES)).orElseGet(() -> {
                     // the namespace isolation policies are empty/undefined = an empty object
                     return new NamespaceIsolationPolicies();
                 });

@@ -38,8 +38,8 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.functions.instance.InputMessage;
 import org.apache.pulsar.functions.instance.producers.MultiConsumersOneOuputTopicProducers;
 import org.apache.pulsar.functions.instance.producers.Producers;
-import org.apache.pulsar.functions.proto.Function.FunctionConfig;
-import org.apache.pulsar.functions.utils.FunctionConfigUtils;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.apache.pulsar.functions.utils.Utils;
 
 /**
@@ -54,9 +54,9 @@ class EffectivelyOnceProcessor extends MessageProcessorBase implements ConsumerE
     protected Producers outputProducer;
 
     EffectivelyOnceProcessor(PulsarClient client,
-                             FunctionConfig functionConfig,
+                             FunctionDetails functionDetails,
                              LinkedBlockingDeque<InputMessage> processQueue) {
-        super(client, functionConfig, SubscriptionType.Failover, processQueue);
+        super(client, functionDetails, SubscriptionType.Failover, processQueue);
     }
 
     /**
@@ -180,7 +180,7 @@ class EffectivelyOnceProcessor extends MessageProcessorBase implements ConsumerE
             .thenAccept(messageId -> inputMsg.ackCumulative())
             .exceptionally(cause -> {
                 log.error("Failed to send the process result {} of message {} to output topic {}",
-                    outputMsg, inputMsg, functionConfig.getOutput(), cause);
+                    outputMsg, inputMsg, functionDetails.getOutput(), cause);
                 handleProcessException(inputMsg.getTopicName());
                 return null;
             });
@@ -251,7 +251,7 @@ class EffectivelyOnceProcessor extends MessageProcessorBase implements ConsumerE
                 srcTopic,
                 client.subscribe(
                     srcTopic,
-                    FunctionConfigUtils.getFullyQualifiedName(functionConfig),
+                    FunctionDetailsUtils.getFullyQualifiedName(functionDetails),
                     conf
                 ));
         } catch (PulsarClientException e) {

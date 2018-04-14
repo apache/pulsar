@@ -24,6 +24,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.OffloadCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
@@ -344,6 +345,31 @@ public interface ManagedLedger {
      * @throws ManagedLedgerException
      */
     void asyncDelete(DeleteLedgerCallback callback, Object ctx);
+
+    /**
+     * Offload as many entries before position as possible to longterm storage.
+     *
+     * @param pos the position before which entries will be offloaded
+     * @return the earliest position which was not offloaded
+     *
+     * @see #asyncOffloadPrefix(Position,OffloadCallback,Object)
+     */
+    Position offloadPrefix(Position pos) throws InterruptedException, ManagedLedgerException;
+
+    /**
+     * Offload as many entries before position as possible to longterm storage.
+     *
+     * As internally, entries is stored in ledgers, and ledgers can only be operated on as a whole,
+     * it is likely not possible to offload every entry before the passed in position. Only complete
+     * ledgers will be offloaded. On completion a position will be passed to the callback. This
+     * position is the earliest entry which was not offloaded.
+     *
+     * @param pos the position before which entries will be offloaded
+     * @param callback a callback which will be supplied with the earliest unoffloaded position on
+     *                 completion
+     * @param ctx a context object which will be passed to the callback on completion
+     */
+    void asyncOffloadPrefix(Position pos, OffloadCallback callback, Object ctx);
 
     /**
      * Get the slowest consumer.

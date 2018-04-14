@@ -36,7 +36,9 @@ public class RestException extends WebApplicationException {
     static String getExceptionData(Throwable t) {
         StringWriter writer = new StringWriter();
         writer.append("\n --- An unexpected error occurred in the server ---\n\n");
-        writer.append("Message: ").append(t.getMessage()).append("\n\n");
+        if (t != null) {
+            writer.append("Message: ").append(t.getMessage()).append("\n\n");
+        }
         writer.append("Stacktrace:\n\n");
 
         t.printStackTrace(new PrintWriter(writer));
