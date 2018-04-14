@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.loadbalance;
 
 import java.util.Optional;
+import java.util.Set;
 
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -103,4 +104,11 @@ public interface ModularLoadManager {
      * @return
      */
     Deserializer<? extends ServiceLookupData> getLoadReportDeserializer();
+
+    /**
+     * Get available broker list in cluster
+     * 
+     * @return
+     */
+    Set<String> getAvailableBrokers();
 }

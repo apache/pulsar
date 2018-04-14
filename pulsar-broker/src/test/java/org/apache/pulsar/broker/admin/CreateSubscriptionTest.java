@@ -28,6 +28,7 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.common.naming.TopicName;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -35,12 +36,13 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 
-public class CreateSubscriptionTest extends MockedPulsarServiceBaseTest {
+public class CreateSubscriptionTest extends ProducerConsumerBase {
 
     @BeforeMethod
     @Override
     public void setup() throws Exception {
         super.internalSetup();
+        producerBaseSetup();
     }
 
     @AfterMethod
@@ -51,7 +53,7 @@ public class CreateSubscriptionTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void createSubscriptionSingleTopic() throws Exception {
-        String topic = "persistent://prop-xyz/use/ns1/my-topic";
+        String topic = "persistent://my-property/my-ns/my-topic";
         admin.persistentTopics().createSubscription(topic, "sub-1", MessageId.latest);
 
         // Create should fail if the subscription already exists
@@ -84,7 +86,7 @@ public class CreateSubscriptionTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void createSubscriptionOnPartitionedTopic() throws Exception {
-        String topic = "persistent://prop-xyz/use/ns1/my-partitioned-topic";
+        String topic = "persistent://my-property/my-ns/my-partitioned-topic";
         admin.persistentTopics().createPartitionedTopic(topic, 10);
 
         admin.persistentTopics().createSubscription(topic, "sub-1", MessageId.latest);

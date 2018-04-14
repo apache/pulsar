@@ -43,7 +43,7 @@ public class NamespaceCreateBundlesTest extends BrokerTestBase {
 
     @Test
     public void testCreateNamespaceWithDefaultBundles() throws Exception {
-        String namespaceName = "prop/use/default-bundles";
+        String namespaceName = "prop/default-bundles";
 
         admin.namespaces().createNamespace(namespaceName);
 
