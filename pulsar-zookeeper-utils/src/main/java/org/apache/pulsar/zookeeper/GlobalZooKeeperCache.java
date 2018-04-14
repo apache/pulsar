@@ -85,6 +85,8 @@ public class GlobalZooKeeperCache extends ZooKeeperCache implements Closeable {
                 throw new IOException(e);
             }
         }
+
+        super.stop();
     }
 
     @Override

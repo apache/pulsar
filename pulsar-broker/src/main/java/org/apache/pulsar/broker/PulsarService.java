@@ -236,7 +236,10 @@ public class PulsarService implements AutoCloseable {
 
             configurationCacheService = null;
             localZkCacheService = null;
-            localZkCache = null;
+            if (localZkCache != null) {
+                localZkCache.stop();
+                localZkCache = null;
+            }
 
             if (adminClient != null) {
                 adminClient.close();

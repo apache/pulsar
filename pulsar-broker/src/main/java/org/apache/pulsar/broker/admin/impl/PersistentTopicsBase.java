@@ -379,8 +379,8 @@ public class PersistentTopicsBase extends AdminResource {
             if (e.getCause() instanceof RestException) {
                 throw (RestException) e.getCause();
             }
-            log.error("[{}] Failed to update partitioned topic {}", clientAppId(), topicName, e.getCause());
-            throw new RestException(e.getCause());
+            log.error("[{}] Failed to update partitioned topic {}", clientAppId(), topicName, e);
+            throw new RestException(e);
         }
     }
 
@@ -1213,8 +1213,7 @@ public class PersistentTopicsBase extends AdminResource {
      *            : number partitions for the topics
      */
     private CompletableFuture<Void> createSubscriptions(TopicName topicName, int numPartitions) {
-        String path = path(PARTITIONED_TOPIC_PATH_ZNODE, topicName.getProperty(), topicName.getCluster(),
-                topicName.getNamespacePortion(), domain(), topicName.getEncodedLocalName());
+        String path = path(PARTITIONED_TOPIC_PATH_ZNODE, topicName.getPersistenceNamingEncoding());
         CompletableFuture<Void> result = new CompletableFuture<>();
         fetchPartitionedTopicMetadataAsync(pulsar(), path).thenAccept(partitionMetadata -> {
             if (partitionMetadata.partitions <= 1) {
