@@ -193,8 +193,6 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
         String clientAuthParams = "authParam:client";
         String proxyAuthParams = "authParam:proxy";
 
-        admin.namespaces().createNamespace(namespaceName, Sets.newHashSet("test"));
-
         admin.namespaces().grantPermissionOnNamespace(namespaceName, "proxy",
                 Sets.newHashSet(AuthAction.consume, AuthAction.produce));
         admin.namespaces().grantPermissionOnNamespace(namespaceName, "client",
