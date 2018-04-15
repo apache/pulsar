@@ -565,10 +565,17 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
             .readCompacted(true).subscribe().close();
 
-        try (Producer producerNormal = pulsarClient.newProducer().topic(topic).create();
-             Producer producerBatch = pulsarClient.newProducer().topic(topic).maxPendingMessages(3)
-                .enableBatching(true).batchingMaxMessages(3)
-                .batchingMaxPublishDelay(1, TimeUnit.HOURS).create()) {
+        try (Producer producerNormal = pulsarClient.newProducer()
+                 .topic(topic)
+                 .enableBatching(false)
+                 .create();
+             Producer producerBatch = pulsarClient.newProducer()
+                 .topic(topic)
+                 .maxPendingMessages(3)
+                 .enableBatching(true)
+                 .batchingMaxMessages(3)
+                 .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                 .create()) {
 
             // key0 persists through it all
             producerNormal.sendAsync(MessageBuilder.create()
