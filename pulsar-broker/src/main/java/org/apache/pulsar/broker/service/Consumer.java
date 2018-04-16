@@ -355,8 +355,14 @@ public class Consumer {
      * pending message acks
      */
     public void close() throws BrokerServiceException {
-        subscription.removeConsumer(this);
-        cnx.removedConsumer(this);
+        cnx.ctx().executor().submit(() -> {
+            try {
+                subscription.removeConsumer(this);
+            } catch (BrokerServiceException e) {
+                log.info("Failed to remove consumer: {}", this);
+            }
+            cnx.removedConsumer(this);
+        });
     }
 
     public void disconnect() {
