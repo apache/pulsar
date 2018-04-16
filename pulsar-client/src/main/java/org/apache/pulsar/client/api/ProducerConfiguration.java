@@ -184,10 +184,11 @@ public class ProducerConfiguration implements Serializable {
     }
 
     /**
-     * Set the message routing mode for the partitioned producer
+     * Set the message routing mode for the partitioned producer.
      *
-     * @param mode
-     * @return
+     * @param messageRouteMode message routing mode.
+     * @return producer configuration
+     * @see MessageRoutingMode
      */
     public ProducerConfiguration setMessageRoutingMode(MessageRoutingMode messageRouteMode) {
         checkNotNull(messageRouteMode);
@@ -197,9 +198,10 @@ public class ProducerConfiguration implements Serializable {
     }
 
     /**
-     * Get the message routing mode for the partitioned producer
+     * Get the message routing mode for the partitioned producer.
      *
-     * @return
+     * @return message routing mode, default is round-robin routing.
+     * @see MessageRoutingMode#RoundRobinPartition
      */
     public MessageRoutingMode getMessageRoutingMode() {
         return MessageRoutingMode.valueOf(conf.getMessageRoutingMode().toString());
@@ -269,9 +271,12 @@ public class ProducerConfiguration implements Serializable {
     }
 
     /**
-     * @ return if batch messages are enabled
+     * Return the flag whether automatic message batching is enabled or not.
+     *
+     * @return true if batch messages are enabled. otherwise false.
+     * @since 2.0.0 <br>
+     *        It is enabled by default.
      */
-
     public boolean getBatchingEnabled() {
         return conf.isBatchingEnabled();
     }
@@ -290,8 +295,8 @@ public class ProducerConfiguration implements Serializable {
      * @since 1.0.36 <br>
      *        Make sure all the consumer applications have been updated to use this client version, before starting to
      *        batch messages.
+     *
      */
-
     public ProducerConfiguration setBatchingEnabled(boolean batchMessagesEnabled) {
         conf.setBatchingEnabled(batchMessagesEnabled);
         return this;

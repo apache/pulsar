@@ -52,6 +52,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.api.MessageBuilder;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.RawMessage;
@@ -209,7 +210,10 @@ public class ReplicatorTest extends ReplicatorTestBase {
         final TopicName topicName = TopicName.get(String.format("persistent://" + namespace + "/topic-%d", 0));
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
-        Producer<byte[]> producer = client1.newProducer().topic(topicName.toString()).create();
+        Producer<byte[]> producer = client1.newProducer().topic(topicName.toString())
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
         producer.close();
 
         PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getOrCreateTopic(topicName.toString()).get();
@@ -850,7 +854,10 @@ public class ReplicatorTest extends ReplicatorTestBase {
         final String topicName = "persistent://pulsar/ns/checksumAfterReplication";
 
         PulsarClient c1 = PulsarClient.builder().serviceUrl(url1.toString()).build();
-        Producer<byte[]> p1 = c1.newProducer().topic(topicName).create();
+        Producer<byte[]> p1 = c1.newProducer().topic(topicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
 
         PulsarClient c2 = PulsarClient.builder().serviceUrl(url2.toString()).build();
         RawReader reader2 = RawReader.create(c2, topicName, "sub").get();
@@ -897,7 +904,10 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         // load namespace with dummy topic on ns
         PulsarClient client = PulsarClient.builder().serviceUrl(url1.toString()).build();
-        client.newProducer().topic("persistent://" + namespace + "/dummyTopic").create();
+        client.newProducer().topic("persistent://" + namespace + "/dummyTopic")
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
 
         // persistent topic test
         try {

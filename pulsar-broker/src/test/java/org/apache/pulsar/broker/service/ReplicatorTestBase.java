@@ -37,6 +37,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -267,7 +268,11 @@ public class ReplicatorTestBase {
             this.namespace = dest.getNamespace();
             this.topicName = dest.toString();
             client = PulsarClient.builder().serviceUrl(url.toString()).statsInterval(0, TimeUnit.SECONDS).build();
-            producer = client.newProducer().topic(topicName).create();
+            producer = client.newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
         }
 
@@ -276,12 +281,11 @@ public class ReplicatorTestBase {
             this.namespace = dest.getNamespace();
             this.topicName = dest.toString();
             client = PulsarClient.builder().serviceUrl(url.toString()).statsInterval(0, TimeUnit.SECONDS).build();
-            ProducerBuilder<byte[]> producerBuilder = client.newProducer().topic(topicName);
-            if (batch) {
-                producerBuilder.enableBatching(true);
-                producerBuilder.batchingMaxPublishDelay(1, TimeUnit.SECONDS);
-                producerBuilder.batchingMaxMessages(5);
-            }
+            ProducerBuilder<byte[]> producerBuilder = client.newProducer()
+                .topic(topicName)
+                .enableBatching(batch)
+                .batchingMaxPublishDelay(1, TimeUnit.SECONDS)
+                .batchingMaxMessages(5);
             producer = producerBuilder.create();
 
         }
