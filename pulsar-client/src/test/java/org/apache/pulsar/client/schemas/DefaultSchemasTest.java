@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
+import com.sun.xml.internal.bind.api.impl.NameConverter;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
@@ -64,7 +65,7 @@ public class DefaultSchemasTest {
     @Test
     public void testStringSchema() {
         String testString = "hello world️";
-        byte[] bytes = testString.getBytes();
+        byte[] bytes = testString.getBytes(StandardCharsets.UTF_8);
         StringSchema stringSchema = new StringSchema();
         assertTrue(stringSchema.decode(bytes).equals(testString));
         assertEquals(stringSchema.encode(testString), bytes);
@@ -80,9 +81,10 @@ public class DefaultSchemasTest {
                 .build();
         Assert.assertEquals(stringSchema.encode(testString), msg2.getData());
 
+        byte[] bytes2 = testString.getBytes(StandardCharsets.UTF_16);
         StringSchema stringSchemaUtf16 = new StringSchema(StandardCharsets.UTF_16);
-        assertTrue(stringSchemaUtf16.decode(bytes).equals(testString));
-        assertEquals(stringSchemaUtf16.encode(testString), bytes);
+        assertTrue(stringSchemaUtf16.decode(bytes2).equals(testString));
+        assertEquals(stringSchemaUtf16.encode(testString), bytes2);
     }
 
     @AfterClass
