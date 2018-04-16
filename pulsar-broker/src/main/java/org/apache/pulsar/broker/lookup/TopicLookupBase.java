@@ -304,16 +304,16 @@ public class TopicLookupBase extends PulsarWebResource {
         asyncResponse.resume(lookupData);
     }
 
-    protected TopicName getTopicName(String topicDomain, String property, String cluster, String namespace,
+    protected TopicName getTopicName(String topicDomain, String tenant, String cluster, String namespace,
             @Encoded String encodedTopic) {
         String decodedName = Codec.decode(encodedTopic);
-        return TopicName.get(TopicDomain.getEnum(topicDomain).value(), property, cluster, namespace, decodedName);
+        return TopicName.get(TopicDomain.getEnum(topicDomain).value(), tenant, cluster, namespace, decodedName);
     }
 
-    protected TopicName getTopicName(String topicDomain, String property, String namespace,
+    protected TopicName getTopicName(String topicDomain, String tenant, String namespace,
             @Encoded String encodedTopic) {
         String decodedName = Codec.decode(encodedTopic);
-        return TopicName.get(TopicDomain.getEnum(topicDomain).value(), property, namespace, decodedName);
+        return TopicName.get(TopicDomain.getEnum(topicDomain).value(), tenant, namespace, decodedName);
     }
 
     private static final Logger log = LoggerFactory.getLogger(TopicLookupBase.class);

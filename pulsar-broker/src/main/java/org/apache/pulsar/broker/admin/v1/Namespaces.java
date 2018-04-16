@@ -77,8 +77,8 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get the list of all the namespaces for a certain property.", response = String.class, responseContainer = "Set")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property doesn't exist") })
-    public List<String> getPropertyNamespaces(@PathParam("property") String property) {
-        return internalGetPropertyNamespaces(property);
+    public List<String> getTenantNamespaces(@PathParam("property") String property) {
+        return internalGetTenantNamespaces(property);
     }
 
     @GET
@@ -88,7 +88,7 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Property or cluster doesn't exist") })
     public List<String> getNamespacesForCluster(@PathParam("property") String property,
             @PathParam("cluster") String cluster) {
-        validateAdminAccessOnProperty(property);
+        validateAdminAccessForTenant(property);
         List<String> namespaces = Lists.newArrayList();
         if (!clusters().contains(cluster)) {
             log.warn("[{}] Failed to get namespace list for property: {}/{} - Cluster does not exist", clientAppId(),
@@ -118,7 +118,7 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
     public List<String> getTopics(@PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
-        validateAdminAccessOnProperty(property);
+        validateAdminAccessForTenant(property);
         validateNamespaceName(property, cluster, namespace);
 
         // Validate that namespace exists, throws 404 if it doesn't exist
@@ -139,7 +139,7 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
     public Policies getPolicies(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace) {
-        validateAdminAccessOnProperty(property);
+        validateAdminAccessForTenant(property);
         validateNamespaceName(property, cluster, namespace);
         return getNamespacePolicies(namespaceName);
     }
@@ -159,7 +159,7 @@ public class Namespaces extends NamespacesBase {
         if (!namespaceName.isGlobal()) {
             // If the namespace is non global, make sure property has the access on the cluster. For global namespace,
             // same check is made at the time of setting replication.
-            validateClusterForProperty(namespaceName.getProperty(), namespaceName.getCluster());
+            validateClusterForTenant(namespaceName.getTenant(), namespaceName.getCluster());
         }
 
         Policies policies = new Policies();
@@ -212,7 +212,7 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 409, message = "Namespace is not empty") })
     public Map<String, Set<AuthAction>> getPermissions(@PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
-        validateAdminAccessOnProperty(property);
+        validateAdminAccessForTenant(property);
         validateNamespaceName(property, cluster, namespace);
 
         Policies policies = getNamespacePolicies(namespaceName);
@@ -251,7 +251,7 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 412, message = "Namespace is not global") })
     public Set<String> getNamespaceReplicationClusters(@PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
-        validateAdminAccessOnProperty(property);
+        validateAdminAccessForTenant(property);
         validateNamespaceName(property, cluster, namespace);
 
         return internalGetNamespaceReplicationClusters();
@@ -277,7 +277,7 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
     public int getNamespaceMessageTTL(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace) {
-        validateAdminAccessOnProperty(property);
+        validateAdminAccessForTenant(property);
         validateNamespaceName(property, cluster, namespace);
 
         Policies policies = getNamespacePolicies(namespaceName);
@@ -360,7 +360,7 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 412, message = "Namespace is not setup to split in bundles") })
     public BundlesData getBundlesData(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace) {
-        validateAdminAccessOnProperty(property);
+        validateAdminAccessForTenant(property);
         validatePoliciesReadOnlyAccess();
         validateNamespaceName(property, cluster, namespace);
 
@@ -460,7 +460,7 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Namespace does not exist") })
     public Map<BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(@PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
-        validateAdminAccessOnProperty(property);
+        validateAdminAccessForTenant(property);
         validateNamespaceName(property, cluster, namespace);
 
         Policies policies = getNamespacePolicies(namespaceName);

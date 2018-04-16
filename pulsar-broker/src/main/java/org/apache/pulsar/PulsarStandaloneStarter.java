@@ -33,7 +33,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
@@ -229,9 +229,9 @@ public class PulsarStandaloneStarter {
                 admin.clusters().createCluster(globalCluster, new ClusterData(null, null));
             }
 
-            if (!admin.properties().getProperties().contains(property)) {
-                admin.properties().createProperty(property,
-                        new PropertyAdmin(Sets.newHashSet(config.getSuperUserRoles()), Sets.newHashSet(cluster)));
+            if (!admin.tenants().getTenants().contains(property)) {
+                admin.tenants().createTenant(property,
+                        new TenantInfo(Sets.newHashSet(config.getSuperUserRoles()), Sets.newHashSet(cluster)));
             }
 
             if (!admin.namespaces().getNamespaces(property).contains(namespace)) {
@@ -242,13 +242,12 @@ public class PulsarStandaloneStarter {
         }
 
         // Create a public tenant and default namespace
-        final String publicTenant = TopicName.PUBLIC_PROPERTY;
-        final String defaultNamespace = TopicName.PUBLIC_PROPERTY + "/" + TopicName.DEFAULT_NAMESPACE;
+        final String publicTenant = TopicName.PUBLIC_TENANT;
+        final String defaultNamespace = TopicName.PUBLIC_TENANT + "/" + TopicName.DEFAULT_NAMESPACE;
         try {
-            if (!admin.properties().getProperties().contains(publicTenant)) {
-                admin.properties().createProperty(
-                    publicTenant,
-                    new PropertyAdmin(Sets.newHashSet(config.getSuperUserRoles()), Sets.newHashSet(cluster)));
+            if (!admin.tenants().getTenants().contains(publicTenant)) {
+                admin.tenants().createTenant(publicTenant,
+                        new TenantInfo(Sets.newHashSet(config.getSuperUserRoles()), Sets.newHashSet(cluster)));
             }
             if (!admin.namespaces().getNamespaces(publicTenant).contains(defaultNamespace)) {
                 admin.namespaces().createNamespace(defaultNamespace);
