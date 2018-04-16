@@ -13,6 +13,7 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 public class DefaultSchemasTest {
@@ -52,5 +53,9 @@ public class DefaultSchemasTest {
                 .setValue(testString)
                 .build();
         Assert.assertEquals(stringSchema.encode(testString), msg2.getData());
+
+        StringSchema stringSchemaUtf16 = new StringSchema(StandardCharsets.UTF_16);
+        assertEquals(stringSchemaUtf16.decode(bytes), testString);
+        assertEquals(stringSchemaUtf16.encode(testString), bytes);
     }
 }
