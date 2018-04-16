@@ -251,18 +251,18 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 
-ConsumerBuilder bldr = pulsarClient.newConsumer()
+ConsumerBuilder consumerBuilder = pulsarClient.newConsumer()
         .subscriptionName(subscription);
 
 // Subscribe to all topics in a namespace
 Pattern allTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/.*");
-Consumer allTopicsConsumer = bldr
+Consumer allTopicsConsumer = consumerBuilder
         .topicsPattern(allTopicsInNamespace)
         .subscribe();
 
 // Subscribe to a subsets of topics in a namespace, based on regex
 Pattern someTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/foo.*");
-Consumer allTopicsConsumer = bldr
+Consumer allTopicsConsumer = consumerBuilder
         .topicsPattern(someTopicsInNamespace)
         .subscribe();
 ```
@@ -276,12 +276,12 @@ List<String> topics = Arrays.asList(
         "persistent://sample/standalone/ns3/topic-3"
 );
 
-Consumer multiTopicConsumer = bldr
+Consumer multiTopicConsumer = consumerBuilder
         .topics(topics)
         .subscribe();
 
 // Alternatively:
-Consumer multiTopicConsumer = bldr
+Consumer multiTopicConsumer = consumerBuilder
         .topics(
             "persistent://sample/standalone/ns1/topic-1",
             "persistent://sample/standalone/ns2/topic-2",
@@ -294,9 +294,19 @@ You can also subscribe to multiple topics asynchronously using the `subscribeAsy
 
 ```java
 Pattern allTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/.*");
-CompletableFuture<Consumer> consumer = bldr
+consumerBuilder
         .topics(topics)
-        .subscribeAsync();
+        .subscribeAsync()
+        .thenAccept(consumer -> {
+            do {
+                try {
+                    String.out.printf();
+                    consumer.receive();
+                } catch (PulsarClientException e) {
+                    e.printStackTrace();
+                }
+            } while (true);
+        });
 ```
 
 ## Message schemas {#schemas}
@@ -309,7 +319,9 @@ Producer producer = client.newProducer()
         .create();
 ```
 
-The producer above is equivalent to a `Producer<byte[]>` (in fact, you should always explicitly specify the type). This producer, however, would
+The producer above is equivalent to a `Producer<byte[]>` (in fact, you should always explicitly specify the type). If you'd like
+
+
 
 The same schema-based logic applies to [consumers](#consumers) and [readers](#readers).
 
