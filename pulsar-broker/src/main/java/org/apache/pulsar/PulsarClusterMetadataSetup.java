@@ -20,10 +20,13 @@ package org.apache.pulsar;
 
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES_ROOT;
 
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
 import com.google.common.collect.Lists;
-import java.io.IOException;
 
+import java.io.IOException;
 import java.util.List;
+
 import org.apache.bookkeeper.client.BookKeeperAdmin;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.meta.HierarchicalLedgerManagerFactory;
@@ -32,7 +35,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory.SessionType;
@@ -43,9 +46,6 @@ import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
 
 /**
  * Setup the metadata for a new Pulsar cluster
@@ -150,12 +150,12 @@ public class PulsarClusterMetadataSetup {
         }
 
         // Create public tenant
-        PropertyAdmin publicProperty = new PropertyAdmin();
-        byte[] publicPropertyDataJson = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(publicProperty);
+        TenantInfo publicTenant = new TenantInfo();
+        byte[] publicPropertyDataJson = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(publicTenant);
         try {
             ZkUtils.createFullPathOptimistic(
                 globalZk,
-                POLICIES_ROOT + "/" + TopicName.PUBLIC_PROPERTY,
+                POLICIES_ROOT + "/" + TopicName.PUBLIC_TENANT,
                 publicPropertyDataJson,
                 ZooDefs.Ids.OPEN_ACL_UNSAFE,
                 CreateMode.PERSISTENT);
@@ -170,7 +170,7 @@ public class PulsarClusterMetadataSetup {
         try {
             ZkUtils.createFullPathOptimistic(
                 globalZk,
-                POLICIES_ROOT + "/" + TopicName.PUBLIC_PROPERTY + "/" + TopicName.DEFAULT_NAMESPACE,
+                POLICIES_ROOT + "/" + TopicName.PUBLIC_TENANT + "/" + TopicName.DEFAULT_NAMESPACE,
                 defaultNamespaceDataJson,
                 ZooDefs.Ids.OPEN_ACL_UNSAFE,
                 CreateMode.PERSISTENT);

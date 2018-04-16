@@ -35,11 +35,12 @@ import java.util.stream.IntStream;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -75,7 +76,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         final String topicName3 = "persistent://prop/use/ns-abc3/topic-3-" + key;
         List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3);
 
-        admin.properties().createProperty("prop", new PropertyAdmin());
+        admin.tenants().createTenant("prop", new TenantInfo());
         admin.persistentTopics().createPartitionedTopic(topicName2, 2);
         admin.persistentTopics().createPartitionedTopic(topicName3, 3);
 
@@ -103,7 +104,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         final String topicName3 = "persistent://prop/use/ns-abc/topic-3-" + key;
         List<String> topicNames = Lists.newArrayList(topicName1, topicName2);
 
-        admin.properties().createProperty("prop", new PropertyAdmin());
+        admin.tenants().createTenant("prop", new TenantInfo());
         admin.persistentTopics().createPartitionedTopic(topicName2, 2);
         admin.persistentTopics().createPartitionedTopic(topicName3, 3);
 
@@ -145,17 +146,21 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         final String topicName3 = "persistent://prop/use/ns-abc/topic-3-" + key;
         List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3);
 
-        admin.properties().createProperty("prop", new PropertyAdmin());
+        admin.tenants().createTenant("prop", new TenantInfo());
         admin.persistentTopics().createPartitionedTopic(topicName2, 2);
         admin.persistentTopics().createPartitionedTopic(topicName3, 3);
 
         // 1. producer connect
         Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .create();
         Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicName2)
+            .enableBatching(false)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
         Producer<byte[]> producer3 = pulsarClient.newProducer().topic(topicName3)
+            .enableBatching(false)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
 
@@ -206,17 +211,21 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         final String topicName3 = "persistent://prop/use/ns-abc/topic-3-" + key;
         List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3);
 
-        admin.properties().createProperty("prop", new PropertyAdmin());
+        admin.tenants().createTenant("prop", new TenantInfo());
         admin.persistentTopics().createPartitionedTopic(topicName2, 2);
         admin.persistentTopics().createPartitionedTopic(topicName3, 3);
 
         // 1. producer connect
         Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .create();
         Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicName2)
+            .enableBatching(false)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
         Producer<byte[]> producer3 = pulsarClient.newProducer().topic(topicName3)
+            .enableBatching(false)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
 
@@ -285,17 +294,21 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         final String topicName3 = "persistent://prop/use/ns-abc/topic-3-" + key;
         List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3);
 
-        admin.properties().createProperty("prop", new PropertyAdmin());
+        admin.tenants().createTenant("prop", new TenantInfo());
         admin.persistentTopics().createPartitionedTopic(topicName2, 2);
         admin.persistentTopics().createPartitionedTopic(topicName3, 3);
 
         // 1. producer connect
         Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .create();
         Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicName2)
+            .enableBatching(false)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
         Producer<byte[]> producer3 = pulsarClient.newProducer().topic(topicName3)
+            .enableBatching(false)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
 
@@ -425,17 +438,21 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         final String topicName3 = "persistent://prop/use/ns-abc/topic-3-" + key;
         List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3);
 
-        admin.properties().createProperty("prop", new PropertyAdmin());
+        admin.tenants().createTenant("prop", new TenantInfo());
         admin.persistentTopics().createPartitionedTopic(topicName2, 2);
         admin.persistentTopics().createPartitionedTopic(topicName3, 3);
 
         // 1. producer connect
         Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .create();
         Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicName2)
+            .enableBatching(false)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
         Producer<byte[]> producer3 = pulsarClient.newProducer().topic(topicName3)
+            .enableBatching(false)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
 
@@ -545,7 +562,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         final String topicName2 = "persistent://prop/use/ns-abc/topic-2-" + key;
         final String topicName3 = "persistent://prop/use/ns-abc/topic-3-" + key;
 
-        admin.properties().createProperty("prop", new PropertyAdmin());
+        admin.tenants().createTenant("prop", new TenantInfo());
         admin.persistentTopics().createPartitionedTopic(topicName2, 2);
         admin.persistentTopics().createPartitionedTopic(topicName3, 3);
 

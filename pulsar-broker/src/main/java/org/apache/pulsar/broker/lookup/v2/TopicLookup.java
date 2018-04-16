@@ -41,25 +41,25 @@ import org.apache.pulsar.common.naming.TopicName;
 public class TopicLookup extends TopicLookupBase {
 
     @GET
-    @Path("{topic-domain}/{property}/{namespace}/{topic}")
+    @Path("{topic-domain}/{tenant}/{namespace}/{topic}")
     @Produces(MediaType.APPLICATION_JSON)
-    public void lookupTopicAsync(@PathParam("topic-domain") String topicDomain, @PathParam("property") String property,
+    public void lookupTopicAsync(@PathParam("topic-domain") String topicDomain, @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @Suspended AsyncResponse asyncResponse) {
-        TopicName topicName = getTopicName(topicDomain, property, namespace, encodedTopic);
+        TopicName topicName = getTopicName(topicDomain, tenant, namespace, encodedTopic);
         internalLookupTopicAsync(topicName, authoritative, asyncResponse);
     }
 
     @GET
-    @Path("{topic-domain}/{property}/{namespace}/{topic}/bundle")
+    @Path("{topic-domain}/{tenant}/{namespace}/{topic}/bundle")
     @Produces(MediaType.APPLICATION_JSON)
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 405, message = "Invalid topic domain type") })
     public String getNamespaceBundle(@PathParam("topic-domain") String topicDomain,
-            @PathParam("property") String property, @PathParam("namespace") String namespace,
+            @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic) {
-        TopicName topicName = getTopicName(topicDomain, property, namespace, encodedTopic);
+        TopicName topicName = getTopicName(topicDomain, tenant, namespace, encodedTopic);
         return internalGetNamespaceBundle(topicName);
     }
 }

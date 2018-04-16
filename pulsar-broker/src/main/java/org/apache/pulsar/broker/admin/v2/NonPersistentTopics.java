@@ -64,54 +64,54 @@ public class NonPersistentTopics extends PersistentTopics {
     private static final Logger log = LoggerFactory.getLogger(NonPersistentTopics.class);
 
     @GET
-    @Path("/{property}/{namespace}/{topic}/partitions")
+    @Path("/{tenant}/{namespace}/{topic}/partitions")
     @ApiOperation(value = "Get partitioned topic metadata.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
-    public PartitionedTopicMetadata getPartitionedMetadata(@PathParam("property") String property,
+    public PartitionedTopicMetadata getPartitionedMetadata(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateTopicName(property, namespace, encodedTopic);
+        validateTopicName(tenant, namespace, encodedTopic);
         return getPartitionedTopicMetadata(topicName, authoritative);
     }
 
     @GET
-    @Path("{property}/{namespace}/{topic}/stats")
+    @Path("{tenant}/{namespace}/{topic}/stats")
     @ApiOperation(value = "Get the stats for the topic.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist") })
-    public NonPersistentTopicStats getStats(@PathParam("property") String property,
+    public NonPersistentTopicStats getStats(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateTopicName(property, namespace, encodedTopic);
+        validateTopicName(tenant, namespace, encodedTopic);
         validateAdminOperationOnTopic(topicName, authoritative);
         Topic topic = getTopicReference(topicName);
         return ((NonPersistentTopic) topic).getStats();
     }
 
     @GET
-    @Path("{property}/{namespace}/{topic}/internalStats")
+    @Path("{tenant}/{namespace}/{topic}/internalStats")
     @ApiOperation(value = "Get the internal stats for the topic.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist") })
-    public PersistentTopicInternalStats getInternalStats(@PathParam("property") String property,
+    public PersistentTopicInternalStats getInternalStats(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateTopicName(property, namespace, encodedTopic);
+        validateTopicName(tenant, namespace, encodedTopic);
         validateAdminOperationOnTopic(topicName, authoritative);
         Topic topic = getTopicReference(topicName);
         return topic.getInternalStats();
     }
 
     @PUT
-    @Path("/{property}/{namespace}/{topic}/partitions")
+    @Path("/{tenant}/{namespace}/{topic}/partitions")
     @ApiOperation(value = "Create a partitioned topic.", notes = "It needs to be called before creating a producer on a partitioned topic.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 409, message = "Partitioned topic already exist") })
-    public void createPartitionedTopic(@PathParam("property") String property, @PathParam("namespace") String namespace,
+    public void createPartitionedTopic(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic, int numPartitions,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateTopicName(property, namespace, encodedTopic);
-        validateAdminAccessOnProperty(topicName.getProperty());
+        validateTopicName(tenant, namespace, encodedTopic);
+        validateAdminAccessForTenant(topicName.getTenant());
         if (numPartitions <= 1) {
             throw new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 1");
         }
@@ -133,14 +133,14 @@ public class NonPersistentTopics extends PersistentTopics {
     }
 
     @PUT
-    @Path("/{property}/{namespace}/{topic}/unload")
+    @Path("/{tenant}/{namespace}/{topic}/unload")
     @ApiOperation(value = "Unload a topic")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist") })
-    public void unloadTopic(@PathParam("property") String property, @PathParam("namespace") String namespace,
+    public void unloadTopic(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateTopicName(property, namespace, encodedTopic);
+        validateTopicName(tenant, namespace, encodedTopic);
         log.info("[{}] Unloading topic {}", clientAppId(), topicName);
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
@@ -149,16 +149,16 @@ public class NonPersistentTopics extends PersistentTopics {
     }
 
     @GET
-    @Path("/{property}/{namespace}")
+    @Path("/{tenant}/{namespace}")
     @ApiOperation(value = "Get the list of non-persistent topics under a namespace.", response = String.class, responseContainer = "List")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist") })
-    public List<String> getList(@PathParam("property") String property, @PathParam("namespace") String namespace) {
-        validateNamespaceName(property, namespace);
+    public List<String> getList(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
         if (log.isDebugEnabled()) {
             log.debug("[{}] list of topics on namespace {}", clientAppId(), namespaceName);
         }
-        validateAdminAccessOnProperty(property);
+        validateAdminAccessForTenant(tenant);
         Policies policies = getNamespacePolicies(namespaceName);
 
 
@@ -201,18 +201,18 @@ public class NonPersistentTopics extends PersistentTopics {
     }
 
     @GET
-    @Path("/{property}/{namespace}/{bundle}")
+    @Path("/{tenant}/{namespace}/{bundle}")
     @ApiOperation(value = "Get the list of non-persistent topics under a namespace bundle.", response = String.class, responseContainer = "List")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist") })
-    public List<String> getListFromBundle(@PathParam("property") String property,
-                                          @PathParam("namespace") String namespace, @PathParam("bundle") String bundleRange) {
-        validateNamespaceName(property, namespace);
+    public List<String> getListFromBundle(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+            @PathParam("bundle") String bundleRange) {
+        validateNamespaceName(tenant, namespace);
         if (log.isDebugEnabled()) {
             log.debug("[{}] list of topics on namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange);
         }
 
-        validateAdminAccessOnProperty(property);
+        validateAdminAccessForTenant(tenant);
         Policies policies = getNamespacePolicies(namespaceName);
 
         // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
@@ -242,7 +242,7 @@ public class NonPersistentTopics extends PersistentTopics {
 
 
     protected void validateAdminOperationOnTopic(TopicName topicName, boolean authoritative) {
-        validateAdminAccessOnProperty(topicName.getProperty());
+        validateAdminAccessForTenant(topicName.getTenant());
         validateTopicOwnership(topicName, authoritative);
     }
 

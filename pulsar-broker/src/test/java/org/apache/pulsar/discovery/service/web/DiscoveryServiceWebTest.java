@@ -100,9 +100,9 @@ public class DiscoveryServiceWebTest extends ProducerConsumerBase {
          **/
 
         assertEquals(hitBrokerService(HttpMethod.POST, postRequestUrl, Lists.newArrayList("use")),
-                "Property does not exist");
-        assertEquals(hitBrokerService(HttpMethod.PUT, putRequestUrl, new BundlesData(1)), "Property does not exist");
-        assertEquals(hitBrokerService(HttpMethod.GET, getRequestUrl, null), "Property does not exist");
+                "Tenant does not exist");
+        assertEquals(hitBrokerService(HttpMethod.PUT, putRequestUrl, new BundlesData(1)), "Tenant does not exist");
+        assertEquals(hitBrokerService(HttpMethod.GET, getRequestUrl, null), "Tenant does not exist");
 
         server.stop();
 

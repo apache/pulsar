@@ -31,7 +31,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -85,8 +85,11 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
     public void testProducerConsumer() throws Exception {
         PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort())
                 .build();
-        Producer<byte[]> producer = client.newProducer().topic("persistent://sample/test/local/producer-consumer-topic")
-                .create();
+        Producer<byte[]> producer = client.newProducer()
+            .topic("persistent://sample/test/local/producer-consumer-topic")
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
 
         // Create a consumer directly attached to broker
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
@@ -111,13 +114,15 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testPartitions() throws Exception {
-        admin.properties().createProperty("sample", new PropertyAdmin());
+        admin.tenants().createTenant("sample", new TenantInfo());
         PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort())
                 .build();
         admin.persistentTopics().createPartitionedTopic("persistent://sample/test/local/partitioned-topic", 2);
 
-        Producer<byte[]> producer = client.newProducer().topic("persistent://sample/test/local/partitioned-topic")
-                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
+        Producer<byte[]> producer = client.newProducer()
+            .topic("persistent://sample/test/local/partitioned-topic")
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
 
         // Create a consumer directly attached to broker
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://sample/test/local/partitioned-topic")

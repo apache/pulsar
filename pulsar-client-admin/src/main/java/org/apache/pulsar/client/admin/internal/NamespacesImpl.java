@@ -56,9 +56,9 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public List<String> getNamespaces(String property) throws PulsarAdminException {
+    public List<String> getNamespaces(String tenant) throws PulsarAdminException {
         try {
-            WebTarget path = adminV2Namespaces.path(property);
+            WebTarget path = adminV2Namespaces.path(tenant);
             return request(path).get(new GenericType<List<String>>() {
             });
         } catch (Exception e) {
@@ -67,9 +67,9 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public List<String> getNamespaces(String property, String cluster) throws PulsarAdminException {
+    public List<String> getNamespaces(String tenant, String cluster) throws PulsarAdminException {
         try {
-            WebTarget path = adminNamespaces.path(property).path(cluster);
+            WebTarget path = adminNamespaces.path(tenant).path(cluster);
             return request(path).get(new GenericType<List<String>>() {
             });
         } catch (Exception e) {
@@ -298,11 +298,11 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public List<String> getAntiAffinityNamespaces(String property, String cluster, String namespaceAntiAffinityGroup)
+    public List<String> getAntiAffinityNamespaces(String tenant, String cluster, String namespaceAntiAffinityGroup)
             throws PulsarAdminException {
         try {
             WebTarget path = adminNamespaces.path(cluster).path("antiAffinity").path(namespaceAntiAffinityGroup);
-            return request(path.queryParam("property", property)).get(new GenericType<List<String>>() {});
+            return request(path.queryParam("property", tenant)).get(new GenericType<List<String>>() {});
         } catch (Exception e) {
             throw getApiException(e);
         }

@@ -29,7 +29,7 @@ import java.util.concurrent.Executors;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.cli.PulsarClientTool;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -56,7 +56,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         properties.setProperty("serviceUrl", brokerUrl.toString());
         properties.setProperty("useTls", "false");
 
-        admin.properties().createProperty("property", new PropertyAdmin());
+        admin.tenants().createTenant("property", new TenantInfo());
         String topicName = "persistent://property/ns/topic-scale-ns-0/topic";
 
         int numberOfMessages = 10;

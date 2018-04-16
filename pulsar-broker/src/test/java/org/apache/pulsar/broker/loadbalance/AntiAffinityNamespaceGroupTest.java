@@ -50,7 +50,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FailureDomain;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.zookeeper.CreateMode;
@@ -209,15 +209,15 @@ public class AntiAffinityNamespaceGroupTest {
     @Test
     public void testAntiAffinityNamespaceFilteringWithDomain() throws Exception {
 
-        final String namespace = "my-property/use/my-ns";
+        final String namespace = "my-tenant/use/my-ns";
         final int totalNamespaces = 5;
         final String namespaceAntiAffinityGroup = "my-antiaffinity";
         final String bundle = "/0x00000000_0xffffffff";
         final int totalBrokers = 4;
 
         pulsar1.getConfiguration().setFailureDomainsEnabled(true);
-        admin1.properties().createProperty("my-property",
-                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
+        admin1.tenants().createTenant("my-tenant",
+                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
 
         for (int i = 0; i < totalNamespaces; i++) {
             final String ns = namespace + i;
@@ -307,13 +307,13 @@ public class AntiAffinityNamespaceGroupTest {
     @Test
     public void testAntiAffinityNamespaceFilteringWithoutDomain() throws Exception {
 
-        final String namespace = "my-property/use/my-ns";
+        final String namespace = "my-tenant/use/my-ns";
         final int totalNamespaces = 5;
         final String namespaceAntiAffinityGroup = "my-antiaffinity";
         final String bundle = "/0x00000000_0xffffffff";
 
-        admin1.properties().createProperty("my-property",
-                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
+        admin1.tenants().createTenant("my-tenant",
+                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
 
         for (int i = 0; i < totalNamespaces; i++) {
             final String ns = namespace + i;
@@ -402,7 +402,7 @@ public class AntiAffinityNamespaceGroupTest {
         admin1.clusters().createFailureDomain(cluster, "domain1", domain);
         domain.brokers = Sets.newHashSet(broker2);
         admin1.clusters().createFailureDomain(cluster, "domain1", domain);
-        admin1.properties().createProperty(property, new PropertyAdmin(null, Sets.newHashSet(cluster)));
+        admin1.tenants().createTenant(property, new TenantInfo(null, Sets.newHashSet(cluster)));
         admin1.namespaces().createNamespace(namespace1);
         admin1.namespaces().createNamespace(namespace2);
         admin1.namespaces().setNamespaceAntiAffinityGroup(namespace1, namespaceAntiAffinityGroup);
@@ -443,13 +443,13 @@ public class AntiAffinityNamespaceGroupTest {
     @Test
     public void testLoadSheddingUtilWithAntiAffinityNamespace() throws Exception {
 
-        final String namespace = "my-property/use/my-ns";
+        final String namespace = "my-tenant/use/my-ns";
         final int totalNamespaces = 5;
         final String namespaceAntiAffinityGroup = "my-antiaffinity";
         final String bundle = "/0x00000000_0xffffffff";
 
-        admin1.properties().createProperty("my-property",
-                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
+        admin1.tenants().createTenant("my-tenant",
+                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
 
         for (int i = 0; i < totalNamespaces; i++) {
             final String ns = namespace + i;
@@ -496,13 +496,13 @@ public class AntiAffinityNamespaceGroupTest {
     @Test
     public void testLoadSheddingWithAntiAffinityNamespace() throws Exception {
 
-        final String namespace = "my-property/use/my-ns";
+        final String namespace = "my-tenant/use/my-ns";
         final int totalNamespaces = 5;
         final String namespaceAntiAffinityGroup = "my-antiaffinity";
         final String bundle = "0x00000000_0xffffffff";
 
-        admin1.properties().createProperty("my-property",
-                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
+        admin1.tenants().createTenant("my-tenant",
+                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
 
         for (int i = 0; i < totalNamespaces; i++) {
             final String ns = namespace + i;
