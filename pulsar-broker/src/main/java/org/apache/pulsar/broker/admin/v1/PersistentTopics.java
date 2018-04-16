@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.v1;
 
+import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -47,6 +48,8 @@ import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
+import org.apache.pulsar.common.policies.data.Policies.ReplicatorType;
+import org.apache.pulsar.common.policies.data.ReplicatorPoliciesRequest.Action;
 
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -449,4 +452,45 @@ public class PersistentTopics extends PersistentTopicsBase {
         validateTopicName(property, cluster, namespace, encodedTopic);
         return internalCompactionStatus(authoritative);
     }
+    
+    @POST
+    @Path("/{property}/{cluster}/{namespace}/{topic}/replicator")
+    @ApiOperation(hidden = true, value = "Register a replicator for the topic")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public void registerReplicator(@PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("replicatorType") ReplicatorType replicatorType, @QueryParam("regionName") String regionName) {
+        validateTopicName(property, cluster, namespace, encodedTopic);
+        internalRegisterReplicatorOnTopic(replicatorType, regionName);
+    }
+
+    @PUT
+    @Path("/{property}/{cluster}/{namespace}/{topic}/replicator")
+    @ApiOperation(hidden = true, value = "Update a replicator state (start/stop)")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public void updateReplicator(@PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("replicatorType") ReplicatorType replicatorType, @QueryParam("regionName") String regionName,
+            @QueryParam("action") Action action) {
+        validateTopicName(property, cluster, namespace, encodedTopic);
+        internalUpdateReplicatorOnTopic(replicatorType, regionName, action);
+    }
+
+    @DELETE
+    @Path("/{property}/{cluster}/{namespace}/{topic}/replicator")
+    @ApiOperation(hidden = true, value = "Deregister replicator task")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public void deRegisterReplicator(@PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("replicatorType") ReplicatorType replicatorType, @QueryParam("regionName") String regionName) {
+        validateTopicName(property, cluster, namespace, encodedTopic);
+        internalDeRegisterReplicatorOnTopic(replicatorType, regionName);
+    }
+
 }

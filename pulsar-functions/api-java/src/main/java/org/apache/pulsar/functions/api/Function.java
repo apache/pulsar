@@ -32,4 +32,14 @@ public interface Function<I, O> {
      * @return the output
      */
     O process(I input, Context context) throws Exception;
+    
+    /**
+     * It only gets triggered once when very first time function gets assigned to a worker so, a worker can initialize
+     * static resources to serve that function with in life cycle of that worker.
+     * 
+     * @param context
+     */
+    default void init(Context context) throws Exception {
+        // No-op
+    }
 }

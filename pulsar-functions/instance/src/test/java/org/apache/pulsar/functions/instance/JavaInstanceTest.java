@@ -45,7 +45,7 @@ public class JavaInstanceTest {
      * @throws Exception
      */
     @Test
-    public void testLambda() {
+    public void testLambda() throws Exception {
         InstanceConfig config = createInstanceConfig();
         JavaInstance instance = new JavaInstance(
             config,

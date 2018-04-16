@@ -356,7 +356,7 @@ public class Consumer {
      */
     public void close() throws BrokerServiceException {
         subscription.removeConsumer(this);
-        cnx.removedConsumer(this);
+        cnx.removedConsumer(this);    
     }
 
     public void disconnect() {

@@ -101,31 +101,8 @@ public class FunctionsImpl {
                     .entity(new ErrorData(e.getMessage())).build();
         }
 
-        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
-
-        if (functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
-            log.error("Function {}/{}/{} already exists", tenant, namespace, functionName);
-            return Response.status(Status.BAD_REQUEST)
-                    .type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData(String.format("Function %s already exists", functionName))).build();
-        }
-
-        // function state
-        FunctionMetaData.Builder functionMetaDataBuilder = FunctionMetaData.newBuilder()
-                .setFunctionDetails(functionDetails)
-                .setCreateTime(System.currentTimeMillis())
-                .setVersion(0);
-
-        PackageLocationMetaData.Builder packageLocationMetaDataBuilder = PackageLocationMetaData.newBuilder()
-                .setPackagePath(String.format(
-            "%s/%s/%s/%s",
-            tenant,
-            namespace,
-            functionName,
-            Utils.getUniquePackageName(fileDetail.getFileName())));
-        functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
-
-        return updateRequest(functionMetaDataBuilder.build(), uploadedInputStream);
+        return registerFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail, functionDetails,
+                worker());
     }
 
     @PUT
@@ -151,90 +128,26 @@ public class FunctionsImpl {
                     .entity(new ErrorData(e.getMessage())).build();
         }
 
-        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
+        return updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail, functionDetails, worker());
 
-        if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
-            return Response.status(Status.BAD_REQUEST)
-                    .type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
-        }
-
-        // function state
-        FunctionMetaData.Builder functionMetaDataBuilder = FunctionMetaData.newBuilder()
-                .setFunctionDetails(functionDetails)
-                .setCreateTime(System.currentTimeMillis())
-                .setVersion(0);
-
-        PackageLocationMetaData.Builder packageLocationMetaDataBuilder = PackageLocationMetaData.newBuilder()
-                .setPackagePath(String.format(
-                        "%s/%s/%s/%s",
-                        tenant,
-                        namespace,
-                        functionName,
-                        Utils.getUniquePackageName(fileDetail.getFileName())));
-        functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
-
-        return updateRequest(functionMetaDataBuilder.build(), uploadedInputStream);
     }
 
+	@DELETE
+	@Path("/{tenant}/{namespace}/{functionName}")
+	public Response deregisterFunction(final @PathParam("tenant") String tenant,
+			final @PathParam("namespace") String namespace, final @PathParam("functionName") String functionName) {
+		// validate parameters
+		try {
+			validateDeregisterRequestParams(tenant, namespace, functionName);
+		} catch (IllegalArgumentException e) {
+			log.error("Invalid deregister function request @ /{}/{}/{}", tenant, namespace, functionName, e);
+			return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+					.entity(new ErrorData(e.getMessage())).build();
+		}
+		return deregisterFunction(tenant, namespace, functionName, worker());
+	}
 
-    @DELETE
-    @Path("/{tenant}/{namespace}/{functionName}")
-    public Response deregisterFunction(final @PathParam("tenant") String tenant,
-                                       final @PathParam("namespace") String namespace,
-                                       final @PathParam("functionName") String functionName) {
-
-        // validate parameters
-        try {
-            validateDeregisterRequestParams(tenant, namespace, functionName);
-        } catch (IllegalArgumentException e) {
-            log.error("Invalid deregister function request @ /{}/{}/{}",
-                    tenant, namespace, functionName, e);
-            return Response.status(Status.BAD_REQUEST)
-                    .type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData(e.getMessage())).build();
-        }
-
-        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
-        if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
-            log.error("Function to deregister does not exist @ /{}/{}/{}",
-                    tenant, namespace, functionName);
-            return Response.status(Status.NOT_FOUND)
-                    .type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
-        }
-
-        CompletableFuture<RequestResult> completableFuture
-                = functionMetaDataManager.deregisterFunction(tenant, namespace, functionName);
-
-        RequestResult requestResult = null;
-        try {
-            requestResult = completableFuture.get();
-            if (!requestResult.isSuccess()) {
-                return Response.status(Status.BAD_REQUEST)
-                    .type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData(requestResult.getMessage()))
-                    .build();
-            }
-        } catch (ExecutionException e) {
-            log.error("Execution Exception while deregistering function @ /{}/{}/{}",
-                    tenant, namespace, functionName, e);
-            return Response.serverError()
-                    .type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData(e.getCause().getMessage()))
-                    .build();
-        } catch (InterruptedException e) {
-            log.error("Interrupted Exception while deregistering function @ /{}/{}/{}",
-                    tenant, namespace, functionName, e);
-            return Response.status(Status.REQUEST_TIMEOUT)
-                    .type(MediaType.APPLICATION_JSON)
-                    .build();
-        }
-
-        return Response.status(Status.OK).entity(requestResult.toJson()).build();
-    }
-
-    @GET
+	@GET
     @Path("/{tenant}/{namespace}/{functionName}")
     public Response getFunctionInfo(final @PathParam("tenant") String tenant,
                                     final @PathParam("namespace") String namespace,
@@ -375,14 +288,14 @@ public class FunctionsImpl {
         return Response.status(Status.OK).entity(new Gson().toJson(functionStateList.toArray())).build();
     }
 
-    private Response updateRequest(FunctionMetaData functionMetaData,
-                                   InputStream uploadedInputStream) {
+    private static Response updateRequest(FunctionMetaData functionMetaData,
+                                   InputStream uploadedInputStream, WorkerService worker) {
         // Upload to bookkeeper
         try {
             log.info("Uploading function package to {}", functionMetaData.getPackageLocation());
 
             Utils.uploadToBookeeper(
-                worker().getDlogNamespace(),
+                worker.getDlogNamespace(),
                 uploadedInputStream,
                 functionMetaData.getPackageLocation().getPackagePath());
         } catch (IOException e) {
@@ -394,7 +307,7 @@ public class FunctionsImpl {
         }
 
         // Submit to FMT
-        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
+        FunctionMetaDataManager functionMetaDataManager = worker.getFunctionMetaDataManager();
 
         CompletableFuture<RequestResult> completableFuture
                 = functionMetaDataManager.updateFunction(functionMetaData);
@@ -526,6 +439,94 @@ public class FunctionsImpl {
         }
     }
 
+    public static Response registerFunction(String tenant, String namespace, String functionName,
+            InputStream uploadedInputStream, FormDataContentDisposition fileDetail, FunctionDetails functionDetails,
+            WorkerService worker) {
+        FunctionMetaDataManager functionMetaDataManager = worker.getFunctionMetaDataManager();
+
+        if (functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
+            log.error("Function {}/{}/{} already exists", tenant, namespace, functionName);
+            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(String.format("Function %s already exists", functionName))).build();
+        }
+
+        // function state
+        FunctionMetaData.Builder functionMetaDataBuilder = FunctionMetaData.newBuilder()
+                .setFunctionDetails(functionDetails).setCreateTime(System.currentTimeMillis()).setVersion(0);
+
+        PackageLocationMetaData.Builder packageLocationMetaDataBuilder = PackageLocationMetaData.newBuilder()
+                .setPackagePath(String.format("%s/%s/%s/%s", tenant, namespace, functionName,
+                        Utils.getUniquePackageName(fileDetail.getFileName())));
+        functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
+
+        return updateRequest(functionMetaDataBuilder.build(), uploadedInputStream, worker);
+    }
+
+    public Response updateFunction(String tenant, String namespace, String functionName,
+            InputStream uploadedInputStream, FormDataContentDisposition fileDetail, FunctionDetails functionDetails,
+            WorkerService worker) {
+
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
+
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
+            return Response.status(Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
+        }
+
+        // function state
+        FunctionMetaData.Builder functionMetaDataBuilder = FunctionMetaData.newBuilder()
+                .setFunctionDetails(functionDetails).setCreateTime(System.currentTimeMillis()).setVersion(0);
+
+        PackageLocationMetaData.Builder packageLocationMetaDataBuilder = PackageLocationMetaData.newBuilder()
+                .setPackagePath(String.format("%s/%s/%s/%s", tenant, namespace, functionName,
+                        Utils.getUniquePackageName(fileDetail.getFileName())));
+        functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
+
+        return updateRequest(functionMetaDataBuilder.build(), uploadedInputStream, worker);
+    }
+
+	public static Response deregisterFunction(String tenant, String namespace, String functionName, WorkerService worker) {
+
+        FunctionMetaDataManager functionMetaDataManager = worker.getFunctionMetaDataManager();
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
+            log.error("Function to deregister does not exist @ /{}/{}/{}",
+                    tenant, namespace, functionName);
+            return Response.status(Status.NOT_FOUND)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
+        }
+
+        CompletableFuture<RequestResult> completableFuture
+                = functionMetaDataManager.deregisterFunction(tenant, namespace, functionName);
+
+        RequestResult requestResult = null;
+        try {
+            requestResult = completableFuture.get();
+            if (!requestResult.isSuccess()) {
+                return Response.status(Status.BAD_REQUEST)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(requestResult.getMessage()))
+                    .build();
+            }
+        } catch (ExecutionException e) {
+            log.error("Execution Exception while deregistering function @ /{}/{}/{}",
+                    tenant, namespace, functionName, e);
+            return Response.serverError()
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(e.getCause().getMessage()))
+                    .build();
+        } catch (InterruptedException e) {
+            log.error("Interrupted Exception while deregistering function @ /{}/{}/{}",
+                    tenant, namespace, functionName, e);
+            return Response.status(Status.REQUEST_TIMEOUT)
+                    .type(MediaType.APPLICATION_JSON)
+                    .build();
+        }
+
+        return Response.status(Status.OK).entity(requestResult.toJson()).build();
+		
+	}
+	
     private void validateListFunctionRequestParams(String tenant, String namespace) throws IllegalArgumentException {
 
         if (tenant == null) {
@@ -577,12 +578,9 @@ public class FunctionsImpl {
         }
     }
 
-    private FunctionDetails validateUpdateRequestParams(String tenant,
-                                             String namespace,
-                                             String functionName,
-                                             InputStream uploadedInputStream,
-                                             FormDataContentDisposition fileDetail,
-                                             String functionDetailsJson) throws IllegalArgumentException {
+    private FunctionDetails validateUpdateRequestParams(String tenant, String namespace, String functionName,
+            InputStream uploadedInputStream, FormDataContentDisposition fileDetail, String functionDetailsJson)
+            throws IllegalArgumentException {
         if (tenant == null) {
             throw new IllegalArgumentException("Tenant is not provided");
         }

@@ -63,6 +63,8 @@ import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
+import org.apache.pulsar.common.policies.data.Policies.ReplicatorType;
+import org.apache.pulsar.common.policies.data.ReplicatorPoliciesRequest.Action;
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -713,29 +715,74 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
     }
 
     @Override
-    public void triggerCompaction(String topic)
-            throws PulsarAdminException {
+    public void triggerCompaction(String topic) throws PulsarAdminException {
         try {
             TopicName tn = validateTopic(topic);
-            request(topicPath(tn, "compaction"))
-                .put(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+            request(topicPath(tn, "compaction")).put(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
     }
 
     @Override
-    public CompactionStatus compactionStatus(String topic)
-            throws PulsarAdminException {
+    public CompactionStatus compactionStatus(String topic) throws PulsarAdminException {
         try {
             TopicName tn = validateTopic(topic);
-            return request(topicPath(tn, "compaction"))
-                .get(CompactionStatus.class);
+            return request(topicPath(tn, "compaction")).get(CompactionStatus.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
     }
 
+
+    public void updateReplicator(String topic, ReplicatorType replicatorType, String regionName, Action action)
+            throws PulsarAdminException {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "replicator");
+        if (replicatorType == null) {
+            throw new PulsarAdminException("Replicator type can't be null");
+        }
+        try {
+            request(path.queryParam("replicatorType", replicatorType.toString()).queryParam("regionName", regionName)
+                    .queryParam("action", action.toString())).put(Entity.entity("", MediaType.APPLICATION_JSON),
+                            ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void registerReplicator(String topic, ReplicatorType replicatorType, String regionName)
+            throws PulsarAdminException {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "replicator");
+        if (replicatorType == null) {
+            throw new PulsarAdminException("Replicator type can't be null");
+        }
+        try {
+            request(path.queryParam("replicatorType", replicatorType.toString()).queryParam("regionName", regionName))
+                    .post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void deregisterReplicator(String topic, ReplicatorType replicatorType, String regionName)
+            throws PulsarAdminException {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "replicator");
+        if (replicatorType == null) {
+            throw new PulsarAdminException("Replicator type can't be null");
+        }
+        try {
+            request(path.queryParam("replicatorType", replicatorType.toString()).queryParam("regionName", regionName))
+                    .delete(ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+    
     private WebTarget namespacePath(NamespaceName namespace, String... parts) {
         final WebTarget base = namespace.isV2() ? adminV2PersistentTopics : adminPersistentTopics;
         WebTarget namespacePath = base.path(namespace.toString());

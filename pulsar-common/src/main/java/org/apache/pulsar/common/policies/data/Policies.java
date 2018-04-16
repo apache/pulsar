@@ -37,6 +37,7 @@ public class Policies {
     public Map<String, DispatchRate> clusterDispatchRate = Maps.newHashMap();
     public Map<String, DispatchRate> subscriptionDispatchRate = Maps.newHashMap();
     public PersistencePolicies persistence = null;
+    public Map<ReplicatorType, Map<String, ReplicatorPolicies>> replicatorPolicies;
 
     // If set, it will override the broker settings for enabling deduplication
     public Boolean deduplicationEnabled = null;
@@ -75,7 +76,8 @@ public class Policies {
                     && Objects.equals(antiAffinityGroup, other.antiAffinityGroup)
                     && max_producers_per_topic == other.max_producers_per_topic
                     && max_consumers_per_topic == other.max_consumers_per_topic
-                    && max_consumers_per_subscription == other.max_consumers_per_subscription;
+                    && max_consumers_per_subscription == other.max_consumers_per_subscription
+                    && Objects.equals(replicatorPolicies, other.replicatorPolicies);
         }
 
         return false;
@@ -95,16 +97,18 @@ public class Policies {
         return MoreObjects.toStringHelper(this).add("auth_policies", auth_policies)
                 .add("replication_clusters", replication_clusters).add("bundles", bundles)
                 .add("backlog_quota_map", backlog_quota_map).add("persistence", persistence)
-                .add("deduplicationEnabled", deduplicationEnabled)
-                .add("clusterDispatchRate", clusterDispatchRate)
-                .add("latency_stats_sample_rate", latency_stats_sample_rate)
-                .add("antiAffinityGroup", antiAffinityGroup)
+                .add("deduplicationEnabled", deduplicationEnabled).add("clusterDispatchRate", clusterDispatchRate)
+                .add("latency_stats_sample_rate", latency_stats_sample_rate).add("antiAffinityGroup", antiAffinityGroup)
                 .add("message_ttl_in_seconds", message_ttl_in_seconds).add("retention_policies", retention_policies)
-                .add("deleted", deleted)
-                .add("encryption_required", encryption_required)
+                .add("deleted", deleted).add("encryption_required", encryption_required)
                 .add("subscription_auth_mode", subscription_auth_mode)
                 .add("max_producers_per_topic", max_producers_per_topic)
                 .add("max_consumers_per_topic", max_consumers_per_topic)
-                .add("max_consumers_per_subscription", max_consumers_per_topic).toString();
+                .add("max_consumers_per_subscription", max_consumers_per_topic)
+                .add("replicator_policies", replicatorPolicies).toString();
+    }
+    
+    public static enum ReplicatorType {
+        Kinesis;
     }
 }

@@ -30,6 +30,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URL;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -140,6 +141,7 @@ public class PulsarService implements AutoCloseable {
     private final AtomicReference<LoadManager> loadManager = new AtomicReference<>();
     private PulsarAdmin adminClient = null;
     private PulsarClient client = null;
+    private PulsarAdmin functionAdminClient = null;
     private ZooKeeperClientFactory zkClientFactory = null;
     private final String bindAddress;
     private final String advertisedAddress;
@@ -244,6 +246,11 @@ public class PulsarService implements AutoCloseable {
             if (adminClient != null) {
                 adminClient.close();
                 adminClient = null;
+            }
+            
+            if (functionAdminClient != null) {
+                functionAdminClient.close();
+                functionAdminClient = null;
             }
 
             if (client != null) {
@@ -410,9 +417,6 @@ public class PulsarService implements AutoCloseable {
 
             leaderElectionService.start();
 
-            // start function worker service if necessary
-            this.startWorkerService();
-
             LOG.info("Starting Pulsar Broker service; version: '{}'", ( brokerVersion != null ? brokerVersion : "unknown" )  );
 
             webService.start();
@@ -424,6 +428,9 @@ public class PulsarService implements AutoCloseable {
             state = State.Started;
 
             acquireSLANamespace();
+
+            // start function worker service if necessary
+            this.startWorkerService();
 
             LOG.info("messaging service is ready, bootstrap service on port={}, broker url={}, cluster={}, configs={}",
                     config.getWebServicePort(), brokerServiceUrl, config.getClusterName(),
@@ -734,6 +741,24 @@ public class PulsarService implements AutoCloseable {
         return this.adminClient;
     }
 
+    public synchronized PulsarAdmin getFunctionAdminClient() throws PulsarServerException {
+        if (this.functionAdminClient == null) {
+            try {
+                String funAdminApiUrl = config.getFunctionWorkerServiceUrl();
+                if (funAdminApiUrl == null) {
+                    throw new PulsarServerException("Function admin api url not present");
+                }
+                this.functionAdminClient = new PulsarAdmin(new URL(funAdminApiUrl),
+                        this.getConfiguration().getBrokerClientAuthenticationPlugin(),
+                        this.getConfiguration().getBrokerClientAuthenticationParameters());
+                LOG.info("Function Admin api url: " + funAdminApiUrl);
+            } catch (Exception e) {
+                throw new PulsarServerException(e);
+            }
+        }
+        return this.functionAdminClient;
+    }
+    
     public MetricsGenerator getMetricsGenerator() {
         return metricsGenerator;
     }

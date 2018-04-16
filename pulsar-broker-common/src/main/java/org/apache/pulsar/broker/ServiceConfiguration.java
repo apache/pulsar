@@ -451,6 +451,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     /**** --- Functions --- ****/
     private boolean functionsWorkerEnabled = false;
+    // Function worker service url 
+    private String functionWorkerServiceUrl;
 
     public String getZookeeperServers() {
         return zookeeperServers;
@@ -1553,5 +1555,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setRunningStandalone(boolean isRunningStandalone) {
         this.isRunningStandalone = isRunningStandalone;
+    }
+
+    public String getFunctionWorkerServiceUrl() {
+        return functionWorkerServiceUrl;
+    }
+
+    public void setFunctionWorkerServiceUrl(String functionWorkerServiceUrl) {
+        this.functionWorkerServiceUrl = functionWorkerServiceUrl;
     }
 }

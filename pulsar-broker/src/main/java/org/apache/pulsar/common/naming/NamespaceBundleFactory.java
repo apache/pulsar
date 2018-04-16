@@ -248,7 +248,8 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
         partitions[pos] = sourceBundle.partitions[lastIndex];
         if (splitPartition != -1) {
             // keep version of sourceBundle
-            NamespaceBundles splittedNsBundles = new NamespaceBundles(nsname, partitions, this, sourceBundle.getVersion());
+            NamespaceBundles splittedNsBundles = new NamespaceBundles(nsname, partitions, this,
+                    sourceBundle.getVersion());
             List<NamespaceBundle> splittedBundles = splittedNsBundles.getBundles().subList(splitPartition,
                     (splitPartition + numBundles));
             return new ImmutablePair<NamespaceBundles, List<NamespaceBundle>>(splittedNsBundles, splittedBundles);

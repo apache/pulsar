@@ -32,6 +32,8 @@ import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.Policies.ReplicatorType;
+import org.apache.pulsar.common.policies.data.ReplicatorPoliciesRequest;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 
@@ -619,6 +621,38 @@ public interface Namespaces {
      *             Unexpected error
      */
     public void setBacklogQuota(String namespace, BacklogQuota backlogQuota) throws PulsarAdminException;
+    
+	/**
+     * Add external replicator configuration for a namespace.
+     * 
+     * @param namespace
+     *            Namespace name
+     * @param replicatorType
+     *            type of external replicator
+     * @param regionName
+     *            region name of external system
+     * @param ReplicatorPoliciesRequest
+     *            replicator policies request
+     * @throws PulsarAdminException
+     */
+	void addExternalReplicator(String namespace, ReplicatorType replicatorType, String regionName,
+			ReplicatorPoliciesRequest replicatorPoliciesRequest) throws PulsarAdminException;
+
+    /**
+     * Remove external replicator configuration for a namespace.
+     * 
+     * @param namespace
+     *            Namespace name
+     * @param replicatorType
+     *            type of external replicator
+     * @param regionName
+     *            region name of external system
+     * @param ReplicatorPoliciesRequest
+     *            replicator policies request
+     * @throws PulsarAdminException
+     */
+    void removeExternalReplicator(String namespace, ReplicatorType replicatorType, String regionName)
+            throws PulsarAdminException;
 
     /**
      * Remove a backlog quota policy from a namespace.

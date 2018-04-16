@@ -39,10 +39,13 @@ import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
+import org.apache.pulsar.common.policies.data.Policies.ReplicatorType;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.ReplicatorPolicies;
+import org.apache.pulsar.common.policies.data.ReplicatorPoliciesRequest;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.slf4j.Logger;
@@ -203,6 +206,35 @@ public class Namespaces extends NamespacesBase {
             @PathParam("namespace") String namespace, List<String> clusterIds) {
         validateNamespaceName(tenant, namespace);
         internalSetNamespaceReplicationClusters(clusterIds);
+    }
+
+    
+    @POST
+    @Path("/{property}/{namespace}/replicator")
+    @ApiOperation(value = "Set external replicator for a namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 412, message = "Namespace is not global"),
+            @ApiResponse(code = 400, message = "Invalid replicator properties") })
+    public void addNamespaceReplicator(@PathParam("property") String property, @PathParam("namespace") String namespace,
+            @QueryParam("replicatorType") ReplicatorType replicatorType, @QueryParam("regionName") String regionName,
+            ReplicatorPoliciesRequest replicatorPoliciesRequest) {
+        validateNamespaceName(property, namespace);
+        internalAddReplicatorPolicies(replicatorType, regionName, replicatorPoliciesRequest.replicatorPolicies,
+                replicatorPoliciesRequest.authParamData);
+    }
+
+    @DELETE
+    @Path("/{property}/{namespace}/replicator")
+    @ApiOperation(value = "Remove external replicator for a namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 412, message = "Namespace is not global") })
+    public void removeNamespaceReplicator(@PathParam("property") String property,
+            @PathParam("namespace") String namespace, @QueryParam("replicatorType") ReplicatorType replicatorType,
+            @QueryParam("regionName") String regionName) {
+        validateNamespaceName(property, namespace);
+        internalRemoveReplicatorPolicies(replicatorType, regionName);
     }
 
     @GET
