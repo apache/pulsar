@@ -143,12 +143,10 @@ consumer.close();
 client.close();
 ```
 
-Closer operations can also be asynchronous:
+Closer operations can also be asynchronous. Here's an example:
 
 ```java
-producer.asyncClose();
-consumer.asyncClose();
-clioent.asyncClose();
+producer.closeAsync().thenRun(() -> System.out.println("Producer closed"));
 ```
 " %}
 
@@ -171,15 +169,18 @@ When using {% popover partitioned topics %}, you can specify the routing mode wh
 
 ### Async send
 
-You can publish messages [asynchronously](../../getting-started/ConceptsAndArchitecture#send-modes) using the Java client. With async send, the producer will put the message in a blocking queue and return immediately. The client library will then send the message to the {% popover broker %} in the background. If the queue is full (max size configurable), the producer could be blocked or fail immediately when calling the API, depending on arguments passed to the producer.
+You can also publish messages [asynchronously](../../getting-started/ConceptsAndArchitecture#send-modes) using the Java client. With async send, the producer will put the message in a blocking queue and return immediately. The client library will then send the message to the {% popover broker %} in the background. If the queue is full (max size configurable), the producer could be blocked or fail immediately when calling the API, depending on arguments passed to the producer.
 
 Here's an example async send operation:
 
 ```java
 CompletableFuture<MessageId> future = producer.sendAsync("my-async-message".getBytes());
+future.thenAccept(msgId -> {
+        System.out.printf("Message with ID %s successfully sent", new String(msgId.toByteArray());
+});
 ```
 
-Async send operations return a {% javadoc MessageId client org.apache.pulsar.client.api.MessageId %} wrapped in a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture).
+As you can see from the example above, async send operations return a {% javadoc MessageId client org.apache.pulsar.client.api.MessageId %} wrapped in a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture).
 
 ## Consumers
 
