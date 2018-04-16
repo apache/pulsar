@@ -368,8 +368,9 @@
 <dd>
 <div class="block">Create a partitioned topic asynchronously.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Properties.html#createProperty-java.lang.String-org.apache.pulsar.common.policies.data.PropertyAdmin-">createProperty(String, PropertyAdmin)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Properties.html" title="interface in org.apache.pulsar.client.admin">Properties</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Properties.html#createProperty-java.lang.String-org.apache.pulsar.common.policies.data.TenantInfo-">createProperty(String, TenantInfo)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Properties.html" title="interface in org.apache.pulsar.client.admin">Properties</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Create a new property.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#createSubscription-java.lang.String-java.lang.String-MessageId-">createSubscription(String, String, MessageId)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
@@ -379,6 +380,10 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#createSubscriptionAsync-java.lang.String-java.lang.String-MessageId-">createSubscriptionAsync(String, String, MessageId)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
 <dd>
 <div class="block">Create a new subscription on a topic</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Tenants.html#createTenant-java.lang.String-org.apache.pulsar.common.policies.data.TenantInfo-">createTenant(String, TenantInfo)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Tenants.html" title="interface in org.apache.pulsar.client.admin">Tenants</a></dt>
+<dd>
+<div class="block">Create a new tenant.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.html#currentLedgerEntries">currentLedgerEntries</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicInternalStats</a></dt>
 <dd>&nbsp;</dd>
@@ -470,6 +475,7 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Properties.html#deleteProperty-java.lang.String-">deleteProperty(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Properties.html" title="interface in org.apache.pulsar.client.admin">Properties</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Delete an existing property.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#deleteSubscription-java.lang.String-java.lang.String-">deleteSubscription(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
@@ -479,6 +485,10 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#deleteSubscriptionAsync-java.lang.String-java.lang.String-">deleteSubscriptionAsync(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
 <dd>
 <div class="block">Delete a subscription asynchronously.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Tenants.html#deleteTenant-java.lang.String-">deleteTenant(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Tenants.html" title="interface in org.apache.pulsar.client.admin">Tenants</a></dt>
+<dd>
+<div class="block">Delete an existing tenant.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/AuthPolicies.html#destination_auth">destination_auth</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/AuthPolicies.html" title="class in org.apache.pulsar.common.policies.data">AuthPolicies</a></dt>
 <dd>&nbsp;</dd>
@@ -530,11 +540,11 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/Policies.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/Policies.html" title="class in org.apache.pulsar.common.policies.data">Policies</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PropertyAdmin.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PropertyAdmin.html" title="class in org.apache.pulsar.common.policies.data">PropertyAdmin</a></dt>
-<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ResourceQuota.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ResourceQuota.html" title="class in org.apache.pulsar.common.policies.data">ResourceQuota</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/RetentionPolicies.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/RetentionPolicies.html" title="class in org.apache.pulsar.common.policies.data">RetentionPolicies</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/TenantInfo.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/TenantInfo.html" title="class in org.apache.pulsar.common.policies.data">TenantInfo</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/impl/MinAvailablePolicy.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class org.apache.pulsar.common.policies.impl.<a href="org/apache/pulsar/common/policies/impl/MinAvailablePolicy.html" title="class in org.apache.pulsar.common.policies.impl">MinAvailablePolicy</a></dt>
 <dd>&nbsp;</dd>
@@ -610,7 +620,7 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PublisherStats.html#getAddress--">getAddress()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PublisherStats.html" title="class in org.apache.pulsar.common.policies.data">PublisherStats</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PropertyAdmin.html#getAdminRoles--">getAdminRoles()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PropertyAdmin.html" title="class in org.apache.pulsar.common.policies.data">PropertyAdmin</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/TenantInfo.html#getAdminRoles--">getAdminRoles()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/TenantInfo.html" title="class in org.apache.pulsar.common.policies.data">TenantInfo</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Brokers.html#getAllDynamicConfigurations--">getAllDynamicConfigurations()</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Brokers.html" title="interface in org.apache.pulsar.client.admin">Brokers</a></dt>
 <dd>
@@ -618,7 +628,7 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/BrokerStats.html#getAllocatorStats-java.lang.String-">getAllocatorStats(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/BrokerStats.html" title="interface in org.apache.pulsar.client.admin">BrokerStats</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PropertyAdmin.html#getAllowedClusters--">getAllowedClusters()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PropertyAdmin.html" title="class in org.apache.pulsar.common.policies.data">PropertyAdmin</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/TenantInfo.html#getAllowedClusters--">getAllowedClusters()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/TenantInfo.html" title="class in org.apache.pulsar.common.policies.data">TenantInfo</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#getAntiAffinityNamespaces-java.lang.String-java.lang.String-java.lang.String-">getAntiAffinityNamespaces(String, String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
 <dd>
@@ -930,10 +940,12 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Properties.html#getProperties--">getProperties()</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Properties.html" title="interface in org.apache.pulsar.client.admin">Properties</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Get the list of properties.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Properties.html#getPropertyAdmin-java.lang.String-">getPropertyAdmin(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Properties.html" title="interface in org.apache.pulsar.client.admin">Properties</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Get the config of the property.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html#getPublishers--">getPublishers()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentTopicStats</a></dt>
@@ -995,6 +1007,14 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#getSubscriptionsAsync-java.lang.String-">getSubscriptionsAsync(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
 <dd>
 <div class="block">Get the list of subscriptions asynchronously.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Tenants.html#getTenantInfo-java.lang.String-">getTenantInfo(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Tenants.html" title="interface in org.apache.pulsar.client.admin">Tenants</a></dt>
+<dd>
+<div class="block">Get the config of the tenant.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Tenants.html#getTenants--">getTenants()</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Tenants.html" title="interface in org.apache.pulsar.client.admin">Tenants</a></dt>
+<dd>
+<div class="block">Get the list of tenants.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdminException.GettingAuthenticationDataException.html#GettingAuthenticationDataException-java.lang.Throwable-">GettingAuthenticationDataException(Throwable)</a></span> - Constructor for exception org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdminException.GettingAuthenticationDataException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.GettingAuthenticationDataException</a></dt>
 <dd>&nbsp;</dd>
@@ -1433,17 +1453,17 @@
 </dd>
 <dt><a href="org/apache/pulsar/client/admin/Properties.html" title="interface in org.apache.pulsar.client.admin"><span class="typeNameLink">Properties</span></a> - Interface in <a href="org/apache/pulsar/client/admin/package-summary.html">org.apache.pulsar.client.admin</a></dt>
 <dd>
-<div class="block">Admin interface for properties management</div>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment">see <a href="org/apache/pulsar/client/admin/Tenants.html" title="interface in org.apache.pulsar.client.admin"><code>Tenants</code></a> from <a href="org/apache/pulsar/client/admin/PulsarAdmin.html#tenants--"><code>PulsarAdmin.tenants()</code></a></span></div>
+</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdmin.html#properties--">properties()</a></span> - Method in class org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin">PulsarAdmin</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment">since 2.0. See <a href="org/apache/pulsar/client/admin/PulsarAdmin.html#tenants--"><code>PulsarAdmin.tenants()</code></a></span></div>
+</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.CursorStats.html#properties">properties</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.CursorStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicInternalStats.CursorStats</a></dt>
-<dd>&nbsp;</dd>
-<dt><a href="org/apache/pulsar/common/policies/data/PropertyAdmin.html" title="class in org.apache.pulsar.common.policies.data"><span class="typeNameLink">PropertyAdmin</span></a> - Class in <a href="org/apache/pulsar/common/policies/data/package-summary.html">org.apache.pulsar.common.policies.data</a></dt>
-<dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PropertyAdmin.html#PropertyAdmin--">PropertyAdmin()</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PropertyAdmin.html" title="class in org.apache.pulsar.common.policies.data">PropertyAdmin</a></dt>
-<dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PropertyAdmin.html#PropertyAdmin-java.util.Set-java.util.Set-">PropertyAdmin(Set&lt;String&gt;, Set&lt;String&gt;)</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PropertyAdmin.html" title="class in org.apache.pulsar.common.policies.data">PropertyAdmin</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html#publishers">publishers</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentTopicStats</a></dt>
 <dd>
@@ -1639,9 +1659,9 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PublisherStats.html#setAddress-java.lang.String-">setAddress(String)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PublisherStats.html" title="class in org.apache.pulsar.common.policies.data">PublisherStats</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PropertyAdmin.html#setAdminRoles-java.util.Set-">setAdminRoles(Set&lt;String&gt;)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PropertyAdmin.html" title="class in org.apache.pulsar.common.policies.data">PropertyAdmin</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/TenantInfo.html#setAdminRoles-java.util.Set-">setAdminRoles(Set&lt;String&gt;)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/TenantInfo.html" title="class in org.apache.pulsar.common.policies.data">TenantInfo</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PropertyAdmin.html#setAllowedClusters-java.util.Set-">setAllowedClusters(Set&lt;String&gt;)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PropertyAdmin.html" title="class in org.apache.pulsar.common.policies.data">PropertyAdmin</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/TenantInfo.html#setAllowedClusters-java.util.Set-">setAllowedClusters(Set&lt;String&gt;)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/TenantInfo.html" title="class in org.apache.pulsar.common.policies.data">TenantInfo</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#setBacklogQuota-java.lang.String-org.apache.pulsar.common.policies.data.BacklogQuota-">setBacklogQuota(String, BacklogQuota)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
 <dd>
@@ -1867,6 +1887,18 @@
 </a>
 <h2 class="title">T</h2>
 <dl>
+<dt><a href="org/apache/pulsar/common/policies/data/TenantInfo.html" title="class in org.apache.pulsar.common.policies.data"><span class="typeNameLink">TenantInfo</span></a> - Class in <a href="org/apache/pulsar/common/policies/data/package-summary.html">org.apache.pulsar.common.policies.data</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/TenantInfo.html#TenantInfo--">TenantInfo()</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/TenantInfo.html" title="class in org.apache.pulsar.common.policies.data">TenantInfo</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/TenantInfo.html#TenantInfo-java.util.Set-java.util.Set-">TenantInfo(Set&lt;String&gt;, Set&lt;String&gt;)</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/TenantInfo.html" title="class in org.apache.pulsar.common.policies.data">TenantInfo</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdmin.html#tenants--">tenants()</a></span> - Method in class org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin">PulsarAdmin</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/client/admin/Tenants.html" title="interface in org.apache.pulsar.client.admin"><span class="typeNameLink">Tenants</span></a> - Interface in <a href="org/apache/pulsar/client/admin/package-summary.html">org.apache.pulsar.client.admin</a></dt>
+<dd>
+<div class="block">Admin interface for tenants management</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#terminateTopicAsync-java.lang.String-">terminateTopicAsync(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
 <dd>
 <div class="block">Terminate the topic and prevent any more messages being published on it.</div>
@@ -2011,9 +2043,14 @@
 <dd>
 <div class="block">Update peer cluster names.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Properties.html#updateProperty-java.lang.String-org.apache.pulsar.common.policies.data.PropertyAdmin-">updateProperty(String, PropertyAdmin)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Properties.html" title="interface in org.apache.pulsar.client.admin">Properties</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Properties.html#updateProperty-java.lang.String-org.apache.pulsar.common.policies.data.TenantInfo-">updateProperty(String, TenantInfo)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Properties.html" title="interface in org.apache.pulsar.client.admin">Properties</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Update the admins for a property.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Tenants.html#updateTenant-java.lang.String-org.apache.pulsar.common.policies.data.TenantInfo-">updateTenant(String, TenantInfo)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Tenants.html" title="interface in org.apache.pulsar.client.admin">Tenants</a></dt>
+<dd>
+<div class="block">Update the admins for a tenant.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/impl/MinAvailablePolicy.html#usage_threshold">usage_threshold</a></span> - Variable in class org.apache.pulsar.common.policies.impl.<a href="org/apache/pulsar/common/policies/impl/MinAvailablePolicy.html" title="class in org.apache.pulsar.common.policies.impl">MinAvailablePolicy</a></dt>
 <dd>&nbsp;</dd>

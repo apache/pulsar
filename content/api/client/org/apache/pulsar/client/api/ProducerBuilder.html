@@ -406,7 +406,7 @@ extends Serializable, Cloneable</pre>
 <div class="block">Set the max size of the queue holding the messages pending to receive an acknowledgment from the broker.
  <p>
  When the queue is full, by default, all calls to <a href="../../../../../org/apache/pulsar/client/api/Producer.html#send-T-"><code>Producer.send(T)</code></a> and <a href="../../../../../org/apache/pulsar/client/api/Producer.html#sendAsync-T-"><code>Producer.sendAsync(T)</code></a> will fail
- unless blockIfQueueFull is set to true. Use <code>#setBlockIfQueueFull</code> to change the blocking behavior.</div>
+ unless blockIfQueueFull is set to true. Use <a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#blockIfQueueFull-boolean-"><code>blockIfQueueFull(boolean)</code></a> to change the blocking behavior.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>maxPendingMessages</code> - </dd>
@@ -459,13 +459,17 @@ extends Serializable, Cloneable</pre>
 <pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;&nbsp;messageRoutingMode(<a href="../../../../../org/apache/pulsar/client/api/MessageRoutingMode.html" title="enum in org.apache.pulsar.client.api">MessageRoutingMode</a>&nbsp;messageRoutingMode)</pre>
 <div class="block">Set the message routing mode for the partitioned producer.
 
- Default routing mode for messages to partition.
+ Default routing mode is round-robin routing.
 
  This logic is applied when the application is not setting a key <a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html#setKey-java.lang.String-"><code>MessageBuilder.setKey(String)</code></a> on a
  particular message.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>messageRoutingMode</code> - the message routing mode</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>producer builder</dd>
+<dt><span class="seeLabel">See Also:</span></dt>
+<dd><a href="../../../../../org/apache/pulsar/client/api/MessageRoutingMode.html" title="enum in org.apache.pulsar.client.api"><code>MessageRoutingMode</code></a></dd>
 </dl>
 </li>
 </ul>
@@ -541,10 +545,15 @@ extends Serializable, Cloneable</pre>
  messages will be compressed at the batch level, leading to a much better compression ratio for similar headers or
  contents.
 
- When enabled default batch delay is set to 10 ms and default batch size is 1000 messages</div>
+ When enabled default batch delay is set to 1 ms and default batch size is 1000 messages
+
+ <p>Batching is enabled by default since 2.0.0.</div>
 <dl>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>producer builder.</dd>
 <dt><span class="seeLabel">See Also:</span></dt>
-<dd><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#batchingMaxPublishDelay-long-java.util.concurrent.TimeUnit-"><code>batchingMaxPublishDelay(long, TimeUnit)</code></a></dd>
+<dd><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#batchingMaxPublishDelay-long-java.util.concurrent.TimeUnit-"><code>batchingMaxPublishDelay(long, TimeUnit)</code></a>, 
+<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#batchingMaxMessages-int-"><code>batchingMaxMessages(int)</code></a></dd>
 </dl>
 </li>
 </ul>

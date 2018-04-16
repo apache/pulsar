@@ -195,7 +195,7 @@ var activeTableTab = "activeTableTab";
 </tr>
 <tr id="i11" class="rowColor">
 <td class="colFirst"><code>List&lt;String&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#getAntiAffinityNamespaces-java.lang.String-java.lang.String-java.lang.String-">getAntiAffinityNamespaces</a></span>(String&nbsp;property,
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#getAntiAffinityNamespaces-java.lang.String-java.lang.String-java.lang.String-">getAntiAffinityNamespaces</a></span>(String&nbsp;tenant,
                          String&nbsp;cluster,
                          String&nbsp;namespaceAntiAffinityGroup)</code>
 <div class="block">Get all namespaces that grouped with given anti-affinity group</div>
@@ -251,13 +251,13 @@ var activeTableTab = "activeTableTab";
 </tr>
 <tr id="i20" class="altColor">
 <td class="colFirst"><code>List&lt;String&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#getNamespaces-java.lang.String-">getNamespaces</a></span>(String&nbsp;property)</code>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#getNamespaces-java.lang.String-">getNamespaces</a></span>(String&nbsp;tenant)</code>
 <div class="block">Get the list of namespaces.</div>
 </td>
 </tr>
 <tr id="i21" class="rowColor">
 <td class="colFirst"><code>List&lt;String&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#getNamespaces-java.lang.String-java.lang.String-">getNamespaces</a></span>(String&nbsp;property,
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#getNamespaces-java.lang.String-java.lang.String-">getNamespaces</a></span>(String&nbsp;tenant,
              String&nbsp;cluster)</code>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 </td>
@@ -480,25 +480,25 @@ var activeTableTab = "activeTableTab";
 <ul class="blockList">
 <li class="blockList">
 <h4>getNamespaces</h4>
-<pre>List&lt;String&gt;&nbsp;getNamespaces(String&nbsp;property)
+<pre>List&lt;String&gt;&nbsp;getNamespaces(String&nbsp;tenant)
                     throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
 <div class="block">Get the list of namespaces.
  <p>
- Get the list of all the namespaces for a certain property.
+ Get the list of all the namespaces for a certain tenant.
  <p>
  Response Example:
 
  <pre>
- <code>["my-property/c1/namespace1",
-  "my-property/global/namespace2",
-  "my-property/c2/namespace3"]</code>
+ <code>["my-tenant/c1/namespace1",
+  "my-tenant/global/namespace2",
+  "my-tenant/c2/namespace3"]</code>
  </pre></div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>property</code> - Property name</dd>
+<dd><code>tenant</code> - Tenant name</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotAuthorizedException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotAuthorizedException</a></code> - Don't have admin permission</dd>
-<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotFoundException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotFoundException</a></code> - Property does not exist</dd>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotFoundException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotFoundException</a></code> - Tenant does not exist</dd>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code> - Unexpected error</dd>
 </dl>
 </li>
@@ -510,26 +510,26 @@ var activeTableTab = "activeTableTab";
 <li class="blockList">
 <h4>getNamespaces</h4>
 <pre>@Deprecated
-List&lt;String&gt;&nbsp;getNamespaces(String&nbsp;property,
+List&lt;String&gt;&nbsp;getNamespaces(String&nbsp;tenant,
                                        String&nbsp;cluster)
                                 throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Get the list of namespaces.
  <p>
- Get the list of all the namespaces for a certain property on single cluster.
+ Get the list of all the namespaces for a certain tenant on single cluster.
  <p>
  Response Example:
 
  <pre>
- <code>["my-property/use/namespace1", "my-property/use/namespace2"]</code>
+ <code>["my-tenant/use/namespace1", "my-tenant/use/namespace2"]</code>
  </pre></div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>property</code> - Property name</dd>
+<dd><code>tenant</code> - Tenant name</dd>
 <dd><code>cluster</code> - Cluster name</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotAuthorizedException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotAuthorizedException</a></code> - Don't have admin permission</dd>
-<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotFoundException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotFoundException</a></code> - Property or cluster does not exist</dd>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotFoundException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotFoundException</a></code> - Tenant or cluster does not exist</dd>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code> - Unexpected error</dd>
 </dl>
 </li>
@@ -549,8 +549,8 @@ List&lt;String&gt;&nbsp;getNamespaces(String&nbsp;property,
  Response Example:
 
  <pre>
- <code>["persistent://my-property/use/namespace1/my-topic-1",
-  "persistent://my-property/use/namespace1/my-topic-2"]</code>
+ <code>["persistent://my-tenant/use/namespace1/my-topic-1",
+  "persistent://my-tenant/use/namespace1/my-topic-2"]</code>
  </pre></div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -623,7 +623,7 @@ List&lt;String&gt;&nbsp;getNamespaces(String&nbsp;property,
 <dd><code>numBundles</code> - Number of bundles</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotAuthorizedException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotAuthorizedException</a></code> - You don't have admin permission</dd>
-<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotFoundException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotFoundException</a></code> - Property or cluster does not exist</dd>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotFoundException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotFoundException</a></code> - Tenant or cluster does not exist</dd>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.ConflictException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.ConflictException</a></code> - Namespace already exists</dd>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code> - Unexpected error</dd>
 </dl>
@@ -647,7 +647,7 @@ List&lt;String&gt;&nbsp;getNamespaces(String&nbsp;property,
 <dd><code>bundlesData</code> - Bundles Data</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotAuthorizedException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotAuthorizedException</a></code> - You don't have admin permission</dd>
-<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotFoundException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotFoundException</a></code> - Property or cluster does not exist</dd>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotFoundException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotFoundException</a></code> - Tenant or cluster does not exist</dd>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.ConflictException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.ConflictException</a></code> - Namespace already exists</dd>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code> - Unexpected error</dd>
 </dl>
@@ -669,7 +669,7 @@ List&lt;String&gt;&nbsp;getNamespaces(String&nbsp;property,
 <dd><code>namespace</code> - Namespace name</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotAuthorizedException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotAuthorizedException</a></code> - You don't have admin permission</dd>
-<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotFoundException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotFoundException</a></code> - Property or cluster does not exist</dd>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotFoundException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotFoundException</a></code> - Tenant or cluster does not exist</dd>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.ConflictException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.ConflictException</a></code> - Namespace already exists</dd>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code> - Unexpected error</dd>
 </dl>
@@ -694,7 +694,7 @@ List&lt;String&gt;&nbsp;getNamespaces(String&nbsp;property,
             across clusters will be enabled.</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotAuthorizedException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotAuthorizedException</a></code> - You don't have admin permission</dd>
-<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotFoundException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotFoundException</a></code> - Property or cluster does not exist</dd>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotFoundException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotFoundException</a></code> - Tenant or cluster does not exist</dd>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.ConflictException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.ConflictException</a></code> - Namespace already exists</dd>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code> - Unexpected error</dd>
 </dl>
@@ -967,14 +967,14 @@ List&lt;String&gt;&nbsp;getNamespaces(String&nbsp;property,
 <ul class="blockList">
 <li class="blockList">
 <h4>getAntiAffinityNamespaces</h4>
-<pre>List&lt;String&gt;&nbsp;getAntiAffinityNamespaces(String&nbsp;property,
+<pre>List&lt;String&gt;&nbsp;getAntiAffinityNamespaces(String&nbsp;tenant,
                                        String&nbsp;cluster,
                                        String&nbsp;namespaceAntiAffinityGroup)
                                 throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
 <div class="block">Get all namespaces that grouped with given anti-affinity group</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>property</code> - property is only used for authorization. Client has to be admin of any of the property to access this
+<dd><code>tenant</code> - tenant is only used for authorization. Client has to be admin of any of the tenant to access this
             api api.</dd>
 <dd><code>cluster</code> - cluster name</dd>
 <dd><code>namespaceAntiAffinityGroup</code> - Anti-affinity group name</dd>
@@ -1184,7 +1184,7 @@ List&lt;String&gt;&nbsp;getNamespaces(String&nbsp;property,
  </pre></div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>property</code> - Property name</dd>
+<dd><code>tenant</code> - Tenant name</dd>
 <dd><code>cluster</code> - Cluster name</dd>
 <dd><code>namespace</code> - Namespace name</dd>
 <dd><code>persistence</code> - Persistence policies object</dd>
@@ -1224,7 +1224,7 @@ List&lt;String&gt;&nbsp;getNamespaces(String&nbsp;property,
  </pre></div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>property</code> - Property name</dd>
+<dd><code>tenant</code> - Tenant name</dd>
 <dd><code>cluster</code> - Cluster name</dd>
 <dd><code>namespace</code> - Namespace name</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>

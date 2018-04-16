@@ -17,8 +17,8 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6};
-var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
+var methods = {"i0":38,"i1":38,"i2":38,"i3":38,"i4":38};
+var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],32:["t6","Deprecated Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
 var tableTab = "tableTab";
@@ -98,8 +98,12 @@ var activeTableTab = "activeTableTab";
 <ul class="blockList">
 <li class="blockList">
 <hr>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;
+<div class="block"><span class="deprecationComment">see <a href="../../../../../org/apache/pulsar/client/admin/Tenants.html" title="interface in org.apache.pulsar.client.admin"><code>Tenants</code></a> from <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdmin.html#tenants--"><code>PulsarAdmin.tenants()</code></a></span></div>
+</div>
 <br>
-<pre>public interface <span class="typeNameLabel">Properties</span></pre>
+<pre>@Deprecated
+public interface <span class="typeNameLabel">Properties</span></pre>
 <div class="block">Admin interface for properties management</div>
 </li>
 </ul>
@@ -114,40 +118,45 @@ var activeTableTab = "activeTableTab";
 </a>
 <h3>Method Summary</h3>
 <table class="memberSummary" border="0" cellpadding="3" cellspacing="0" summary="Method Summary table, listing methods, and an explanation">
-<caption><span id="t0" class="activeTableTab"><span>All Methods</span><span class="tabEnd">&nbsp;</span></span><span id="t2" class="tableTab"><span><a href="javascript:show(2);">Instance Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t3" class="tableTab"><span><a href="javascript:show(4);">Abstract Methods</a></span><span class="tabEnd">&nbsp;</span></span></caption>
+<caption><span id="t0" class="activeTableTab"><span>All Methods</span><span class="tabEnd">&nbsp;</span></span><span id="t2" class="tableTab"><span><a href="javascript:show(2);">Instance Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t3" class="tableTab"><span><a href="javascript:show(4);">Abstract Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t6" class="tableTab"><span><a href="javascript:show(32);">Deprecated Methods</a></span><span class="tabEnd">&nbsp;</span></span></caption>
 <tr>
 <th class="colFirst" scope="col">Modifier and Type</th>
 <th class="colLast" scope="col">Method and Description</th>
 </tr>
 <tr id="i0" class="altColor">
 <td class="colFirst"><code>void</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Properties.html#createProperty-java.lang.String-org.apache.pulsar.common.policies.data.PropertyAdmin-">createProperty</a></span>(String&nbsp;property,
-              <a href="../../../../../org/apache/pulsar/common/policies/data/PropertyAdmin.html" title="class in org.apache.pulsar.common.policies.data">PropertyAdmin</a>&nbsp;config)</code>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Properties.html#createProperty-java.lang.String-org.apache.pulsar.common.policies.data.TenantInfo-">createProperty</a></span>(String&nbsp;property,
+              <a href="../../../../../org/apache/pulsar/common/policies/data/TenantInfo.html" title="class in org.apache.pulsar.common.policies.data">TenantInfo</a>&nbsp;config)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Create a new property.</div>
 </td>
 </tr>
 <tr id="i1" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Properties.html#deleteProperty-java.lang.String-">deleteProperty</a></span>(String&nbsp;property)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Delete an existing property.</div>
 </td>
 </tr>
 <tr id="i2" class="altColor">
 <td class="colFirst"><code>List&lt;String&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Properties.html#getProperties--">getProperties</a></span>()</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Get the list of properties.</div>
 </td>
 </tr>
 <tr id="i3" class="rowColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/common/policies/data/PropertyAdmin.html" title="class in org.apache.pulsar.common.policies.data">PropertyAdmin</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/common/policies/data/TenantInfo.html" title="class in org.apache.pulsar.common.policies.data">TenantInfo</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Properties.html#getPropertyAdmin-java.lang.String-">getPropertyAdmin</a></span>(String&nbsp;property)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Get the config of the property.</div>
 </td>
 </tr>
 <tr id="i4" class="altColor">
 <td class="colFirst"><code>void</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Properties.html#updateProperty-java.lang.String-org.apache.pulsar.common.policies.data.PropertyAdmin-">updateProperty</a></span>(String&nbsp;property,
-              <a href="../../../../../org/apache/pulsar/common/policies/data/PropertyAdmin.html" title="class in org.apache.pulsar.common.policies.data">PropertyAdmin</a>&nbsp;config)</code>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Properties.html#updateProperty-java.lang.String-org.apache.pulsar.common.policies.data.TenantInfo-">updateProperty</a></span>(String&nbsp;property,
+              <a href="../../../../../org/apache/pulsar/common/policies/data/TenantInfo.html" title="class in org.apache.pulsar.common.policies.data">TenantInfo</a>&nbsp;config)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Update the admins for a property.</div>
 </td>
 </tr>
@@ -174,6 +183,7 @@ var activeTableTab = "activeTableTab";
 <h4>getProperties</h4>
 <pre>List&lt;String&gt;&nbsp;getProperties()
                     throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Get the list of properties.
  <p>
  Get the list of all the properties.
@@ -198,8 +208,9 @@ var activeTableTab = "activeTableTab";
 <ul class="blockList">
 <li class="blockList">
 <h4>getPropertyAdmin</h4>
-<pre><a href="../../../../../org/apache/pulsar/common/policies/data/PropertyAdmin.html" title="class in org.apache.pulsar.common.policies.data">PropertyAdmin</a>&nbsp;getPropertyAdmin(String&nbsp;property)
-                        throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<pre><a href="../../../../../org/apache/pulsar/common/policies/data/TenantInfo.html" title="class in org.apache.pulsar.common.policies.data">TenantInfo</a>&nbsp;getPropertyAdmin(String&nbsp;property)
+                     throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Get the config of the property.
  <p>
  Get the admin configuration for a given property.</div>
@@ -215,15 +226,16 @@ var activeTableTab = "activeTableTab";
 </dl>
 </li>
 </ul>
-<a name="createProperty-java.lang.String-org.apache.pulsar.common.policies.data.PropertyAdmin-">
+<a name="createProperty-java.lang.String-org.apache.pulsar.common.policies.data.TenantInfo-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>createProperty</h4>
 <pre>void&nbsp;createProperty(String&nbsp;property,
-                    <a href="../../../../../org/apache/pulsar/common/policies/data/PropertyAdmin.html" title="class in org.apache.pulsar.common.policies.data">PropertyAdmin</a>&nbsp;config)
+                    <a href="../../../../../org/apache/pulsar/common/policies/data/TenantInfo.html" title="class in org.apache.pulsar.common.policies.data">TenantInfo</a>&nbsp;config)
              throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Create a new property.
  <p>
  Provisions a new property. This operation requires Pulsar super-user privileges.</div>
@@ -239,15 +251,16 @@ var activeTableTab = "activeTableTab";
 </dl>
 </li>
 </ul>
-<a name="updateProperty-java.lang.String-org.apache.pulsar.common.policies.data.PropertyAdmin-">
+<a name="updateProperty-java.lang.String-org.apache.pulsar.common.policies.data.TenantInfo-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>updateProperty</h4>
 <pre>void&nbsp;updateProperty(String&nbsp;property,
-                    <a href="../../../../../org/apache/pulsar/common/policies/data/PropertyAdmin.html" title="class in org.apache.pulsar.common.policies.data">PropertyAdmin</a>&nbsp;config)
+                    <a href="../../../../../org/apache/pulsar/common/policies/data/TenantInfo.html" title="class in org.apache.pulsar.common.policies.data">TenantInfo</a>&nbsp;config)
              throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Update the admins for a property.
  <p>
  This operation requires Pulsar super-user privileges.</div>
@@ -270,6 +283,7 @@ var activeTableTab = "activeTableTab";
 <h4>deleteProperty</h4>
 <pre>void&nbsp;deleteProperty(String&nbsp;property)
              throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Delete an existing property.
  <p>
  Delete a property and all namespaces and topics under it.</div>
