@@ -410,9 +410,6 @@ public class PulsarService implements AutoCloseable {
 
             leaderElectionService.start();
 
-            // start function worker service if necessary
-            this.startWorkerService();
-
             LOG.info("Starting Pulsar Broker service; version: '{}'", ( brokerVersion != null ? brokerVersion : "unknown" )  );
 
             webService.start();
@@ -424,6 +421,9 @@ public class PulsarService implements AutoCloseable {
             state = State.Started;
 
             acquireSLANamespace();
+            
+            // start function worker service if necessary
+            this.startWorkerService();
 
             LOG.info("messaging service is ready, bootstrap service on port={}, broker url={}, cluster={}, configs={}",
                     config.getWebServicePort(), brokerServiceUrl, config.getClusterName(),
