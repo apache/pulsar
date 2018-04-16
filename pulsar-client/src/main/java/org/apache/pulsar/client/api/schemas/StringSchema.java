@@ -2,6 +2,7 @@ package org.apache.pulsar.client.api.schemas;
 
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -27,6 +28,9 @@ public class StringSchema implements Schema<String> {
     }
 
     public SchemaInfo getSchemaInfo() {
-        return new SchemaInfo();
+        SchemaInfo schemaInfo = new SchemaInfo();
+        schemaInfo.setName("String");
+        schemaInfo.setType(SchemaType.NONE);
+        return schemaInfo;
     }
 }
