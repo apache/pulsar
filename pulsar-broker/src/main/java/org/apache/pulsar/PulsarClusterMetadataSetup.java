@@ -163,12 +163,12 @@ public class PulsarClusterMetadataSetup {
         // Create public tenant, whitelisted to use the this same cluster, along with other clusters
         String publicTenantPath = POLICIES_ROOT + "/" + TopicName.PUBLIC_TENANT;
 
-        Stat stat = globalZk.exists(publicTenantPath, false);
+        Stat stat = configStoreZk.exists(publicTenantPath, false);
         if (stat == null) {
             TenantInfo publicTenant = new TenantInfo(Collections.emptySet(), Collections.singleton(arguments.cluster));
 
             try {
-                ZkUtils.createFullPathOptimistic(globalZk, publicTenantPath,
+                ZkUtils.createFullPathOptimistic(configStoreZk, publicTenantPath,
                         ObjectMapperFactory.getThreadLocal().writeValueAsBytes(publicTenant),
                         ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
             } catch (NodeExistsException e) {
@@ -176,14 +176,14 @@ public class PulsarClusterMetadataSetup {
             }
         } else {
             // Update existing public tenant with new cluster
-            byte[] content = globalZk.getData(publicTenantPath, false, null);
+            byte[] content = configStoreZk.getData(publicTenantPath, false, null);
             TenantInfo publicTenant = ObjectMapperFactory.getThreadLocal().readValue(content, TenantInfo.class);
 
             // Only update z-node if the list of clusters should be modified
             if (!publicTenant.getAllowedClusters().contains(arguments.cluster)) {
                 publicTenant.getAllowedClusters().add(arguments.cluster);
 
-                globalZk.setData(publicTenantPath, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(publicTenant),
+                configStoreZk.setData(publicTenantPath, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(publicTenant),
                         stat.getVersion());
             }
         }
@@ -192,7 +192,7 @@ public class PulsarClusterMetadataSetup {
         String defaultNamespacePath = POLICIES_ROOT + "/" + TopicName.PUBLIC_TENANT + "/" + TopicName.DEFAULT_NAMESPACE;
         Policies policies;
 
-        stat = globalZk.exists(defaultNamespacePath, false);
+        stat = configStoreZk.exists(defaultNamespacePath, false);
         if (stat == null) {
             policies = new Policies();
             policies.bundles = getBundles(16);
@@ -200,7 +200,7 @@ public class PulsarClusterMetadataSetup {
 
             try {
                 ZkUtils.createFullPathOptimistic(
-                    globalZk,
+                    configStoreZk,
                     defaultNamespacePath,
                     ObjectMapperFactory.getThreadLocal().writeValueAsBytes(policies),
                     ZooDefs.Ids.OPEN_ACL_UNSAFE,
@@ -209,14 +209,14 @@ public class PulsarClusterMetadataSetup {
                 // Ignore
             }
         } else {
-            byte[] content = globalZk.getData(defaultNamespacePath, false, null);
+            byte[] content = configStoreZk.getData(defaultNamespacePath, false, null);
             policies = ObjectMapperFactory.getThreadLocal().readValue(content, Policies.class);
 
             // Only update z-node if the list of clusters should be modified
             if (!policies.replication_clusters.contains(arguments.cluster)) {
                 policies.replication_clusters.add(arguments.cluster);
 
-                globalZk.setData(defaultNamespacePath, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(policies),
+                configStoreZk.setData(defaultNamespacePath, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(policies),
                         stat.getVersion());
             }
         }
