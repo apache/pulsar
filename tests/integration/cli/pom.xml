@@ -19,22 +19,29 @@
     under the License.
 
 -->
-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-  <packaging>pom</packaging>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="
+  http://maven.apache.org/POM/4.0.0
+  http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>org.apache.pulsar.tests</groupId>
-    <artifactId>tests-parent</artifactId>
+    <artifactId>integration-tests-base</artifactId>
     <version>2.0.0-incubating-SNAPSHOT</version>
+    <relativePath>../../integration-tests-base</relativePath>
   </parent>
 
-  <groupId>org.apache.pulsar.tests</groupId>
-  <artifactId>integration</artifactId>
-  <name>Apache Pulsar :: Tests :: Integration</name>
-  <modules>
-    <module>smoke</module>
-    <module>compaction</module>
-    <module>cli</module>
-  </modules>
+  <groupId>org.apache.pulsar.tests.integration</groupId>
+  <artifactId>cli</artifactId>
+  <packaging>jar</packaging>
+  <name>Apache Pulsar :: Tests :: Integration Tests :: CLI</name>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-client</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+  </dependencies>
 </project>
