@@ -299,7 +299,21 @@ CompletableFuture<Consumer> consumer = bldr
         .subscribeAsync();
 ```
 
-## Reader interface
+## Message schemas {#schemas}
+
+In Pulsar, all message data consists of byte arrays. Message **schemas** enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a [producer](#producers) without specifying a schema, then the producer can only produce messages of type `byte[]`. Here's an example:
+
+```java
+Producer producer = client.newProducer()
+        .topic(topic)
+        .create();
+```
+
+The producer above is equivalent to a `Producer<byte[]>` (in fact, you should always explicitly specify the type). This producer, however, would
+
+The same schema-based logic applies to [consumers](#consumers) and [readers](#readers).
+
+## Reader interface {#readers}
 
 With the [reader interface](../../getting-started/ConceptsAndArchitecture#reader-interface), Pulsar clients can "manually position" themselves within a topic, reading all messages from a specified message onward. The Pulsar API for Java enables you to create  {% javadoc Reader client org.apache.pulsar.client.api.Reader %} objects by specifying a {% popover topic %}, a {% javadoc MessageId client org.apache.pulsar.client.api.MessageId %}, and {% javadoc ReaderConfiguration client org.apache.pulsar.client.api.ReaderConfiguration %}.
 
