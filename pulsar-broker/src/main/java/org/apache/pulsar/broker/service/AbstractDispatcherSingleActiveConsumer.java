@@ -202,7 +202,7 @@ public abstract class AbstractDispatcherSingleActiveConsumer {
     public SubType getType() {
         return subscriptionType;
     }
-    
+
     public Consumer getActiveConsumer() {
         return ACTIVE_CONSUMER_UPDATER.get(this);
     }
@@ -210,11 +210,11 @@ public abstract class AbstractDispatcherSingleActiveConsumer {
     public CopyOnWriteArrayList<Consumer> getConsumers() {
         return consumers;
     }
-    
+
     public boolean isConsumerConnected() {
         return ACTIVE_CONSUMER_UPDATER.get(this) != null;
     }
 
     private static final Logger log = LoggerFactory.getLogger(AbstractDispatcherSingleActiveConsumer.class);
-    
+
 }

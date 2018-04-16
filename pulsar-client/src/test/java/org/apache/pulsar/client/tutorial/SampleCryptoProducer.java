@@ -76,7 +76,7 @@ public class SampleCryptoProducer {
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("http://127.0.0.1:8080").build();
 
         // Setup the CryptoKeyReader with the file name where public/private key is kept
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic")
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-tenant/my-ns/my-topic")
                 .cryptoKeyReader(new RawFileKeyReader("test_ecdsa_pubkey.pem", "test_ecdsa_privkey.pem"))
                 .addEncryptionKey("myappkey").create();
 

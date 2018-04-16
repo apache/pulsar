@@ -35,7 +35,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -153,7 +153,7 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
         // create a client which connects to proxy over tls and pass authData
         PulsarClient proxyClient = createPulsarClient(authTls, proxyServiceUrl);
 
-        admin.properties().createProperty("my-property", new PropertyAdmin(Sets.newHashSet("appid1", "appid2"),
+        admin.tenants().createTenant("my-property", new TenantInfo(Sets.newHashSet("appid1", "appid2"),
                 Sets.newHashSet("without-service-discovery")));
         admin.namespaces().createNamespace("my-property/without-service-discovery/my-ns");
 

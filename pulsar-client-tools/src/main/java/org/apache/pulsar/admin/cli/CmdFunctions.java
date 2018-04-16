@@ -485,7 +485,7 @@ public class CmdFunctions extends CmdBase {
         private void inferMissingTenant(FunctionConfig functionConfig) {
             try {
                 String inputTopic = getUniqueInput(functionConfig);
-                functionConfig.setTenant(TopicName.get(inputTopic).getProperty());
+                functionConfig.setTenant(TopicName.get(inputTopic).getTenant());
             } catch (IllegalArgumentException ex) {
                 throw new RuntimeException("You need to specify a tenant for the function", ex);
             }

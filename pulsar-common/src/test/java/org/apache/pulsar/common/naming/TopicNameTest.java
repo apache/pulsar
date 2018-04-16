@@ -56,7 +56,7 @@ public class TopicNameTest {
 
         assertEquals(TopicName.get("persistent://property/cluster/namespace/topic").getDomain(),
                 TopicDomain.persistent);
-        assertEquals(TopicName.get("persistent://property/cluster/namespace/topic").getProperty(),
+        assertEquals(TopicName.get("persistent://property/cluster/namespace/topic").getTenant(),
                 "property");
         assertEquals(TopicName.get("persistent://property/cluster/namespace/topic").getCluster(),
                 "cluster");
@@ -75,7 +75,7 @@ public class TopicNameTest {
         }
 
         try {
-            TopicName.get("://property.namespace:my-topic").getProperty();
+            TopicName.get("://property.namespace:my-topic").getTenant();
             fail("Should have raised exception");
         } catch (IllegalArgumentException e) {
             // Ok
@@ -228,7 +228,7 @@ public class TopicNameTest {
 
         assertEquals(topicName.toString(), "persistent://property/namespace/topic");
         assertEquals(topicName.getDomain(), TopicDomain.persistent);
-        assertEquals(topicName.getProperty(), "property");
+        assertEquals(topicName.getTenant(), "property");
         assertEquals(topicName.getCluster(), null);
         assertEquals(topicName.getNamespacePortion(), "namespace");
         assertEquals(topicName.getNamespace(), "property/namespace");
@@ -243,13 +243,13 @@ public class TopicNameTest {
     public void testShortTopicName() throws Exception {
         TopicName tn = TopicName.get("short-topic");
         assertEquals(TopicDomain.persistent, tn.getDomain());
-        assertEquals(TopicName.PUBLIC_PROPERTY, tn.getProperty());
+        assertEquals(TopicName.PUBLIC_TENANT, tn.getTenant());
         assertEquals(TopicName.DEFAULT_NAMESPACE, tn.getNamespacePortion());
         assertEquals("short-topic", tn.getLocalName());
 
         tn = TopicName.get("test-tenant/test-namespace/test-short-topic");
         assertEquals(TopicDomain.persistent, tn.getDomain());
-        assertEquals("test-tenant", tn.getProperty());
+        assertEquals("test-tenant", tn.getTenant());
         assertEquals("test-namespace", tn.getNamespacePortion());
         assertEquals("test-short-topic", tn.getLocalName());
 

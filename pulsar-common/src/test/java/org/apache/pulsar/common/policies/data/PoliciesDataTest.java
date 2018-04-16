@@ -62,14 +62,14 @@ public class PoliciesDataTest {
 
     @Test
     void propertyAdmin() {
-        PropertyAdmin pa1 = new PropertyAdmin();
+        TenantInfo pa1 = new TenantInfo();
         pa1.setAdminRoles(Sets.newHashSet("role1", "role2"));
         pa1.setAllowedClusters(Sets.newHashSet("use", "usw"));
 
-        assertEquals(pa1, new PropertyAdmin(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use", "usw")));
+        assertEquals(pa1, new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use", "usw")));
         assertTrue(!pa1.equals(new Object()));
-        assertTrue(!pa1.equals(new PropertyAdmin()));
-        assertTrue(!pa1.equals(new PropertyAdmin(Sets.newHashSet("role1", "role3"), Sets.newHashSet("usc"))));
+        assertTrue(!pa1.equals(new TenantInfo()));
+        assertTrue(!pa1.equals(new TenantInfo(Sets.newHashSet("role1", "role3"), Sets.newHashSet("usc"))));
         assertEquals(pa1.getAdminRoles(), Lists.newArrayList("role1", "role2"));
     }
 

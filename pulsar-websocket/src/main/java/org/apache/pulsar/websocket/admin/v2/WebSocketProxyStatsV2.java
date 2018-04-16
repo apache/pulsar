@@ -53,13 +53,13 @@ public class WebSocketProxyStatsV2 extends WebSocketProxyStatsBase {
     }
 
     @GET
-    @Path("/{domain}/{property}/{namespace}/{topic}/stats")
+    @Path("/{domain}/{tenant}/{namespace}/{topic}/stats")
     @ApiOperation(value = "Get the stats for the topic.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist") })
-    public ProxyTopicStat getStats(@PathParam("domain") String domain, @PathParam("property") String property,
+    public ProxyTopicStat getStats(@PathParam("domain") String domain, @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic) {
-        return super.internalGetStats(TopicName.get(domain, property, namespace, decode(encodedTopic)));
+        return super.internalGetStats(TopicName.get(domain, tenant, namespace, decode(encodedTopic)));
     }
 
     @GET

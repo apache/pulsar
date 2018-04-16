@@ -23,6 +23,8 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
+import com.google.common.collect.Lists;
+
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
@@ -41,6 +43,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -51,8 +54,6 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Lists;
 
 public class BatchMessageTest extends BrokerTestBase {
 
@@ -372,7 +373,6 @@ public class BatchMessageTest extends BrokerTestBase {
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
 
         // allow stats to be updated..
-        Thread.sleep(5000);
         LOG.info("[{}] checking backlog stats..");
         rolloverPerIntervalStats();
         assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(), numMsgs / numMsgsInBatch);
@@ -387,10 +387,10 @@ public class BatchMessageTest extends BrokerTestBase {
         if (lastunackedMsg != null) {
             consumer.acknowledgeCumulative(lastunackedMsg);
         }
-        Thread.sleep(100);
-        assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(), 0);
+
         consumer.close();
         producer.close();
+        assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(), 0);
     }
 
     // test for ack holes
@@ -531,10 +531,16 @@ public class BatchMessageTest extends BrokerTestBase {
         consumer.close();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-                .batchingMaxPublishDelay(5, TimeUnit.SECONDS).batchingMaxMessages(numMsgsInBatch).enableBatching(true)
-                .create();
+            .batchingMaxPublishDelay(5, TimeUnit.SECONDS)
+            .batchingMaxMessages(numMsgsInBatch)
+            .enableBatching(true)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
         // create producer to publish non batch messages
-        Producer<byte[]> noBatchProducer = pulsarClient.newProducer().topic(topicName).create();
+        Producer<byte[]> noBatchProducer = pulsarClient.newProducer().topic(topicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
 
         List<CompletableFuture<MessageId>> sendFutureList = Lists.newArrayList();
         for (int i = 0; i < numMsgs / 2; i++) {

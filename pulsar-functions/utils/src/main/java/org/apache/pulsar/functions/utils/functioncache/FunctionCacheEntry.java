@@ -19,15 +19,16 @@
 
 package org.apache.pulsar.functions.utils.functioncache;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
+
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -57,11 +58,10 @@ class FunctionCacheEntry implements AutoCloseable {
         this.classpaths = requiredClasspaths.stream()
             .map(URL::toString)
             .collect(Collectors.toSet());
-        this.jarFiles = Sets.newHashSet(requiredJarFiles);
-        this.executionHolders = Sets.newHashSet(initialInstanceId);
+        this.jarFiles = new HashSet<>(requiredJarFiles);
+        this.executionHolders = new HashSet<>(Collections.singleton(initialInstanceId));
     }
 
-    @VisibleForTesting
     boolean isInstanceRegistered(String iid) {
         return executionHolders.contains(iid);
     }
@@ -70,7 +70,7 @@ class FunctionCacheEntry implements AutoCloseable {
                          Collection<String> requiredJarFiles,
                          Collection<URL> requiredClassPaths) {
         if (jarFiles.size() != requiredJarFiles.size()
-            || !Sets.newHashSet(requiredJarFiles).containsAll(jarFiles)) {
+            || !new HashSet<>(requiredJarFiles).containsAll(jarFiles)) {
             throw new IllegalStateException(
                 "The function registration references a different set of jar files than "
                 + " previous registrations for this function : old = " + jarFiles

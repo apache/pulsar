@@ -38,7 +38,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -93,8 +93,8 @@ public class BacklogQuotaManagerTest {
             admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl.toString()).build();;
 
             admin.clusters().createCluster("usc", new ClusterData(adminUrl.toString()));
-            admin.properties().createProperty("prop",
-                    new PropertyAdmin(Sets.newHashSet("appid1"), Sets.newHashSet("usc")));
+            admin.tenants().createTenant("prop",
+                    new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet("usc")));
             admin.namespaces().createNamespace("prop/ns-quota");
             admin.namespaces().setNamespaceReplicationClusters("prop/ns-quota", Sets.newHashSet("usc"));
             admin.namespaces().createNamespace("prop/quotahold");
