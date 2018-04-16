@@ -26,23 +26,23 @@ import javax.xml.bind.annotation.XmlRootElement;
 import com.google.common.collect.Sets;
 
 @XmlRootElement
-public class PropertyAdmin {
+public class TenantInfo {
     /**
-     * List of role enabled as admin for this property
+     * List of role enabled as admin for this tenant
      */
     private Set<String> adminRoles;
 
     /**
-     * List of clusters this property is restricted on
+     * List of clusters this tenant is restricted on
      */
     private Set<String> allowedClusters;
 
-    public PropertyAdmin() {
+    public TenantInfo() {
         adminRoles = Sets.newHashSet();
         allowedClusters = Sets.newHashSet();
     }
 
-    public PropertyAdmin(Set<String> adminRoles, Set<String> allowedClusters) {
+    public TenantInfo(Set<String> adminRoles, Set<String> allowedClusters) {
         this.adminRoles = adminRoles;
         this.allowedClusters = allowedClusters;
     }
@@ -65,8 +65,8 @@ public class PropertyAdmin {
 
     @Override
     public boolean equals(Object obj) {
-        if (obj instanceof PropertyAdmin) {
-            PropertyAdmin other = (PropertyAdmin) obj;
+        if (obj instanceof TenantInfo) {
+            TenantInfo other = (TenantInfo) obj;
             return Objects.equals(adminRoles, other.adminRoles)
                     && Objects.equals(allowedClusters, other.allowedClusters);
         }

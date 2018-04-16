@@ -64,7 +64,7 @@ public class KafkaApiTest extends BrokerTestBase {
 
     @Test(timeOut = 30000)
     public void testSimpleProducerConsumer() throws Exception {
-        String topic = "persistent://sample/standalone/ns/testSimpleProducerConsumer";
+        String topic = "persistent://prop/ns-abc/testSimpleProducerConsumer";
 
         Properties producerProperties = new Properties();
         producerProperties.put("bootstrap.servers", lookupUrl.toString());

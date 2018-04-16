@@ -25,24 +25,18 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.tests.DockerUtils;
 import org.apache.pulsar.tests.PulsarClusterUtils;
-
-import org.jboss.arquillian.testng.Arquillian;
 import org.jboss.arquillian.test.api.ArquillianResource;
-
+import org.jboss.arquillian.testng.Arquillian;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 public class TestCompaction extends Arquillian {
-    private static final Logger LOG = LoggerFactory.getLogger(TestCompaction.class);
-    private static byte[] PASSWD = "foobar".getBytes();
     private static String clusterName = "test";
 
     @ArquillianResource
@@ -57,7 +51,7 @@ public class TestCompaction extends Arquillian {
     @Test
     public void testPublishCompactAndConsumeCLI() throws Exception {
         PulsarClusterUtils.runOnAnyBroker(docker, clusterName,
-                                          "/pulsar/bin/pulsar-admin", "properties",
+                                          "/pulsar/bin/pulsar-admin", "tenants",
                                           "create", "compaction-test-cli", "--allowed-clusters", clusterName,
                                           "--admin-roles", "admin");
         PulsarClusterUtils.runOnAnyBroker(docker, clusterName,
@@ -69,10 +63,14 @@ public class TestCompaction extends Arquillian {
         String serviceUrl = "pulsar://" + brokerIp + ":6650";
         String topic = "persistent://compaction-test-cli/test/ns1/topic1";
 
-        try (PulsarClient client = PulsarClient.create(serviceUrl)) {
+        try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build()) {
             client.newConsumer().topic(topic).subscriptionName("sub1").subscribe().close();
 
-            try(Producer<byte[]> producer = client.newProducer().topic(topic).create()) {
+            try(Producer<byte[]> producer = client.newProducer()
+                .topic(topic)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create()) {
                 producer.send(MessageBuilder.create().setKey("key0").setContent("content0".getBytes()).build());
                 producer.send(MessageBuilder.create().setKey("key0").setContent("content1".getBytes()).build());
             }
