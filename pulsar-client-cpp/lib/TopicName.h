@@ -38,9 +38,11 @@ class TopicName : public ServiceUnitId {
     std::string cluster_;
     std::string namespacePortion_;
     std::string localName_;
+    bool isV2Topic_;
     boost::shared_ptr<NamespaceName> namespaceName_;
 
    public:
+    bool isV2Topic();
     std::string getLookupName();
     std::string getDomain();
     std::string getProperty();
@@ -58,7 +60,7 @@ class TopicName : public ServiceUnitId {
     static CURL* getCurlHandle();
     static CURL* curl;
     static boost::mutex curlHandleMutex;
-    static void parse(const std::string& topicName, std::string& domain, std::string& property,
+    static bool parse(const std::string& topicName, std::string& domain, std::string& property,
                       std::string& cluster, std::string& namespacePortion, std::string& localName);
     TopicName();
     bool validate();
