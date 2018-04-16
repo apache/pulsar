@@ -27,8 +27,8 @@ import com.google.common.collect.Sets;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import org.apache.pulsar.admin.cli.utils.IOUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -98,7 +98,7 @@ public class CmdNamespaces extends CmdBase {
         private java.util.List<String> params;
 
         @Parameter(names = { "--clusters", "-c" }, description = "List of clusters this namespace will be assigned", required = false)
-        private Set<String> clusters;
+        private java.util.List<String> clusters;
 
         @Parameter(names = { "--bundles", "-b" }, description = "number of bundles to activate", required = false)
         private int numBundles = 0;
@@ -119,7 +119,7 @@ public class CmdNamespaces extends CmdBase {
                 policies.bundles = numBundles > 0 ? new BundlesData(numBundles) : null;
 
                 if (clusters != null) {
-                    policies.replication_clusters = clusters;
+                    policies.replication_clusters = new HashSet<>(clusters);
                 }
 
                 admin.namespaces().createNamespace(namespace, policies);
@@ -128,6 +128,10 @@ public class CmdNamespaces extends CmdBase {
                     admin.namespaces().createNamespace(namespace);
                 } else {
                     admin.namespaces().createNamespace(namespace, numBundles);
+                }
+
+                if (clusters != null && !clusters.isEmpty()) {
+                    admin.namespaces().setNamespaceReplicationClusters(namespace, new HashSet<>(clusters));
                 }
             }
         }
