@@ -117,7 +117,7 @@ public class NonPersistentTopics extends PersistentTopics {
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
             int numPartitions, @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        validateAdminAccessOnProperty(topicName.getProperty());
+        validateAdminAccessForTenant(topicName.getTenant());
         if (numPartitions <= 1) {
             throw new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 1");
         }
@@ -163,13 +163,13 @@ public class NonPersistentTopics extends PersistentTopics {
     public List<String> getList(@PathParam("property") String property, @PathParam("cluster") String cluster,
                                 @PathParam("namespace") String namespace) {
         log.info("[{}] list of topics on namespace {}/{}/{}/{}", clientAppId(), property, cluster, namespace);
-        validateAdminAccessOnProperty(property);
+        validateAdminAccessForTenant(property);
         Policies policies = getNamespacePolicies(property, cluster, namespace);
         NamespaceName nsName = NamespaceName.get(property, cluster, namespace);
 
         if (!cluster.equals(Constants.GLOBAL_CLUSTER)) {
             validateClusterOwnership(cluster);
-            validateClusterForProperty(property, cluster);
+            validateClusterForTenant(property, cluster);
         } else {
             // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
             validateGlobalNamespaceOwnership(nsName);
@@ -217,11 +217,11 @@ public class NonPersistentTopics extends PersistentTopics {
                                           @PathParam("namespace") String namespace, @PathParam("bundle") String bundleRange) {
         log.info("[{}] list of topics on namespace bundle {}/{}/{}/{}", clientAppId(), property, cluster, namespace,
                 bundleRange);
-        validateAdminAccessOnProperty(property);
+        validateAdminAccessForTenant(property);
         Policies policies = getNamespacePolicies(property, cluster, namespace);
         if (!cluster.equals(Constants.GLOBAL_CLUSTER)) {
             validateClusterOwnership(cluster);
-            validateClusterForProperty(property, cluster);
+            validateClusterForTenant(property, cluster);
         } else {
             // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
             validateGlobalNamespaceOwnership(NamespaceName.get(property, cluster, namespace));
@@ -249,7 +249,7 @@ public class NonPersistentTopics extends PersistentTopics {
     }
 
     protected void validateAdminOperationOnTopic(TopicName topicName, boolean authoritative) {
-        validateAdminAccessOnProperty(topicName.getProperty());
+        validateAdminAccessForTenant(topicName.getTenant());
         validateTopicOwnership(topicName, authoritative);
     }
 

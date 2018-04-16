@@ -76,7 +76,7 @@ import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.discovery.service.DiscoveryService;
@@ -232,8 +232,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
         admin.clusters().createCluster(newCluster,
                 new ClusterData("http://127.0.0.1:" + BROKER_WEBSERVICE_PORT, null, broker2ServiceUrl, null));
-        admin.properties().createProperty(property,
-                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(newCluster)));
+        admin.tenants().createTenant(property,
+                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(newCluster)));
         admin.namespaces().createNamespace(property + "/" + newCluster + "/my-ns");
 
         PulsarService pulsar2 = startBroker(conf2);
@@ -1021,8 +1021,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         final TopicName dest = TopicName.get("persistent", property, cluster, namespace, topicName);
         admin.clusters().createCluster(cluster,
                 new ClusterData("http://127.0.0.1:" + BROKER_WEBSERVICE_PORT, null, null, null));
-        admin.properties().createProperty(property,
-                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
+        admin.tenants().createTenant(property,
+                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
         admin.namespaces().createNamespace(property + "/" + cluster + "/" + namespace);
         admin.persistentTopics().createPartitionedTopic(dest.toString(), totalPartitions);
 

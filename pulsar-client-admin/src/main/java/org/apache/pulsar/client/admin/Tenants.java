@@ -27,105 +27,100 @@ import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedExc
 import org.apache.pulsar.common.policies.data.TenantInfo;
 
 /**
- * Admin interface for properties management
- *
- * @deprecated see {@link Tenants} from {@link PulsarAdmin#tenants()}
+ * Admin interface for tenants management
  */
-@Deprecated
-public interface Properties {
+public interface Tenants {
     /**
-     * Get the list of properties.
-     * <p>
-     * Get the list of all the properties.
+     * Get the list of tenants.
      * <p>
      * Response Example:
      *
      * <pre>
-     * <code>["my-property", "other-property", "third-property"]</code>
+     * <code>["my-tenant", "other-tenant", "third-tenant"]</code>
      * </pre>
      *
-     * @return the list of Pulsar tenants properties
+     * @return the list of Pulsar tenants
      * @throws NotAuthorizedException
      *             Don't have admin permission
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    List<String> getProperties() throws PulsarAdminException;
+    List<String> getTenants() throws PulsarAdminException;
 
     /**
-     * Get the config of the property.
+     * Get the config of the tenant.
      * <p>
-     * Get the admin configuration for a given property.
+     * Get the admin configuration for a given tenant.
      *
-     * @param property
-     *            Property name
-     * @return the property configuration
+     * @param tenant
+     *            Tenant name
+     * @return the tenant configuration
      *
      * @throws NotAuthorizedException
      *             Don't have admin permission
      * @throws NotFoundException
-     *             Property does not exist
+     *             Tenant does not exist
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    TenantInfo getPropertyAdmin(String property) throws PulsarAdminException;
+    TenantInfo getTenantInfo(String tenant) throws PulsarAdminException;
 
     /**
-     * Create a new property.
+     * Create a new tenant.
      * <p>
-     * Provisions a new property. This operation requires Pulsar super-user privileges.
+     * Provisions a new tenant. This operation requires Pulsar super-user privileges.
      *
-     * @param property
-     *            Property name
+     * @param tenant
+     *            Tenant name
      * @param config
      *            Config data
      *
      * @throws NotAuthorizedException
      *             Don't have admin permission
      * @throws ConflictException
-     *             Property already exists
+     *             Tenant already exists
      * @throws PreconditionFailedException
-     *             Property name is not valid
+     *             Tenant name is not valid
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void createProperty(String property, TenantInfo config) throws PulsarAdminException;
+    void createTenant(String tenant, TenantInfo config) throws PulsarAdminException;
 
     /**
-     * Update the admins for a property.
+     * Update the admins for a tenant.
      * <p>
      * This operation requires Pulsar super-user privileges.
      *
-     * @param property
-     *            Property name
+     * @param tenant
+     *            Tenant name
      * @param config
      *            Config data
      *
      * @throws NotAuthorizedException
      *             Don't have admin permission
      * @throws NotFoundException
-     *             Property does not exist
+     *             Tenant does not exist
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void updateProperty(String property, TenantInfo config) throws PulsarAdminException;
+    void updateTenant(String tenant, TenantInfo config) throws PulsarAdminException;
 
     /**
-     * Delete an existing property.
+     * Delete an existing tenant.
      * <p>
-     * Delete a property and all namespaces and topics under it.
+     * Delete a tenant and all namespaces and topics under it.
      *
-     * @param property
-     *            Property name
+     * @param tenant
+     *            Tenant name
      *
      * @throws NotAuthorizedException
      *             Don't have admin permission
      * @throws NotFoundException
-     *             The property does not exist
+     *             The tenant does not exist
      * @throws ConflictException
-     *             The property still has active namespaces
+     *             The tenant still has active namespaces
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void deleteProperty(String property) throws PulsarAdminException;
+    void deleteTenant(String tenant) throws PulsarAdminException;
 }

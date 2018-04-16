@@ -27,6 +27,12 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.BoundType;
+import com.google.common.collect.Range;
+import com.google.common.collect.Sets;
+import com.google.common.hash.Hashing;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
@@ -63,7 +69,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
@@ -78,13 +84,6 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.BoundType;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Range;
-import com.google.common.collect.Sets;
-import com.google.common.hash.Hashing;
 
 public class ModularLoadManagerImplTest {
     private LocalBookkeeperEnsemble bkEnsemble;
@@ -491,21 +490,21 @@ public class ModularLoadManagerImplTest {
     @Test
     public void testNamespaceIsolationPoliciesForPrimaryAndSecondaryBrokers() throws Exception {
 
-        final String property = "my-property";
+        final String tenant = "my-property";
         final String cluster = "use";
         final String namespace = "my-ns";
         final String broker1Address = pulsar1.getAdvertisedAddress() + "0";
         final String broker2Address = pulsar2.getAdvertisedAddress() + "1";
         final String sharedBroker = "broker3";
         admin1.clusters().createCluster(cluster, new ClusterData("http://" + pulsar1.getAdvertisedAddress()));
-        admin1.properties().createProperty(property,
-                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
-        admin1.namespaces().createNamespace(property + "/" + cluster + "/" + namespace);
+        admin1.tenants().createTenant(tenant,
+                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
+        admin1.namespaces().createNamespace(tenant + "/" + cluster + "/" + namespace);
 
         // set a new policy
         String newPolicyJsonTemplate = "{\"namespaces\":[\"%s/%s/%s.*\"],\"primary\":[\"%s\"],"
                 + "\"secondary\":[\"%s\"],\"auto_failover_policy\":{\"policy_type\":\"min_available\",\"parameters\":{\"min_limit\":%s,\"usage_threshold\":80}}}";
-        String newPolicyJson = String.format(newPolicyJsonTemplate, property, cluster, namespace, broker1Address,
+        String newPolicyJson = String.format(newPolicyJsonTemplate, tenant, cluster, namespace, broker1Address,
                 broker2Address, 1);
         String newPolicyName = "my-ns-isolation-policies";
         ObjectMapper jsonMapper = ObjectMapperFactory.create();
@@ -515,7 +514,7 @@ public class ModularLoadManagerImplTest {
 
         SimpleResourceAllocationPolicies simpleResourceAllocationPolicies = new SimpleResourceAllocationPolicies(
                 pulsar1);
-        ServiceUnitId serviceUnit = LoadBalancerTestingUtils.makeBundles(nsFactory, property, cluster, namespace, 1)[0];
+        ServiceUnitId serviceUnit = LoadBalancerTestingUtils.makeBundles(nsFactory, tenant, cluster, namespace, 1)[0];
         BrokerTopicLoadingPredicate brokerTopicLoadingPredicate = new BrokerTopicLoadingPredicate() {
             @Override
             public boolean isEnablePersistentTopics(String brokerUrl) {
@@ -555,7 +554,7 @@ public class ModularLoadManagerImplTest {
 
         // (2) now we will have isolation policy : primary=broker1, secondary=broker2, minLimit=2
 
-        newPolicyJson = String.format(newPolicyJsonTemplate, property, cluster, namespace, broker1Address,
+        newPolicyJson = String.format(newPolicyJsonTemplate, tenant, cluster, namespace, broker1Address,
                 broker2Address, 2);
         nsPolicyData = jsonMapper.readValue(newPolicyJson.getBytes(), NamespaceIsolationData.class);
         admin1.clusters().createNamespaceIsolationPolicy("use", newPolicyName, nsPolicyData);

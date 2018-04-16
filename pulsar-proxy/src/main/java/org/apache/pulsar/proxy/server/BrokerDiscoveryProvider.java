@@ -35,7 +35,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.proxy.server.util.ZookeeperCacheLoader;
 import org.apache.pulsar.zookeeper.GlobalZooKeeperCache;
@@ -138,25 +138,25 @@ public class BrokerDiscoveryProvider implements Closeable {
         if (!service.getAuthorizationService().canLookup(topicName, role, authenticationData)) {
             LOG.warn("[{}] Role {} is not allowed to lookup topic", topicName, role);
             // check namespace authorization
-            PropertyAdmin propertyAdmin;
+            TenantInfo tenantInfo;
             try {
-                propertyAdmin = service.getConfigurationCacheService().propertiesCache()
-                        .get(path(POLICIES, topicName.getProperty()))
+                tenantInfo = service.getConfigurationCacheService().propertiesCache()
+                        .get(path(POLICIES, topicName.getTenant()))
                         .orElseThrow(() -> new IllegalAccessException("Property does not exist"));
             } catch (KeeperException.NoNodeException e) {
-                LOG.warn("Failed to get property admin data for non existing property {}", topicName.getProperty());
+                LOG.warn("Failed to get property admin data for non existing property {}", topicName.getTenant());
                 throw new IllegalAccessException("Property does not exist");
             } catch (Exception e) {
                 LOG.error("Failed to get property admin data for property");
                 throw new IllegalAccessException(String.format("Failed to get property %s admin data due to %s",
-                        topicName.getProperty(), e.getMessage()));
+                        topicName.getTenant(), e.getMessage()));
             }
-            if (!propertyAdmin.getAdminRoles().contains(role)) {
+            if (!tenantInfo.getAdminRoles().contains(role)) {
                 throw new IllegalAccessException("Don't have permission to administrate resources on this property");
             }
         }
         if (LOG.isDebugEnabled()) {
-            LOG.debug("Successfully authorized {} on property {}", role, topicName.getProperty());
+            LOG.debug("Successfully authorized {} on property {}", role, topicName.getTenant());
         }
     }
 

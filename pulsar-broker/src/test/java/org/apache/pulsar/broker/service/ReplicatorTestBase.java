@@ -42,7 +42,7 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
@@ -214,8 +214,8 @@ public class ReplicatorTestBase {
                 pulsar3.getBrokerServiceUrl(), pulsar3.getBrokerServiceUrlTls()));
 
         admin1.clusters().createCluster("global", new ClusterData("http://global:8080", "https://global:8443"));
-        admin1.properties().createProperty("pulsar",
-                new PropertyAdmin(Sets.newHashSet("appid1", "appid2", "appid3"), Sets.newHashSet("r1", "r2", "r3")));
+        admin1.tenants().createTenant("pulsar",
+                new TenantInfo(Sets.newHashSet("appid1", "appid2", "appid3"), Sets.newHashSet("r1", "r2", "r3")));
         admin1.namespaces().createNamespace("pulsar/ns");
         admin1.namespaces().setNamespaceReplicationClusters("pulsar/ns", Sets.newHashSet("r1", "r2", "r3"));
         admin1.namespaces().createNamespace("pulsar/ns1");

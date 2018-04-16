@@ -32,9 +32,9 @@ import org.apache.pulsar.client.admin.Lookup;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.NonPersistentTopics;
 import org.apache.pulsar.client.admin.PersistentTopics;
-import org.apache.pulsar.client.admin.Properties;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.ResourceQuotas;
+import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -42,9 +42,9 @@ import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
@@ -180,31 +180,31 @@ public class PulsarAdminToolTest {
     }
 
     @Test
-    void properties() throws Exception {
+    void tenants() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
-        Properties mockProperties = mock(Properties.class);
-        when(admin.properties()).thenReturn(mockProperties);
+        Tenants mockTenants = mock(Tenants.class);
+        when(admin.tenants()).thenReturn(mockTenants);
 
-        CmdProperties properties = new CmdProperties(admin);
+        CmdTenants tenants = new CmdTenants(admin);
 
-        properties.run(split("list"));
-        verify(mockProperties).getProperties();
+        tenants.run(split("list"));
+        verify(mockTenants).getTenants();
 
-        PropertyAdmin propertyAdmin = new PropertyAdmin(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use"));
+        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use"));
 
-        properties.run(split("create property --admin-roles role1,role2 --allowed-clusters use"));
-        verify(mockProperties).createProperty("property", propertyAdmin);
+        tenants.run(split("create my-tenant --admin-roles role1,role2 --allowed-clusters use"));
+        verify(mockTenants).createTenant("my-tenant", tenantInfo);
 
-        propertyAdmin = new PropertyAdmin(Sets.newHashSet("role1", "role2"), Sets.newHashSet("usw"));
+        tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("usw"));
 
-        properties.run(split("update property --admin-roles role1,role2 --allowed-clusters usw"));
-        verify(mockProperties).updateProperty("property", propertyAdmin);
+        tenants.run(split("update my-tenant --admin-roles role1,role2 --allowed-clusters usw"));
+        verify(mockTenants).updateTenant("my-tenant", tenantInfo);
 
-        properties.run(split("get property"));
-        verify(mockProperties).getPropertyAdmin("property");
+        tenants.run(split("get my-tenant"));
+        verify(mockTenants).getTenantInfo("my-tenant");
 
-        properties.run(split("delete property"));
-        verify(mockProperties).deleteProperty("property");
+        tenants.run(split("delete my-tenant"));
+        verify(mockTenants).deleteTenant("my-tenant");
     }
 
     @Test
