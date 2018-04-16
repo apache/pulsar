@@ -240,11 +240,11 @@ TEST(BasicEndToEndTest, testLookupThrottling) {
 TEST(BasicEndToEndTest, testNonExistingTopic) {
     Client client(lookupUrl);
     Producer producer;
-    Result result = client.createProducer("persistent://prop/unit/ns1", producer);
+    Result result = client.createProducer("persistent://prop//unit/ns1/testNonExistingTopic", producer);
     ASSERT_EQ(ResultInvalidTopicName, result);
 
     Consumer consumer;
-    result = client.subscribe("persistent://prop/unit/ns1", "my-sub-name", consumer);
+    result = client.subscribe("persistent://prop//unit/ns1/testNonExistingTopic", "my-sub-name", consumer);
     ASSERT_EQ(ResultInvalidTopicName, result);
 }
 
