@@ -24,9 +24,7 @@ tags: [client, java]
 
 -->
 
-The Pulsar Java client can be used both to create Java {% popover producers %} and {% popover consumers %} of messages but also to perform [administrative tasks](../../admin-api/overview).
-
-The current version of the Java client is **{{ site.current_version }}**.
+The Pulsar Java client can be used both to create Java {% popover producers %}, {% popover consumers %}, and [readers](#readers) of messages and to perform [administrative tasks](../../admin-api/overview). The current version of the Java client is **{{ site.current_version }}**.
 
 Javadoc for the Pulsar client is divided up into two domains, by package:
 
@@ -134,7 +132,7 @@ Producer<String> stringProducer = client.newProducer(new StringSchema())
         .create();
 ```
 
-{% include admonition.html type='warning' content="
+{% include admonition.html type='warning' content='
 You should always make sure to close your producers, consumers, and clients when they are no longer needed:
 
 ```java
@@ -143,19 +141,19 @@ consumer.close();
 client.close();
 ```
 
-Closer operations can also be asynchronous. Here's an example:
+Close operations can also be asynchronous:
 
 ```java
 producer.closeAsync().thenRun(() -> System.out.println("Producer closed"));
 ```
-" %}
+' %}
 
 ### Configuring producers
 
 If you instantiate a `Producer` object specifying only a topic name, as in the example above, the producer will use the default configuration. To use a non-default configuration, there's a variety of configurable parameters that you can set. For a full listing, see the Javadoc for the {% javadoc ProducerBuilder client org.apache.pulsar.client.api.ProducerBuilder %} class. Here's an example:
 
 ```java
-Producer producer = client.newProducer()
+Producer<byte[]> producer = client.newProducer()
         .topic(topic)
         .enableBatching(true)
         .sendTimeout(10, TimeUnit.SECONDS)

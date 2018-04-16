@@ -38,17 +38,3 @@ If you're using [TLS](../../admin/Authz#tls-client-auth) authentication, the URL
 ```
 pulsar+ssl://pulsar.us-west.example.com:6651
 ```
-
-### Global vs. cluster-specific topics
-
-Pulsar {% popover topics %} can be either cluster specific or global. Cluster-specific topic URLs have this structure:
-
-{% include topic.html ten="tenant" n="namespace" t="topic" %}
-
-If the topic that a client needs to publish to or consume from is specific to a cluster, the client will need to use the broker service URL that you assigned to that cluster when [initializing its metadata](../../deployment/InstanceSetup#cluster-metadata-initialization).
-
-If the topic is global, however, the URL for the topic will look like this:
-
-{% include topic.html ten="tenant" n="namespace" t="topic" %}
-
-In that case, your client can use the broker service URL for *any* cluster in the {% popover instance %} and Pulsar's internal service discovery system will handle the rest.
