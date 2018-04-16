@@ -102,17 +102,18 @@ public class PulsarClusterMetadataSetup {
         log.info("Setting up cluster {} with zk={} global-zk={}", arguments.cluster, arguments.zookeeper,
                 arguments.globalZookeeper);
 
+        ZooKeeperClientFactory zkfactory = new ZookeeperClientFactoryImpl();
+        ZooKeeper localZk = zkfactory.create(arguments.zookeeper, SessionType.ReadWrite, 30000).get();
+        ZooKeeper globalZk = zkfactory.create(arguments.globalZookeeper, SessionType.ReadWrite, 30000).get();
+
         // Format BookKeeper metadata
         ServerConfiguration bkConf = new ServerConfiguration();
         bkConf.setLedgerManagerFactoryClass(HierarchicalLedgerManagerFactory.class);
         bkConf.setZkServers(arguments.zookeeper);
-        if (!BookKeeperAdmin.format(bkConf, false /* interactive */, false /* force */)) {
+        if (localZk.exists("/ledgers", false) == null // only format if /ledgers doesn't exist
+                && !BookKeeperAdmin.format(bkConf, false /* interactive */, false /* force */)) {
             throw new IOException("Failed to initialize BookKeeper metadata");
         }
-
-        ZooKeeperClientFactory zkfactory = new ZookeeperClientFactoryImpl();
-        ZooKeeper localZk = zkfactory.create(arguments.zookeeper, SessionType.ReadWrite, 30000).get();
-        ZooKeeper globalZk = zkfactory.create(arguments.globalZookeeper, SessionType.ReadWrite, 30000).get();
 
         localZk.create("/managed-ledgers", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         localZk.create("/namespace", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
