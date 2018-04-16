@@ -100,7 +100,7 @@ In Pulsar, {% popover producers %} write {% popover messages %} to {% popover to
 ```java
 String topic = "persistent://sample/standalone/ns1/my-topic";
 
-Producer producer = client.newProducer()
+Producer producer<byte[]> = client.newProducer()
         .topic(topic)
         .create();
 ```
@@ -108,13 +108,30 @@ Producer producer = client.newProducer()
 You can then send messages to the broker and topic you specified:
 
 ```java
+import org.apache.pulsar.client.api.MessageBuilder;
+
+import java.util.stream.IntStream;
+
+MessageBuilder<byte[]> msgBuilder = MessageBuilder.create();
+
 // Publish 10 messages to the topic
-for (int i = 0; i < 10; i++) {
-    Message<byte[]> msg = MessageBuilder.create()
-            .setContent(String.format("Message number %d", i).getBytes())
-            .build();
-    producer.send(msg);
-}
+IntStream.range(1, 11).forEach(i -> {
+    msgBuilder.setContent(String.format("Message number %d", i).getBytes());
+
+    try {
+        producer.send(msgBuilder);
+    } catch (PulsarClientException e) {
+        e.printStackTrace();
+    }
+});
+```
+
+By default, producers produce messages that consist of byte arrays. You can produce different types, however, by specifying a message [schema](#schemas).
+
+```java
+Producer<String> stringProducer = client.newProducer(new StringSchema())
+        .topic(topic)
+        .create();
 ```
 
 {% include admonition.html type='warning' content="
@@ -134,7 +151,6 @@ consumer.asyncClose();
 clioent.asyncClose();
 ```
 " %}
-
 
 ### Configuring producers
 
