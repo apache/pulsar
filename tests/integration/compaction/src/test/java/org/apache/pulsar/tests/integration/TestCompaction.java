@@ -25,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.tests.DockerUtils;
@@ -65,7 +66,11 @@ public class TestCompaction extends Arquillian {
         try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build()) {
             client.newConsumer().topic(topic).subscriptionName("sub1").subscribe().close();
 
-            try(Producer<byte[]> producer = client.newProducer().topic(topic).create()) {
+            try(Producer<byte[]> producer = client.newProducer()
+                .topic(topic)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create()) {
                 producer.send(MessageBuilder.create().setKey("key0").setContent("content0".getBytes()).build());
                 producer.send(MessageBuilder.create().setKey("key0").setContent("content1".getBytes()).build());
             }

@@ -122,6 +122,8 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
             producerConf.setBatchingEnabled(true);
             producerConf.setBatchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS);
             producerConf.setBatchingMaxMessages(5);
+        } else {
+            producerConf.setBatchingEnabled(false);
         }
 
         Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic1", producerConf);
@@ -157,6 +159,8 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
             producerConf.setBatchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS);
             producerConf.setBatchingMaxMessages(5);
             producerConf.setBatchingEnabled(true);
+        } else {
+            producerConf.setBatchingEnabled(false);
         }
         Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic2", producerConf);
         List<Future<MessageId>> futures = Lists.newArrayList();
@@ -214,6 +218,8 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
             producerConf.setBatchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS);
             producerConf.setBatchingMaxMessages(5);
             producerConf.setBatchingEnabled(true);
+        } else {
+            producerConf.setBatchingEnabled(false);
         }
         Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic3", producerConf);
         List<Future<MessageId>> futures = Lists.newArrayList();
@@ -249,6 +255,8 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
             producerConf.setBatchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS);
             producerConf.setBatchingMaxMessages(5);
             producerConf.setBatchingEnabled(true);
+        } else {
+            producerConf.setBatchingEnabled(false);
         }
         Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic4", producerConf);
 
@@ -299,6 +307,8 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
             producerConf.setBatchingMaxPublishDelay(2 * batchMessageDelayMs, TimeUnit.MILLISECONDS);
             producerConf.setBatchingMaxMessages(5);
             producerConf.setBatchingEnabled(true);
+        } else {
+            producerConf.setBatchingEnabled(false);
         }
         producerConf.setSendTimeout(1, TimeUnit.SECONDS);
 
@@ -520,6 +530,8 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
             producerConf.setBatchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS);
             producerConf.setBatchingMaxMessages(5);
             producerConf.setBatchingEnabled(true);
+        } else {
+            producerConf.setBatchingEnabled(false);
         }
         Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic7", producerConf);
         for (int i = 0; i < recvQueueSize; i++) {
@@ -627,6 +639,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
 
         // (a) non-batch msg with compression
         ProducerConfiguration producerConf = new ProducerConfiguration();
+        producerConf.setBatchingEnabled(false);
         producerConf.setCompressionType(CompressionType.LZ4);
         Producer producer = pulsarClient.createProducer(topic, producerConf);
         Message message = MessageBuilder.create().setContent(new byte[PulsarDecoder.MaxMessageSize + 1]).build();
@@ -649,6 +662,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
 
         // (c) non-batch msg without compression
         producerConf = new ProducerConfiguration();
+        producerConf.setBatchingEnabled(false);
         producerConf.setCompressionType(CompressionType.NONE);
         producer = pulsarClient.createProducer(topic, producerConf);
         message = MessageBuilder.create().setContent(new byte[PulsarDecoder.MaxMessageSize + 1]).build();
@@ -662,6 +676,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
 
         // (d) non-batch msg with compression and try to consume message
         producerConf = new ProducerConfiguration();
+        producerConf.setBatchingEnabled(false);
         producerConf.setCompressionType(CompressionType.LZ4);
         producer = pulsarClient.createProducer(topic, producerConf);
         Consumer consumer = pulsarClient.subscribe(topic, "sub1");
@@ -704,6 +719,8 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
             producerConf.setBatchingEnabled(true);
             producerConf.setBatchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS);
             producerConf.setBatchingMaxMessages(5);
+        } else {
+            producerConf.setBatchingEnabled(false);
         }
 
         /************ usecase-1: *************/
@@ -959,6 +976,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
 
         final int totalMsg = 100;
         final ProducerConfiguration producerConf = new ProducerConfiguration();
+        producerConf.setBatchingEnabled(false);
         Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic1", producerConf);
         for (int i = 0; i < totalMsg; i++) {
             final String message = "my-message-" + i;
@@ -1358,6 +1376,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
                     .subscribe("persistent://my-property/use/my-ns/unacked-topic", "subscriber-1", conf);
 
             ProducerConfiguration producerConf = new ProducerConfiguration();
+            producerConf.setBatchingEnabled(false);
 
             Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/unacked-topic",
                     producerConf);
@@ -1494,6 +1513,8 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
                 producerConf.setBatchingEnabled(true);
                 producerConf.setBatchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS);
                 producerConf.setBatchingMaxMessages(5);
+            } else {
+                producerConf.setBatchingEnabled(false);
             }
 
             Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/unacked-topic",
@@ -1961,6 +1982,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         Consumer c2 = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic2", "my-subscriber-name",
                 conf1);
         ProducerConfiguration producerConf = new ProducerConfiguration();
+        producerConf.setBatchingEnabled(false);
         Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic2", producerConf);
         List<Future<MessageId>> futures = Lists.newArrayList();
 
@@ -2366,6 +2388,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         final int totalMsg = 10;
 
         ProducerConfiguration producerConf = new ProducerConfiguration();
+        producerConf.setBatchingEnabled(false);
 
         Message msg = null;
         Set<String> messageSet = Sets.newHashSet();
@@ -2389,6 +2412,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         producerConf = new ProducerConfiguration();
         producerConf.setCryptoKeyReader(new EncKeyReader());
         producerConf.addEncryptionKey("client-rsa.pem");
+        producerConf.setBatchingEnabled(false);
         Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/myenc-topic1",
                 producerConf);
 

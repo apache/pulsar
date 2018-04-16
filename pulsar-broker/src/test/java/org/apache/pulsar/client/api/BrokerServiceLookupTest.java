@@ -337,7 +337,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         /**** broker-2 started ****/
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName.toString())
-                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName.toString())
                 .subscriptionName("my-partitioned-subscriber").subscribe();
