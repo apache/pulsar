@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
 import java.util.Arrays;
+
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -524,7 +525,7 @@ public class CmdFunctions extends CmdBase {
                 List<RuntimeSpawner> spawners = new LinkedList<>();
                 for (int i = 0; i < functionConfig.getParallelism(); ++i) {
                     InstanceConfig instanceConfig = new InstanceConfig();
-                    instanceConfig.setFunctionDetails(convertProto2(functionConfig));
+                    instanceConfig.setFunctionDetails(convertFunctionConfigProto2(functionConfig));
                     // TODO: correctly implement function version and id
                     instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
                     instanceConfig.setFunctionId(UUID.randomUUID().toString());
@@ -563,7 +564,7 @@ public class CmdFunctions extends CmdBase {
             if (!areAllRequiredFieldsPresent(functionConfig)) {
                 throw new RuntimeException("Missing arguments");
             }
-            admin.functions().createFunction(convert(functionConfig), userCodeFile);
+            admin.functions().createFunction(convertFunctionConfig(functionConfig), userCodeFile);
             print("Created successfully");
         }
     }
@@ -604,7 +605,7 @@ public class CmdFunctions extends CmdBase {
             if (!areAllRequiredFieldsPresent(functionConfig)) {
                 throw new RuntimeException("Missing arguments");
             }
-            admin.functions().updateFunction(convert(functionConfig), userCodeFile);
+            admin.functions().updateFunction(convertFunctionConfig(functionConfig), userCodeFile);
             print("Updated successfully");
         }
     }
@@ -769,14 +770,14 @@ public class CmdFunctions extends CmdBase {
                 && functionConfig.getParallelism() > 0;
     }
     
-    private org.apache.pulsar.functions.proto.Function.FunctionDetails convertProto2(FunctionConfig functionConfig)
+    private org.apache.pulsar.functions.proto.Function.FunctionDetails convertFunctionConfigProto2(FunctionConfig functionConfig)
             throws IOException {
         org.apache.pulsar.functions.proto.Function.FunctionDetails.Builder functionDetailsBuilder = org.apache.pulsar.functions.proto.Function.FunctionDetails.newBuilder();
-        Utils.mergeJson(FunctionsImpl.printJson(convert(functionConfig)), functionDetailsBuilder);
+        Utils.mergeJson(FunctionsImpl.printJson(convertFunctionConfig(functionConfig)), functionDetailsBuilder);
         return functionDetailsBuilder.build();
     }
 
-    private FunctionDetails convert(FunctionConfig functionConfig)
+    private FunctionDetails convertFunctionConfig(FunctionConfig functionConfig)
             throws IOException {
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
         if (functionConfig.getInputs() != null) {

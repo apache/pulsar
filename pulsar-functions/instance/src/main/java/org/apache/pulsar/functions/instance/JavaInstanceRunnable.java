@@ -51,8 +51,15 @@ import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.connect.core.PushSource;
+import org.apache.pulsar.connect.core.Sink;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
+import org.apache.pulsar.functions.instance.functions.IFunction;
+import org.apache.pulsar.functions.instance.functions.JavaFunction;
+import org.apache.pulsar.functions.instance.functions.PushSourceFunction;
+import org.apache.pulsar.functions.instance.functions.SimpleFunction;
+import org.apache.pulsar.functions.instance.functions.SinkFunction;
 import org.apache.pulsar.functions.instance.processors.MessageProcessor;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
@@ -134,25 +141,30 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         loadJars();
 
         ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
-
         Object object = Reflections.createInstance(
                 instanceConfig.getFunctionDetails().getClassName(),
                 clsLoader);
-        if (!(object instanceof Function) && !(object instanceof java.util.function.Function)) {
-            throw new RuntimeException("User class must either be Function or java.util.Function");
-        }
+
+        IFunction function;
         Class<?>[] typeArgs;
         if (object instanceof Function) {
-            Function function = (Function) object;
-            typeArgs = TypeResolver.resolveRawArguments(Function.class, function.getClass());
+            function = new JavaFunction((Function)object);
+            typeArgs = function.getTypes();
+        } else if (object instanceof java.util.function.Function) {
+            function = new SimpleFunction((java.util.function.Function) object);
+            typeArgs = function.getTypes();
+        } else if (object instanceof PushSource) {
+            function = new PushSourceFunction((PushSource) object);
+            typeArgs = new Class[]{function.getTypes()[0], function.getTypes()[0]};
+        } else if (object instanceof Sink) {
+            function = new SinkFunction((Sink) object);
+            typeArgs = new Class[]{function.getTypes()[0], function.getTypes()[0]};
         } else {
-            java.util.function.Function function = (java.util.function.Function) object;
-            typeArgs = TypeResolver.resolveRawArguments(java.util.function.Function.class, function.getClass());
+            throw new RuntimeException("Unrecognized type of function: " + this.instanceConfig.getFunctionDetails());
         }
 
         // setup serde
         setupSerDe(typeArgs, clsLoader);
-
         // start the state table
         setupStateTable();
         // start the output producer
@@ -162,7 +174,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         // start any log topic handler
         setupLogHandler();
 
-        return new JavaInstance(instanceConfig, object, clsLoader, client, processor.getInputConsumers());
+        return new JavaInstance(instanceConfig, function, clsLoader, client, processor.getInputConsumers());
     }
 
     /**
@@ -172,6 +184,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     public void run() {
         try {
             javaInstance = setupJavaInstance();
+            javaInstance.open();
             while (running) {
                 processor.prepareDequeueMessageFromProcessQueue();
 
@@ -253,6 +266,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 instanceConfig.getFunctionDetails().getName());
 
         this.fnClassLoader = fnCache.getClassLoader(instanceConfig.getFunctionId());
+
         if (null == fnClassLoader) {
             throw new Exception("No function class loader available.");
         }
