@@ -102,7 +102,7 @@ public class KafkaSource<V> implements PushSource<V> {
                 int index = 0;
                 for (ConsumerRecord<String, V> record : records) {
                     LOG.debug("Message received from kafka, key: {}. value: {}", record.key(), record.value());
-                    futures[index] = consumeFunction.apply(new KafkaMesssage(record));
+                    futures[index] = consumeFunction.apply(new KafkaMesssage<>(record));
                     index++;
                 }
                 if (!kafkaSourceConfig.isAutoCommitEnabled()) {
@@ -125,7 +125,7 @@ public class KafkaSource<V> implements PushSource<V> {
         this.consumeFunction = consumeFunction;
     }
 
-    private class KafkaMesssage implements Message<V>  {
+    static private class KafkaMesssage<V> implements Message<V>  {
         ConsumerRecord<String, V> record;
 
         public KafkaMesssage(ConsumerRecord<String, V> record) {

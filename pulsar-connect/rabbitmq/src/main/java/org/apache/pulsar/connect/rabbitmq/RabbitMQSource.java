@@ -88,21 +88,11 @@ public class RabbitMQSource implements PushSource<byte[]> {
         }
     }
 
-    private class RabbitMQMessage implements Message<byte[]> {
+    static private class RabbitMQMessage implements Message<byte[]> {
         private byte[] data;
 
         public RabbitMQMessage(byte[] data) {
             this.data = data;
-        }
-
-        @Override
-        public String getPartitionId() {
-            return null;
-        }
-
-        @Override
-        public Long getSequenceId() {
-            return -1L;
         }
 
         @Override

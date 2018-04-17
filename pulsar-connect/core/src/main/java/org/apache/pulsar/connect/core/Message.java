@@ -27,13 +27,13 @@ public interface Message<T> {
      * Retrieves the partition information if any of the message
      * @return The partition id where the
      */
-    String getPartitionId();
+    default String getPartitionId() { return null; }
 
     /**
      * Retrieves the sequence id of the message
      * @return Sequence Id associated with the message
      */
-    Long getSequenceId();
+    default Long getSequenceId() { return -1L; }
 
     /**
      * Retrieves the actual data of the message

@@ -165,21 +165,11 @@ public class TwitterFireHose implements PushSource<String> {
         }
     }
 
-    private class TwitterMessage implements Message<String> {
+    static private class TwitterMessage implements Message<String> {
         private String tweet;
 
         public TwitterMessage(String tweet) {
             this.tweet = tweet;
-        }
-
-        @Override
-        public String getPartitionId() {
-            return null;
-        }
-
-        @Override
-        public Long getSequenceId() {
-            return -1L;
         }
 
         @Override
