@@ -756,7 +756,6 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         compactor.compact(topic).get();
 
-        // Check that messages after compaction have same ids
         try (Consumer consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("sub1").readCompacted(true).subscribe()){
             Message message1 = consumer.receive();
@@ -798,7 +797,6 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         compactor.compact(topic).get();
 
-        // Check that messages after compaction have same ids
         try (Consumer consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("sub1").readCompacted(true).subscribe()){
             Message message1 = consumer.receive();
