@@ -26,11 +26,14 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.zip.ZipFile;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -179,7 +182,7 @@ public class CmdFunctions extends CmdBase {
                 names = "--jar",
                 description = "Path to the jar file for the function (if the function is written in Java)",
                 listConverter = StringConverter.class)
-        protected String jarFile;
+        protected String jarFilePath;
         @Parameter(
                 names = "--py",
                 description = "Path to the main Python file for the function (if the function is written in Python)",
@@ -265,10 +268,10 @@ public class CmdFunctions extends CmdBase {
                 Map<String, String> userConfigMap = new Gson().fromJson(userConfigString, type);
                 functionConfig.setUserConfig(userConfigMap);
             }
-            if (null != jarFile) {
+            if (null != jarFilePath) {
                 doJavaSubmitChecks(functionConfig);
                 functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
-                userCodeFile = jarFile;
+                userCodeFile = jarFilePath;
             } else if (null != pyFile) {
                 doPythonSubmitChecks(functionConfig);
                 functionConfig.setRuntime(FunctionConfig.Runtime.PYTHON);
@@ -305,38 +308,61 @@ public class CmdFunctions extends CmdBase {
         }
 
         private void doJavaSubmitChecks(FunctionConfig functionConfig) {
-            File file = new File(jarFile);
+            // Check that the supplied path is a valid path
+            if (!Files.exists(Paths.get(jarFilePath))) {
+                throw new IllegalArgumentException(String.format("The path %s is empty", jarFilePath));
+            }
+
+            // Check that the supplied path is for a file, not a directory
+            if (Files.isDirectory(Paths.get(jarFilePath))) {
+                throw new IllegalArgumentException(String.format(
+                        "The path %s is a directory, not a file", jarFilePath));
+            }
+
+            File jarFile = new File(jarFilePath);
+
+            // Check that the file is a valid jar by checking for the presence of a META-INF/MANIFEST.MF file
+            try {
+                ZipFile zip = new ZipFile(jarFile);
+                if (null == zip.getEntry("META-INF/MANIFEST.MF")) {
+                    throw new IllegalArgumentException(String.format("The file %s is not a properly formatted jar", jarFilePath));
+                }
+                zip.close();
+            } catch (IOException e) {
+                throw new IllegalArgumentException(String.format("The file %s is not a properly formatted jar", jarFilePath));
+            }
+
             // check if the function class exists in Jar and it implements Function class
-            if (!Reflections.classExistsInJar(file, functionConfig.getClassName())) {
+            if (!Reflections.classExistsInJar(jarFile, functionConfig.getClassName())) {
                 throw new IllegalArgumentException(String.format("Pulsar function class %s does not exist in jar %s",
-                        functionConfig.getClassName(), jarFile));
-            } else if (!Reflections.classInJarImplementsIface(file, functionConfig.getClassName(), Function.class)
-                    && !Reflections.classInJarImplementsIface(file, functionConfig.getClassName(), java.util.function.Function.class)) {
-                throw new IllegalArgumentException(String.format("The Pulsar function class %s in jar %s implements neither org.apache.pulsar.functions.api.Function nor java.util.function.Function",
-                        functionConfig.getClassName(), jarFile));
+                functionConfig.getClassName(), jarFile));
+            } else if (!Reflections.classInJarImplementsIface(jarFile, functionConfig.getClassName(), Function.class)
+                    && !Reflections.classInJarImplementsIface(jarFile, functionConfig.getClassName(), java.util.function.Function.class)) {
+                throw new IllegalArgumentException(String.format("Pulsar function class %s in jar %s implements neither org.apache.pulsar.functions.api.Function nor java.util.function.Function",
+                functionConfig.getClassName(), jarFile));
             }
 
             ClassLoader userJarLoader;
             try {
-                userJarLoader = Reflections.loadJar(file);
+                userJarLoader = Reflections.loadJar(jarFile);
             } catch (MalformedURLException e) {
-                throw new RuntimeException("Failed to load user jar " + file, e);
+                throw new RuntimeException("Failed to load user jar " + jarFile, e);
             }
 
-            Object userClass = Reflections.createInstance(functionConfig.getClassName(), file);
+            Object userClass = Reflections.createInstance(functionConfig.getClassName(), jarFile);
             Class<?>[] typeArgs;
             if (userClass instanceof Function) {
                 Function pulsarFunction = (Function) userClass;
                 if (pulsarFunction == null) {
-                    throw new IllegalArgumentException(String.format("The Pulsar function class %s could not be instantiated from jar %s",
-                            functionConfig.getClassName(), jarFile));
+                    throw new IllegalArgumentException(String.format("Pulsar function class %s could not be instantiated from jar %s",
+                            functionConfig.getClassName(), jarFilePath));
                 }
                 typeArgs = TypeResolver.resolveRawArguments(Function.class, pulsarFunction.getClass());
             } else {
                 java.util.function.Function function = (java.util.function.Function) userClass;
                 if (function == null) {
                     throw new IllegalArgumentException(String.format("The Java util function class %s could not be instantiated from jar %s",
-                            functionConfig.getClassName(), jarFile));
+                            functionConfig.getClassName(), jarFilePath));
                 }
                 typeArgs = TypeResolver.resolveRawArguments(java.util.function.Function.class, function.getClass());
             }
@@ -345,7 +371,7 @@ public class CmdFunctions extends CmdBase {
             // implements SerDe class
             functionConfig.getCustomSerdeInputs().forEach((topicName, inputSerializer) -> {
                 if (!Reflections.classExists(inputSerializer)
-                        && !Reflections.classExistsInJar(new File(jarFile), inputSerializer)) {
+                        && !Reflections.classExistsInJar(new File(jarFilePath), inputSerializer)) {
                     throw new IllegalArgumentException(
                             String.format("The input serialization/deserialization class %s does not exist",
                                     inputSerializer));
@@ -354,8 +380,8 @@ public class CmdFunctions extends CmdBase {
                         throw new IllegalArgumentException(String.format("The input serialization/deserialization class %s does not not implement %s",
                                 inputSerializer, SerDe.class.getCanonicalName()));
                     }
-                } else if (Reflections.classExistsInJar(new File(jarFile), inputSerializer)) {
-                    if (!Reflections.classInJarImplementsIface(new File(jarFile), inputSerializer, SerDe.class)) {
+                } else if (Reflections.classExistsInJar(new File(jarFilePath), inputSerializer)) {
+                    if (!Reflections.classInJarImplementsIface(new File(jarFilePath), inputSerializer, SerDe.class)) {
                         throw new IllegalArgumentException(String.format("The input serialization/deserialization class %s does not not implement %s",
                                 inputSerializer, SerDe.class.getCanonicalName()));
                     }
@@ -365,7 +391,7 @@ public class CmdFunctions extends CmdBase {
                         throw new RuntimeException("The default Serializer does not support type " + typeArgs[0]);
                     }
                 } else {
-                    SerDe serDe = (SerDe) Reflections.createInstance(inputSerializer, file);
+                    SerDe serDe = (SerDe) Reflections.createInstance(inputSerializer, jarFile);
                     if (serDe == null) {
                         throw new IllegalArgumentException(String.format("The SerDe class %s does not exist in jar %s",
                                 inputSerializer, jarFile));
@@ -401,10 +427,10 @@ public class CmdFunctions extends CmdBase {
                         throw new RuntimeException("Default Serializer does not support type " + typeArgs[1]);
                     }
                 } else {
-                    SerDe serDe = (SerDe) Reflections.createInstance(functionConfig.getOutputSerdeClassName(), file);
+                    SerDe serDe = (SerDe) Reflections.createInstance(functionConfig.getOutputSerdeClassName(), jarFile);
                     if (serDe == null) {
                         throw new IllegalArgumentException(String.format("SerDe class %s does not exist in jar %s",
-                                functionConfig.getOutputSerdeClassName(), jarFile));
+                                functionConfig.getOutputSerdeClassName(), jarFilePath));
                     }
                     Class<?>[] serDeTypes = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
 

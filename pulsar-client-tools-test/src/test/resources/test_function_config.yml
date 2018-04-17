@@ -20,5 +20,5 @@
 name: test-function
 className: org.apache.pulsar.functions.test.TestFunction
 inputs:
-  "test-source-topic" : "org.apache.pulsar.functions.runtime.serde.DefaultSerDe"
+  "test-source-topic": "org.apache.pulsar.functions.runtime.serde.DefaultSerDe"
 output: test-sink-topic
