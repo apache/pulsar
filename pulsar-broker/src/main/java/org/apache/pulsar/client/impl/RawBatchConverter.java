@@ -47,14 +47,13 @@ import org.slf4j.LoggerFactory;
 public class RawBatchConverter {
     private static final Logger log = LoggerFactory.getLogger(RawBatchConverter.class);
 
-    public static boolean isBatch(RawMessage msg) {
+    public static boolean isReadableBatch(RawMessage msg) {
         ByteBuf payload = msg.getHeadersAndPayload();
         MessageMetadata metadata = Commands.parseMessageMetadata(payload);
-        try {
-            return metadata.hasNumMessagesInBatch();
-        } finally {
-            metadata.recycle();
-        }
+        boolean encrypted = metadata.getEncryptionKeysCount() > 0;
+        int batchSize = metadata.getNumMessagesInBatch();
+        metadata.recycle();
+        return batchSize > 1 && !encrypted;
     }
 
     public static List<ImmutablePair<MessageId,String>> extractIdsAndKeys(RawMessage msg)
