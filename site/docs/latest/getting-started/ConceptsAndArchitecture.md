@@ -107,7 +107,7 @@ Topic name component | Description
 `topic`              | The final part of the name. Topic names are freeform and have no special meaning in a Pulsar instance.
 
 {% include admonition.html type="success" title="No need to explicitly create new topics"
-content="Application does not explicitly create the topic but attempting to write or receive messages on a topic that does not yet exist, Pulsar will automatically create that topic under the [namespace](#namespaces)." %}
+content="You don't need to explicitly create topics in Pulsar. If a client attempts to write or receive messages to/from a topic that does not yet exist, Pulsar will automatically create that topic under the [namespace](#namespace) provided in the [topic name](#topics)." %}
 
 ### Namespaces
 
@@ -194,6 +194,52 @@ For code examples, see:
 
 {% include explanations/non-persistent-topics.md %}
 
+{% include admonition.html type="success" content='For more info on using non-persistent topics, see the [Non-persistent messaging cookbook](../../cookbooks/non-persistent-topics).' %}
+
+In non-persistent topics, {% popover brokers %} immediately deliver messages to all connected subscribers *without persisting them* in [BookKeeper](#persistent-storage). If a subscriber is disconnected, the broker will not be able to deliver those in-transit messages, and subscribers will never be able to receive those messages again. Eliminating the persistent storage step makes messaging on non-persistent topics slightly faster than on persistent topics in some cases, but with the caveat that some of the core benefits of Pulsar are lost.
+
+{% include admonition.html type="danger" content="With non-persistent topics, message data lives only in memory. If a message broker fails or message data can otherwise not be retrieved from memory, your message data may be lost. Use non-persistent topics only if you're *certain* that your use case requires it and can sustain it." %}
+
+By default, non-persistent topics are enabled on Pulsar {% popover brokers %}. You can disable them in the broker's [configuration](../../reference/Configuration#broker-enableNonPersistentTopics). You can manage non-persistent topics using the [`pulsar-admin non-persistent`](../../reference/CliTools#pulsar-admin-non-persistent) interface.
+
+#### Performance
+
+Non-persistent messaging is usually faster than persistent messaging because brokers don't persist messages and immediately send acks back to the producer as soon as that message is deliver to all connected subscribers. Producers thus see comparatively low publish latency with non-persistent topic.
+
+#### Client API
+
+Producers and consumers can connect to non-persistent topics in the same way as persistent topics, with the crucial difference that the topic name must start with `non-persistent`. All three subscription modes---[exclusive](#exclusive), [shared](#shared), and [failover](#failover)---are supported for non-persistent topics.
+
+Here's an example [Java consumer](../../clients/Java#consumer) for a non-persistent topic:
+
+```java
+PulsarClient client = PulsarClient.create("pulsar://localhost:6650");
+String npTopic = "non-persistent://sample/standalone/ns1/my-topic";
+String subscriptionName = "my-subscription-name";
+
+Consumer consumer = client.subscribe(npTopic, subscriptionName);
+```
+
+Here's an example [Java producer](../../clients/Java#producer) for the same non-persistent topic:
+
+```java
+Producer producer = client.createProducer(npTopic);
+```
+
+#### Broker configuration
+
+Sometimes, there would be a need to configure few dedicated brokers in a cluster, to just serve non-persistent topics.
+
+Broker configuration for enabling broker to own only configured type of topics  
+
+```
+# It disables broker to load persistent topics
+enablePersistentTopics=false
+# It enables broker to load non-persistent topics
+enableNonPersistentTopics=true
+```
+
+
 ## Architecture overview
 
 At the highest level, a Pulsar {% popover instance %} is composed of one or more Pulsar {% popover clusters %}. Clusters within an instance can [replicate](#replicate) data amongst themselves.
@@ -246,11 +292,11 @@ When creating a [new cluster](../../admin/ClustersBrokers#initialize-cluster-met
 
 ## Persistent storage
 
-![Brokers and bookies](/img/broker-bookie.png)
-
 Pulsar provides guaranteed message delivery for applications. If a message successfully reaches a Pulsar {% popover broker %}, it will be delivered to its intended target.
 
 This guarantee requires that non-{% popover acknowledged %} messages are stored in a durable manner until they can be delivered to and acknowledged by {% popover consumers %}. This mode of messaging is commonly called *persistent messaging*. In Pulsar, N copies of all messages are stored and synced on disk, for example 4 copies across two servers with mirrored [RAID](https://en.wikipedia.org/wiki/RAID) volumes on each server.
+
+### Apache BookKeeper {#bookkeeper}
 
 Pulsar uses a system called [Apache BookKeeper](http://bookkeeper.apache.org/) for persistent message storage. BookKeeper is a distributed [write-ahead log](https://en.wikipedia.org/wiki/Write-ahead_logging) (WAL) system that provides a number of crucial advantages for Pulsar:
 
@@ -267,7 +313,11 @@ At the moment, Pulsar only supports persistent message storage. This accounts fo
 
 {% include topic.html ten="my-property" n="my-namespace" t="my-topic" %}
 
-In the future, Pulsar will support ephemeral message storage.
+{% include admonition.html type="success" content='Pulsar also supports ephemeral ([non-persistent](#non-persistent-topics)) message storage.' %}
+
+You can see an illustration of how {% popover brokers %} and {% popover bookies %} interact in the diagram below:
+
+![Brokers and bookies](/img/broker-bookie.png)
 
 ### Ledgers
 
@@ -421,6 +471,18 @@ Some important things to know about the Pulsar proxy:
 [Clients](../../getting-started/Clients) connecting to Pulsar {% popover brokers %} need to be able to communicate with an entire Pulsar {% popover instance %} using a single URL. Pulsar provides a built-in service discovery mechanism that you can set up using the instructions in the [Deploying a Pulsar instance](../../deployment/InstanceSetup#service-discovery-setup) guide.
 
 You can use your own service discovery system if you'd like. If you use your own system, there is just one requirement: when a client performs an HTTP request to an endpoint, such as `http://pulsar.us-west.example.com:8080`, the client needs to be redirected to *some* active broker in the desired {% popover cluster %}, whether via DNS, an HTTP or IP redirect, or some other means.
+
+The diagram below illustrates Pulsar service discovery:
+
+{% img /img/pulsar-service-discovery.png 50 %}
+
+In this diagram, the Pulsar cluster is addressable via a single DNS name: `pulsar-cluster.acme.com`. A [Python client](../../clients/Python), for example, could access this Pulsar cluster like this:
+
+```python
+from pulsar import Client
+
+client = Client('pulsar://pulsar-cluster.acme.com:6650')
+```
 
 ## Reader interface
 

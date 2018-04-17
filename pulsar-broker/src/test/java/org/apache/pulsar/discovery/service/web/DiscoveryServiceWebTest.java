@@ -90,9 +90,9 @@ public class DiscoveryServiceWebTest extends ProducerConsumerBase {
         server.start();
 
         String serviceUrl = server.getServiceUri().toString();
-        String putRequestUrl = serviceUrl + "admin/namespaces/p1/c1/n1";
-        String postRequestUrl = serviceUrl + "admin/namespaces/p1/c1/n1/replication";
-        String getRequestUrl = serviceUrl + "admin/namespaces/p1";
+        String putRequestUrl = serviceUrl + "admin/v2/namespaces/p1/n1";
+        String postRequestUrl = serviceUrl + "admin/v2/namespaces/p1/n1/replication";
+        String getRequestUrl = serviceUrl + "admin/v2/namespaces/p1";
 
         /**
          * verify : every time when vip receives a request: it redirects to above brokers sequentially and broker
@@ -100,9 +100,9 @@ public class DiscoveryServiceWebTest extends ProducerConsumerBase {
          **/
 
         assertEquals(hitBrokerService(HttpMethod.POST, postRequestUrl, Lists.newArrayList("use")),
-                "Cannot set replication on a non-global namespace");
-        assertEquals(hitBrokerService(HttpMethod.PUT, putRequestUrl, new BundlesData(1)), "Property does not exist");
-        assertEquals(hitBrokerService(HttpMethod.GET, getRequestUrl, null), "Property does not exist");
+                "Tenant does not exist");
+        assertEquals(hitBrokerService(HttpMethod.PUT, putRequestUrl, new BundlesData(1)), "Tenant does not exist");
+        assertEquals(hitBrokerService(HttpMethod.GET, getRequestUrl, null), "Tenant does not exist");
 
         server.stop();
 

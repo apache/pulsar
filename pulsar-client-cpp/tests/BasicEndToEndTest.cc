@@ -240,11 +240,11 @@ TEST(BasicEndToEndTest, testLookupThrottling) {
 TEST(BasicEndToEndTest, testNonExistingTopic) {
     Client client(lookupUrl);
     Producer producer;
-    Result result = client.createProducer("persistent://prop/unit/ns1", producer);
+    Result result = client.createProducer("persistent://prop//unit/ns1/testNonExistingTopic", producer);
     ASSERT_EQ(ResultInvalidTopicName, result);
 
     Consumer consumer;
-    result = client.subscribe("persistent://prop/unit/ns1", "my-sub-name", consumer);
+    result = client.subscribe("persistent://prop//unit/ns1/testNonExistingTopic", "my-sub-name", consumer);
     ASSERT_EQ(ResultInvalidTopicName, result);
 }
 
@@ -915,17 +915,11 @@ TEST(BasicEndToEndTest, testStatsLatencies) {
     // Start Producer and Consumer
     int numOfMessages = 1000;
 
-    Promise<Result, Producer> producerPromise;
-    client.createProducerAsync(topicName, WaitForCallbackValue<Producer>(producerPromise));
-    Future<Result, Producer> producerFuture = producerPromise.getFuture();
-    Result result = producerFuture.get(producer);
+    Result result = client.createProducer(topicName, producer);
     ASSERT_EQ(ResultOk, result);
 
     Consumer consumer;
-    Promise<Result, Consumer> consumerPromise;
-    client.subscribeAsync(topicName, subName, WaitForCallbackValue<Consumer>(consumerPromise));
-    Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
-    result = consumerFuture.get(consumer);
+    result = client.subscribe(topicName, subName, consumer);
     ASSERT_EQ(ResultOk, result);
 
     // handling dangling subscriptions
@@ -948,7 +942,7 @@ TEST(BasicEndToEndTest, testStatsLatencies) {
                           .setContent(messageContent)
                           .setProperty("msgIndex", boost::lexical_cast<std::string>(i))
                           .build();
-        producer.sendAsync(msg, boost::bind(&sendCallBack, _1, _2, prefix, 15, 20 * 1e3));
+        producer.sendAsync(msg, boost::bind(&sendCallBack, _1, _2, prefix, 15, 2 * 1e3));
         LOG_DEBUG("sending message " << messageContent);
     }
 
@@ -973,13 +967,13 @@ TEST(BasicEndToEndTest, testStatsLatencies) {
     ASSERT_EQ((uint64_t)latencies[2], (uint64_t)totalLatencies[2]);
     ASSERT_EQ((uint64_t)latencies[3], (uint64_t)totalLatencies[3]);
 
-    ASSERT_GE((uint64_t)latencies[1], 20 * 1000);
-    ASSERT_GE((uint64_t)latencies[2], 20 * 1000);
-    ASSERT_GE((uint64_t)latencies[3], 20 * 1000);
+    ASSERT_GE((uint64_t)latencies[1], 20 * 100);
+    ASSERT_GE((uint64_t)latencies[2], 20 * 100);
+    ASSERT_GE((uint64_t)latencies[3], 20 * 100);
 
-    ASSERT_GE((uint64_t)totalLatencies[1], 20 * 1000);
-    ASSERT_GE((uint64_t)totalLatencies[2], 20 * 1000);
-    ASSERT_GE((uint64_t)totalLatencies[3], 20 * 1000);
+    ASSERT_GE((uint64_t)totalLatencies[1], 20 * 100);
+    ASSERT_GE((uint64_t)totalLatencies[2], 20 * 100);
+    ASSERT_GE((uint64_t)totalLatencies[3], 20 * 100);
 
     while (producerStatsImplPtr->getNumMsgsSent() != 0) {
         usleep(1e6);  // wait till stats flush

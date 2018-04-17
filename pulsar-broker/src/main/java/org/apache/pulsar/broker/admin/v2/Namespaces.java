@@ -60,23 +60,23 @@ import io.swagger.annotations.ApiResponses;
 public class Namespaces extends NamespacesBase {
 
     @GET
-    @Path("/{property}")
-    @ApiOperation(value = "Get the list of all the namespaces for a certain property.", response = String.class, responseContainer = "Set")
+    @Path("/{tenant}")
+    @ApiOperation(value = "Get the list of all the namespaces for a certain tenant.", response = String.class, responseContainer = "Set")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Property doesn't exist") })
-    public List<String> getPropertyNamespaces(@PathParam("property") String property) {
-        return internalGetPropertyNamespaces(property);
+            @ApiResponse(code = 404, message = "Tenant doesn't exist") })
+    public List<String> getTenantNamespaces(@PathParam("tenant") String tenant) {
+        return internalGetTenantNamespaces(tenant);
     }
 
     @GET
-    @Path("/{property}/{namespace}/topics")
+    @Path("/{tenant}/{namespace}/topics")
     @ApiOperation(value = "Get the list of all the topics under a certain namespace.", response = String.class, responseContainer = "Set")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
-    public List<String> getTopics(@PathParam("property") String property,
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
+    public List<String> getTopics(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
-        validateAdminAccessOnProperty(property);
-        validateNamespaceName(property, namespace);
+        validateAdminAccessForTenant(tenant);
+        validateNamespaceName(tenant, namespace);
 
         // Validate that namespace exists, throws 404 if it doesn't exist
         getNamespacePolicies(namespaceName);
@@ -90,170 +90,170 @@ public class Namespaces extends NamespacesBase {
     }
 
     @GET
-    @Path("/{property}/{namespace}")
+    @Path("/{tenant}/{namespace}")
     @ApiOperation(value = "Get the dump all the policies specified for a namespace.", response = Policies.class)
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
-    public Policies getPolicies(@PathParam("property") String property, @PathParam("namespace") String namespace) {
-        validateAdminAccessOnProperty(property);
-        validateNamespaceName(property, namespace);
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
+    public Policies getPolicies(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace) {
+        validateAdminAccessForTenant(tenant);
+        validateNamespaceName(tenant, namespace);
         return getNamespacePolicies(namespaceName);
     }
 
     @PUT
-    @Path("/{property}/{namespace}")
+    @Path("/{tenant}/{namespace}")
     @ApiOperation(value = "Creates a new namespace with the specified policies")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Property or cluster doesn't exist"),
+            @ApiResponse(code = 404, message = "Tenant or cluster doesn't exist"),
             @ApiResponse(code = 409, message = "Namespace already exists"),
             @ApiResponse(code = 412, message = "Namespace name is not valid") })
-    public void createNamespace(@PathParam("property") String property, @PathParam("namespace") String namespace,
+    public void createNamespace(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             Policies policies) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
 
         policies = getDefaultPolicesIfNull(policies);
         internalCreateNamespace(policies);
     }
 
     @DELETE
-    @Path("/{property}/{namespace}")
+    @Path("/{tenant}/{namespace}")
     @ApiOperation(value = "Delete a namespace and all the topics under it.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Namespace is not empty") })
-    public void deleteNamespace(@PathParam("property") String property, @PathParam("namespace") String namespace,
+    public void deleteNamespace(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         internalDeleteNamespace(authoritative);
     }
 
     @DELETE
-    @Path("/{property}/{namespace}/bundle/{bundle}")
+    @Path("/{tenant}/{namespace}/{bundle}")
     @ApiOperation(value = "Delete a namespace bundle and all the topics under it.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Namespace bundle is not empty") })
-    public void deleteNamespaceBundle(@PathParam("property") String property, @PathParam("namespace") String namespace,
+    public void deleteNamespaceBundle(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @PathParam("bundle") String bundleRange,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         internalDeleteNamespaceBundle(bundleRange, authoritative);
     }
 
     @GET
-    @Path("/{property}/{namespace}/permissions")
+    @Path("/{tenant}/{namespace}/permissions")
     @ApiOperation(value = "Retrieve the permissions for a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Namespace is not empty") })
-    public Map<String, Set<AuthAction>> getPermissions(@PathParam("property") String property,
+    public Map<String, Set<AuthAction>> getPermissions(@PathParam("tenant") String tenant,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
-        validateAdminAccessOnProperty(property);
-        validateNamespaceName(property, namespace);
+        validateAdminAccessForTenant(tenant);
+        validateNamespaceName(tenant, namespace);
 
         Policies policies = getNamespacePolicies(namespaceName);
         return policies.auth_policies.namespace_auth;
     }
 
     @POST
-    @Path("/{property}/{namespace}/permissions/{role}")
+    @Path("/{tenant}/{namespace}/permissions/{role}")
     @ApiOperation(value = "Grant a new permission to a role on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
-    public void grantPermissionOnNamespace(@PathParam("property") String property,
+    public void grantPermissionOnNamespace(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace, @PathParam("role") String role, Set<AuthAction> actions) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         internalGrantPermissionOnNamespace(role, actions);
     }
 
     @DELETE
-    @Path("/{property}/{namespace}/permissions/{role}")
+    @Path("/{tenant}/{namespace}/permissions/{role}")
     @ApiOperation(value = "Revoke all permissions to a role on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
-    public void revokePermissionsOnNamespace(@PathParam("property") String property,
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
+    public void revokePermissionsOnNamespace(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace, @PathParam("role") String role) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         internalRevokePermissionsOnNamespace(role);
     }
 
     @GET
-    @Path("/{property}/{namespace}/replication")
+    @Path("/{tenant}/{namespace}/replication")
     @ApiOperation(value = "Get the replication clusters for a namespace.", response = String.class, responseContainer = "List")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
             @ApiResponse(code = 412, message = "Namespace is not global") })
-    public Set<String> getNamespaceReplicationClusters(@PathParam("property") String property,
+    public Set<String> getNamespaceReplicationClusters(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
-        validateAdminAccessOnProperty(property);
-        validateNamespaceName(property, namespace);
+        validateAdminAccessForTenant(tenant);
+        validateNamespaceName(tenant, namespace);
 
         return internalGetNamespaceReplicationClusters();
     }
 
     @POST
-    @Path("/{property}/{namespace}/replication")
+    @Path("/{tenant}/{namespace}/replication")
     @ApiOperation(value = "Set the replication clusters for a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Peer-cluster can't be part of replication-cluster"),
             @ApiResponse(code = 412, message = "Namespace is not global or invalid cluster ids") })
-    public void setNamespaceReplicationClusters(@PathParam("property") String property,
+    public void setNamespaceReplicationClusters(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace, List<String> clusterIds) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         internalSetNamespaceReplicationClusters(clusterIds);
     }
 
     @GET
-    @Path("/{property}/{namespace}/messageTTL")
+    @Path("/{tenant}/{namespace}/messageTTL")
     @ApiOperation(value = "Get the message TTL for the namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
-    public int getNamespaceMessageTTL(@PathParam("property") String property,
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
+    public int getNamespaceMessageTTL(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
 
-        validateAdminAccessOnProperty(property);
-        validateNamespaceName(property, namespace);
+        validateAdminAccessForTenant(tenant);
+        validateNamespaceName(tenant, namespace);
 
         Policies policies = getNamespacePolicies(namespaceName);
         return policies.message_ttl_in_seconds;
     }
 
     @POST
-    @Path("/{property}/{namespace}/messageTTL")
+    @Path("/{tenant}/{namespace}/messageTTL")
     @ApiOperation(value = "Set message TTL in seconds for namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
             @ApiResponse(code = 412, message = "Invalid TTL") })
-    public void setNamespaceMessageTTL(@PathParam("property") String property, @PathParam("namespace") String namespace,
+    public void setNamespaceMessageTTL(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             int messageTTL) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         internalSetNamespaceMessageTTL(messageTTL);
     }
 
     @POST
-    @Path("/{property}/{namespace}/deduplication")
+    @Path("/{tenant}/{namespace}/deduplication")
     @ApiOperation(value = "Enable or disable broker side deduplication for all topics in a namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
-    public void modifyDeduplication(@PathParam("property") String property, @PathParam("namespace") String namespace,
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
+    public void modifyDeduplication(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             boolean enableDeduplication) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         internalModifyDeduplication(enableDeduplication);
     }
 
     @GET
-    @Path("/{property}/{namespace}/bundles")
+    @Path("/{tenant}/{namespace}/bundles")
     @ApiOperation(value = "Get the bundles split data.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
             @ApiResponse(code = 412, message = "Namespace is not setup to split in bundles") })
-    public BundlesData getBundlesData(@PathParam("property") String property,
+    public BundlesData getBundlesData(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
-        validateAdminAccessOnProperty(property);
+        validateAdminAccessForTenant(tenant);
         validatePoliciesReadOnlyAccess();
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
 
         Policies policies = getNamespacePolicies(namespaceName);
 
@@ -261,341 +261,386 @@ public class Namespaces extends NamespacesBase {
     }
 
     @PUT
-    @Path("/{property}/{namespace}/unload")
+    @Path("/{tenant}/{namespace}/unload")
     @ApiOperation(value = "Unload namespace", notes = "Unload an active namespace from the current broker serving it. Performing this operation will let the broker"
             + "removes all producers, consumers, and connections using this namespace, and close all topics (including"
             + "their persistent store). During that operation, the namespace is marked as tentatively unavailable until the"
             + "broker completes the unloading action. This operation requires strictly super user privileges, since it would"
             + "result in non-persistent message loss and unexpected connection closure to the clients.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Property or namespace doesn't exist"),
+            @ApiResponse(code = 404, message = "Tenant or namespace doesn't exist"),
             @ApiResponse(code = 412, message = "Namespace is already unloaded or Namespace has bundles activated") })
-    public void unloadNamespace(@PathParam("property") String property, @PathParam("namespace") String namespace) {
-        validateNamespaceName(property, namespace);
+    public void unloadNamespace(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
         internalUnloadNamespace();
     }
 
     @PUT
-    @Path("/{property}/{namespace}/{bundle}/unload")
+    @Path("/{tenant}/{namespace}/{bundle}/unload")
     @ApiOperation(value = "Unload a namespace bundle")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
-    public void unloadNamespaceBundle(@PathParam("property") String property, @PathParam("namespace") String namespace,
+    public void unloadNamespaceBundle(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @PathParam("bundle") String bundleRange,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         internalUnloadNamespaceBundle(bundleRange, authoritative);
     }
 
     @PUT
-    @Path("/{property}/{namespace}/{bundle}/split")
+    @Path("/{tenant}/{namespace}/{bundle}/split")
     @ApiOperation(value = "Split a namespace bundle")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
-    public void splitNamespaceBundle(@PathParam("property") String property, @PathParam("namespace") String namespace,
+    public void splitNamespaceBundle(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @PathParam("bundle") String bundleRange,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("unload") @DefaultValue("false") boolean unload) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         internalSplitNamespaceBundle(bundleRange, authoritative, unload);
     }
 
     @POST
-    @Path("/{property}/{namespace}/dispatchRate")
+    @Path("/{tenant}/{namespace}/dispatchRate")
     @ApiOperation(value = "Set dispatch-rate throttling for all topics of the namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
-    public void setDispatchRate(@PathParam("property") String property, @PathParam("namespace") String namespace,
+    public void setDispatchRate(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             DispatchRate dispatchRate) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         internalSetDispatchRate(dispatchRate);
     }
 
     @GET
-    @Path("/{property}/{namespace}/dispatchRate")
+    @Path("/{tenant}/{namespace}/dispatchRate")
     @ApiOperation(value = "Get dispatch-rate configured for the namespace, -1 represents not configured yet")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public DispatchRate getDispatchRate(@PathParam("property") String property,
+    public DispatchRate getDispatchRate(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         return internalGetDispatchRate();
     }
 
     @POST
-    @Path("/{property}/{namespace}/subscriptionDispatchRate")
+    @Path("/{tenant}/{namespace}/subscriptionDispatchRate")
     @ApiOperation(value = "Set Subscription dispatch-rate throttling for all topics of the namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
-    public void setSubscriptionDispatchRate(@PathParam("property") String property,
+    public void setSubscriptionDispatchRate(@PathParam("tenant") String tenant,
                                             @PathParam("namespace") String namespace,
                                             DispatchRate dispatchRate) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         internalSetSubscriptionDispatchRate(dispatchRate);
     }
 
     @GET
-    @Path("/{property}/{namespace}/subscriptionDispatchRate")
+    @Path("/{tenant}/{namespace}/subscriptionDispatchRate")
     @ApiOperation(value = "Get Subscription dispatch-rate configured for the namespace, -1 represents not configured yet")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
         @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public DispatchRate getSubscriptionDispatchRate(@PathParam("property") String property,
+    public DispatchRate getSubscriptionDispatchRate(@PathParam("tenant") String tenant,
                                                     @PathParam("namespace") String namespace) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         return internalGetSubscriptionDispatchRate();
     }
 
     @GET
-    @Path("/{property}/{namespace}/backlogQuotaMap")
+    @Path("/{tenant}/{namespace}/backlogQuotaMap")
     @ApiOperation(value = "Get backlog quota map on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public Map<BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(@PathParam("property") String property,
+    public Map<BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
-        validateAdminAccessOnProperty(property);
-        validateNamespaceName(property, namespace);
+        validateAdminAccessForTenant(tenant);
+        validateNamespaceName(tenant, namespace);
 
         Policies policies = getNamespacePolicies(namespaceName);
         return policies.backlog_quota_map;
     }
 
     @POST
-    @Path("/{property}/{namespace}/backlogQuota")
+    @Path("/{tenant}/{namespace}/backlogQuota")
     @ApiOperation(value = " Set a backlog quota for all the topics on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 412, message = "Specified backlog quota exceeds retention quota. Increase retention quota and retry request") })
-    public void setBacklogQuota(@PathParam("property") String property, @PathParam("namespace") String namespace,
+    public void setBacklogQuota(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @QueryParam("backlogQuotaType") BacklogQuotaType backlogQuotaType, BacklogQuota backlogQuota) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         internalSetBacklogQuota(backlogQuotaType, backlogQuota);
     }
 
     @DELETE
-    @Path("/{property}/{namespace}/backlogQuota")
+    @Path("/{tenant}/{namespace}/backlogQuota")
     @ApiOperation(value = "Remove a backlog quota policy from a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
-    public void removeBacklogQuota(@PathParam("property") String property, @PathParam("namespace") String namespace,
+    public void removeBacklogQuota(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @QueryParam("backlogQuotaType") BacklogQuotaType backlogQuotaType) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         internalRemoveBacklogQuota(backlogQuotaType);
     }
 
     @GET
-    @Path("/{property}/{namespace}/retention")
+    @Path("/{tenant}/{namespace}/retention")
     @ApiOperation(value = "Get retention config on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public RetentionPolicies getRetention(@PathParam("property") String property,
+    public RetentionPolicies getRetention(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         return internalGetRetention();
     }
 
     @POST
-    @Path("/{property}/{namespace}/retention")
+    @Path("/{tenant}/{namespace}/retention")
     @ApiOperation(value = " Set retention configuration on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 412, message = "Retention Quota must exceed backlog quota") })
-    public void setRetention(@PathParam("property") String property, @PathParam("namespace") String namespace,
+    public void setRetention(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             RetentionPolicies retention) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         internalSetRetention(retention);
     }
 
     @POST
-    @Path("/{property}/{namespace}/persistence")
+    @Path("/{tenant}/{namespace}/persistence")
     @ApiOperation(value = "Set the persistence configuration for all the topics on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 400, message = "Invalid persistence policies") })
-    public void setPersistence(@PathParam("property") String property, @PathParam("namespace") String namespace,
+    public void setPersistence(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             PersistencePolicies persistence) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         internalSetPersistence(persistence);
     }
 
     @GET
-    @Path("/{property}/{namespace}/persistence")
+    @Path("/{tenant}/{namespace}/persistence")
     @ApiOperation(value = "Get the persistence configuration for a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
-    public PersistencePolicies getPersistence(@PathParam("property") String property,
+    public PersistencePolicies getPersistence(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         return internalGetPersistence();
     }
 
     @POST
-    @Path("/{property}/{namespace}/clearBacklog")
+    @Path("/{tenant}/{namespace}/clearBacklog")
     @ApiOperation(value = "Clear backlog for all topics on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public void clearNamespaceBacklog(@PathParam("property") String property, @PathParam("namespace") String namespace,
+    public void clearNamespaceBacklog(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         internalClearNamespaceBacklog(authoritative);
     }
 
     @POST
-    @Path("/{property}/{namespace}/{bundle}/clearBacklog")
+    @Path("/{tenant}/{namespace}/{bundle}/clearBacklog")
     @ApiOperation(value = "Clear backlog for all topics on a namespace bundle.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public void clearNamespaceBundleBacklog(@PathParam("property") String property,
+    public void clearNamespaceBundleBacklog(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace, @PathParam("bundle") String bundleRange,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         internalClearNamespaceBundleBacklog(bundleRange, authoritative);
     }
 
     @POST
-    @Path("/{property}/{namespace}/clearBacklog/{subscription}")
+    @Path("/{tenant}/{namespace}/clearBacklog/{subscription}")
     @ApiOperation(value = "Clear backlog for a given subscription on all topics on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public void clearNamespaceBacklogForSubscription(@PathParam("property") String property,
+    public void clearNamespaceBacklogForSubscription(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace, @PathParam("subscription") String subscription,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         internalClearNamespaceBacklogForSubscription(subscription, authoritative);
     }
 
     @POST
-    @Path("/{property}/{namespace}/{bundle}/clearBacklog/{subscription}")
+    @Path("/{tenant}/{namespace}/{bundle}/clearBacklog/{subscription}")
     @ApiOperation(value = "Clear backlog for a given subscription on all topics on a namespace bundle.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public void clearNamespaceBundleBacklogForSubscription(@PathParam("property") String property,
+    public void clearNamespaceBundleBacklogForSubscription(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace, @PathParam("subscription") String subscription,
             @PathParam("bundle") String bundleRange,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         internalClearNamespaceBundleBacklogForSubscription(subscription, bundleRange, authoritative);
     }
 
     @POST
-    @Path("/{property}/{namespace}/unsubscribe/{subscription}")
+    @Path("/{tenant}/{namespace}/unsubscribe/{subscription}")
     @ApiOperation(value = "Unsubscribes the given subscription on all topics on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public void unsubscribeNamespace(@PathParam("property") String property, @PathParam("cluster") String cluster,
+    public void unsubscribeNamespace(@PathParam("tenant") String tenant, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("subscription") String subscription,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         internalUnsubscribeNamespace(subscription, authoritative);
     }
 
     @POST
-    @Path("/{property}/{namespace}/{bundle}/unsubscribe/{subscription}")
+    @Path("/{tenant}/{namespace}/{bundle}/unsubscribe/{subscription}")
     @ApiOperation(value = "Unsubscribes the given subscription on all topics on a namespace bundle.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public void unsubscribeNamespaceBundle(@PathParam("property") String property,
+    public void unsubscribeNamespaceBundle(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace, @PathParam("subscription") String subscription,
             @PathParam("bundle") String bundleRange,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         internalUnsubscribeNamespaceBundle(subscription, bundleRange, authoritative);
     }
 
     @POST
-    @Path("/{property}/{namespace}/subscriptionAuthMode")
+    @Path("/{tenant}/{namespace}/subscriptionAuthMode")
     @ApiOperation(value = " Set a subscription auth mode for all the topics on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
-    public void setSubscriptionAuthMode(@PathParam("property") String property,
+    public void setSubscriptionAuthMode(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace, SubscriptionAuthMode subscriptionAuthMode) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         internalSetSubscriptionAuthMode(subscriptionAuthMode);
     }
 
     @POST
-    @Path("/{property}/{namespace}/encryptionRequired")
+    @Path("/{tenant}/{namespace}/encryptionRequired")
     @ApiOperation(value = "Message encryption is required or not for all topics in a namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"), })
-    public void modifyEncryptionRequired(@PathParam("property") String property,
+    public void modifyEncryptionRequired(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace, boolean encryptionRequired) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         internalModifyEncryptionRequired(encryptionRequired);
     }
 
     @GET
-    @Path("/{property}/{namespace}/maxProducersPerTopic")
+    @Path("/{tenant}/{namespace}/maxProducersPerTopic")
     @ApiOperation(value = "Get maxProducersPerTopic config on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public int getMaxProducersPerTopic(@PathParam("property") String property,
+    public int getMaxProducersPerTopic(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         return internalGetMaxProducersPerTopic();
     }
 
     @POST
-    @Path("/{property}/{namespace}/maxProducersPerTopic")
+    @Path("/{tenant}/{namespace}/maxProducersPerTopic")
     @ApiOperation(value = " Set maxProducersPerTopic configuration on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 412, message = "maxProducersPerTopic value is not valid") })
-    public void setMaxProducersPerTopic(@PathParam("property") String property, @PathParam("namespace") String namespace,
+    public void setMaxProducersPerTopic(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             int maxProducersPerTopic) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         internalSetMaxProducersPerTopic(maxProducersPerTopic);
     }
 
     @GET
-    @Path("/{property}/{namespace}/maxConsumersPerTopic")
+    @Path("/{tenant}/{namespace}/maxConsumersPerTopic")
     @ApiOperation(value = "Get maxConsumersPerTopic config on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public int getMaxConsumersPerTopic(@PathParam("property") String property,
+    public int getMaxConsumersPerTopic(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         return internalGetMaxConsumersPerTopic();
     }
 
     @POST
-    @Path("/{property}/{namespace}/maxConsumersPerTopic")
+    @Path("/{tenant}/{namespace}/maxConsumersPerTopic")
     @ApiOperation(value = " Set maxConsumersPerTopic configuration on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 412, message = "maxConsumersPerTopic value is not valid") })
-    public void setMaxConsumersPerTopic(@PathParam("property") String property, @PathParam("namespace") String namespace,
+    public void setMaxConsumersPerTopic(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             int maxConsumersPerTopic) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         internalSetMaxConsumersPerTopic(maxConsumersPerTopic);
     }
 
     @GET
-    @Path("/{property}/{namespace}/maxConsumersPerSubscription")
+    @Path("/{tenant}/{namespace}/maxConsumersPerSubscription")
     @ApiOperation(value = "Get maxConsumersPerSubscription config on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public int getMaxConsumersPerSubscription(@PathParam("property") String property,
+    public int getMaxConsumersPerSubscription(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         return internalGetMaxConsumersPerSubscription();
     }
 
     @POST
-    @Path("/{property}/{namespace}/maxConsumersPerSubscription")
+    @Path("/{tenant}/{namespace}/maxConsumersPerSubscription")
     @ApiOperation(value = " Set maxConsumersPerSubscription configuration on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 412, message = "maxConsumersPerSubscription value is not valid") })
-    public void setMaxConsumersPerSubscription(@PathParam("property") String property, @PathParam("namespace") String namespace,
+    public void setMaxConsumersPerSubscription(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             int maxConsumersPerSubscription) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         internalSetMaxConsumersPerSubscription(maxConsumersPerSubscription);
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/antiAffinity")
+    @ApiOperation(value = "Set anti-affinity group for a namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 412, message = "Invalid antiAffinityGroup") })
+    public void setNamespaceAntiAffinityGroup(@PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace, String antiAffinityGroup) {
+        validateNamespaceName(tenant, namespace);
+        internalSetNamespaceAntiAffinityGroup(antiAffinityGroup);
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/antiAffinity")
+    @ApiOperation(value = "Get anti-affinity group of a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
+    public String getNamespaceAntiAffinityGroup(@PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        return internalGetNamespaceAntiAffinityGroup();
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/antiAffinity")
+    @ApiOperation(value = "Remove anti-affinity group of a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public void removeNamespaceAntiAffinityGroup(@PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalRemoveNamespaceAntiAffinityGroup();
+    }
+
+    @GET
+    @Path("{cluster}/antiAffinity/{group}")
+    @ApiOperation(value = "Get all namespaces that are grouped by given anti-affinity group in a given cluster. api can be only accessed by admin of any of the existing tenant")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 412, message = "Cluster not exist/Anti-affinity group can't be empty.") })
+    public List<String> getAntiAffinityNamespaces(@PathParam("cluster") String cluster,
+            @PathParam("group") String antiAffinityGroup, @QueryParam("tenant") String tenant) {
+        return internalGetAntiAffinityNamespaces(cluster, antiAffinityGroup, tenant);
     }
 
     private Policies getDefaultPolicesIfNull(Policies policies) {

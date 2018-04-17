@@ -48,7 +48,7 @@ public class PulsarBoltTest extends ProducerConsumerBase {
     private static final int NO_OF_RETRIES = 10;
 
     public final String serviceUrl = "http://127.0.0.1:" + BROKER_WEBSERVICE_PORT;
-    public final String topic = "persistent://my-property/use/my-ns/my-topic1";
+    public final String topic = "persistent://my-property/my-ns/my-topic1";
     public final String subscriptionName = "my-subscriber-name";
 
     protected PulsarBoltConfiguration pulsarBoltConf;
@@ -213,7 +213,7 @@ public class PulsarBoltTest extends ProducerConsumerBase {
         PulsarBolt boltWithNoAuth = new PulsarBolt(pulsarBoltConf, new ClientConfiguration());
         TestUtil.testSerializability(boltWithNoAuth);
     }
-    
+
     @Test
     public void testFailedProducer() {
         PulsarBoltConfiguration pulsarBoltConf = new PulsarBoltConfiguration();

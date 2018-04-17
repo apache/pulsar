@@ -27,7 +27,7 @@ import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -66,7 +66,7 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null), false);
 
         admin.clusters().createCluster("c1", new ClusterData());
-        admin.properties().createProperty("p1", new PropertyAdmin(Sets.newHashSet("role1"), Sets.newHashSet("c1")));
+        admin.tenants().createTenant("p1", new TenantInfo(Sets.newHashSet("role1"), Sets.newHashSet("c1")));
         waitForChange();
         admin.namespaces().createNamespace("p1/c1/ns1");
         waitForChange();
@@ -210,7 +210,7 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         assertEquals(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "pulsar.super_user", null, "role3-sub1"), true);
 
         admin.namespaces().deleteNamespace("p1/c1/ns1");
-        admin.properties().deleteProperty("p1");
+        admin.tenants().deleteTenant("p1");
         admin.clusters().deleteCluster("c1");
     }
 

@@ -294,7 +294,7 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
         i.next();
         i.next();
         // prop, cluster, namespace
-        return Joiner.on("/").join(i.next(), i.next(), i.next());
+        return Joiner.on("/").join(i);
     }
 
 }

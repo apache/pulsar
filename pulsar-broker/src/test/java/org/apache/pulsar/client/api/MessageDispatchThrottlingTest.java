@@ -49,7 +49,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
-        this.conf.setClusterName("use");
+        this.conf.setClusterName("test");
     }
 
     @AfterMethod
@@ -102,10 +102,10 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         log.info("-- Starting {} test --", methodName);
 
-        final String namespace = "my-property/use/throttling_ns";
+        final String namespace = "my-property/throttling_ns";
         final String topicName = "persistent://" + namespace + "/throttlingBlock";
 
-        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         // create producer and topic
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
@@ -163,7 +163,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
             DispatchRateType dispatchRateType) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String namespace = "my-property/use/throttling_ns";
+        final String namespace = "my-property/throttling_ns";
         final String topicName = "persistent://" + namespace + "/throttlingBlock";
 
         final int messageRate = 100;
@@ -174,7 +174,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
             dispatchRate = new DispatchRate(-1, messageRate, 360);
         }
 
-        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
         // create producer and topic
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
@@ -233,7 +233,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     public void testClusterMsgByteRateLimitingClusterConfig() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String namespace = "my-property/use/throttling_ns";
+        final String namespace = "my-property/throttling_ns";
         final String topicName = "persistent://" + namespace + "/throttlingBlock";
         final int messageRate = 5;
         final long byteRate = 1024 * 1024;// 1MB rate enough to let all msg to be delivered
@@ -251,7 +251,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         }
         Assert.assertNotEquals(pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg(), initValue);
 
-        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         // create producer and topic
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
@@ -305,12 +305,12 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
             throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String namespace = "my-property/use/throttling_ns";
+        final String namespace = "my-property/throttling_ns";
         final String topicName = "persistent://" + namespace + "/throttlingAll";
 
         final int messageRate = 10;
         DispatchRate dispatchRate = new DispatchRate(messageRate, -1, 1);
-        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
         // create producer and topic
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
@@ -376,12 +376,12 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     public void testBytesRateLimitingReceiveAllMessagesAfterThrottling(SubscriptionType subscription) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String namespace = "my-property/use/throttling_ns";
+        final String namespace = "my-property/throttling_ns";
         final String topicName = "persistent://" + namespace + "/throttlingAll";
 
         final int byteRate = 100;
         DispatchRate dispatchRate = new DispatchRate(-1, byteRate, 1);
-        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
         // create producer and topic
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
@@ -439,12 +439,12 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     public void testRateLimitingMultipleConsumers() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String namespace = "my-property/use/throttling_ns";
+        final String namespace = "my-property/throttling_ns";
         final String topicName = "persistent://" + namespace + "/throttlingMultipleConsumers";
 
         final int messageRate = 5;
         DispatchRate dispatchRate = new DispatchRate(messageRate, -1, 360);
-        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
         // create producer and topic
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
@@ -509,7 +509,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     public void testClusterRateLimitingConfiguration(SubscriptionType subscription) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String namespace = "my-property/use/throttling_ns";
+        final String namespace = "my-property/throttling_ns";
         final String topicName = "persistent://" + namespace + "/throttlingBlock";
         final int messageRate = 5;
 
@@ -525,7 +525,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         }
         Assert.assertNotEquals(pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg(), initValue);
 
-        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         // create producer and topic
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
@@ -571,13 +571,13 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     public void testMessageByteRateThrottlingCombined(SubscriptionType subscription) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String namespace = "my-property/use/throttling_ns";
+        final String namespace = "my-property/throttling_ns";
         final String topicName = "persistent://" + namespace + "/throttlingAll";
 
         final int messageRate = 5; // 5 msgs per second
         final long byteRate = 10; // 10 bytes per second
         DispatchRate dispatchRate = new DispatchRate(messageRate, byteRate, 360);
-        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
         // create producer and topic
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
@@ -645,7 +645,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     public void testGlobalNamespaceThrottling() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String namespace = "my-property/global/throttling_ns";
+        final String namespace = "my-property/throttling_ns";
         final String topicName = "persistent://" + namespace + "/throttlingBlock";
 
         final int messageRate = 5;
@@ -653,7 +653,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         admin.clusters().createCluster("global", new ClusterData("http://global:8080"));
         admin.namespaces().createNamespace(namespace);
-        admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("use"));
+        admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("test"));
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
 
         // create producer and topic
@@ -715,13 +715,13 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     public void testNonBacklogConsumerWithThrottlingEnabled(SubscriptionType subscription) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String namespace = "my-property/use/throttling_ns";
+        final String namespace = "my-property/throttling_ns";
         final String topicName = "persistent://" + namespace + "/throttlingBlock";
 
         final int messageRate = 10;
         DispatchRate dispatchRate = new DispatchRate(messageRate, -1, 360);
 
-        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
         admin.brokers().updateDynamicConfiguration("dispatchThrottlingOnNonBacklogConsumerEnabled",
                 Boolean.TRUE.toString());
@@ -790,7 +790,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     public void testClusterPolicyOverrideConfiguration() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String namespace = "my-property/use/throttling_ns";
+        final String namespace = "my-property/throttling_ns";
         final String topicName1 = "persistent://" + namespace + "/throttlingOverride1";
         final String topicName2 = "persistent://" + namespace + "/throttlingOverride2";
         final int clusterMessageRate = 100;
@@ -807,7 +807,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         }
         Assert.assertNotEquals(pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg(), initValue);
 
-        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         // create producer and topic
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName1).create();
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName1).get();

@@ -56,35 +56,35 @@ public class ResourceQuotas extends ResourceQuotasBase {
     }
 
     @GET
-    @Path("/{property}/{namespace}/{bundle}")
+    @Path("/{tenant}/{namespace}/{bundle}")
     @ApiOperation(value = "Get resource quota of a namespace bundle.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public ResourceQuota getNamespaceBundleResourceQuota(@PathParam("property") String property,
+    public ResourceQuota getNamespaceBundleResourceQuota(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace, @PathParam("bundle") String bundleRange) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         return internalGetNamespaceBundleResourceQuota(bundleRange);
     }
 
     @POST
-    @Path("/{property}/{namespace}/{bundle}")
+    @Path("/{tenant}/{namespace}/{bundle}")
     @ApiOperation(value = "Set resource quota on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
-    public void setNamespaceBundleResourceQuota(@PathParam("property") String property,
+    public void setNamespaceBundleResourceQuota(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace, @PathParam("bundle") String bundleRange, ResourceQuota quota) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         internalSetNamespaceBundleResourceQuota(bundleRange, quota);
     }
 
     @DELETE
-    @Path("/{property}/{namespace}/{bundle}")
+    @Path("/{tenant}/{namespace}/{bundle}")
     @ApiOperation(value = "Remove resource quota for a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
-    public void removeNamespaceBundleResourceQuota(@PathParam("property") String property,
+    public void removeNamespaceBundleResourceQuota(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace, @PathParam("bundle") String bundleRange) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         internalRemoveNamespaceBundleResourceQuota(bundleRange);
     }
 }

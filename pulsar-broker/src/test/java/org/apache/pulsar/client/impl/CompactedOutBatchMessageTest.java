@@ -23,16 +23,12 @@ import static org.testng.Assert.assertEquals;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
-import java.io.IOException;
-
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
-import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadata;
-
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -53,9 +49,7 @@ public class CompactedOutBatchMessageTest extends ProducerConsumerBase {
 
     @Test
     public void testCompactedOutMessages() throws Exception {
-        final String ns1 = "my-property/use/con-ns1";
-        admin.namespaces().createNamespace(ns1);
-        final String topic1 = "persistent://" + ns1 + "/my-topic";
+        final String topic1 = "persistent://my-property/my-ns/my-topic";
 
         MessageMetadata metadata = MessageMetadata.newBuilder().setProducerName("foobar")
             .setSequenceId(1).setPublishTime(1).setNumMessagesInBatch(3).build();
@@ -82,7 +76,7 @@ public class CompactedOutBatchMessageTest extends ProducerConsumerBase {
             consumer.receiveIndividualMessagesFromBatch(metadata, batchBuffer,
                                                         MessageIdData.newBuilder().setLedgerId(1234)
                                                         .setEntryId(567).build(), consumer.cnx());
-            Message m = consumer.receive();
+            Message<?> m = consumer.receive();
             assertEquals(((BatchMessageIdImpl)m.getMessageId()).getLedgerId(), 1234);
             assertEquals(((BatchMessageIdImpl)m.getMessageId()).getEntryId(), 567);
             assertEquals(((BatchMessageIdImpl)m.getMessageId()).getBatchIndex(), 2);

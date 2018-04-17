@@ -39,7 +39,7 @@ import org.apache.pulsar.client.impl.auth.AuthenticationBasic;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -93,7 +93,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         System.setProperty("pulsar.auth.basic.conf", BASIC_CONF_FILE_PATH);
         conf.setAuthenticationProviders(providers);
 
-        conf.setClusterName("use");
+        conf.setClusterName("test");
 
         super.init();
     }
@@ -126,10 +126,10 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
     }
 
     public void testSyncProducerAndConsumer(int batchMessageDelayMs) throws Exception {
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic")
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic")
                 .subscriptionName("my-subscriber-name").subscribe();
 
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic");
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic");
 
         if (batchMessageDelayMs != 0) {
             producerBuilder.enableBatching(true);
@@ -168,9 +168,9 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         authTls.configure(authParams);
         internalSetup(authTls);
 
-        admin.properties().createProperty("my-property",
-                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
-        admin.namespaces().createNamespace("my-property/use/my-ns");
+        admin.tenants().createTenant("my-property",
+                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
 
         testSyncProducerAndConsumer(batchMessageDelayMs);
 
@@ -184,9 +184,9 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         authPassword.configure("{\"userId\":\"superUser\",\"password\":\"supepass\"}");
         internalSetup(authPassword);
 
-        admin.properties().createProperty("my-property",
-                new PropertyAdmin(Sets.newHashSet(), Sets.newHashSet("use")));
-        admin.namespaces().createNamespace("my-property/use/my-ns");
+        admin.tenants().createTenant("my-property",
+                new TenantInfo(Sets.newHashSet(), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
 
         testSyncProducerAndConsumer(batchMessageDelayMs);
 
@@ -200,9 +200,9 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         authPassword.configure("{\"userId\":\"superUser2\",\"password\":\"superpassword\"}");
         internalSetup(authPassword);
 
-        admin.properties().createProperty("my-property",
-                new PropertyAdmin(Sets.newHashSet(), Sets.newHashSet("use")));
-        admin.namespaces().createNamespace("my-property/use/my-ns");
+        admin.tenants().createTenant("my-property",
+                new TenantInfo(Sets.newHashSet(), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
 
         testSyncProducerAndConsumer(batchMessageDelayMs);
 
@@ -220,16 +220,16 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         authTls.configure(authParams);
         internalSetup(authTls);
 
-        admin.clusters().createCluster("use", new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
+        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
                 "pulsar://localhost:" + BROKER_PORT, "pulsar+ssl://localhost:" + BROKER_PORT_TLS));
-        admin.properties().createProperty("my-property",
-                new PropertyAdmin(Sets.newHashSet("anonymousUser"), Sets.newHashSet("use")));
+        admin.tenants().createTenant("my-property",
+                new TenantInfo(Sets.newHashSet("anonymousUser"), Sets.newHashSet("test")));
 
         // make a PulsarAdmin instance as "anonymousUser" for http request
         admin.close();
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString()).build());
-        admin.namespaces().createNamespace("my-property/use/my-ns");
-        admin.persistentTopics().grantPermission("persistent://my-property/use/my-ns/my-topic", "anonymousUser",
+        admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
+        admin.persistentTopics().grantPermission("persistent://my-property/my-ns/my-topic", "anonymousUser",
                 EnumSet.allOf(AuthAction.class));
 
         // setup the client
@@ -240,7 +240,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         // unauthorized topic test
         Exception pulsarClientException = null;
         try {
-            pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/other-topic")
+            pulsarClient.newConsumer().topic("persistent://my-property/my-ns/other-topic")
                     .subscriptionName("my-subscriber-name").subscribe();
         } catch (Exception e) {
             pulsarClientException = e;
@@ -268,7 +268,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         authTls.configure(authParams);
         internalSetup(authTls);
 
-        final String cluster = "use";
+        final String cluster = "test";
         final ClusterData clusterData = new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
                 "pulsar://localhost:" + BROKER_PORT, "pulsar+ssl://localhost:" + BROKER_PORT_TLS);
         // this will cause NPE and it should throw 500
@@ -299,12 +299,12 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         authTls.configure(authParams);
         internalSetup(authTls);
 
-        admin.clusters().createCluster("use", new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
+        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
                 "pulsar://localhost:" + BROKER_PORT, "pulsar+ssl://localhost:" + BROKER_PORT_TLS));
-        admin.properties().createProperty("my-property",
-                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
-        String namespace = "my-property/use/my-ns";
-        admin.namespaces().createNamespace(namespace);
+        admin.tenants().createTenant("my-property",
+                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        String namespace = "my-property/my-ns";
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
 
         String topic = "persistent://" + namespace + "1/topic1";
         // this will cause NPE and it should throw 500

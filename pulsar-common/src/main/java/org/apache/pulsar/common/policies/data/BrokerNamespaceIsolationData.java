@@ -16,26 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.proto;
+package org.apache.pulsar.common.policies.data;
 
-import static org.testng.Assert.assertEquals;
+import java.util.List;
 
-import org.apache.pulsar.functions.proto.Function.FunctionConfig;
-import org.apache.pulsar.functions.proto.Function.FunctionConfig.ProcessingGuarantees;
-import org.testng.annotations.Test;
+import com.google.common.base.Objects;
 
-/**
- * Unit test for {@link FunctionConfig}.
- */
-public class FunctionConfigTest {
+public class BrokerNamespaceIsolationData {
 
-    /**
-     * Make sure the default processing guarantee is always `ATLEAST_ONCE`.
-     */
-    @Test
-    public void testDefaultProcessingGuarantee() {
-        FunctionConfig fc = FunctionConfig.newBuilder().build();
-        assertEquals(ProcessingGuarantees.ATLEAST_ONCE, fc.getProcessingGuarantees());
+    public String brokerName;
+    public List<String> namespaceRegex; //isolated namespace regex
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof BrokerNamespaceIsolationData) {
+            BrokerNamespaceIsolationData other = (BrokerNamespaceIsolationData) obj;
+            return Objects.equal(brokerName, other.brokerName) && Objects.equal(namespaceRegex, other.namespaceRegex);
+        }
+        return false;
     }
 
 }
