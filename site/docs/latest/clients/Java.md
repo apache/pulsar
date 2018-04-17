@@ -187,17 +187,16 @@ In Pulsar, {% popover consumers %} subscribe to {% popover topics %} and handle 
 Once you've instantiated a {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %} object, you can create a {% javadoc Consumer client org.apache.pulsar.client.api.Consumer %} by specifying a {% popover topic %} and a [subscription](../../getting-started/ConceptsAndArchitecture#subscription-modes).
 
 ```java
-String topic = "persistent://sample/standalone/ns1/my-topic"; // from above
-String subscription = "my-subscription";
 Consumer consumer = client.newConsumer()
-        .subscriptionName("my-subscription-1")
+        .topic("my-topic")
+        .subscriptionName("my-subscription")
         .subscribe();
 ```
 
 The `subscribe` method will automatically subscribe the consumer to the specified topic and subscription. One way to make the consumer listen on the topic is to set up a `while` loop. In this example loop, the consumer listens for messages, prints the contents of any message that's received, and then {% popover acknowledges %} that the message has been processed:
 
 ```java
-while (true) {
+do {
   // Wait for a message
   Message msg = consumer.receive();
 
@@ -205,7 +204,7 @@ while (true) {
 
   // Acknowledge the message so that it can be deleted by the message broker
   consumer.acknowledge(msg);
-}
+} while (true);
 ```
 
 ### Configuring consumers
@@ -216,8 +215,8 @@ Here's an example configuration:
 
 ```java
 Consumer consumer = client.newConsumer()
-        .topic(topic)
-        .subscriptionName(subscription)
+        .topic("my-topic")
+        .subscriptionName("my-subscription")
         .ackTimeout(10, TimeUnit.SECONDS)
         .subscriptionType(SubscriptionType.Exclusive)
         .subscribe();

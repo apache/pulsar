@@ -28,7 +28,7 @@ configs:
   default: '5'
   description: The number of ticks that can pass between sending a request and getting an acknowledgement
 - name: dataDir
-  default: data/global-zookeeper
+  default: data/configuration-store
   description: the directory where the snapshot is stored.
 - name: clientPort
   default: '2184'
