@@ -51,8 +51,10 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private String tlsTrustCertsFilePath = "";
     private boolean tlsAllowInsecureConnection = false;
     private boolean tlsHostnameVerificationEnable = false;
-    private int concurrentLookupRequest = 50000;
+    private int concurrentLookupRequest = 5000;
+    private int maxLookupRequest = 50000;
     private int maxNumberOfRejectedRequestPerConnection = 50;
+    private int keepAliveIntervalSeconds = 30;
 
     public ClientConfigurationData clone() {
         try {

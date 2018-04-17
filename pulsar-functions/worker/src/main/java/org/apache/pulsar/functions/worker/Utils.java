@@ -186,9 +186,9 @@ public final class Utils {
 
     public static String getFullyQualifiedInstanceId(Function.Instance instance) {
         return getFullyQualifiedInstanceId(
-                instance.getFunctionMetaData().getFunctionConfig().getTenant(),
-                instance.getFunctionMetaData().getFunctionConfig().getNamespace(),
-                instance.getFunctionMetaData().getFunctionConfig().getName(),
+                instance.getFunctionMetaData().getFunctionDetails().getTenant(),
+                instance.getFunctionMetaData().getFunctionDetails().getNamespace(),
+                instance.getFunctionMetaData().getFunctionDetails().getName(),
                 instance.getInstanceId());
     }
 

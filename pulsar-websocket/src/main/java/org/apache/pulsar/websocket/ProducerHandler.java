@@ -187,6 +187,8 @@ public class ProducerHandler extends AbstractWebSocketHandler {
                 sendAckResponse(new ProducerAck(messageId, sendRequest.context));
             }
         }).exceptionally(exception -> {
+            log.warn("[{}] Error occurred while producer handler was sending msg from {}: {}", producer.getTopic(),
+                    getRemote().getInetSocketAddress().toString(), exception.getMessage());
             numMsgsFailed.increment();
             sendAckResponse(
                     new ProducerAck(UnknownError, exception.getMessage(), null, sendRequest.context));
@@ -248,6 +250,9 @@ public class ProducerHandler extends AbstractWebSocketHandler {
 
     private ProducerConfiguration getProducerConfiguration() {
         ProducerConfiguration conf = new ProducerConfiguration();
+
+        conf.setBatchingEnabled(false);
+        conf.setMessageRoutingMode(MessageRoutingMode.SinglePartition);
 
         // Set to false to prevent the server thread from being blocked if a lot of messages are pending.
         conf.setBlockIfQueueFull(false);

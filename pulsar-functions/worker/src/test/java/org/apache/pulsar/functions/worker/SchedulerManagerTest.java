@@ -96,7 +96,7 @@ public class SchedulerManagerTest {
         List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
-                .setFunctionConfig(Function.FunctionConfig.newBuilder().setName("func-1")
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
                         .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(1)).setVersion(version)
                 .build();
         functionMetaDataList.add(function1);
@@ -140,7 +140,7 @@ public class SchedulerManagerTest {
         List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
-                .setFunctionConfig(Function.FunctionConfig.newBuilder().setName("func-1")
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
                         .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(1)).setVersion(version)
                 .build();
         functionMetaDataList.add(function1);
@@ -190,12 +190,12 @@ public class SchedulerManagerTest {
         List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
-                .setFunctionConfig(Function.FunctionConfig.newBuilder().setName("func-1")
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
                         .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(1)).setVersion(version)
                 .build();
 
         Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder()
-                .setFunctionConfig(Function.FunctionConfig.newBuilder().setName("func-2")
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-2")
                         .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(1)).setVersion(version)
                 .build();
         functionMetaDataList.add(function1);
@@ -253,13 +253,13 @@ public class SchedulerManagerTest {
         List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
-                .setFunctionConfig(Function.FunctionConfig.newBuilder().setName("func-1")
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
                         .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(1)).setVersion(version)
                 .build();
 
         // simulate function2 got removed
         Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder()
-                .setFunctionConfig(Function.FunctionConfig.newBuilder().setName("func-2")
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-2")
                         .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(1)).setVersion(version)
                 .build();
         functionMetaDataList.add(function1);
@@ -319,12 +319,12 @@ public class SchedulerManagerTest {
         List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
-                .setFunctionConfig(Function.FunctionConfig.newBuilder().setName("func-1")
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
                         .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(1)).setVersion(version)
                 .build();
 
         Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder()
-                .setFunctionConfig(Function.FunctionConfig.newBuilder().setName("func-2")
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-2")
                         .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(1)).setVersion(version)
                 .build();
         functionMetaDataList.add(function1);
@@ -384,7 +384,7 @@ public class SchedulerManagerTest {
         doReturn(producer).when(pulsarClient).createProducer(any(), any());
 
         Function.FunctionMetaData function2Scaled = Function.FunctionMetaData.newBuilder()
-                .setFunctionConfig(Function.FunctionConfig.newBuilder().setName("func-2")
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-2")
                         .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(3)).setVersion(version)
                 .build();
         functionMetaDataList = new LinkedList<>();
@@ -428,12 +428,12 @@ public class SchedulerManagerTest {
         List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
-                .setFunctionConfig(Function.FunctionConfig.newBuilder().setName("func-1")
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
                         .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(1)).setVersion(version)
                 .build();
 
         Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder()
-                .setFunctionConfig(Function.FunctionConfig.newBuilder().setName("func-2")
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-2")
                         .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(3)).setVersion(version)
                 .build();
         functionMetaDataList.add(function1);
@@ -504,7 +504,7 @@ public class SchedulerManagerTest {
         doReturn(producer).when(pulsarClient).createProducer(any(), any());
 
         Function.FunctionMetaData function2Scaled = Function.FunctionMetaData.newBuilder()
-                .setFunctionConfig(Function.FunctionConfig.newBuilder().setName("func-2")
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-2")
                         .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(1)).setVersion(version)
                 .build();
         functionMetaDataList = new LinkedList<>();
@@ -539,13 +539,13 @@ public class SchedulerManagerTest {
         long version = 5;
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
                 .setPackageLocation(Function.PackageLocationMetaData.newBuilder().setPackagePath("/foo/bar1"))
-                .setFunctionConfig(Function.FunctionConfig.newBuilder().setName("func-1")
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
                         .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(1)).setVersion(version)
                 .build();
 
         Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder()
                 .setPackageLocation(Function.PackageLocationMetaData.newBuilder().setPackagePath("/foo/bar1"))
-                .setFunctionConfig(Function.FunctionConfig.newBuilder().setName("func-2")
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-2")
                         .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(3)).setVersion(version)
                 .build();
         functionMetaDataList.add(function1);
@@ -617,7 +617,7 @@ public class SchedulerManagerTest {
 
         Function.FunctionMetaData function2Updated = Function.FunctionMetaData.newBuilder()
                 .setPackageLocation(Function.PackageLocationMetaData.newBuilder().setPackagePath("/foo/bar2"))
-                .setFunctionConfig(Function.FunctionConfig.newBuilder().setName("func-2")
+                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-2")
                         .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(3)).setVersion(version)
                 .build();
         functionMetaDataList = new LinkedList<>();

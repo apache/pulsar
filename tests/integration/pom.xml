@@ -34,5 +34,7 @@
   <name>Apache Pulsar :: Tests :: Integration</name>
   <modules>
     <module>smoke</module>
+    <module>compaction</module>
+    <module>cli</module>
   </modules>
 </project>

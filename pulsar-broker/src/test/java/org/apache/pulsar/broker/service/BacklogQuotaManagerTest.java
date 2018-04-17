@@ -38,7 +38,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -93,11 +93,14 @@ public class BacklogQuotaManagerTest {
             admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl.toString()).build();;
 
             admin.clusters().createCluster("usc", new ClusterData(adminUrl.toString()));
-            admin.properties().createProperty("prop",
-                    new PropertyAdmin(Sets.newHashSet("appid1"), Sets.newHashSet("usc")));
-            admin.namespaces().createNamespace("prop/usc/ns-quota");
-            admin.namespaces().createNamespace("prop/usc/quotahold");
-            admin.namespaces().createNamespace("prop/usc/quotaholdasync");
+            admin.tenants().createTenant("prop",
+                    new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet("usc")));
+            admin.namespaces().createNamespace("prop/ns-quota");
+            admin.namespaces().setNamespaceReplicationClusters("prop/ns-quota", Sets.newHashSet("usc"));
+            admin.namespaces().createNamespace("prop/quotahold");
+            admin.namespaces().setNamespaceReplicationClusters("prop/quotahold", Sets.newHashSet("usc"));
+            admin.namespaces().createNamespace("prop/quotaholdasync");
+            admin.namespaces().setNamespaceReplicationClusters("prop/quotaholdasync", Sets.newHashSet("usc"));
         } catch (Throwable t) {
             LOG.error("Error setting up broker test", t);
             Assert.fail("Broker test setup failed");
@@ -122,13 +125,13 @@ public class BacklogQuotaManagerTest {
 
     @Test
     public void testConsumerBacklogEviction() throws Exception {
-        assertEquals(admin.namespaces().getBacklogQuotaMap("prop/usc/ns-quota"), Maps.newTreeMap());
-        admin.namespaces().setBacklogQuota("prop/usc/ns-quota",
+        assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"), Maps.newTreeMap());
+        admin.namespaces().setBacklogQuota("prop/ns-quota",
                 new BacklogQuota(10 * 1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction));
         PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
-        final String topic1 = "persistent://prop/usc/ns-quota/topic1";
+        final String topic1 = "persistent://prop/ns-quota/topic1";
         final String subName1 = "c1";
         final String subName2 = "c2";
         final int numMsgs = 20;
@@ -153,12 +156,12 @@ public class BacklogQuotaManagerTest {
 
     @Test
     public void testConsumerBacklogEvictionWithAck() throws Exception {
-        assertEquals(admin.namespaces().getBacklogQuotaMap("prop/usc/ns-quota"), Maps.newTreeMap());
-        admin.namespaces().setBacklogQuota("prop/usc/ns-quota",
+        assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"), Maps.newTreeMap());
+        admin.namespaces().setBacklogQuota("prop/ns-quota",
                 new BacklogQuota(10 * 1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction));
         PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).build();
 
-        final String topic1 = "persistent://prop/usc/ns-quota/topic11";
+        final String topic1 = "persistent://prop/ns-quota/topic11";
         final String subName1 = "c11";
         final String subName2 = "c21";
         final int numMsgs = 20;
@@ -184,11 +187,11 @@ public class BacklogQuotaManagerTest {
 
     @Test
     public void testConcurrentAckAndEviction() throws Exception {
-        assertEquals(admin.namespaces().getBacklogQuotaMap("prop/usc/ns-quota"), Maps.newTreeMap());
-        admin.namespaces().setBacklogQuota("prop/usc/ns-quota",
+        assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"), Maps.newTreeMap());
+        admin.namespaces().setBacklogQuota("prop/ns-quota",
                 new BacklogQuota(10 * 1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction));
 
-        final String topic1 = "persistent://prop/usc/ns-quota/topic12";
+        final String topic1 = "persistent://prop/ns-quota/topic12";
         final String subName1 = "c12";
         final String subName2 = "c22";
         final int numMsgs = 20;
@@ -256,11 +259,11 @@ public class BacklogQuotaManagerTest {
 
     @Test
     public void testNoEviction() throws Exception {
-        assertEquals(admin.namespaces().getBacklogQuotaMap("prop/usc/ns-quota"), Maps.newTreeMap());
-        admin.namespaces().setBacklogQuota("prop/usc/ns-quota",
+        assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"), Maps.newTreeMap());
+        admin.namespaces().setBacklogQuota("prop/ns-quota",
                 new BacklogQuota(10 * 1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction));
 
-        final String topic1 = "persistent://prop/usc/ns-quota/topic13";
+        final String topic1 = "persistent://prop/ns-quota/topic13";
         final String subName1 = "c13";
         final String subName2 = "c23";
         final int numMsgs = 10;
@@ -321,11 +324,11 @@ public class BacklogQuotaManagerTest {
 
     @Test
     public void testEvictionMulti() throws Exception {
-        assertEquals(admin.namespaces().getBacklogQuotaMap("prop/usc/ns-quota"), Maps.newTreeMap());
-        admin.namespaces().setBacklogQuota("prop/usc/ns-quota",
+        assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"), Maps.newTreeMap());
+        admin.namespaces().setBacklogQuota("prop/ns-quota",
                 new BacklogQuota(15 * 1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction));
 
-        final String topic1 = "persistent://prop/usc/ns-quota/topic14";
+        final String topic1 = "persistent://prop/ns-quota/topic14";
         final String subName1 = "c14";
         final String subName2 = "c24";
         final int numMsgs = 10;
@@ -429,12 +432,12 @@ public class BacklogQuotaManagerTest {
 
     @Test
     public void testAheadProducerOnHold() throws Exception {
-        assertEquals(admin.namespaces().getBacklogQuotaMap("prop/usc/quotahold"), Maps.newTreeMap());
-        admin.namespaces().setBacklogQuota("prop/usc/quotahold",
+        assertEquals(admin.namespaces().getBacklogQuotaMap("prop/quotahold"), Maps.newTreeMap());
+        admin.namespaces().setBacklogQuota("prop/quotahold",
                 new BacklogQuota(10 * 1024, BacklogQuota.RetentionPolicy.producer_request_hold));
         final PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString())
                 .statsInterval(0, TimeUnit.SECONDS).build();
-        final String topic1 = "persistent://prop/usc/quotahold/hold";
+        final String topic1 = "persistent://prop/quotahold/hold";
         final String subName1 = "c1hold";
         final int numMsgs = 10;
 
@@ -467,12 +470,12 @@ public class BacklogQuotaManagerTest {
 
     @Test
     public void testAheadProducerOnHoldTimeout() throws Exception {
-        assertEquals(admin.namespaces().getBacklogQuotaMap("prop/usc/quotahold"), Maps.newTreeMap());
-        admin.namespaces().setBacklogQuota("prop/usc/quotahold",
+        assertEquals(admin.namespaces().getBacklogQuotaMap("prop/quotahold"), Maps.newTreeMap());
+        admin.namespaces().setBacklogQuota("prop/quotahold",
                 new BacklogQuota(10 * 1024, BacklogQuota.RetentionPolicy.producer_request_hold));
         final PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString())
                 .statsInterval(0, TimeUnit.SECONDS).build();
-        final String topic1 = "persistent://prop/usc/quotahold/holdtimeout";
+        final String topic1 = "persistent://prop/quotahold/holdtimeout";
         final String subName1 = "c1holdtimeout";
         boolean gotException = false;
 
@@ -501,12 +504,12 @@ public class BacklogQuotaManagerTest {
 
     @Test
     public void testProducerException() throws Exception {
-        assertEquals(admin.namespaces().getBacklogQuotaMap("prop/usc/quotahold"), Maps.newTreeMap());
-        admin.namespaces().setBacklogQuota("prop/usc/quotahold",
+        assertEquals(admin.namespaces().getBacklogQuotaMap("prop/quotahold"), Maps.newTreeMap());
+        admin.namespaces().setBacklogQuota("prop/quotahold",
                 new BacklogQuota(10 * 1024, BacklogQuota.RetentionPolicy.producer_exception));
         final PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString())
                 .statsInterval(0, TimeUnit.SECONDS).build();
-        final String topic1 = "persistent://prop/usc/quotahold/except";
+        final String topic1 = "persistent://prop/quotahold/except";
         final String subName1 = "c1except";
         boolean gotException = false;
 
@@ -537,12 +540,12 @@ public class BacklogQuotaManagerTest {
 
     @Test
     public void testProducerExceptionAndThenUnblock() throws Exception {
-        assertEquals(admin.namespaces().getBacklogQuotaMap("prop/usc/quotahold"), Maps.newTreeMap());
-        admin.namespaces().setBacklogQuota("prop/usc/quotahold",
+        assertEquals(admin.namespaces().getBacklogQuotaMap("prop/quotahold"), Maps.newTreeMap());
+        admin.namespaces().setBacklogQuota("prop/quotahold",
                 new BacklogQuota(10 * 1024, BacklogQuota.RetentionPolicy.producer_exception));
         final PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString())
                 .statsInterval(0, TimeUnit.SECONDS).build();
-        final String topic1 = "persistent://prop/usc/quotahold/exceptandunblock";
+        final String topic1 = "persistent://prop/quotahold/exceptandunblock";
         final String subName1 = "c1except";
         boolean gotException = false;
 
