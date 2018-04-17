@@ -24,14 +24,15 @@ import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.schemas.StringSchema;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.nio.charset.StandardCharsets;
 
+import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
@@ -43,7 +44,7 @@ public class DefaultSchemasTest {
 
     @BeforeClass
     public void setup() throws PulsarClientException {
-        client = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
+        client = mock(PulsarClient.class);
     }
 
     @Test
@@ -58,6 +59,13 @@ public class DefaultSchemasTest {
         ProducerBuilder<String> stringProducerBuilder = client.newProducer(new StringSchema())
                 .topic(TEST_TOPIC);
         assertNotNull(stringProducerBuilder);
+    }
+
+    @Test
+    public void testReaderInstantiation() {
+        ReaderBuilder<String> stringReaderBuilder = client.newReader(new StringSchema())
+                .topic(TEST_TOPIC);
+        assertNotNull(stringReaderBuilder);
     }
 
     @Test
@@ -83,10 +91,5 @@ public class DefaultSchemasTest {
         StringSchema stringSchemaUtf16 = new StringSchema(StandardCharsets.UTF_16);
         assertTrue(stringSchemaUtf16.decode(bytes2).equals(testString));
         assertEquals(stringSchemaUtf16.encode(testString), bytes2);
-    }
-
-    @AfterClass
-    public void tearDown() throws PulsarClientException {
-        client.close();
     }
 }
