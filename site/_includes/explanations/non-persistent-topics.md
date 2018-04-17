@@ -19,7 +19,7 @@
 
 -->
 
-As name suggests, non-persist topic does not persist messages into any durable storage disk unlike persistent topic where messages are durably persisted on multiple disks. 
+As name suggests, non-persistent topics do not persist messages onto any durable storage disk, unlike persistent topics, in which messages are durably persisted on multiple disks.
 
 Therefore, if you are using persistent delivery, messages are persisted to disk/database so that they will survive a broker restart or subscriber failover. While using non-persistent delivery, if you kill a broker or subscriber is disconnected then subscriber will lose all in-transit messages. So, client may see message loss with non-persistent topic.
 
@@ -30,15 +30,11 @@ Therefore, if you are using persistent delivery, messages are persisted to disk/
 
 Non-persistent messaging is usually faster than persistent messaging because broker does not persist messages and immediately sends ack back to producer as soon as that message deliver to all connected subscribers. Therefore, producer sees comparatively low publish latency with non-persistent topic.
 
-
 #### Client API
 
+A topic name will look like this:
 
-A topic name will look like:
-
-```
-non-persistent://my-property/us-west/my-namespace/my-topic
-```
+{% include topic.html type="non-persistent" ten="tenant" n="namespace" t="topic" %}
 
 Producer and consumer can connect to non-persistent topic in a similar way, as persistent topic except topic name must start with `non-persistent`.
 
