@@ -39,16 +39,22 @@ public interface LedgerOffloader {
      * When the returned future completes, the ledger has been persisted to the
      * loadterm storage, so it is safe to delete the original copy in bookkeeper.
      *
-     * The returned futures completes with a opaque byte[] which contains context
-     * information required to identify the ledger in the longterm storage. This
-     * context is stored alongside the ledger info in the managed ledger metadata.
-     * It is passed to #readOffloaded(byte[]) to read back the ledger.
+     * The uid is used to identify an attempt to offload. The implementation should
+     * use this to deterministically generate a unique name for the offloaded object.
+     * This uid will be stored in the managed ledger metadata before attempting the
+     * call to offload(). If a subsequent or concurrent call to offload() finds
+     * a uid in the metadata, it will attempt to cleanup this attempt with a call
+     * to #deleteOffloaded(ReadHandle,UUID). Once the offload attempt completes,
+     * the managed ledger will update its metadata again, to record the completion,
+     * ensuring that subsequent calls will not attempt to offload the same ledger
+     * again.
      *
      * @param ledger the ledger to offload
+     * @param uid unique id to identity this offload attempt
      * @param extraMetadata metadata to be stored with the ledger for informational
      *                      purposes
-     * @return a future, which when completed, returns a context byte[] to identify
-     *         the stored ledger
+     * @return a future, which when completed, denotes that the offload has been
+     *         successful
      */
     CompletableFuture<Void> offload(ReadHandle ledger,
                                     UUID uid,
@@ -58,11 +64,11 @@ public interface LedgerOffloader {
      * Create a ReadHandle which can be used to read a ledger back from longterm
      * storage.
      *
-     * The passed offloadContext should be a byte[] that has previously been received
-     * from a call to #offload(ReadHandle,Map).
+     * The passed uid, will be match the uid of a previous successful call to
+     * #offload(ReadHandle,UUID,Map).
      *
      * @param ledgerId the ID of the ledger to load from longterm storage
-     * @param offloadContext a context that identifies the ledger in longterm storage
+     * @param uid unique ID for previous successful offload attempt
      * @return a future, which when completed, returns a ReadHandle
      */
     CompletableFuture<ReadHandle> readOffloaded(long ledgerId, UUID uid);
@@ -70,11 +76,11 @@ public interface LedgerOffloader {
     /**
      * Delete a ledger from long term storage.
      *
-     * The passed offloadContext should be a byte[] that has previously been received
-     * from a call to #offload(ReadHandle,Map).
+     * The passed uid, will be match the uid of a previous call to
+     * #offload(ReadHandle,UUID,Map), which may or may not have been successful.
      *
      * @param ledgerId the ID of the ledger to delete from longterm storage
-     * @param offloadContext a context that identifies the ledger in longterm storage
+     * @param uid unique ID for previous offload attempt
      * @return a future, which when completed, signifies that the ledger has
      *         been deleted
      */
