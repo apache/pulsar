@@ -53,7 +53,6 @@ import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
-import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.TopicName;
@@ -121,7 +120,7 @@ public class NamespaceService {
     public static final Pattern SLA_NAMESPACE_PATTERN = Pattern.compile(SLA_NAMESPACE_PROPERTY + "/[^/]+/([^:]+:\\d+)");
     public static final String HEARTBEAT_NAMESPACE_FMT = "pulsar/%s/%s:%s";
     public static final String SLA_NAMESPACE_FMT = SLA_NAMESPACE_PROPERTY + "/%s/%s:%s";
-    
+
     public static final String NAMESPACE_ISOLATION_POLICIES = "namespaceIsolationPolicies";
 
     /**
@@ -277,9 +276,9 @@ public class NamespaceService {
         }
     }
 
-    static ConcurrentOpenHashMap<NamespaceBundle, CompletableFuture<Optional<LookupResult>>> findingBundlesAuth
+    static ConcurrentOpenHashMap<NamespaceBundle, CompletableFuture<Optional<LookupResult>>> findingBundlesAuthoritative
         = new ConcurrentOpenHashMap<>();
-    static ConcurrentOpenHashMap<NamespaceBundle, CompletableFuture<Optional<LookupResult>>> findingBundlesNoAuth
+    static ConcurrentOpenHashMap<NamespaceBundle, CompletableFuture<Optional<LookupResult>>> findingBundlesNotAuthoritative
         = new ConcurrentOpenHashMap<>();
 
     /**
@@ -299,9 +298,9 @@ public class NamespaceService {
 
         ConcurrentOpenHashMap<NamespaceBundle, CompletableFuture<Optional<LookupResult>>> targetMap;
         if (authoritative) {
-            targetMap = findingBundlesAuth;
+            targetMap = findingBundlesAuthoritative;
         } else {
-            targetMap = findingBundlesNoAuth;
+            targetMap = findingBundlesNotAuthoritative;
         }
 
         return targetMap.computeIfAbsent(bundle, (k) -> {
