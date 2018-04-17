@@ -485,10 +485,10 @@ commands:
     argument: tenant/cluster/namespace
   - name: permissions
     description: Get the permissions on a topic. Retrieve the effective permissions for a desination. These permissions are defined by the permissions set at the namespace level combined (union) with any eventual specific permissions set on the topic.
-    argument: persistent://tenant/namespace/topic
+    argument: topic
   - name: grant-permission
     description: Grant a new permission to a client role on a single topic
-    argument: persistent://tenant/namespace/topic
+    argument: topic
     options:
     - flags: --actions
       description: Actions to be granted (`produce` or `consume`)
@@ -496,47 +496,47 @@ commands:
       description: The client role to which permissions are to be granted
   - name: revoke-permission
     description: Revoke permissions to a client role on a single topic. If the permission was not set at the topic level, but rather at the namespace level, this operation will return an error (HTTP status code 412).
-    argument: persistent://tenant/namespace/topic
+    argument: topic
   - name: lookup
     description: Look up a topic from the current serving broker
-    argument: persistent://tenant/namespace/topic
+    argument: topic
   - name: bundle-range
     description: Get the namespace bundle which contains the given topic
-    argument: persistent://tenant/namespace/topic
+    argument: topic
   - name: delete
     description: Delete a topic. The topic cannot be deleted if there are any active subscriptions or producers connected to the topic.
-    argument: persistent://tenant/namespace/topic
+    argument: topic
   - name: unload
     description: Unload a topic
-    argument: persistent://tenant/namespace/topic
+    argument: topic
   - name: subscriptions
     description: Get the list of subscriptions on the topic
-    argument: persistent://tenant/namespace/topic
+    argument: topic
   - name: unsubscribe
     description: Delete a durable subscriber from a topic
-    argument: persistent://tenant/namespace/topic
+    argument: topic
     options:
     - flags: -s, --subscription
       description: The subscription to delete
   - name: stats
     description: Get the stats for the topic and its connected producers and consumers. All rates are computed over a 1-minute window and are relative to the last completed 1-minute period.
-    argument: persistent://tenant/namespace/topic
+    argument: topic
   - name: stats-internal
     description: Get the internal stats for the topic
-    argument: persistent://tenant/namespace/topic
+    argument: topic
   - name: info-internal
     description: Get the internal metadata info for the topic
-    argument: persistent://tenant/namespace/topic
+    argument: topic
   - name: partitioned-stats
     description: Get the stats for the partitioned topic and its connected producers and consumers. All rates are computed over a 1-minute window and are relative to the last completed 1-minute period.
-    argument: persistent://tenant/namespace/topic
+    argument: topic
     options:
     - flags: --per-partition
       description: Get per-partition stats
       default: 'false'
   - name: skip
     description: SKip some messages for the subscription
-    argument: persistent://tenant/namespace/topic
+    argument: topic
     options:
     - flags: -n, --count
       description: The number of messages to skip
@@ -545,13 +545,13 @@ commands:
       description: The subscription on which to skip messages
   - name: skip-all
     description: Skip all the messages for the subscription
-    argument: persistent://tenant/namespace/topic
+    argument: topic
     options:
     - flags: -s, --subscription
       description: The subscription to clear
   - name: expire-messages
     description: Expire messages that are older than the given expiry time (in seconds) for the subscription.
-    argument: persistent://tenant/namespace/topic
+    argument: topic
     options:
     - flags: -t, --expireTime
       description: Expire messages older than the time (in seconds)
@@ -560,27 +560,27 @@ commands:
       description: The subscription to skip messages on
   - name: expire-messages-all-subscriptions
     description: Expire messages older than the given expiry time (in seconds) for all subscriptions
-    argument: persistent://tenant/namespace/topic
+    argument: topic
     options:
     - flags: -t, --expireTime
       description: Expire messages older than the time (in seconds)
       default: 0
   - name: create-partitioned-topic
     description: Create a partitioned topic
-    argument: persistent://tenant/namespace/topic
+    argument: topic
     options:
     - flags: -p, --partitions
       description: The number of partitions for the topic
       default: 0
   - name: get-partitioned-topic-metadata
     description: Get the partitioned topic metadata. If the topic is not created or is a non-partitioned topic, this will return an empty topic with zero partitions.
-    argument: persistent://tenant/namespace/topic
+    argument: topic
   - name: delete-partitioned-topic
     description: Delete a partitioned topic. This will also delete all the partitions of the topic if they exist.
-    argument: persistent://tenant/namespace/topic
+    argument: topic
   - name: peek-messages
     description: Peek some messages for the subscription.
-    argument: persistent://tenant/namespace/topic
+    argument: topic
     options:
     - flags: -n, --count
       description: The number of messages
@@ -589,7 +589,7 @@ commands:
       description: Subscription to get messages from
   - name: reset-cursor
     description: Reset position for subscription to closest to timestamp
-    argument: persistent://tenant/namespace/topic
+    argument: topic
     options:
     - flags: -s, --subscription
       description: Subscription to reset position on

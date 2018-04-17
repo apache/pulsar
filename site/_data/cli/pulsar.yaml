@@ -61,7 +61,7 @@ commands:
   description: Run compaction against a Pulsar topic
   example: |
     pulsar compact-topic \
-      --topic persistent://sample/standalone/ns1/topic-to-compact
+      --topic topic-to-compact
   options:
   - flags: -t, --topic
     description: The Pulsar topic that you would like to compact
