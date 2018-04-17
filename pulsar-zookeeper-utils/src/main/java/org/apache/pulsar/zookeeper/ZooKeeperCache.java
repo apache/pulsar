@@ -34,7 +34,6 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -318,8 +317,14 @@ public abstract class ZooKeeperCache implements Watcher {
             CompletableFuture<Entry<Object, Stat>> zkFuture = new CompletableFuture<>();
 
             // Broker doesn't restart on global-zk session lost: so handling unexpected exception
+            ZooKeeper zkc = this.zkSession.get();
+            if (zkc == null) {
+                zkFuture.completeExceptionally(new IllegalStateException("Currently disconnected from zookeeper"));
+                return zkFuture;
+            }
+
             try {
-                this.zkSession.get().getData(path, watcher, (rc, path1, ctx, content, stat) -> {
+                zkc.getData(path, watcher, (rc, path1, ctx, content, stat) -> {
                     if (rc == Code.OK.intValue()) {
                         try {
                             T obj = deserializer.deserialize(path, content);
