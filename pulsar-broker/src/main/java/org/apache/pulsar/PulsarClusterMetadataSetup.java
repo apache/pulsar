@@ -25,6 +25,7 @@ import com.beust.jcommander.Parameter;
 import com.google.common.collect.Lists;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.bookkeeper.client.BookKeeperAdmin;
@@ -150,13 +151,21 @@ public class PulsarClusterMetadataSetup {
             // Ignore
         }
 
-        // Create public tenant
-        TenantInfo publicTenant = new TenantInfo();
+        // Create public tenant, whitelisted to use the this same cluster, along with other clusters
+        String publicTenantPath = POLICIES_ROOT + "/" + TopicName.PUBLIC_TENANT;
+        TenantInfo publicTenant;
+        if (globalZk.exists(publicTenantPath, false) == null) {
+            publicTenant = new TenantInfo(Collections.emptySet(), Collections.singleton(arguments.cluster));
+        } else {
+            byte[] content = globalZk.getData(publicTenantPath, false, null);
+            publicTenant = ObjectMapperFactory.getThreadLocal().readValue(content, TenantInfo.class);
+            publicTenant.getAllowedClusters().add(arguments.cluster);
+        }
         byte[] publicPropertyDataJson = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(publicTenant);
         try {
             ZkUtils.createFullPathOptimistic(
                 globalZk,
-                POLICIES_ROOT + "/" + TopicName.PUBLIC_TENANT,
+                publicTenantPath,
                 publicPropertyDataJson,
                 ZooDefs.Ids.OPEN_ACL_UNSAFE,
                 CreateMode.PERSISTENT);
@@ -165,13 +174,22 @@ public class PulsarClusterMetadataSetup {
         }
 
         // Create default namespace
-        Policies policies = new Policies();
-        policies.bundles = getBundles(4);
+        String defaultNamespacePath = POLICIES_ROOT + "/" + TopicName.PUBLIC_TENANT + "/" + TopicName.DEFAULT_NAMESPACE;
+        Policies policies;
+        if (globalZk.exists(defaultNamespacePath, false) == null) {
+            policies = new Policies();
+            policies.bundles = getBundles(16);
+        } else {
+            byte[] content = globalZk.getData(defaultNamespacePath, false, null);
+            policies = ObjectMapperFactory.getThreadLocal().readValue(content, Policies.class);
+            policies.replication_clusters.add(arguments.cluster);
+        }
+
         byte[] defaultNamespaceDataJson = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(policies);
         try {
             ZkUtils.createFullPathOptimistic(
                 globalZk,
-                POLICIES_ROOT + "/" + TopicName.PUBLIC_TENANT + "/" + TopicName.DEFAULT_NAMESPACE,
+                defaultNamespacePath,
                 defaultNamespaceDataJson,
                 ZooDefs.Ids.OPEN_ACL_UNSAFE,
                 CreateMode.PERSISTENT);
