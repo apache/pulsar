@@ -24,6 +24,7 @@ import static org.testng.Assert.assertNotNull;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
+import org.apache.pulsar.functions.instance.functions.JavaFunction;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.testng.annotations.Test;
 
@@ -49,7 +50,7 @@ public class JavaInstanceTest {
         InstanceConfig config = createInstanceConfig();
         JavaInstance instance = new JavaInstance(
             config,
-            (Function<String, String>) (input, context) -> input + "-lambda",
+            new JavaFunction((Function<String, String>) (input, context) -> input + "-lambda"),
             null, null, new HashMap<>());
         String testString = "ABC123";
         JavaExecutionResult result = instance.handleMessage(MessageId.earliest, "random", testString);

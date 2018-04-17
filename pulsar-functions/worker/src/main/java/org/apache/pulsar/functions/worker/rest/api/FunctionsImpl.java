@@ -177,7 +177,6 @@ public class FunctionsImpl {
         return updateRequest(functionMetaDataBuilder.build(), uploadedInputStream);
     }
 
-
     @DELETE
     @Path("/{tenant}/{namespace}/{functionName}")
     public Response deregisterFunction(final @PathParam("tenant") String tenant,
@@ -615,9 +614,6 @@ public class FunctionsImpl {
             }
             if (functionDetails.getClassName() == null || functionDetails.getClassName().isEmpty()) {
                 missingFields.add("ClassName");
-            }
-            if (functionDetails.getInputsCount() == 0 && functionDetails.getCustomSerdeInputsCount() == 0) {
-                missingFields.add("Input");
             }
             if (!missingFields.isEmpty()) {
                 String errorMessage = StringUtils.join(missingFields, ",");

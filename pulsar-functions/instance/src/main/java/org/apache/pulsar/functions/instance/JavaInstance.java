@@ -24,7 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.functions.api.Function;
+import org.apache.pulsar.functions.instance.functions.IFunction;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 
 import java.util.Map;
@@ -42,10 +42,9 @@ public class JavaInstance implements AutoCloseable {
 
     @Getter(AccessLevel.PACKAGE)
     private final ContextImpl context;
-    private Function function;
-    private java.util.function.Function javaUtilFunction;
+    private IFunction function;
 
-    public JavaInstance(InstanceConfig config, Object userClassObject,
+    public JavaInstance(InstanceConfig config, IFunction function,
                  ClassLoader clsLoader,
                  PulsarClient pulsarClient,
                  Map<String, Consumer> inputConsumers) {
@@ -53,13 +52,11 @@ public class JavaInstance implements AutoCloseable {
         Logger instanceLog = LoggerFactory.getLogger("function-" + config.getFunctionDetails().getName());
 
         this.context = new ContextImpl(config, instanceLog, pulsarClient, clsLoader, inputConsumers);
+        this.function = function;
+    }
 
-        // create the functions
-        if (userClassObject instanceof Function) {
-            this.function = (Function) userClassObject;
-        } else {
-            this.javaUtilFunction = (java.util.function.Function) userClassObject;
-        }
+    public void open() throws Exception {
+        function.open(this.context);
     }
 
     public JavaExecutionResult handleMessage(MessageId messageId, String topicName, Object input) {
@@ -67,11 +64,7 @@ public class JavaInstance implements AutoCloseable {
         JavaExecutionResult executionResult = new JavaExecutionResult();
         try {
             Object output;
-            if (function != null) {
-                output = function.process(input, context);
-            } else {
-                output = javaUtilFunction.apply(input);
-            }
+            output = function.process(input, context);
             executionResult.setResult(output);
         } catch (Exception ex) {
             executionResult.setUserException(ex);
@@ -80,7 +73,8 @@ public class JavaInstance implements AutoCloseable {
     }
 
     @Override
-    public void close() {
+    public void close() throws Exception {
+        function.close();
     }
 
     public InstanceCommunication.MetricsData getAndResetMetrics() {
