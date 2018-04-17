@@ -192,7 +192,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
     @Test
     public void testLookupThrottlingForClientByBrokerInternalRetry() throws Exception {
 
-        final String topicName = "persistent://prop/usw/my-ns/newTopic";
+        final String topicName = "persistent://prop/ns-abc/newTopic";
 
         String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
