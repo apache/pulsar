@@ -101,7 +101,7 @@ As in other pub-sub systems, topics in Pulsar are named channels for transmittin
 
 Topic name component | Description
 :--------------------|:-----------
-`persistent`         | It identifies type of topic. Pulsar supports two kind of topics: persistent and non-persistent. In persistent topic, all messages are durably [persisted](#persistent-storage) on disk (that means on multiple disks unless the {% popover broker %} is {% popover standalone %}), whereas [non-persistent](#non-persistent-topics) topic does not persist message into storage disk.
+`persistent` / `non-persistent` | This identifies the type of topic. Pulsar supports two kind of topics: [persistent](#persistent-storage) and [non-persistent](#non-persistent-topics). In persistent topic, all messages are durably [persisted](#persistent-storage) on disk (that means on multiple disks unless the {% popover broker %} is {% popover standalone %}), whereas [non-persistent](#non-persistent-topics) topic does not persist message into storage disk.
 `tenant`             | The topic's {% popover tenant %} within the instance. Tenants are essential to {% popover multi-tenancy %} in Pulsar and can be spread across clusters.
 `namespace`          | The administrative unit of the topic, which acts as a grouping mechanism for related topics. Most topic configuration is performed at the [namespace](#namespace) level. Each tenant can have multiple namespaces.
 `topic`              | The final part of the name. Topic names are freeform and have no special meaning in a Pulsar instance.
@@ -117,7 +117,7 @@ A namespace is a logical nomenclature within a tenant. A tenant can create multi
 
 A subscription is a named configuration rule that determines how messages are delivered to {% popover consumers %}. There are three available subscription modes in Pulsar: [exclusive](#exclusive), [shared](#shared), and [failover](#failover). These modes are illustrated in the figure below.
 
-![Subscription Modes](/img/pulsar_subscriptions.jpg)
+![Subscription Modes](/img/pulsar-subscription-modes.png)
 
 #### Exclusive
 
@@ -125,7 +125,9 @@ In *exclusive* mode, only a single consumer is allowed to attach to the subscrip
 
 In the diagram above, only **Consumer-A** is allowed to consume messages.
 
-Exclusive mode is the default subscription mode.  
+{% include admonition.html type="info" content="Exclusive mode is the default subscription mode." %}
+
+![Exclusive subscriptions](/img/exclusive-subscriptions.png)
 
 #### Shared
 
@@ -135,6 +137,8 @@ In the diagram above, **Consumer-B-1** and **Consumer-B-2** are able to subscrib
 
 {% include message.html id="shared_mode_limitations" %}
 
+![Shared subscriptions](/img/shared-subscriptions.png)
+
 #### Failover
 
 In *failover* mode, multiple consumers can attach to the same subscription. The consumers will be lexically sorted by the consumer's name and the first consumer will initially be the only one receiving messages. This consumer is called the *master consumer*.
@@ -142,6 +146,8 @@ In *failover* mode, multiple consumers can attach to the same subscription. The 
 When the master consumer disconnects, all (non-acked and subsequent) messages will be delivered to the next consumer in line.
 
 In the diagram above, Consumer-C-1 is the master consumer while Consumer-C-2 would be the next in line to receive messages if Consumer-C-2 disconnected.
+
+![Shared subscriptions](/img/failover-subscriptions.png)
 
 ### Multi-topic subscriptions
 
