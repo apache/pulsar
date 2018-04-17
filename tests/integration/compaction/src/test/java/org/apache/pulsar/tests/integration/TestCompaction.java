@@ -56,21 +56,20 @@ public class TestCompaction extends Arquillian {
                                           "--admin-roles", "admin");
         PulsarClusterUtils.runOnAnyBroker(docker, clusterName,
                 "/pulsar/bin/pulsar-admin", "namespaces",
-                "create", "compaction-test-cli/test/ns1");
+                "create", "compaction-test-cli/ns1");
+        PulsarClusterUtils.runOnAnyBroker(docker, clusterName,
+                "/pulsar/bin/pulsar-admin", "namespaces",
+                "set-clusters", "--clusters", "test", "compaction-test-cli/ns1");
 
         String brokerIp = DockerUtils.getContainerIP(
                 docker, PulsarClusterUtils.proxySet(docker, clusterName).stream().findAny().get());
         String serviceUrl = "pulsar://" + brokerIp + ":6650";
-        String topic = "persistent://compaction-test-cli/test/ns1/topic1";
+        String topic = "persistent://compaction-test-cli/ns1/topic1";
 
         try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build()) {
             client.newConsumer().topic(topic).subscriptionName("sub1").subscribe().close();
 
-            try(Producer<byte[]> producer = client.newProducer()
-                .topic(topic)
-                .enableBatching(false)
-                .messageRoutingMode(MessageRoutingMode.SinglePartition)
-                .create()) {
+            try(Producer<byte[]> producer = client.newProducer().topic(topic).create()) {
                 producer.send(MessageBuilder.create().setKey("key0").setContent("content0".getBytes()).build());
                 producer.send(MessageBuilder.create().setKey("key0").setContent("content1".getBytes()).build());
             }
@@ -98,4 +97,57 @@ public class TestCompaction extends Arquillian {
             }
         }
     }
+
+    @Test
+    public void testPublishCompactAndConsumeRest() throws Exception {
+        PulsarClusterUtils.runOnAnyBroker(docker, clusterName,
+                                          "/pulsar/bin/pulsar-admin", "tenants",
+                                          "create", "compaction-test-rest", "--allowed-clusters", clusterName,
+                                          "--admin-roles", "admin");
+        PulsarClusterUtils.runOnAnyBroker(docker, clusterName,
+                "/pulsar/bin/pulsar-admin", "namespaces",
+                "create", "compaction-test-rest/ns1");
+        PulsarClusterUtils.runOnAnyBroker(docker, clusterName,
+                "/pulsar/bin/pulsar-admin", "namespaces",
+                "set-clusters", "--clusters", "test", "compaction-test-rest/ns1");
+
+        String brokerIp = DockerUtils.getContainerIP(
+                docker, PulsarClusterUtils.proxySet(docker, clusterName).stream().findAny().get());
+        String serviceUrl = "pulsar://" + brokerIp + ":6650";
+        String topic = "persistent://compaction-test-rest/ns1/topic1";
+
+        try (PulsarClient client = PulsarClient.create(serviceUrl)) {
+            client.newConsumer().topic(topic).subscriptionName("sub1").subscribe().close();
+
+            try(Producer<byte[]> producer = client.newProducer().topic(topic).create()) {
+                producer.send(MessageBuilder.create().setKey("key0").setContent("content0".getBytes()).build());
+                producer.send(MessageBuilder.create().setKey("key0").setContent("content1".getBytes()).build());
+            }
+
+            try (Consumer<byte[]> consumer = client.newConsumer().topic(topic)
+                    .readCompacted(true).subscriptionName("sub1").subscribe()) {
+                Message<byte[]> m = consumer.receive();
+                Assert.assertEquals(m.getKey(), "key0");
+                Assert.assertEquals(m.getData(), "content0".getBytes());
+
+                m = consumer.receive();
+                Assert.assertEquals(m.getKey(), "key0");
+                Assert.assertEquals(m.getData(), "content1".getBytes());
+            }
+            PulsarClusterUtils.runOnAnyBroker(docker, clusterName,
+                    "/pulsar/bin/pulsar-admin", "persistent", "compact", topic);
+
+            PulsarClusterUtils.runOnAnyBroker(docker, clusterName,
+                                              "/pulsar/bin/pulsar-admin", "persistent", "compaction-status",
+                                              "-w", topic);
+
+            try (Consumer<byte[]> consumer = client.newConsumer().topic(topic)
+                    .readCompacted(true).subscriptionName("sub1").subscribe()) {
+                Message<byte[]> m = consumer.receive();
+                Assert.assertEquals(m.getKey(), "key0");
+                Assert.assertEquals(m.getData(), "content1".getBytes());
+            }
+        }
+    }
+
 }

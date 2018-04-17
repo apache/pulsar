@@ -30,6 +30,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.compaction.CompactionStatus;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
@@ -78,6 +79,8 @@ public class CmdPersistentTopics extends CmdBase {
         jcommander.addCommand("peek-messages", new PeekMessages());
         jcommander.addCommand("reset-cursor", new ResetCursor());
         jcommander.addCommand("terminate", new Terminate());
+        jcommander.addCommand("compact", new Compact());
+        jcommander.addCommand("compaction-status", new CompactionStatusCmd());
     }
 
     @Parameters(commandDescription = "Get the list of topics under a namespace.")
@@ -536,6 +539,61 @@ public class CmdPersistentTopics extends CmdBase {
                 }
                 ByteBuf data = Unpooled.wrappedBuffer(msg.getData());
                 System.out.println(ByteBufUtil.prettyHexDump(data));
+            }
+        }
+    }
+
+    @Parameters(commandDescription = "Compact a topic")
+    private class Compact extends CliCommand {
+        @Parameter(description = "persistent://property/cluster/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+
+            persistentTopics.triggerCompaction(persistentTopic);
+            System.out.println("Topic compaction requested for " + persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Status of compaction on a topic")
+    private class CompactionStatusCmd extends CliCommand {
+        @Parameter(description = "persistent://property/cluster/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-w", "--wait-complete" },
+                   description = "Wait for compaction to complete", required = false)
+        private boolean wait = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+
+            try {
+                CompactionStatus status = persistentTopics.compactionStatus(persistentTopic);
+                while (wait && status.status == CompactionStatus.Status.RUNNING) {
+                    Thread.sleep(1000);
+                    status = persistentTopics.compactionStatus(persistentTopic);
+                }
+
+                switch (status.status) {
+                case NOT_RUN:
+                    System.out.println("Compaction has not been run for " + persistentTopic
+                                       + " since broker startup");
+                    break;
+                case RUNNING:
+                    System.out.println("Compaction is currently running");
+                    break;
+                case SUCCESS:
+                    System.out.println("Compaction was a success");
+                    break;
+                case ERROR:
+                    System.out.println("Error in compaction");
+                    throw new PulsarAdminException("Error compacting: " + status.lastError);
+                }
+            } catch (InterruptedException e) {
+                throw new PulsarAdminException(e);
             }
         }
     }
