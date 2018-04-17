@@ -74,7 +74,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         }
         Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 5);
         Assert.assertEquals(ledger.getLedgersInfoAsList().stream()
-                            .filter(e -> e.hasOffloadContext()).count(), 0);
+                            .filter(e -> e.getOffloadContext().getComplete()).count(), 0);
         try {
             ledger.offloadPrefix(p);
             Assert.fail("Should have thrown an exception");
@@ -83,7 +83,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         }
         Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 5);
         Assert.assertEquals(ledger.getLedgersInfoAsList().stream()
-                            .filter(e -> e.hasOffloadContext()).count(), 0);
+                            .filter(e -> e.getOffloadContext().getComplete()).count(), 0);
 
         // add more entries to ensure we can update the ledger list
         for (; i < 55; i++) {
@@ -92,7 +92,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         }
         Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 6);
         Assert.assertEquals(ledger.getLedgersInfoAsList().stream()
-                            .filter(e -> e.hasOffloadContext()).count(), 0);
+                            .filter(e -> e.getOffloadContext().getComplete()).count(), 0);
     }
 
     @Test
@@ -116,7 +116,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
 
         Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 3);
         Assert.assertEquals(ledger.getLedgersInfoAsList().stream()
-                            .filter(e -> e.hasOffloadContext())
+                            .filter(e -> e.getOffloadContext().getComplete())
                             .map(e -> e.getLedgerId()).collect(Collectors.toSet()),
                             offloader.offloadedLedgers());
     }
@@ -152,7 +152,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         }
 
         Assert.assertEquals(ledger.getLedgersInfoAsList().stream()
-                            .filter(e -> e.hasOffloadContext()).count(), 0);
+                            .filter(e -> e.getOffloadContext().getComplete()).count(), 0);
         Assert.assertEquals(offloader.offloadedLedgers().size(), 0);
     }
 
@@ -184,9 +184,9 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 3);
         Assert.assertEquals(offloader.offloadedLedgers().size(), 1);
         Assert.assertTrue(offloader.offloadedLedgers().contains(ledger.getLedgersInfoAsList().get(0).getLedgerId()));
-        Assert.assertTrue(ledger.getLedgersInfoAsList().get(0).hasOffloadContext());
+        Assert.assertTrue(ledger.getLedgersInfoAsList().get(0).getOffloadContext().getComplete());
         Assert.assertEquals(ledger.getLedgersInfoAsList().stream()
-                            .filter(e -> e.hasOffloadContext()).count(), 1);
+                            .filter(e -> e.getOffloadContext().getComplete()).count(), 1);
         Assert.assertEquals(firstUnoffloaded.getLedgerId(), ledger.getLedgersInfoAsList().get(1).getLedgerId());
         Assert.assertEquals(firstUnoffloaded.getEntryId(), 0);
 
@@ -196,10 +196,10 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         Assert.assertEquals(offloader.offloadedLedgers().size(), 2);
         Assert.assertTrue(offloader.offloadedLedgers().contains(ledger.getLedgersInfoAsList().get(0).getLedgerId()));
         Assert.assertTrue(offloader.offloadedLedgers().contains(ledger.getLedgersInfoAsList().get(1).getLedgerId()));
-        Assert.assertTrue(ledger.getLedgersInfoAsList().get(0).hasOffloadContext());
-        Assert.assertTrue(ledger.getLedgersInfoAsList().get(1).hasOffloadContext());
+        Assert.assertTrue(ledger.getLedgersInfoAsList().get(0).getOffloadContext().getComplete());
+        Assert.assertTrue(ledger.getLedgersInfoAsList().get(1).getOffloadContext().getComplete());
         Assert.assertEquals(ledger.getLedgersInfoAsList().stream()
-                            .filter(e -> e.hasOffloadContext()).count(), 2);
+                            .filter(e -> e.getOffloadContext().getComplete()).count(), 2);
         Assert.assertEquals(firstUnoffloaded2.getLedgerId(), ledger.getLedgersInfoAsList().get(2).getLedgerId());
     }
 
@@ -209,10 +209,11 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         CompletableFuture<Void> blocker = new CompletableFuture<>();
         MockLedgerOffloader offloader = new MockLedgerOffloader() {
                 @Override
-                public CompletableFuture<byte[]> offload(ReadHandle ledger,
-                                                         Map<String, String> extraMetadata) {
+                public CompletableFuture<Void> offload(ReadHandle ledger,
+                                                       UUID uuid,
+                                                       Map<String, String> extraMetadata) {
                     offloadStarted.countDown();
-                    return blocker.thenCompose((f) -> super.offload(ledger, extraMetadata));
+                    return blocker.thenCompose((f) -> super.offload(ledger, uuid, extraMetadata));
                 }
             };
 
@@ -243,7 +244,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         cursor.markDelete(startOfSecondLedger, new HashMap<>());
         assertEventuallyTrue(() -> ledger.getLedgersInfoAsList().size() == 2);
         Assert.assertEquals(ledger.getLedgersInfoAsList().stream()
-                            .filter(e -> e.hasOffloadContext()).count(), 0);
+                            .filter(e -> e.getOffloadContext().getComplete()).count(), 0);
 
         // complete offloading
         blocker.complete(null);
@@ -251,8 +252,8 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
 
         Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 2);
         Assert.assertEquals(ledger.getLedgersInfoAsList().stream()
-                            .filter(e -> e.hasOffloadContext()).count(), 1);
-        Assert.assertTrue(ledger.getLedgersInfoAsList().get(0).hasOffloadContext());
+                            .filter(e -> e.getOffloadContext().getComplete()).count(), 1);
+        Assert.assertTrue(ledger.getLedgersInfoAsList().get(0).getOffloadContext().getComplete());
         Assert.assertEquals(offloader.offloadedLedgers().size(), 1);
         Assert.assertTrue(offloader.offloadedLedgers().contains(ledger.getLedgersInfoAsList().get(0).getLedgerId()));
     }
@@ -263,17 +264,18 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         CompletableFuture<Long> blocker = new CompletableFuture<>();
         MockLedgerOffloader offloader = new MockLedgerOffloader() {
                 @Override
-                public CompletableFuture<byte[]> offload(ReadHandle ledger,
-                                                         Map<String, String> extraMetadata) {
+                public CompletableFuture<Void> offload(ReadHandle ledger,
+                                                       UUID uuid,
+                                                       Map<String, String> extraMetadata) {
                     offloadStarted.countDown();
                     return blocker.thenCompose(
                             (trimmedLedger) -> {
                                 if (trimmedLedger == ledger.getId()) {
-                                    CompletableFuture<byte[]> future = new CompletableFuture<>();
+                                    CompletableFuture<Void> future = new CompletableFuture<>();
                                     future.completeExceptionally(new BKException.BKNoSuchLedgerExistsException());
                                     return future;
                                 } else {
-                                    return super.offload(ledger, extraMetadata);
+                                    return super.offload(ledger, uuid, extraMetadata);
                                 }
                             });
                 }
@@ -308,7 +310,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         Assert.assertEquals(ledger.getLedgersInfoAsList().stream()
                             .filter(e -> e.getLedgerId() == trimmedLedger).count(), 0);
         Assert.assertEquals(ledger.getLedgersInfoAsList().stream()
-                            .filter(e -> e.hasOffloadContext()).count(), 0);
+                            .filter(e -> e.getOffloadContext().getComplete()).count(), 0);
 
         // complete offloading
         blocker.complete(trimmedLedger);
@@ -316,8 +318,8 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
 
         Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 2);
         Assert.assertEquals(ledger.getLedgersInfoAsList().stream()
-                            .filter(e -> e.hasOffloadContext()).count(), 1);
-        Assert.assertTrue(ledger.getLedgersInfoAsList().get(0).hasOffloadContext());
+                            .filter(e -> e.getOffloadContext().getComplete()).count(), 1);
+        Assert.assertTrue(ledger.getLedgersInfoAsList().get(0).getOffloadContext().getComplete());
         Assert.assertEquals(offloader.offloadedLedgers().size(), 1);
         Assert.assertTrue(offloader.offloadedLedgers().contains(ledger.getLedgersInfoAsList().get(0).getLedgerId()));
     }
@@ -349,7 +351,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
 
         Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 3);
         Assert.assertEquals(ledger.getLedgersInfoAsList().stream()
-                            .filter(e -> e.hasOffloadContext()).count(), 0);
+                            .filter(e -> e.getOffloadContext().getComplete()).count(), 0);
         Assert.assertEquals(offloader.offloadedLedgers().size(), 0);
     }
 
@@ -374,7 +376,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
 
         Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 3);
         Assert.assertEquals(ledger.getLedgersInfoAsList().stream()
-                            .filter(e -> e.hasOffloadContext())
+                            .filter(e -> e.getOffloadContext().getComplete())
                             .map(e -> e.getLedgerId()).collect(Collectors.toSet()),
                             offloader.offloadedLedgers());
 
@@ -382,7 +384,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
 
         Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 3);
         Assert.assertEquals(ledger.getLedgersInfoAsList().stream()
-                            .filter(e -> e.hasOffloadContext())
+                            .filter(e -> e.getOffloadContext().getComplete())
                             .map(e -> e.getLedgerId()).collect(Collectors.toSet()),
                             offloader.offloadedLedgers());
 
@@ -416,12 +418,12 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
 
         Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 4);
         Assert.assertEquals(ledger.getLedgersInfoAsList().stream()
-                            .filter(e -> e.hasOffloadContext())
+                            .filter(e -> e.getOffloadContext().getComplete())
                             .map(e -> e.getLedgerId()).collect(Collectors.toSet()),
                             offloader.offloadedLedgers());
         Assert.assertEquals(ledger.getLedgersInfoAsList().stream()
-                            .filter(e -> e.hasOffloadContext()).count(), 2);
-        Assert.assertFalse(ledger.getLedgersInfoAsList().get(failIndex).hasOffloadContext());
+                            .filter(e -> e.getOffloadContext().getComplete()).count(), 2);
+        Assert.assertFalse(ledger.getLedgersInfoAsList().get(failIndex).getOffloadContext().getComplete());
     }
 
     @Test
@@ -491,12 +493,12 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         }
 
         @Override
-        public CompletableFuture<byte[]> offload(ReadHandle ledger,
-                                                 Map<String, String> extraMetadata) {
-            CompletableFuture<byte[]> promise = new CompletableFuture<>();
-            UUID uuid = UUID.randomUUID();
+        public CompletableFuture<Void> offload(ReadHandle ledger,
+                                               UUID uuid,
+                                               Map<String, String> extraMetadata) {
+            CompletableFuture<Void> promise = new CompletableFuture<>();
             if (offloads.putIfAbsent(ledger.getId(), uuid) == null) {
-                promise.complete(uuid.toString().getBytes());
+                promise.complete(null);
             } else {
                 promise.completeExceptionally(new Exception("Already exists exception"));
             }
@@ -504,16 +506,15 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         }
 
         @Override
-        public CompletableFuture<ReadHandle> readOffloaded(long ledgerId, byte[] offloadContext) {
+        public CompletableFuture<ReadHandle> readOffloaded(long ledgerId, UUID uuid) {
             CompletableFuture<ReadHandle> promise = new CompletableFuture<>();
             promise.completeExceptionally(new UnsupportedOperationException());
             return promise;
         }
 
         @Override
-        public CompletableFuture<Void> deleteOffloaded(long ledgerId, byte[] offloadContext) {
+        public CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uuid) {
             CompletableFuture<Void> promise = new CompletableFuture<>();
-            UUID uuid = UUID.fromString(new String(offloadContext));
             if (offloads.remove(ledgerId, uuid)) {
                 promise.complete(null);
             } else {
@@ -531,16 +532,17 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         }
 
         @Override
-        public CompletableFuture<byte[]> offload(ReadHandle ledger,
-                                                 Map<String, String> extraMetadata) {
+        public CompletableFuture<Void> offload(ReadHandle ledger,
+                                               UUID uuid,
+                                               Map<String, String> extraMetadata) {
             return errorLedgers.thenCompose(
                             (errors) -> {
                                 if (errors.contains(ledger.getId())) {
-                                    CompletableFuture<byte[]> future = new CompletableFuture<>();
+                                    CompletableFuture<Void> future = new CompletableFuture<>();
                                     future.completeExceptionally(new Exception("Some kind of error"));
                                     return future;
                                 } else {
-                                    return super.offload(ledger, extraMetadata);
+                                    return super.offload(ledger, uuid, extraMetadata);
                                 }
                             });
         }
