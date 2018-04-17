@@ -54,7 +54,7 @@ public class AtLeastOnceProcessor extends MessageProcessorBase {
 
     @Override
     public void sendOutputMessage(InputMessage inputMsg, MessageBuilder outputMsgBuilder) {
-        if (null == outputMsgBuilder) {
+        if (null == outputMsgBuilder || null == producer) {
             inputMsg.ack();
             return;
         }

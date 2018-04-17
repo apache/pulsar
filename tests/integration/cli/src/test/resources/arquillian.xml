@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -19,22 +19,14 @@
     under the License.
 
 -->
-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-  <packaging>pom</packaging>
-  <modelVersion>4.0.0</modelVersion>
-  <parent>
-    <groupId>org.apache.pulsar.tests</groupId>
-    <artifactId>tests-parent</artifactId>
-    <version>2.0.0-incubating-SNAPSHOT</version>
-  </parent>
+<arquillian xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xmlns="http://jboss.org/schema/arquillian"
+            xsi:schemaLocation="http://jboss.org/schema/arquillian
+                                http://jboss.org/schema/arquillian/arquillian_1_0.xsd">
 
-  <groupId>org.apache.pulsar.tests</groupId>
-  <artifactId>integration</artifactId>
-  <name>Apache Pulsar :: Tests :: Integration</name>
-  <modules>
-    <module>smoke</module>
-    <module>compaction</module>
-    <module>cli</module>
-  </modules>
-</project>
+  <extension qualifier="docker">
+    <property name="definitionFormat">CUBE</property>
+    <property name="dockerContainersResource">cube-definitions/single-cluster-3-bookie-2-broker.yaml</property>
+  </extension>
+
+</arquillian>

@@ -134,4 +134,16 @@ public class CmdTenants extends CmdBase {
         jcommander.addCommand("delete", new Delete());
     }
 
+    @Parameters(hidden = true)
+    static class CmdProperties extends CmdTenants {
+        public CmdProperties(PulsarAdmin admin) {
+            super(admin);
+        }
+
+        @Override
+        public boolean run(String[] args) {
+            System.err.println("WARN: The properties subcommand is deprecated. Please use tenants instead");
+            return super.run(args);
+        }
+    }
 }
