@@ -41,6 +41,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.apache.commons.lang3.tuple.Pair;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -463,6 +464,81 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         Assert.assertEquals(p, ledger.offloadPrefix(ledger.getLastConfirmedEntry()));
         Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 1);
         Assert.assertEquals(offloader.offloadedLedgers().size(), 0);
+    }
+
+    @Test
+    public void testOffloadConflict() throws Exception {
+        Set<Pair<Long, UUID>> deleted = ConcurrentHashMap.newKeySet();
+        CompletableFuture<Set<Long>> errorLedgers = new CompletableFuture<>();
+        Set<Pair<Long, UUID>> failedOffloads = ConcurrentHashMap.newKeySet();
+
+        MockLedgerOffloader offloader = new MockLedgerOffloader() {
+                @Override
+                public CompletableFuture<Void> offload(ReadHandle ledger,
+                                                       UUID uuid,
+                                                       Map<String, String> extraMetadata) {
+                    return errorLedgers.thenCompose(
+                            (errors) -> {
+                                if (errors.remove(ledger.getId())) {
+                                    failedOffloads.add(Pair.of(ledger.getId(), uuid));
+                                    CompletableFuture<Void> future = new CompletableFuture<>();
+                                    future.completeExceptionally(new Exception("Some kind of error"));
+                                    return future;
+                                } else {
+                                    return super.offload(ledger, uuid, extraMetadata);
+                                }
+                            });
+                }
+
+                @Override
+                public CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uuid) {
+                    deleted.add(Pair.of(ledgerId, uuid));
+                    return super.deleteOffloaded(ledgerId, uuid);
+                }
+            };
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setLedgerOffloader(offloader);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("my_test_ledger", config);
+
+        for (int i = 0; i < 15; i++) {
+            String content = "entry-" + i;
+            ledger.addEntry(content.getBytes());
+        }
+
+        Set<Long> errorSet = ConcurrentHashMap.newKeySet();
+        errorSet.add(ledger.getLedgersInfoAsList().get(0).getLedgerId());
+        errorLedgers.complete(errorSet);
+
+        try {
+            ledger.offloadPrefix(ledger.getLastConfirmedEntry());
+        } catch (ManagedLedgerException e) {
+            // expected
+        }
+        Assert.assertTrue(errorSet.isEmpty());
+        Assert.assertEquals(failedOffloads.size(), 1);
+        Assert.assertEquals(deleted.size(), 0);
+
+        long expectedFailedLedger = ledger.getLedgersInfoAsList().get(0).getLedgerId();
+        UUID expectedFailedUUID = new UUID(ledger.getLedgersInfoAsList().get(0).getOffloadContext().getUidMsb(),
+                                           ledger.getLedgersInfoAsList().get(0).getOffloadContext().getUidLsb());
+        Assert.assertEquals(failedOffloads.stream().findFirst().get(),
+                            Pair.of(expectedFailedLedger, expectedFailedUUID));
+        Assert.assertFalse(ledger.getLedgersInfoAsList().get(0).getOffloadContext().getComplete());
+
+        // try offload again
+        ledger.offloadPrefix(ledger.getLastConfirmedEntry());
+
+        Assert.assertEquals(failedOffloads.size(), 1);
+        Assert.assertEquals(deleted.size(), 1);
+        Assert.assertEquals(deleted.stream().findFirst().get(),
+                            Pair.of(expectedFailedLedger, expectedFailedUUID));
+        UUID successUUID = new UUID(ledger.getLedgersInfoAsList().get(0).getOffloadContext().getUidMsb(),
+                                    ledger.getLedgersInfoAsList().get(0).getOffloadContext().getUidLsb());
+        Assert.assertFalse(successUUID.equals(expectedFailedUUID));
+        Assert.assertTrue(ledger.getLedgersInfoAsList().get(0).getOffloadContext().getComplete());
     }
 
     void assertEventuallyTrue(BooleanSupplier predicate) throws Exception {

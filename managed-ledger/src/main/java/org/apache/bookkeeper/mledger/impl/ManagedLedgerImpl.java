@@ -1895,7 +1895,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             long firstLedgerRetained = current;
             for (LedgerInfo ls : ledgers.headMap(current).values()) {
                 if (requestOffloadTo.getLedgerId() > ls.getLedgerId()) {
-                    if (!ls.hasOffloadContext()) {
+                    if (!ls.getOffloadContext().getComplete()) {
                         ledgersToOffload.add(ls);
                     }
                 } else {
@@ -1907,6 +1907,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         if (ledgersToOffload.isEmpty()) {
+            log.info("[{}] No ledgers to offload", name);
             callback.offloadComplete(firstUnoffloaded, ctx);
             return;
         }
