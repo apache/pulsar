@@ -84,7 +84,30 @@ public class RabbitMQSource implements PushSource<byte[]> {
 
         @Override
         public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
-            consumeFunction.apply(new Message<>(body));
+            consumeFunction.apply(new RabbitMQMessage(body));
+        }
+    }
+
+    private class RabbitMQMessage implements Message<byte[]> {
+        private byte[] data;
+
+        public RabbitMQMessage(byte[] data) {
+            this.data = data;
+        }
+
+        @Override
+        public String getPartitionId() {
+            return null;
+        }
+
+        @Override
+        public Long getSequenceId() {
+            return -1L;
+        }
+
+        @Override
+        public byte[] getData() {
+            return data;
         }
     }
 }

@@ -22,27 +22,22 @@ package org.apache.pulsar.connect.core;
  * Pulsar Connect's Message interface. Message encapsulates the
  * information about a message being read/written from/to a Source/Sink.
  */
-public class Message<T> {
-    // The partition information if any of the message
-    private String partitionId;
-    // The sequence id of the message
-    private Long sequenceId;
-    // The actual data of the message
-    private T data;
+public interface Message<T> {
+    /**
+     * Retrieves the partition information if any of the message
+     * @return The partition id where the
+     */
+    String getPartitionId();
 
-    public Message(String partitionId, Long sequenceId, T data) {
-        this.partitionId = partitionId;
-        this.sequenceId = sequenceId;
-        this.data = data;
-    }
+    /**
+     * Retrieves the sequence id of the message
+     * @return Sequence Id associated with the message
+     */
+    Long getSequenceId();
 
-    public Message(T data) {
-        this.partitionId = "";
-        this.sequenceId = -1L;
-        this.data = data;
-    }
-
-    public String getPartitionId() { return this.partitionId; }
-    public Long getSequenceId() { return this.sequenceId; }
-    public T getData() { return this.data; }
+    /**
+     * Retrieves the actual data of the message
+     * @return The message data
+     */
+    T getData();
 }

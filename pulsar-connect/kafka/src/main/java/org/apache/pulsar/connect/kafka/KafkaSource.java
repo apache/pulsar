@@ -102,7 +102,7 @@ public class KafkaSource<V> implements PushSource<V> {
                 int index = 0;
                 for (ConsumerRecord<String, V> record : records) {
                     LOG.debug("Message received from kafka, key: {}. value: {}", record.key(), record.value());
-                    futures[index] = consumeFunction.apply(new Message<V>(Integer.toString(record.partition()), record.offset(), record.value()));
+                    futures[index] = consumeFunction.apply(new KafkaMesssage(record));
                     index++;
                 }
                 if (!kafkaSourceConfig.isAutoCommitEnabled()) {
@@ -123,5 +123,28 @@ public class KafkaSource<V> implements PushSource<V> {
     @Override
     public void setConsumer(java.util.function.Function<Message<V>, CompletableFuture<Void>> consumeFunction) {
         this.consumeFunction = consumeFunction;
+    }
+
+    private class KafkaMesssage implements Message<V>  {
+        ConsumerRecord<String, V> record;
+
+        public KafkaMesssage(ConsumerRecord<String, V> record) {
+            this.record = record;
+
+        }
+        @Override
+        public String getPartitionId() {
+            return Integer.toString(record.partition());
+        }
+
+        @Override
+        public Long getSequenceId() {
+            return record.offset();
+        }
+
+        @Override
+        public V getData() {
+            return record.value();
+        }
     }
 }

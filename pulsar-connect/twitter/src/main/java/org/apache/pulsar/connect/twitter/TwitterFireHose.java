@@ -127,7 +127,7 @@ public class TwitterFireHose implements PushSource<String> {
                             // We don't really care if the future succeeds or not.
                             // However might be in the future to count failures
                             // TODO:- Figure out the metrics story for connectors
-                            consumeFunction.apply(new Message(line));
+                            consumeFunction.apply(new TwitterMessage(line));
                         } catch (Exception e) {
                             LOG.error("Exception thrown");
                         }
@@ -162,6 +162,29 @@ public class TwitterFireHose implements PushSource<String> {
         LOG.info("Source closed");
         synchronized (waitObject) {
             waitObject.notify();
+        }
+    }
+
+    private class TwitterMessage implements Message<String> {
+        private String tweet;
+
+        public TwitterMessage(String tweet) {
+            this.tweet = tweet;
+        }
+
+        @Override
+        public String getPartitionId() {
+            return null;
+        }
+
+        @Override
+        public Long getSequenceId() {
+            return -1L;
+        }
+
+        @Override
+        public String getData() {
+            return tweet;
         }
     }
 
