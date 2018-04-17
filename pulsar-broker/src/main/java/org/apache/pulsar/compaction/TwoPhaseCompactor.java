@@ -312,10 +312,14 @@ public class TwoPhaseCompactor extends Compactor {
     private static Pair<String,Integer> extractKeyAndSize(RawMessage m) {
         ByteBuf headersAndPayload = m.getHeadersAndPayload();
         MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
-        if (msgMetadata.hasPartitionKey()) {
-            return Pair.of(msgMetadata.getPartitionKey(), headersAndPayload.readableBytes());
-        } else {
-            return null;
+        try {
+            if (msgMetadata.hasPartitionKey()) {
+                return Pair.of(msgMetadata.getPartitionKey(), headersAndPayload.readableBytes());
+            } else {
+                return null;
+            }
+        } finally {
+            msgMetadata.recycle();
         }
     }
 

@@ -153,7 +153,11 @@ public class PersistentSubscription implements Subscription {
             if (!cursor.isDurable()) {
                 // If cursor is not durable, we need to clean up the subscription as well
                 close();
-                topic.removeSubscription(subName);
+                // when topic closes: it iterates through concurrent-subscription map to close each subscription. so,
+                // topic.remove again try to access same map which creates deadlock. so, execute it in different thread.
+                topic.getBrokerService().pulsar().getExecutor().submit(() ->{
+                    topic.removeSubscription(subName);
+                });
             }
         }
 
