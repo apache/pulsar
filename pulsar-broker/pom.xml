@@ -122,7 +122,7 @@
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
-
+    
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-zookeeper-utils</artifactId>
@@ -146,6 +146,34 @@
     </dependency>
 
     <!-- functions related dependencies (end) -->
+    
+    <!-- pulsar replicator (begin) -->
+   
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-replicator-provider</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-replicator-provider-kinesis</artifactId>
+      <version>${project.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-replicator-function</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    
+    <!-- pulsar replicator (end) -->
 
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
@@ -264,6 +292,16 @@
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
+    
+    <!-- pulsar function test -->
+    
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-client-tools</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    
   </dependencies>
 
   <build>

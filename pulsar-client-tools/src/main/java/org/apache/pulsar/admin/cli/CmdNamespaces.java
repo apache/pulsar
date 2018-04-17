@@ -21,6 +21,7 @@ package org.apache.pulsar.admin.cli;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.pulsar.admin.cli.utils.IOUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -28,8 +29,12 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
+import org.apache.pulsar.common.policies.data.Policies.ReplicatorType;
+import org.apache.pulsar.common.policies.data.ReplicatorPolicies;
+import org.apache.pulsar.common.policies.data.ReplicatorPoliciesRequest;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
+import org.inferred.freebuilder.shaded.org.apache.commons.lang3.StringUtils;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
@@ -37,6 +42,8 @@ import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.CommaParameterSplitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 @Parameters(commandDescription = "Operations about namespaces")
 public class CmdNamespaces extends CmdBase {
@@ -500,6 +507,91 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Add replicator policies for external replication")
+    private class AddReplicatorPolicies extends CliCommand {
+        @Parameter(description = "property/cluster/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-r", "--replicator" }, description = "type of replicator to replicate message to targeted system (eg: Kinesis)", required = true)
+        private String replicatorTypeStr;
+        
+        @Parameter(names = { "-rn", "--region-name" }, description = "Region name of the replicator system", required = true)
+        private String regionName;
+        
+        @Parameter(names = { "-p", "--properties" }, description = "Replicator properties. json map (eg: {prop1=val1, prop2=val2} ) ", required = false)
+        private String replicationProperties;
+        
+        @Parameter(names = { "-t", "--topic-map" }, description = "Topic name mapping. json map (eg: {top1=rep-top1, top2=rep=top2} )", required = false)
+        private String topicNameMapping;
+        
+        @Parameter(names = { "-an", "--auth-plugin-name" }, description = "FQ class name of plugin name that manages(stores/fetch) auth-param-data (impl of AuthParamKeyStore)", required = false)
+        private String authPluginName;
+        
+		@Parameter(names = { "-a",
+				"--auth-param-data" }, description = "Auth param data (credential requires to connect to targeted replication system). json map (eg: {accessKey=key1, secrectKey=key2} )", required = false)
+		private String authParamData;
+        
+        @Override
+		void run() throws PulsarAdminException {
+			ReplicatorType replicatorType;
+			ReplicatorPolicies replicatorPolicies = new ReplicatorPolicies();
+			ReplicatorPoliciesRequest replicatorPolicieRequest = new ReplicatorPoliciesRequest();
+			
+			try {
+				replicatorType = ReplicatorType.valueOf(replicatorTypeStr);
+			} catch (IllegalArgumentException e) {
+				throw new ParameterException(String.format("Invalid replicator type '%s'. Valid options are: %s",
+						replicatorTypeStr, Arrays.toString(ReplicatorType.values())));
+			}
+
+			if (StringUtils.isNotBlank(replicationProperties)) {
+				replicatorPolicies.replicationProperties = new Gson().fromJson(replicationProperties, new TypeToken<Map<String, String>>(){}.getType());
+			}
+			
+			if (StringUtils.isNotBlank(topicNameMapping)) {
+				replicatorPolicies.topicNameMapping = new Gson().fromJson(topicNameMapping, new TypeToken<Map<String, String>>(){}.getType());
+			}
+			
+			if (StringUtils.isNotBlank(authParamData)) {
+				replicatorPolicieRequest.authParamData = new Gson().fromJson(authParamData, new TypeToken<Map<String, String>>(){}.getType());
+			}
+			
+			replicatorPolicies.authParamStorePluginName = authPluginName;
+			
+			String namespace = validateNamespace(params);
+			replicatorPolicieRequest.replicatorPolicies = replicatorPolicies;
+			admin.namespaces().addExternalReplicator(namespace, replicatorType, regionName, replicatorPolicieRequest);
+		}
+    }
+
+    @Parameters(commandDescription = "Remove replicator policies for external replication")
+    private class RemoveReplicatorPolicies extends CliCommand {
+        @Parameter(description = "property/cluster/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-r",
+                "--replicator" }, description = "type of replicator to replicate message to targeted system (eg: Kinesis)", required = true)
+        private String replicatorTypeStr;
+        
+        @Parameter(names = { "-rn", "--region-name" }, description = "Region name of the replicator system", required = true)
+        private String regionName;
+
+        @Override
+        void run() throws PulsarAdminException {
+            ReplicatorType replicatorType;
+
+            try {
+                replicatorType = ReplicatorType.valueOf(replicatorTypeStr);
+            } catch (IllegalArgumentException e) {
+                throw new ParameterException(String.format("Invalid replicator type '%s'. Valid options are: %s",
+                        replicatorTypeStr, Arrays.toString(ReplicatorType.values())));
+            }
+
+            String namespace = validateNamespace(params);
+            admin.namespaces().removeExternalReplicator(namespace, replicatorType, regionName);
+        }
+    }
+    
     @Parameters(commandDescription = "Remove a backlog quota policy from a namespace")
     private class RemoveBacklogQuota extends CliCommand {
         @Parameter(description = "property/cluster/namespace", required = true)
@@ -796,6 +888,9 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("set-clusters", new SetReplicationClusters());
         jcommander.addCommand("get-clusters", new GetReplicationClusters());
+        jcommander.addCommand("add-replicator", new AddReplicatorPolicies());
+        jcommander.addCommand("remove-replicator", new RemoveReplicatorPolicies());
+        
 
         jcommander.addCommand("get-backlog-quotas", new GetBacklogQuotaMap());
         jcommander.addCommand("set-backlog-quota", new SetBacklogQuota());

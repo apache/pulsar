@@ -25,6 +25,7 @@ import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.collect.Sets.SetView;
 
@@ -55,6 +56,7 @@ import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.replicator.ReplicatorRegistry;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -70,9 +72,15 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.Policies.ReplicatorType;
+import org.apache.pulsar.common.policies.data.ReplicatorPolicies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.replicator.api.ReplicatorProvider;
+import org.apache.pulsar.replicator.api.kinesis.KinesisReplicatorProvider;
+import org.apache.pulsar.replicator.auth.AuthParamKeyStore;
+import org.apache.pulsar.replicator.auth.AuthParamKeyStoreFactory;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
@@ -413,6 +421,100 @@ public abstract class NamespacesBase extends AdminResource {
         } catch (Exception e) {
             log.error("[{}] Failed to update the replication clusters on namespace {}", clientAppId(), namespaceName,
                     e);
+            throw new RestException(e);
+        }
+    }
+
+	protected void internalAddReplicatorPolicies(ReplicatorType replicatorType,
+            String regionName, ReplicatorPolicies replicatorPolicies, Map<String, String> authParamData) {
+        validateAdminAccessForTenant(namespaceName.getTenant());
+        validatePoliciesReadOnlyAccess();
+
+        if (!namespaceName.isGlobal()) {
+            throw new RestException(Status.PRECONDITION_FAILED, "Cannot set replication on a non-global namespace");
+        }
+
+        storeAuthParamData(namespaceName.toString(), replicatorType, replicatorPolicies, authParamData);
+
+        validateReplicatorPolicies(namespaceName.toString(), replicatorType, replicatorPolicies);
+
+        Entry<Policies, Stat> policiesNode = null;
+
+        try {
+            policiesNode = policiesCache().getWithStat(path(POLICIES, namespaceName.toString())).orElseThrow(
+                    () -> new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist"));
+            if (policiesNode.getKey().replicatorPolicies == null) {
+                policiesNode.getKey().replicatorPolicies = Maps.newHashMap();
+            }
+            if (policiesNode.getKey().replicatorPolicies.get(replicatorType) == null) {
+                policiesNode.getKey().replicatorPolicies.put(replicatorType, Maps.newHashMap());
+            }
+            policiesNode.getKey().replicatorPolicies.get(replicatorType).put(regionName, replicatorPolicies);
+
+            // Write back the new policies into zookeeper
+            globalZk().setData(path(POLICIES, namespaceName.toString()),
+                    jsonMapper().writeValueAsBytes(policiesNode.getKey()), policiesNode.getValue().getVersion());
+            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
+
+            log.info("[{}] Successfully updated {} replicator policies on namespace {}", clientAppId(), replicatorType,
+                    namespaceName);
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to update the replicator policies for namespace {}: does not exist", clientAppId(),
+                    namespaceName);
+            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+        } catch (KeeperException.BadVersionException e) {
+            log.warn(
+                    "[{}] Failed to update the replicator policies on namespace {} expected policy node version={} : concurrent modification",
+                    clientAppId(), namespaceName, policiesNode.getValue().getVersion());
+            throw new RestException(Status.CONFLICT, "Concurrent modification");
+        } catch (Exception e) {
+            log.error("[{}] Failed to update the replicator policies on namespace {}", clientAppId(), namespaceName, e);
+            throw new RestException(e);
+        }
+    }
+
+    protected void internalRemoveReplicatorPolicies(ReplicatorType replicatorType, String regionName) {
+        validateAdminAccessForTenant(namespaceName.getTenant());
+        validatePoliciesReadOnlyAccess();
+
+        if (!namespaceName.isGlobal()) {
+            throw new RestException(Status.PRECONDITION_FAILED, "Cannot set replication on a non-global namespace");
+        }
+
+        Entry<Policies, Stat> policiesNode = null;
+
+        try {
+            policiesNode = policiesCache().getWithStat(path(POLICIES, namespaceName.toString())).orElseThrow(
+                    () -> new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist"));
+            Map<ReplicatorType, Map<String, ReplicatorPolicies>> replicatorPolicies = policiesNode
+                    .getKey().replicatorPolicies;
+            if (replicatorPolicies == null || replicatorPolicies.get(replicatorType) == null
+                    || replicatorPolicies.get(replicatorType).get(regionName) == null) {
+                throw new RestException(Status.NOT_FOUND,
+                        "Replicatory type " + replicatorType + "with region name" + regionName + " does not exist");
+            }
+
+            replicatorPolicies.get(replicatorType).remove(regionName);
+
+            // Write back the new policies into zookeeper
+            globalZk().setData(path(POLICIES, namespaceName.toString()),
+                    jsonMapper().writeValueAsBytes(policiesNode.getKey()), policiesNode.getValue().getVersion());
+            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
+
+            log.info("[{}] Successfully remove {} replicator on namespace {}", clientAppId(), replicatorType,
+                    namespaceName);
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to remove the replicator {} for namespace {}: does not exist", clientAppId(),
+                    replicatorType, namespaceName);
+            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+        } catch (KeeperException.BadVersionException e) {
+            log.warn(
+                    "[{}] Failed to remove the replicator {} on namespace {} expected policy node version={} : concurrent modification",
+                    clientAppId(), replicatorType, namespaceName, policiesNode.getValue().getVersion());
+            throw new RestException(Status.CONFLICT, "Concurrent modification");
+        } catch (Exception e) {
+            log.error("[{}] Failed to remove replicator {} on namespace {}", clientAppId(), replicatorType,
+                    namespaceName, e);
             throw new RestException(e);
         }
     }
@@ -1529,5 +1631,33 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
+    private void validateReplicatorPolicies(String namespace, ReplicatorType replicatorType,
+            ReplicatorPolicies replicatorPolicies) {
+        ReplicatorProvider provider = ReplicatorRegistry.getReplicatorProvider(replicatorType);
+        try {
+            provider.validateProperties(namespace, replicatorPolicies);
+        } catch (IllegalArgumentException e) {
+            throw new RestException(Status.BAD_REQUEST, "Validation failed on kinesis properties " + e.getMessage());
+        }
+    }
+
+    private void storeAuthParamData(String namespace, ReplicatorType replicatorType,
+            ReplicatorPolicies replicatorPolicies, Map<String, String> authParamData) {
+        try {
+            if (replicatorPolicies.replicationProperties == null) {
+                replicatorPolicies.replicationProperties = Maps.newHashMap();
+            }
+            AuthParamKeyStore authParamStore = AuthParamKeyStoreFactory
+                    .create(replicatorPolicies.authParamStorePluginName);
+            authParamStore.storeAuthData(namespace, replicatorPolicies.replicationProperties, authParamData);
+        } catch (IllegalArgumentException e) {
+            throw new RestException(Status.BAD_REQUEST,
+                    "Invalid AuthParamKeyStore " + replicatorPolicies.authParamStorePluginName);
+        } catch (Exception e) {
+            log.error("Failed to store auth-data to authDataStore {}", replicatorPolicies.authParamStorePluginName, e);
+            throw new RestException(e);
+        }
+    }
+	
     private static final Logger log = LoggerFactory.getLogger(NamespacesBase.class);
 }

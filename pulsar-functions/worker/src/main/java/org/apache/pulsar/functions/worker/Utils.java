@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.worker;
 
 import dlshade.org.apache.zookeeper.KeeperException.Code;
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.distributedlog.AppendOnlyStreamWriter;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.DistributedLogManager;
@@ -40,9 +41,7 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
-import java.net.MalformedURLException;
 import java.net.URI;
-import java.net.URL;
 import java.util.UUID;
 
 @Slf4j
@@ -125,9 +124,9 @@ public final class Utils {
         }
     }
 
-    public static void downloadFromBookkeeper(Namespace namespace,
-                                                 OutputStream outputStream,
-                                                 String packagePath) throws Exception {
+    public static void downloadFromBookkeeper(Namespace namespace, OutputStream outputStream, String packagePath)
+            throws Exception {
+
         DistributedLogManager dlm = namespace.openLog(packagePath);
         InputStream in = new DLInputStream(dlm);
         int read = 0;

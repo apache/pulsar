@@ -39,9 +39,11 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
+import org.apache.pulsar.common.policies.data.Policies.ReplicatorType;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
+import org.apache.pulsar.common.policies.data.ReplicatorPoliciesRequest.Action;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -386,6 +388,12 @@ public class PulsarAdminToolTest {
 
         namespaces.run(split("set-max-consumers-per-subscription myprop/clust/ns1 -c 3"));
         verify(mockNamespaces).setMaxConsumersPerSubscription("myprop/clust/ns1", 3);
+        
+        namespaces.run(split("add-replicator myprop/clust/ns1 --replicator Kinesis --region-name us-east"));
+        verify(mockNamespaces).addExternalReplicator("myprop/clust/ns1", ReplicatorType.Kinesis, "us-east", null);
+
+        namespaces.run(split("remove-replicator myprop/clust/ns1 --replicator Kinesis --region-name us-east"));
+        verify(mockNamespaces).removeExternalReplicator("myprop/clust/ns1", ReplicatorType.Kinesis, "us-east");
     }
 
     @Test
@@ -505,6 +513,19 @@ public class PulsarAdminToolTest {
 
         topics.run(split("peek-messages persistent://myprop/clust/ns1/ds1 -s sub1 -n 3"));
         verify(mockTopics).peekMessages("persistent://myprop/clust/ns1/ds1", "sub1", 3);
+
+        topics.run(split(
+                "register-replicator persistent://myprop/clust/ns1/ds1 --replicator Kinesis --region-name us-east"));
+        verify(mockTopics).registerReplicator("persistent://myprop/clust/ns1/ds1", ReplicatorType.Kinesis, "us-east");
+
+        topics.run(split(
+                "update-replicator persistent://myprop/clust/ns1/ds1 --replicator Kinesis --region-name us-east --action Start"));
+        verify(mockTopics).updateReplicator("persistent://myprop/clust/ns1/ds1", ReplicatorType.Kinesis, "us-east",
+                Action.Start);
+
+        topics.run(split(
+                "deregister-replicator persistent://myprop/clust/ns1/ds1 --replicator Kinesis --region-name us-east"));
+        verify(mockTopics).deregisterReplicator("persistent://myprop/clust/ns1/ds1", ReplicatorType.Kinesis, "us-east");
 
         // argument matcher for the timestamp in reset cursor. Since we can't verify exact timestamp, we check for a
         // range of +/- 1 second of the expected timestamp

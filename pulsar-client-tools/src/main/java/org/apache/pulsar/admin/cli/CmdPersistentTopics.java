@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -30,10 +31,14 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.policies.data.Policies.ReplicatorType;
+import org.apache.pulsar.common.policies.data.ReplicatorPoliciesRequest.Action;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.CommaParameterSplitter;
+
 import static com.google.common.base.Preconditions.checkArgument;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -78,6 +83,9 @@ public class CmdPersistentTopics extends CmdBase {
         jcommander.addCommand("peek-messages", new PeekMessages());
         jcommander.addCommand("reset-cursor", new ResetCursor());
         jcommander.addCommand("terminate", new Terminate());
+        jcommander.addCommand("register-replicator", new RegisterReplicator());
+        jcommander.addCommand("update-replicator", new UpdateReplicator());
+        jcommander.addCommand("deregister-replicator", new DeregisterReplicator());
     }
 
     @Parameters(commandDescription = "Get the list of topics under a namespace.")
@@ -495,10 +503,101 @@ public class CmdPersistentTopics extends CmdBase {
 
             try {
                 MessageId lastMessageId = persistentTopics.terminateTopicAsync(persistentTopic).get();
-                System.out.println("Topic succesfully terminated at " + lastMessageId);
             } catch (InterruptedException | ExecutionException e) {
                 throw new PulsarAdminException(e);
             }
+        }
+    }
+
+    @Parameters(commandDescription = "Register a replicator for a topic")
+    private class RegisterReplicator extends CliCommand {
+        @Parameter(description = "persistent://property/cluster/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-r",
+                "--replicator" }, description = "type of replicator to replicate messages to targeted system (eg: Kinesis)", required = true)
+        private String replicatorTypeStr;
+        
+        @Parameter(names = { "-rn", "--region-name" }, description = "Region name of the replicator system", required = true)
+        private String regionName;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            ReplicatorType replicatorType;
+            try {
+                replicatorType = ReplicatorType.valueOf(replicatorTypeStr);
+            } catch (IllegalArgumentException e) {
+                throw new ParameterException(String.format("Invalid replicator type '%s'. Valid options are: %s",
+                        replicatorTypeStr, Arrays.toString(ReplicatorType.values())));
+            }
+
+            persistentTopics.registerReplicator(persistentTopic, replicatorType, regionName);
+        }
+    }
+
+    @Parameters(commandDescription = "Update a replicator state: Start/Stop/Restart")
+    private class UpdateReplicator extends CliCommand {
+        @Parameter(description = "persistent://property/cluster/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-r",
+                "--replicator" }, description = "type of replicator to replicate messages to targeted system (eg: Kinesis)", required = true)
+        private String replicatorTypeStr;
+        
+        @Parameter(names = { "-rn", "--region-name" }, description = "Region name of the replicator system", required = true)
+        private String regionName;
+        
+        @Parameter(names = { "-a",
+                "--action" }, description = "Action to change state of replicator (Start/Stop/Restart)", required = true)
+        private String actionStr;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            ReplicatorType replicatorType;
+            Action action;
+            try {
+                replicatorType = ReplicatorType.valueOf(replicatorTypeStr);
+            } catch (IllegalArgumentException e) {
+                throw new ParameterException(String.format("Invalid replicator type '%s'. Valid options are: %s",
+                        replicatorTypeStr, Arrays.toString(ReplicatorType.values())));
+            }
+            try {
+                action = Action.valueOf(actionStr);
+            } catch (IllegalArgumentException e) {
+                throw new ParameterException(String.format("Invalid action type '%s'. Valid options are: %s",
+                        replicatorTypeStr, Arrays.toString(Action.values())));
+            }
+
+            persistentTopics.updateReplicator(persistentTopic, replicatorType, regionName, action);
+        }
+    }
+
+    @Parameters(commandDescription = "Deregister a replicator for a topic")
+    private class DeregisterReplicator extends CliCommand {
+        @Parameter(description = "persistent://property/cluster/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-r",
+                "--replicator" }, description = "type of replicator to replicate messages to targeted system (eg: Kinesis)", required = true)
+        private String replicatorTypeStr;
+        
+        @Parameter(names = { "-rn", "--region-name" }, description = "Region name of the replicator system", required = true)
+        private String regionName;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            ReplicatorType replicatorType;
+            try {
+                replicatorType = ReplicatorType.valueOf(replicatorTypeStr);
+            } catch (IllegalArgumentException e) {
+                throw new ParameterException(String.format("Invalid replicator type '%s'. Valid options are: %s",
+                        replicatorTypeStr, Arrays.toString(ReplicatorType.values())));
+            }
+
+            persistentTopics.deregisterReplicator(persistentTopic, replicatorType, regionName);
         }
     }
 
