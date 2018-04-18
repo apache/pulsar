@@ -694,17 +694,38 @@ public class BrokerServiceTest extends BrokerTestBase {
      */
     @Test
     public void testLookupThrottlingForClientByClient() throws Exception {
-        final String topicName = "persistent://prop/my-ns/newTopic";
+        final String topicName = "persistent://prop/ns-abc/newTopic";
 
         String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
-                .maxConcurrentLookupRequests(0).build();
+                .maxConcurrentLookupRequests(1).maxLookupRequests(2).build();
 
+        // 2 lookup will success.
         try {
-            pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub").subscribe();
-            fail("It should fail as throttling should not receive any request");
-        } catch (org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException e) {
-            // ok as throttling set to 0
+            CompletableFuture<Consumer<byte[]>> consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub1").subscribeAsync();
+            CompletableFuture<Consumer<byte[]>> consumer2 = pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub2").subscribeAsync();
+
+            consumer1.get().close();
+            consumer2.get().close();
+        } catch (Exception e) {
+            fail("Subscribe should success with 2 requests");
+        }
+
+        // 3 lookup will fail
+        try {
+            CompletableFuture<Consumer<byte[]>> consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub11").subscribeAsync();
+            CompletableFuture<Consumer<byte[]>> consumer2 = pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub22").subscribeAsync();
+            CompletableFuture<Consumer<byte[]>> consumer3 = pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub33").subscribeAsync();
+
+            consumer1.get().close();
+            consumer2.get().close();
+            consumer3.get().close();
+            fail("It should fail as throttling should only receive 2 requests");
+        } catch (Exception e) {
+            if (!(e.getCause() instanceof
+                org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException)) {
+                fail("Subscribe should fail with TooManyRequestsException");
+            }
         }
     }
 

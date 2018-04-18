@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.client.impl.HttpClient.getPulsarClientVersion;
 
+import com.google.common.collect.Queues;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
@@ -33,11 +34,14 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.channels.ClosedChannelException;
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import javax.net.ssl.SSLSession;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.http.conn.ssl.DefaultHostnameVerifier;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -76,6 +80,8 @@ public class ClientCnx extends PulsarHandler {
         new ConcurrentLongHashMap<>(16, 1);
     private final ConcurrentLongHashMap<CompletableFuture<LookupDataResult>> pendingLookupRequests =
         new ConcurrentLongHashMap<>(16, 1);
+    // LookupRequests that waiting in client side.
+    private final BlockingQueue<Pair<Long, Pair<ByteBuf, CompletableFuture<LookupDataResult>>>> waitingLookupRequests;
     private final ConcurrentLongHashMap<CompletableFuture<MessageIdData>> pendingGetLastMessageIdRequests =
         new ConcurrentLongHashMap<>(16, 1);
     private final ConcurrentLongHashMap<CompletableFuture<List<String>>> pendingGetTopicsRequests =
@@ -108,7 +114,10 @@ public class ClientCnx extends PulsarHandler {
 
     public ClientCnx(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) {
         super(conf.getKeepAliveIntervalSeconds(), TimeUnit.SECONDS);
+        checkArgument(conf.getMaxLookupRequest() > conf.getConcurrentLookupRequest());
         this.pendingLookupRequestSemaphore = new Semaphore(conf.getConcurrentLookupRequest(), true);
+        this.waitingLookupRequests = Queues
+            .newArrayBlockingQueue((conf.getMaxLookupRequest() - conf.getConcurrentLookupRequest()));
         this.authentication = conf.getAuthentication();
         this.eventLoopGroup = eventLoopGroup;
         this.maxNumberOfRejectedRequestPerConnection = conf.getMaxNumberOfRejectedRequestPerConnection();
@@ -163,12 +172,22 @@ public class ClientCnx extends PulsarHandler {
         // Fail out all the pending ops
         pendingRequests.forEach((key, future) -> future.completeExceptionally(e));
         pendingLookupRequests.forEach((key, future) -> future.completeExceptionally(e));
+        waitingLookupRequests.forEach(pair -> pair.getRight().getRight().completeExceptionally(e));
         pendingGetLastMessageIdRequests.forEach((key, future) -> future.completeExceptionally(e));
         pendingGetTopicsRequests.forEach((key, future) -> future.completeExceptionally(e));
 
         // Notify all attached producers/consumers so they have a chance to reconnect
         producers.forEach((id, producer) -> producer.connectionClosed(this));
         consumers.forEach((id, consumer) -> consumer.connectionClosed(this));
+
+        pendingRequests.clear();
+        pendingLookupRequests.clear();
+        waitingLookupRequests.clear();
+        pendingGetLastMessageIdRequests.clear();
+        pendingGetTopicsRequests.clear();
+
+        producers.clear();
+        consumers.clear();
     }
 
     // Command Handlers
@@ -399,24 +418,39 @@ public class ClientCnx extends PulsarHandler {
         }
     }
 
-    private boolean addPendingLookupRequests(long requestId, CompletableFuture<LookupDataResult> future) {
-        if (pendingLookupRequestSemaphore.tryAcquire()) {
-            pendingLookupRequests.put(requestId, future);
-            eventLoopGroup.schedule(() -> {
-                if (!future.isDone()) {
-                    future.completeExceptionally(new TimeoutException(
-                            requestId + " lookup request timedout after ms " + operationTimeoutMs));
-                }
-            }, operationTimeoutMs, TimeUnit.MILLISECONDS);
-            return true;
-        }
-        return false;
+    // caller of this method needs to be protected under pendingLookupRequestSemaphore
+    private void addPendingLookupRequests(long requestId, CompletableFuture<LookupDataResult> future) {
+        pendingLookupRequests.put(requestId, future);
+        eventLoopGroup.schedule(() -> {
+            if (!future.isDone()) {
+                future.completeExceptionally(new TimeoutException(
+                    requestId + " lookup request timedout after ms " + operationTimeoutMs));
+            }
+        }, operationTimeoutMs, TimeUnit.MILLISECONDS);
     }
 
     private CompletableFuture<LookupDataResult> getAndRemovePendingLookupRequest(long requestId) {
         CompletableFuture<LookupDataResult> result = pendingLookupRequests.remove(requestId);
         if (result != null) {
-            pendingLookupRequestSemaphore.release();
+            Pair<Long, Pair<ByteBuf, CompletableFuture<LookupDataResult>>> firstOneWaiting = waitingLookupRequests.poll();
+            if (firstOneWaiting != null) {
+                // schedule a new lookup in.
+                eventLoopGroup.submit(() -> {
+                    long newId = firstOneWaiting.getLeft();
+                    CompletableFuture<LookupDataResult> newFuture = firstOneWaiting.getRight().getRight();
+                    addPendingLookupRequests(newId, newFuture);
+                    ctx.writeAndFlush(firstOneWaiting.getRight().getLeft()).addListener(writeFuture -> {
+                        if (!writeFuture.isSuccess()) {
+                            log.warn("{} Failed to send request {} to broker: {}", ctx.channel(), newId,
+                                writeFuture.cause().getMessage());
+                            getAndRemovePendingLookupRequest(newId);
+                            newFuture.completeExceptionally(writeFuture.cause());
+                        }
+                    });
+                });
+            } else {
+                pendingLookupRequestSemaphore.release();
+            }
         }
         return result;
     }
@@ -495,11 +529,12 @@ public class ClientCnx extends PulsarHandler {
     public CompletableFuture<LookupDataResult> newLookup(ByteBuf request, long requestId) {
         CompletableFuture<LookupDataResult> future = new CompletableFuture<>();
 
-        if (addPendingLookupRequests(requestId, future)) {
+        if (pendingLookupRequestSemaphore.tryAcquire()) {
+            addPendingLookupRequests(requestId, future);
             ctx.writeAndFlush(request).addListener(writeFuture -> {
                 if (!writeFuture.isSuccess()) {
                     log.warn("{} Failed to send request {} to broker: {}", ctx.channel(), requestId,
-                            writeFuture.cause().getMessage());
+                        writeFuture.cause().getMessage());
                     getAndRemovePendingLookupRequest(requestId);
                     future.completeExceptionally(writeFuture.cause());
                 }
@@ -508,8 +543,15 @@ public class ClientCnx extends PulsarHandler {
             if (log.isDebugEnabled()) {
                 log.debug("{} Failed to add lookup-request into pending queue", requestId);
             }
-            future.completeExceptionally(new PulsarClientException.TooManyRequestsException(
-                    "Failed due to too many pending lookup requests"));
+            if (!waitingLookupRequests.offer(Pair.of(requestId, Pair.of(request, future)))) {
+                if (log.isDebugEnabled()) {
+                    log.debug("{} Failed to add lookup-request into waiting queue", requestId);
+                }
+                future.completeExceptionally(new PulsarClientException.TooManyRequestsException(String.format(
+                    "Requests number out of config: There are {%s} lookup requests outstanding and {%s} requests pending.",
+                    pendingLookupRequests.size(),
+                    waitingLookupRequests.size())));
+            }
         }
         return future;
     }
