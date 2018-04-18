@@ -47,8 +47,11 @@ public class RawBatchConverter {
     public static boolean isBatch(RawMessage msg) {
         ByteBuf payload = msg.getHeadersAndPayload();
         MessageMetadata metadata = Commands.parseMessageMetadata(payload);
-        int batchSize = metadata.getNumMessagesInBatch();
-        return batchSize > 1;
+        try {
+            return metadata.hasNumMessagesInBatch();
+        } finally {
+            metadata.recycle();
+        }
     }
 
     public static List<ImmutablePair<MessageId,String>> extractIdsAndKeys(RawMessage msg)
