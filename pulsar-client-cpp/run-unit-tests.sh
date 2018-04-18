@@ -34,16 +34,26 @@ PULSAR_STANDALONE_CONF=$PWD/test-conf/standalone-ssl.conf pulsar-dist/bin/pulsar
               --zookeeper-dir data2/standalone/zookeeper --bookkeeper-dir \
               data2/standalone/bookkeeper > broker-tls.log &
 auth_pid=$!;
-sleep 10
+
+echo "Wait for non-tls standalone up"
+until grep "Created tenant public" broker.log; do sleep 5; done
 
 # create property for test
 PULSAR_CLIENT_CONF=$PWD/test-conf/client.conf pulsar-dist/bin/pulsar-admin tenants create prop -r "" -c "unit"
+echo "Created tenant 'prop' - $?"
+
 PULSAR_CLIENT_CONF=$PWD/test-conf/client.conf pulsar-dist/bin/pulsar-admin tenants create property -r "" -c "cluster"
+echo "Created tenant 'property' - $?"
 
 PULSAR_CLIENT_CONF=$PWD/test-conf/client-ssl.conf pulsar-dist/bin/pulsar-admin clusters create \
         --url http://localhost:9765/ --url-secure https://localhost:9766/ \
         --broker-url pulsar://localhost:9885/ --broker-url-secure pulsar+ssl://localhost:9886/ \
         cluster
+PULSAR_CLIENT_CONF=$PWD/test-conf/client-ssl.conf pulsar-dist/bin/pulsar-admin clusters create \
+        --url http://localhost:9765/ --url-secure https://localhost:9766/ \
+        --broker-url pulsar://localhost:9885/ --broker-url-secure pulsar+ssl://localhost:9886/ \
+        unit
+
 sleep 5
 
 cd tests
