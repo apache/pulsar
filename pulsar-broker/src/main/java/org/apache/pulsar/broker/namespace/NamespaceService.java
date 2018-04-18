@@ -69,6 +69,7 @@ import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 import org.apache.zookeeper.AsyncCallback.StatCallback;
 import org.apache.zookeeper.KeeperException;
@@ -119,7 +120,7 @@ public class NamespaceService {
     public static final Pattern SLA_NAMESPACE_PATTERN = Pattern.compile(SLA_NAMESPACE_PROPERTY + "/[^/]+/([^:]+:\\d+)");
     public static final String HEARTBEAT_NAMESPACE_FMT = "pulsar/%s/%s:%s";
     public static final String SLA_NAMESPACE_FMT = SLA_NAMESPACE_PROPERTY + "/%s/%s:%s";
-    
+
     public static final String NAMESPACE_ISOLATION_POLICIES = "namespaceIsolationPolicies";
 
     /**
@@ -275,6 +276,11 @@ public class NamespaceService {
         }
     }
 
+    static ConcurrentOpenHashMap<NamespaceBundle, CompletableFuture<Optional<LookupResult>>> findingBundlesAuthoritative
+        = new ConcurrentOpenHashMap<>();
+    static ConcurrentOpenHashMap<NamespaceBundle, CompletableFuture<Optional<LookupResult>>> findingBundlesNotAuthoritative
+        = new ConcurrentOpenHashMap<>();
+
     /**
      * Main internal method to lookup and setup ownership of service unit to a broker
      *
@@ -290,38 +296,51 @@ public class NamespaceService {
             LOG.debug("findBrokerServiceUrl: {} - read-only: {}", bundle, readOnly);
         }
 
-        CompletableFuture<Optional<LookupResult>> future = new CompletableFuture<>();
+        ConcurrentOpenHashMap<NamespaceBundle, CompletableFuture<Optional<LookupResult>>> targetMap;
+        if (authoritative) {
+            targetMap = findingBundlesAuthoritative;
+        } else {
+            targetMap = findingBundlesNotAuthoritative;
+        }
 
-        // First check if we or someone else already owns the bundle
-        ownershipCache.getOwnerAsync(bundle).thenAccept(nsData -> {
-            if (!nsData.isPresent()) {
-                // No one owns this bundle
+        return targetMap.computeIfAbsent(bundle, (k) -> {
+            CompletableFuture<Optional<LookupResult>> future = new CompletableFuture<>();
 
-                if (readOnly) {
-                    // Do not attempt to acquire ownership
-                    future.complete(Optional.empty());
-                } else {
-                    // Now, no one owns the namespace yet. Hence, we will try to dynamically assign it
-                    pulsar.getExecutor().execute(() -> {
-                        searchForCandidateBroker(bundle, future, authoritative);
-                    });
-                }
-            } else if (nsData.get().isDisabled()) {
-                future.completeExceptionally(
+            // First check if we or someone else already owns the bundle
+            ownershipCache.getOwnerAsync(bundle).thenAccept(nsData -> {
+                if (!nsData.isPresent()) {
+                    // No one owns this bundle
+
+                    if (readOnly) {
+                        // Do not attempt to acquire ownership
+                        future.complete(Optional.empty());
+                    } else {
+                        // Now, no one owns the namespace yet. Hence, we will try to dynamically assign it
+                        pulsar.getExecutor().execute(() -> {
+                            searchForCandidateBroker(bundle, future, authoritative);
+                        });
+                    }
+                } else if (nsData.get().isDisabled()) {
+                    future.completeExceptionally(
                         new IllegalStateException(String.format("Namespace bundle %s is being unloaded", bundle)));
-            } else {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Namespace bundle {} already owned by {} ", bundle, nsData);
+                } else {
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug("Namespace bundle {} already owned by {} ", bundle, nsData);
+                    }
+                    future.complete(Optional.of(new LookupResult(nsData.get())));
                 }
-                future.complete(Optional.of(new LookupResult(nsData.get())));
-            }
-        }).exceptionally(exception -> {
-            LOG.warn("Failed to check owner for bundle {}: {}", bundle, exception.getMessage(), exception);
-            future.completeExceptionally(exception);
-            return null;
-        });
+            }).exceptionally(exception -> {
+                LOG.warn("Failed to check owner for bundle {}: {}", bundle, exception.getMessage(), exception);
+                future.completeExceptionally(exception);
+                return null;
+            });
 
-        return future;
+            future.whenComplete((r, t) -> pulsar.getExecutor().execute(
+                () -> targetMap.remove(bundle)
+            ));
+
+            return future;
+        });
     }
 
     private void searchForCandidateBroker(NamespaceBundle bundle,

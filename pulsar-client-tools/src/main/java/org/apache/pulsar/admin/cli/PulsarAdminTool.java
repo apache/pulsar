@@ -72,6 +72,7 @@ public class PulsarAdminTool {
         commandMap.put("brokers", CmdBrokers.class);
         commandMap.put("broker-stats", CmdBrokerStats.class);
         commandMap.put("tenants", CmdTenants.class);
+        commandMap.put("properties", CmdTenants.CmdProperties.class); // deprecated, doesn't show in usage()
         commandMap.put("namespaces", CmdNamespaces.class);
         commandMap.put("persistent", CmdPersistentTopics.class);
         commandMap.put("non-persistent", CmdNonPersistentTopics.class);
@@ -132,7 +133,7 @@ public class PulsarAdminTool {
         if (help) {
             setupCommands(adminFactory);
             jcommander.usage();
-            return false;
+            return true;
         }
 
         if (cmdPos == args.length) {
