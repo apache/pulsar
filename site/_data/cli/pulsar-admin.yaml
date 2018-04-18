@@ -480,6 +480,16 @@ commands:
 - name: persistent
   description: Operations on persistent topics
   subcommands:
+  - name: compact
+    description: Run compaction on the specified topic
+    argument: persistent://tenant/namespace/topic
+  - name: compaction-status
+    description: Check the status of a topic compaction
+    argument: persistent://tenant/namespace/topic
+    options:
+    - flags: -w, --wait-complete
+      description: Wait for compaction to complete
+      default: 'false'
   - name: list
     description: Get the list of topics under a namespace
     argument: tenant/cluster/namespace
