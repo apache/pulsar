@@ -63,6 +63,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -147,11 +148,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     private final EventLoopGroup acceptorGroup;
     private final EventLoopGroup workerGroup;
-    private final OrderedScheduler topicOrderedExecutor;
+    private final OrderedExecutor topicOrderedExecutor;
     // offline topic backlog cache
     private final ConcurrentOpenHashMap<TopicName, PersistentOfflineTopicStats> offlineTopicStatCache;
     private static final ConcurrentOpenHashMap<String, ConfigField> dynamicConfigurationMap = prepareDynamicConfigurationMap();
-    private final ConcurrentOpenHashMap<String, Consumer> configRegisteredListeners;
+    private final ConcurrentOpenHashMap<String, Consumer<?>> configRegisteredListeners;
 
     private final ConcurrentLinkedQueue<Pair<String, CompletableFuture<Topic>>> pendingTopicLoadingQueue;
 
@@ -203,7 +204,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
         this.topicOrderedExecutor = OrderedScheduler.newSchedulerBuilder()
                 .numThreads(pulsar.getConfiguration().getNumWorkerThreadsForNonPersistentTopic())
-                .name("broker-np-topic-workers").build();
+                .name("broker-topic-workers").build();
         final DefaultThreadFactory acceptorThreadFactory = new DefaultThreadFactory("pulsar-acceptor");
         final DefaultThreadFactory workersThreadFactory = new DefaultThreadFactory("pulsar-io");
         final int numThreads = Runtime.getRuntime().availableProcessors() * 2;
@@ -1368,7 +1369,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     }
 
-    public OrderedScheduler getTopicOrderedExecutor() {
+    public OrderedExecutor getTopicOrderedExecutor() {
         return topicOrderedExecutor;
     }
 

@@ -83,7 +83,7 @@ public class PerformanceProducer {
         @Parameter(names = { "--conf-file" }, description = "Configuration file")
         public String confFile;
 
-        @Parameter(description = "persistent://prop/cluster/ns/my-topic", required = true)
+        @Parameter(description = "persistent://prop/ns/my-topic", required = true)
         public List<String> topics;
 
         @Parameter(names = { "-r", "--rate" }, description = "Publish rate msg/s across topics")

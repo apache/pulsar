@@ -75,6 +75,26 @@ public class PulsarClusterUtils {
         return false;
     }
 
+    public static boolean waitZooKeeperUp(DockerClient docker, String cluster, int timeout, TimeUnit timeoutUnit)
+            throws Exception {
+        Optional<String> zookeeper = zookeeperSet(docker, cluster).stream().findAny();
+        if (zookeeper.isPresent()) {
+            long timeoutMillis = timeoutUnit.toMillis(timeout);
+            long pollMillis = 1000;
+            while (timeoutMillis > 0) {
+                if (zookeeperRunning(docker, zookeeper.get())) {
+                    return true;
+                }
+                Thread.sleep(pollMillis);
+                timeoutMillis -= pollMillis;
+            }
+            return false;
+        } else {
+            LOG.warn("No zookeeper containers found");
+            return false;
+        }
+    }
+
     public static boolean runOnAnyBroker(DockerClient docker, String cluster, String... cmds) throws Exception {
         Optional<String> broker = DockerUtils.cubeIdsWithLabels(
                 docker,ImmutableMap.of("service", "pulsar-broker", "cluster", cluster)).stream().findAny();
@@ -166,13 +186,13 @@ public class PulsarClusterUtils {
 
     public static boolean waitAllBrokersUp(DockerClient docker, String cluster) {
         return brokerSet(docker, cluster).stream()
-            .map((b) -> waitBrokerUp(docker, b, 10, TimeUnit.SECONDS))
+            .map((b) -> waitBrokerUp(docker, b, 60, TimeUnit.SECONDS))
             .reduce(true, (accum, res) -> accum && res);
     }
 
     public static boolean waitAllBrokersDown(DockerClient docker, String cluster) {
         return brokerSet(docker, cluster).stream()
-            .map((b) -> waitBrokerDown(docker, b, 10, TimeUnit.SECONDS))
+            .map((b) -> waitBrokerDown(docker, b, 60, TimeUnit.SECONDS))
             .reduce(true, (accum, res) -> accum && res);
     }
 
@@ -243,7 +263,7 @@ public class PulsarClusterUtils {
 
     public static boolean waitAllProxiesUp(DockerClient docker, String cluster) {
         return proxySet(docker, cluster).stream()
-            .map((b) -> waitProxyUp(docker, b, 10, TimeUnit.SECONDS))
+            .map((b) -> waitProxyUp(docker, b, 60, TimeUnit.SECONDS))
             .reduce(true, (accum, res) -> accum && res);
     }
 
@@ -264,6 +284,11 @@ public class PulsarClusterUtils {
 
     public static Set<String> proxySet(DockerClient docker, String cluster) {
         return DockerUtils.cubeIdsWithLabels(docker, ImmutableMap.of("service", "pulsar-proxy",
+                                                                     "cluster", cluster));
+    }
+
+    public static Set<String> zookeeperSet(DockerClient docker, String cluster) {
+        return DockerUtils.cubeIdsWithLabels(docker, ImmutableMap.of("service", "zookeeper",
                                                                      "cluster", cluster));
     }
 }

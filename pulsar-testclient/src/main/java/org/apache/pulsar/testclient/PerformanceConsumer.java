@@ -71,7 +71,7 @@ public class PerformanceConsumer {
         @Parameter(names = { "--conf-file" }, description = "Configuration file")
         public String confFile;
 
-        @Parameter(description = "persistent://prop/cluster/ns/my-topic", required = true)
+        @Parameter(description = "persistent://prop/ns/my-topic", required = true)
         public List<String> topic;
 
         @Parameter(names = { "-t", "--num-topics" }, description = "Number of topics")

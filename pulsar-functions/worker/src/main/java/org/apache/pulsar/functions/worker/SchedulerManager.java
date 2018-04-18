@@ -192,7 +192,7 @@ public class SchedulerManager implements AutoCloseable {
 
     public static List<Function.Instance> computeInstances(FunctionMetaData functionMetaData) {
         List<Function.Instance> functionInstances = new LinkedList<>();
-        int instances = functionMetaData.getFunctionConfig().getParallelism();
+        int instances = functionMetaData.getFunctionDetails().getParallelism();
         for (int i = 0; i < instances; i++) {
             functionInstances.add(Function.Instance.newBuilder()
                     .setFunctionMetaData(functionMetaData)

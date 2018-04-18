@@ -29,7 +29,7 @@ public class SampleConsumer {
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("http://localhost:8080").build();
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer() //
-                .topic("persistent://my-property/use/my-ns/my-topic") //
+                .topic("persistent://my-tenant/my-ns/my-topic") //
                 .subscriptionName("my-subscription-name").subscribe();
 
         Message<byte[]> msg = null;

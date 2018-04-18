@@ -225,16 +225,6 @@ public class PulsarBrokerStarter {
 
             pulsarService.start();
             log.info("PulsarService started.");
-
-            // after broker is started, start the functions worker
-            if (null != functionsWorkerService) {
-                try {
-                    functionsWorkerService.start();
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    throw ie;
-                }
-            }
         }
 
         public void join() throws InterruptedException {

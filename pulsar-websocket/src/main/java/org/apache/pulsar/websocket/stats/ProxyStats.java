@@ -32,6 +32,9 @@ import org.apache.pulsar.websocket.WebSocketService;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * It periodically generates stats metrics of proxy service,
  *
@@ -41,7 +44,6 @@ public class ProxyStats {
     private final WebSocketService service;
     private final JvmMetrics jvmMetrics;
     private ConcurrentOpenHashMap<String, ProxyNamespaceStats> topicStats;
-    private List<Metrics> tempMetricsCollection;
     private List<Metrics> metricsCollection;
 
     public ProxyStats(WebSocketService service) {
@@ -49,7 +51,6 @@ public class ProxyStats {
         this.service = service;
         this.jvmMetrics = new JvmMetrics(service);
         this.topicStats = new ConcurrentOpenHashMap<>();
-        this.tempMetricsCollection = Lists.newArrayList();
         this.metricsCollection = Lists.newArrayList();
         // schedule stat generation task every 1 minute
         service.getExecutor().scheduleAtFixedRate(() -> generate(), 120, 60, TimeUnit.SECONDS);
@@ -59,25 +60,32 @@ public class ProxyStats {
      * generates stats-metrics of proxy service and updates metricsCollection cache with latest stats.
      */
     public synchronized void generate() {
+        if (log.isDebugEnabled()) {
+            log.debug("Start generating proxy metrics");
+        }
 
         topicStats.clear();
 
         service.getProducers().forEach((topic, handlers) -> {
+            if (log.isDebugEnabled()) {
+                log.debug("Collect stats from {} producer handlers for topic {}", handlers.size(), topic);
+            }
+
             final String namespaceName = TopicName.get(topic).getNamespace();
             ProxyNamespaceStats nsStat = topicStats.computeIfAbsent(namespaceName, ns -> new ProxyNamespaceStats());
             handlers.forEach(handler -> {
                 nsStat.numberOfMsgPublished += handler.getAndResetNumMsgsSent();
                 nsStat.numberOfBytesPublished += handler.getAndResetNumBytesSent();
                 nsStat.numberOfPublishFailure += handler.getAndResetNumMsgsFailed();
-                if (nsStat.publishMsgLatency == null) {
-                    nsStat.publishMsgLatency = new StatsBuckets(ENTRY_LATENCY_BUCKETS_USEC);
-                }
                 handler.getPublishLatencyStatsUSec().refresh();
                 nsStat.publishMsgLatency.addAll(handler.getPublishLatencyStatsUSec());
-                System.out.println(nsStat.publishMsgLatency);
             });
         });
         service.getConsumers().forEach((topic, handlers) -> {
+            if (log.isDebugEnabled()) {
+                log.debug("Collect stats from {} consumer handlers for topic {}", handlers.size(), topic);
+            }
+
             final String namespaceName = TopicName.get(topic).getNamespace();
             ProxyNamespaceStats nsStat = topicStats.computeIfAbsent(namespaceName, ns -> new ProxyNamespaceStats());
             handlers.forEach(handler -> {
@@ -87,16 +95,28 @@ public class ProxyStats {
             });
         });
 
-        tempMetricsCollection.clear();
+        List<Metrics> tempMetricsCollection = Lists.newArrayList();
         topicStats.forEach((namespace, stats) -> {
+            if (log.isDebugEnabled()) {
+                log.debug("Add ns-stats of namespace {} to metrics", namespace);
+            }
             tempMetricsCollection.add(stats.add(namespace));
         });
+
         // add jvm-metrics
+        if (log.isDebugEnabled()) {
+            log.debug("Add jvm-stats to metrics");
+        }
         tempMetricsCollection.add(jvmMetrics.generate());
+
         // swap tempmetrics to stat-metrics
         List<Metrics> tempRef = metricsCollection;
         metricsCollection = tempMetricsCollection;
         tempRef.clear();
+
+        if (log.isDebugEnabled()) {
+            log.debug("Complete generating proxy metrics");
+        }
     }
 
     public synchronized List<Metrics> getMetrics() {
@@ -113,6 +133,10 @@ public class ProxyStats {
         public long numberOfMsgDelivered;
         public long numberOfBytesDelivered;
         public long numberOfMsgsAcked;
+
+        public ProxyNamespaceStats() {
+            this.publishMsgLatency = new StatsBuckets(ENTRY_LATENCY_BUCKETS_USEC);
+        }
 
         public Metrics add(String namespace) {
 
@@ -136,5 +160,7 @@ public class ProxyStats {
             return dMetrics;
         }
     }
+
+    private static final Logger log = LoggerFactory.getLogger(ProxyStats.class);
 
 }

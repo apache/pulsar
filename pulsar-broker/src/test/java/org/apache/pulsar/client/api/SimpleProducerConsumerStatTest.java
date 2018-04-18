@@ -130,10 +130,13 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer = consumerBuilder.subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
-                .topic("persistent://my-property/tp1/my-ns/my-topic2");
+                .topic("persistent://my-property/tp1/my-ns/my-topic2")
+                .messageRoutingMode(MessageRoutingMode.SinglePartition);
         if (batchMessageDelayMs != 0) {
             producerBuilder.enableBatching(true).batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
                     .batchingMaxMessages(5);
+        } else {
+            producerBuilder.enableBatching(false);
         }
 
         Producer<byte[]> producer = producerBuilder.create();
@@ -185,10 +188,13 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer = consumerBuilder.subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
-                .topic("persistent://my-property/tp1/my-ns/my-topic2");
+                .topic("persistent://my-property/tp1/my-ns/my-topic2")
+                .messageRoutingMode(MessageRoutingMode.SinglePartition);
         if (batchMessageDelayMs != 0) {
             producerBuilder.enableBatching(true).batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
                     .batchingMaxMessages(5);
+        } else {
+            producerBuilder.enableBatching(false);
         }
 
         Producer<byte[]> producer = producerBuilder.create();
