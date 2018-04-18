@@ -42,7 +42,9 @@ class HttpLookupService implements LookupService {
 
     private final HttpClient httpClient;
     private final boolean useTls;
-    private static final String BasePath = "lookup/v2/destination/";
+
+    private static final String BasePathV1 = "lookup/v2/destination/";
+    private static final String BasePathV2 = "lookup/v2/topic/";
 
     public HttpLookupService(ClientConfigurationData conf, EventLoopGroup eventLoopGroup)
             throws PulsarClientException {
@@ -59,7 +61,9 @@ class HttpLookupService implements LookupService {
      */
     @SuppressWarnings("deprecation")
     public CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> getBroker(TopicName topicName) {
-        return httpClient.get(BasePath + topicName.getLookupName(), LookupData.class).thenCompose(lookupData -> {
+        String basePath = topicName.isV2() ? BasePathV2 : BasePathV1;
+
+        return httpClient.get(basePath + topicName.getLookupName(), LookupData.class).thenCompose(lookupData -> {
             // Convert LookupData into as SocketAddress, handling exceptions
         	URI uri = null;
             try {
@@ -84,8 +88,8 @@ class HttpLookupService implements LookupService {
     }
 
     public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName) {
-    	return httpClient.get(String.format("admin/%s/partitions", topicName.getLookupName()),
-                PartitionedTopicMetadata.class);
+        String format = topicName.isV2() ? "admin/v2/%s/partitions" : "admin/%s/partitions";
+        return httpClient.get(String.format(format, topicName.getLookupName()), PartitionedTopicMetadata.class);
     }
 
     public String getServiceUrl() {
@@ -95,8 +99,10 @@ class HttpLookupService implements LookupService {
     @Override
     public CompletableFuture<List<String>> getTopicsUnderNamespace(NamespaceName namespace) {
         CompletableFuture<List<String>> future = new CompletableFuture<>();
+
+        String format = namespace.isV2() ? "admin/v2/namespaces/%s/destinations" : "admin/namespaces/%s/destinations";
         httpClient
-            .get(String.format("admin/namespaces/%s/destinations", namespace), String[].class)
+            .get(String.format(format, namespace), String[].class)
             .thenAccept(topics -> {
                 List<String> result = Lists.newArrayList();
                 // do not keep partition part of topic name

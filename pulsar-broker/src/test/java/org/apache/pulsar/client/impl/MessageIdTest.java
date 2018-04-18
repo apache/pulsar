@@ -46,6 +46,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.ProducerImpl.OpSendMsg;
@@ -89,7 +90,10 @@ public class MessageIdTest extends BrokerTestBase {
         final int numberOfMessages = 30;
 
         // 2. Create Producer
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
 
         // 3. Create Consumer
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
@@ -181,7 +185,10 @@ public class MessageIdTest extends BrokerTestBase {
         admin.persistentTopics().createPartitionedTopic(topicName, numberOfPartitions);
 
         // 2. Create Producer
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
 
         // 3. Create Consumer
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
@@ -230,7 +237,10 @@ public class MessageIdTest extends BrokerTestBase {
         admin.persistentTopics().createPartitionedTopic(topicName, numberOfPartitions);
 
         // 2. Create Producer
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
 
         // 3. Create Consumer
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
@@ -279,7 +289,10 @@ public class MessageIdTest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/ns-abc/topic1";
 
         // 1. producer connect
-        ProducerImpl<byte[]> prod = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName).create();
+        ProducerImpl<byte[]> prod = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
         ProducerImpl<byte[]> producer = spy(prod);
         // return higher version compare to broker : so, it forces client-producer to remove checksum from payload
         doReturn(producer.brokerChecksumSupportedVersion() + 1).when(producer).brokerChecksumSupportedVersion();
@@ -344,7 +357,10 @@ public class MessageIdTest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/ns-abc/topic1";
 
         // 1. producer connect
-        ProducerImpl<byte[]> prod = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName).create();
+        ProducerImpl<byte[]> prod = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
         ProducerImpl<byte[]> producer = spy(prod);
         // mock: broker-doesn't support checksum (remote_version < brokerChecksumSupportedVersion) so, it forces
         // client-producer to perform checksum-strip from msg at reconnection
@@ -420,8 +436,12 @@ public class MessageIdTest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/ns-abc/retry-topic";
 
         // 1. producer connect
-        ProducerImpl<byte[]> prod = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName)
-                .sendTimeout(10, TimeUnit.MINUTES).create();
+        ProducerImpl<byte[]> prod = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+            .topic(topicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .sendTimeout(10, TimeUnit.MINUTES)
+            .create();
         ProducerImpl<byte[]> producer = spy(prod);
         Field producerIdField = ProducerImpl.class.getDeclaredField("producerId");
         producerIdField.setAccessible(true);

@@ -27,6 +27,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
+import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 
 import com.beust.jcommander.Parameter;
@@ -79,6 +80,39 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
             Map<String, NamespaceIsolationData> policyMap = admin.clusters().getNamespaceIsolationPolicies(clusterName);
 
             print(policyMap);
+        }
+    }
+
+    @Parameters(commandDescription = "List all brokers with namespace-isolation policies attached to it. This operation requires Pulsar super-user privileges")
+    private class GetAllBrokersWithPolicies extends CliCommand {
+        @Parameter(description = "cluster-name\n", required = true)
+        private List<String> params;
+
+        void run() throws PulsarAdminException {
+            String clusterName = getOneArgument(params);
+
+            List<BrokerNamespaceIsolationData> brokers = admin.clusters()
+                    .getBrokersWithNamespaceIsolationPolicy(clusterName);
+
+            print(brokers);
+        }
+    }
+
+    @Parameters(commandDescription = "Get broker with namespace-isolation policies attached to it. This operation requires Pulsar super-user privileges")
+    private class GetBrokerWithPolicies extends CliCommand {
+        @Parameter(description = "cluster-name\n", required = true)
+        private List<String> params;
+
+        @Parameter(names = "--broker", description = "Broker-name to get namespace-isolation policies attached to it", required = true)
+        private String broker;
+
+        void run() throws PulsarAdminException {
+            String clusterName = getOneArgument(params);
+
+            BrokerNamespaceIsolationData brokerData = admin.clusters()
+                    .getBrokerWithNamespaceIsolationPolicy(clusterName, broker);
+
+            print(brokerData);
         }
     }
 
@@ -195,6 +229,8 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
         jcommander.addCommand("get", new GetPolicy());
         jcommander.addCommand("list", new GetAllPolicies());
         jcommander.addCommand("delete", new DeletePolicy());
+        jcommander.addCommand("brokers", new GetAllBrokersWithPolicies());
+        jcommander.addCommand("broker", new GetBrokerWithPolicies());
     }
 
 }

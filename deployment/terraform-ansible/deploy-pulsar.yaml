@@ -154,7 +154,7 @@
   tasks:
     - name: Create default property and namespace
       shell: |
-        bin/pulsar-admin properties create public \
+        bin/pulsar-admin tenants create public \
           --allowed-clusters local \
           --admin-roles all
         bin/pulsar-admin namespaces create public/local/default

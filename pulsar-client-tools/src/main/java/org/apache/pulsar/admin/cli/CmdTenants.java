@@ -20,38 +20,38 @@ package org.apache.pulsar.admin.cli;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.CommaParameterSplitter;
 import com.google.common.collect.Sets;
 
-@Parameters(commandDescription = "Operations about properties")
-public class CmdProperties extends CmdBase {
-    @Parameters(commandDescription = "List the existing properties")
+@Parameters(commandDescription = "Operations about tenants")
+public class CmdTenants extends CmdBase {
+    @Parameters(commandDescription = "List the existing tenants")
     private class List extends CliCommand {
         @Override
         void run() throws PulsarAdminException {
-            print(admin.properties().getProperties());
+            print(admin.tenants().getTenants());
         }
     }
 
-    @Parameters(commandDescription = "Gets the configuration of a property")
+    @Parameters(commandDescription = "Gets the configuration of a tenant")
     private class Get extends CliCommand {
-        @Parameter(description = "property-name", required = true)
+        @Parameter(description = "tenant-name", required = true)
         private java.util.List<String> params;
 
         @Override
         void run() throws PulsarAdminException {
-            String property = getOneArgument(params);
-            print(admin.properties().getPropertyAdmin(property));
+            String tenant = getOneArgument(params);
+            print(admin.tenants().getTenantInfo(tenant));
         }
     }
 
-    @Parameters(commandDescription = "Creates a new property")
+    @Parameters(commandDescription = "Creates a new tenant")
     private class Create extends CliCommand {
-        @Parameter(description = "property-name", required = true)
+        @Parameter(description = "tenant-name", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = { "--admin-roles",
@@ -64,15 +64,15 @@ public class CmdProperties extends CmdBase {
 
         @Override
         void run() throws PulsarAdminException {
-            String property = getOneArgument(params);
-            PropertyAdmin propertyAdmin = new PropertyAdmin(Sets.newHashSet(adminRoles), Sets.newHashSet(allowedClusters));
-            admin.properties().createProperty(property, propertyAdmin);
+            String tenant = getOneArgument(params);
+            TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet(adminRoles), Sets.newHashSet(allowedClusters));
+            admin.tenants().createTenant(tenant, tenantInfo);
         }
     }
 
-    @Parameters(commandDescription = "Updates a property")
+    @Parameters(commandDescription = "Updates a tenant")
     private class Update extends CliCommand {
-        @Parameter(description = "property-name", required = true)
+        @Parameter(description = "tenant-name", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = { "--admin-roles",
@@ -85,26 +85,26 @@ public class CmdProperties extends CmdBase {
 
         @Override
         void run() throws PulsarAdminException {
-            String property = getOneArgument(params);
-            PropertyAdmin propertyAdmin = new PropertyAdmin(Sets.newHashSet(adminRoles), Sets.newHashSet(allowedClusters));
-            admin.properties().updateProperty(property, propertyAdmin);
+            String tenant = getOneArgument(params);
+            TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet(adminRoles), Sets.newHashSet(allowedClusters));
+            admin.tenants().updateTenant(tenant, tenantInfo);
         }
     }
 
-    @Parameters(commandDescription = "Deletes an existing property")
+    @Parameters(commandDescription = "Deletes an existing tenant")
     private class Delete extends CliCommand {
-        @Parameter(description = "property-name", required = true)
+        @Parameter(description = "tenant-name", required = true)
         private java.util.List<String> params;
 
         @Override
         void run() throws PulsarAdminException {
-            String property = getOneArgument(params);
-            admin.properties().deleteProperty(property);
+            String tenant = getOneArgument(params);
+            admin.tenants().deleteTenant(tenant);
         }
     }
 
-    public CmdProperties(PulsarAdmin admin) {
-        super("properties", admin);
+    public CmdTenants(PulsarAdmin admin) {
+        super("tenants", admin);
         jcommander.addCommand("list", new List());
         jcommander.addCommand("get", new Get());
         jcommander.addCommand("create", new Create());
@@ -112,4 +112,16 @@ public class CmdProperties extends CmdBase {
         jcommander.addCommand("delete", new Delete());
     }
 
+    @Parameters(hidden = true)
+    static class CmdProperties extends CmdTenants {
+        public CmdProperties(PulsarAdmin admin) {
+            super(admin);
+        }
+
+        @Override
+        public boolean run(String[] args) {
+            System.err.println("WARN: The properties subcommand is deprecated. Please use tenants instead");
+            return super.run(args);
+        }
+    }
 }

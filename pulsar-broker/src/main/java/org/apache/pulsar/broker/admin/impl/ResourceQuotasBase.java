@@ -60,7 +60,7 @@ public abstract class ResourceQuotasBase extends NamespacesBase {
 
         if (!namespaceName.isGlobal()) {
             validateClusterOwnership(namespaceName.getCluster());
-            validateClusterForProperty(namespaceName.getProperty(), namespaceName.getCluster());
+            validateClusterForTenant(namespaceName.getTenant(), namespaceName.getCluster());
         }
 
         NamespaceBundle nsBundle = validateNamespaceBundleRange(namespaceName, policies.bundles, bundleRange);
@@ -82,7 +82,7 @@ public abstract class ResourceQuotasBase extends NamespacesBase {
 
         if (!namespaceName.isGlobal()) {
             validateClusterOwnership(namespaceName.getCluster());
-            validateClusterForProperty(namespaceName.getProperty(), namespaceName.getCluster());
+            validateClusterForTenant(namespaceName.getTenant(), namespaceName.getCluster());
         }
 
         NamespaceBundle nsBundle = validateNamespaceBundleRange(namespaceName, policies.bundles, bundleRange);
@@ -111,7 +111,7 @@ public abstract class ResourceQuotasBase extends NamespacesBase {
 
         if (!namespaceName.isGlobal()) {
             validateClusterOwnership(namespaceName.getCluster());
-            validateClusterForProperty(namespaceName.getProperty(), namespaceName.getCluster());
+            validateClusterForTenant(namespaceName.getTenant(), namespaceName.getCluster());
         }
 
         NamespaceBundle nsBundle = validateNamespaceBundleRange(namespaceName, policies.bundles, bundleRange);

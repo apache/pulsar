@@ -351,6 +351,11 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         return this.availableActiveBrokers;
     }
 
+    @Override
+    public Set<String> getAvailableBrokers() throws Exception {
+        return this.availableActiveBrokers.get();
+    }
+    
     public ZooKeeperDataCache<LoadReport> getLoadReportCache() {
         return this.loadReportCacheZk;
     }
