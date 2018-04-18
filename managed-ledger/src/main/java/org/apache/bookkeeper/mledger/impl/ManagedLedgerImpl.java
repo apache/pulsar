@@ -1358,23 +1358,32 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 mbean.startDataLedgerOpenOp();
 
                 CompletableFuture<ReadHandle> promise = new CompletableFuture<>();
-                bookKeeper.newOpenLedgerOp()
-                    .withRecovery(true)
-                    .withLedgerId(ledgerId)
-                    .withDigestType(config.getDigestType())
-                    .withPassword(config.getPassword()).execute()
-                    .whenCompleteAsync((res,ex) -> {
-                            mbean.endDataLedgerOpenOp();
-                            if (ex != null) {
-                                ledgerCache.remove(ledgerId, promise);
-                                promise.completeExceptionally(createManagedLedgerException(ex));
-                            } else {
-                                if (log.isDebugEnabled()) {
-                                    log.debug("[{}] Successfully opened ledger {} for reading", name, ledgerId);
-                                }
-                                promise.complete(res);
+
+                LedgerInfo info = ledgers.get(ledgerId);
+                CompletableFuture<ReadHandle> openFuture = new CompletableFuture<>();
+                if (info.getOffloadContext().getComplete()) {
+                    UUID uid = new UUID(info.getOffloadContext().getUidMsb(),
+                                        info.getOffloadContext().getUidLsb());
+                    openFuture = config.getLedgerOffloader().readOffloaded(ledgerId, uid);
+                } else {
+                    openFuture = bookKeeper.newOpenLedgerOp()
+                        .withRecovery(true)
+                        .withLedgerId(ledgerId)
+                        .withDigestType(config.getDigestType())
+                        .withPassword(config.getPassword()).execute();
+                }
+                openFuture.whenCompleteAsync((res,ex) -> {
+                        mbean.endDataLedgerOpenOp();
+                        if (ex != null) {
+                            ledgerCache.remove(ledgerId, promise);
+                            promise.completeExceptionally(createManagedLedgerException(ex));
+                        } else {
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] Successfully opened ledger {} for reading", name, ledgerId);
                             }
-                        }, executor.chooseThread(name));
+                            promise.complete(res);
+                        }
+                    }, executor.chooseThread(name));
                 return promise;
             });
     }
