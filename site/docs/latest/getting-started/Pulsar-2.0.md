@@ -5,7 +5,7 @@ new: true
 tags: ["2.0", "tenants", "clients"]
 ---
 
-Pulsar 2.0 is a major new release for Pulsar that brings some bold changes to the platform.
+Pulsar 2.0 is a major new release for Pulsar that brings some bold changes to the platform, including [simplified topic names](#topic-names)
 
 ## New features in Pulsar 2.0
 
@@ -27,7 +27,10 @@ Prior to version 2.0, *all* Pulsar topics had the following form:
 
 {% include topic.html type="{persistent|non-persistent}" ten="tenant" n="namespace" c="cluster" t="topic" %}
 
-Three important changes have been made in Pulsar 2.0:
+Two important changes have been made in Pulsar 2.0:
+
+* There is no longer a [cluster component](#no-cluster-component)
+* You can use a [flexible](#flexible-topic-naming) naming system to shorten many topic names
 
 #### No cluster component
 
@@ -35,15 +38,19 @@ The {% popover cluster %} component has been removed from topic names. Thus, all
 
 {% include topic.html type="{persistent|non-persistent}" ten="tenant" n="namespace" t="topic" %}
 
-#### Flexible naming
+#### Flexible topic naming
 
-All topic names in Pulsar 2.0 ultimately have the form shown [above](#no-cluster-component). You can use shorthand names, however, for the sake of simplicity. Because the default {% popover tenant %} is now `public` and the default {% popover namespace %} is `default`, you don't have to include those elements of the name if you want to use the defaults. Furthermore, the default topic type is [`persistent`](../ConceptsAndArchitecture#persistent-storage), so that part can be left out as well for persistent topics. The defaults are shown in the table below:
+All topic names in Pulsar 2.0 ultimately have the form shown [above](#no-cluster-component) but you can now use shorthand names in many cases (for the sake of simplicity). The flexible naming system stems from the fact that there is now a default topic type, tenant, and namespace:
 
-Aspect | Default
-:------|:-------
+Topic aspect | Default
+:------------|:-------
 topic type | `persistent`
 tenant | `public`
 namespace | `default`
+
+
+Because the default {% popover tenant %} is now `public` and the default {% popover namespace %} is `default`, you don't have to include those elements of the name if you want to use the defaults. Furthermore, the default topic type is [`persistent`](../ConceptsAndArchitecture#persistent-storage), so that part can be left out as well for persistent topics. The defaults are shown in the table below:
+
 
 The table below shows some example topic name translations that use implicit defaults for topic type, tenant, and namespace:
 
