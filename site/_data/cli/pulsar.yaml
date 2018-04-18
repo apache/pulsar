@@ -65,6 +65,9 @@ commands:
   options:
   - flags: -t, --topic
     description: The Pulsar topic that you would like to compact
+  - flags: -c, --broker-conf
+    description: Configuration file for the broker
+    default: ${pulsarDirectory}/conf/broker.conf
 - name: discovery
   description: Run a discovery server
   example: |
