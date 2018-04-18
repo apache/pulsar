@@ -20,6 +20,7 @@
 package org.apache.pulsar.connect.rabbitmq;
 
 import com.rabbitmq.client.*;
+import org.apache.pulsar.connect.core.Message;
 import org.apache.pulsar.connect.core.PushSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,13 +37,13 @@ public class RabbitMQSource implements PushSource<byte[]> {
 
     private static Logger logger = LoggerFactory.getLogger(RabbitMQSource.class);
 
-    private Function<byte[], CompletableFuture<Void>> consumer;
+    private Function<Message<byte[]>, CompletableFuture<Void>> consumer;
     private Connection rabbitMQConnection;
     private Channel rabbitMQChannel;
     private RabbitMQConfig rabbitMQConfig;
 
     @Override
-    public void setConsumer(Function<byte[], CompletableFuture<Void>> consumeFunction) {
+    public void setConsumer(Function<Message<byte[]>, CompletableFuture<Void>> consumeFunction) {
         this.consumer = consumeFunction;
     }
 
@@ -74,16 +75,29 @@ public class RabbitMQSource implements PushSource<byte[]> {
     }
 
     private class RabbitMQConsumer extends DefaultConsumer {
-        private Function<byte[], CompletableFuture<Void>> consumeFunction;
+        private Function<Message<byte[]>, CompletableFuture<Void>> consumeFunction;
 
-        public RabbitMQConsumer(Function<byte[], CompletableFuture<Void>> consumeFunction, Channel channel) {
+        public RabbitMQConsumer(Function<Message<byte[]>, CompletableFuture<Void>> consumeFunction, Channel channel) {
             super(channel);
             this.consumeFunction = consumeFunction;
         }
 
         @Override
         public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
-            consumeFunction.apply(body);
+            consumeFunction.apply(new RabbitMQMessage(body));
+        }
+    }
+
+    static private class RabbitMQMessage implements Message<byte[]> {
+        private byte[] data;
+
+        public RabbitMQMessage(byte[] data) {
+            this.data = data;
+        }
+
+        @Override
+        public byte[] getData() {
+            return data;
         }
     }
 }

@@ -48,5 +48,5 @@ public interface PushSource<T> extends AutoCloseable {
      * to pass messages whenever there is data to be pushed to Pulsar.
      * @param consumer
      */
-    void setConsumer(Function<T, CompletableFuture<Void>> consumer);
+    void setConsumer(Function<Message<T>, CompletableFuture<Void>> consumer);
 }

@@ -23,6 +23,7 @@ import com.datastax.driver.core.*;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import org.apache.pulsar.common.util.KeyValue;
+import org.apache.pulsar.connect.core.Message;
 import org.apache.pulsar.connect.core.Sink;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,8 +67,8 @@ public class CassandraSink<K, V> implements Sink<KeyValue<K, V>> {
     }
 
     @Override
-    public CompletableFuture<Void> write(KeyValue<K, V> tuple) {
-        BoundStatement bound = statement.bind(tuple.getKey(), tuple.getValue());
+    public CompletableFuture<Void> write(Message<KeyValue<K, V>> tuple) {
+        BoundStatement bound = statement.bind(tuple.getData().getKey(), tuple.getData().getValue());
         ResultSetFuture future = session.executeAsync(bound);
         CompletableFuture<Void> completable = new CompletableFuture<Void>();
         Futures.addCallback(future,
