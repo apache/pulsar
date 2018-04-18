@@ -490,6 +490,9 @@ commands:
     - flags: -w, --wait-complete
       description: Wait for compaction to complete
       default: 'false'
+  - name: terminate
+    description: Terminate a topic (disallow further messages from being published on the topic)
+    argument: persistent://tenant/namespace/topic
   - name: list
     description: Get the list of topics under a namespace
     argument: tenant/cluster/namespace
