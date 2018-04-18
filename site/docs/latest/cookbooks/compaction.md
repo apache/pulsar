@@ -19,6 +19,8 @@ When you [trigger](#trigger) compaction on a topic, all messages with the follow
 {% include admonition.html type="warning" title="Message keys are required"
 content="Messages that don't have keys are *never* compacted." %}
 
+If a message with a key
+
 ## Triggering compaction {#trigger}
 
 [`pulsar-admin topics compact`](../../CliTools#pulsar-admin-topics-compact)
@@ -101,4 +103,13 @@ Arrays.asList("GOOG", "FB", "AAPL").forEach(stockSymbol -> {
                 .build();
         producer.send(msg);
 });
+```
+
+If you send this no-payload message, all messages earlier than this message with the key `GOOG` will be removed from the compacted topic:
+
+```java
+Message<byte[]> noPayload = MessageBuilder.create()
+        .setContent(new byte[0])
+        .setKey("GOOG")
+        .build();
 ```
