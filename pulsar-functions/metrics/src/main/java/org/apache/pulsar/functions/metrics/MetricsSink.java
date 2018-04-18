@@ -42,11 +42,10 @@ public interface MetricsSink extends AutoCloseable {
 
     /**
      * Process a metrics record in the sink
-     *
-     * @param record the record to put
-     * @param functionConfig functionConfig that generated this record
+     *  @param record the record to put
+     * @param functionDetails functionDetails that generated this record
      */
-    void processRecord(MetricsData record, Function.FunctionConfig functionConfig);
+    void processRecord(MetricsData record, Function.FunctionDetails functionDetails);
 
     /**
      * Flush any buffered metrics

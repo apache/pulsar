@@ -38,6 +38,7 @@
 
   <modules>
     <module>pulsar-client-kafka</module>
+    <module>pulsar-client-kafka-shaded</module>
     <module>pulsar-client-kafka-tests</module>
   </modules>
 </project>

@@ -23,13 +23,13 @@ import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertTrue;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Set;
+
 import org.testng.annotations.Test;
 
 /**
@@ -44,7 +44,7 @@ public class FunctionCacheEntryTest {
 
     public FunctionCacheEntryTest() {
         this.jarUrl = getClass().getClassLoader().getResource("multifunction.jar");
-        this.jarFiles = Sets.newHashSet();
+        this.jarFiles = new HashSet<>();
         this.jarFiles.add(jarUrl.getPath());
         this.libraryUrls = new URL[] { jarUrl };
         this.classpaths = Collections.emptySet();
@@ -115,7 +115,7 @@ public class FunctionCacheEntryTest {
             entry.register(
                 iid2,
                 jarFiles,
-                Lists.newArrayList(URI.create("http://localhost").toURL()));
+                Collections.singletonList(URI.create("http://localhost").toURL()));
             fail("Should fail to register an instance if jar files don't match");
         } catch (IllegalStateException e) {
             assertTrue(e.getMessage().contains("classpaths"));

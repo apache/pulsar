@@ -95,12 +95,12 @@ public class NamespaceNameTest {
         assertFalse(NamespaceName.get("prop/cluster/ns").equals("prop/cluster/ns"));
 
         assertEquals(NamespaceName.get("prop", "cluster", "ns"), NamespaceName.get("prop/cluster/ns"));
-        assertEquals(NamespaceName.get("prop/cluster/ns").getProperty(), "prop");
+        assertEquals(NamespaceName.get("prop/cluster/ns").getTenant(), "prop");
         assertEquals(NamespaceName.get("prop/cluster/ns").getCluster(), "cluster");
         assertEquals(NamespaceName.get("prop/cluster/ns").getLocalName(), "ns");
 
         try {
-            NamespaceName.get("ns").getProperty();
+            NamespaceName.get("ns").getTenant();
             fail("old style namespace");
         } catch (IllegalArgumentException e) {
             // Ok
@@ -177,7 +177,7 @@ public class NamespaceNameTest {
         }
 
         NamespaceName v2Namespace = NamespaceName.get("pulsar/colo1/testns-1");
-        assertEquals(v2Namespace.getProperty(), "pulsar");
+        assertEquals(v2Namespace.getTenant(), "pulsar");
         assertEquals(v2Namespace.getCluster(), "colo1");
         assertEquals(v2Namespace.getLocalName(), "testns-1");
     }
@@ -185,7 +185,7 @@ public class NamespaceNameTest {
     @Test
     void testNewScheme() {
         NamespaceName ns = NamespaceName.get("my-tenant/my-namespace");
-        assertEquals(ns.getProperty(), "my-tenant");
+        assertEquals(ns.getTenant(), "my-tenant");
         assertEquals(ns.getLocalName(), "my-namespace");
         assertEquals(ns.isGlobal(), true);
         assertEquals(ns.getCluster(), null);

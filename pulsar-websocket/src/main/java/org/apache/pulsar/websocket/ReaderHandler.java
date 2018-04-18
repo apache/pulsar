@@ -31,6 +31,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -166,8 +167,12 @@ public class ReaderHandler extends AbstractWebSocketHandler {
                 service.getExecutor().execute(() -> receiveMessage());
             }
         }).exceptionally(exception -> {
-            log.warn("[{}/{}] Failed to deliver msg to {} {}", reader.getTopic(),
-                    subscription, getRemote().getInetSocketAddress().toString(), exception);
+            if (exception.getCause() instanceof AlreadyClosedException) {
+                log.info("[{}/{}] Reader was closed while receiving msg from broker", reader.getTopic(), subscription);
+            } else {
+                log.warn("[{}/{}] Error occurred while reader handler was delivering msg to {}: {}", reader.getTopic(),
+                        subscription, getRemote().getInetSocketAddress().toString(), exception.getMessage());
+            }
             return null;
         });
     }

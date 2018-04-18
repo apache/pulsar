@@ -42,53 +42,53 @@ public interface Namespaces {
     /**
      * Get the list of namespaces.
      * <p>
-     * Get the list of all the namespaces for a certain property.
+     * Get the list of all the namespaces for a certain tenant.
      * <p>
      * Response Example:
      *
      * <pre>
-     * <code>["my-property/c1/namespace1",
-     *  "my-property/global/namespace2",
-     *  "my-property/c2/namespace3"]</code>
+     * <code>["my-tenant/c1/namespace1",
+     *  "my-tenant/global/namespace2",
+     *  "my-tenant/c2/namespace3"]</code>
      * </pre>
      *
-     * @param property
-     *            Property name
+     * @param tenant
+     *            Tenant name
      *
      * @throws NotAuthorizedException
      *             Don't have admin permission
      * @throws NotFoundException
-     *             Property does not exist
+     *             Tenant does not exist
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    List<String> getNamespaces(String property) throws PulsarAdminException;
+    List<String> getNamespaces(String tenant) throws PulsarAdminException;
 
     /**
      * Get the list of namespaces.
      * <p>
-     * Get the list of all the namespaces for a certain property on single cluster.
+     * Get the list of all the namespaces for a certain tenant on single cluster.
      * <p>
      * Response Example:
      *
      * <pre>
-     * <code>["my-property/use/namespace1", "my-property/use/namespace2"]</code>
+     * <code>["my-tenant/use/namespace1", "my-tenant/use/namespace2"]</code>
      * </pre>
      *
-     * @param property
-     *            Property name
+     * @param tenant
+     *            Tenant name
      * @param cluster
      *            Cluster name
      *
      * @throws NotAuthorizedException
      *             Don't have admin permission
      * @throws NotFoundException
-     *             Property or cluster does not exist
+     *             Tenant or cluster does not exist
      * @throws PulsarAdminException
      *             Unexpected error
      */
     @Deprecated
-    List<String> getNamespaces(String property, String cluster) throws PulsarAdminException;
+    List<String> getNamespaces(String tenant, String cluster) throws PulsarAdminException;
 
     /**
      * Get the list of topics.
@@ -98,8 +98,8 @@ public interface Namespaces {
      * Response Example:
      *
      * <pre>
-     * <code>["persistent://my-property/use/namespace1/my-topic-1",
-     *  "persistent://my-property/use/namespace1/my-topic-2"]</code>
+     * <code>["persistent://my-tenant/use/namespace1/my-topic-1",
+     *  "persistent://my-tenant/use/namespace1/my-topic-2"]</code>
      * </pre>
      *
      * @param namespace
@@ -166,7 +166,7 @@ public interface Namespaces {
      * @throws NotAuthorizedException
      *             You don't have admin permission
      * @throws NotFoundException
-     *             Property or cluster does not exist
+     *             Tenant or cluster does not exist
      * @throws ConflictException
      *             Namespace already exists
      * @throws PulsarAdminException
@@ -187,7 +187,7 @@ public interface Namespaces {
      * @throws NotAuthorizedException
      *             You don't have admin permission
      * @throws NotFoundException
-     *             Property or cluster does not exist
+     *             Tenant or cluster does not exist
      * @throws ConflictException
      *             Namespace already exists
      * @throws PulsarAdminException
@@ -206,13 +206,35 @@ public interface Namespaces {
      * @throws NotAuthorizedException
      *             You don't have admin permission
      * @throws NotFoundException
-     *             Property or cluster does not exist
+     *             Tenant or cluster does not exist
      * @throws ConflictException
      *             Namespace already exists
      * @throws PulsarAdminException
      *             Unexpected error
      */
     void createNamespace(String namespace) throws PulsarAdminException;
+
+    /**
+     * Create a new namespace.
+     * <p>
+     * Creates a new empty namespace with no policies attached.
+     *
+     * @param namespace
+     *            Namespace name
+     * @param clusters
+     *            Clusters in which the namespace will be present. If more than one cluster is present, replication
+     *            across clusters will be enabled.
+     *
+     * @throws NotAuthorizedException
+     *             You don't have admin permission
+     * @throws NotFoundException
+     *             Tenant or cluster does not exist
+     * @throws ConflictException
+     *             Namespace already exists
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void createNamespace(String namespace, Set<String> clusters) throws PulsarAdminException;
 
     /**
      * Delete an existing namespace.
@@ -445,8 +467,8 @@ public interface Namespaces {
     /**
      * Get all namespaces that grouped with given anti-affinity group
      *
-     * @param property
-     *            property is only used for authorization. Client has to be admin of any of the property to access this
+     * @param tenant
+     *            tenant is only used for authorization. Client has to be admin of any of the tenant to access this
      *            api api.
      * @param cluster
      *            cluster name
@@ -455,7 +477,7 @@ public interface Namespaces {
      * @return list of namespace grouped under a given anti-affinity group
      * @throws PulsarAdminException
      */
-    List<String> getAntiAffinityNamespaces(String property, String cluster, String namespaceAntiAffinityGroup)
+    List<String> getAntiAffinityNamespaces(String tenant, String cluster, String namespaceAntiAffinityGroup)
             throws PulsarAdminException;
 
     /**
@@ -637,8 +659,8 @@ public interface Namespaces {
      * </code>
      * </pre>
      *
-     * @param property
-     *            Property name
+     * @param tenant
+     *            Tenant name
      * @param cluster
      *            Cluster name
      * @param namespace
@@ -677,8 +699,8 @@ public interface Namespaces {
      * </code>
      * </pre>
      *
-     * @param property
-     *            Property name
+     * @param tenant
+     *            Tenant name
      * @param cluster
      *            Cluster name
      * @param namespace

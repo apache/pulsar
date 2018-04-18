@@ -21,7 +21,7 @@ package org.apache.pulsar.client.admin;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
-import org.apache.pulsar.functions.shaded.proto.Function.FunctionConfig;
+import org.apache.pulsar.functions.shaded.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.shaded.proto.InstanceCommunication.FunctionStatusList;
 
 import java.util.List;
@@ -73,24 +73,24 @@ public interface Functions {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    FunctionConfig getFunction(String tenant, String namespace, String function) throws PulsarAdminException;
+    FunctionDetails getFunction(String tenant, String namespace, String function) throws PulsarAdminException;
 
     /**
      * Create a new function.
      *
-     * @param functionConfig
+     * @param functionDetails
      *            the function configuration object
      *
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void createFunction(FunctionConfig functionConfig, String fileName) throws PulsarAdminException;
+    void createFunction(FunctionDetails functionDetails, String fileName) throws PulsarAdminException;
 
     /**
      * Update the configuration for a function.
      * <p>
      *
-     * @param functionConfig
+     * @param functionDetails
      *            the function configuration object
      *
      * @throws NotAuthorizedException
@@ -100,7 +100,7 @@ public interface Functions {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void updateFunction(FunctionConfig functionConfig, String fileName) throws PulsarAdminException;
+    void updateFunction(FunctionDetails functionDetails, String fileName) throws PulsarAdminException;
 
     /**
      * Delete an existing function

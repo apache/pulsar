@@ -76,7 +76,7 @@ import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.discovery.service.DiscoveryService;
@@ -174,9 +174,9 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         PulsarClient pulsarClient2 = PulsarClient.builder().serviceUrl(brokerServiceUrl.toString()).build();
 
         // load namespace-bundle by calling Broker2
-        Consumer<byte[]> consumer = pulsarClient2.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
+        Consumer<byte[]> consumer = pulsarClient2.newConsumer().topic("persistent://my-property/my-ns/my-topic1")
                 .subscriptionName("my-subscriber-name").subscribe();
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1")
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic1")
                 .create();
 
         for (int i = 0; i < 10; i++) {
@@ -232,8 +232,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
         admin.clusters().createCluster(newCluster,
                 new ClusterData("http://127.0.0.1:" + BROKER_WEBSERVICE_PORT, null, broker2ServiceUrl, null));
-        admin.properties().createProperty(property,
-                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(newCluster)));
+        admin.tenants().createTenant(property,
+                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(newCluster)));
         admin.namespaces().createNamespace(property + "/" + newCluster + "/my-ns");
 
         PulsarService pulsar2 = startBroker(conf2);
@@ -304,7 +304,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         int numPartitions = 8;
-        TopicName topicName = TopicName.get("persistent://my-property/use/my-ns/my-partitionedtopic1");
+        TopicName topicName = TopicName.get("persistent://my-property/my-ns/my-partitionedtopic1");
 
         admin.persistentTopics().createPartitionedTopic(topicName.toString(), numPartitions);
 
@@ -337,7 +337,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         /**** broker-2 started ****/
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName.toString())
-                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName.toString())
                 .subscriptionName("my-partitioned-subscriber").subscribe();
@@ -429,7 +430,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         URI brokerServiceUrl = new URI("pulsar://localhost:" + conf2.getBrokerServicePort());
         PulsarClient pulsarClient2 = PulsarClient.builder().serviceUrl(brokerServiceUrl.toString()).build();
 
-        final String lookupResourceUrl = "/lookup/v2/destination/persistent/my-property/use/my-ns/my-topic1";
+        final String lookupResourceUrl = "/lookup/v2/topic/persistent/my-property/my-ns/my-topic1";
 
         // set client cert_key file
         KeyManager[] keyManagers = null;
@@ -797,7 +798,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
         log.info("-- Starting {} test --", methodName);
 
-        final String namespace = "my-property/use/my-ns";
+        final String namespace = "my-property/my-ns";
         // (1) Start broker-1
         ServiceConfiguration conf2 = new ServiceConfiguration();
         conf2.setAdvertisedAddress("localhost");
@@ -902,7 +903,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         final String loadBalancerName = conf.getLoadManagerClassName();
 
         try {
-            final String namespace = "my-property/use/my-ns";
+            final String namespace = "my-property/my-ns";
             // (1) Start broker-1
             ServiceConfiguration conf2 = new ServiceConfiguration();
             conf2.setAdvertisedAddress("localhost");
@@ -1021,8 +1022,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         final TopicName dest = TopicName.get("persistent", property, cluster, namespace, topicName);
         admin.clusters().createCluster(cluster,
                 new ClusterData("http://127.0.0.1:" + BROKER_WEBSERVICE_PORT, null, null, null));
-        admin.properties().createProperty(property,
-                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
+        admin.tenants().createTenant(property,
+                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
         admin.namespaces().createNamespace(property + "/" + cluster + "/" + namespace);
         admin.persistentTopics().createPartitionedTopic(dest.toString(), totalPartitions);
 

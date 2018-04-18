@@ -28,7 +28,7 @@ import java.util.Set;
 
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
-import org.apache.pulsar.functions.utils.FunctionConfigUtils;
+import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.testng.annotations.Test;
 import org.testng.annotations.BeforeMethod;
 import static org.testng.Assert.assertEquals;
@@ -86,29 +86,29 @@ public class PrometheusSinkTests {
     public void testMetricsGrouping() {
         PrometheusTestSink sink = new PrometheusTestSink();
         sink.init(defaultConf);
-        Function.FunctionConfig functionConfig = createFunctionConfig("tenant", "namespace", "functionname");
-        sink.processRecord(records, functionConfig);
+        Function.FunctionDetails functionDetails = createFunctionDetails("tenant", "namespace", "functionname");
+        sink.processRecord(records, functionDetails);
 
         final Map<String, Map<String, Double>> metrics = sink.getMetrics();
-        assertTrue(metrics.containsKey(FunctionConfigUtils.getFullyQualifiedName(functionConfig)));
+        assertTrue(metrics.containsKey(FunctionDetailsUtils.getFullyQualifiedName(functionDetails)));
     }
 
     @Test
     public void testResponse() throws IOException {
         PrometheusTestSink sink = new PrometheusTestSink();
         sink.init(defaultConf);
-        Function.FunctionConfig functionConfig = createFunctionConfig("tenant", "namespace", "functionname");
-        sink.processRecord(records, functionConfig);
+        Function.FunctionDetails functionDetails = createFunctionDetails("tenant", "namespace", "functionname");
+        sink.processRecord(records, functionDetails);
 
         final List<String> expectedLines = Arrays.asList(
-                createMetric(functionConfig, "metric_1_count", 2),
-                createMetric(functionConfig, "metric_1_sum", 5),
-                createMetric(functionConfig, "metric_1_max", 3),
-                createMetric(functionConfig, "metric_1_min", 2),
-                createMetric(functionConfig, "metric_2_count", 3),
-                createMetric(functionConfig, "metric_2_sum", 6),
-                createMetric(functionConfig, "metric_2_max", 3),
-                createMetric(functionConfig, "metric_2_min", 1)
+                createMetric(functionDetails, "metric_1_count", 2),
+                createMetric(functionDetails, "metric_1_sum", 5),
+                createMetric(functionDetails, "metric_1_max", 3),
+                createMetric(functionDetails, "metric_1_min", 2),
+                createMetric(functionDetails, "metric_2_count", 3),
+                createMetric(functionDetails, "metric_2_sum", 6),
+                createMetric(functionDetails, "metric_2_max", 3),
+                createMetric(functionDetails, "metric_2_min", 1)
         );
 
         final Set<String> generatedLines =
@@ -121,16 +121,16 @@ public class PrometheusSinkTests {
         });
     }
 
-    private String createMetric(Function.FunctionConfig functionConfig,
+    private String createMetric(Function.FunctionDetails functionDetails,
                                 String metric, double value) {
         return String.format("pulsar_function_%s"
                         + "{tenant=\"%s\",namespace=\"%s\",functionname=\"%s\"}"
                         + " %s %d",
-                metric, functionConfig.getTenant(), functionConfig.getNamespace(), functionConfig.getName(), value, NOW);
+                metric, functionDetails.getTenant(), functionDetails.getNamespace(), functionDetails.getName(), value, NOW);
     }
 
-    private Function.FunctionConfig createFunctionConfig(String tenant, String namespace, String name) {
-        Function.FunctionConfig.Builder bldr = Function.FunctionConfig.newBuilder();
+    private Function.FunctionDetails createFunctionDetails(String tenant, String namespace, String name) {
+        Function.FunctionDetails.Builder bldr = Function.FunctionDetails.newBuilder();
         bldr.setTenant(tenant);
         bldr.setNamespace(namespace);
         bldr.setName(name);

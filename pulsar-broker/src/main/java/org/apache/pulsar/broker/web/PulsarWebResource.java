@@ -53,7 +53,7 @@ import org.apache.pulsar.common.naming.*;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -158,77 +158,79 @@ public abstract class PulsarWebResource {
     }
 
     /**
-     * Checks that the http client role has admin access to the specified property.
+     * Checks that the http client role has admin access to the specified tenant.
      *
-     * @param property
-     *            the property id
+     * @param tenant
+     *            the tenant id
      * @throws WebApplicationException
      *             if not authorized
      */
-    protected void validateAdminAccessOnProperty(String property) {
+    protected void validateAdminAccessForTenant(String tenant) {
         try {
-            validateAdminAccessOnProperty(pulsar(), clientAppId(), property);
+            validateAdminAccessForTenant(pulsar(), clientAppId(), tenant);
         } catch (RestException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Failed to get property admin data for property {}", property);
+            log.error("Failed to get tenant admin data for tenant {}", tenant);
             throw new RestException(e);
         }
     }
 
-    protected static void validateAdminAccessOnProperty(PulsarService pulsar, String clientAppId, String property) throws RestException, Exception{
+    protected static void validateAdminAccessForTenant(PulsarService pulsar, String clientAppId, String tenant)
+            throws RestException, Exception {
+        if (log.isDebugEnabled()) {
+            log.debug("check admin access on tenant: {} - Authenticated: {} -- role: {}", tenant,
+                    (isClientAuthenticated(clientAppId)), clientAppId);
+        }
+
+        TenantInfo tenantInfo;
+
+        try {
+            tenantInfo = pulsar.getConfigurationCache().propertiesCache().get(path(POLICIES, tenant))
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Tenant does not exist"));
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("Failed to get tenant info data for non existing tenant {}", tenant);
+            throw new RestException(Status.NOT_FOUND, "Tenant does not exist");
+        }
 
         if (pulsar.getConfiguration().isAuthenticationEnabled() && pulsar.getConfiguration().isAuthorizationEnabled()) {
-            log.debug("check admin access on property: {} - Authenticated: {} -- role: {}", property,
-                    (isClientAuthenticated(clientAppId)), clientAppId);
-
-            PropertyAdmin propertyAdmin;
-
-            try {
-                propertyAdmin = pulsar.getConfigurationCache().propertiesCache().get(path(POLICIES, property))
-                        .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Property does not exist"));
-            } catch (KeeperException.NoNodeException e) {
-                log.warn("Failed to get property admin data for non existing property {}", property);
-                throw new RestException(Status.NOT_FOUND, "Property does not exist");
-            }
-
             if (!isClientAuthenticated(clientAppId)) {
                 throw new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request");
             }
 
             if (pulsar.getConfiguration().getSuperUserRoles().contains(clientAppId)) {
                 // Super-user has access to configure all the policies
-                log.debug("granting access to super-user {} on property {}", clientAppId, property);
+                log.debug("granting access to super-user {} on tenant {}", clientAppId, tenant);
             } else {
 
-                if (!propertyAdmin.getAdminRoles().contains(clientAppId)) {
+                if (!tenantInfo.getAdminRoles().contains(clientAppId)) {
                     throw new RestException(Status.UNAUTHORIZED,
-                            "Don't have permission to administrate resources on this property");
+                            "Don't have permission to administrate resources on this tenant");
                 }
 
-                log.debug("Successfully authorized {} on property {}", clientAppId, property);
+                log.debug("Successfully authorized {} on tenant {}", clientAppId, tenant);
             }
         }
     }
 
-    protected void validateClusterForProperty(String property, String cluster) {
-        PropertyAdmin propertyAdmin;
+    protected void validateClusterForTenant(String tenant, String cluster) {
+        TenantInfo tenantInfo;
         try {
-            propertyAdmin = pulsar().getConfigurationCache().propertiesCache().get(path(POLICIES, property))
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Property does not exist"));
+            tenantInfo = pulsar().getConfigurationCache().propertiesCache().get(path(POLICIES, tenant))
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Tenant does not exist"));
         } catch (Exception e) {
-            log.error("Failed to get property admin data for property");
+            log.error("Failed to get tenant admin data for tenant");
             throw new RestException(e);
         }
 
-        // Check if property is allowed on the cluster
-        if (!propertyAdmin.getAllowedClusters().contains(cluster)) {
-            String msg = String.format("Cluster [%s] is not in the list of allowed clusters list for property [%s]",
-                    cluster, property);
+        // Check if tenant is allowed on the cluster
+        if (!tenantInfo.getAllowedClusters().contains(cluster)) {
+            String msg = String.format("Cluster [%s] is not in the list of allowed clusters list for tenant [%s]",
+                    cluster, tenant);
             log.info(msg);
             throw new RestException(Status.FORBIDDEN, msg);
         }
-        log.info("Successfully validated clusters on property [{}]", property);
+        log.info("Successfully validated clusters on tenant [{}]", tenant);
     }
 
     /**
@@ -334,9 +336,9 @@ public abstract class PulsarWebResource {
      * @param readOnly
      * @param bundleData
      */
-    protected void validateNamespaceOwnershipWithBundles(String property, String cluster, String namespace,
+    protected void validateNamespaceOwnershipWithBundles(String tenant, String cluster, String namespace,
             boolean authoritative, boolean readOnly, BundlesData bundleData) {
-        NamespaceName fqnn = NamespaceName.get(property, cluster, namespace);
+        NamespaceName fqnn = NamespaceName.get(tenant, cluster, namespace);
 
         try {
             NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory().getBundles(fqnn,
@@ -353,9 +355,9 @@ public abstract class PulsarWebResource {
         }
     }
 
-    protected void validateBundleOwnership(String property, String cluster, String namespace, boolean authoritative,
+    protected void validateBundleOwnership(String tenant, String cluster, String namespace, boolean authoritative,
             boolean readOnly, NamespaceBundle bundle) {
-        NamespaceName fqnn = NamespaceName.get(property, cluster, namespace);
+        NamespaceName fqnn = NamespaceName.get(tenant, cluster, namespace);
 
         try {
             validateBundleOwnership(bundle, authoritative, readOnly);
@@ -476,7 +478,7 @@ public abstract class PulsarWebResource {
      *
      * @param authoritative
      *
-     * @param property
+     * @param tenant
      * @param cluster
      * @param namespace
      */

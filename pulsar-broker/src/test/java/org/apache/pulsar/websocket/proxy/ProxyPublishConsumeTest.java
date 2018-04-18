@@ -22,6 +22,10 @@ import static java.util.concurrent.Executors.newFixedThreadPool;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
+import com.google.common.collect.Sets;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
@@ -62,9 +66,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-
 public class ProxyPublishConsumeTest extends ProducerConsumerBase {
     protected String methodName;
     private int port;
@@ -84,7 +85,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         port = PortManager.nextFreePort();
         WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
         config.setWebServicePort(port);
-        config.setClusterName("use");
+        config.setClusterName("test");
         config.setGlobalZookeeperServers("dummy-zk-servers");
         service = spy(new WebSocketService(config));
         doReturn(mockZooKeeperClientFactory).when(service).getZooKeeperClientFactory();
@@ -105,9 +106,9 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
     @Test(timeOut = 10000)
     public void socketTest() throws Exception {
         final String consumerUri = "ws://localhost:" + port
-                + "/ws/consumer/persistent/my-property/use/my-ns/my-topic1/my-sub1?subscriptionType=Failover";
-        String readerUri = "ws://localhost:" + port + "/ws/reader/persistent/my-property/use/my-ns/my-topic1";
-        String producerUri = "ws://localhost:" + port + "/ws/producer/persistent/my-property/use/my-ns/my-topic1/";
+                + "/ws/v2/consumer/persistent/my-property/my-ns/my-topic1/my-sub1?subscriptionType=Failover";
+        String readerUri = "ws://localhost:" + port + "/ws/v2/reader/persistent/my-property/my-ns/my-topic1";
+        String producerUri = "ws://localhost:" + port + "/ws/v2/producer/persistent/my-property/my-ns/my-topic1/";
 
         URI consumeUri = URI.create(consumerUri);
         URI readUri = URI.create(readerUri);
@@ -183,7 +184,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
         // Empty subcription name
         final String consumerUri = "ws://localhost:" + port
-                + "/ws/consumer/persistent/my-property/use/my-ns/my-topic2/?subscriptionType=Exclusive";
+                + "/ws/v2/consumer/persistent/my-property/my-ns/my-topic2/?subscriptionType=Exclusive";
         URI consumeUri = URI.create(consumerUri);
 
         WebSocketClient consumeClient1 = new WebSocketClient();
@@ -208,7 +209,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
     @Test(timeOut = 10000)
     public void conflictingConsumerTest() throws Exception {
         final String consumerUri = "ws://localhost:" + port
-                + "/ws/consumer/persistent/my-property/use/my-ns/my-topic3/sub1?subscriptionType=Exclusive";
+                + "/ws/v2/consumer/persistent/my-property/my-ns/my-topic3/sub1?subscriptionType=Exclusive";
         URI consumeUri = URI.create(consumerUri);
 
         WebSocketClient consumeClient1 = new WebSocketClient();
@@ -244,7 +245,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
     @Test(timeOut = 10000)
     public void conflictingProducerTest() throws Exception {
         final String producerUri = "ws://localhost:" + port
-                + "/ws/producer/persistent/my-property/use/my-ns/my-topic4?producerName=my-producer";
+                + "/ws/v2/producer/persistent/my-property/my-ns/my-topic4?producerName=my-producer";
         URI produceUri = URI.create(producerUri);
 
         WebSocketClient produceClient1 = new WebSocketClient();
@@ -277,16 +278,18 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 30000)
+    @Test// (timeOut = 30000)
     public void producerBacklogQuotaExceededTest() throws Exception {
-        admin.namespaces().createNamespace("my-property/use/ns-ws-quota");
-        admin.namespaces().setBacklogQuota("my-property/use/ns-ws-quota",
+        String namespace = "my-property/ns-ws-quota";
+        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("test"));
+        admin.namespaces().setBacklogQuota(namespace,
                 new BacklogQuota(10, BacklogQuota.RetentionPolicy.producer_request_hold));
 
-        final String topic = "my-property/use/ns-ws-quota/my-topic5";
+        final String topic = namespace + "/my-topic5";
         final String subscription = "my-sub";
-        final String consumerUri = "ws://localhost:" + port + "/ws/consumer/persistent/" + topic + "/" + subscription;
-        final String producerUri = "ws://localhost:" + port + "/ws/producer/persistent/" + topic;
+        final String consumerUri = "ws://localhost:" + port + "/ws/v2/consumer/persistent/" + topic + "/" + subscription;
+        final String producerUri = "ws://localhost:" + port + "/ws/v2/producer/persistent/" + topic;
 
         URI consumeUri = URI.create(consumerUri);
         URI produceUri = URI.create(producerUri);
@@ -338,8 +341,8 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             stopWebSocketClient(produceClient2);
             admin.persistentTopics().skipAllMessages("persistent://" + topic, subscription);
             admin.persistentTopics().delete("persistent://" + topic);
-            admin.namespaces().removeBacklogQuota("my-property/use/ns-ws-quota");
-            admin.namespaces().deleteNamespace("my-property/use/ns-ws-quota");
+            admin.namespaces().removeBacklogQuota(namespace);
+            admin.namespaces().deleteNamespace(namespace);
         }
     }
 
@@ -350,11 +353,11 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
      */
     @Test(timeOut = 10000)
     public void testProxyStats() throws Exception {
-        final String topic = "my-property/use/my-ns/my-topic6";
-        final String consumerUri = "ws://localhost:" + port + "/ws/consumer/persistent/" + topic
+        final String topic = "my-property/my-ns/my-topic6";
+        final String consumerUri = "ws://localhost:" + port + "/ws/v2/consumer/persistent/" + topic
                 + "/my-sub?subscriptionType=Failover";
-        final String producerUri = "ws://localhost:" + port + "/ws/producer/persistent/" + topic + "/";
-        final String readerUri = "ws://localhost:" + port + "/ws/reader/persistent/" + topic;
+        final String producerUri = "ws://localhost:" + port + "/ws/v2/producer/persistent/" + topic + "/";
+        final String readerUri = "ws://localhost:" + port + "/ws/v2/reader/persistent/" + topic;
         System.out.println(consumerUri+", "+producerUri);
         URI consumeUri = URI.create(consumerUri);
         URI produceUri = URI.create(producerUri);
@@ -405,7 +408,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             Client client = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
             final String baseUrl = pulsar.getWebServiceAddress()
                     .replace(Integer.toString(pulsar.getConfiguration().getWebServicePort()), (Integer.toString(port)))
-                    + "/admin/proxy-stats/";
+                    + "/admin/v2/proxy-stats/";
 
             // verify proxy metrics
             verifyProxyMetrics(client, baseUrl);
@@ -414,7 +417,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             verifyProxyStats(client, baseUrl, topic);
 
             // verify topic stat
-            verifyTopicStat(client, baseUrl, topic);
+            verifyTopicStat(client, baseUrl + "persistent/", topic);
 
         } finally {
             stopWebSocketClient(consumeClient1, produceClient);
@@ -443,7 +446,15 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         Response response = (Response) invocationBuilder.get();
         String responseStr = response.readEntity(String.class);
         final Gson gson = new Gson();
-        final List<Metrics> data = gson.fromJson(responseStr, new TypeToken<List<Metrics>>() {
+        List<Metrics> data = gson.fromJson(responseStr, new TypeToken<List<Metrics>>() {
+        }.getType());
+        Assert.assertFalse(data.isEmpty());
+        // re-generate metrics
+        service.getProxyStats().generate();
+        invocationBuilder = webTarget.request(MediaType.APPLICATION_JSON);
+        response = (Response) invocationBuilder.get();
+        responseStr = response.readEntity(String.class);
+        data = gson.fromJson(responseStr, new TypeToken<List<Metrics>>() {
         }.getType());
         Assert.assertFalse(data.isEmpty());
     }

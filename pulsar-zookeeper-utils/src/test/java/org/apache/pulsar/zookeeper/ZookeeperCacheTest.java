@@ -36,6 +36,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.bookkeeper.common.util.OrderedScheduler;
+import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.WatchedEvent;
@@ -173,6 +174,63 @@ public class ZookeeperCacheTest {
         }
 
         assertEquals(notificationCount.get(), 3);
+    }
+
+    @Test(timeOut = 10000)
+    void testChildrenCacheZnodeCreatedAfterCache() throws Exception {
+
+        ZooKeeperCache zkCacheService = new LocalZooKeeperCache(zkClient, executor);
+        ZooKeeperChildrenCache cache = new ZooKeeperChildrenCache(zkCacheService, "/test");
+
+        // Create callback counter
+        AtomicInteger notificationCount = new AtomicInteger(0);
+        ZooKeeperCacheListener<Set<String>> counter = (path, data, stat) -> {
+            notificationCount.incrementAndGet();
+        };
+
+        // Register counter twice and unregister once, so callback should be counted correctly
+        cache.registerListener(counter);
+        cache.registerListener(counter);
+        cache.unregisterListener(counter);
+
+        assertEquals(notificationCount.get(), 0);
+        try {
+            cache.get();
+            fail("Expect this to fail");
+        } catch (KeeperException.NoNodeException nne) {
+            // correct
+        }
+
+        zkClient.create("/test", new byte[0], null, null);
+        zkClient.create("/test/z1", new byte[0], null, null);
+
+        // Wait for cache to be updated in background
+        while (notificationCount.get() < 1) {
+            Thread.sleep(1);
+        }
+
+        assertEquals(cache.get(), new TreeSet<String>(Lists.newArrayList("z1")));
+        assertEquals(cache.get("/test"), new TreeSet<String>(Lists.newArrayList("z1")));
+        assertEquals(notificationCount.get(), 1);
+
+        zkClient.delete("/test/z1", -1);
+        while (notificationCount.get() < 2) {
+            Thread.sleep(1);
+        }
+
+        assertTrue(cache.get().isEmpty());
+        assertTrue(cache.get().isEmpty());
+        zkCacheService.process(new WatchedEvent(Event.EventType.None, KeeperState.Expired, null));
+        zkClient.failNow(Code.SESSIONEXPIRED);
+
+        try {
+            cache.get();
+            fail("should have thrown exception");
+        } catch (Exception e) {
+            // Ok
+        }
+
+        assertEquals(notificationCount.get(), 2);
     }
 
     @Test(timeOut = 10000)

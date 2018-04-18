@@ -18,16 +18,16 @@
  */
 package org.apache.pulsar.client.api;
 
+import com.google.common.collect.Sets;
+
 import java.lang.reflect.Method;
 import java.util.Set;
 
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
-
-import com.google.common.collect.Sets;
 
 public abstract class ProducerConsumerBase extends MockedPulsarServiceBaseTest {
     protected String methodName;
@@ -38,10 +38,11 @@ public abstract class ProducerConsumerBase extends MockedPulsarServiceBaseTest {
     }
 
     public void producerBaseSetup() throws Exception {
-        admin.clusters().createCluster("use", new ClusterData("http://127.0.0.1:" + BROKER_WEBSERVICE_PORT));
-        admin.properties().createProperty("my-property",
-                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
-        admin.namespaces().createNamespace("my-property/use/my-ns");
+        admin.clusters().createCluster("test", new ClusterData("http://127.0.0.1:" + BROKER_WEBSERVICE_PORT));
+        admin.tenants().createTenant("my-property",
+                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace("my-property/my-ns");
+        admin.namespaces().setNamespaceReplicationClusters("my-property/my-ns", Sets.newHashSet("test"));
     }
 
     protected void testMessageOrderAndDuplicates(Set<String> messagesReceived, String receivedMessage,
@@ -53,5 +54,5 @@ public abstract class ProducerConsumerBase extends MockedPulsarServiceBaseTest {
         // Make sure that there are no duplicates
         Assert.assertTrue(messagesReceived.add(receivedMessage), "Received duplicate message " + receivedMessage);
     }
-    
+
 }
