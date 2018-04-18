@@ -21,6 +21,13 @@ package org.apache.pulsar.proxy.server;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
+import io.netty.bootstrap.ServerBootstrap;
+import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.channel.AdaptiveRecvByteBufAllocator;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.EventLoopGroup;
+import io.netty.util.concurrent.DefaultThreadFactory;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetAddress;
@@ -39,19 +46,10 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
-import org.apache.pulsar.zookeeper.LocalZooKeeperConnectionService;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
-import org.apache.pulsar.zookeeper.ZooKeeperSessionWatcher.ShutdownService;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.netty.bootstrap.ServerBootstrap;
-import io.netty.buffer.PooledByteBufAllocator;
-import io.netty.channel.AdaptiveRecvByteBufAllocator;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.EventLoopGroup;
-import io.netty.util.concurrent.DefaultThreadFactory;
 
 /**
  * Pulsar proxy service
@@ -77,8 +75,6 @@ public class ProxyService implements Closeable {
     private final Authentication clientAuthentication;
 
     private BrokerDiscoveryProvider discoveryProvider;
-
-    private LocalZooKeeperConnectionService localZooKeeperConnectionService;
 
     protected final AtomicReference<Semaphore> lookupRequestSemaphore;
 
@@ -124,15 +120,6 @@ public class ProxyService implements Closeable {
         authenticationService = new AuthenticationService(serviceConfiguration);
 
         if (!isBlank(proxyConfig.getZookeeperServers()) && !isBlank(proxyConfig.getGlobalZookeeperServers())) {
-            localZooKeeperConnectionService = new LocalZooKeeperConnectionService(getZooKeeperClientFactory(),
-                    proxyConfig.getZookeeperServers(), proxyConfig.getZookeeperSessionTimeoutMs());
-            localZooKeeperConnectionService.start(new ShutdownService() {
-                @Override
-                public void shutdown(int exitCode) {
-                    LOG.error("Lost local ZK session. Shutting down the proxy");
-                    Runtime.getRuntime().halt(-1);
-                }
-            });
             discoveryProvider = new BrokerDiscoveryProvider(this.proxyConfig, getZooKeeperClientFactory());
             this.configurationCacheService = new ConfigurationCacheService(discoveryProvider.globalZkCache);
             authorizationService = new AuthorizationService(serviceConfiguration, configurationCacheService);
@@ -182,9 +169,6 @@ public class ProxyService implements Closeable {
     }
 
     public void close() throws IOException {
-        if (localZooKeeperConnectionService != null) {
-            localZooKeeperConnectionService.close();
-        }
         if (discoveryProvider != null) {
             discoveryProvider.close();
         }

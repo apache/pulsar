@@ -36,6 +36,7 @@ public class DefaultSerDe implements SerDe<Object> {
             Integer.class,
             Double.class,
             Long.class,
+            Boolean.class,
             String.class,
             Short.class,
             Byte.class,

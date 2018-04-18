@@ -36,7 +36,8 @@ import org.slf4j.LoggerFactory;
 public class WebSocketWebResource {
 
     public static final String ATTRIBUTE_PROXY_SERVICE_NAME = "webProxyService";
-    public static final String ADMIN_PATH = "/admin";
+    public static final String ADMIN_PATH_V1 = "/admin";
+    public static final String ADMIN_PATH_V2 = "/admin/v2";
 
     @Context
     protected ServletContext servletContext;
@@ -48,10 +49,10 @@ public class WebSocketWebResource {
     protected UriInfo uri;
 
     private WebSocketService socketService;
-    
+
     private String clientId;
     private AuthenticationDataHttps authData;
-    
+
     protected WebSocketService service() {
         if (socketService == null) {
             socketService = (WebSocketService) servletContext.getAttribute(ATTRIBUTE_PROXY_SERVICE_NAME);
@@ -109,7 +110,7 @@ public class WebSocketWebResource {
 
     /**
      * Checks if user has super-user access or user is authorized to produce/consume on a given topic
-     * 
+     *
      * @param topic
      * @return
      */
@@ -128,7 +129,7 @@ public class WebSocketWebResource {
 
     /**
      * Checks if user is authorized to produce/consume on a given topic
-     * 
+     *
      * @param topic
      * @return
      * @throws Exception

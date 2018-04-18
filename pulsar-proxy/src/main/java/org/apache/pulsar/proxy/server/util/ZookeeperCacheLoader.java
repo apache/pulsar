@@ -19,6 +19,7 @@
 package org.apache.pulsar.proxy.server.util;
 
 import java.io.Closeable;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -28,12 +29,13 @@ import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.zookeeper.LocalZooKeeperCache;
-import org.apache.pulsar.zookeeper.LocalZooKeeperConnectionService;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperChildrenCache;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
+import org.apache.pulsar.zookeeper.ZooKeeperClientFactory.SessionType;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.zookeeper.KeeperException.NoNodeException;
+import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,13 +45,11 @@ import org.slf4j.LoggerFactory;
  */
 public class ZookeeperCacheLoader implements Closeable {
 
+    private final ZooKeeper zkClient;
     private final ZooKeeperCache localZkCache;
-    private final LocalZooKeeperConnectionService localZkConnectionSvc;
-
     private final ZooKeeperDataCache<LoadManagerReport> brokerInfo;
     private final ZooKeeperChildrenCache availableBrokersCache;
 
-    private volatile Set<String> availableBrokersSet;
     private volatile List<LoadManagerReport> availableBrokers;
 
     private final OrderedScheduler orderedExecutor = OrderedScheduler.newSchedulerBuilder().numThreads(8)
@@ -63,22 +63,9 @@ public class ZookeeperCacheLoader implements Closeable {
      * @param zookeeperServers
      * @throws Exception
      */
-    public ZookeeperCacheLoader(ZooKeeperClientFactory zkClientFactory, String zookeeperServers,
-            int zookeeperSessionTimeoutMs) throws Exception {
-        localZkConnectionSvc = new LocalZooKeeperConnectionService(zkClientFactory, zookeeperServers,
-                zookeeperSessionTimeoutMs);
-        localZkConnectionSvc.start(exitCode -> {
-            log.error("Shutting down ZK sessions: {}", exitCode);
-        });
-
-        this.localZkCache = new LocalZooKeeperCache(localZkConnectionSvc.getLocalZooKeeper(), this.orderedExecutor);
-        localZkConnectionSvc.start(exitCode -> {
-            try {
-                localZkCache.getZooKeeper().close();
-            } catch (InterruptedException e) {
-                log.warn("Failed to shutdown ZooKeeper gracefully {}", e.getMessage(), e);
-            }
-        });
+    public ZookeeperCacheLoader(ZooKeeperClientFactory factory, String zookeeperServers, int zookeeperSessionTimeoutMs) throws Exception {
+        this.zkClient = factory.create(zookeeperServers, SessionType.AllowReadOnly, zookeeperSessionTimeoutMs).get();
+        this.localZkCache = new LocalZooKeeperCache(zkClient, this.orderedExecutor);
 
         this.brokerInfo = new ZooKeeperDataCache<LoadManagerReport>(localZkCache) {
             @Override
@@ -113,7 +100,13 @@ public class ZookeeperCacheLoader implements Closeable {
     }
 
     @Override
-    public void close() {
+    public void close() throws IOException {
+        try {
+            zkClient.close();
+        } catch (InterruptedException e) {
+            Thread.interrupted();
+            throw new IOException(e);
+        }
         orderedExecutor.shutdown();
     }
 

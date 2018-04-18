@@ -32,12 +32,13 @@ import java.util.stream.IntStream;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -57,6 +58,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         // set isTcpLookup = true, to use BinaryProtoLookupService to get topics for a pattern.
         isTcpLookup = true;
         super.internalSetup();
+        super.producerBaseSetup();
     }
 
     @Override
@@ -69,14 +71,14 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         String key = "PatternTopicsSubscribeWithBuilderFail";
         final String subscriptionName = "my-ex-subscription-" + key;
 
-        final String topicName1 = "persistent://prop/use/ns-abc/topic-1-" + key;
-        final String topicName2 = "persistent://prop/use/ns-abc/topic-2-" + key;
-        final String topicName3 = "persistent://prop/use/ns-abc/topic-3-" + key;
+        final String topicName1 = "persistent://my-property/my-ns/topic-1-" + key;
+        final String topicName2 = "persistent://my-property/my-ns/topic-2-" + key;
+        final String topicName3 = "persistent://my-property/my-ns/topic-3-" + key;
         List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3);
-        final String patternString = "persistent://prop/use/ns-abc/pattern-topic.*";
+        final String patternString = "persistent://my-property/my-ns/pattern-topic.*";
         Pattern pattern = Pattern.compile(patternString);
 
-        admin.properties().createProperty("prop", new PropertyAdmin());
+        admin.tenants().createTenant("prop", new TenantInfo());
         admin.persistentTopics().createPartitionedTopic(topicName2, 2);
         admin.persistentTopics().createPartitionedTopic(topicName3, 3);
 
@@ -128,13 +130,13 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
     public void testBinaryProtoToGetTopicsOfNamespace() throws Exception {
         String key = "BinaryProtoToGetTopics";
         String subscriptionName = "my-ex-subscription-" + key;
-        String topicName1 = "persistent://prop/use/ns-abc/pattern-topic-1-" + key;
-        String topicName2 = "persistent://prop/use/ns-abc/pattern-topic-2-" + key;
-        String topicName3 = "persistent://prop/use/ns-abc/pattern-topic-3-" + key;
-        Pattern pattern = Pattern.compile("persistent://prop/use/ns-abc/pattern-topic.*");
+        String topicName1 = "persistent://my-property/my-ns/pattern-topic-1-" + key;
+        String topicName2 = "persistent://my-property/my-ns/pattern-topic-2-" + key;
+        String topicName3 = "persistent://my-property/my-ns/pattern-topic-3-" + key;
+        Pattern pattern = Pattern.compile("persistent://my-property/my-ns/pattern-topic.*");
 
         // 1. create partition
-        admin.properties().createProperty("prop", new PropertyAdmin());
+        admin.tenants().createTenant("prop", new TenantInfo());
         admin.persistentTopics().createPartitionedTopic(topicName2, 2);
         admin.persistentTopics().createPartitionedTopic(topicName3, 3);
 
@@ -143,11 +145,15 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         int totalMessages = 30;
 
         Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .create();
         Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicName2)
+            .enableBatching(false)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
         Producer<byte[]> producer3 = pulsarClient.newProducer().topic(topicName3)
+            .enableBatching(false)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
 
@@ -205,17 +211,17 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
     @Test(timeOut = testTimeout)
     public void testTopicsPatternFilter() throws Exception {
-        String topicName1 = "persistent://prop/use/ns-abc/pattern-topic-1";
-        String topicName2 = "persistent://prop/use/ns-abc/pattern-topic-2";
-        String topicName3 = "persistent://prop/use/ns-abc/hello-3";
+        String topicName1 = "persistent://my-property/my-ns/pattern-topic-1";
+        String topicName2 = "persistent://my-property/my-ns/pattern-topic-2";
+        String topicName3 = "persistent://my-property/my-ns/hello-3";
 
         List<String> topicsNames = Lists.newArrayList(topicName1, topicName2, topicName3);
 
-        Pattern pattern1 = Pattern.compile("persistent://prop/use/ns-abc/pattern-topic.*");
+        Pattern pattern1 = Pattern.compile("persistent://my-property/my-ns/pattern-topic.*");
         List<String> result1 = PulsarClientImpl.topicsPatternFilter(topicsNames, pattern1);
         assertTrue(result1.size() == 2 && result1.contains(topicName1) && result1.contains(topicName2));
 
-        Pattern pattern2 = Pattern.compile("persistent://prop/use/ns-abc/.*");
+        Pattern pattern2 = Pattern.compile("persistent://my-property/my-ns/.*");
         List<String> result2 = PulsarClientImpl.topicsPatternFilter(topicsNames, pattern2);
         assertTrue(result2.size() == 3 &&
             result2.contains(topicName1) &&
@@ -225,12 +231,12 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
     @Test(timeOut = testTimeout)
     public void testTopicsListMinus() throws Exception {
-        String topicName1 = "persistent://prop/use/ns-abc/pattern-topic-1";
-        String topicName2 = "persistent://prop/use/ns-abc/pattern-topic-2";
-        String topicName3 = "persistent://prop/use/ns-abc/pattern-topic-3";
-        String topicName4 = "persistent://prop/use/ns-abc/pattern-topic-4";
-        String topicName5 = "persistent://prop/use/ns-abc/pattern-topic-5";
-        String topicName6 = "persistent://prop/use/ns-abc/pattern-topic-6";
+        String topicName1 = "persistent://my-property/my-ns/pattern-topic-1";
+        String topicName2 = "persistent://my-property/my-ns/pattern-topic-2";
+        String topicName3 = "persistent://my-property/my-ns/pattern-topic-3";
+        String topicName4 = "persistent://my-property/my-ns/pattern-topic-4";
+        String topicName5 = "persistent://my-property/my-ns/pattern-topic-5";
+        String topicName6 = "persistent://my-property/my-ns/pattern-topic-6";
 
         List<String> oldNames = Lists.newArrayList(topicName1, topicName2, topicName3, topicName4);
         List<String> newNames = Lists.newArrayList(topicName3, topicName4, topicName5, topicName6);
@@ -269,13 +275,13 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
     public void testStartEmptyPatternConsumer() throws Exception {
         String key = "StartEmptyPatternConsumerTest";
         String subscriptionName = "my-ex-subscription-" + key;
-        String topicName1 = "persistent://prop/use/ns-abc/pattern-topic-1-" + key;
-        String topicName2 = "persistent://prop/use/ns-abc/pattern-topic-2-" + key;
-        String topicName3 = "persistent://prop/use/ns-abc/pattern-topic-3-" + key;
-        Pattern pattern = Pattern.compile("persistent://prop/use/ns-abc/pattern-topic.*");
+        String topicName1 = "persistent://my-property/my-ns/pattern-topic-1-" + key;
+        String topicName2 = "persistent://my-property/my-ns/pattern-topic-2-" + key;
+        String topicName3 = "persistent://my-property/my-ns/pattern-topic-3-" + key;
+        Pattern pattern = Pattern.compile("persistent://my-property/my-ns/pattern-topic.*");
 
         // 1. create partition
-        admin.properties().createProperty("prop", new PropertyAdmin());
+        admin.tenants().createTenant("prop", new TenantInfo());
         admin.persistentTopics().createPartitionedTopic(topicName2, 2);
         admin.persistentTopics().createPartitionedTopic(topicName3, 3);
 
@@ -300,11 +306,15 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         int totalMessages = 30;
 
         Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .create();
         Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicName2)
+            .enableBatching(false)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
         Producer<byte[]> producer3 = pulsarClient.newProducer().topic(topicName3)
+            .enableBatching(false)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
 
@@ -352,13 +362,13 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
     public void testAutoSubscribePatternConsumer() throws Exception {
         String key = "AutoSubscribePatternConsumer";
         String subscriptionName = "my-ex-subscription-" + key;
-        String topicName1 = "persistent://prop/use/ns-abc/pattern-topic-1-" + key;
-        String topicName2 = "persistent://prop/use/ns-abc/pattern-topic-2-" + key;
-        String topicName3 = "persistent://prop/use/ns-abc/pattern-topic-3-" + key;
-        Pattern pattern = Pattern.compile("persistent://prop/use/ns-abc/pattern-topic.*");
+        String topicName1 = "persistent://my-property/my-ns/pattern-topic-1-" + key;
+        String topicName2 = "persistent://my-property/my-ns/pattern-topic-2-" + key;
+        String topicName3 = "persistent://my-property/my-ns/pattern-topic-3-" + key;
+        Pattern pattern = Pattern.compile("persistent://my-property/my-ns/pattern-topic.*");
 
         // 1. create partition
-        admin.properties().createProperty("prop", new PropertyAdmin());
+        admin.tenants().createTenant("prop", new TenantInfo());
         admin.persistentTopics().createPartitionedTopic(topicName2, 2);
         admin.persistentTopics().createPartitionedTopic(topicName3, 3);
 
@@ -367,11 +377,15 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         int totalMessages = 30;
 
         Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .create();
         Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicName2)
+            .enableBatching(false)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
         Producer<byte[]> producer3 = pulsarClient.newProducer().topic(topicName3)
+            .enableBatching(false)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
 
@@ -411,9 +425,10 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         assertEquals(messageSet, totalMessages);
 
         // 6. create another producer with 4 partitions
-        String topicName4 = "persistent://prop/use/ns-abc/pattern-topic-4-" + key;
+        String topicName4 = "persistent://my-property/my-ns/pattern-topic-4-" + key;
         admin.persistentTopics().createPartitionedTopic(topicName4, 4);
         Producer<byte[]> producer4 = pulsarClient.newProducer().topic(topicName4)
+            .enableBatching(false)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
 
@@ -455,13 +470,13 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
     public void testAutoUnbubscribePatternConsumer() throws Exception {
         String key = "AutoUnsubscribePatternConsumer";
         String subscriptionName = "my-ex-subscription-" + key;
-        String topicName1 = "persistent://prop/use/ns-abc/pattern-topic-1-" + key;
-        String topicName2 = "persistent://prop/use/ns-abc/pattern-topic-2-" + key;
-        String topicName3 = "persistent://prop/use/ns-abc/pattern-topic-3-" + key;
-        Pattern pattern = Pattern.compile("persistent://prop/use/ns-abc/pattern-topic.*");
+        String topicName1 = "persistent://my-property/my-ns/pattern-topic-1-" + key;
+        String topicName2 = "persistent://my-property/my-ns/pattern-topic-2-" + key;
+        String topicName3 = "persistent://my-property/my-ns/pattern-topic-3-" + key;
+        Pattern pattern = Pattern.compile("persistent://my-property/my-ns/pattern-topic.*");
 
         // 1. create partition
-        admin.properties().createProperty("prop", new PropertyAdmin());
+        admin.tenants().createTenant("prop", new TenantInfo());
         admin.persistentTopics().createPartitionedTopic(topicName2, 2);
         admin.persistentTopics().createPartitionedTopic(topicName3, 3);
 
@@ -470,11 +485,15 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         int totalMessages = 30;
 
         Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .create();
         Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicName2)
+            .enableBatching(false)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
         Producer<byte[]> producer3 = pulsarClient.newProducer().topic(topicName3)
+            .enableBatching(false)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
 
@@ -517,7 +536,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         // seems no direct way to verify auto-unsubscribe, because this patternConsumer also referenced the topic.
         List<String> topicNames = Lists.newArrayList(topicName2);
         NamespaceService nss = pulsar.getNamespaceService();
-        doReturn(topicNames).when(nss).getListOfTopics(NamespaceName.get("prop", "use", "ns-abc"));
+        doReturn(topicNames).when(nss).getListOfTopics(NamespaceName.get("my-property/my-ns"));
 
         // 7. call recheckTopics to unsubscribe topic 1,3 , verify topics number: 2=6-1-3
         log.debug("recheck topics change");
