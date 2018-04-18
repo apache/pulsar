@@ -66,7 +66,6 @@ public class RawBatchConverter {
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
         int uncompressedSize = metadata.getUncompressedSize();
         ByteBuf uncompressedPayload = codec.decode(payload, uncompressedSize);
-        payload.release();
         metadata.recycle();
 
         List<ImmutablePair<MessageId,String>> idsAndKeys = new ArrayList<>();
