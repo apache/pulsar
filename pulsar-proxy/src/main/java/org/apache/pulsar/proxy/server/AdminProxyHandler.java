@@ -74,7 +74,7 @@ class AdminProxyHandler extends AsyncProxyServlet.Transparent {
                 }
             }
         } catch (PulsarClientException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
 
         // return an unauthenticated client, every request will fail.
