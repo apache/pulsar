@@ -2,7 +2,9 @@ package org.apache.pulsar.proxy.server;
 
 import java.io.IOException;
 import java.security.cert.X509Certificate;
+import java.util.Objects;
 import javax.net.ssl.SSLContext;
+import javax.servlet.ServletException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.AuthenticationFactory;
@@ -24,6 +26,13 @@ class AdminProxyHandler extends AsyncProxyServlet.Transparent {
     }
 
     @Override
+    protected HttpClient createHttpClient() throws ServletException {
+        HttpClient client = super.createHttpClient();
+        client.setFollowRedirects(true);
+        return client;
+    }
+
+    @Override
     protected HttpClient newHttpClient() {
         try {
             Authentication auth = AuthenticationFactory.create(
@@ -31,9 +40,9 @@ class AdminProxyHandler extends AsyncProxyServlet.Transparent {
                 config.getBrokerClientAuthenticationParameters()
             );
 
-            if (auth != null) {
-                auth.start();
-            }
+            Objects.requireNonNull(auth, "No supported auth found for proxy");
+
+            auth.start();
 
             boolean useTls = config.getBrokerServiceURL().startsWith("https://");
 
@@ -64,9 +73,7 @@ class AdminProxyHandler extends AsyncProxyServlet.Transparent {
                     return new HttpClient(contextFactory);
                 } catch (Exception e) {
                     try {
-                        if (auth != null) {
-                            auth.close();
-                        }
+                        auth.close();
                     } catch (IOException ioe) {
                         LOG.error("Failed to close the authentication service", ioe);
                     }
@@ -80,5 +87,4 @@ class AdminProxyHandler extends AsyncProxyServlet.Transparent {
         // return an unauthenticated client, every request will fail.
         return new HttpClient();
     }
-
 }

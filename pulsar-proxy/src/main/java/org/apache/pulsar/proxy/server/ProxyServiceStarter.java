@@ -105,17 +105,14 @@ public class ProxyServiceStarter {
         // create a web-service
         final WebServer server = new WebServer(config);
 
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-            @Override
-            public void run() {
-                try {
-                    proxyService.close();
-                    server.stop();
-                } catch (Exception e) {
-                    log.warn("server couldn't stop gracefully {}", e.getMessage(), e);
-                }
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            try {
+                proxyService.close();
+                server.stop();
+            } catch (Exception e) {
+                log.warn("server couldn't stop gracefully {}", e.getMessage(), e);
             }
-        });
+        }));
 
         proxyService.start();
 
@@ -126,7 +123,7 @@ public class ProxyServiceStarter {
                 VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath());
 
         AdminProxyHandler adminProxyHandler = new AdminProxyHandler(config);
-        Pair<String, Object> preserveHost = ImmutablePair.of("preserveHost", Boolean.TRUE);
+        Pair<String, Object> preserveHost = ImmutablePair.of("preserveHost", true);
         server.addServlet("/admin", new ServletHolder(adminProxyHandler), Lists.newArrayList(preserveHost));
         server.addServlet("/lookup", new ServletHolder(adminProxyHandler));
 
