@@ -160,6 +160,12 @@
       <artifactId>gson</artifactId>
     </dependency>
 
+    <!-- use shaded dependency util pulsar bump zookeeper version to 3.5 -->
+    <dependency>
+      <groupId>org.apache.distributedlog</groupId>
+      <artifactId>distributedlog-core-shaded</artifactId>
+    </dependency>
+
   </dependencies>
 
 </project>

@@ -60,7 +60,7 @@ public class WorkerService {
         }
 
         // create the dlog namespace for storing function packages
-        DistributedLogConfiguration dlogConf = Utils.getDlogConf(workerConfig);
+        DistributedLogConfiguration dlogConf = org.apache.pulsar.functions.utils.Utils.getDlogConf(workerConfig.getNumFunctionPackageReplicas());
         try {
             this.dlogNamespace = NamespaceBuilder.newBuilder()
                     .conf(dlogConf)

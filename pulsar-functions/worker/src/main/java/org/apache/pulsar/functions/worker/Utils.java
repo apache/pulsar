@@ -18,31 +18,16 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import dlshade.org.apache.zookeeper.KeeperException.Code;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.distributedlog.AppendOnlyStreamWriter;
-import org.apache.distributedlog.DistributedLogConfiguration;
-import org.apache.distributedlog.api.DistributedLogManager;
-import org.apache.distributedlog.api.namespace.Namespace;
-import org.apache.distributedlog.exceptions.ZKException;
-import org.apache.distributedlog.impl.metadata.BKDLConfig;
-import org.apache.distributedlog.metadata.DLMetadata;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.worker.dlog.DLInputStream;
-import org.apache.pulsar.functions.worker.dlog.DLOutputStream;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.OutputStream;
-import java.net.MalformedURLException;
-import java.net.URI;
-import java.net.URL;
 import java.util.UUID;
 
 @Slf4j
@@ -92,87 +77,6 @@ public final class Utils {
 
     public static String getUniquePackageName(String packageName) {
         return String.format("%s-%s", UUID.randomUUID().toString(), packageName);
-    }
-
-    public static void uploadToBookeeper(Namespace dlogNamespace,
-                                         InputStream uploadedInputStream,
-                                         String destPkgPath)
-            throws IOException {
-
-        // if the dest directory does not exist, create it.
-        if (dlogNamespace.logExists(destPkgPath)) {
-            // if the destination file exists, write a log message
-            log.info(String.format("Target function file already exists at '%s'. Overwriting it now",
-                    destPkgPath));
-            dlogNamespace.deleteLog(destPkgPath);
-        }
-        // copy the topology package to target working directory
-        log.info(String.format("Uploading function package to '%s'",
-                destPkgPath));
-
-        try (DistributedLogManager dlm = dlogNamespace.openLog(destPkgPath)) {
-            try (AppendOnlyStreamWriter writer = dlm.getAppendOnlyStreamWriter()){
-
-                try (OutputStream out = new DLOutputStream(dlm, writer)) {
-                    int read = 0;
-                    byte[] bytes = new byte[1024];
-                    while ((read = uploadedInputStream.read(bytes)) != -1) {
-                        out.write(bytes, 0, read);
-                    }
-                    out.flush();
-                }
-            }
-        }
-    }
-
-    public static void downloadFromBookkeeper(Namespace namespace,
-                                                 OutputStream outputStream,
-                                                 String packagePath) throws Exception {
-        DistributedLogManager dlm = namespace.openLog(packagePath);
-        InputStream in = new DLInputStream(dlm);
-        int read = 0;
-        byte[] bytes = new byte[1024];
-        while ((read = in.read(bytes)) != -1) {
-            outputStream.write(bytes, 0, read);
-        }
-        outputStream.flush();
-    }
-
-    public static DistributedLogConfiguration getDlogConf(WorkerConfig workerConfig) {
-        int numReplicas = workerConfig.getNumFunctionPackageReplicas();
-
-        DistributedLogConfiguration conf = new DistributedLogConfiguration()
-                .setWriteLockEnabled(false)
-                .setOutputBufferSize(256 * 1024)                  // 256k
-                .setPeriodicFlushFrequencyMilliSeconds(0)         // disable periodical flush
-                .setImmediateFlushEnabled(false)                  // disable immediate flush
-                .setLogSegmentRollingIntervalMinutes(0)           // disable time-based rolling
-                .setMaxLogSegmentBytes(Long.MAX_VALUE)            // disable size-based rolling
-                .setExplicitTruncationByApplication(true)         // no auto-truncation
-                .setRetentionPeriodHours(Integer.MAX_VALUE)       // long retention
-                .setEnsembleSize(numReplicas)                     // replica settings
-                .setWriteQuorumSize(numReplicas)
-                .setAckQuorumSize(numReplicas)
-                .setUseDaemonThread(true);
-        conf.setProperty("bkc.allowShadedLedgerManagerFactoryClass", true);
-        conf.setProperty("bkc.shadedLedgerManagerFactoryClassPrefix", "dlshade.");
-        return conf;
-    }
-
-    public static URI initializeDlogNamespace(String zkServers, String ledgersRootPath) throws IOException {
-        BKDLConfig dlConfig = new BKDLConfig(zkServers, ledgersRootPath);
-        DLMetadata dlMetadata = DLMetadata.create(dlConfig);
-        URI dlogUri = URI.create(String.format("distributedlog://%s/pulsar/functions", zkServers));
-
-        try {
-            dlMetadata.create(dlogUri);
-        } catch (ZKException e) {
-            if (e.getKeeperExceptionCode() == Code.NODEEXISTS) {
-                return dlogUri;
-            }
-            throw e;
-        }
-        return dlogUri;
     }
 
     public static PulsarAdmin getPulsarAdminClient(String pulsarWebServiceUrl) {

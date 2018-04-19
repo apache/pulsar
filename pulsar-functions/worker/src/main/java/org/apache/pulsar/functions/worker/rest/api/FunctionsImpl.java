@@ -23,7 +23,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.gson.Gson;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Array;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -381,7 +380,7 @@ public class FunctionsImpl {
         try {
             log.info("Uploading function package to {}", functionMetaData.getPackageLocation());
 
-            Utils.uploadToBookeeper(
+            org.apache.pulsar.functions.utils.Utils.uploadToBookeeper(
                 worker().getDlogNamespace(),
                 uploadedInputStream,
                 functionMetaData.getPackageLocation().getPackagePath());
