@@ -35,8 +35,11 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadata;
+import org.apache.pulsar.common.compression.CompressionCodec;
+import org.apache.pulsar.common.compression.CompressionCodecProvider;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,13 +64,18 @@ public class RawBatchConverter {
         ByteBuf payload = msg.getHeadersAndPayload();
         MessageMetadata metadata = Commands.parseMessageMetadata(payload);
         int batchSize = metadata.getNumMessagesInBatch();
+
+        CompressionType compressionType = metadata.getCompression();
+        CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
+        int uncompressedSize = metadata.getUncompressedSize();
+        ByteBuf uncompressedPayload = codec.decode(payload, uncompressedSize);
         metadata.recycle();
 
         List<ImmutablePair<MessageId,String>> idsAndKeys = new ArrayList<>();
 
         for (int i = 0; i < batchSize; i++) {
             SingleMessageMetadata.Builder singleMessageMetadataBuilder = SingleMessageMetadata.newBuilder();
-            ByteBuf singleMessagePayload = Commands.deSerializeSingleMessageInBatch(payload,
+            ByteBuf singleMessagePayload = Commands.deSerializeSingleMessageInBatch(uncompressedPayload,
                                                                                     singleMessageMetadataBuilder,
                                                                                     0, batchSize);
             MessageId id = new BatchMessageIdImpl(msg.getMessageIdData().getLedgerId(),
@@ -80,6 +88,7 @@ public class RawBatchConverter {
             singleMessageMetadataBuilder.recycle();
             singleMessagePayload.release();
         }
+        uncompressedPayload.release();
         return idsAndKeys;
     }
 
@@ -98,6 +107,12 @@ public class RawBatchConverter {
         ByteBuf payload = msg.getHeadersAndPayload();
         MessageMetadata metadata = Commands.parseMessageMetadata(payload);
         ByteBuf batchBuffer = PooledByteBufAllocator.DEFAULT.buffer(payload.capacity());
+
+        CompressionType compressionType = metadata.getCompression();
+        CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
+
+        int uncompressedSize = metadata.getUncompressedSize();
+        ByteBuf uncompressedPayload = codec.decode(payload, uncompressedSize);
         try {
             int batchSize = metadata.getNumMessagesInBatch();
             int messagesRetained = 0;
@@ -105,7 +120,7 @@ public class RawBatchConverter {
             SingleMessageMetadata.Builder emptyMetadataBuilder = SingleMessageMetadata.newBuilder().setCompactedOut(true);
             for (int i = 0; i < batchSize; i++) {
                 SingleMessageMetadata.Builder singleMessageMetadataBuilder = SingleMessageMetadata.newBuilder();
-                ByteBuf singleMessagePayload = Commands.deSerializeSingleMessageInBatch(payload,
+                ByteBuf singleMessagePayload = Commands.deSerializeSingleMessageInBatch(uncompressedPayload,
                                                                                         singleMessageMetadataBuilder,
                                                                                         0, batchSize);
                 MessageId id = new BatchMessageIdImpl(msg.getMessageIdData().getLedgerId(),
@@ -131,10 +146,22 @@ public class RawBatchConverter {
             emptyMetadataBuilder.recycle();
 
             if (messagesRetained > 0) {
+                int newUncompressedSize = batchBuffer.readableBytes();
+                ByteBuf compressedPayload = codec.encode(batchBuffer);
+
+                MessageMetadata.Builder metadataBuilder = metadata.toBuilder();
+                metadataBuilder.setUncompressedSize(newUncompressedSize);
+                MessageMetadata newMetadata = metadataBuilder.build();
+
                 ByteBuf metadataAndPayload = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c,
-                                                                                  metadata, batchBuffer);
-                return Optional.of(new RawMessageImpl(msg.getMessageIdData(),
-                                                      metadataAndPayload));
+                                                                                  newMetadata, compressedPayload);
+                Optional<RawMessage> result = Optional.of(new RawMessageImpl(msg.getMessageIdData(),
+                                                                             metadataAndPayload));
+                metadataBuilder.recycle();
+                newMetadata.recycle();
+                metadataAndPayload.release();
+                compressedPayload.release();
+                return result;
             } else {
                 return Optional.empty();
             }
