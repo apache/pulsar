@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import javax.ws.rs.WebApplicationException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConnectException;
@@ -71,9 +72,16 @@ public abstract class CmdBase {
                 System.err.println("Error connecting to: " + admin.getServiceUrl());
                 return false;
             } catch (PulsarAdminException e) {
-                System.err.println(e.getHttpError());
-                System.err.println();
-                System.err.println("Reason: " + e.getMessage());
+                if (e.getCause() instanceof WebApplicationException) {
+                    WebApplicationException wae = (WebApplicationException) e.getCause();
+                    System.err.println("Code: " + wae.getResponse().getStatus());
+                    System.err.println("Header: " + wae.getResponse().getHeaders());
+                    System.err.println("Reason: " + wae.getResponse().getEntity());
+                } else {
+                    System.err.println(e.getHttpError());
+                    System.err.println();
+                    System.err.println("Reason: " + e.getMessage());
+                }
                 return false;
             } catch (Exception e) {
                 System.err.println("Got exception: " + e.getMessage());

@@ -163,8 +163,6 @@ public class PulsarAdmin implements Closeable {
 
         this.serviceUrl = serviceUrl;
         root = client.target(serviceUrl.toString());
-        // pulsar admin client should handle redirects
-        root.property(ClientProperties.FOLLOW_REDIRECTS, Boolean.TRUE);
 
         this.clusters = new ClustersImpl(root, auth);
         this.brokers = new BrokersImpl(root, auth);
