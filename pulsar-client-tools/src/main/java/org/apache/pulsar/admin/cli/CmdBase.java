@@ -76,6 +76,7 @@ public abstract class CmdBase {
                     WebApplicationException wae = (WebApplicationException) e.getCause();
                     System.err.println("Code: " + wae.getResponse().getStatus());
                     System.err.println("Header: " + wae.getResponse().getHeaders());
+                    System.err.println("Location: " + wae.getResponse().getLocation());
                     System.err.println("Reason: " + wae.getResponse().getEntity());
                 } else {
                     System.err.println(e.getHttpError());
