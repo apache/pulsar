@@ -36,6 +36,7 @@ import org.apache.pulsar.functions.utils.Reflections;
 import org.slf4j.Logger;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -127,7 +128,11 @@ class ContextImpl implements Context {
 
     @Override
     public Collection<String> getInputTopics() {
-        return ((MultiTopicsConsumerImpl) inputConsumer).getTopics();
+        if (inputConsumer instanceof MultiTopicsConsumerImpl) {
+            return ((MultiTopicsConsumerImpl) inputConsumer).getTopics();
+        } else {
+            return Arrays.asList(inputConsumer.getTopic());
+        }
     }
 
     @Override
