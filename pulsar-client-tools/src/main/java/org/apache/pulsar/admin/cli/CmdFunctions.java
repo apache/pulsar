@@ -694,7 +694,6 @@ public class CmdFunctions extends CmdBase {
     public CmdFunctions(PulsarAdmin admin) throws PulsarClientException {
         super("functions", admin);
         localRunner = new LocalRunner();
-        k8Runner = new K8Runner();
         creater = new CreateFunction();
         deleter = new DeleteFunction();
         updater = new UpdateFunction();
@@ -704,7 +703,6 @@ public class CmdFunctions extends CmdBase {
         stateGetter = new StateGetter();
         triggerer = new TriggerFunction();
         jcommander.addCommand("localrun", getLocalRunner());
-        jcommander.addCommand("k8run", getK8Runner());
         jcommander.addCommand("create", getCreater());
         jcommander.addCommand("delete", getDeleter());
         jcommander.addCommand("update", getUpdater());
@@ -718,11 +716,6 @@ public class CmdFunctions extends CmdBase {
     @VisibleForTesting
     LocalRunner getLocalRunner() {
         return localRunner;
-    }
-
-    @VisibleForTesting
-    K8Runner getK8Runner() {
-        return k8Runner;
     }
 
     @VisibleForTesting
