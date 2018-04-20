@@ -76,7 +76,6 @@ import net.jodah.typetools.TypeResolver;
 public class CmdFunctions extends CmdBase {
 
     private final LocalRunner localRunner;
-    private final K8Runner k8Runner;
     private final CreateFunction creater;
     private final DeleteFunction deleter;
     private final UpdateFunction updater;
@@ -531,63 +530,6 @@ public class CmdFunctions extends CmdBase {
                     instanceConfig.setFunctionId(UUID.randomUUID().toString());
                     instanceConfig.setInstanceId(Integer.toString(i));
                     instanceConfig.setMaxBufferedTuples(1024);
-                    RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
-                            instanceConfig,
-                            userCodeFile,
-                            containerFactory,
-                            null);
-                    spawners.add(runtimeSpawner);
-                    runtimeSpawner.start();
-                }
-                Runtime.getRuntime().addShutdownHook(new Thread() {
-                    public void run() {
-                        log.info("Shutting down the localrun runtimeSpawner ...");
-                        for (RuntimeSpawner spawner : spawners) {
-                            spawner.close();
-                        }
-                    }
-                });
-                for (RuntimeSpawner spawner : spawners) {
-                    spawner.join();
-                    log.info("RuntimeSpawner quit because of {}", spawner.getRuntime().getDeathException());
-                }
-
-            }
-        }
-
-    }
-
-    @Parameters(commandDescription = "Run the Pulsar Function on a Kubernetes cluster")
-    class K8Runner extends FunctionDetailsCommand {
-
-        @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker")
-        protected String brokerServiceUrl;
-
-        @Override
-        void runCmd() throws Exception {
-            if (!areAllRequiredFieldsPresent(functionConfig)) {
-                throw new RuntimeException("Missing arguments");
-            }
-
-            String serviceUrl = admin.getServiceUrl();
-            if (brokerServiceUrl != null) {
-                serviceUrl = brokerServiceUrl;
-            }
-            if (serviceUrl == null) {
-                serviceUrl = "pulsar://localhost:6650";
-            }
-            try (ProcessRuntimeFactory containerFactory = new ProcessRuntimeFactory(
-                    serviceUrl, null, null, null)) {
-                List<RuntimeSpawner> spawners = new LinkedList<>();
-                for (int i = 0; i < functionConfig.getParallelism(); ++i) {
-                    InstanceConfig instanceConfig = new InstanceConfig();
-                    instanceConfig.setFunctionDetails(convertProto2(functionConfig));
-                    // TODO: correctly implement function version and id
-                    instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
-                    instanceConfig.setFunctionId(UUID.randomUUID().toString());
-                    instanceConfig.setInstanceId(Integer.toString(i));
-                    instanceConfig.setMaxBufferedTuples(1024);
-                    instanceConfig.setPort(Utils.findAvailablePort());
                     RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
                             instanceConfig,
                             userCodeFile,
