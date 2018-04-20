@@ -569,7 +569,7 @@ public class FunctionsImpl {
         try {
             log.info("Uploading function package to {}", packageLocation);
 
-            org.apache.pulsar.functions.utils.Utils.uploadToBookeeper(
+            Utils.uploadToBookeeper(
                     worker().getDlogNamespace(),
                     uploadedInputStream,
                     packageLocation);
@@ -600,7 +600,7 @@ public class FunctionsImpl {
                 new StreamingOutput() {
                     @Override
                     public void write(final OutputStream output) throws IOException {
-                        org.apache.pulsar.functions.utils.Utils.downloadFromBookkeeper(worker().getDlogNamespace(),
+                        Utils.downloadFromBookkeeper(worker().getDlogNamespace(),
                                 output, packageLocation);
                     }
                 }).build();
