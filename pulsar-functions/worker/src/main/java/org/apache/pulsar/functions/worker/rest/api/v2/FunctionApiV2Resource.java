@@ -149,10 +149,8 @@ public class FunctionApiV2Resource extends FunctionApiResource {
                                    final @PathParam("functionName") String functionName,
                                    final @FormDataParam("data") InputStream uploadedInputStream,
                                    final @FormDataParam("data") FormDataContentDisposition fileDetail) {
-
         return functions.uploadFunction(
                 tenant, namespace, functionName, uploadedInputStream, fileDetail);
-
     }
 
     @GET

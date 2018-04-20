@@ -536,7 +536,6 @@ public class FunctionsImpl {
                                    final @PathParam("functionName") String functionName,
                                    final @FormDataParam("data") InputStream uploadedInputStream,
                                    final @FormDataParam("data") FormDataContentDisposition fileDetail) {
-
         // validate parameters
         try {
             if (tenant == null) {
