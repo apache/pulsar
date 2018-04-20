@@ -44,5 +44,5 @@ public interface Message<T> {
     /**
      * Acknowledge that this message is fully processed
      */
-    void ack();
+    default void ack() {};
 }
