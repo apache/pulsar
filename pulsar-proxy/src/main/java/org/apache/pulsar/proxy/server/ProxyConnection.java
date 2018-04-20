@@ -28,6 +28,7 @@ import javax.net.ssl.SSLSession;
 
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarHandler;
 import org.apache.pulsar.common.api.proto.PulsarApi;
@@ -88,7 +89,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
     static final Counter rejectedConnections = Counter
             .build("pulsar_proxy_rejected_connections", "Counter for connections rejected due to throttling").create()
             .register();
-    
+
     public ProxyConnection(ProxyService proxyService) {
         super(30, TimeUnit.SECONDS);
         this.service = proxyService;
@@ -111,7 +112,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
         super.channelUnregistered(ctx);
         activeConnections.dec();
     }
-    
+
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
@@ -126,6 +127,16 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
         if (directProxyHandler != null && directProxyHandler.outboundChannel != null) {
             directProxyHandler.outboundChannel.close();
         }
+
+        LOG.info("[{}] Connection closed", remoteAddress);
+    }
+
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        super.exceptionCaught(ctx, cause);
+        LOG.warn("[{}] Got exception {} : {}", remoteAddress, cause.getClass().getSimpleName(), cause.getMessage(),
+                ClientCnx.isKnownException(cause) ? null : cause);
+        ctx.close();
     }
 
     @Override

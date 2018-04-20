@@ -117,7 +117,7 @@ flexible messaging model and an intuitive client API.</description>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <redirectTestOutputToFile>true</redirectTestOutputToFile>
 
-    <bookkeeper.version>4.7.0-SNAPSHOT</bookkeeper.version>
+    <bookkeeper.version>4.7.0</bookkeeper.version>
     <zookeeper.version>3.4.10</zookeeper.version>
     <netty.version>4.1.21.Final</netty.version>
     <storm.version>1.0.5</storm.version>

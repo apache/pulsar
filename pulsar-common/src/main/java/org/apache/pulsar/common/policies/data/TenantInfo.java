@@ -18,14 +18,16 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import java.util.Objects;
+import com.google.common.collect.Sets;
+
 import java.util.Set;
 
 import javax.xml.bind.annotation.XmlRootElement;
 
-import com.google.common.collect.Sets;
+import lombok.Data;
 
 @XmlRootElement
+@Data
 public class TenantInfo {
     /**
      * List of role enabled as admin for this tenant
@@ -62,16 +64,4 @@ public class TenantInfo {
     public void setAllowedClusters(Set<String> allowedClusters) {
         this.allowedClusters = allowedClusters;
     }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (obj instanceof TenantInfo) {
-            TenantInfo other = (TenantInfo) obj;
-            return Objects.equals(adminRoles, other.adminRoles)
-                    && Objects.equals(allowedClusters, other.allowedClusters);
-        }
-
-        return false;
-    }
-
 }
