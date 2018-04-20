@@ -45,4 +45,9 @@ public interface Message<T> {
      * Acknowledge that this message is fully processed
      */
     default void ack() {};
+
+    /**
+     * To indicate that this message is failed to be process
+     */
+    default void fail() {};
 }
