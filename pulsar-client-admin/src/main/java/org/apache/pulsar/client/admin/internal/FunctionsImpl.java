@@ -187,7 +187,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
         try {
             Path pathToFile = Paths.get(path);
             InputStream response = request(functions.path(tenant).path(namespace).path(function).path("download")
-                    .queryParam( "filename", pathToFile.getFileName().toString())).get(InputStream.class);
+                    .queryParam("filename", pathToFile.getFileName().toString())).get(InputStream.class);
             if (response != null) {
                 File targetFile = new File(path);
                 java.nio.file.Files.copy(

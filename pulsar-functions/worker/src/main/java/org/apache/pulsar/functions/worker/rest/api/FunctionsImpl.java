@@ -595,7 +595,7 @@ public class FunctionsImpl {
                 tenant,
                 namespace,
                 functionName,
-                Utils.getUniquePackageName(fileName));
+                fileName);
         return Response.status(Status.OK).entity(
                 new StreamingOutput() {
                     @Override
