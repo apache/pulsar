@@ -47,7 +47,7 @@ public interface Message<T> {
     default void ack() {};
 
     /**
-     * To indicate that this message has failed to be processed:
+     * To indicate that this message has failed to be processed
      */
     default void fail() {};
 }
