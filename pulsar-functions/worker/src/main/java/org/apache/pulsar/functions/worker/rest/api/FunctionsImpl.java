@@ -563,7 +563,7 @@ public class FunctionsImpl {
                         tenant,
                         namespace,
                         functionName,
-                        Utils.getUniquePackageName(fileDetail.getFileName()));
+                        fileDetail.getFileName());
 
         // Upload to bookkeeper
         try {
