@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.worker.dlog;
+package org.apache.pulsar.functions.utils;
 
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
