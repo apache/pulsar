@@ -23,7 +23,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.gson.Gson;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Array;
+import java.io.OutputStream;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -36,9 +36,11 @@ import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import javax.ws.rs.core.StreamingOutput;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Message;
@@ -524,6 +526,84 @@ public class FunctionsImpl {
                 producer.closeAsync();
             }
         }
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{functionName}/upload")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    public Response uploadFunction(final @PathParam("tenant") String tenant,
+                                   final @PathParam("namespace") String namespace,
+                                   final @PathParam("functionName") String functionName,
+                                   final @FormDataParam("data") InputStream uploadedInputStream,
+                                   final @FormDataParam("data") FormDataContentDisposition fileDetail) {
+        // validate parameters
+        try {
+            if (tenant == null) {
+                throw new IllegalArgumentException("Tenant is not provided");
+            }
+            if (namespace == null) {
+                throw new IllegalArgumentException("Namespace is not provided");
+            }
+            if (functionName == null) {
+                throw new IllegalArgumentException("Function Name is not provided");
+            }
+            if (uploadedInputStream == null || fileDetail == null) {
+                throw new IllegalArgumentException("Function Package is not provided");
+            }
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid upload function request @ /{}/{}/{}",
+                    tenant, namespace, functionName, e);
+            return Response.status(Status.BAD_REQUEST)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(e.getMessage())).build();
+        }
+
+        String packageLocation = String.format(
+                        "%s/%s/%s/%s",
+                        tenant,
+                        namespace,
+                        functionName,
+                        fileDetail.getFileName());
+
+        // Upload to bookkeeper
+        try {
+            log.info("Uploading function package to {}", packageLocation);
+
+            Utils.uploadToBookeeper(
+                    worker().getDlogNamespace(),
+                    uploadedInputStream,
+                    packageLocation);
+        } catch (IOException e) {
+            log.error("Error uploading file {}", packageLocation, e);
+            return Response.serverError()
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(e.getMessage()))
+                    .build();
+        }
+
+        return Response.status(Status.OK).build();
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{functionName}/download")
+    public Response downloadFunction(final @PathParam("tenant") String tenant,
+                                     final @PathParam("namespace") String namespace,
+                                     final @PathParam("functionName") String functionName,
+                                     final @QueryParam("filename") String fileName) {
+        String packageLocation = String.format(
+                "%s/%s/%s/%s",
+                tenant,
+                namespace,
+                functionName,
+                fileName);
+        return Response.status(Status.OK).entity(
+                new StreamingOutput() {
+                    @Override
+                    public void write(final OutputStream output) throws IOException {
+                        Utils.downloadFromBookkeeper(worker().getDlogNamespace(),
+                                output, packageLocation);
+                    }
+                }).build();
     }
 
     private void validateListFunctionRequestParams(String tenant, String namespace) throws IllegalArgumentException {
