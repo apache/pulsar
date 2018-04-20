@@ -41,6 +41,10 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 
 @Slf4j
@@ -159,6 +163,38 @@ public class FunctionsImpl extends BaseResource implements Functions {
             String response = request(functions.path(tenant).path(namespace).path(functionName).path("trigger"))
                     .post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), String.class);
             return response;
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void uploadFunction(String tenant, String namespace, String functionName, String fileName) throws PulsarAdminException {
+        try {
+            final FormDataMultiPart mp = new FormDataMultiPart();
+
+            mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
+
+            request(functions.path(tenant).path(namespace).path(functionName).path("upload"))
+                    .post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void downloadFunction(String tenant, String namespace, String function, String path) throws PulsarAdminException {
+        try {
+            Path pathToFile = Paths.get(path);
+            InputStream response = request(functions.path(tenant).path(namespace).path(function).path("download")
+                    .queryParam( "filename", pathToFile.getFileName().toString())).get(InputStream.class);
+            if (response != null) {
+                File targetFile = new File(path);
+                java.nio.file.Files.copy(
+                        response,
+                        targetFile.toPath(),
+                        StandardCopyOption.REPLACE_EXISTING);
+            }
         } catch (Exception e) {
             throw getApiException(e);
         }

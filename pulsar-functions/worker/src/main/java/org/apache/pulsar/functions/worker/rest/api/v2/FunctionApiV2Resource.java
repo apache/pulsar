@@ -30,6 +30,7 @@ import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
@@ -159,8 +160,8 @@ public class FunctionApiV2Resource extends FunctionApiResource {
     public Response downloadFunction(final @PathParam("tenant") String tenant,
                                      final @PathParam("namespace") String namespace,
                                      final @PathParam("functionName") String functionName,
-                                     final @FormDataParam("data") FormDataContentDisposition fileDetail) {
-        return functions.downloadFunction(tenant, namespace, functionName, fileDetail);
+                                     final @QueryParam("filename") String fileName) {
+        return functions.downloadFunction(tenant, namespace, functionName, fileName);
     }
 
 }

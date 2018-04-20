@@ -84,6 +84,8 @@ public class CmdFunctions extends CmdBase {
     private final ListFunctions lister;
     private final StateGetter stateGetter;
     private final TriggerFunction triggerer;
+    private final UploadFunction uploader;
+    private final DownloadFunction downloader;
 
     /**
      * Base command
@@ -691,6 +693,50 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Upload Pulsar Function code to Pulsar")
+    class UploadFunction extends FunctionCommand {
+        @Parameter(
+                names = "--jar",
+                description = "Path to the jar file for the function (if the function is written in Java)",
+                listConverter = StringConverter.class)
+        protected String jarFile;
+        @Parameter(
+                names = "--py",
+                description = "Path to the main Python file for the function (if the function is written in Python)",
+                listConverter = StringConverter.class)
+        protected String pyFile;
+
+        @Override
+        void runCmd() throws Exception {
+            if (jarFile == null && pyFile == null) {
+                throw new RuntimeException("Either a jar File or a python file needs to be specified");
+            }
+            String userCodeFile;
+            if (jarFile != null) {
+                userCodeFile = jarFile;
+            } else {
+                userCodeFile = pyFile;
+            }
+            admin.functions().uploadFunction(tenant, namespace, functionName, userCodeFile);
+            print("Uploaded successfully");
+        }
+    }
+
+    @Parameters(commandDescription = "Download Pulsar Function code from Pulsar")
+    class DownloadFunction extends FunctionCommand {
+        @Parameter(
+                names = "--downloadPath",
+                description = "Path where the file needs to be downloaded)",
+                listConverter = StringConverter.class, required = true)
+        protected String downloadPath;
+
+        @Override
+        void runCmd() throws Exception {
+            admin.functions().downloadFunction(tenant, namespace, functionName, downloadPath);
+            print("Downloaded successfully");
+        }
+    }
+
     public CmdFunctions(PulsarAdmin admin) throws PulsarClientException {
         super("functions", admin);
         localRunner = new LocalRunner();
@@ -702,6 +748,8 @@ public class CmdFunctions extends CmdBase {
         lister = new ListFunctions();
         stateGetter = new StateGetter();
         triggerer = new TriggerFunction();
+        uploader = new UploadFunction();
+        downloader = new DownloadFunction();
         jcommander.addCommand("localrun", getLocalRunner());
         jcommander.addCommand("create", getCreater());
         jcommander.addCommand("delete", getDeleter());
@@ -711,6 +759,8 @@ public class CmdFunctions extends CmdBase {
         jcommander.addCommand("list", getLister());
         jcommander.addCommand("querystate", getStateGetter());
         jcommander.addCommand("trigger", getTriggerer());
+        jcommander.addCommand("upload", getUploader());
+        jcommander.addCommand("download", getDownloader());
     }
 
     @VisibleForTesting
@@ -754,6 +804,16 @@ public class CmdFunctions extends CmdBase {
     @VisibleForTesting
     TriggerFunction getTriggerer() {
         return triggerer;
+    }
+
+    @VisibleForTesting
+    UploadFunction getUploader() {
+        return uploader;
+    }
+
+    @VisibleForTesting
+    DownloadFunction getDownloader() {
+        return downloader;
     }
 
     private static FunctionConfig loadConfig(File file) throws IOException {
