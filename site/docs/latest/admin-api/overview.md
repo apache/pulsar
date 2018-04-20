@@ -28,7 +28,9 @@ The Pulsar admin interface enables you to manage all of the important entities i
 
 You can currently interact with the admin interface via:
 
-1. Making HTTP calls against the admin [REST API](../../reference/RestApi) provided by Pulsar {% popover brokers %}.
+1. Making HTTP calls against the admin [REST API](../../reference/RestApi) provided by Pulsar {% popover brokers %}. For some restful apis, they might be redirected to topic owner brokers for serving
+   with [`307 Temporary Redirect`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/307), hence the HTTP callers should handle `307 Temporary Redirect`. If you are using `curl`, you should specify `-L`
+   to handle redirections.
 1. The `pulsar-admin` CLI tool, which is available in the `bin` folder of your [Pulsar installation](../../getting-started/LocalCluster):
 
     ```shell
