@@ -26,6 +26,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
@@ -87,13 +88,13 @@ class ContextImpl implements Context {
     private ProducerConfiguration producerConfiguration;
     private PulsarClient pulsarClient;
     private ClassLoader classLoader;
-    private Map<String, Consumer> inputConsumers;
+    Consumer inputConsumer;
     @Getter
     @Setter
     private StateContextImpl stateContext;
 
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
-                       ClassLoader classLoader, Map<String, Consumer> inputConsumers) {
+                       ClassLoader classLoader, Consumer inputConsumer) {
         this.config = config;
         this.logger = logger;
         this.pulsarClient = client;
@@ -101,7 +102,7 @@ class ContextImpl implements Context {
         this.accumulatedMetrics = new ConcurrentHashMap<>();
         this.publishProducers = new HashMap<>();
         this.publishSerializers = new HashMap<>();
-        this.inputConsumers = inputConsumers;
+        this.inputConsumer = inputConsumer;
         producerConfiguration = new ProducerConfiguration();
         producerConfiguration.setBlockIfQueueFull(true);
         producerConfiguration.setBatchingEnabled(true);
@@ -126,7 +127,7 @@ class ContextImpl implements Context {
 
     @Override
     public Collection<String> getInputTopics() {
-        return inputConsumers.keySet();
+        return ((MultiTopicsConsumerImpl) inputConsumer).getTopics();
     }
 
     @Override
@@ -241,19 +242,17 @@ class ContextImpl implements Context {
                 .thenApply(msgId -> null);
     }
 
+    //TODO remove topic argument
     @Override
     public CompletableFuture<Void> ack(byte[] messageId, String topic) {
-        if (!inputConsumers.containsKey(topic)) {
-            throw new RuntimeException("No such input topic " + topic);
-        }
-
         MessageId actualMessageId = null;
         try {
             actualMessageId = MessageId.fromByteArray(messageId);
+
         } catch (IOException e) {
             throw new RuntimeException("Invalid message id to ack", e);
         }
-        return inputConsumers.get(topic).acknowledgeAsync(actualMessageId);
+        return  inputConsumer.acknowledgeAsync(actualMessageId);
     }
 
     @Override

@@ -22,8 +22,10 @@ import java.util.Map;
 import java.util.concurrent.LinkedBlockingDeque;
 import org.apache.bookkeeper.common.annotation.InterfaceStability.Evolving;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.instance.InputMessage;
@@ -37,8 +39,7 @@ import org.apache.pulsar.functions.proto.Function.FunctionDetails.ProcessingGuar
 public interface MessageProcessor extends AutoCloseable {
 
     static MessageProcessor create(PulsarClient client,
-                                   FunctionDetails functionDetails,
-                                   LinkedBlockingDeque<InputMessage> processQeueue) {
+                                   FunctionDetails functionDetails) {
         FunctionDetails.SubscriptionType fnSubType = functionDetails.getSubscriptionType();
         ProcessingGuarantees processingGuarantees = functionDetails.getProcessingGuarantees();
         SubscriptionType subType;
@@ -53,20 +54,17 @@ public interface MessageProcessor extends AutoCloseable {
         if (processingGuarantees == ProcessingGuarantees.EFFECTIVELY_ONCE) {
             return new EffectivelyOnceProcessor(
                 client,
-                functionDetails,
-                processQeueue);
+                functionDetails);
         } else if (processingGuarantees == ProcessingGuarantees.ATMOST_ONCE) {
             return new AtMostOnceProcessor(
                 client,
                 functionDetails,
-                subType,
-                processQeueue);
+                subType);
         } else {
             return new AtLeastOnceProcessor(
                 client,
                 functionDetails,
-                subType,
-                processQeueue);
+                subType);
         }
     }
 
@@ -84,7 +82,9 @@ public interface MessageProcessor extends AutoCloseable {
      *
      * @return the map of input consumers.
      */
-    Map<String, Consumer> getInputConsumers();
+//    Map<String, Consumer> getInputConsumers();
+
+    Consumer getInputConsumer();
 
     /**
      * Setup the output with a provided <i>outputSerDe</i>. The implementation of this processor is responsible for
@@ -130,7 +130,7 @@ public interface MessageProcessor extends AutoCloseable {
      * @param outputMsgBuilder output message builder. it can be null.
      */
     void sendOutputMessage(InputMessage inputMsg,
-                           MessageBuilder outputMsgBuilder);
+                           MessageBuilder outputMsgBuilder) throws PulsarClientException, Exception;
 
     /**
      * Handle the process exception when processing input message <i>inputMsg</i>.
@@ -139,6 +139,8 @@ public interface MessageProcessor extends AutoCloseable {
      * @param exception exception thrown when processing input message.
      */
     void handleProcessException(InputMessage inputMsg, Exception exception);
+
+    InputMessage recieveMessage() throws Exception;
 
 
     @Override

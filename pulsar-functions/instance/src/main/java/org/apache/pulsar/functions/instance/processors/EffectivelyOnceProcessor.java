@@ -54,9 +54,8 @@ class EffectivelyOnceProcessor extends MessageProcessorBase implements ConsumerE
     protected Producers outputProducer;
 
     EffectivelyOnceProcessor(PulsarClient client,
-                             FunctionDetails functionDetails,
-                             LinkedBlockingDeque<InputMessage> processQueue) {
-        super(client, functionDetails, SubscriptionType.Failover, processQueue);
+                             FunctionDetails functionDetails) {
+        super(client, functionDetails, SubscriptionType.Failover);
     }
 
     /**
@@ -65,14 +64,6 @@ class EffectivelyOnceProcessor extends MessageProcessorBase implements ConsumerE
     @Override
     protected SubscriptionType getSubscriptionType() {
         return SubscriptionType.Failover;
-    }
-
-    @Override
-    protected ConsumerConfiguration createConsumerConfiguration(String topicName) {
-        ConsumerConfiguration conf = super.createConsumerConfiguration(topicName);
-        // for effectively-once processor, register a consumer event listener to react to active consumer changes.
-        conf.setConsumerEventListener(this);
-        return conf;
     }
 
     @Override
@@ -110,20 +101,12 @@ class EffectivelyOnceProcessor extends MessageProcessorBase implements ConsumerE
     //
 
     @Override
-    public void prepareDequeueMessageFromProcessQueue() {
-        super.prepareDequeueMessageFromProcessQueue();
-        // some src topics might be put into resubscribe list because of processing failure
-        // so this is the chance to resubscribe to those topics.
-        resubscribeTopicsIfNeeded();
-    }
-
-    @Override
     public boolean prepareProcessMessage(InputMessage msg) throws InterruptedException {
         boolean prepared = super.prepareProcessMessage(msg);
         if (prepared) {
             // if the messages are received from old consumers, we discard it since new consumer was
             // re-created for the correctness of effectively-once
-            if (msg.getConsumer() != inputConsumers.get(msg.getTopicName())) {
+            if (msg.getConsumer() != inputConsumer) {
                 return false;
             }
 
@@ -153,7 +136,7 @@ class EffectivelyOnceProcessor extends MessageProcessorBase implements ConsumerE
 
     @Override
     public void sendOutputMessage(InputMessage inputMsg,
-                                  MessageBuilder outputMsgBuilder) {
+                                  MessageBuilder outputMsgBuilder) throws Exception {
         if (null == outputMsgBuilder) {
             inputMsg.ackCumulative();
             return;
@@ -163,103 +146,15 @@ class EffectivelyOnceProcessor extends MessageProcessorBase implements ConsumerE
         outputMsgBuilder = outputMsgBuilder
             .setSequenceId(Utils.getSequenceId(inputMsg.getActualMessage().getMessageId()));
 
-        Producer producer;
-        try {
-            producer = outputProducer.getProducer(inputMsg.getTopicName(), inputMsg.getTopicPartition());
-        } catch (PulsarClientException e) {
-            log.error("Failed to get a producer for producing results computed from input topic {}",
-                inputMsg.getTopicName());
 
-            // if we fail to get a producer, put this message back to queue and reprocess it.
-            processQueue.offerFirst(inputMsg);
-            return;
-        }
+        Producer producer = outputProducer.getProducer(inputMsg.getTopicName(), inputMsg.getTopicPartition());
 
         Message outputMsg = outputMsgBuilder.build();
         producer.sendAsync(outputMsg)
-            .thenAccept(messageId -> inputMsg.ackCumulative())
-            .exceptionally(cause -> {
-                log.error("Failed to send the process result {} of message {} to output topic {}",
-                    outputMsg, inputMsg, functionDetails.getOutput(), cause);
-                handleProcessException(inputMsg.getTopicName());
-                return null;
-            });
+                .thenAccept(messageId -> inputMsg.ackCumulative())
+                .join();
     }
 
-    @Override
-    public void handleProcessException(InputMessage msg, Exception cause) {
-        handleProcessException(msg.getTopicName());
-    }
-
-    private void handleProcessException(String srcTopic) {
-        // if the src message is coming from a shared subscription,
-        // we don't need any special logic on handling failures, just don't ack.
-        // the message will be redelivered to other consumer.
-        //
-        // BUT, if the src message is coming from a failover subscription,
-        // we need to stop processing messages and recreate consumer to reprocess
-        // the message. otherwise we might break the correctness of effectively-once
-        //
-        // in this case (effectively-once), we need to close the consumer
-        // release the partition and open the consumer again. so we guarantee
-        // that we always process messages in order
-        //
-        // but this is in pulsar's callback, so add this to a retry list. so we can
-        // retry on java instance's main thread.
-        addTopicToResubscribeList(srcTopic);
-    }
-
-    private synchronized void addTopicToResubscribeList(String topicName) {
-        if (null == inputTopicsToResubscribe) {
-            inputTopicsToResubscribe = new LinkedList<>();
-        }
-        inputTopicsToResubscribe.add(topicName);
-    }
-
-    private void resubscribeTopicsIfNeeded() {
-        List<String> topicsToResubscribe;
-        synchronized (this) {
-            topicsToResubscribe = inputTopicsToResubscribe;
-            inputTopicsToResubscribe = null;
-        }
-        if (null != topicsToResubscribe) {
-            for (String topic : topicsToResubscribe) {
-                resubscribe(topic);
-            }
-        }
-    }
-
-    private void resubscribe(String srcTopic) {
-        // if we can not produce a message to output topic, then close the consumer of the src topic
-        // and retry to instantiate a consumer again.
-        Consumer consumer = inputConsumers.remove(srcTopic);
-        if (consumer != null) {
-            // TODO (sijie): currently we have to close the entire consumer for a given topic. However
-            //               ideally we should do this in a finer granularity - we can close consumer
-            //               on a given partition, without impact other partitions.
-            try {
-                consumer.close();
-            } catch (PulsarClientException e) {
-                log.error("Failed to close consumer for input topic {} when handling produce exceptions",
-                    srcTopic, e);
-            }
-        }
-        // subscribe to the src topic again
-        ConsumerConfiguration conf = createConsumerConfiguration(srcTopic);
-        try {
-            inputConsumers.put(
-                srcTopic,
-                client.subscribe(
-                    srcTopic,
-                    FunctionDetailsUtils.getFullyQualifiedName(functionDetails),
-                    conf
-                ));
-        } catch (PulsarClientException e) {
-            log.error("Failed to resubscribe to input topic {}. Added it to retry list and retry it later",
-                srcTopic, e);
-            addTopicToResubscribeList(srcTopic);
-        }
-    }
 
     @Override
     public void close() {

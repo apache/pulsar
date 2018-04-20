@@ -79,6 +79,7 @@ class ThreadRuntime implements Runtime {
             @Override
             public void uncaughtException(Thread t, Throwable e) {
                 startupException = new Exception(e);
+                start();
             }
         });
         this.fnThread.start();
