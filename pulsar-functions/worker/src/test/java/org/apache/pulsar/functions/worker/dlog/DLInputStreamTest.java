@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.utils;
+package org.apache.pulsar.functions.worker.dlog;
 
 import static com.google.common.base.Charsets.UTF_8;
 import static org.mockito.Matchers.any;
