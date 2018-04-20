@@ -1018,9 +1018,9 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/admin-api/overview/">The Pulsar admin interface</a></li>
+          
+          
           
           
           
@@ -1232,9 +1232,9 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/admin-api/overview/">The Pulsar admin interface</a></li>
+          
+          
           
           
           
@@ -1444,9 +1444,9 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/admin-api/overview/">The Pulsar admin interface</a></li>
+          
+          
           
           
           
@@ -1664,9 +1664,9 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/admin-api/overview/">The Pulsar admin interface</a></li>
+          
+          
           
           
           
@@ -1776,7 +1776,9 @@
 <p>You can currently interact with the admin interface via:</p>
 
 <ol>
-  <li>Making HTTP calls against the admin <a href="../../reference/RestApi">REST API</a> provided by Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span>.</li>
+  <li>Making HTTP calls against the admin <a href="../../reference/RestApi">REST API</a> provided by Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span>. For some restful apis, they might be redirected to topic owner brokers for serving
+with <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/307"><code class="highlighter-rouge">307 Temporary Redirect</code></a>, hence the HTTP callers should handle <code class="highlighter-rouge">307 Temporary Redirect</code>. If you are using <code class="highlighter-rouge">curl</code>, you should specify <code class="highlighter-rouge">-L</code>
+to handle redirections.</li>
   <li>
     <p>The <code class="highlighter-rouge">pulsar-admin</code> CLI tool, which is available in the <code class="highlighter-rouge">bin</code> folder of your <a href="../../getting-started/LocalCluster">Pulsar installation</a>:</p>
 
