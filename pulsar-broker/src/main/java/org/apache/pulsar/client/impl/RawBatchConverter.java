@@ -50,10 +50,11 @@ public class RawBatchConverter {
     public static boolean isReadableBatch(RawMessage msg) {
         ByteBuf payload = msg.getHeadersAndPayload();
         MessageMetadata metadata = Commands.parseMessageMetadata(payload);
-        boolean encrypted = metadata.getEncryptionKeysCount() > 0;
-        int batchSize = metadata.getNumMessagesInBatch();
-        metadata.recycle();
-        return batchSize > 1 && !encrypted;
+        try {
+            return metadata.hasNumMessagesInBatch() && metadata.getEncryptionKeysCount() == 0;
+        } finally {
+            metadata.recycle();
+        }
     }
 
     public static List<ImmutablePair<MessageId,String>> extractIdsAndKeys(RawMessage msg)
