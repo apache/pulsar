@@ -78,12 +78,10 @@ public interface MessageProcessor extends AutoCloseable {
         throws Exception;
 
     /**
-     * Return the map of input consumers.
+     * Return the input.
      *
-     * @return the map of input consumers.
+     * @return the input consumer.
      */
-//    Map<String, Consumer> getInputConsumers();
-
     Consumer getInputConsumer();
 
     /**
@@ -94,31 +92,6 @@ public interface MessageProcessor extends AutoCloseable {
      * @throws Exception
      */
     void setupOutput(SerDe outputSerDe) throws Exception;
-
-
-    //
-    // Methods that called on processing messages
-    //
-
-    /**
-     * Method that is called before taking a message from process queue to process.
-     *
-     * <p>The implementation can do actions like failure recovery before actually taking messages out of process queue to
-     * process.
-     */
-    void prepareDequeueMessageFromProcessQueue();
-
-    /**
-     * Method that is called before processing the input message <i>msg</i>.
-     *
-     * <p>The implementation can do actions like ensuring producer is ready for producing results.
-     *
-     * @param msg input message.
-     * @return true if the msg can be process, otherwise false. If a processor can't process this message at this moment,
-     *          this message will be put back to the process queue and process later.
-     * @throws InterruptedException when the processor is interrupted on preparing processing message.
-     */
-    boolean prepareProcessMessage(InputMessage msg) throws InterruptedException;
 
     /**
      * Send the output message to the output topic. The output message is computed from <i>inputMsg</i>.
@@ -133,15 +106,11 @@ public interface MessageProcessor extends AutoCloseable {
                            MessageBuilder outputMsgBuilder) throws PulsarClientException, Exception;
 
     /**
-     * Handle the process exception when processing input message <i>inputMsg</i>.
-     *
-     * @param inputMsg input message
-     * @param exception exception thrown when processing input message.
+     * Get the next message to process
+     * @return the next input message
+     * @throws Exception
      */
-    void handleProcessException(InputMessage inputMsg, Exception exception);
-
     InputMessage recieveMessage() throws Exception;
-
 
     @Override
     void close();

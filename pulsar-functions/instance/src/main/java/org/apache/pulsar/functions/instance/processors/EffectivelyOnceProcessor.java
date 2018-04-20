@@ -101,40 +101,6 @@ class EffectivelyOnceProcessor extends MessageProcessorBase implements ConsumerE
     //
 
     @Override
-    public boolean prepareProcessMessage(InputMessage msg) throws InterruptedException {
-        boolean prepared = super.prepareProcessMessage(msg);
-        if (prepared) {
-            // if the messages are received from old consumers, we discard it since new consumer was
-            // re-created for the correctness of effectively-once
-            if (msg.getConsumer() != inputConsumer) {
-                return false;
-            }
-
-            if (null != outputProducer) {
-                // before processing the message, we have a producer connection setup for producing results.
-                Producer producer = null;
-                while (null == producer) {
-                    try {
-                        producer = outputProducer.getProducer(msg.getTopicName(), msg.getTopicPartition());
-                    } catch (PulsarClientException e) {
-                        // `ProducerBusy` is thrown when an producer with same name is still connected.
-                        // This can happen when a active consumer is changed for a given input topic partition
-                        // so we need to wait until the old active consumer release the produce connection.
-                        if (!(e instanceof ProducerBusyException)) {
-                            log.error("Failed to get a producer for producing results computed from input topic {}",
-                                msg.getTopicName());
-                        }
-                        TimeUnit.MILLISECONDS.sleep(500);
-                    }
-                }
-            }
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    @Override
     public void sendOutputMessage(InputMessage inputMsg,
                                   MessageBuilder outputMsgBuilder) throws Exception {
         if (null == outputMsgBuilder) {

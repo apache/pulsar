@@ -171,8 +171,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             javaInstance = setupJavaInstance();
             while (running) {
 
-                JavaExecutionResult result;
-
                 InputMessage currentMessage = processor.recieveMessage();
 
                 // state object is per function, because we need to have the ability to know what updates
@@ -196,7 +194,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 long processAt = System.currentTimeMillis();
                 stats.incrementProcessed(processAt);
                 addLogTopicHandler();
-                result = javaInstance.handleMessage(
+                JavaExecutionResult result = javaInstance.handleMessage(
                         currentMessage.getActualMessage().getMessageId(),
                         currentMessage.getTopicName(),
                         input);
@@ -294,11 +292,11 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         if (result.getUserException() != null) {
             log.info("Encountered user exception when processing message {}", msg, result.getUserException());
             stats.incrementUserExceptions(result.getUserException());
-            processor.handleProcessException(msg, result.getUserException());
+            throw result.getUserException();
         } else if (result.getSystemException() != null) {
             log.info("Encountered system exception when processing message {}", msg, result.getSystemException());
             stats.incrementSystemExceptions(result.getSystemException());
-            processor.handleProcessException(msg, result.getSystemException());
+            throw result.getSystemException();
         } else {
             stats.incrementSuccessfullyProcessed(endTime - startTime);
             if (result.getResult() != null && instanceConfig.getFunctionDetails().getOutput() != null) {
@@ -307,8 +305,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     output = outputSerDe.serialize(result.getResult());
                 } catch (Exception ex) {
                     stats.incrementSerializationExceptions();
-                    processor.handleProcessException(msg, ex);
-                    return;
+                    throw ex;
                 }
                 if (output != null) {
                     sendOutputMessage(msg, output);

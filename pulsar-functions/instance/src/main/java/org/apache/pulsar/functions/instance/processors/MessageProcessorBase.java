@@ -136,17 +136,6 @@ abstract class MessageProcessorBase implements MessageProcessor {
     //
 
     @Override
-    public void prepareDequeueMessageFromProcessQueue() {}
-
-    @Override
-    public boolean prepareProcessMessage(InputMessage msg) throws InterruptedException {
-        return true;
-    }
-
-    @Override
-    public void handleProcessException(InputMessage msg, Exception cause) {}
-
-    @Override
     public void close() {
 
         try {
