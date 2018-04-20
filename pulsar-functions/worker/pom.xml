@@ -164,7 +164,6 @@
       <groupId>org.apache.distributedlog</groupId>
       <artifactId>distributedlog-core-shaded</artifactId>
     </dependency>
-
   </dependencies>
 
 </project>

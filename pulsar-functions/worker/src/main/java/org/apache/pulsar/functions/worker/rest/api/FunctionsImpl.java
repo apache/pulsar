@@ -383,7 +383,7 @@ public class FunctionsImpl {
         try {
             log.info("Uploading function package to {}", functionMetaData.getPackageLocation());
 
-            org.apache.pulsar.functions.utils.Utils.uploadToBookeeper(
+            Utils.uploadToBookeeper(
                 worker().getDlogNamespace(),
                 uploadedInputStream,
                 functionMetaData.getPackageLocation().getPackagePath());

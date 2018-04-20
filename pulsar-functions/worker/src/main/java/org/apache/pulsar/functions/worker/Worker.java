@@ -137,7 +137,7 @@ public class Worker extends AbstractService {
         // initialize the dlog namespace
         // TODO: move this as part of pulsar cluster initialization later
         try {
-            return org.apache.pulsar.functions.utils.Utils.initializeDlogNamespace(
+            return Utils.initializeDlogNamespace(
                     internalConf.getZookeeperServers(),
                     internalConf.getLedgersRootPath());
         } catch (IOException ioe) {

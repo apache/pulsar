@@ -131,7 +131,7 @@ public class FunctionActioner implements AutoCloseable {
             try {
                 log.info("Function package file {} will be downloaded from {}",
                     tempPkgFile, functionMetaData.getPackageLocation());
-                org.apache.pulsar.functions.utils.Utils.downloadFromBookkeeper(
+                Utils.downloadFromBookkeeper(
                     dlogNamespace,
                     new FileOutputStream(tempPkgFile),
                     functionMetaData.getPackageLocation().getPackagePath());
