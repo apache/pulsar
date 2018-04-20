@@ -30,8 +30,9 @@ public interface Source<T> extends AutoCloseable {
     void open(final Map<String, String> config) throws Exception;
 
     /**
-     * Reads the next message from source
-     * @return next message from source
+     * Reads the next message from source, if one exists, and returns.  This call should be non-blocking.
+     * If source does not have any new messages, return null immediately.
+     * @return next message from source or null, if no new messages are available.
      * @throws Exception
      */
     T read() throws Exception;
