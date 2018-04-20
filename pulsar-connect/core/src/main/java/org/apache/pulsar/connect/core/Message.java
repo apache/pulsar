@@ -40,4 +40,9 @@ public interface Message<T> {
      * @return The message data
      */
     T getData();
+
+    /**
+     * Acknowledge that this message is fully processed
+     */
+    void ack();
 }
