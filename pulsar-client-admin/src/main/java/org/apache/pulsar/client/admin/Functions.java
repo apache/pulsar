@@ -160,38 +160,30 @@ public interface Functions {
     String triggerFunction(String tenant, String namespace, String function, String triggerValue, String triggerFile) throws PulsarAdminException;
 
     /**
-     * Upload Function Code.
+     * Upload Data.
      *
-     * @param tenant
-     *            Tenant name
-     * @param namespace
-     *            Namespace name
-     * @param function
-     *            Function name
-     * @param fileName
-     *            Code where file is located
+     * @param sourceFile
+     *            dataFile that needs to be uploaded
+     * @param path
+     *            Path where data should be stored
      *
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void uploadFunction(String tenant, String namespace, String function, String fileName) throws PulsarAdminException;
+    void uploadFunction(String sourceFile, String path) throws PulsarAdminException;
 
     /**
      * Download Function Code.
      *
-     * @param tenant
-     *            Tenant name
-     * @param namespace
-     *            Namespace name
-     * @param function
-     *            Function name
-     * @param fileName
-     *            Code where function should be downloaded
+     * @param destinationFile
+     *            file where data should be downloaded to
+     * @param path
+     *            Path where data is located
      *
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void downloadFunction(String tenant, String namespace, String function, String fileName) throws PulsarAdminException;
+    void downloadFunction(String destinationFile, String path) throws PulsarAdminException;
 
 
 }

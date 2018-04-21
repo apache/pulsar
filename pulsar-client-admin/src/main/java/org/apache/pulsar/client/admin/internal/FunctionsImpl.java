@@ -169,13 +169,14 @@ public class FunctionsImpl extends BaseResource implements Functions {
     }
 
     @Override
-    public void uploadFunction(String tenant, String namespace, String functionName, String fileName) throws PulsarAdminException {
+    public void uploadFunction(String sourceFile, String path) throws PulsarAdminException {
         try {
             final FormDataMultiPart mp = new FormDataMultiPart();
 
-            mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
+            mp.bodyPart(new FileDataBodyPart("data", new File(sourceFile), MediaType.APPLICATION_OCTET_STREAM_TYPE));
 
-            request(functions.path(tenant).path(namespace).path(functionName).path("upload"))
+            mp.bodyPart(new FormDataBodyPart("path", path, MediaType.TEXT_PLAIN_TYPE));
+            request(functions.path("upload"))
                     .post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
@@ -183,13 +184,12 @@ public class FunctionsImpl extends BaseResource implements Functions {
     }
 
     @Override
-    public void downloadFunction(String tenant, String namespace, String function, String path) throws PulsarAdminException {
+    public void downloadFunction(String destinationPath, String path) throws PulsarAdminException {
         try {
-            Path pathToFile = Paths.get(path);
-            InputStream response = request(functions.path(tenant).path(namespace).path(function).path("download")
-                    .queryParam("filename", pathToFile.getFileName().toString())).get(InputStream.class);
+            InputStream response = request(functions.path("download")
+                    .queryParam("path", path)).get(InputStream.class);
             if (response != null) {
-                File targetFile = new File(path);
+                File targetFile = new File(destinationPath);
                 java.nio.file.Files.copy(
                         response,
                         targetFile.toPath(),

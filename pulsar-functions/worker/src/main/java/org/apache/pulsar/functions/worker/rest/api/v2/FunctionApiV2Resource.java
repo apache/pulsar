@@ -142,24 +142,17 @@ public class FunctionApiV2Resource extends FunctionApiResource {
     }
 
     @POST
-    @Path("/{tenant}/{namespace}/{functionName}/upload")
+    @Path("/upload")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
-    public Response uploadFunction(final @PathParam("tenant") String tenant,
-                                   final @PathParam("namespace") String namespace,
-                                   final @PathParam("functionName") String functionName,
-                                   final @FormDataParam("data") InputStream uploadedInputStream,
-                                   final @FormDataParam("data") FormDataContentDisposition fileDetail) {
-        return functions.uploadFunction(
-                tenant, namespace, functionName, uploadedInputStream, fileDetail);
+    public Response uploadFunction(final @FormDataParam("data") InputStream uploadedInputStream,
+                                   final @FormDataParam("path") String path) {
+        return functions.uploadFunction(uploadedInputStream, path);
     }
 
     @GET
-    @Path("/{tenant}/{namespace}/{functionName}/download")
-    public Response downloadFunction(final @PathParam("tenant") String tenant,
-                                     final @PathParam("namespace") String namespace,
-                                     final @PathParam("functionName") String functionName,
-                                     final @QueryParam("filename") String fileName) {
-        return functions.downloadFunction(tenant, namespace, functionName, fileName);
+    @Path("/download")
+    public Response downloadFunction(final @QueryParam("path") String path) {
+        return functions.downloadFunction(path);
     }
 
 }
