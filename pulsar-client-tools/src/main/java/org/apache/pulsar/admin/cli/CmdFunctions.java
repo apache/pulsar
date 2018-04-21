@@ -693,46 +693,41 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Upload Pulsar Function code to Pulsar")
-    class UploadFunction extends FunctionCommand {
+    @Parameters(commandDescription = "Upload File Data to Pulsar")
+    class UploadFunction extends BaseCommand {
         @Parameter(
-                names = "--jar",
-                description = "Path to the jar file for the function (if the function is written in Java)",
-                listConverter = StringConverter.class)
-        protected String jarFile;
+                names = "--sourceFile",
+                description = "The file whose contents need to be uploaded",
+                listConverter = StringConverter.class, required = true)
+        protected String sourceFile;
         @Parameter(
-                names = "--py",
-                description = "Path to the main Python file for the function (if the function is written in Python)",
-                listConverter = StringConverter.class)
-        protected String pyFile;
-
+                names = "--path",
+                description = "Path where the contents need to be stored",
+                listConverter = StringConverter.class, required = true)
+        protected String path;
         @Override
         void runCmd() throws Exception {
-            if (jarFile == null && pyFile == null) {
-                throw new RuntimeException("Either a jar File or a python file needs to be specified");
-            }
-            String userCodeFile;
-            if (jarFile != null) {
-                userCodeFile = jarFile;
-            } else {
-                userCodeFile = pyFile;
-            }
-            admin.functions().uploadFunction(tenant, namespace, functionName, userCodeFile);
+            admin.functions().uploadFunction(sourceFile, path);
             print("Uploaded successfully");
         }
     }
 
-    @Parameters(commandDescription = "Download Pulsar Function code from Pulsar")
-    class DownloadFunction extends FunctionCommand {
+    @Parameters(commandDescription = "Download File Data from Pulsar")
+    class DownloadFunction extends BaseCommand {
         @Parameter(
-                names = "--downloadPath",
-                description = "Path where the file needs to be downloaded)",
+                names = "--destinationFile",
+                description = "The file where downloaded contents need to be stored",
                 listConverter = StringConverter.class, required = true)
-        protected String downloadPath;
+        protected String destinationFile;
+        @Parameter(
+                names = "--path",
+                description = "Path where the contents are to be stored",
+                listConverter = StringConverter.class, required = true)
+        protected String path;
 
         @Override
         void runCmd() throws Exception {
-            admin.functions().downloadFunction(tenant, namespace, functionName, downloadPath);
+            admin.functions().downloadFunction(destinationFile, path);
             print("Downloaded successfully");
         }
     }
