@@ -42,9 +42,8 @@ public class AtLeastOnceProcessor extends MessageProcessorBase {
 
     AtLeastOnceProcessor(PulsarClient client,
                          FunctionDetails functionDetails,
-                         SubscriptionType subType,
-                         LinkedBlockingDeque<InputMessage> processQueue) {
-        super(client, functionDetails, subType, processQueue);
+                         SubscriptionType subType) {
+        super(client, functionDetails, subType);
     }
 
     @Override
