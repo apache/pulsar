@@ -529,52 +529,32 @@ public class FunctionsImpl {
     }
 
     @POST
-    @Path("/{tenant}/{namespace}/{functionName}/upload")
+    @Path("/upload")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
-    public Response uploadFunction(final @PathParam("tenant") String tenant,
-                                   final @PathParam("namespace") String namespace,
-                                   final @PathParam("functionName") String functionName,
-                                   final @FormDataParam("data") InputStream uploadedInputStream,
-                                   final @FormDataParam("data") FormDataContentDisposition fileDetail) {
+    public Response uploadFunction(final @FormDataParam("data") InputStream uploadedInputStream,
+                                   final @FormDataParam("path") String path) {
         // validate parameters
         try {
-            if (tenant == null) {
-                throw new IllegalArgumentException("Tenant is not provided");
-            }
-            if (namespace == null) {
-                throw new IllegalArgumentException("Namespace is not provided");
-            }
-            if (functionName == null) {
-                throw new IllegalArgumentException("Function Name is not provided");
-            }
-            if (uploadedInputStream == null || fileDetail == null) {
-                throw new IllegalArgumentException("Function Package is not provided");
+            if (uploadedInputStream == null || path == null) {
+                throw new IllegalArgumentException("Function Package is not provided " + path);
             }
         } catch (IllegalArgumentException e) {
-            log.error("Invalid upload function request @ /{}/{}/{}",
-                    tenant, namespace, functionName, e);
+            log.error("Invalid upload function request @ /{}", path, e);
             return Response.status(Status.BAD_REQUEST)
                     .type(MediaType.APPLICATION_JSON)
                     .entity(new ErrorData(e.getMessage())).build();
         }
 
-        String packageLocation = String.format(
-                        "%s/%s/%s/%s",
-                        tenant,
-                        namespace,
-                        functionName,
-                        fileDetail.getFileName());
-
         // Upload to bookkeeper
         try {
-            log.info("Uploading function package to {}", packageLocation);
+            log.info("Uploading function package to {}", path);
 
             Utils.uploadToBookeeper(
                     worker().getDlogNamespace(),
                     uploadedInputStream,
-                    packageLocation);
+                    path);
         } catch (IOException e) {
-            log.error("Error uploading file {}", packageLocation, e);
+            log.error("Error uploading file {}", path, e);
             return Response.serverError()
                     .type(MediaType.APPLICATION_JSON)
                     .entity(new ErrorData(e.getMessage()))
@@ -585,23 +565,14 @@ public class FunctionsImpl {
     }
 
     @GET
-    @Path("/{tenant}/{namespace}/{functionName}/download")
-    public Response downloadFunction(final @PathParam("tenant") String tenant,
-                                     final @PathParam("namespace") String namespace,
-                                     final @PathParam("functionName") String functionName,
-                                     final @QueryParam("filename") String fileName) {
-        String packageLocation = String.format(
-                "%s/%s/%s/%s",
-                tenant,
-                namespace,
-                functionName,
-                fileName);
+    @Path("/download")
+    public Response downloadFunction(final @QueryParam("path") String path) {
         return Response.status(Status.OK).entity(
                 new StreamingOutput() {
                     @Override
                     public void write(final OutputStream output) throws IOException {
                         Utils.downloadFromBookkeeper(worker().getDlogNamespace(),
-                                output, packageLocation);
+                                output, path);
                     }
                 }).build();
     }
