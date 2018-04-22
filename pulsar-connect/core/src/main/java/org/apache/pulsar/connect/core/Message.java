@@ -40,4 +40,14 @@ public interface Message<T> {
      * @return The message data
      */
     T getData();
+
+    /**
+     * Acknowledge that this message is fully processed
+     */
+    default void ack() {};
+
+    /**
+     * To indicate that this message has failed to be processed
+     */
+    default void fail() {};
 }
