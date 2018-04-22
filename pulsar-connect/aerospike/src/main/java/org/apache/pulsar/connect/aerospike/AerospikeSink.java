@@ -32,7 +32,7 @@ import com.aerospike.client.listener.WriteListener;
 import com.aerospike.client.policy.ClientPolicy;
 import com.aerospike.client.policy.WritePolicy;
 import org.apache.pulsar.common.util.KeyValue;
-import org.apache.pulsar.connect.core.Message;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.connect.core.Sink;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -80,8 +80,8 @@ public class AerospikeSink<K, V> implements Sink<KeyValue<K, V>> {
     @Override
     public CompletableFuture<Void> write(Message<KeyValue<K, V>> tuple) {
         CompletableFuture<Void> future = new CompletableFuture<>();
-        Key key = new Key(aerospikeSinkConfig.getKeyspace(), aerospikeSinkConfig.getKeySet(), tuple.getData().getKey().toString());
-        Bin bin = new Bin(aerospikeSinkConfig.getColumnName(), Value.getAsBlob(tuple.getData().getValue()));
+        Key key = new Key(aerospikeSinkConfig.getKeyspace(), aerospikeSinkConfig.getKeySet(), tuple.getValue().getKey().toString());
+        Bin bin = new Bin(aerospikeSinkConfig.getColumnName(), Value.getAsBlob(tuple.getValue().getValue()));
         AWriteListener listener = null;
         try {
             listener = queue.take();
