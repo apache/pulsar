@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.bookkeeper.mledger.impl;
+package org.apache.pulsar.s3offload;
 
 import static com.google.common.base.Charsets.UTF_8;
 import static org.testng.Assert.assertNull;
@@ -25,25 +25,28 @@ import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerMetadata;
-import org.apache.bookkeeper.mledger.OffloadIndexBlock;
-import org.apache.bookkeeper.mledger.OffloadIndexBlockBuilder;
-import org.apache.bookkeeper.mledger.OffloadIndexEntry;
 import org.apache.bookkeeper.net.BookieSocketAddress;
+import org.apache.pulsar.broker.s3offload.OffloadIndexBlock;
+import org.apache.pulsar.broker.s3offload.OffloadIndexBlockBuilder;
+import org.apache.pulsar.broker.s3offload.OffloadIndexEntry;
+import org.apache.pulsar.broker.s3offload.impl.OffloadIndexEntryImpl;
 import org.testng.annotations.Test;
 
 @Slf4j
 public class OffloadIndexTest {
 
     @Test
-    public void OffloadIndexEntryImplTest() {
+    public void offloadIndexEntryImplTest() {
         // verify OffloadIndexEntryImpl builder
-        OffloadIndexEntryImpl entry1 = OffloadIndexEntryImpl.builder().entryId(0).partId(2).offset(0).build();
-        OffloadIndexEntryImpl entry2 = OffloadIndexEntryImpl.builder().entryId(100).partId(3).offset(1234).build();
+        OffloadIndexEntryImpl entry1 = OffloadIndexEntryImpl.of(0,2, 0);
+        OffloadIndexEntryImpl entry2 = OffloadIndexEntryImpl.of(100,3, 1234);
 
         // verify OffloadIndexEntryImpl get
         assertTrue(entry1.getEntryId() == 0L);
@@ -58,14 +61,6 @@ public class OffloadIndexTest {
         assertTrue(entry1.compareTo(entry1) == 0);
         assertTrue(entry1.compareTo(entry2) < 0);
         assertTrue(entry2.compareTo(entry1) > 0);
-
-        // verify OffloadIndexEntryImpl set
-        entry1.setEntryId(2000L);
-        entry1.setPartId(3000);
-        entry1.setOffset(4000L);
-        assertTrue(entry1.getEntryId() == 2000L);
-        assertTrue(entry1.getPartId() == 3000);
-        assertTrue(entry1.getOffset() == 4000L);
     }
 
 
@@ -109,11 +104,13 @@ public class OffloadIndexTest {
     }
 
     // prepare metadata, then use builder to build a OffloadIndexBlockImpl
-    // verify get methods and readout methods.
+    // verify get methods, readout and fromStream methods.
     @Test
-    public void OffloadIndexBlockImplTest() throws Exception {
+    public void offloadIndexBlockImplTest() throws Exception {
         OffloadIndexBlockBuilder blockBuilder = OffloadIndexBlockBuilder.create();
         LedgerMetadata metadata = createLedgerMetadata();
+        log.debug("created metadata: {}", metadata.toString());
+
         blockBuilder.withMetadata(metadata);
 
         blockBuilder.addBlock(0, 2, 0);
@@ -153,26 +150,29 @@ public class OffloadIndexTest {
         assertNull(entry4);
 
         // verify readOut
-        ByteBuf out = indexBlock.readOut();
-        int magic = out.readInt();
-        int indexBlockLength = out.readInt();
-        int segmentMetadataLength = out.readInt();
-        int indexEntryCount = out.readInt();
+        InputStream out = indexBlock.readOut();
+        byte b[] = new byte[1024];
+        int readoutLen = out.read(b);
+        out.close();
+        ByteBuf wrapper = Unpooled.wrappedBuffer(b);
+        int magic = wrapper.readInt();
+        int indexBlockLength = wrapper.readInt();
+        int segmentMetadataLength = wrapper.readInt();
+        int indexEntryCount = wrapper.readInt();
 
         // verify counter
         assertTrue(magic == 1000);
-        assertTrue(indexBlockLength == out.writerIndex());
+        assertTrue(indexBlockLength == readoutLen);
         assertTrue(indexEntryCount == 3);
 
-        out.readBytes(segmentMetadataLength);
+        wrapper.readBytes(segmentMetadataLength);
+        log.debug("magic: {}, blockLength: {}, metadataLength: {}, indexCount: {}",
+            magic, indexBlockLength, segmentMetadataLength, indexEntryCount);
 
         // verify entry
-        OffloadIndexEntry e1 = OffloadIndexEntryImpl.builder()
-            .entryId(out.readLong()).partId(out.readInt()).offset(out.readLong()).build();
-        OffloadIndexEntry e2 = OffloadIndexEntryImpl.builder()
-            .entryId(out.readLong()).partId(out.readInt()).offset(out.readLong()).build();
-        OffloadIndexEntry e3 = OffloadIndexEntryImpl.builder()
-            .entryId(out.readLong()).partId(out.readInt()).offset(out.readLong()).build();
+        OffloadIndexEntry e1 = OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(), wrapper.readLong());
+        OffloadIndexEntry e2 = OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(), wrapper.readLong());
+        OffloadIndexEntry e3 = OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(), wrapper.readLong());;
 
         assertTrue(e1.getEntryId() == entry1.getEntryId() &&
             e1.getPartId() == entry1.getPartId() && e1.getOffset() == entry1.getOffset());
@@ -180,8 +180,24 @@ public class OffloadIndexTest {
             e2.getPartId() == entry2.getPartId() && e2.getOffset() == entry2.getOffset());
         assertTrue(e3.getEntryId() == entry3.getEntryId() &&
             e3.getPartId() == entry3.getPartId() && e3.getOffset() == entry3.getOffset());
+        wrapper.release();
 
-        out.release();
+        // verify build OffloadIndexBlock from InputStream
+        InputStream out2 = indexBlock.readOut();
+        OffloadIndexBlock indexBlock2 = blockBuilder.fromStream(out2);
+        // 1. verify metadata that got from inputstream success.
+        LedgerMetadata metadata2 = indexBlock2.getLedgerMetadata();
+        log.debug("built metadata: {}", metadata2.toString());
+        log.debug("metadata2.getLastEntryId(): {}, metadata2.getAckQuorumSize(): {}, metadata2.getState(): {}",
+            metadata2.getLastEntryId(), metadata2.getAckQuorumSize(), metadata2.getState());
+        assertTrue(metadata2.getAckQuorumSize() == metadata.getAckQuorumSize());
+        assertTrue(metadata2.getEnsembleSize() == metadata.getEnsembleSize());
+        assertTrue(metadata2.getDigestType() == metadata.getDigestType());
+        assertTrue(metadata2.getState() == metadata.getState());
+        assertTrue(metadata2.getEnsembleAt(0).toString().equals(metadata.getEnsembleAt(0).toString()));
+
+        // 2. verify set all the entries
+        assertTrue(indexBlock2.getEntryCount() == indexBlock.getEntryCount());
         indexBlock.close();
     }
 

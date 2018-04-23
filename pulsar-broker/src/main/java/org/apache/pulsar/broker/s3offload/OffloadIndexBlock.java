@@ -16,13 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.bookkeeper.mledger;
+package org.apache.pulsar.broker.s3offload;
 
 import com.google.common.annotations.Beta;
-import io.netty.buffer.ByteBuf;
 import java.io.Closeable;
 import java.io.IOException;
-import org.apache.bookkeeper.client.api.LedgerMetadata;
+import java.io.InputStream;
+import org.apache.bookkeeper.client.LedgerMetadata;
 
 /**
  *
@@ -38,7 +38,7 @@ public interface OffloadIndexBlock extends Closeable {
      *   | index_magic_header | index_block_len | index_entry_count |
      *   |segment_metadata_length | segment metadata | index entries |
      */
-    ByteBuf readOut() throws IOException;
+    InputStream readOut() throws IOException;
 
     /**
      * Get the related OffloadIndexEntry that contains the given messageEntryId.

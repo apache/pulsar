@@ -16,11 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.bookkeeper.mledger;
+package org.apache.pulsar.broker.s3offload;
 
 import com.google.common.annotations.Beta;
-import org.apache.bookkeeper.client.api.LedgerMetadata;
-import org.apache.bookkeeper.mledger.impl.OffloadIndexBlockBuilderImpl;
+import java.io.IOException;
+import java.io.InputStream;
+import org.apache.bookkeeper.client.LedgerMetadata;
+import org.apache.pulsar.broker.s3offload.impl.OffloadIndexBlockBuilderImpl;
 
 /**
  * Interface for builder of index block used for offload a ledger to long term storage.
@@ -34,7 +36,6 @@ public interface OffloadIndexBlockBuilder {
      * @param metadata the ledger metadata
      */
     OffloadIndexBlockBuilder withMetadata(LedgerMetadata metadata);
-
 
     /**
      * Add one payload block related information into index block.
@@ -53,7 +54,17 @@ public interface OffloadIndexBlockBuilder {
      */
     OffloadIndexBlock build();
 
+    /**
+     * Construct OffloadIndex from an InputStream
+     */
+    OffloadIndexBlock fromStream(InputStream is) throws IOException;
+
+    /**
+     * create an OffloadIndexBlockBuilder
+     */
     static OffloadIndexBlockBuilder create() {
         return new OffloadIndexBlockBuilderImpl();
     }
+
+
 }

@@ -16,16 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.bookkeeper.mledger.impl;
+package org.apache.pulsar.broker.s3offload.impl;
 
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.annotations.Beta;
 import com.google.common.collect.Lists;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
-import org.apache.bookkeeper.client.api.LedgerMetadata;
-import org.apache.bookkeeper.mledger.OffloadIndexBlock;
-import org.apache.bookkeeper.mledger.OffloadIndexBlockBuilder;
+import org.apache.bookkeeper.client.LedgerMetadata;
+import org.apache.pulsar.broker.s3offload.OffloadIndexBlock;
+import org.apache.pulsar.broker.s3offload.OffloadIndexBlockBuilder;
 
 /**
  * Interface for builder of index block used for offload a ledger to long term storage.
@@ -58,9 +60,13 @@ public class OffloadIndexBlockBuilderImpl implements OffloadIndexBlockBuilder {
             offset = entries.get(entries.size() - 1).getOffset() + blockSize;
         }
 
-        this.entries.add(OffloadIndexEntryImpl.builder()
-            .entryId(firstEntryId).partId(partId).offset(offset).build());
+        this.entries.add(OffloadIndexEntryImpl.of(firstEntryId, partId, offset));
         return this;
+    }
+
+    @Override
+    public OffloadIndexBlock fromStream(InputStream is) throws IOException {
+        return OffloadIndexBlockImpl.get(is);
     }
 
     @Override

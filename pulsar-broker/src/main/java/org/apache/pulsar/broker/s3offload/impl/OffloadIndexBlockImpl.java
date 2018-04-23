@@ -16,29 +16,33 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.bookkeeper.mledger.impl;
+package org.apache.pulsar.broker.s3offload.impl;
 
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.annotations.Beta;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
+import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
 import java.util.TreeSet;
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.client.api.LedgerMetadata;
-import org.apache.bookkeeper.mledger.OffloadIndexBlock;
-import org.apache.bookkeeper.mledger.OffloadIndexEntry;
+import org.apache.bookkeeper.client.LedgerMetadata;
+import org.apache.bookkeeper.versioning.Version;
+import org.apache.pulsar.broker.namespace.OwnershipCache;
+import org.apache.pulsar.broker.s3offload.OffloadIndexBlock;
+import org.apache.pulsar.broker.s3offload.OffloadIndexEntry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Beta
-@Data
-@Slf4j
 public class OffloadIndexBlockImpl implements OffloadIndexBlock {
+    private static final Logger log = LoggerFactory.getLogger(OwnershipCache.class);
 
     private static final int indexMagicWord = 1000;
 
@@ -67,6 +71,13 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         return block;
     }
 
+    public static OffloadIndexBlockImpl get(InputStream stream) throws IOException {
+        OffloadIndexBlockImpl block = RECYCLER.get();
+        block.indexEntries = Sets.newTreeSet();
+        block.fromStream(stream);
+        return block;
+    }
+
     public void recycle() {
         segmentMetadata = null;
         indexEntries.clear();
@@ -84,7 +95,7 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
             return null;
         }
         // find the greatest mapping Id whose entryId <= messageEntryId
-        return this.indexEntries.floor(OffloadIndexEntryImpl.builder().entryId(messageEntryId).build());
+        return this.indexEntries.floor(OffloadIndexEntryImpl.of(messageEntryId, 0, 0));
     }
 
     @Override
@@ -113,10 +124,13 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
      *   |segment_metadata_len | segment metadata | index entries |
      */
     @Override
-    public ByteBuf readOut() throws IOException {
+    public InputStream readOut() throws IOException {
         int indexBlockLength;
         int segmentMetadataLength;
         int indexEntryCount = this.indexEntries.size();
+
+        //LedgerMetadataFormat ledgerMetadataFormat = buildLedgerMetadataFormat(this.segmentMetadata);
+        //segmentMetadataLength = ledgerMetadataFormat.getSerializedSize();
 
         byte[] ledgerMetadataByte = buildLedgerMetadataFormat(this.segmentMetadata);
         segmentMetadataLength = ledgerMetadataByte.length;
@@ -126,7 +140,7 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
             + 4 /* segment metadata length */
             + 4 /* index entry count */
             + segmentMetadataLength
-            + indexEntryCount * (8 + 4 + 8);
+            + indexEntryCount * (8 + 4 + 8); /* messageEntryId + blockPartId + blockOffset */
 
         ByteBuf out = Unpooled.buffer(indexBlockLength, indexBlockLength);
 
@@ -145,7 +159,34 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
                 .writeInt(entry.getPartId())
                 .writeLong(entry.getOffset()));
 
-        return out;
+        return new ByteBufInputStream(out, true);
+    }
+
+    private static LedgerMetadata parseLedgerMetadata(byte[] bytes) throws IOException {
+        return LedgerMetadata.parseConfig(bytes, Version.ANY,
+            org.apache.bookkeeper.shaded.com.google.common.base.Optional.<Long>absent());
+    }
+
+    private OffloadIndexBlock fromStream(InputStream stream) throws IOException {
+        DataInputStream dis = new DataInputStream(stream);
+        int magic = dis.readInt();
+        int indexBlockLength = dis.readInt();
+        int segmentMetadataLength = dis.readInt();
+        int indexEntryCount = dis.readInt();
+
+        byte[] metadataBytes = new byte[segmentMetadataLength];
+
+        if (segmentMetadataLength != dis.read(metadataBytes)) {
+            log.error("Read ledgerMetadata from bytes failed");
+            throw new IOException("Read ledgerMetadata from bytes failed");
+        }
+        this.segmentMetadata = parseLedgerMetadata(metadataBytes);
+
+        for (int i = 0; i < indexEntryCount; i ++) {
+            this.indexEntries.add(OffloadIndexEntryImpl.of(dis.readLong(), dis.readInt(), dis.readLong()));
+        }
+
+        return this;
     }
 
     @Override

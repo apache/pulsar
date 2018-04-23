@@ -16,12 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.bookkeeper.mledger.impl;
+package org.apache.pulsar.broker.s3offload.impl;
 
 import com.google.common.annotations.Beta;
-import lombok.Builder;
-import lombok.Data;
-import org.apache.bookkeeper.mledger.OffloadIndexEntry;
+import org.apache.pulsar.broker.s3offload.OffloadIndexEntry;
 
 /**
  *
@@ -29,15 +27,37 @@ import org.apache.bookkeeper.mledger.OffloadIndexEntry;
  *
  */
 @Beta
-@Data
-@Builder
 public class OffloadIndexEntryImpl implements OffloadIndexEntry, Comparable<OffloadIndexEntryImpl>{
+    public static OffloadIndexEntryImpl of(long entryId, int partId, long offset) {
+        return new OffloadIndexEntryImpl(entryId, partId, offset);
+    }
+
     private long entryId;
 
     private int partId;
 
     private long offset;
 
+    @Override
+    public long getEntryId() {
+        return entryId;
+    }
+    @Override
+    public int getPartId() {
+        return partId;
+    }
+    @Override
+    public long getOffset() {
+        return offset;
+    }
+
+    public OffloadIndexEntryImpl(long entryId, int partId, long offset) {
+        this.entryId = entryId;
+        this.partId = partId;
+        this.offset = offset;
+    }
+
+    // use this to sort index entries
     @Override
     public int compareTo(OffloadIndexEntryImpl another) {
         long anotherEntryId = another.getEntryId();
