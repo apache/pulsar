@@ -46,7 +46,7 @@ import org.apache.pulsar.functions.proto.InstanceControlGrpc.InstanceControlFutu
  * A function container implemented using java thread.
  */
 @Slf4j
-class ProcessRuntime implements Runtime {
+public class ProcessRuntime implements Runtime {
 
     // The thread that invokes the function
     @Getter
@@ -63,10 +63,11 @@ class ProcessRuntime implements Runtime {
                    String logDirectory,
                    String codeFile,
                    String pulsarServiceUrl) {
+        instancePort = instanceConfig.getPort();
         this.processArgs = composeArgs(instanceConfig, instanceFile, logDirectory, codeFile, pulsarServiceUrl);
     }
 
-    private List<String> composeArgs(InstanceConfig instanceConfig,
+    public static List<String> composeArgs(InstanceConfig instanceConfig,
                                      String instanceFile,
                                      String logDirectory,
                                      String codeFile,
@@ -172,9 +173,8 @@ class ProcessRuntime implements Runtime {
             args.add("--user_config");
             args.add(new Gson().toJson(userConfig));
         }
-        instancePort = findAvailablePort();
         args.add("--port");
-        args.add(String.valueOf(instancePort));
+        args.add(String.valueOf(instanceConfig.getPort()));
 
         return args;
     }
@@ -254,20 +254,6 @@ class ProcessRuntime implements Runtime {
             }
         });
         return retval;
-    }
-
-    private int findAvailablePort() {
-        // The logic here is a little flaky. There is no guarantee that this
-        // port returned will be available later on when the instance starts
-        // TODO(sanjeev):- Fix this
-        try {
-            ServerSocket socket = new ServerSocket(0);
-            int port = socket.getLocalPort();
-            socket.close();
-            return port;
-        } catch (IOException ex){
-            throw new RuntimeException("No free port found", ex);
-        }
     }
 
     private void startProcess() {
