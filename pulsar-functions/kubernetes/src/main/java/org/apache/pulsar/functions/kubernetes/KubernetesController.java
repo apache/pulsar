@@ -74,8 +74,8 @@ public class KubernetesController {
     );
     static final int instancePort = 7000;
     static final String logDirectory = "/logs";
-    static final String javaInstanceFile = "/javaInstance.jar";
-    static final String pythonInstanceFile = "/python_instance_main.py";
+    static final String javaInstanceFile = "/pulsar-functions/runtime-all/target/java-instance.jar";
+    static final String pythonInstanceFile = "/pulsar-functions/runtime/target/python-instance/python_instance_main.py";
 
     public KubernetesController(String yamlFile) throws IOException {
         kubernetesConfig = KubernetesConfig.load(yamlFile);
@@ -86,7 +86,7 @@ public class KubernetesController {
         client = new AppsV1beta1Api(apiClient);
     }
 
-    public void create(InstanceConfig instanceConfig, String userCodeFile, String pulsarServiceUrl, Resource resource) {
+    public void create(InstanceConfig instanceConfig, String bkPath, String fileBaseName, String pulsarServiceUrl, Resource resource) {
         instanceConfig.setInstanceId("$" + ENV_SHARD_ID);
         instanceConfig.setPort(instancePort);
         String instanceCodeFile;
@@ -101,7 +101,7 @@ public class KubernetesController {
         }
 
         final V1beta1StatefulSet statefulSet = createStatefulSet(instanceConfig, instanceCodeFile,
-                userCodeFile, pulsarServiceUrl, resource);
+                bkPath, fileBaseName, pulsarServiceUrl, resource);
 
         try {
             final Response response =
@@ -139,17 +139,33 @@ public class KubernetesController {
 
     protected List<String> getExecutorCommand(InstanceConfig instanceConfig,
                                               String instanceCodeFile,
-                                              String userCodeFile,
+                                              String bkPath,
+                                              String fileBaseName,
                                               String pulsarServiceUrl) {
+        String userCodeFilePath = kubernetesConfig.getContainerDownloadDir() + "/" + fileBaseName;
         final List<String> executorCommand =
-                ProcessRuntime.composeArgs(instanceConfig, instanceCodeFile, logDirectory,
-                        userCodeFile, pulsarServiceUrl);
+                ProcessRuntime.composeArgs(instanceConfig,
+                        kubernetesConfig.getPulsarRootir() + instanceCodeFile,
+                        logDirectory,
+                        userCodeFilePath, pulsarServiceUrl);
         return Arrays.asList(
                 "sh",
                 "-c",
                 setShardIdEnvironmentVariableCommand()
+                        + " && " + String.join(" ", getDownloadCommand(bkPath, userCodeFilePath))
                         + " && " + String.join(" ", executorCommand)
         );
+    }
+
+    private List<String> getDownloadCommand(String bkPath, String userCodeFilePath) {
+        return Arrays.asList(
+                kubernetesConfig.getPulsarRootir() + "/pulsar-admin",
+                "functions",
+                "download",
+                "--path",
+                bkPath,
+                "--destinationPath",
+                userCodeFilePath);
     }
 
     private static String setShardIdEnvironmentVariableCommand() {
@@ -159,7 +175,8 @@ public class KubernetesController {
 
     private V1beta1StatefulSet createStatefulSet(InstanceConfig instanceConfig,
                                                  String instanceCodeFile,
-                                                 String userCodeFile,
+                                                 String bkPath,
+                                                 String fileBaseName,
                                                  String pulsarServiceUrl,
                                                  Resource resource) {
         final String jobName = FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails());
@@ -195,7 +212,7 @@ public class KubernetesController {
         templateMetaData.annotations(getPrometheusAnnotations());
         podTemplateSpec.setMetadata(templateMetaData);
 
-        final List<String> command = getExecutorCommand(instanceConfig, instanceCodeFile, userCodeFile, pulsarServiceUrl);
+        final List<String> command = getExecutorCommand(instanceConfig, instanceCodeFile, bkPath, fileBaseName, pulsarServiceUrl);
         podTemplateSpec.spec(getPodSpec(command, resource));
 
         statefulSetSpec.setTemplate(podTemplateSpec);

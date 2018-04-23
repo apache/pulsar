@@ -63,7 +63,7 @@ public class Utils {
         JsonFormat.parser().merge(json, builder);
     }
 
-    private int findAvailablePort() {
+    public static int findAvailablePort() {
         // The logic here is a little flaky. There is no guarantee that this
         // port returned will be available later on when the instance starts
         // TODO(sanjeev):- Fix this

@@ -41,6 +41,8 @@ public class KubernetesConfig implements Serializable {
     private String k8Uri;
     private String jobNamespace;
     private String pulsarDockerImageName;
+    private String containerDownloadDir;
+    private String pulsarRootir;
 
     public static KubernetesConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
@@ -53,6 +55,7 @@ public class KubernetesConfig implements Serializable {
     }
 
     public boolean areAllFieldsPresent() {
-        return k8Uri != null && jobNamespace != null && pulsarDockerImageName != null;
+        return k8Uri != null && jobNamespace != null && pulsarDockerImageName != null
+                && containerDownloadDir != null && pulsarRootir != null;
     }
 }

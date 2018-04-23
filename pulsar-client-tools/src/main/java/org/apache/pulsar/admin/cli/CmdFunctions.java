@@ -26,6 +26,7 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
@@ -55,6 +56,7 @@ import org.apache.pulsar.functions.shaded.io.netty.buffer.ByteBuf;
 import org.apache.pulsar.functions.shaded.io.netty.buffer.ByteBufUtil;
 import org.apache.pulsar.functions.shaded.io.netty.buffer.Unpooled;
 import org.apache.pulsar.functions.shaded.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.functions.kubernetes.KubernetesConfig;
@@ -767,13 +769,25 @@ public class CmdFunctions extends CmdBase {
                 serviceUrl = "pulsar://localhost:6650";
             }
             KubernetesController k8Controller = new KubernetesController(k8ConfgiFile);
+            // Let's first upload user code to bk.
+            String userCodeFile;
+            if (jarFile != null) {
+                userCodeFile = jarFile;
+            } else {
+                userCodeFile = pyFile;
+            }
+            String bkPath = "pulsar-function-k8-" + FunctionDetailsUtils.getFullyQualifiedName(functionConfig.getTenant(),
+                    functionConfig.getNamespace(), functionConfig.getName());
+            admin.functions().uploadFunction(userCodeFile, bkPath);
+
+            // Now that we have uploaded, launch it via kubernetes
             InstanceConfig instanceConfig = new InstanceConfig();
             instanceConfig.setFunctionDetails(convertProto2(functionConfig));
             // TODO: correctly implement function version and id
             instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
             instanceConfig.setFunctionId(UUID.randomUUID().toString());
             instanceConfig.setMaxBufferedTuples(1024);
-            k8Controller.create(instanceConfig, userCodeFile, serviceUrl, new Resource(cpu, ram));
+            k8Controller.create(instanceConfig, bkPath, Paths.get(userCodeFile).getFileName().toString(),serviceUrl, new Resource(cpu, ram));
         }
     }
 
