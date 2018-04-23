@@ -477,25 +477,44 @@ commands:
     argument: cluster-name
   - name: delete
     description: Delete namespace isolation policy of a cluster. This operation requires superuser privileges.
-- name: persistent
-  description: Operations on persistent topics
+- name: topics
+  description: Operations for managing Pulsar topics (both persistent and non persistent)
   subcommands:
   - name: compact
     description: Run compaction on the specified topic
-    argument: persistent://tenant/namespace/topic
+    argument: "{persistent|non-persistent}://tenant/namespace/topic"
   - name: compaction-status
     description: Check the status of a topic compaction
-    argument: persistent://tenant/namespace/topic
+    argument: "{persistent|non-persistent}://tenant/namespace/topic"
     options:
     - flags: -w, --wait-complete
       description: Wait for compaction to complete
       default: 'false'
-  - name: terminate
-    description: Terminate a topic (disallow further messages from being published on the topic)
-    argument: persistent://tenant/namespace/topic
+  - name: create-partitioned-topic
+    description: Create a partitioned topic. A partitioned topic must be created before producers can publish to it.
+    argument: "{persistent|non-persistent}://tenant/namespace/topic"
+    options:
+    - flags: -p, --partitions
+      description: The number of partitions for the topic
+      default: 0
+  - name: delete-partitioned-topic
+    description: Delete a partitioned topic. This will also delete all the partitions of the topic if they exist.
+    argument: topic
+  - name: get-partitioned-topic-metadata
+    description: Get the partitioned topic metadata. If the topic is not created or is a non-partitioned topic, this will return an empty topic with zero partitions.
+    argument: "{persistent|non-persistent}://tenant/namespace/topic"
   - name: list
     description: Get the list of topics under a namespace
     argument: tenant/cluster/namespace
+  - name: list-in-bundle
+    description: Get a list of non-persistent topics present under a namespace bundle
+    argument: tenant/namespace
+    options:
+    - flags: -b, --bundle
+      description: The bundle range
+  - name: terminate
+    description: Terminate a topic (disallow further messages from being published on the topic)
+    argument: "{persistent|non-persistent}://tenant/namespace/topic"
   - name: permissions
     description: Get the permissions on a topic. Retrieve the effective permissions for a desination. These permissions are defined by the permissions set at the namespace level combined (union) with any eventual specific permissions set on the topic.
     argument: topic
@@ -548,7 +567,7 @@ commands:
       description: Get per-partition stats
       default: 'false'
   - name: skip
-    description: SKip some messages for the subscription
+    description: Skip some messages for the subscription
     argument: topic
     options:
     - flags: -n, --count
@@ -578,19 +597,6 @@ commands:
     - flags: -t, --expireTime
       description: Expire messages older than the time (in seconds)
       default: 0
-  - name: create-partitioned-topic
-    description: Create a partitioned topic
-    argument: topic
-    options:
-    - flags: -p, --partitions
-      description: The number of partitions for the topic
-      default: 0
-  - name: get-partitioned-topic-metadata
-    description: Get the partitioned topic metadata. If the topic is not created or is a non-partitioned topic, this will return an empty topic with zero partitions.
-    argument: topic
-  - name: delete-partitioned-topic
-    description: Delete a partitioned topic. This will also delete all the partitions of the topic if they exist.
-    argument: topic
   - name: peek-messages
     description: Peek some messages for the subscription.
     argument: topic
@@ -608,37 +614,6 @@ commands:
       description: Subscription to reset position on
     - flags: -t, --time
       description: "The time, in minutes, to reset back to (or minutes, hours, days, weeks, etc.). Examples: `100m`, `3h`, `2d`, `5w`."
-- name: non-persistent
-  description: Operations on persistent topics
-  subcommands:
-  - name: create-partitioned-topic
-    description: Create a partitioned topic. A partitioned non-persistent topic must be created before producers can publish to it.
-    argument: non-persistent://tenant/namespace/topic
-    options:
-    - flags: -p, --partitions
-      description: The number of partitions for the topic
-      default: 0
-  - name: lookup
-    description: Look up a non-persistent topic on the current serving broker
-    argument: non-persistent://tenant/namespace/topic
-  - name: stats
-    description: Get the stats for the topic and its connected producers and consumers. All rates are computed over a 1-minute window and are relative to the last completed 1-minute period.
-    argument: non-persistent://tenant/namespace/topic
-  - name: stats-internal
-    description: Get the internal stats for the topic
-    argument: non-persistent://tenant/namespace/topic
-  - name: get-partitioned-topic-metadata
-    description: Get the partitioned topic metadata. If the topic is not created or is a non-partitioned topic, this will return an empty topic with zero partitions.
-    argument: non-persistent://tenant/namespace/topic
-  - name: list
-    description: Get a list of non-persistent topics under a namespace
-    argument: tenant/namespace
-  - name: list-in-bundle
-    description: Get a list of non-persistent topics present under a namespace bundle
-    argument: tenant/namespace
-    options:
-    - flags: -b, --bundle
-      description: The bundle range
 - name: tenants
   description: Operations for managing tenants
   subcommands:
