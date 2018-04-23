@@ -116,7 +116,7 @@ public class TwoPhaseCompactor extends Compactor {
                             return;
                         }
                         MessageId id = m.getMessageId();
-                        if (RawBatchConverter.isBatch(m)) {
+                        if (RawBatchConverter.isReadableBatch(m)) {
                             try {
                                 RawBatchConverter.extractIdsAndKeys(m)
                                     .forEach(e -> latestForKey.put(e.getRight(), e.getLeft()));
@@ -208,7 +208,7 @@ public class TwoPhaseCompactor extends Compactor {
                     }
                     MessageId id = m.getMessageId();
                     Optional<RawMessage> messageToAdd = Optional.empty();
-                    if (RawBatchConverter.isBatch(m)) {
+                    if (RawBatchConverter.isReadableBatch(m)) {
                         try {
                             messageToAdd = RawBatchConverter.rebatchMessage(
                                     m, (key, subid) -> latestForKey.get(key).equals(subid));
