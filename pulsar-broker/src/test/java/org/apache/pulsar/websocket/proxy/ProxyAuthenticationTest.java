@@ -67,11 +67,9 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
         config.setWebServicePort(port);
         config.setClusterName("test");
         config.setAuthenticationEnabled(true);
-        config.setConfigurationStoreServers("dummy-zk-servers");
-        config.setSuperUserRoles(Sets.newHashSet("pulsar.super_user"));
-
         // If this is not set, 500 error occurs.
-        config.setGlobalZookeeperServers("dummy");
+        config.setConfigurationStoreServers("dummy");
+        config.setSuperUserRoles(Sets.newHashSet("pulsar.super_user"));
 
         if (methodName.equals("authenticatedSocketTest") || methodName.equals("statsTest")) {
             config.setAuthenticationProviders(Sets.newHashSet("org.apache.pulsar.websocket.proxy.MockAuthenticationProvider"));

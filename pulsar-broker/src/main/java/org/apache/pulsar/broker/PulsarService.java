@@ -421,7 +421,7 @@ public class PulsarService implements AutoCloseable {
             state = State.Started;
 
             acquireSLANamespace();
-            
+
             // start function worker service if necessary
             this.startWorkerService();
 
@@ -889,7 +889,7 @@ public class PulsarService implements AutoCloseable {
 
             InternalConfigurationData internalConf = new InternalConfigurationData(
                     this.getConfiguration().getZookeeperServers(),
-                    this.getConfiguration().getGlobalZookeeperServers(),
+                    this.getConfiguration().getConfigurationStoreServers(),
                     new ClientConfiguration().getZkLedgersRootPath());
 
             URI dlogURI;
