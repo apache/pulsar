@@ -22,6 +22,8 @@ import com.google.protobuf.AbstractMessage.Builder;
 import com.google.protobuf.MessageOrBuilder;
 import com.google.protobuf.util.JsonFormat;
 import java.io.IOException;
+import java.net.ServerSocket;
+
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.client.api.MessageId;
@@ -61,4 +63,17 @@ public class Utils {
         JsonFormat.parser().merge(json, builder);
     }
 
+    private int findAvailablePort() {
+        // The logic here is a little flaky. There is no guarantee that this
+        // port returned will be available later on when the instance starts
+        // TODO(sanjeev):- Fix this
+        try {
+            ServerSocket socket = new ServerSocket(0);
+            int port = socket.getLocalPort();
+            socket.close();
+            return port;
+        } catch (IOException ex){
+            throw new RuntimeException("No free port found", ex);
+        }
+    }
 }
