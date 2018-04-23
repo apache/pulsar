@@ -39,9 +39,11 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
+import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -389,6 +391,58 @@ public class PulsarAdminToolTest {
     }
 
     @Test
+    void namespacesCreateV1() throws Exception {
+        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
+        Namespaces mockNamespaces = mock(Namespaces.class);
+        when(admin.namespaces()).thenReturn(mockNamespaces);
+        CmdNamespaces namespaces = new CmdNamespaces(admin);
+
+        namespaces.run(split("create my-prop/my-cluster/my-namespace"));
+        verify(mockNamespaces).createNamespace("my-prop/my-cluster/my-namespace");
+    }
+
+    @Test
+    void namespacesCreateV1WithBundlesAndClusters() throws Exception {
+        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
+        Namespaces mockNamespaces = mock(Namespaces.class);
+        when(admin.namespaces()).thenReturn(mockNamespaces);
+        CmdNamespaces namespaces = new CmdNamespaces(admin);
+
+        namespaces.run(split("create my-prop/my-cluster/my-namespace --bundles 5 --clusters a,b,c"));
+        verify(mockNamespaces).createNamespace("my-prop/my-cluster/my-namespace", 5);
+        verify(mockNamespaces).setNamespaceReplicationClusters("my-prop/my-cluster/my-namespace", Sets.newHashSet("a", "b", "c"));
+    }
+
+    @Test
+    void namespacesCreate() throws Exception {
+        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
+        Namespaces mockNamespaces = mock(Namespaces.class);
+        when(admin.namespaces()).thenReturn(mockNamespaces);
+        CmdNamespaces namespaces = new CmdNamespaces(admin);
+
+        namespaces.run(split("create my-prop/my-namespace"));
+
+        Policies policies = new Policies();
+        policies.bundles = null;
+        verify(mockNamespaces).createNamespace("my-prop/my-namespace", policies);
+    }
+
+    @Test
+    void namespacesCreateWithBundlesAndClusters() throws Exception {
+        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
+        Namespaces mockNamespaces = mock(Namespaces.class);
+        when(admin.namespaces()).thenReturn(mockNamespaces);
+        CmdNamespaces namespaces = new CmdNamespaces(admin);
+
+        namespaces.run(split("create my-prop/my-namespace --bundles 5 --clusters a,b,c"));
+
+        Policies policies = new Policies();
+        policies.bundles = new BundlesData(5);
+        policies.replication_clusters = Sets.newHashSet("a", "b", "c");
+        verify(mockNamespaces).createNamespace("my-prop/my-namespace", policies);
+    }
+
+    @Test
     void resourceQuotas() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         ResourceQuotas mockResourceQuotas = mock(ResourceQuotas.class);
@@ -440,7 +494,7 @@ public class PulsarAdminToolTest {
         nsIsolationPoliciesCmd.run(split("broker use --broker my-broker"));
         verify(mockClusters).getBrokerWithNamespaceIsolationPolicy("use", "my-broker");
     }
-    
+
     @Test
     void persistentTopics() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);

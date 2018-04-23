@@ -142,7 +142,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         SubscriptionStats subStats;
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
-                .acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
@@ -219,7 +219,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         SubscriptionStats subStats;
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Shared).acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+                .subscriptionType(SubscriptionType.Shared).acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
@@ -694,7 +694,7 @@ public class BrokerServiceTest extends BrokerTestBase {
      */
     @Test
     public void testLookupThrottlingForClientByClient() throws Exception {
-        final String topicName = "persistent://prop/my-ns/newTopic";
+        final String topicName = "persistent://prop/ns-abc/newTopic";
 
         String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)

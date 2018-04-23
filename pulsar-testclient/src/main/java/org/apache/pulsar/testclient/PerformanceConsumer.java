@@ -252,7 +252,7 @@ public class PerformanceConsumer {
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer() //
                 .messageListener(listener) //
                 .receiverQueueSize(arguments.receiverQueueSize) //
-                .acknowledmentGroupTime(arguments.acknowledgmentsGroupingDelayMillis, TimeUnit.MILLISECONDS) //
+                .acknowledgmentGroupTime(arguments.acknowledgmentsGroupingDelayMillis, TimeUnit.MILLISECONDS) //
                 .subscriptionType(arguments.subscriptionType);
 
         if (arguments.encKeyName != null) {
