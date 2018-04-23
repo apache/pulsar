@@ -29,7 +29,7 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.CompletableFuture;
 
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -71,7 +71,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private ClassLoader fnClassLoader;
     private final InstanceConfig instanceConfig;
     private final FunctionCacheManager fnCache;
-    private final LinkedBlockingDeque<InputMessage> queue;
     private final String jarFile;
 
     // input topic consumer & output topic producer
@@ -109,15 +108,13 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                                 String stateStorageServiceUrl) {
         this.instanceConfig = instanceConfig;
         this.fnCache = fnCache;
-        this.queue = new LinkedBlockingDeque<>(instanceConfig.getMaxBufferedTuples());
         this.jarFile = jarFile;
         this.client = (PulsarClientImpl) pulsarClient;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.stats = new FunctionStats();
         this.processor = MessageProcessor.create(
                 client,
-                instanceConfig.getFunctionDetails(),
-                queue);
+                instanceConfig.getFunctionDetails());
     }
 
     /**
@@ -162,7 +159,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         // start any log topic handler
         setupLogHandler();
 
-        return new JavaInstance(instanceConfig, object, clsLoader, client, processor.getInputConsumers());
+        return new JavaInstance(instanceConfig, object, clsLoader, client, processor.getInputConsumer());
     }
 
     /**
@@ -173,23 +170,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         try {
             javaInstance = setupJavaInstance();
             while (running) {
-                processor.prepareDequeueMessageFromProcessQueue();
 
-                JavaExecutionResult result;
-                InputMessage msg;
-                try {
-                    msg = queue.take();
-                    log.debug("Received message: {}", msg.getActualMessage().getMessageId());
-                } catch (InterruptedException ie) {
-                    log.info("Function thread {} is interrupted",
-                            FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails()), ie);
-                    break;
-                }
-
-                if (!processor.prepareProcessMessage(msg)) {
-                    // the message can't be processed by the processor at this moment, retry it.
-                    continue;
-                }
+                InputMessage currentMessage = processor.recieveMessage();
 
                 // state object is per function, because we need to have the ability to know what updates
                 // are made in this function and ensure we only acknowledge after the state is persisted.
@@ -204,17 +186,17 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 // process the message
                 Object input;
                 try {
-                    input = msg.getInputSerDe().deserialize(msg.getActualMessage().getData());
+                    input = currentMessage.getInputSerDe().deserialize(currentMessage.getActualMessage().getData());
                 } catch (Exception ex) {
-                    stats.incrementDeserializationExceptions(msg.getTopicName());
-                    continue;
+                    stats.incrementDeserializationExceptions(currentMessage.getTopicName());
+                    throw ex;
                 }
                 long processAt = System.currentTimeMillis();
                 stats.incrementProcessed(processAt);
                 addLogTopicHandler();
-                result = javaInstance.handleMessage(
-                        msg.getActualMessage().getMessageId(),
-                        msg.getTopicName(),
+                JavaExecutionResult result = javaInstance.handleMessage(
+                        currentMessage.getActualMessage().getMessageId(),
+                        currentMessage.getTopicName(),
                         input);
                 removeLogTopicHandler();
 
@@ -222,22 +204,23 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 log.debug("Got result: {}", result.getResult());
 
                 if (null != stateContext) {
-                    stateContext.flush()
-                            .thenRun(() -> processResult(msg, result, processAt, doneProcessing))
-                            .exceptionally(cause -> {
-                                // log the messages, since we DONT ack, pulsar consumer will re-deliver the messages.
-                                log.error("Failed to flush the state updates of message {}", msg, cause);
-                                return null;
-                            });
-                } else {
-                    processResult(msg, result, processAt, doneProcessing);
+                    CompletableFuture completableFuture = stateContext.flush();
+
+                    try {
+                        completableFuture.join();
+                    } catch (Exception e) {
+                        log.error("Failed to flush the state updates of message {}", currentMessage, e);
+                        throw e;
+                    }
                 }
+                processResult(currentMessage, result, processAt, doneProcessing);
             }
 
             javaInstance.close();
         } catch (Exception ex) {
             log.info("Uncaught exception in Java Instance", ex);
             failureException = ex;
+            throw new RuntimeException(ex);
         }
     }
 
@@ -305,15 +288,15 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private void processResult(InputMessage msg,
                                JavaExecutionResult result,
-                               long startTime, long endTime) {
+                               long startTime, long endTime) throws Exception {
         if (result.getUserException() != null) {
             log.info("Encountered user exception when processing message {}", msg, result.getUserException());
             stats.incrementUserExceptions(result.getUserException());
-            processor.handleProcessException(msg, result.getUserException());
+            throw result.getUserException();
         } else if (result.getSystemException() != null) {
             log.info("Encountered system exception when processing message {}", msg, result.getSystemException());
             stats.incrementSystemExceptions(result.getSystemException());
-            processor.handleProcessException(msg, result.getSystemException());
+            throw result.getSystemException();
         } else {
             stats.incrementSuccessfullyProcessed(endTime - startTime);
             if (result.getResult() != null && instanceConfig.getFunctionDetails().getOutput() != null) {
@@ -322,8 +305,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     output = outputSerDe.serialize(result.getResult());
                 } catch (Exception ex) {
                     stats.incrementSerializationExceptions();
-                    processor.handleProcessException(msg, ex);
-                    return;
+                    throw ex;
                 }
                 if (output != null) {
                     sendOutputMessage(msg, output);
@@ -338,7 +320,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     private void sendOutputMessage(InputMessage srcMsg,
-                                   byte[] output) {
+                                   byte[] output) throws Exception {
         MessageBuilder msgBuilder = MessageBuilder.create()
                 .setContent(output)
                 .setProperty("__pfn_input_topic__", srcMsg.getTopicName())

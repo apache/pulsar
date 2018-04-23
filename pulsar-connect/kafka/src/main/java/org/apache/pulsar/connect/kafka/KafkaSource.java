@@ -24,6 +24,7 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.pulsar.connect.core.Message;
 import org.apache.pulsar.connect.core.PushSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,7 +45,7 @@ public class KafkaSource<V> implements PushSource<V> {
     private KafkaSourceConfig kafkaSourceConfig;
     Thread runnerThread;
 
-    private java.util.function.Function<V, CompletableFuture<Void>> consumeFunction;
+    private java.util.function.Function<Message<V>, CompletableFuture<Void>> consumeFunction;
 
     @Override
     public void open(Map<String, String> config) throws Exception {
@@ -101,7 +102,7 @@ public class KafkaSource<V> implements PushSource<V> {
                 int index = 0;
                 for (ConsumerRecord<String, V> record : records) {
                     LOG.debug("Message received from kafka, key: {}. value: {}", record.key(), record.value());
-                    futures[index] = consumeFunction.apply(record.value());
+                    futures[index] = consumeFunction.apply(new KafkaMesssage<>(record));
                     index++;
                 }
                 if (!kafkaSourceConfig.isAutoCommitEnabled()) {
@@ -120,7 +121,30 @@ public class KafkaSource<V> implements PushSource<V> {
     }
 
     @Override
-    public void setConsumer(java.util.function.Function<V, CompletableFuture<Void>> consumeFunction) {
+    public void setConsumer(java.util.function.Function<Message<V>, CompletableFuture<Void>> consumeFunction) {
         this.consumeFunction = consumeFunction;
+    }
+
+    static private class KafkaMesssage<V> implements Message<V>  {
+        ConsumerRecord<String, V> record;
+
+        public KafkaMesssage(ConsumerRecord<String, V> record) {
+            this.record = record;
+
+        }
+        @Override
+        public String getPartitionId() {
+            return Integer.toString(record.partition());
+        }
+
+        @Override
+        public Long getSequenceId() {
+            return record.offset();
+        }
+
+        @Override
+        public V getData() {
+            return record.value();
+        }
     }
 }
