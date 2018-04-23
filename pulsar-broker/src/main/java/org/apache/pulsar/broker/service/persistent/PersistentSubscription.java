@@ -677,8 +677,11 @@ public class PersistentSubscription implements Subscription {
 
     void topicTerminated() {
         if (cursor.getNumberOfEntriesInBacklog() == 0) {
-            // Immediately notify the consumer that there are no more available messages
-            dispatcher.getConsumers().forEach(Consumer::reachedEndOfTopic);
+            // notify the consumers if there are consumers connected to this topic.
+            if (null != dispatcher) {
+                // Immediately notify the consumer that there are no more available messages
+                dispatcher.getConsumers().forEach(Consumer::reachedEndOfTopic);
+            }
         }
     }
 
