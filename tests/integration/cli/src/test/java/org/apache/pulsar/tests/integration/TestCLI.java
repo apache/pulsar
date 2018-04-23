@@ -62,6 +62,28 @@ public class TestCLI extends Arquillian {
     }
 
     @Test
+    public void testCreateSubscriptionCommand() throws Exception {
+        String topic = "testCreateSubscriptionCommmand";
+
+        String subscriptionPrefix = "subscription-";
+
+        int i = 0;
+        for (String b : PulsarClusterUtils.brokerSet(docker, clusterName)) {
+            Assert.assertTrue(
+                DockerUtils.runCommand(docker, b,
+                    "/pulsar/bin/pulsar-admin",
+                    "persistent",
+                    "create-subscription",
+                    "persistent://public/default/" + topic,
+                    "--subscription",
+                    subscriptionPrefix + i
+                ).isEmpty()
+            );
+            i++;
+        }
+    }
+
+    @Test
     public void testTopicTerminationOnTopicsWithoutConnectedConsumers() throws Exception {
         String broker = PulsarClusterUtils.brokerSet(docker, clusterName).stream().findAny().get();
 
