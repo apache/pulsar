@@ -18,36 +18,22 @@
  */
 package org.apache.pulsar.connect.core;
 
-/**
- * Pulsar Connect's Message interface. Message encapsulates the
- * information about a message being read/written from/to a Source/Sink.
- */
-public interface Message<T> {
+import java.util.Map;
+
+public interface Source<T> extends AutoCloseable {
     /**
-     * Retrieves the partition information if any of the message
-     * @return The partition id where the
+     * Open connector with configuration
+     *
+     * @param config initialization config
+     * @throws Exception IO type exceptions when opening a connector
      */
-    default String getPartitionId() { return null; }
+    void open(final Map<String, String> config) throws Exception;
 
     /**
-     * Retrieves the sequence id of the message
-     * @return Sequence Id associated with the message
+     * Reads the next message from source, if one exists, and returns.  This call should be non-blocking.
+     * If source does not have any new messages, return null immediately.
+     * @return next message from source or null, if no new messages are available.
+     * @throws Exception
      */
-    default Long getSequenceId() { return -1L; }
-
-    /**
-     * Retrieves the actual data of the message
-     * @return The message data
-     */
-    T getData();
-
-    /**
-     * Acknowledge that this message is fully processed
-     */
-    default void ack() {};
-
-    /**
-     * To indicate that this message has failed to be processed
-     */
-    default void fail() {};
+    Message<T> read() throws Exception;
 }
