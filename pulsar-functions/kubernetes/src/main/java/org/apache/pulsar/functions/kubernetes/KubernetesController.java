@@ -95,9 +95,9 @@ public class KubernetesController {
         } else {
             instanceCodeFile = pythonInstanceFile;
         }
-        final String fqn = FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails());
-        if (!fqn.equals(fqn.toLowerCase())) {
-            throw new RuntimeException("K8S scheduler does not allow upper case fqns.");
+        final String jobName = createJobName(instanceConfig.getFunctionDetails());
+        if (!jobName.equals(jobName.toLowerCase())) {
+            throw new RuntimeException("K8S scheduler does not allow upper case jobNames.");
         }
 
         final V1beta1StatefulSet statefulSet = createStatefulSet(instanceConfig, instanceCodeFile,
@@ -124,7 +124,7 @@ public class KubernetesController {
             options.setGracePeriodSeconds(0L);
             options.setPropagationPolicy("Foreground");
             final Response response = client.deleteNamespacedStatefulSetCall(
-                    FunctionDetailsUtils.getFullyQualifiedName(tenant, namespace, name),
+                    createJobName(tenant, namespace, name),
                     kubernetesConfig.getJobNamespace(), options, null, null, null, null, null, null)
                     .execute();
 
@@ -179,7 +179,7 @@ public class KubernetesController {
                                                  String fileBaseName,
                                                  String pulsarServiceUrl,
                                                  Resource resource) {
-        final String jobName = FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails());
+        final String jobName = createJobName(instanceConfig.getFunctionDetails());
 
         final V1beta1StatefulSet statefulSet = new V1beta1StatefulSet();
 
@@ -333,6 +333,16 @@ public class KubernetesController {
         ports.add(port);
 
         return ports;
+    }
+
+    private String createJobName(Function.FunctionDetails functionDetails) {
+        return createJobName(functionDetails.getTenant(),
+                functionDetails.getNamespace(),
+                functionDetails.getName());
+    }
+
+    private String createJobName(String tenant, String namespace, String functionName) {
+        return FunctionDetailsUtils.getFullyQualifiedName(tenant, namespace, functionName);
     }
 
     /*
