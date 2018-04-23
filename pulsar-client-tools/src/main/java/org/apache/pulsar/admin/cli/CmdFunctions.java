@@ -57,6 +57,9 @@ import org.apache.pulsar.functions.shaded.io.netty.buffer.Unpooled;
 import org.apache.pulsar.functions.shaded.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.functions.kubernetes.KubernetesConfig;
+import org.apache.pulsar.functions.kubernetes.KubernetesController;
+import org.apache.pulsar.functions.kubernetes.Resource;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
@@ -76,6 +79,8 @@ import net.jodah.typetools.TypeResolver;
 public class CmdFunctions extends CmdBase {
 
     private final LocalRunner localRunner;
+    private final K8Runner k8Runner;
+    private final K8Killer k8Killer;
     private final CreateFunction creater;
     private final DeleteFunction deleter;
     private final UpdateFunction updater;
@@ -532,6 +537,7 @@ public class CmdFunctions extends CmdBase {
                     instanceConfig.setFunctionId(UUID.randomUUID().toString());
                     instanceConfig.setInstanceId(Integer.toString(i));
                     instanceConfig.setMaxBufferedTuples(1024);
+                    instanceConfig.setPort(Utils.findAvailablePort());
                     RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
                             instanceConfig,
                             userCodeFile,
@@ -732,9 +738,62 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Run the Pulsar Function on a Kubernetes cluster")
+    class K8Runner extends FunctionDetailsCommand {
+
+        @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker")
+        protected String brokerServiceUrl;
+
+        @Parameter(names = "--k8Config", description = "Kubernetes config file", required = true)
+        protected String k8ConfgiFile;
+
+        @Parameter(names = "--cpu", description = "Container CPU Allocation", required = true)
+        protected String cpu;
+
+        @Parameter(names = "--ram", description = "Container RAM Allocation", required = true)
+        protected String ram;
+
+        @Override
+        void runCmd() throws Exception {
+            if (!areAllRequiredFieldsPresent(functionConfig)) {
+                throw new RuntimeException("Missing arguments");
+            }
+
+            String serviceUrl = admin.getServiceUrl();
+            if (brokerServiceUrl != null) {
+                serviceUrl = brokerServiceUrl;
+            }
+            if (serviceUrl == null) {
+                serviceUrl = "pulsar://localhost:6650";
+            }
+            KubernetesController k8Controller = new KubernetesController(k8ConfgiFile);
+            InstanceConfig instanceConfig = new InstanceConfig();
+            instanceConfig.setFunctionDetails(convertProto2(functionConfig));
+            // TODO: correctly implement function version and id
+            instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
+            instanceConfig.setFunctionId(UUID.randomUUID().toString());
+            instanceConfig.setMaxBufferedTuples(1024);
+            k8Controller.create(instanceConfig, userCodeFile, serviceUrl, new Resource(cpu, ram));
+        }
+    }
+
+    @Parameters(commandDescription = "Kill Pulsar Function running in Kubernetes cluster")
+    class K8Killer extends FunctionCommand {
+        @Parameter(names = "--k8Config", description = "Kubernetes config file", required = true)
+        protected String k8ConfgiFile;
+
+        @Override
+        void runCmd() throws Exception {
+            KubernetesController k8Controller = new KubernetesController(k8ConfgiFile);
+            k8Controller.delete(tenant, namespace, functionName);
+        }
+    }
+
     public CmdFunctions(PulsarAdmin admin) throws PulsarClientException {
         super("functions", admin);
         localRunner = new LocalRunner();
+        k8Runner = new K8Runner();
+        k8Killer = new K8Killer();
         creater = new CreateFunction();
         deleter = new DeleteFunction();
         updater = new UpdateFunction();
@@ -746,6 +805,8 @@ public class CmdFunctions extends CmdBase {
         uploader = new UploadFunction();
         downloader = new DownloadFunction();
         jcommander.addCommand("localrun", getLocalRunner());
+        jcommander.addCommand("k8run", getK8Runner());
+        jcommander.addCommand("k8kill", getK8Killer());
         jcommander.addCommand("create", getCreater());
         jcommander.addCommand("delete", getDeleter());
         jcommander.addCommand("update", getUpdater());
@@ -761,6 +822,16 @@ public class CmdFunctions extends CmdBase {
     @VisibleForTesting
     LocalRunner getLocalRunner() {
         return localRunner;
+    }
+
+    @VisibleForTesting
+    K8Runner getK8Runner() {
+        return k8Runner;
+    }
+
+    @VisibleForTesting
+    K8Killer getK8Killer() {
+        return k8Killer;
     }
 
     @VisibleForTesting

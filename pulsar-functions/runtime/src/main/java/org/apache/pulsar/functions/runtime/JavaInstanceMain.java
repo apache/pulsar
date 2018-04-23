@@ -161,6 +161,7 @@ public class JavaInstanceMain {
         }
         FunctionDetails functionDetails = functionDetailsBuilder.build();
         instanceConfig.setFunctionDetails(functionDetails);
+        instanceConfig.setPort(port);
 
         ThreadRuntimeFactory containerFactory = new ThreadRuntimeFactory(
                 "LocalRunnerThreadGroup",
