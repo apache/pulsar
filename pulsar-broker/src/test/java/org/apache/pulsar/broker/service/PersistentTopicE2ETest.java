@@ -530,9 +530,9 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         assertFalse(subRef.getDispatcher().isConsumerConnected());
 
         // 3. delete topic
-        admin.persistentTopics().delete(topicName);
+        admin.topics().delete(topicName);
         try {
-            admin.persistentTopics().getStats(topicName);
+            admin.topics().getStats(topicName);
         } catch (PulsarAdminException e) {
             // ok
         }
@@ -596,7 +596,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         assertTrue(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
 
         // 4. Topic can be GCed after unsubscribe
-        admin.persistentTopics().deleteSubscription(topicName, subName);
+        admin.topics().deleteSubscription(topicName, subName);
 
         runGC();
         assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
@@ -640,7 +640,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
 
         // 4. Topic can be GCed after unsubscribe
-        admin.persistentTopics().deleteSubscription(topicName, subName);
+        admin.topics().deleteSubscription(topicName, subName);
 
         runGC();
         assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
@@ -683,7 +683,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
 
         // 4. Topic can be GCed after unsubscribe
-        admin.persistentTopics().deleteSubscription(topicName, subName);
+        admin.topics().deleteSubscription(topicName, subName);
 
         runGC();
         assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
@@ -732,8 +732,8 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         // clean-up
         producer.close();
         consumer.close();
-        admin.persistentTopics().deleteSubscription(topicName, subName);
-        admin.persistentTopics().delete(topicName);
+        admin.topics().deleteSubscription(topicName, subName);
+        admin.topics().delete(topicName);
         admin.namespaces().deleteNamespace(namespaceName);
     }
 
@@ -852,7 +852,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         }
 
         consumer1.close();
-        admin.persistentTopics().delete(topicName);
+        admin.topics().delete(topicName);
     }
 
     @Test
@@ -1061,7 +1061,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         assertNotNull(bundleStats);
 
         producer1.close();
-        admin.persistentTopics().delete("persistent://prop/ns-abc/topic-1");
+        admin.topics().delete("persistent://prop/ns-abc/topic-1");
 
         brokerService.updateRates();
 
@@ -1072,7 +1072,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         // // Delete 2nd topic as well
         // producer2.close();
-        // admin.persistentTopics().delete("persistent://prop/ns-abc/topic-2");
+        // admin.topics().delete("persistent://prop/ns-abc/topic-2");
         //
         // brokerService.updateRates();
         //

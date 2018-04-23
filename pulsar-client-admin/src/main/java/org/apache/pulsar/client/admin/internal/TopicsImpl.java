@@ -20,6 +20,14 @@ package org.apache.pulsar.client.admin.internal;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -44,6 +52,7 @@ import javax.ws.rs.core.Response.Status;
 import org.apache.pulsar.client.admin.PersistentTopics;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
+import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -55,34 +64,27 @@ import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadata;
 import org.apache.pulsar.common.compaction.CompactionStatus;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
-import org.apache.pulsar.common.policies.data.PersistentTopicStats;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-
-public class PersistentTopicsImpl extends BaseResource implements PersistentTopics {
+@SuppressWarnings("deprecation")
+public class TopicsImpl extends BaseResource implements Topics, PersistentTopics {
     private final WebTarget adminPersistentTopics;
     private final WebTarget adminV2PersistentTopics;
     private final String BATCH_HEADER = "X-Pulsar-num-batch-message";
-    public PersistentTopicsImpl(WebTarget web, Authentication auth) {
+    public TopicsImpl(WebTarget web, Authentication auth) {
         super(auth);
-        adminPersistentTopics = web.path("/admin/persistent");
-        adminV2PersistentTopics = web.path("/admin/v2/persistent");
+        adminPersistentTopics = web.path("/admin");
+        adminV2PersistentTopics = web.path("/admin/v2");
     }
 
     @Override
@@ -106,6 +108,39 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
             throw getApiException(e);
         }
     }
+
+
+    @Override
+    public List<String> getListInBundle(String namespace, String bundleRange) throws PulsarAdminException {
+        try {
+            return getListInBundleAsync(namespace, bundleRange).get();
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e.getCause());
+        }
+    }
+
+    @Override
+    public CompletableFuture<List<String>> getListInBundleAsync(String namespace, String bundleRange) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        final CompletableFuture<List<String>> future = new CompletableFuture<>();
+        WebTarget path = namespacePath(ns, bundleRange);
+        asyncGetRequest(path,
+                new InvocationCallback<List<String>>() {
+                    @Override
+                    public void completed(List<String> response) {
+                        future.complete(response);
+                    }
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
 
     @Override
     public Map<String, Set<AuthAction>> getPermissions(String topic) throws PulsarAdminException {
@@ -304,7 +339,7 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
     }
 
     @Override
-    public PersistentTopicStats getStats(String topic) throws PulsarAdminException {
+    public TopicStats getStats(String topic) throws PulsarAdminException {
         try {
             return getStatsAsync(topic).get();
         } catch (ExecutionException e) {
@@ -316,15 +351,15 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
     }
 
     @Override
-    public CompletableFuture<PersistentTopicStats> getStatsAsync(String topic) {
+    public CompletableFuture<TopicStats> getStatsAsync(String topic) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "stats");
-        final CompletableFuture<PersistentTopicStats> future = new CompletableFuture<>();
+        final CompletableFuture<TopicStats> future = new CompletableFuture<>();
         asyncGetRequest(path,
-                new InvocationCallback<PersistentTopicStats>() {
+                new InvocationCallback<TopicStats>() {
 
                     @Override
-                    public void completed(PersistentTopicStats response) {
+                    public void completed(TopicStats response) {
                         future.complete(response);
                     }
 
@@ -831,5 +866,5 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
         return ret;
     }
 
-    private static final Logger log = LoggerFactory.getLogger(PersistentTopicsImpl.class);
+    private static final Logger log = LoggerFactory.getLogger(TopicsImpl.class);
 }

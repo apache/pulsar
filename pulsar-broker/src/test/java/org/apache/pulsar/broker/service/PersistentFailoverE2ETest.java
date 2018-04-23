@@ -315,7 +315,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         producer.close();
         consumer3.close();
 
-        admin.persistentTopics().delete(topicName);
+        admin.topics().delete(topicName);
     }
 
     @Test
@@ -327,7 +327,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         final String subName = "sub1";
         final int numMsgs = 100;
         Set<String> uniqueMessages = new HashSet<>();
-        admin.persistentTopics().createPartitionedTopic(topicName, numPartitions);
+        admin.topics().createPartitionedTopic(topicName, numPartitions);
 
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Failover);
@@ -513,7 +513,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         consumer2.close();
         consumer3.unsubscribe();
 
-        admin.persistentTopics().deletePartitionedTopic(topicName);
+        admin.topics().deletePartitionedTopic(topicName);
     }
 
     @Test
@@ -585,7 +585,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
 
         subscribeFuture1.get().close();
         subscribeFuture2.get().unsubscribe();
-        admin.persistentTopics().delete(topicName);
+        admin.topics().delete(topicName);
         resetConfig();
         restartBroker();
     }

@@ -170,8 +170,7 @@ public class NonPersistentTopics extends PersistentTopics {
         for (int i = 0; i < boundaries.size() - 1; i++) {
             final String bundle = String.format("%s_%s", boundaries.get(i), boundaries.get(i + 1));
             try {
-                futures.add(pulsar().getAdminClient().nonPersistentTopics().getListInBundleAsync(namespaceName.toString(),
-                        bundle));
+                futures.add(pulsar().getAdminClient().topics().getListInBundleAsync(namespaceName.toString(), bundle));
             } catch (PulsarServerException e) {
                 log.error(String.format("[%s] Failed to get list of topics under namespace %s/%s", clientAppId(),
                         namespaceName, bundle), e);

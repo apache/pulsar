@@ -27,6 +27,10 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 
+/**
+ * @deprecated since 2.0. See {@link Topics}
+ */
+@Deprecated
 public interface NonPersistentTopics {
 
 

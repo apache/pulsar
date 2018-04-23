@@ -45,8 +45,8 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
 
     public NonPersistentTopicsImpl(WebTarget web, Authentication auth) {
         super(auth);
-        adminNonPersistentTopics = web.path("/admin/non-persistent");
-        adminV2NonPersistentTopics = web.path("/admin/v2/non-persistent");
+        adminNonPersistentTopics = web.path("/admin");
+        adminV2NonPersistentTopics = web.path("/admin/v2");
     }
 
     @Override

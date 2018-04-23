@@ -572,7 +572,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
                 fail(String.format("replication test failed with %s exception", e.getMessage()));
             }
         }
-        admin1.persistentTopics().resetCursor(testDests.first(), "sub-id", System.currentTimeMillis());
+        admin1.topics().resetCursor(testDests.first(), "sub-id", System.currentTimeMillis());
     }
 
     @Test(enabled = true, timeOut = 30000)
@@ -898,8 +898,8 @@ public class ReplicatorTest extends ReplicatorTestBase {
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"));
 
         if (isPartitionedTopic) {
-            admin1.persistentTopics().createPartitionedTopic(persistentTopicName, 5);
-            admin1.nonPersistentTopics().createPartitionedTopic(nonPersistentTopicName, 5);
+            admin1.topics().createPartitionedTopic(persistentTopicName, 5);
+            admin1.topics().createPartitionedTopic(nonPersistentTopicName, 5);
         }
 
         // load namespace with dummy topic on ns

@@ -30,7 +30,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
-import org.apache.pulsar.common.policies.data.PersistentTopicStats;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.testng.Assert;
 import static org.testng.Assert.fail;
 import org.testng.annotations.AfterMethod;
@@ -188,7 +188,7 @@ public class PulsarBoltTest extends ProducerConsumerBase {
 
     @Test
     public void testSharedProducer() throws Exception {
-        PersistentTopicStats topicStats = admin.persistentTopics().getStats(topic);
+        TopicStats topicStats = admin.topics().getStats(topic);
         Assert.assertEquals(topicStats.publishers.size(), 1);
         PulsarBolt otherBolt = new PulsarBolt(pulsarBoltConf, new ClientConfiguration());
         MockOutputCollector otherMockCollector = new MockOutputCollector();
@@ -198,12 +198,12 @@ public class PulsarBoltTest extends ProducerConsumerBase {
         when(context.getThisTaskId()).thenReturn(1);
         otherBolt.prepare(Maps.newHashMap(), context, collector);
 
-        topicStats = admin.persistentTopics().getStats(topic);
+        topicStats = admin.topics().getStats(topic);
         Assert.assertEquals(topicStats.publishers.size(), 1);
 
         otherBolt.close();
 
-        topicStats = admin.persistentTopics().getStats(topic);
+        topicStats = admin.topics().getStats(topic);
         Assert.assertEquals(topicStats.publishers.size(), 1);
     }
 

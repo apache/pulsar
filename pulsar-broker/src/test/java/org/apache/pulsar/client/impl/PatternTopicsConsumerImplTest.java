@@ -79,8 +79,8 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         Pattern pattern = Pattern.compile(patternString);
 
         admin.tenants().createTenant("prop", new TenantInfo());
-        admin.persistentTopics().createPartitionedTopic(topicName2, 2);
-        admin.persistentTopics().createPartitionedTopic(topicName3, 3);
+        admin.topics().createPartitionedTopic(topicName2, 2);
+        admin.topics().createPartitionedTopic(topicName3, 3);
 
         // test failing builder with pattern and topic should fail
         try {
@@ -137,8 +137,8 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         // 1. create partition
         admin.tenants().createTenant("prop", new TenantInfo());
-        admin.persistentTopics().createPartitionedTopic(topicName2, 2);
-        admin.persistentTopics().createPartitionedTopic(topicName3, 3);
+        admin.topics().createPartitionedTopic(topicName2, 2);
+        admin.topics().createPartitionedTopic(topicName3, 3);
 
         // 2. create producer
         String messagePredicate = "my-message-" + key + "-";
@@ -282,8 +282,8 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         // 1. create partition
         admin.tenants().createTenant("prop", new TenantInfo());
-        admin.persistentTopics().createPartitionedTopic(topicName2, 2);
-        admin.persistentTopics().createPartitionedTopic(topicName3, 3);
+        admin.topics().createPartitionedTopic(topicName2, 2);
+        admin.topics().createPartitionedTopic(topicName3, 3);
 
         // 2. Create consumer, this should success, but with empty sub-consumser internal
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
@@ -369,8 +369,8 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         // 1. create partition
         admin.tenants().createTenant("prop", new TenantInfo());
-        admin.persistentTopics().createPartitionedTopic(topicName2, 2);
-        admin.persistentTopics().createPartitionedTopic(topicName3, 3);
+        admin.topics().createPartitionedTopic(topicName2, 2);
+        admin.topics().createPartitionedTopic(topicName3, 3);
 
         // 2. create producer
         String messagePredicate = "my-message-" + key + "-";
@@ -426,7 +426,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         // 6. create another producer with 4 partitions
         String topicName4 = "persistent://my-property/my-ns/pattern-topic-4-" + key;
-        admin.persistentTopics().createPartitionedTopic(topicName4, 4);
+        admin.topics().createPartitionedTopic(topicName4, 4);
         Producer<byte[]> producer4 = pulsarClient.newProducer().topic(topicName4)
             .enableBatching(false)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
@@ -477,8 +477,8 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         // 1. create partition
         admin.tenants().createTenant("prop", new TenantInfo());
-        admin.persistentTopics().createPartitionedTopic(topicName2, 2);
-        admin.persistentTopics().createPartitionedTopic(topicName3, 3);
+        admin.topics().createPartitionedTopic(topicName2, 2);
+        admin.topics().createPartitionedTopic(topicName3, 3);
 
         // 2. create producer
         String messagePredicate = "my-message-" + key + "-";

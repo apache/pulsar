@@ -117,7 +117,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant("sample", new TenantInfo());
         PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort())
                 .build();
-        admin.persistentTopics().createPartitionedTopic("persistent://sample/test/local/partitioned-topic", 2);
+        admin.topics().createPartitionedTopic("persistent://sample/test/local/partitioned-topic", 2);
 
         Producer<byte[]> producer = client.newProducer()
             .topic("persistent://sample/test/local/partitioned-topic")

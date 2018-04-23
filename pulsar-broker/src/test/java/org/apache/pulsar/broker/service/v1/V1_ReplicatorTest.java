@@ -529,6 +529,7 @@ public class V1_ReplicatorTest extends V1_ReplicatorTestBase {
         consumer1.close();
     }
 
+    @SuppressWarnings("deprecation")
     @Test(enabled = true, timeOut = 30000)
     public void testResetCursorNotFail() throws Exception {
 
@@ -880,6 +881,7 @@ public class V1_ReplicatorTest extends V1_ReplicatorTestBase {
      * @param isPartitionedTopic
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "partitionedTopic")
     public void testReplicatorOnPartitionedTopic(boolean isPartitionedTopic) throws Exception {
 
