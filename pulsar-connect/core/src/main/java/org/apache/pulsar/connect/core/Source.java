@@ -19,22 +19,8 @@
 package org.apache.pulsar.connect.core;
 
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 
-/**
- * Pulsar's Push Source interface. PushSource read data from
- * external sources(database changes, twitter firehose, etc)
- * and publish to a Pulsar topic. The reason its called Push is
- * because PushSources get passed a consumption Function that they
- * invoke whenever they have data to be published to Pulsar.
- * The lifcycle of a PushSource is to open it passing any config needed
- * by it to initialize(like open network connection, authenticate, etc).
- * A consumer Function is then to it which is invoked by the source whenever
- * there is data to be published. Once all data has been read, one can use close
- * at the end of the session to do any cleanup
- */
-public interface PushSource<T> extends AutoCloseable {
+public interface Source<T> extends AutoCloseable {
     /**
      * Open connector with configuration
      *
@@ -44,9 +30,10 @@ public interface PushSource<T> extends AutoCloseable {
     void open(final Map<String, String> config) throws Exception;
 
     /**
-     * Attach a consumer function to this Source. This is invoked by the implementation
-     * to pass messages whenever there is data to be pushed to Pulsar.
-     * @param consumer
+     * Reads the next message from source, if one exists, and returns.  This call should be non-blocking.
+     * If source does not have any new messages, return null immediately.
+     * @return next message from source or null, if no new messages are available.
+     * @throws Exception
      */
-    void setConsumer(Function<Message<T>, CompletableFuture<Void>> consumer);
+    Message<T> read() throws Exception;
 }

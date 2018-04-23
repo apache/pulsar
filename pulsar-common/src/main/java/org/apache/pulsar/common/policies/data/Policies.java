@@ -32,7 +32,7 @@ public class Policies {
 
     public final AuthPolicies auth_policies = new AuthPolicies();
     public Set<String> replication_clusters = Sets.newHashSet();
-    public BundlesData bundles = defaultBundle();
+    public BundlesData bundles;
     public Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlog_quota_map = Maps.newHashMap();
     public Map<String, DispatchRate> clusterDispatchRate = Maps.newHashMap();
     public Map<String, DispatchRate> subscriptionDispatchRate = Maps.newHashMap();

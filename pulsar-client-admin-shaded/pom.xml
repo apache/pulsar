@@ -121,10 +121,6 @@
                   <shadedPattern>org.apache.pulsar.admin.shade.io.netty</shadedPattern>
                 </relocation>
                 <relocation>
-                  <pattern>org.apache.pulsar.common</pattern>
-                  <shadedPattern>org.apache.pulsar.admin.shade.org.apache.pulsar.common</shadedPattern>
-                </relocation>
-                <relocation>
                   <pattern>org.apache.pulsar.policies</pattern>
                   <shadedPattern>org.apache.pulsar.admin.shade.org.apache.pulsar.policies</shadedPattern>
                 </relocation>
