@@ -644,14 +644,17 @@ public class Namespaces extends NamespacesBase {
     }
 
     private Policies getDefaultPolicesIfNull(Policies policies) {
-        if (policies != null) {
-            return policies;
+        if (policies == null) {
+            policies = new Policies();
         }
 
-        Policies defaultPolicies = new Policies();
         int defaultNumberOfBundles = config().getDefaultNumberOfNamespaceBundles();
-        defaultPolicies.bundles = getBundles(defaultNumberOfBundles);
-        return defaultPolicies;
+
+        if (policies.bundles == null) {
+            policies.bundles = getBundles(defaultNumberOfBundles);
+        }
+
+        return policies;
     }
 
     private static final Logger log = LoggerFactory.getLogger(Namespaces.class);
