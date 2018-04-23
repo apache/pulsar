@@ -80,6 +80,12 @@
       <version>${project.version}</version>
     </dependency>
 
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-functions-kubernetes</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
     <!-- functions related dependencies (end) -->
   </dependencies>
 

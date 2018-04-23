@@ -42,6 +42,7 @@
     <module>runtime-shaded</module>
     <module>runtime-all</module>
     <module>worker</module>
+    <module>kubernetes</module>
     <module>worker-shaded</module>
     <module>java-examples</module>
   </modules>
