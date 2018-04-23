@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.pulsar.connect.kafka;
+package org.apache.pulsar.io.kafka;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -35,27 +35,25 @@ import java.util.Map;
 @EqualsAndHashCode
 @ToString
 @Accessors(chain = true)
-public class KafkaSourceConfig implements Serializable {
+public class KafkaSinkConfig implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     private String bootstrapServers;
-    private String groupId;
-    private Long fetchMinBytes;
-    private Long autoCommitIntervalMs;
-    private Long sessionTimeoutMs;
-    private boolean autoCommitEnabled = true;
+    private String acks;
+    private Long batchSize;
+    private Long maxRequestSize;
     private String topic;
-    private String keyDeserializationClass = "org.apache.kafka.common.serialization.StringDeserializer";
-    private String valueDeserializationClass = "org.apache.kafka.common.serialization.StringDeserializer";
+    private String keySerializerClass = "org.apache.kafka.common.serialization.StringSerializer";
+    private String valueSerializerClass = "org.apache.kafka.common.serialization.StringSerializer";
 
-    public static KafkaSourceConfig load(String yamlFile) throws IOException {
+    public static KafkaSinkConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-        return mapper.readValue(new File(yamlFile), KafkaSourceConfig.class);
+        return mapper.readValue(new File(yamlFile), KafkaSinkConfig.class);
     }
 
-    public static KafkaSourceConfig load(Map<String, String> map) throws IOException {
+    public static KafkaSinkConfig load(Map<String, String> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), KafkaSourceConfig.class);
+        return mapper.readValue(new ObjectMapper().writeValueAsString(map), KafkaSinkConfig.class);
     }
 }

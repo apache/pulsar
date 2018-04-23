@@ -17,11 +17,16 @@
  * under the License.
  */
 
-package org.apache.pulsar.connect.rabbitmq;
+package org.apache.pulsar.io.rabbitmq;
 
-import com.rabbitmq.client.*;
-import org.apache.pulsar.connect.core.Message;
-import org.apache.pulsar.connect.core.PushSource;
+import com.rabbitmq.client.AMQP;
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.Connection;
+import com.rabbitmq.client.ConnectionFactory;
+import com.rabbitmq.client.DefaultConsumer;
+import com.rabbitmq.client.Envelope;
+import org.apache.pulsar.io.core.Message;
+import org.apache.pulsar.io.core.PushSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

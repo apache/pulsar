@@ -17,15 +17,15 @@
  * under the License.
  */
 
-package org.apache.pulsar.connect.kafka;
+package org.apache.pulsar.io.kafka;
 
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.pulsar.common.util.KeyValue;
-import org.apache.pulsar.connect.core.Message;
-import org.apache.pulsar.connect.core.Sink;
+import org.apache.pulsar.io.core.Message;
+import org.apache.pulsar.io.core.Sink;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

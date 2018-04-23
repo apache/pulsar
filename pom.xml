@@ -101,10 +101,10 @@ flexible messaging model and an intuitive client API.</description>
     <module>docker</module>
     <module>tests</module>
     <module>pulsar-log4j2-appender</module>
-    <!-- functions related modules -->
+    <!-- functions-related modules -->
     <module>pulsar-functions</module>
-    <!-- connector related modules -->
-    <module>pulsar-connect</module>
+    <!-- connector-related modules -->
+    <module>pulsar-io</module>
   </modules>
 
   <issueManagement>

@@ -17,7 +17,21 @@
  * under the License.
  */
 
-package org.apache.pulsar.connect.twitter;
+package org.apache.pulsar.io.twitter;
+
+import com.twitter.hbc.ClientBuilder;
+import com.twitter.hbc.common.DelimitedStreamReader;
+import com.twitter.hbc.core.Constants;
+import com.twitter.hbc.core.endpoint.StatusesSampleEndpoint;
+import com.twitter.hbc.core.endpoint.StreamingEndpoint;
+import com.twitter.hbc.core.processor.HosebirdMessageProcessor;
+import com.twitter.hbc.httpclient.BasicClient;
+import com.twitter.hbc.httpclient.auth.Authentication;
+import com.twitter.hbc.httpclient.auth.OAuth1;
+import org.apache.pulsar.io.core.Message;
+import org.apache.pulsar.io.core.PushSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -25,21 +39,6 @@ import java.io.Serializable;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
-
-import org.apache.pulsar.connect.core.Message;
-import org.apache.pulsar.connect.core.PushSource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.twitter.hbc.core.endpoint.StatusesSampleEndpoint;
-import com.twitter.hbc.core.endpoint.StreamingEndpoint;
-import com.twitter.hbc.ClientBuilder;
-import com.twitter.hbc.common.DelimitedStreamReader;
-import com.twitter.hbc.core.Constants;
-import com.twitter.hbc.core.processor.HosebirdMessageProcessor;
-import com.twitter.hbc.httpclient.BasicClient;
-import com.twitter.hbc.httpclient.auth.Authentication;
-import com.twitter.hbc.httpclient.auth.OAuth1;
 
 /**
  * Simple Push based Twitter FireHose Source

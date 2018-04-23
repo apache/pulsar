@@ -17,17 +17,18 @@
  * under the License.
  */
 
-package org.apache.pulsar.connect.kafka;
+package org.apache.pulsar.io.twitter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import lombok.*;
-import lombok.experimental.Accessors;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Map;
+
+import com.twitter.hbc.core.Constants;
+import lombok.*;
+import lombok.experimental.Accessors;
 
 @Data
 @Setter
@@ -35,25 +36,28 @@ import java.util.Map;
 @EqualsAndHashCode
 @ToString
 @Accessors(chain = true)
-public class KafkaSinkConfig implements Serializable {
+public class TwitterFireHoseConfig implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    private String bootstrapServers;
-    private String acks;
-    private Long batchSize;
-    private Long maxRequestSize;
-    private String topic;
-    private String keySerializerClass = "org.apache.kafka.common.serialization.StringSerializer";
-    private String valueSerializerClass = "org.apache.kafka.common.serialization.StringSerializer";
+    private String consumerKey;
+    private String consumerSecret;
+    private String token;
+    private String tokenSecret;
 
-    public static KafkaSinkConfig load(String yamlFile) throws IOException {
+    // ------ Optional property keys
+
+    private String clientName = "openconnector-twitter-source";
+    private String clientHosts = Constants.STREAM_HOST;
+    private int clientBufferSize = 50000;
+
+    public static TwitterFireHoseConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-        return mapper.readValue(new File(yamlFile), KafkaSinkConfig.class);
+        return mapper.readValue(new File(yamlFile), TwitterFireHoseConfig.class);
     }
 
-    public static KafkaSinkConfig load(Map<String, String> map) throws IOException {
+    public static TwitterFireHoseConfig load(Map<String, String> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), KafkaSinkConfig.class);
+        return mapper.readValue(new ObjectMapper().writeValueAsString(map), TwitterFireHoseConfig.class);
     }
 }

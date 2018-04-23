@@ -17,19 +17,21 @@
  * under the License.
  */
 
-package org.apache.pulsar.connect.kafka;
+package org.apache.pulsar.io.kafka;
 
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.pulsar.connect.core.Message;
-import org.apache.pulsar.connect.core.PushSource;
+import org.apache.pulsar.io.core.Message;
+import org.apache.pulsar.io.core.PushSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
