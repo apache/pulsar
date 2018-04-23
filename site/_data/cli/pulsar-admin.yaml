@@ -481,11 +481,11 @@ commands:
   description: Operations for managing Pulsar topics (both persistent and non persistent)
   subcommands:
   - name: compact
-    description: Run compaction on the specified topic
-    argument: "{persistent|non-persistent}://tenant/namespace/topic"
+    description: Run compaction on the specified topic (persistent topics only)
+    argument: persistent://tenant/namespace/topic
   - name: compaction-status
-    description: Check the status of a topic compaction
-    argument: "{persistent|non-persistent}://tenant/namespace/topic"
+    description: Check the status of a topic compaction (persistent topics only)
+    argument: persistent://tenant/namespace/topic
     options:
     - flags: -w, --wait-complete
       description: Wait for compaction to complete
@@ -499,7 +499,7 @@ commands:
       default: 0
   - name: delete-partitioned-topic
     description: Delete a partitioned topic. This will also delete all the partitions of the topic if they exist.
-    argument: topic
+    argument: "{persistent|non-persistent}://tenant/namespace/topic"
   - name: get-partitioned-topic-metadata
     description: Get the partitioned topic metadata. If the topic is not created or is a non-partitioned topic, this will return an empty topic with zero partitions.
     argument: "{persistent|non-persistent}://tenant/namespace/topic"
@@ -520,7 +520,7 @@ commands:
     argument: topic
   - name: grant-permission
     description: Grant a new permission to a client role on a single topic
-    argument: topic
+    argument: "{persistent|non-persistent}://tenant/namespace/topic"
     options:
     - flags: --actions
       description: Actions to be granted (`produce` or `consume`)
