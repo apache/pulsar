@@ -62,9 +62,7 @@ class AdminProxyHandler extends AsyncProxyServlet.Transparent {
 
             auth.start();
 
-            boolean useTls = config.getBrokerServiceURL().startsWith("https://");
-
-            if (useTls) {
+            if (config.isTlsEnabledWithBroker()) {
                 try {
                     X509Certificate trustCertificates[] = SecurityUtility
                         .loadCertificatesFromPemFile(config.getTlsTrustCertsFilePath());

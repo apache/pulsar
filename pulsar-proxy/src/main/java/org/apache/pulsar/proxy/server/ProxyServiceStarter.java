@@ -19,13 +19,14 @@
 package org.apache.pulsar.proxy.server;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.Lists.newArrayList;
 import static java.lang.Thread.setDefaultUncaughtExceptionHandler;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.slf4j.bridge.SLF4JBridgeHandler.install;
 import static org.slf4j.bridge.SLF4JBridgeHandler.removeHandlersForRootLogger;
 
-import com.google.common.collect.Lists;
+import java.util.List;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
@@ -123,9 +124,11 @@ public class ProxyServiceStarter {
                 VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath());
 
         AdminProxyHandler adminProxyHandler = new AdminProxyHandler(config);
-        Pair<String, Object> preserveHost = ImmutablePair.of("preserveHost", true);
-        server.addServlet("/admin", new ServletHolder(adminProxyHandler), Lists.newArrayList(preserveHost));
-        server.addServlet("/lookup", new ServletHolder(adminProxyHandler));
+        ServletHolder servletHolder = new ServletHolder(adminProxyHandler);
+        servletHolder.setInitParameter("preserveHost", "true");
+        servletHolder.setInitParameter("proxyTo", config.getBrokerServiceURL());
+        server.addServlet("/admin/*", servletHolder);
+        server.addServlet("/lookup/*", servletHolder);
 
         // start web-service
         server.start();
