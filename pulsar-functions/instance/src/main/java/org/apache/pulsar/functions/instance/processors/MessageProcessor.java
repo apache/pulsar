@@ -22,8 +22,10 @@ import java.util.Map;
 import java.util.concurrent.LinkedBlockingDeque;
 import org.apache.bookkeeper.common.annotation.InterfaceStability.Evolving;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.instance.InputMessage;
@@ -37,8 +39,7 @@ import org.apache.pulsar.functions.proto.Function.FunctionDetails.ProcessingGuar
 public interface MessageProcessor extends AutoCloseable {
 
     static MessageProcessor create(PulsarClient client,
-                                   FunctionDetails functionDetails,
-                                   LinkedBlockingDeque<InputMessage> processQeueue) {
+                                   FunctionDetails functionDetails) {
         FunctionDetails.SubscriptionType fnSubType = functionDetails.getSubscriptionType();
         ProcessingGuarantees processingGuarantees = functionDetails.getProcessingGuarantees();
         SubscriptionType subType;
@@ -53,20 +54,17 @@ public interface MessageProcessor extends AutoCloseable {
         if (processingGuarantees == ProcessingGuarantees.EFFECTIVELY_ONCE) {
             return new EffectivelyOnceProcessor(
                 client,
-                functionDetails,
-                processQeueue);
+                functionDetails);
         } else if (processingGuarantees == ProcessingGuarantees.ATMOST_ONCE) {
             return new AtMostOnceProcessor(
                 client,
                 functionDetails,
-                subType,
-                processQeueue);
+                subType);
         } else {
             return new AtLeastOnceProcessor(
                 client,
                 functionDetails,
-                subType,
-                processQeueue);
+                subType);
         }
     }
 
@@ -80,11 +78,11 @@ public interface MessageProcessor extends AutoCloseable {
         throws Exception;
 
     /**
-     * Return the map of input consumers.
+     * Return the input.
      *
-     * @return the map of input consumers.
+     * @return the input consumer.
      */
-    Map<String, Consumer> getInputConsumers();
+    Consumer getInputConsumer();
 
     /**
      * Setup the output with a provided <i>outputSerDe</i>. The implementation of this processor is responsible for
@@ -94,31 +92,6 @@ public interface MessageProcessor extends AutoCloseable {
      * @throws Exception
      */
     void setupOutput(SerDe outputSerDe) throws Exception;
-
-
-    //
-    // Methods that called on processing messages
-    //
-
-    /**
-     * Method that is called before taking a message from process queue to process.
-     *
-     * <p>The implementation can do actions like failure recovery before actually taking messages out of process queue to
-     * process.
-     */
-    void prepareDequeueMessageFromProcessQueue();
-
-    /**
-     * Method that is called before processing the input message <i>msg</i>.
-     *
-     * <p>The implementation can do actions like ensuring producer is ready for producing results.
-     *
-     * @param msg input message.
-     * @return true if the msg can be process, otherwise false. If a processor can't process this message at this moment,
-     *          this message will be put back to the process queue and process later.
-     * @throws InterruptedException when the processor is interrupted on preparing processing message.
-     */
-    boolean prepareProcessMessage(InputMessage msg) throws InterruptedException;
 
     /**
      * Send the output message to the output topic. The output message is computed from <i>inputMsg</i>.
@@ -130,16 +103,14 @@ public interface MessageProcessor extends AutoCloseable {
      * @param outputMsgBuilder output message builder. it can be null.
      */
     void sendOutputMessage(InputMessage inputMsg,
-                           MessageBuilder outputMsgBuilder);
+                           MessageBuilder outputMsgBuilder) throws PulsarClientException, Exception;
 
     /**
-     * Handle the process exception when processing input message <i>inputMsg</i>.
-     *
-     * @param inputMsg input message
-     * @param exception exception thrown when processing input message.
+     * Get the next message to process
+     * @return the next input message
+     * @throws Exception
      */
-    void handleProcessException(InputMessage inputMsg, Exception exception);
-
+    InputMessage recieveMessage() throws Exception;
 
     @Override
     void close();

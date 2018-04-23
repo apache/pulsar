@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.tests.integration;
 
+import static org.testng.Assert.fail;
+
 import com.github.dockerjava.api.DockerClient;
 
 import java.util.concurrent.TimeUnit;
@@ -57,5 +59,48 @@ public class TestCLI extends Arquillian {
         Assert.assertTrue(DockerUtils.runCommand(docker, broker, "/pulsar/bin/pulsar-admin", "tenants", "list")
                           .contains("compaction-test-cli"));
 
+    }
+
+    @Test
+    public void testTopicTerminationOnTopicsWithoutConnectedConsumers() throws Exception {
+        String broker = PulsarClusterUtils.brokerSet(docker, clusterName).stream().findAny().get();
+
+        Assert.assertTrue(DockerUtils.runCommand(
+            docker, broker,
+            "/pulsar/bin/pulsar-client",
+            "produce",
+            "-m",
+            "\"test topic termination\"",
+            "-n",
+            "1",
+            "persistent://public/default/test-topic-termination"
+        ).contains("1 messages successfully produced"));
+
+        // terminate the topic
+        Assert.assertTrue(DockerUtils.runCommand(
+            docker, broker,
+            "/pulsar/bin/pulsar-admin",
+            "persistent",
+            "terminate",
+            "persistent://public/default/test-topic-termination"
+        ).contains("Topic succesfully terminated at"));
+
+        // try to produce should fail
+
+        try {
+            DockerUtils.runCommand(
+                docker, broker,
+                "/pulsar/bin/pulsar-client",
+                "produce",
+                "-m",
+                "\"test topic termination\"",
+                "-n",
+                "1",
+                "persistent://public/default/test-topic-termination"
+            );
+            fail("Should fail to produce messages to a terminated topic");
+        } catch (RuntimeException re) {
+            // expected
+        }
     }
 }
