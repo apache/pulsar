@@ -108,9 +108,7 @@ public class DefaultSchemasTest {
     @Test
     public void testIntegerSchema() {
         int testInt = 1234;
-        ByteBuffer buf = ByteBuffer.allocate(4);
-        buf.putInt(testInt);
-        byte[] testBytes = buf.array();
+        byte[] testBytes = ByteBuffer.allocate(Integer.SIZE).putInt(testInt).array();
         IntegerSchema integerSchema = new IntegerSchema();
         assertTrue(integerSchema.decode(testBytes) == testInt);
         assertTrue(integerSchema.encode(testInt) == testBytes);

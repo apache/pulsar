@@ -28,7 +28,7 @@ public class IntegerSchema implements Schema<Integer> {
     public IntegerSchema() {}
 
     public byte[] encode(Integer i) {
-        return ByteBuffer.allocate(4).putInt(i).array();
+        return ByteBuffer.allocate(Integer.SIZE).putInt(i).array();
     }
 
     public Integer decode(byte[] data) {
