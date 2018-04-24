@@ -41,7 +41,7 @@ public interface PushSource<T> extends AutoCloseable {
      * @param config initialization config
      * @throws Exception IO type exceptions when opening a connector
      */
-    void open(final Map<String, String> config) throws Exception;
+    void open(final Map<String, Object> config) throws Exception;
 
     /**
      * Attach a consumer function to this Source. This is invoked by the implementation

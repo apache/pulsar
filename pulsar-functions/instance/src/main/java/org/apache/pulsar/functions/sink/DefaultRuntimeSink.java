@@ -16,28 +16,40 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.connect.core;
+package org.apache.pulsar.functions.sink;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.connect.core.RecordContext;
+import org.apache.pulsar.connect.core.Sink;
 
 /**
- * Pulsar's Sink interface. Sink read data from
- * a Pulsar topic and write it to external sinks(kv store, database, filesystem ,etc)
- * The lifcycle of a Sink is to open it passing any config needed
- * by it to initialize(like open network connection, authenticate, etc).
- * On every message from the designated PulsarTopic, the write method is
- * invoked which writes the message to the external sink. One can use close
- * at the end of the session to do any cleanup
+ * The default implementation of runtime sink.
+ *
+ * @param <T>
  */
-public interface Sink<T> extends AutoCloseable {
+public class DefaultRuntimeSink<T> implements RuntimeSink<T> {
+
+    public static <T> DefaultRuntimeSink<T> of(Sink<T> sink) {
+        return new DefaultRuntimeSink<>(sink);
+    }
+
+    private final Sink<T> sink;
+
+    private DefaultRuntimeSink(Sink<T> sink) {
+        this.sink = sink;
+    }
+
     /**
      * Open connector with configuration
      *
      * @param config initialization config
      * @throws Exception IO type exceptions when opening a connector
      */
-    void open(final Map<String, Object> config) throws Exception;
+    @Override
+    public void open(final Map<String, Object> config) throws Exception {
+        sink.open(config);
+    }
 
     /**
      * Attempt to publish a type safe collection of messages
@@ -45,5 +57,13 @@ public interface Sink<T> extends AutoCloseable {
      * @param value output value
      * @return Completable future fo async publish request
      */
-    CompletableFuture<Void> write(T value);
+    @Override
+    public CompletableFuture<Void> write(T value) {
+        return sink.write(value);
+    }
+
+    @Override
+    public void close() throws Exception {
+        sink.close();
+    }
 }

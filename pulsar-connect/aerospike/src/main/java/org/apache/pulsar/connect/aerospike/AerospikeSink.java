@@ -51,7 +51,7 @@ public class AerospikeSink<K, V> implements Sink<KeyValue<K, V>> {
     private EventLoop eventLoop;
 
     @Override
-    public void open(Map<String, String> config) throws Exception {
+    public void open(Map<String, Object> config) throws Exception {
         aerospikeSinkConfig = AerospikeSinkConfig.load(config);
         if (aerospikeSinkConfig.getSeedHosts() == null
                 || aerospikeSinkConfig.getKeyspace() == null

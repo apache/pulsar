@@ -48,7 +48,7 @@ public class RabbitMQSource implements PushSource<byte[]> {
     }
 
     @Override
-    public void open(Map<String, String> config) throws Exception {
+    public void open(Map<String, Object> config) throws Exception {
         rabbitMQConfig = RabbitMQConfig.load(config);
         if (rabbitMQConfig.getAmqUri() == null
                 || rabbitMQConfig.getQueueName() == null) {

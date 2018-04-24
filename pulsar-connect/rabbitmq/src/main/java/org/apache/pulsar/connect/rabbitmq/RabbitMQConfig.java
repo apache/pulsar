@@ -48,7 +48,7 @@ public class RabbitMQConfig implements Serializable {
         return mapper.readValue(new File(yamlFile), RabbitMQConfig.class);
     }
 
-    public static RabbitMQConfig load(Map<String, String> map) throws IOException {
+    public static RabbitMQConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
         return mapper.readValue(new ObjectMapper().writeValueAsString(map), RabbitMQConfig.class);
     }

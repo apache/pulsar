@@ -68,7 +68,7 @@ public class KafkaSink<K, V> implements Sink<KeyValue<K, V>> {
     }
 
     @Override
-    public void open(Map<String, String> config) throws Exception {
+    public void open(Map<String, Object> config) throws Exception {
         kafkaSinkConfig = KafkaSinkConfig.load(config);
         if (kafkaSinkConfig.getTopic() == null
                 || kafkaSinkConfig.getBootstrapServers() == null

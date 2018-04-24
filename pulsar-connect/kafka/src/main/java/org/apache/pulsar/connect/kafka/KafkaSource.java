@@ -48,7 +48,7 @@ public class KafkaSource<V> implements PushSource<V> {
     private java.util.function.Function<Record<V>, CompletableFuture<Void>> consumeFunction;
 
     @Override
-    public void open(Map<String, String> config) throws Exception {
+    public void open(Map<String, Object> config) throws Exception {
         kafkaSourceConfig = KafkaSourceConfig.load(config);
         if (kafkaSourceConfig.getTopic() == null
                 || kafkaSourceConfig.getBootstrapServers() == null

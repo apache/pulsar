@@ -19,19 +19,24 @@
 package org.apache.pulsar.connect.core;
 
 /**
- * Pulsar Connect's Record interface. Record encapsulates the
- * information about a record being read from a Source.
+ * A source context that can be used by the runtime to interact with source.
  */
-public interface Record<T> extends RecordContext {
-    /**
-     * Retrieves the sequence of the record from a source partition.
-     * @return Sequence Id associated with the record
-     */
-    default long getRecordSequence() { return -1L; }
+public interface RecordContext {
 
     /**
-     * Retrieves the actual data of the record
-     * @return The record data
+     * Retrieves the partition information if any of the record.
+     * @return The partition id where the
      */
-    T getValue();
+    default String getPartitionId() { return null; }
+
+    /**
+     * Acknowledge that this record is fully processed
+     */
+    default void ack() {}
+
+    /**
+     * To indicate that this record has failed to be processed
+     */
+    default void fail() {}
+
 }

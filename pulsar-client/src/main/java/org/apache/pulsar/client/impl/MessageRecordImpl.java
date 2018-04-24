@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.connect.core.Record;
@@ -29,16 +28,33 @@ import org.apache.pulsar.connect.core.Record;
 public abstract class MessageRecordImpl<T, M extends MessageId> implements Message<T>, Record<T> {
 
     protected M messageId;
-    private Consumer<T> consumer;
+    protected java.util.function.Consumer<M> ackFunction;
 
-    public void setConsumer(Consumer<T> consumer) {
-        this.consumer = consumer;
+    public void setAckFunction(java.util.function.Consumer<M> ackFunction) {
+        this.ackFunction = ackFunction;
+    }
+
+    @Override
+    public String getPartitionId() {
+        if (null != messageId) {
+            if (messageId instanceof MessageIdImpl) {
+                return String.valueOf(((MessageIdImpl) messageId).getPartitionIndex());
+            } else {
+                return "";
+            }
+        }
+        return "";
+    }
+
+    @Override
+    public long getRecordSequence() {
+        return getSequenceId();
     }
 
     @Override
     public void ack() {
-        if (null != consumer && null != messageId) {
-            consumer.acknowledgeAsync(messageId);
+        if (null != ackFunction) {
+            ackFunction.accept((M) getMessageId());
         }
     }
 

@@ -45,7 +45,7 @@ public class CassandraSink<K, V> implements Sink<KeyValue<K, V>> {
     private PreparedStatement statement;
 
     @Override
-    public void open(Map<String, String> config) throws Exception {
+    public void open(Map<String, Object> config) throws Exception {
         cassandraSinkConfig = CassandraSinkConfig.load(config);
         if (cassandraSinkConfig.getRoots() == null
                 || cassandraSinkConfig.getKeyspace() == null
