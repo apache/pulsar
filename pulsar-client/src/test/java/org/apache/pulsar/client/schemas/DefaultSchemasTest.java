@@ -72,7 +72,7 @@ public class DefaultSchemasTest {
 
     @Test
     public void testStringSchema() {
-        String testString = "hello world️";
+        String testString = "hello world";
         byte[] bytes = testString.getBytes(StandardCharsets.UTF_8);
         StringSchema stringSchema = new StringSchema();
         assertTrue(stringSchema.decode(bytes).equals(testString));
