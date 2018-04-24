@@ -132,8 +132,8 @@ extends Serializable, Cloneable</pre>
 </tr>
 <tr id="i0" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#acknowledmentGroupTime-long-java.util.concurrent.TimeUnit-">acknowledmentGroupTime</a></span>(long&nbsp;delay,
-                      TimeUnit&nbsp;unit)</code>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#acknowledgmentGroupTime-long-java.util.concurrent.TimeUnit-">acknowledgmentGroupTime</a></span>(long&nbsp;delay,
+                       TimeUnit&nbsp;unit)</code>
 <div class="block">Group the consumer acknowledgments for the specified time.</div>
 </td>
 </tr>
@@ -550,14 +550,14 @@ extends Serializable, Cloneable</pre>
 </dl>
 </li>
 </ul>
-<a name="acknowledmentGroupTime-long-java.util.concurrent.TimeUnit-">
+<a name="acknowledgmentGroupTime-long-java.util.concurrent.TimeUnit-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
-<h4>acknowledmentGroupTime</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;&nbsp;acknowledmentGroupTime(long&nbsp;delay,
-                                          TimeUnit&nbsp;unit)</pre>
+<h4>acknowledgmentGroupTime</h4>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;&nbsp;acknowledgmentGroupTime(long&nbsp;delay,
+                                           TimeUnit&nbsp;unit)</pre>
 <div class="block">Group the consumer acknowledgments for the specified time.
  <p>
  By default, the consumer will use a 100 ms grouping time to send out the acknowledgments to the broker.
