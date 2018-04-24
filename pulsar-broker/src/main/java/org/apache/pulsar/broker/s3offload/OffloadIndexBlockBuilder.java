@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.s3offload;
 import com.google.common.annotations.Beta;
 import java.io.IOException;
 import java.io.InputStream;
-import org.apache.bookkeeper.client.LedgerMetadata;
+import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.pulsar.broker.s3offload.impl.OffloadIndexBlockBuilderImpl;
 
 /**

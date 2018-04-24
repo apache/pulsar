@@ -31,7 +31,7 @@ import java.util.ArrayList;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
-import org.apache.bookkeeper.client.LedgerMetadata;
+import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.pulsar.broker.s3offload.OffloadIndexBlock;
 import org.apache.pulsar.broker.s3offload.OffloadIndexBlockBuilder;
@@ -45,8 +45,8 @@ public class OffloadIndexTest {
     @Test
     public void offloadIndexEntryImplTest() {
         // verify OffloadIndexEntryImpl builder
-        OffloadIndexEntryImpl entry1 = OffloadIndexEntryImpl.of(0,2, 0);
-        OffloadIndexEntryImpl entry2 = OffloadIndexEntryImpl.of(100,3, 1234);
+        OffloadIndexEntryImpl entry1 = OffloadIndexEntryImpl.of(0, 2, 0);
+        OffloadIndexEntryImpl entry2 = OffloadIndexEntryImpl.of(100, 3, 1234);
 
         // verify OffloadIndexEntryImpl get
         assertTrue(entry1.getEntryId() == 0L);
@@ -122,35 +122,35 @@ public class OffloadIndexTest {
         assertTrue(indexBlock.getEntryCount() == 3);
         assertTrue(indexBlock.getLedgerMetadata() == metadata);
 
-        // verify getEntry
-        OffloadIndexEntry entry1 = indexBlock.getEntry(0);
+        // verify getIndexEntryForEntry
+        OffloadIndexEntry entry1 = indexBlock.getIndexEntryForEntry(0);
         assertTrue(entry1.getEntryId() == 0 && entry1.getPartId() == 2 && entry1.getOffset() == 0);
 
-        OffloadIndexEntry entry11 = indexBlock.getEntry(500);
+        OffloadIndexEntry entry11 = indexBlock.getIndexEntryForEntry(500);
         assertTrue(entry1.equals(entry11));
 
-        OffloadIndexEntry entry2 = indexBlock.getEntry(1000);
+        OffloadIndexEntry entry2 = indexBlock.getIndexEntryForEntry(1000);
         assertTrue(entry2.getEntryId() == 1000 &&
             entry2.getPartId() == 3 &&
             entry2.getOffset() == 64 * 1024 * 1024);
 
-        OffloadIndexEntry entry22 = indexBlock.getEntry(1300);
+        OffloadIndexEntry entry22 = indexBlock.getIndexEntryForEntry(1300);
         assertTrue(entry2.equals(entry22));
 
-        OffloadIndexEntry entry3 = indexBlock.getEntry(2000);
+        OffloadIndexEntry entry3 = indexBlock.getIndexEntryForEntry(2000);
 
         assertTrue(entry3.getEntryId() == 2000 &&
             entry3.getPartId() == 4 &&
             entry3.getOffset() == 2 * 64 * 1024 * 1024);
 
-        OffloadIndexEntry entry33 = indexBlock.getEntry(3000);
+        OffloadIndexEntry entry33 = indexBlock.getIndexEntryForEntry(3000);
         assertTrue(entry3.equals(entry33));
 
-        OffloadIndexEntry entry4 = indexBlock.getEntry(6000);
+        OffloadIndexEntry entry4 = indexBlock.getIndexEntryForEntry(6000);
         assertNull(entry4);
 
-        // verify readOut
-        InputStream out = indexBlock.readOut();
+        // verify toStream
+        InputStream out = indexBlock.toStream();
         byte b[] = new byte[1024];
         int readoutLen = out.read(b);
         out.close();
@@ -161,7 +161,7 @@ public class OffloadIndexTest {
         int indexEntryCount = wrapper.readInt();
 
         // verify counter
-        assertTrue(magic == 1000);
+        assertTrue(magic == indexBlock.getIndexMagicWord());
         assertTrue(indexBlockLength == readoutLen);
         assertTrue(indexEntryCount == 3);
 
@@ -183,17 +183,14 @@ public class OffloadIndexTest {
         wrapper.release();
 
         // verify build OffloadIndexBlock from InputStream
-        InputStream out2 = indexBlock.readOut();
+        InputStream out2 = indexBlock.toStream();
         OffloadIndexBlock indexBlock2 = blockBuilder.fromStream(out2);
         // 1. verify metadata that got from inputstream success.
         LedgerMetadata metadata2 = indexBlock2.getLedgerMetadata();
         log.debug("built metadata: {}", metadata2.toString());
-        log.debug("metadata2.getLastEntryId(): {}, metadata2.getAckQuorumSize(): {}, metadata2.getState(): {}",
-            metadata2.getLastEntryId(), metadata2.getAckQuorumSize(), metadata2.getState());
         assertTrue(metadata2.getAckQuorumSize() == metadata.getAckQuorumSize());
         assertTrue(metadata2.getEnsembleSize() == metadata.getEnsembleSize());
         assertTrue(metadata2.getDigestType() == metadata.getDigestType());
-        assertTrue(metadata2.getState() == metadata.getState());
         assertTrue(metadata2.getEnsembleAt(0).toString().equals(metadata.getEnsembleAt(0).toString()));
 
         // 2. verify set all the entries

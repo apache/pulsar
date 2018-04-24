@@ -32,7 +32,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.TreeSet;
-import org.apache.bookkeeper.client.LedgerMetadata;
+import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.versioning.Version;
 import org.apache.pulsar.broker.namespace.OwnershipCache;
 import org.apache.pulsar.broker.s3offload.OffloadIndexBlock;
@@ -44,7 +44,7 @@ import org.slf4j.LoggerFactory;
 public class OffloadIndexBlockImpl implements OffloadIndexBlock {
     private static final Logger log = LoggerFactory.getLogger(OwnershipCache.class);
 
-    private static final int indexMagicWord = 1000;
+    private static final int indexMagicWord = 0xDE47DE47;
 
     private LedgerMetadata segmentMetadata;
     private TreeSet<OffloadIndexEntryImpl> indexEntries;
@@ -88,7 +88,7 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
     }
 
     @Override
-    public OffloadIndexEntry getEntry(long messageEntryId) {
+    public OffloadIndexEntry getIndexEntryForEntry(long messageEntryId) {
         if(messageEntryId > segmentMetadata.getLastEntryId()) {
             log.warn("Try to get entry: {}, which beyond lastEntryId {}, return null",
                 messageEntryId, segmentMetadata.getLastEntryId());
@@ -118,19 +118,16 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
     }
 
     /**
-     * Get the content of the index block.
+     * Get the content of the index block as InputStream.
      * Read out in format:
      *   | index_magic_header | index_block_len | index_entry_count |
      *   |segment_metadata_len | segment metadata | index entries |
      */
     @Override
-    public InputStream readOut() throws IOException {
+    public InputStream toStream() throws IOException {
         int indexBlockLength;
         int segmentMetadataLength;
         int indexEntryCount = this.indexEntries.size();
-
-        //LedgerMetadataFormat ledgerMetadataFormat = buildLedgerMetadataFormat(this.segmentMetadata);
-        //segmentMetadataLength = ledgerMetadataFormat.getSerializedSize();
 
         byte[] ledgerMetadataByte = buildLedgerMetadataFormat(this.segmentMetadata);
         segmentMetadataLength = ledgerMetadataByte.length;
@@ -163,13 +160,14 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
     }
 
     private static LedgerMetadata parseLedgerMetadata(byte[] bytes) throws IOException {
-        return LedgerMetadata.parseConfig(bytes, Version.ANY,
+        return org.apache.bookkeeper.client.LedgerMetadata.parseConfig(bytes, Version.ANY,
             org.apache.bookkeeper.shaded.com.google.common.base.Optional.<Long>absent());
     }
 
     private OffloadIndexBlock fromStream(InputStream stream) throws IOException {
         DataInputStream dis = new DataInputStream(stream);
         int magic = dis.readInt();
+        checkState(magic == this.indexMagicWord);
         int indexBlockLength = dis.readInt();
         int segmentMetadataLength = dis.readInt();
         int indexEntryCount = dis.readInt();
@@ -187,6 +185,11 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         }
 
         return this;
+    }
+
+    @Override
+    public int getIndexMagicWord() {
+        return indexMagicWord;
     }
 
     @Override

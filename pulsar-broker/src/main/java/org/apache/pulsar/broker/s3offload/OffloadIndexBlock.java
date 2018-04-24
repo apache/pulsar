@@ -22,7 +22,7 @@ import com.google.common.annotations.Beta;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
-import org.apache.bookkeeper.client.LedgerMetadata;
+import org.apache.bookkeeper.client.api.LedgerMetadata;
 
 /**
  *
@@ -33,12 +33,12 @@ import org.apache.bookkeeper.client.LedgerMetadata;
 public interface OffloadIndexBlock extends Closeable {
 
     /**
-     * Get the content of the index block.
+     * Get the content of the index block as InputStream.
      * Read out in format:
      *   | index_magic_header | index_block_len | index_entry_count |
      *   |segment_metadata_length | segment metadata | index entries |
      */
-    InputStream readOut() throws IOException;
+    InputStream toStream() throws IOException;
 
     /**
      * Get the related OffloadIndexEntry that contains the given messageEntryId.
@@ -47,13 +47,21 @@ public interface OffloadIndexBlock extends Closeable {
      *                      the entry id of message
      * @return the offload index entry
      */
-    OffloadIndexEntry getEntry(long messageEntryId);
+    OffloadIndexEntry getIndexEntryForEntry(long messageEntryId);
 
     /**
      * Get the entry count that contained in this index Block.
      */
     int getEntryCount();
 
+    /**
+     * Get LedgerMetadata.
+     */
     LedgerMetadata getLedgerMetadata();
+
+    /**
+     * Get Magic Word for index block.
+     */
+    int getIndexMagicWord();
 }
 

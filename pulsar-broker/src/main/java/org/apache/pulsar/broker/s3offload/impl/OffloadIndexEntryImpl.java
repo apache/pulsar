@@ -32,11 +32,11 @@ public class OffloadIndexEntryImpl implements OffloadIndexEntry, Comparable<Offl
         return new OffloadIndexEntryImpl(entryId, partId, offset);
     }
 
-    private long entryId;
+    private final long entryId;
 
-    private int partId;
+    private final int partId;
 
-    private long offset;
+    private final long offset;
 
     @Override
     public long getEntryId() {
