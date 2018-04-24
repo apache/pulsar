@@ -42,8 +42,8 @@ public interface Sink<T> extends AutoCloseable {
     /**
      * Attempt to publish a type safe collection of messages
      *
-     * @param message Object to publish to the sink
+     * @param outputValue output value
      * @return Completable future fo async publish request
      */
-    CompletableFuture<Void> write(final Message<T> message);
+    CompletableFuture<Void> write(T outputValue);
 }

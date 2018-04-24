@@ -19,35 +19,35 @@
 package org.apache.pulsar.connect.core;
 
 /**
- * Pulsar Connect's Message interface. Message encapsulates the
- * information about a message being read/written from/to a Source/Sink.
+ * Pulsar Connect's Record interface. Record encapsulates the
+ * information about a record being read from a Source.
  */
-public interface Message<T> {
+public interface Record<T> {
     /**
-     * Retrieves the partition information if any of the message
+     * Retrieves the partition information if any of the record.
      * @return The partition id where the
      */
     default String getPartitionId() { return null; }
 
     /**
-     * Retrieves the sequence id of the message
-     * @return Sequence Id associated with the message
+     * Retrieves the sequence of the record from a source partition.
+     * @return Sequence Id associated with the record
      */
-    default Long getSequenceId() { return -1L; }
+    default long getRecordSequence() { return -1L; }
 
     /**
-     * Retrieves the actual data of the message
-     * @return The message data
+     * Retrieves the actual data of the record
+     * @return The record data
      */
-    T getData();
+    T getValue();
 
     /**
-     * Acknowledge that this message is fully processed
+     * Acknowledge that this record is fully processed
      */
-    default void ack() {};
+    default void ack() {}
 
     /**
-     * To indicate that this message has failed to be processed
+     * To indicate that this record has failed to be processed
      */
-    default void fail() {};
+    default void fail() {}
 }

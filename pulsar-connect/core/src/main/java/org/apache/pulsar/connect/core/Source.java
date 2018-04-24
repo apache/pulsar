@@ -35,5 +35,5 @@ public interface Source<T> extends AutoCloseable {
      * @return next message from source or null, if no new messages are available.
      * @throws Exception
      */
-    Message<T> read() throws Exception;
+    Record<T> read() throws Exception;
 }
