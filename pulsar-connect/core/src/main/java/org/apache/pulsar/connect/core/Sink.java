@@ -20,6 +20,7 @@ package org.apache.pulsar.connect.core;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.client.api.Message;
 
 /**
  * Pulsar's Sink interface. Sink read data from

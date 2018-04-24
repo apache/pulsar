@@ -24,7 +24,7 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.pulsar.common.util.KeyValue;
-import org.apache.pulsar.connect.core.Message;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.connect.core.Sink;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,7 +49,7 @@ public class KafkaSink<K, V> implements Sink<KeyValue<K, V>> {
 
     @Override
     public CompletableFuture<Void> write(Message<KeyValue<K, V>> message) {
-        ProducerRecord<K, V> record = new ProducerRecord<>(kafkaSinkConfig.getTopic(), message.getData().getKey(), message.getData().getValue());
+        ProducerRecord<K, V> record = new ProducerRecord<>(kafkaSinkConfig.getTopic(), message.getValue().getKey(), message.getValue().getValue());
         LOG.debug("Message sending to kafka, record={}.", record);
         Future f = producer.send(record);
         return CompletableFuture.supplyAsync(() -> {

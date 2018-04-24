@@ -29,5 +29,13 @@
 
   <artifactId>pulsar-connect-core</artifactId>
   <name>Pulsar Connect :: Connect</name>
+  
+  <dependencies>
+  	<dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-client-original</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+  </dependencies>
 
 </project>
