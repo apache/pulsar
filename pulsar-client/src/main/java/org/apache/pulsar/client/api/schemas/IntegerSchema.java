@@ -28,14 +28,11 @@ public class IntegerSchema implements Schema<Integer> {
     public IntegerSchema() {}
 
     public byte[] encode(Integer i) {
-        ByteBuffer buf = ByteBuffer.allocate(4);
-        buf.putInt(i);
-        return buf.array();
+        return ByteBuffer.allocate(4).putInt(i).array();
     }
 
     public Integer decode(byte[] data) {
-        Byte b = data[0];
-        return b.intValue();
+        return ((Byte) data[0]).intValue();
     }
 
     @Override
