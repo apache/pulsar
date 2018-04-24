@@ -24,12 +24,6 @@ package org.apache.pulsar.connect.core;
  */
 public interface Record<T> extends RecordContext {
     /**
-     * Retrieves the sequence of the record from a source partition.
-     * @return Sequence Id associated with the record
-     */
-    default long getRecordSequence() { return -1L; }
-
-    /**
      * Retrieves the actual data of the record
      * @return The record data
      */

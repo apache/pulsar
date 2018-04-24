@@ -30,6 +30,12 @@ public interface RecordContext {
     default String getPartitionId() { return null; }
 
     /**
+     * Retrieves the sequence of the record from a source partition.
+     * @return Sequence Id associated with the record
+     */
+    default long getRecordSequence() { return -1L; }
+
+    /**
      * Acknowledge that this record is fully processed
      */
     default void ack() {}
