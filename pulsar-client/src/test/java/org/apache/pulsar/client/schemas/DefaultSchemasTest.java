@@ -25,7 +25,6 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.ReaderBuilder;
-import org.apache.pulsar.client.api.schemas.IntegerSchema;
 import org.apache.pulsar.client.api.schemas.StringSchema;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -54,30 +53,21 @@ public class DefaultSchemasTest {
     public void testConsumerInstantiation() {
         ConsumerBuilder<String> stringConsumerBuilder = client.newConsumer(new StringSchema())
                 .topic(TEST_TOPIC);
-        ConsumerBuilder<Integer> integerConsumerBuilder = client.newConsumer(new IntegerSchema())
-                .topic(TEST_TOPIC);
         assertNotNull(stringConsumerBuilder);
-        assertNotNull(integerConsumerBuilder);
     }
 
     @Test
     public void testProducerInstantiation() {
         ProducerBuilder<String> stringProducerBuilder = client.newProducer(new StringSchema())
                 .topic(TEST_TOPIC);
-        ProducerBuilder<Integer> integerProducerBuilder = client.newProducer(new IntegerSchema())
-                .topic(TEST_TOPIC);
         assertNotNull(stringProducerBuilder);
-        assertNotNull(integerProducerBuilder);
     }
 
     @Test
     public void testReaderInstantiation() {
         ReaderBuilder<String> stringReaderBuilder = client.newReader(new StringSchema())
                 .topic(TEST_TOPIC);
-        ReaderBuilder<Integer> integerReaderBuilder = client.newReader(new IntegerSchema())
-                .topic(TEST_TOPIC);
         assertNotNull(stringReaderBuilder);
-        assertNotNull(integerReaderBuilder);
     }
 
     @Test
@@ -102,20 +92,6 @@ public class DefaultSchemasTest {
         StringSchema stringSchemaUtf16 = new StringSchema(StandardCharsets.UTF_16);
         assertTrue(stringSchemaUtf16.decode(bytes2).equals(testString));
         assertEquals(stringSchemaUtf16.encode(testString), bytes2);
-    }
-
-    @Test
-    public void testIntegerSchema() {
-        int testInt = 1234;
-        byte[] testBytes = ByteBuffer.allocate(Integer.SIZE).putInt(testInt).array();
-        IntegerSchema integerSchema = new IntegerSchema();
-        assertTrue(integerSchema.decode(testBytes) == testInt);
-        assertTrue(integerSchema.encode(testInt) == testBytes);
-
-        Message<Integer> msg = MessageBuilder.create(integerSchema)
-                .setContent(testBytes)
-                .build();
-        assertTrue(integerSchema.decode(msg.getData()) == testInt);
     }
 
     @AfterClass
