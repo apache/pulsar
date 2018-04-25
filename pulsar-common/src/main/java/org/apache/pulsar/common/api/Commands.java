@@ -336,14 +336,19 @@ public class Commands {
         }
         subscribeBuilder.addAllMetadata(CommandUtils.toKeyValueList(metadata));
 
-        if (null != schemaInfo) {
-            subscribeBuilder.setSchema(getSchema(schemaInfo));
+        PulsarApi.Schema schema = null;
+        if (schemaInfo != null) {
+            schema = getSchema(schemaInfo);
+            subscribeBuilder.setSchema(schema);
         }
 
         CommandSubscribe subscribe = subscribeBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.SUBSCRIBE).setSubscribe(subscribe));
         subscribeBuilder.recycle();
         subscribe.recycle();
+        if (null != schema) {
+            schema.recycle();
+        }
         return res;
     }
 
@@ -453,7 +458,7 @@ public class Commands {
     }
 
     private static PulsarApi.Schema getSchema(SchemaInfo schemaInfo) {
-        return PulsarApi.Schema.newBuilder()
+        PulsarApi.Schema.Builder builder = PulsarApi.Schema.newBuilder()
             .setName(schemaInfo.getName())
             .setSchemaData(copyFrom(schemaInfo.getSchema()))
             .setType(getSchemaType(schemaInfo.getType()))
@@ -464,7 +469,10 @@ public class Commands {
                         .setValue(entry.getValue())
                         .build()
                 ).collect(Collectors.toList())
-            ).build();
+            );
+        PulsarApi.Schema schema = builder.build();
+        builder.recycle();
+        return schema;
     }
 
     public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,

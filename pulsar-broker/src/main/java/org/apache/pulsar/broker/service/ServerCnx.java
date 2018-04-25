@@ -563,6 +563,7 @@ public class ServerCnx extends PulsarHandler {
         final boolean readCompacted = subscribe.getReadCompacted();
         final Map<String, String> metadata = CommandUtils.metadataFromCommand(subscribe);
         final InitialPosition initialPosition = subscribe.getInitialPosition();
+        final PulsarApi.Schema schema = subscribe.getSchema();
 
         CompletableFuture<Boolean> isProxyAuthorizedFuture;
         if (service.isAuthorizationEnabled() && originalPrincipal != null) {
@@ -625,8 +626,8 @@ public class ServerCnx extends PulsarHandler {
 
                         service.getOrCreateTopic(topicName.toString())
                                 .thenCompose(topic -> {
-                                    if (subscribe.hasSchema()) {
-                                        return topic.isSchemaCompatible(getSchema(subscribe.getSchema())).thenCompose(isCompatible -> {
+                                    if (schema != null) {
+                                        return topic.isSchemaCompatible(getSchema(schema)).thenCompose(isCompatible -> {
                                             if (isCompatible) {
                                                 return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
                                                     subType, priorityLevel, consumerName, isDurable,
@@ -759,6 +760,7 @@ public class ServerCnx extends PulsarHandler {
                 : service.generateUniqueProducerName();
         final boolean isEncrypted = cmdProducer.getEncrypted();
         final Map<String, String> metadata = CommandUtils.metadataFromCommand(cmdProducer);
+        final PulsarApi.Schema schema = cmdProducer.getSchema();
 
         TopicName topicName = validateTopicName(cmdProducer.getTopic(), requestId, cmdProducer);
         if (topicName == null) {
@@ -859,8 +861,8 @@ public class ServerCnx extends PulsarHandler {
                             disableTcpNoDelayIfNeeded(topicName.toString(), producerName);
 
                             CompletableFuture<SchemaVersion> schemaVersionFuture;
-                            if (cmdProducer.hasSchema()) {
-                                schemaVersionFuture = topic.addSchema(getSchema(cmdProducer.getSchema()));
+                            if (schema != null) {
+                                schemaVersionFuture = topic.addSchema(getSchema(schema));
                             } else {
                                 schemaVersionFuture = CompletableFuture.completedFuture(SchemaVersion.Empty);
                             }
