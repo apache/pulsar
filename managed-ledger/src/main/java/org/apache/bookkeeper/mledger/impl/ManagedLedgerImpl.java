@@ -2092,7 +2092,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                        }
                                    })
             .whenComplete((result, exception) -> {
-                    if (exception != null) {
+                    if (exception == null) {
                         log.info("[{}] End Offload. ledger={}, uuid={}", name, ledgerId, uuid);
                     } else {
                         log.warn("[{}] Failed to complete offload of ledger {}, uuid {}",
