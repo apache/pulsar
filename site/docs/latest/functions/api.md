@@ -566,7 +566,51 @@ Method | What it provides
 
 ### Python SerDe
 
+Pulsar Functions use [SerDe](#serde) when publishing data to and consuming data from Pulsar topics. You can specify the SerDe when [creating](../deployment#cluster-mode) or [running](../deployment#local-run). Here's an example:
+
+```bash
+$ bin/pulsar-admin functions create \
+  --tenant sample \
+  --namespace ns1 \
+  --name my_function \
+  --py my_function.py \
+  --className my_function.MyFunction \
+  --customSerdeInputs '{"input-topic-1":"Serde1","input-topic-2":"Serde2"}' \
+  --outputSerdeClassName Serde3 \
+  --output output-topic-1
+```
+
+In this case, there are two input topics, `input-topic-1` and `input-topic-2`, each of which is mapped to a different SerDe class (the map must be specified as a JSON string). The output topic, `output-topic-1`, uses the `Serde3` class for SerDe. At the moment, all Pulsar Function logic, include processing function and SerDe classes, must be contained within a single Python file.
+
+When using Pulsar Functions for Python, you essentially have three SerDe options:
+
+1. You can use the [`IdentitySerde`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-client-cpp/python/functions/serde.py#L70), which leaves the data unchanged. The `IdentitySerDe` is the **default**. Creating or running a function without explicitly specifying SerDe will mean that this option is used.
+2. You can use the [`PickeSerDe`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-client-cpp/python/functions/serde.py#L62), which uses Python's [`pickle`](https://docs.python.org/3/library/pickle.html) for SerDe.
+3. You can create a custom SerDe class by implementing the baseline [`SerDe`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-client-cpp/python/functions/serde.py#L50) class, which has just two methods: [`serialize`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-client-cpp/python/functions/serde.py#L53) for converting the object into bytes, and [`deserialize`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-client-cpp/python/functions/serde.py#L58) for converting bytes into an object of the required application-specific type.
+
+The table below shows when you should use each SerDe:
+
+SerDe option | When to use
+:------------|:-----------
+`IdentitySerde` | When you're working with simple types like strings, Booleans, integers, and the like
+`PickleSerDe` | When you're working with complex, application-specific types and are comfortable with `pickle`'s "best effort" approach
+Custom SerDe | When you require explicit control over SerDe, potentially for performance or data compatibility purposes
+
+#### Python SerDe example
+
+Imagine that you're writing Pulsar Functions in Python that are processing tweet objects. Here's a simple `Tweet` class:
+
+```python
+class Tweet(object):
+    def __init__(self, username, tweet_content):
+        self.username = username
+        self.tweet_content = tweet_content
+```
+
+
 ### Python logging
+
+
 
 ### Python user config
 
