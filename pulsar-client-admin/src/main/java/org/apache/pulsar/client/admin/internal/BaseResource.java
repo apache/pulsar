@@ -160,26 +160,28 @@ public abstract class BaseResource {
             if (e instanceof ServerErrorException) {
                 ServerErrorException see = (ServerErrorException) e;
                 return new ServerSideErrorException(see);
-            }
+            } else if (e instanceof ClientErrorException) {
+                // Handle 4xx exceptions
+                ClientErrorException cee = (ClientErrorException) e;
+                int statusCode = cee.getResponse().getStatus();
+                switch (statusCode) {
+                    case 401:
+                    case 403:
+                        return new NotAuthorizedException(cee);
+                    case 404:
+                        return new NotFoundException(cee);
+                    case 405:
+                        return new NotAllowedException(cee);
+                    case 409:
+                        return new ConflictException(cee);
+                    case 412:
+                        return new PreconditionFailedException(cee);
 
-            // Handle 4xx exceptions
-            ClientErrorException cee = (ClientErrorException) e;
-            int statusCode = cee.getResponse().getStatus();
-            switch (statusCode) {
-            case 401:
-            case 403:
-                return new NotAuthorizedException(cee);
-            case 404:
-                return new NotFoundException(cee);
-            case 405:
-                return new NotAllowedException(cee);
-            case 409:
-                return new ConflictException(cee);
-            case 412:
-                return new PreconditionFailedException(cee);
-
-            default:
-                return new PulsarAdminException(cee);
+                    default:
+                        return new PulsarAdminException(cee);
+                }
+            } else {
+                return new PulsarAdminException(e);
             }
         } else {
             return new PulsarAdminException(e);

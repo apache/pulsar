@@ -44,10 +44,9 @@ import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 
-public class MessageImpl<T> implements Message<T> {
+public class MessageImpl<T> extends MessageRecordImpl<T, MessageId> {
 
     private MessageMetadata.Builder msgMetadataBuilder;
-    private MessageId messageId;
     private ClientCnx cnx;
     private ByteBuf payload;
     private Schema<T> schema;

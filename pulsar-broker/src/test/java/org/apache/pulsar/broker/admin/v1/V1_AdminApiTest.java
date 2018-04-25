@@ -624,6 +624,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().grantPermissionOnNamespace("prop-xyz/use/ns1", "my-role", EnumSet.allOf(AuthAction.class));
 
         Policies policies = new Policies();
+        policies.bundles = Policies.defaultBundle();
         policies.auth_policies.namespace_auth.put("my-role", EnumSet.allOf(AuthAction.class));
 
         assertEquals(admin.namespaces().getPolicies("prop-xyz/use/ns1"), policies);
@@ -1440,7 +1441,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // create consumer and subscription
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-sub")
-                .subscriptionType(SubscriptionType.Exclusive).acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+                .subscriptionType(SubscriptionType.Exclusive).acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         assertEquals(admin.persistentTopics().getSubscriptions(topicName), Lists.newArrayList("my-sub"));
 
@@ -1491,7 +1492,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // create consumer and subscription
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-sub")
-                .subscriptionType(SubscriptionType.Exclusive).acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+                .subscriptionType(SubscriptionType.Exclusive).acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         assertEquals(admin.persistentTopics().getSubscriptions(topicName), Lists.newArrayList("my-sub"));
 
@@ -1562,7 +1563,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // create consumer and subscription
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-sub")
-                .subscriptionType(SubscriptionType.Exclusive).acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+                .subscriptionType(SubscriptionType.Exclusive).acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         List<String> topics = admin.persistentTopics().getList("prop-xyz/use/ns1");
         assertEquals(topics.size(), 4);

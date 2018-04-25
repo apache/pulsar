@@ -24,6 +24,7 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.pulsar.connect.core.Record;
 import org.apache.pulsar.connect.core.PushSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,10 +45,10 @@ public class KafkaSource<V> implements PushSource<V> {
     private KafkaSourceConfig kafkaSourceConfig;
     Thread runnerThread;
 
-    private java.util.function.Function<V, CompletableFuture<Void>> consumeFunction;
+    private java.util.function.Function<Record<V>, CompletableFuture<Void>> consumeFunction;
 
     @Override
-    public void open(Map<String, String> config) throws Exception {
+    public void open(Map<String, Object> config) throws Exception {
         kafkaSourceConfig = KafkaSourceConfig.load(config);
         if (kafkaSourceConfig.getTopic() == null
                 || kafkaSourceConfig.getBootstrapServers() == null
@@ -100,8 +101,8 @@ public class KafkaSource<V> implements PushSource<V> {
                 CompletableFuture<?>[] futures = new CompletableFuture<?>[records.count()];
                 int index = 0;
                 for (ConsumerRecord<String, V> record : records) {
-                    LOG.debug("Message received from kafka, key: {}. value: {}", record.key(), record.value());
-                    futures[index] = consumeFunction.apply(record.value());
+                    LOG.debug("Record received from kafka, key: {}. value: {}", record.key(), record.value());
+                    futures[index] = consumeFunction.apply(new KafkaRecord<>(record));
                     index++;
                 }
                 if (!kafkaSourceConfig.isAutoCommitEnabled()) {
@@ -120,7 +121,30 @@ public class KafkaSource<V> implements PushSource<V> {
     }
 
     @Override
-    public void setConsumer(java.util.function.Function<V, CompletableFuture<Void>> consumeFunction) {
+    public void setConsumer(java.util.function.Function<Record<V>, CompletableFuture<Void>> consumeFunction) {
         this.consumeFunction = consumeFunction;
+    }
+
+    static private class KafkaRecord<V> implements Record<V> {
+        private final ConsumerRecord<String, V> record;
+
+        public KafkaRecord(ConsumerRecord<String, V> record) {
+            this.record = record;
+
+        }
+        @Override
+        public String getPartitionId() {
+            return Integer.toString(record.partition());
+        }
+
+        @Override
+        public long getRecordSequence() {
+            return record.offset();
+        }
+
+        @Override
+        public V getValue() {
+            return record.value();
+        }
     }
 }

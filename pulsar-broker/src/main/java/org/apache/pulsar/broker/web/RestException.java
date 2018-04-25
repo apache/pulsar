@@ -25,6 +25,7 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import javax.ws.rs.core.Response.Status;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.ErrorData;
 
@@ -62,12 +63,16 @@ public class RestException extends WebApplicationException {
     }
 
     private static Response getResponse(Throwable t) {
-        if (t instanceof RestException) {
-            RestException e = (RestException) t;
-            return Response.status(e.getResponse().getStatus()).entity(e.getResponse().getEntity())
-                    .type(e.getResponse().getMediaType()).build();
+        if (t instanceof RestException
+            || t instanceof WebApplicationException) {
+            WebApplicationException e = (WebApplicationException) t;
+            return e.getResponse();
         } else {
-            return Response.status(500).entity(getExceptionData(t)).type(MediaType.TEXT_PLAIN).build();
+            return Response
+                .status(Status.INTERNAL_SERVER_ERROR)
+                .entity(getExceptionData(t))
+                .type(MediaType.TEXT_PLAIN)
+                .build();
         }
     }
 }
