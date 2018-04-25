@@ -23,17 +23,16 @@ import java.util.Map;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 
-public class TopicMessageImpl<T> implements Message<T> {
+public class TopicMessageImpl<T> extends MessageRecordImpl<T, TopicMessageIdImpl> {
 
     private final String topicName;
     private final Message<T> msg;
-    private final TopicMessageIdImpl msgId;
 
     TopicMessageImpl(String topicName,
                      Message<T> msg) {
         this.topicName = topicName;
         this.msg = msg;
-        this.msgId = new TopicMessageIdImpl(topicName, msg.getMessageId());
+        this.messageId = new TopicMessageIdImpl(topicName, msg.getMessageId());
     }
 
     /**
@@ -46,11 +45,11 @@ public class TopicMessageImpl<T> implements Message<T> {
 
     @Override
     public MessageId getMessageId() {
-        return msgId;
+        return messageId;
     }
 
     public MessageId getInnerMessageId() {
-        return msgId.getInnerMessageId();
+        return messageId.getInnerMessageId();
     }
 
     @Override

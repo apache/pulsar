@@ -18,22 +18,14 @@
  */
 package org.apache.pulsar.connect.core;
 
-import java.util.Map;
-
-public interface Source<T> extends AutoCloseable {
+/**
+ * Pulsar Connect's Record interface. Record encapsulates the
+ * information about a record being read from a Source.
+ */
+public interface Record<T> extends RecordContext {
     /**
-     * Open connector with configuration
-     *
-     * @param config initialization config
-     * @throws Exception IO type exceptions when opening a connector
+     * Retrieves the actual data of the record
+     * @return The record data
      */
-    void open(final Map<String, String> config) throws Exception;
-
-    /**
-     * Reads the next message from source, if one exists, and returns.  This call should be non-blocking.
-     * If source does not have any new messages, return null immediately.
-     * @return next message from source or null, if no new messages are available.
-     * @throws Exception
-     */
-    Record<T> read() throws Exception;
+    T getValue();
 }

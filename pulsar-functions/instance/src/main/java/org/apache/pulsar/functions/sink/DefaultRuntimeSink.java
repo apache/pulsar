@@ -16,24 +16,54 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.connect.core;
+package org.apache.pulsar.functions.sink;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.connect.core.RecordContext;
+import org.apache.pulsar.connect.core.Sink;
 
-public interface Source<T> extends AutoCloseable {
+/**
+ * The default implementation of runtime sink.
+ *
+ * @param <T>
+ */
+public class DefaultRuntimeSink<T> implements RuntimeSink<T> {
+
+    public static <T> DefaultRuntimeSink<T> of(Sink<T> sink) {
+        return new DefaultRuntimeSink<>(sink);
+    }
+
+    private final Sink<T> sink;
+
+    private DefaultRuntimeSink(Sink<T> sink) {
+        this.sink = sink;
+    }
+
     /**
      * Open connector with configuration
      *
      * @param config initialization config
      * @throws Exception IO type exceptions when opening a connector
      */
-    void open(final Map<String, String> config) throws Exception;
+    @Override
+    public void open(final Map<String, Object> config) throws Exception {
+        sink.open(config);
+    }
 
     /**
-     * Reads the next message from source, if one exists, and returns.  This call should be non-blocking.
-     * If source does not have any new messages, return null immediately.
-     * @return next message from source or null, if no new messages are available.
-     * @throws Exception
+     * Attempt to publish a type safe collection of messages
+     *
+     * @param value output value
+     * @return Completable future fo async publish request
      */
-    Record<T> read() throws Exception;
+    @Override
+    public CompletableFuture<Void> write(T value) {
+        return sink.write(value);
+    }
+
+    @Override
+    public void close() throws Exception {
+        sink.close();
+    }
 }
