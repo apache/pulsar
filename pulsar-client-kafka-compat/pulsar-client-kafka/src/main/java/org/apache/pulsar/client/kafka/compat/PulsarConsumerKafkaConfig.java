@@ -49,7 +49,7 @@ public class PulsarConsumerKafkaConfig {
         }
 
         if (properties.containsKey(ACKNOWLEDGEMENTS_GROUP_TIME_MILLIS)) {
-            consumerBuilder.acknowledmentGroupTime(
+            consumerBuilder.acknowledgmentGroupTime(
                     Long.parseLong(properties.getProperty(ACKNOWLEDGEMENTS_GROUP_TIME_MILLIS)), TimeUnit.MILLISECONDS);
         }
 
