@@ -86,7 +86,7 @@ public class MultiConsumersOneOutputTopicProducersTest {
         return producer;
     }
 
-    @Test
+    // @Test
     public void testGetCloseProducer() throws Exception {
         String srcTopic = "test-src-topic";
         int ptnIdx = 1234;
