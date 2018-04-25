@@ -480,7 +480,7 @@ public class MetricRecorderFunction implements Function<Integer, Void> {
     public void apply(Integer input, Context context) {
         // Records the metric 1 every time a message arrives
         context.recordMetric("hit-count", 1);
-        
+
         // Records the metric only if the arriving number equals 11
         if (input == 11) {
             context.recordMetric("elevens-count", 1);
@@ -550,4 +550,24 @@ The [`Context`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-cl
 
 Method | What it provides
 :------|:----------------
-`get_message_id` | The message ID of the message currently being processed
+`get_message_id` | The message ID of the message being processed
+`get_topic_name` | The input topic of the message being processed
+`get_function_name` | The name of the current Pulsar Function
+`get_function_id` | The ID of the current Pulsar Function
+`get_instance_id` | The ID of the current Pulsar Functions instance
+`get_function_version` | The version of the current Pulsar Function
+`get_logger` | A logger object that can be used for [logging](#python-logging)
+`get_user_config_value` | Returns the value of a [user-defined config](#python-user-config) (or `None` if the config doesn't exist)
+`get_user_config_map` | Returns the entire user-defined config as a dict
+`record_metric` | Records a per-key [metric](#python-metrics)
+`publish` | Publishes a message to the specified Pulsar topic
+`get_output_serde_class_name` | The name of the output [SerDe](#python-serde) class
+`ack` | {% popover Acks %} the message being processed to Pulsar
+
+### Python SerDe
+
+### Python logging
+
+### Python user config
+
+### Python metrics
