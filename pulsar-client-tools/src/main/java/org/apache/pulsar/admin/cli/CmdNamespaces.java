@@ -56,11 +56,12 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get the namespaces for a tenant in a cluster")
+    @Parameters(commandDescription = "Get the namespaces for a tenant in a cluster", hidden = true)
     private class GetNamespacesPerCluster extends CliCommand {
         @Parameter(description = "tenant/cluster\n", required = true)
         private java.util.List<String> params;
 
+        @SuppressWarnings("deprecation")
         @Override
         void run() throws PulsarAdminException {
             String[] parts = validatePropertyCluster(params);
@@ -78,6 +79,10 @@ public class CmdNamespaces extends CmdBase {
             String namespace = validateNamespace(params);
             print(admin.namespaces().getTopics(namespace));
         }
+    }
+
+    @Parameters(commandDescription = "Get the list of topics for a namespace", hidden = true)
+    private class GetDestinations extends GetTopics {
     }
 
     @Parameters(commandDescription = "Get the configuration policies of a namspace")
@@ -807,9 +812,13 @@ public class CmdNamespaces extends CmdBase {
     public CmdNamespaces(PulsarAdmin admin) {
         super("namespaces", admin);
         jcommander.addCommand("list", new GetNamespacesPerProperty());
+        // Hidden deprecated command
         jcommander.addCommand("list-cluster", new GetNamespacesPerCluster());
 
-        jcommander.addCommand("topics", new GetTopics(), "destinations");
+        jcommander.addCommand("topics", new GetTopics());
+        // Hidden deprecated listing command
+        jcommander.addCommand("destinations", new GetDestinations());
+
         jcommander.addCommand("policies", new GetPolicies());
         jcommander.addCommand("create", new Create());
         jcommander.addCommand("delete", new Delete());
