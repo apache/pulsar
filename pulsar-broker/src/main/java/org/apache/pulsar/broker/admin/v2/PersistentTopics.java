@@ -435,4 +435,20 @@ public class PersistentTopics extends PersistentTopicsBase {
         validateTopicName(tenant, namespace, encodedTopic);
         return internalCompactionStatus(authoritative);
     }
+
+    @PUT
+    @Path("/{tenant}/{namespace}/{topic}/offload")
+    @ApiOperation(value = "Offload a prefix of a topic to long term storage")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
+                            @ApiResponse(code = 404, message = "Topic does not exist")})
+    public void offloadPrefix(@PathParam("tenant") String tenant,
+                              @PathParam("namespace") String namespace,
+                              @PathParam("topic") @Encoded String encodedTopic,
+                              @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+                              MessageIdImpl messageId,  @Suspended AsyncResponse asyncResponse) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalOffloadPrefix(authoritative, messageId, asyncResponse);
+    }
+
 }

@@ -736,6 +736,45 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
         }
     }
 
+    @Override
+    public MessageId offloadPrefix(String topic, MessageId messageId) throws PulsarAdminException {
+        try {
+            TopicName tn = validateTopic(topic);
+            WebTarget path = topicPath(tn, "offload");
+            return request(path).put(Entity.entity(messageId, MediaType.APPLICATION_JSON), MessageIdImpl.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<MessageId> offloadPrefixAsync(String topic, MessageId messageId) {
+        TopicName tn = validateTopic(topic);
+        final WebTarget path = topicPath(tn, "offload");
+
+        final CompletableFuture<MessageId> promise = new CompletableFuture<>();
+        try {
+            request(path).async().put(
+                    Entity.entity(messageId, MediaType.APPLICATION_JSON),
+                    new InvocationCallback<MessageIdImpl>() {
+                        @Override
+                        public void completed(MessageIdImpl response) {
+                            promise.complete(response);
+                        }
+
+                        @Override
+                        public void failed(Throwable throwable) {
+                            log.warn("[{}] Failed to perform http offload put request: {}",
+                                     path.getUri(), throwable.getMessage());
+                            promise.completeExceptionally(getApiException(throwable.getCause()));
+                        }
+                    });
+        } catch (PulsarAdminException pae) {
+            promise.completeExceptionally(pae);
+        }
+        return promise;
+    }
+
     private WebTarget namespacePath(NamespaceName namespace, String... parts) {
         final WebTarget base = namespace.isV2() ? adminV2PersistentTopics : adminPersistentTopics;
         WebTarget namespacePath = base.path(namespace.toString());

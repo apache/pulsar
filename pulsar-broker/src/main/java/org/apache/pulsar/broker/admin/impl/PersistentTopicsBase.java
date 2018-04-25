@@ -50,10 +50,12 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.OffloadCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerOfflineBacklog;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -1095,6 +1097,30 @@ public class PersistentTopicsBase extends AdminResource {
         validateAdminOperationOnTopic(authoritative);
         PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
         return topic.compactionStatus();
+    }
+
+    protected void internalOffloadPrefix(boolean authoritative, MessageIdImpl messageId, AsyncResponse asyncResponse) {
+        validateAdminOperationOnTopic(authoritative);
+        PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
+        topic.getManagedLedger().asyncOffloadPrefix(
+                PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId()),
+                new OffloadCallback() {
+                    @Override
+                    public void offloadComplete(Position pos, Object ctx) {
+                        PositionImpl impl = (PositionImpl)pos;
+
+                        asyncResponse.resume((StreamingOutput) output -> {
+                                jsonMapper().writer().writeValue(
+                                        output, new MessageIdImpl(impl.getLedgerId(), impl.getEntryId(), -1));
+                            });
+
+                    }
+
+                    @Override
+                    public void offloadFailed(ManagedLedgerException exception, Object ctx) {
+                        asyncResponse.resume(exception);
+                    }
+                }, null);
     }
 
     public static CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(PulsarService pulsar,
