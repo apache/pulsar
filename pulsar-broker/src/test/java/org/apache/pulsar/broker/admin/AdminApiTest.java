@@ -1785,14 +1785,15 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         pulsarClient.newConsumer().topic(topic1).subscriptionName("my-subscriber-name").subscribe();
 
         TopicsImpl persistent = (TopicsImpl) admin.topics();
-        Field field = TopicsImpl.class.getDeclaredField("adminV2PersistentTopics");
+        Field field = TopicsImpl.class.getDeclaredField("adminV2Topics");
         field.setAccessible(true);
         WebTarget persistentTopics = (WebTarget) field.get(persistent);
 
         // (1) Get PartitionedMetadata : with Url and Uri encoding
         final CompletableFuture<PartitionedTopicMetadata> urlEncodedPartitionedMetadata = new CompletableFuture<>();
         // (a) Url encoding
-        persistent.asyncGetRequest(persistentTopics.path(ns1).path(urlEncodedTopic).path("partitions"),
+        persistent.asyncGetRequest(
+                persistentTopics.path("persistent").path(ns1).path(urlEncodedTopic).path("partitions"),
                 new InvocationCallback<PartitionedTopicMetadata>() {
                     @Override
                     public void completed(PartitionedTopicMetadata response) {
@@ -1801,13 +1802,13 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
                     @Override
                     public void failed(Throwable e) {
-                        e.printStackTrace();
-                        Assert.fail(e.getMessage());
+                        urlEncodedPartitionedMetadata.completeExceptionally(e);
                     }
                 });
         final CompletableFuture<PartitionedTopicMetadata> uriEncodedPartitionedMetadata = new CompletableFuture<>();
         // (b) Uri encoding
-        persistent.asyncGetRequest(persistentTopics.path(ns1).path(uriEncodedTopic).path("partitions"),
+        persistent.asyncGetRequest(
+                persistentTopics.path("persistent").path(ns1).path(uriEncodedTopic).path("partitions"),
                 new InvocationCallback<PartitionedTopicMetadata>() {
                     @Override
                     public void completed(PartitionedTopicMetadata response) {

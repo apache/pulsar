@@ -36,6 +36,8 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.ServerErrorException;
@@ -78,21 +80,29 @@ import org.slf4j.LoggerFactory;
 
 @SuppressWarnings("deprecation")
 public class TopicsImpl extends BaseResource implements Topics, PersistentTopics {
-    private final WebTarget adminPersistentTopics;
-    private final WebTarget adminV2PersistentTopics;
+    private final WebTarget adminTopics;
+    private final WebTarget adminV2Topics;
     private final String BATCH_HEADER = "X-Pulsar-num-batch-message";
     public TopicsImpl(WebTarget web, Authentication auth) {
         super(auth);
-        adminPersistentTopics = web.path("/admin");
-        adminV2PersistentTopics = web.path("/admin/v2");
+        adminTopics = web.path("/admin");
+        adminV2Topics = web.path("/admin/v2");
     }
 
     @Override
     public List<String> getList(String namespace) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            WebTarget path = namespacePath(ns);
-            return request(path).get(new GenericType<List<String>>() {});
+            WebTarget persistentPath = namespacePath("persistent", ns);
+            WebTarget nonPersistentPath = namespacePath("non-persistent", ns);
+
+            List<String> persistentTopics = request(persistentPath).get(new GenericType<List<String>>() {
+            });
+
+            List<String> nonPersistentTopics = request(nonPersistentPath).get(new GenericType<List<String>>() {
+            });
+            return new ArrayList<>(
+                    Stream.concat(persistentTopics.stream(), nonPersistentTopics.stream()).collect(Collectors.toSet()));
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -102,8 +112,16 @@ public class TopicsImpl extends BaseResource implements Topics, PersistentTopics
     public List<String> getPartitionedTopicList(String namespace) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            WebTarget path = namespacePath(ns, "partitioned");
-            return request(path).get(new GenericType<List<String>>() {});
+
+            WebTarget persistentPath = namespacePath("persistent", ns, "partitioned");
+            WebTarget nonPersistentPath = namespacePath("non-persistent", ns, "partitioned");
+            List<String> persistentTopics = request(persistentPath).get(new GenericType<List<String>>() {
+            });
+
+            List<String> nonPersistentTopics = request(nonPersistentPath).get(new GenericType<List<String>>() {
+            });
+            return new ArrayList<>(
+                    Stream.concat(persistentTopics.stream(), nonPersistentTopics.stream()).collect(Collectors.toSet()));
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -126,7 +144,9 @@ public class TopicsImpl extends BaseResource implements Topics, PersistentTopics
     public CompletableFuture<List<String>> getListInBundleAsync(String namespace, String bundleRange) {
         NamespaceName ns = NamespaceName.get(namespace);
         final CompletableFuture<List<String>> future = new CompletableFuture<>();
-        WebTarget path = namespacePath(ns, bundleRange);
+        WebTarget path = namespacePath("non-persistent", ns, bundleRange);
+
+        System.err.println("List in bundle path: " + path);
         asyncGetRequest(path,
                 new InvocationCallback<List<String>>() {
                     @Override
@@ -771,15 +791,15 @@ public class TopicsImpl extends BaseResource implements Topics, PersistentTopics
         }
     }
 
-    private WebTarget namespacePath(NamespaceName namespace, String... parts) {
-        final WebTarget base = namespace.isV2() ? adminV2PersistentTopics : adminPersistentTopics;
-        WebTarget namespacePath = base.path(namespace.toString());
+    private WebTarget namespacePath(String domain, NamespaceName namespace, String... parts) {
+        final WebTarget base = namespace.isV2() ? adminV2Topics : adminTopics;
+        WebTarget namespacePath = base.path(domain).path(namespace.toString());
         namespacePath = WebTargets.addParts(namespacePath, parts);
         return namespacePath;
     }
 
     private WebTarget topicPath(TopicName topic, String... parts) {
-        final WebTarget base = topic.isV2() ? adminV2PersistentTopics : adminPersistentTopics;
+        final WebTarget base = topic.isV2() ? adminV2Topics : adminTopics;
         WebTarget topicPath = base.path(topic.getRestPath());
         topicPath = WebTargets.addParts(topicPath, parts);
         return topicPath;

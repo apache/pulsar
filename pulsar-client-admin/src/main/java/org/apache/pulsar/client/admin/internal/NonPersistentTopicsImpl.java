@@ -203,7 +203,7 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     public CompletableFuture<List<String>> getListInBundleAsync(String namespace, String bundleRange) {
         NamespaceName ns = NamespaceName.get(namespace);
         final CompletableFuture<List<String>> future = new CompletableFuture<>();
-        WebTarget path = namespacePath(ns, bundleRange);
+        WebTarget path = namespacePath("non-persistent", ns, bundleRange);
         asyncGetRequest(path,
                 new InvocationCallback<List<String>>() {
                     @Override
@@ -234,7 +234,7 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     public CompletableFuture<List<String>> getListAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         final CompletableFuture<List<String>> future = new CompletableFuture<>();
-        WebTarget path = namespacePath(ns);
+        WebTarget path = namespacePath("non-persistent", ns);
         asyncGetRequest(path,
                 new InvocationCallback<List<String>>() {
                     @Override
@@ -258,9 +258,9 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
         return TopicName.get(topic);
     }
 
-    private WebTarget namespacePath(NamespaceName namespace, String... parts) {
+    private WebTarget namespacePath(String domain, NamespaceName namespace, String... parts) {
         final WebTarget base = namespace.isV2() ? adminV2NonPersistentTopics : adminNonPersistentTopics;
-        WebTarget namespacePath = base.path(namespace.toString());
+        WebTarget namespacePath = base.path(domain).path(namespace.toString());
         namespacePath = WebTargets.addParts(namespacePath, parts);
         return namespacePath;
     }

@@ -1805,9 +1805,9 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         pulsarClient.newConsumer().topic(topic1).subscriptionName("my-subscriber-name").subscribe();
 
         TopicsImpl persistent = (TopicsImpl) admin.topics();
-        Field field = TopicsImpl.class.getDeclaredField("adminPersistentTopics");
+        Field field = TopicsImpl.class.getDeclaredField("adminTopics");
         field.setAccessible(true);
-        WebTarget persistentTopics = (WebTarget) field.get(persistent);
+        WebTarget persistentTopics = ((WebTarget) field.get(persistent)).path("persistent");
 
         // (1) Get PartitionedMetadata : with Url and Uri encoding
         final CompletableFuture<PartitionedTopicMetadata> urlEncodedPartitionedMetadata = new CompletableFuture<>();
@@ -1821,7 +1821,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
 
                     @Override
                     public void failed(Throwable e) {
-                        Assert.fail(e.getMessage());
+                        urlEncodedPartitionedMetadata.completeExceptionally(e);
                     }
                 });
         final CompletableFuture<PartitionedTopicMetadata> uriEncodedPartitionedMetadata = new CompletableFuture<>();
