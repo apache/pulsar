@@ -33,14 +33,12 @@ public abstract class AbstractOneOuputTopicProducers implements Producers {
 
     protected final PulsarClient client;
     protected final String outputTopic;
-    protected final ProducerBuilder<byte[]> producerBuilder;
 
     AbstractOneOuputTopicProducers(PulsarClient client,
                                    String outputTopic)
             throws PulsarClientException {
         this.client = client;
         this.outputTopic = outputTopic;
-        this.producerBuilder = newProducerBuilder(client);
     }
 
     static ProducerBuilder<byte[]> newProducerBuilder(PulsarClient client) {
