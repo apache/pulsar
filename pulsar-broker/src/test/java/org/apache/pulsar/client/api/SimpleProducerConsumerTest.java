@@ -591,16 +591,22 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         final String topic = "persistent://my-property/my-ns/bigMsg";
 
         // (a) non-batch msg with compression
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).compressionType(CompressionType.LZ4)
-                .create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .compressionType(CompressionType.LZ4)
+            .create();
         Message<byte[]> message = MessageBuilder.create().setContent(new byte[PulsarDecoder.MaxMessageSize + 1])
                 .build();
         producer.send(message);
         producer.close();
 
         // (b) batch-msg
-        producer = pulsarClient.newProducer().topic(topic).enableBatching(true).compressionType(CompressionType.LZ4)
-                .create();
+        producer = pulsarClient.newProducer().topic(topic)
+            .enableBatching(true)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .compressionType(CompressionType.LZ4)
+            .create();
         message = MessageBuilder.create().setContent(new byte[PulsarDecoder.MaxMessageSize + 1]).build();
         try {
             producer.send(message);
@@ -611,7 +617,11 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         producer.close();
 
         // (c) non-batch msg without compression
-        producer = pulsarClient.newProducer().topic(topic).compressionType(CompressionType.NONE).create();
+        producer = pulsarClient.newProducer().topic(topic)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .compressionType(CompressionType.NONE)
+            .create();
         message = MessageBuilder.create().setContent(new byte[PulsarDecoder.MaxMessageSize + 1]).build();
         try {
             producer.send(message);
@@ -622,7 +632,11 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         producer.close();
 
         // (d) non-batch msg with compression and try to consume message
-        producer = pulsarClient.newProducer().topic(topic).compressionType(CompressionType.LZ4).create();
+        producer = pulsarClient.newProducer()
+            .topic(topic)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .compressionType(CompressionType.LZ4).create();
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1").subscribe();
         byte[] content = new byte[PulsarDecoder.MaxMessageSize + 10];
         message = MessageBuilder.create().setContent(content).build();
@@ -911,7 +925,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         final int totalMsg = 100;
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic1")
-                .create();
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
         for (int i = 0; i < totalMsg; i++) {
             final String message = "my-message-" + i;
             Message<byte[]> msg = MessageBuilder.create().setContent(message.getBytes()).build();
@@ -942,7 +958,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic1").subscriptionName("my-subscriber-name")
                 .receiverQueueSize(1).subscriptionType(SubscriptionType.Shared)
-                .acknowledmentGroupTime(0, TimeUnit.SECONDS);
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS);
         Consumer<byte[]> consumer1 = consumerBuilder.subscribe();
         Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
 
@@ -1127,7 +1143,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             Consumer<byte[]> consumer = pulsarClient.newConsumer()
                     .topic("persistent://my-property/my-ns/unacked-topic").subscriptionName("subscriber-1")
                     .receiverQueueSize(receiverQueueSize).subscriptionType(SubscriptionType.Shared)
-                    .acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+                    .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
             Producer<byte[]> producer = pulsarClient.newProducer()
                     .topic("persistent://my-property/my-ns/unacked-topic").create();
@@ -1291,10 +1307,13 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
                     .topic("persistent://my-property/my-ns/unacked-topic").subscriptionName("subscriber-1")
                     .receiverQueueSize(receiverQueueSize).ackTimeout(1, TimeUnit.SECONDS)
-                    .subscriptionType(SubscriptionType.Shared).acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+                    .subscriptionType(SubscriptionType.Shared).acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
             Producer<byte[]> producer = pulsarClient.newProducer()
-                    .topic("persistent://my-property/my-ns/unacked-topic").create();
+                .topic("persistent://my-property/my-ns/unacked-topic")
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
             // (1) Produced Messages
             for (int i = 0; i < totalProducedMsgs; i++) {
@@ -1423,6 +1442,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 producerBuidler.enableBatching(true);
                 producerBuidler.batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS);
                 producerBuidler.batchingMaxMessages(5);
+            } else {
+                producerBuidler.enableBatching(false);
             }
 
             Producer<byte[]> producer = producerBuidler.create();
@@ -1864,11 +1885,13 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
                 .subscriptionType(SubscriptionType.Shared).receiverQueueSize(queueSize)
-                .acknowledmentGroupTime(0, TimeUnit.SECONDS);
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS);
         Consumer<byte[]> c1 = consumerBuilder.subscribe();
         Consumer<byte[]> c2 = consumerBuilder.subscribe();
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic2")
-                .create();
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
         List<Future<MessageId>> futures = Lists.newArrayList();
 
         // Asynchronously produce messages
@@ -1965,7 +1988,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
                 .topic("persistent://my-property/my-ns/unacked-topic").subscriptionName("subscriber-1")
                 .receiverQueueSize(receiverQueueSize).subscriptionType(SubscriptionType.Failover)
-                .acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/unacked-topic")
                 .create();
@@ -2261,7 +2284,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Set<String> messageSet = Sets.newHashSet();
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic("persistent://my-property/use/myenc-ns/myenc-topic1").subscriptionName("my-subscriber-name")
-                .acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         // 1. Invalid key name
         try {
@@ -2274,8 +2297,12 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         // 2. Producer with valid key name
         Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic("persistent://my-property/use/myenc-ns/myenc-topic1").addEncryptionKey("client-rsa.pem")
-                .cryptoKeyReader(new EncKeyReader()).create();
+            .topic("persistent://my-property/use/myenc-ns/myenc-topic1")
+            .addEncryptionKey("client-rsa.pem")
+            .cryptoKeyReader(new EncKeyReader())
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
 
         for (int i = 0; i < totalMsg; i++) {
             String message = "my-message-" + i;
@@ -2291,7 +2318,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer.close();
         consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/myenc-ns/myenc-topic1")
                 .subscriptionName("my-subscriber-name").cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
-                .acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         int msgNum = 0;
         try {
@@ -2312,7 +2339,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         // Set keyreader
         consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/myenc-ns/myenc-topic1")
                 .subscriptionName("my-subscriber-name").cryptoFailureAction(ConsumerCryptoFailureAction.FAIL)
-                .cryptoKeyReader(new EncKeyReader()).acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+                .cryptoKeyReader(new EncKeyReader()).acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         for (int i = msgNum; i < totalMsg - 1; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
@@ -2329,7 +2356,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer.close();
         consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/myenc-ns/myenc-topic1")
                 .subscriptionName("my-subscriber-name").cryptoFailureAction(ConsumerCryptoFailureAction.DISCARD)
-                .acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         // Receive should proceed and discard encrypted messages
         msg = consumer.receive(5, TimeUnit.SECONDS);
@@ -2355,12 +2382,12 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         // 2, create consumer
         Consumer<byte[]> defaultConsumer = pulsarClient.newConsumer().topic(topicName)
-                .acknowledmentGroupTime(0, TimeUnit.SECONDS).subscriptionName("test-subscription-default").subscribe();
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscriptionName("test-subscription-default").subscribe();
         Consumer<byte[]> latestConsumer = pulsarClient.newConsumer().topic(topicName)
-                .acknowledmentGroupTime(0, TimeUnit.SECONDS).subscriptionName("test-subscription-latest")
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscriptionName("test-subscription-latest")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Latest).subscribe();
         Consumer<byte[]> earliestConsumer = pulsarClient.newConsumer().topic(topicName)
-                .acknowledmentGroupTime(0, TimeUnit.SECONDS).subscriptionName("test-subscription-earliest")
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscriptionName("test-subscription-earliest")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe();
 
         // 3, produce 5 messages more

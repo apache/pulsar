@@ -18,19 +18,21 @@
  */
 package org.apache.pulsar.functions.instance.processors;
 
-import com.google.common.collect.Maps;
-
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
-import java.util.concurrent.LinkedBlockingDeque;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
+import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.instance.InputMessage;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
@@ -45,23 +47,23 @@ abstract class MessageProcessorBase implements MessageProcessor {
     protected final PulsarClient client;
     protected final FunctionDetails functionDetails;
     protected final SubscriptionType subType;
-    protected final LinkedBlockingDeque<InputMessage> processQueue;
 
-    @Getter
-    protected final Map<String, Consumer<byte[]>> inputConsumers;
     protected Map<String, SerDe> inputSerDe;
 
     protected SerDe outputSerDe;
 
+    @Getter
+    protected Consumer<byte[]> inputConsumer;
+
+    protected List<String> topics;
+
     protected MessageProcessorBase(PulsarClient client,
                                    FunctionDetails functionDetails,
-                                   SubscriptionType subType,
-                                   LinkedBlockingDeque<InputMessage> processQueue) {
+                                   SubscriptionType subType) {
         this.client = client;
         this.functionDetails = functionDetails;
         this.subType = subType;
-        this.processQueue = processQueue;
-        this.inputConsumers = Maps.newConcurrentMap();
+        this.topics = new LinkedList<>();
     }
 
     //
@@ -72,43 +74,34 @@ abstract class MessageProcessorBase implements MessageProcessor {
     public void setupInput(Map<String, SerDe> inputSerDe) throws Exception {
         log.info("Setting up input with input serdes: {}", inputSerDe);
         this.inputSerDe = inputSerDe;
-        for (Map.Entry<String, String> entry : functionDetails.getCustomSerdeInputsMap().entrySet()) {
-            ConsumerBuilder<byte[]> builder = createConsumerBuilder(entry.getKey());
-            this.inputConsumers.put(entry.getKey(), builder.topic(entry.getKey())
-                    .subscriptionName(FunctionDetailsUtils.getFullyQualifiedName(functionDetails)).subscribe());
-        }
-        for (String topicName : functionDetails.getInputsList()) {
-            ConsumerBuilder<byte[]> builder= createConsumerBuilder(topicName);
-            this.inputConsumers.put(topicName, builder.topic(topicName)
-                    .subscriptionName(FunctionDetailsUtils.getFullyQualifiedName(functionDetails)).subscribe());
-        }
+        this.topics.addAll(this.functionDetails.getCustomSerdeInputsMap().keySet());
+        this.topics.addAll(this.functionDetails.getInputsList());
+
+        this.inputConsumer = this.client.newConsumer()
+                .topics(this.topics)
+                .subscriptionName(FunctionDetailsUtils.getFullyQualifiedName(this.functionDetails))
+                .subscriptionType(getSubscriptionType())
+                .subscribe();
     }
 
     protected SubscriptionType getSubscriptionType() {
         return subType;
     }
 
-    protected ConsumerBuilder<byte[]> createConsumerBuilder(String topicName) {
-        log.info("Starting Consumer for topic {}", topicName);
-        ConsumerBuilder<byte[]> builder = client.newConsumer();
-        builder.subscriptionType(getSubscriptionType());
-
-        SerDe inputSerde = inputSerDe.get(topicName);
-        builder.messageListener((consumer, msg) -> {
-            try {
-                InputMessage message = new InputMessage();
-                message.setConsumer(consumer);
-                message.setInputSerDe(inputSerde);
-                message.setActualMessage(msg);
-                message.setTopicName(topicName);
-                processQueue.put(message);
-                postReceiveMessage(message);
-            } catch (InterruptedException e) {
-                log.error("Function container {} is interrupted on enqueuing messages",
-                        Thread.currentThread().getId(), e);
-            }
-        });
-        return builder;
+    public InputMessage recieveMessage() throws PulsarClientException {
+        Message message = this.inputConsumer.receive();
+        String topicName;
+        if (message instanceof TopicMessageImpl) {
+            topicName = ((TopicMessageImpl)message).getTopicName();
+        } else {
+            topicName = this.topics.get(0);
+        }
+        InputMessage inputMessage = new InputMessage();
+                inputMessage.setConsumer(inputConsumer);
+                inputMessage.setInputSerDe(inputSerDe.get(topicName));
+                inputMessage.setActualMessage(message);
+                inputMessage.setTopicName(topicName);
+        return inputMessage;
     }
 
     /**
@@ -145,26 +138,13 @@ abstract class MessageProcessorBase implements MessageProcessor {
     //
 
     @Override
-    public void prepareDequeueMessageFromProcessQueue() {}
-
-    @Override
-    public boolean prepareProcessMessage(InputMessage msg) throws InterruptedException {
-        return true;
-    }
-
-    @Override
-    public void handleProcessException(InputMessage msg, Exception cause) {}
-
-    @Override
     public void close() {
-        // stop the consumer first, so no more messages are coming in
-        inputConsumers.forEach((k, v) -> {
-            try {
-                v.close();
-            } catch (PulsarClientException e) {
-                log.warn("Failed to close consumer to input topic {}", k, e);
-            }
-        });
-        inputConsumers.clear();
+
+        try {
+            this.inputConsumer.close();
+        } catch (PulsarClientException e) {
+            log.warn("Failed to close consumer to input topics {}",
+                    ((MultiTopicsConsumerImpl) this.inputConsumer).getTopics(), e);
+        }
     }
 }

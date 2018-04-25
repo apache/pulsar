@@ -39,7 +39,7 @@ import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -194,7 +194,7 @@ public class KafkaConsumerTest extends BrokerTestBase {
         String topic = "persistent://sample/standalone/ns/testPartitions";
 
         // Create 8 partitions in topic
-        admin.properties().createProperty("sample", new PropertyAdmin());
+        admin.tenants().createTenant("sample", new TenantInfo());
         admin.persistentTopics().createPartitionedTopic(topic, 8);
 
         Properties props = new Properties();

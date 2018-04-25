@@ -249,7 +249,9 @@ public class ProducerHandler extends AbstractWebSocketHandler {
     }
 
     private ProducerBuilder<byte[]> getProducerBuilder(PulsarClient client) {
-        ProducerBuilder<byte[]> builder = client.newProducer();
+        ProducerBuilder<byte[]> builder = client.newProducer()
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition);
 
         // Set to false to prevent the server thread from being blocked if a lot of messages are pending.
         builder.blockIfQueueFull(false);

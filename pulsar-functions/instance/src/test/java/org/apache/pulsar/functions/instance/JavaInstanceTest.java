@@ -50,7 +50,7 @@ public class JavaInstanceTest {
         JavaInstance instance = new JavaInstance(
             config,
             (Function<String, String>) (input, context) -> input + "-lambda",
-            null, null, new HashMap<>());
+            null, null, null);
         String testString = "ABC123";
         JavaExecutionResult result = instance.handleMessage(MessageId.earliest, "random", testString);
         assertNotNull(result.getResult());

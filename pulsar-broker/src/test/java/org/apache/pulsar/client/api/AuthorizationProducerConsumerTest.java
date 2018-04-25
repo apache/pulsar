@@ -42,7 +42,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -114,8 +114,8 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         PulsarClient pulsarClientInvalidRole = PulsarClient.builder().serviceUrl(lookupUrl)
                 .authentication(authenticationInvalidRole).build();
 
-        admin.properties().createProperty("my-property",
-                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.tenants().createTenant("my-property",
+                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
 
         // (1) Valid Producer and consumer creation
@@ -163,8 +163,8 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
 
         pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).authentication(authentication).build();
 
-        admin.properties().createProperty("prop-prefix",
-                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.tenants().createTenant("prop-prefix",
+                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("prop-prefix/ns", Sets.newHashSet("test"));
 
         // (1) Valid subscription name will be approved by authorization service

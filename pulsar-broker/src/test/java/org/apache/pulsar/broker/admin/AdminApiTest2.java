@@ -71,7 +71,7 @@ import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.testng.Assert;
@@ -97,8 +97,8 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         // Setup namespaces
         admin.clusters().createCluster("test", new ClusterData("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT));
-        PropertyAdmin propertyAdmin = new PropertyAdmin(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
-        admin.properties().createProperty("prop-xyz", propertyAdmin);
+        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.tenants().createTenant("prop-xyz", tenantInfo);
         admin.namespaces().createNamespace("prop-xyz/ns1", Sets.newHashSet("test"));
     }
 
@@ -173,8 +173,11 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
                 .toString();
 
         // (3) produce messages to all partitions including newly created partitions (RoundRobin)
-        Producer<byte[]> producer = client.newProducer().topic(partitionedTopicName)
-                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
+        Producer<byte[]> producer = client.newProducer()
+            .topic(partitionedTopicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
+            .create();
         final int totalMessages = newPartitions * 2;
         for (int i = 0; i < totalMessages; i++) {
             String message = "message-" + i;
@@ -268,7 +271,11 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     }
 
     private void publishMessagesOnTopic(String topicName, int messages, int startIdx) throws Exception {
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        Producer<byte[]> producer = pulsarClient.newProducer()
+            .topic(topicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
 
         for (int i = startIdx; i < (messages + startIdx); i++) {
             String message = "message-" + i;
@@ -331,7 +338,11 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         admin.namespaces().setPersistence(namespace, new PersistencePolicies(3, 3, 3, 50.0));
         assertEquals(admin.namespaces().getPersistence(namespace), new PersistencePolicies(3, 3, 3, 50.0));
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        Producer<byte[]> producer = pulsarClient.newProducer()
+            .topic(topicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-sub").subscribe();
 
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
@@ -381,7 +392,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
 
         // recreation of producer will load the topic again
-        producer = pulsarClient.newProducer().topic(topicName).create();
+        pulsarClient.newProducer().topic(topicName).create();
         topic = pulsar.getBrokerService().getTopicReference(topicName).get();
         assertNotNull(topic);
         // unload the topic
@@ -502,7 +513,11 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     }
 
     private void publishMessagesOnPersistentTopic(String topicName, int messages, int startIdx) throws Exception {
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        Producer<byte[]> producer = pulsarClient.newProducer()
+            .topic(topicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
 
         for (int i = startIdx; i < (messages + startIdx); i++) {
             String message = "message-" + i;
@@ -606,8 +621,8 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         final String property = "peer-prop";
         Set<String> allowedClusters = Sets.newHashSet("us-west1", "us-west2", "us-west3", "us-west4", "us-east1",
                 "us-east2");
-        PropertyAdmin propConfig = new PropertyAdmin(Sets.newHashSet("test"), allowedClusters);
-        admin.properties().createProperty(property, propConfig);
+        TenantInfo propConfig = new TenantInfo(Sets.newHashSet("test"), allowedClusters);
+        admin.tenants().createTenant(property, propConfig);
 
         final String namespace = property + "/global/conflictPeer";
         admin.namespaces().createNamespace(namespace);
@@ -741,7 +756,12 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).build();
         Consumer<byte[]> consumer = client.newConsumer().topic(topic).subscriptionName(subscriberName)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
-        Producer<byte[]> producer = client.newProducer().topic(topic).producerName(producerName).create();
+        Producer<byte[]> producer = client.newProducer()
+            .topic(topic)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .producerName(producerName)
+            .create();
 
         retryStrategically((test) -> {
             PersistentTopicStats stats;
@@ -776,8 +796,8 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testTenantNameWithUnderscore() throws Exception {
-        PropertyAdmin propertyAdmin = new PropertyAdmin(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
-        admin.properties().createProperty("prop_xyz", propertyAdmin);
+        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.tenants().createTenant("prop_xyz", tenantInfo);
 
         admin.namespaces().createNamespace("prop_xyz/my-namespace", Sets.newHashSet("test"));
 
@@ -793,18 +813,18 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testTenantNameWithInvalidCharacters() throws Exception {
-        PropertyAdmin propertyAdmin = new PropertyAdmin(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
 
         // If we try to create property with invalid characters, it should fail immediately
         try {
-            admin.properties().createProperty("prop xyz", propertyAdmin);
+            admin.tenants().createTenant("prop xyz", tenantInfo);
             fail("Should have failed");
         } catch (PulsarAdminException e) {
             // Expected
         }
 
         try {
-            admin.properties().createProperty("prop&xyz", propertyAdmin);
+            admin.tenants().createTenant("prop&xyz", tenantInfo);
             fail("Should have failed");
         } catch (PulsarAdminException e) {
             // Expected

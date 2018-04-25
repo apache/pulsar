@@ -25,7 +25,9 @@ import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+
 import io.netty.util.concurrent.DefaultThreadFactory;
+
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
@@ -47,13 +49,6 @@ import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
-import org.apache.pulsar.common.conf.InternalConfigurationData;
-import org.apache.pulsar.common.naming.NamedEntity;
-import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.compaction.Compactor;
-import org.apache.pulsar.compaction.TwoPhaseCompactor;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
@@ -74,13 +69,20 @@ import org.apache.pulsar.broker.web.WebService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.configuration.VipStatus;
-import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.compaction.TwoPhaseCompactor;
 import org.apache.pulsar.functions.worker.Utils;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.utils.PulsarBrokerVersionStringUtils;
@@ -102,8 +104,6 @@ import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.ws.rs.core.Response;
 
 /**
  * Main class for Pulsar broker service
@@ -410,9 +410,6 @@ public class PulsarService implements AutoCloseable {
 
             leaderElectionService.start();
 
-            // start function worker service if necessary
-            this.startWorkerService();
-
             LOG.info("Starting Pulsar Broker service; version: '{}'", ( brokerVersion != null ? brokerVersion : "unknown" )  );
 
             webService.start();
@@ -424,6 +421,9 @@ public class PulsarService implements AutoCloseable {
             state = State.Started;
 
             acquireSLANamespace();
+            
+            // start function worker service if necessary
+            this.startWorkerService();
 
             LOG.info("messaging service is ready, bootstrap service on port={}, broker url={}, cluster={}, configs={}",
                     config.getWebServicePort(), brokerServiceUrl, config.getClusterName(),
@@ -832,7 +832,7 @@ public class PulsarService implements AutoCloseable {
                 this.getGlobalZkCache().getZooKeeper().create(
                         AdminResource.path(POLICIES, property),
                         ObjectMapperFactory.getThreadLocal().writeValueAsBytes(
-                                new PropertyAdmin(
+                                new TenantInfo(
                                         Sets.newHashSet(config.getSuperUserRoles()),
                                         Sets.newHashSet(cluster))),
                         ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);

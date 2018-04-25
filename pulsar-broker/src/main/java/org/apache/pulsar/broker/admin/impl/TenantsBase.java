@@ -31,7 +31,7 @@ import javax.ws.rs.core.Response.Status;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.NamedEntity;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
@@ -43,82 +43,82 @@ import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
-public class PropertiesBase extends AdminResource {
+public class TenantsBase extends AdminResource {
 
     @GET
-    @ApiOperation(value = "Get the list of properties.", response = String.class, responseContainer = "List")
+    @ApiOperation(value = "Get the list of tenants.", response = String.class, responseContainer = "List")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property doesn't exist") })
     public List<String> getProperties() {
         validateSuperUserAccess();
 
         try {
-            List<String> properties = globalZk().getChildren(path(POLICIES), false);
-            properties.sort(null);
-            return properties;
+            List<String> tenants = globalZk().getChildren(path(POLICIES), false);
+            tenants.sort(null);
+            return tenants;
         } catch (Exception e) {
-            log.error("[{}] Failed to get properties list", clientAppId(), e);
+            log.error("[{}] Failed to get tenants list", clientAppId(), e);
             throw new RestException(e);
         }
     }
 
     @GET
-    @Path("/{property}")
-    @ApiOperation(value = "Get the admin configuration for a given property.")
+    @Path("/{tenant}")
+    @ApiOperation(value = "Get the admin configuration for a given tenant.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property doesn't exist") })
-    public PropertyAdmin getPropertyAdmin(@PathParam("property") String property) {
+    public TenantInfo getPropertyAdmin(@PathParam("tenant") String tenant) {
         validateSuperUserAccess();
 
         try {
-            return propertiesCache().get(path(POLICIES, property))
+            return tenantsCache().get(path(POLICIES, tenant))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Property does not exist"));
         } catch (Exception e) {
-            log.error("[{}] Failed to get property {}", clientAppId(), property, e);
+            log.error("[{}] Failed to get tenant {}", clientAppId(), tenant, e);
             throw new RestException(e);
         }
     }
 
     @PUT
-    @Path("/{property}")
-    @ApiOperation(value = "Create a new property.", notes = "This operation requires Pulsar super-user privileges.")
+    @Path("/{tenant}")
+    @ApiOperation(value = "Create a new tenant.", notes = "This operation requires Pulsar super-user privileges.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 409, message = "Property already exist"),
             @ApiResponse(code = 412, message = "Property name is not valid") })
-    public void createProperty(@PathParam("property") String property, PropertyAdmin config) {
+    public void createProperty(@PathParam("tenant") String tenant, TenantInfo config) {
         validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
 
         try {
-            NamedEntity.checkName(property);
-            zkCreate(path(POLICIES, property), jsonMapper().writeValueAsBytes(config));
-            log.info("[{}] Created property {}", clientAppId(), property);
+            NamedEntity.checkName(tenant);
+            zkCreate(path(POLICIES, tenant), jsonMapper().writeValueAsBytes(config));
+            log.info("[{}] Created tenant {}", clientAppId(), tenant);
         } catch (KeeperException.NodeExistsException e) {
-            log.warn("[{}] Failed to create already existing property {}", clientAppId(), property);
+            log.warn("[{}] Failed to create already existing tenant {}", clientAppId(), tenant);
             throw new RestException(Status.CONFLICT, "Property already exist");
         } catch (IllegalArgumentException e) {
-            log.warn("[{}] Failed to create property with invalid name {}", clientAppId(), property, e);
+            log.warn("[{}] Failed to create tenant with invalid name {}", clientAppId(), tenant, e);
             throw new RestException(Status.PRECONDITION_FAILED, "Property name is not valid");
         } catch (Exception e) {
-            log.error("[{}] Failed to create property {}", clientAppId(), property, e);
+            log.error("[{}] Failed to create tenant {}", clientAppId(), tenant, e);
             throw new RestException(e);
         }
     }
 
     @POST
-    @Path("/{property}")
-    @ApiOperation(value = "Update the admins for a property.", notes = "This operation requires Pulsar super-user privileges.")
+    @Path("/{tenant}")
+    @ApiOperation(value = "Update the admins for a tenant.", notes = "This operation requires Pulsar super-user privileges.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property does not exist"),
             @ApiResponse(code = 409, message = "Property already exist") })
-    public void updateProperty(@PathParam("property") String property, PropertyAdmin newPropertyAdmin) {
+    public void updateProperty(@PathParam("tenant") String tenant, TenantInfo newPropertyAdmin) {
         validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
 
         Stat nodeStat = new Stat();
         try {
-            byte[] content = globalZk().getData(path(POLICIES, property), null, nodeStat);
-            PropertyAdmin oldPropertyAdmin = jsonMapper().readValue(content, PropertyAdmin.class);
+            byte[] content = globalZk().getData(path(POLICIES, tenant), null, nodeStat);
+            TenantInfo oldPropertyAdmin = jsonMapper().readValue(content, TenantInfo.class);
             List<String> clustersWithActiveNamespaces = Lists.newArrayList();
             if (oldPropertyAdmin.getAllowedClusters().size() > newPropertyAdmin.getAllowedClusters().size()) {
                 // Get the colo(s) being removed from the list
@@ -127,7 +127,7 @@ public class PropertiesBase extends AdminResource {
                 for (String cluster : oldPropertyAdmin.getAllowedClusters()) {
                     List<String> activeNamespaces = Lists.newArrayList();
                     try {
-                        activeNamespaces = globalZk().getChildren(path(POLICIES, property, cluster), false);
+                        activeNamespaces = globalZk().getChildren(path(POLICIES, tenant, cluster), false);
                         if (activeNamespaces.size() != 0) {
                             // There are active namespaces in this cluster
                             clustersWithActiveNamespaces.add(cluster);
@@ -139,65 +139,65 @@ public class PropertiesBase extends AdminResource {
                 if (!clustersWithActiveNamespaces.isEmpty()) {
                     // Throw an exception because colos being removed are having active namespaces
                     String msg = String.format(
-                            "Failed to update the property because active namespaces are present in colos %s. Please delete those namespaces first",
+                            "Failed to update the tenant because active namespaces are present in colos %s. Please delete those namespaces first",
                             clustersWithActiveNamespaces);
                     throw new RestException(Status.CONFLICT, msg);
                 }
             }
-            String propertyPath = path(POLICIES, property);
-            globalZk().setData(propertyPath, jsonMapper().writeValueAsBytes(newPropertyAdmin), -1);
-            globalZkCache().invalidate(propertyPath);
-            log.info("[{}] updated property {}", clientAppId(), property);
+            String tenantPath = path(POLICIES, tenant);
+            globalZk().setData(tenantPath, jsonMapper().writeValueAsBytes(newPropertyAdmin), -1);
+            globalZkCache().invalidate(tenantPath);
+            log.info("[{}] updated tenant {}", clientAppId(), tenant);
         } catch (RestException re) {
             throw re;
         } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to update property {}: does not exist", clientAppId(), property);
+            log.warn("[{}] Failed to update tenant {}: does not exist", clientAppId(), tenant);
             throw new RestException(Status.NOT_FOUND, "Property does not exist");
         } catch (Exception e) {
-            log.error("[{}] Failed to update property {}", clientAppId(), property, e);
+            log.error("[{}] Failed to update tenant {}", clientAppId(), tenant, e);
             throw new RestException(e);
         }
     }
 
     @DELETE
-    @Path("/{property}")
-    @ApiOperation(value = "elete a property and all namespaces and topics under it.")
+    @Path("/{tenant}")
+    @ApiOperation(value = "elete a tenant and all namespaces and topics under it.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property does not exist"),
-            @ApiResponse(code = 409, message = "The property still has active namespaces") })
-    public void deleteProperty(@PathParam("property") String property) {
+            @ApiResponse(code = 409, message = "The tenant still has active namespaces") })
+    public void deleteProperty(@PathParam("tenant") String tenant) {
         validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
 
         boolean isPropertyEmpty = false;
         try {
-            isPropertyEmpty = getListOfNamespaces(property).isEmpty();
+            isPropertyEmpty = getListOfNamespaces(tenant).isEmpty();
         } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to delete property {}: does not exist", clientAppId(), property);
-            throw new RestException(Status.NOT_FOUND, "The property does not exist");
+            log.warn("[{}] Failed to delete tenant {}: does not exist", clientAppId(), tenant);
+            throw new RestException(Status.NOT_FOUND, "The tenant does not exist");
         } catch (Exception e) {
-            log.error("[{}] Failed to get property status {}", clientAppId(), property, e);
+            log.error("[{}] Failed to get tenant status {}", clientAppId(), tenant, e);
             throw new RestException(e);
         }
 
         if (!isPropertyEmpty) {
-            log.warn("[{}] Failed to delete property {}: not empty", clientAppId(), property);
-            throw new RestException(Status.CONFLICT, "The property still has active namespaces");
+            log.warn("[{}] Failed to delete tenant {}: not empty", clientAppId(), tenant);
+            throw new RestException(Status.CONFLICT, "The tenant still has active namespaces");
         }
 
         try {
             // First try to delete every cluster z-node
-            for (String cluster : globalZk().getChildren(path(POLICIES, property), false)) {
-                globalZk().delete(path(POLICIES, property, cluster), -1);
+            for (String cluster : globalZk().getChildren(path(POLICIES, tenant), false)) {
+                globalZk().delete(path(POLICIES, tenant, cluster), -1);
             }
 
-            globalZk().delete(path(POLICIES, property), -1);
-            log.info("[{}] Deleted property {}", clientAppId(), property);
+            globalZk().delete(path(POLICIES, tenant), -1);
+            log.info("[{}] Deleted tenant {}", clientAppId(), tenant);
         } catch (Exception e) {
-            log.error("[{}] Failed to delete property {}", clientAppId(), property, e);
+            log.error("[{}] Failed to delete tenant {}", clientAppId(), tenant, e);
             throw new RestException(e);
         }
     }
 
-    private static final Logger log = LoggerFactory.getLogger(PropertiesBase.class);
+    private static final Logger log = LoggerFactory.getLogger(TenantsBase.class);
 }

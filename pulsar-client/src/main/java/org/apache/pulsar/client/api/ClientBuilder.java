@@ -246,13 +246,23 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder statsInterval(long statsInterval, TimeUnit unit);
 
     /**
-     * Number of concurrent lookup-requests allowed on each broker-connection to prevent overload on broker.
+     * Number of concurrent lookup-requests allowed to send on each broker-connection to prevent overload on broker.
      * <i>(default: 5000)</i> It should be configured with higher value only in case of it requires to produce/subscribe
      * on thousands of topic using created {@link PulsarClient}
      *
      * @param maxConcurrentLookupRequests
      */
     ClientBuilder maxConcurrentLookupRequests(int maxConcurrentLookupRequests);
+
+    /**
+     * Number of max lookup-requests allowed on each broker-connection to prevent overload on broker.
+     * <i>(default: 50000)</i> It should be bigger than maxConcurrentLookupRequests.
+     * Requests that inside maxConcurrentLookupRequests already send to broker, and requests beyond
+     * maxConcurrentLookupRequests and under maxLookupRequests will wait in each client cnx.
+     *
+     * @param maxLookupRequests
+     */
+    ClientBuilder maxLookupRequests(int maxLookupRequests);
 
     /**
      * Set max number of broker-rejected requests in a certain time-frame (30 seconds) after which current connection

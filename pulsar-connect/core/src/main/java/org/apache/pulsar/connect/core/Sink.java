@@ -37,13 +37,13 @@ public interface Sink<T> extends AutoCloseable {
      * @param config initialization config
      * @throws Exception IO type exceptions when opening a connector
      */
-    void open(final Map<String, String> config) throws Exception;
+    void open(final Map<String, Object> config) throws Exception;
 
     /**
      * Attempt to publish a type safe collection of messages
      *
-     * @param message Object to publish to the sink
+     * @param value output value
      * @return Completable future fo async publish request
      */
-    CompletableFuture<Void> write(final T message);
+    CompletableFuture<Void> write(T value);
 }

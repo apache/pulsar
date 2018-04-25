@@ -45,7 +45,7 @@ public class CassandraSink<K, V> implements Sink<KeyValue<K, V>> {
     private PreparedStatement statement;
 
     @Override
-    public void open(Map<String, String> config) throws Exception {
+    public void open(Map<String, Object> config) throws Exception {
         cassandraSinkConfig = CassandraSinkConfig.load(config);
         if (cassandraSinkConfig.getRoots() == null
                 || cassandraSinkConfig.getKeyspace() == null
@@ -66,8 +66,8 @@ public class CassandraSink<K, V> implements Sink<KeyValue<K, V>> {
     }
 
     @Override
-    public CompletableFuture<Void> write(KeyValue<K, V> tuple) {
-        BoundStatement bound = statement.bind(tuple.getKey(), tuple.getValue());
+    public CompletableFuture<Void> write(KeyValue<K, V> record) {
+        BoundStatement bound = statement.bind(record.getKey(), record.getValue());
         ResultSetFuture future = session.executeAsync(bound);
         CompletableFuture<Void> completable = new CompletableFuture<Void>();
         Futures.addCallback(future,

@@ -16,19 +16,33 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.admin.v2;
+package org.apache.pulsar.connect.core;
 
-import io.swagger.annotations.Api;
-import org.apache.pulsar.broker.admin.impl.PropertiesBase;
+/**
+ * A source context that can be used by the runtime to interact with source.
+ */
+public interface RecordContext {
 
-import javax.ws.rs.Consumes;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
+    /**
+     * Retrieves the partition information if any of the record.
+     * @return The partition id where the
+     */
+    default String getPartitionId() { return null; }
 
-@Path("/properties")
-@Produces(MediaType.APPLICATION_JSON)
-@Consumes(MediaType.APPLICATION_JSON)
-@Api(value = "/properties", description = "PropertiesBase admin apis", tags = "properties")
-public class Properties extends PropertiesBase {
+    /**
+     * Retrieves the sequence of the record from a source partition.
+     * @return Sequence Id associated with the record
+     */
+    default long getRecordSequence() { return -1L; }
+
+    /**
+     * Acknowledge that this record is fully processed
+     */
+    default void ack() {}
+
+    /**
+     * To indicate that this record has failed to be processed
+     */
+    default void fail() {}
+
 }
