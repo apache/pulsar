@@ -27,7 +27,6 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.schemas.IntegerSchema;
 import org.apache.pulsar.client.api.schemas.StringSchema;
-import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
