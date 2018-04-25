@@ -18,14 +18,17 @@
  */
 package org.apache.pulsar.client.api;
 
+import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Sets;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.broker.service.schema.SchemaRegistry;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -93,14 +96,17 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
     public void testJsonProducerAndConsumer() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
+        JSONSchema<JsonEncodedPojo> jsonSchema =
+            JSONSchema.of(JsonEncodedPojo.class);
+
         Consumer<JsonEncodedPojo> consumer = pulsarClient
-            .newConsumer(JSONSchema.of(JsonEncodedPojo.class))
+            .newConsumer(jsonSchema)
             .topic("persistent://my-property/use/my-ns/my-topic1")
             .subscriptionName("my-subscriber-name")
             .subscribe();
 
         Producer<JsonEncodedPojo> producer = pulsarClient
-            .newProducer(JSONSchema.of(JsonEncodedPojo.class))
+            .newProducer(jsonSchema)
             .topic("persistent://my-property/use/my-ns/my-topic1")
             .create();
 
@@ -121,6 +127,13 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
         // Acknowledge the consumption of all messages at once
         consumer.acknowledgeCumulative(msg);
         consumer.close();
+
+        SchemaRegistry.SchemaAndMetadata storedSchema = pulsar.getSchemaRegistryService()
+            .getSchema("my-property/my-ns/my-topic1")
+            .get();
+
+        Assert.assertEquals(storedSchema.schema.getData(), jsonSchema.getSchemaInfo().getSchema());
+
         log.info("-- Exiting {} test --", methodName);
     }
 
