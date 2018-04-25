@@ -56,11 +56,6 @@ public class OffloadIndexTest {
         assertTrue(entry2.getEntryId() == 100L);
         assertTrue(entry2.getPartId() == 3);
         assertTrue(entry2.getOffset() == 1234L);
-
-        // verify compareTo
-        assertTrue(entry1.compareTo(entry1) == 0);
-        assertTrue(entry1.compareTo(entry2) < 0);
-        assertTrue(entry2.compareTo(entry1) > 0);
     }
 
 

@@ -18,7 +18,8 @@
  */
 package org.apache.pulsar.broker.s3offload;
 
-import com.google.common.annotations.Beta;
+import org.apache.bookkeeper.common.annotation.InterfaceAudience.LimitedPrivate;
+import org.apache.bookkeeper.common.annotation.InterfaceStability.Unstable;
 
 /**
  *
@@ -27,7 +28,8 @@ import com.google.common.annotations.Beta;
  * and the offset in code storage block for this message id.
  *
  */
-@Beta
+@Unstable
+@LimitedPrivate
 public interface OffloadIndexEntry {
 
     /**

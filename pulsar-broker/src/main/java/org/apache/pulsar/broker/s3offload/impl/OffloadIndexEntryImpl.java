@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.s3offload.impl;
 
-import com.google.common.annotations.Beta;
 import org.apache.pulsar.broker.s3offload.OffloadIndexEntry;
 
 /**
@@ -26,8 +25,7 @@ import org.apache.pulsar.broker.s3offload.OffloadIndexEntry;
  * The Index Entry in OffloadIndexBlock.
  *
  */
-@Beta
-public class OffloadIndexEntryImpl implements OffloadIndexEntry, Comparable<OffloadIndexEntryImpl>{
+public class OffloadIndexEntryImpl implements OffloadIndexEntry {
     public static OffloadIndexEntryImpl of(long entryId, int partId, long offset) {
         return new OffloadIndexEntryImpl(entryId, partId, offset);
     }
@@ -55,19 +53,6 @@ public class OffloadIndexEntryImpl implements OffloadIndexEntry, Comparable<Offl
         this.entryId = entryId;
         this.partId = partId;
         this.offset = offset;
-    }
-
-    // use this to sort index entries
-    @Override
-    public int compareTo(OffloadIndexEntryImpl another) {
-        long anotherEntryId = another.getEntryId();
-        if (anotherEntryId == entryId) {
-            return 0;
-        } else if (entryId > anotherEntryId) {
-            return 1;
-        } else {
-            return -1;
-        }
     }
 }
 

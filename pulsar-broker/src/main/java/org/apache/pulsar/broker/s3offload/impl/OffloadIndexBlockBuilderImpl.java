@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.s3offload.impl;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.common.annotations.Beta;
 import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.io.InputStream;
@@ -32,7 +31,6 @@ import org.apache.pulsar.broker.s3offload.OffloadIndexBlockBuilder;
 /**
  * Interface for builder of index block used for offload a ledger to long term storage.
  */
-@Beta
 public class OffloadIndexBlockBuilderImpl implements OffloadIndexBlockBuilder {
 
     private LedgerMetadata ledgerMetadata;

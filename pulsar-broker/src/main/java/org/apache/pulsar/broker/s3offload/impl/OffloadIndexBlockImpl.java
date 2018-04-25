@@ -20,34 +20,31 @@ package org.apache.pulsar.broker.s3offload.impl;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.common.annotations.Beta;
-import com.google.common.collect.Sets;
+import com.google.common.collect.Maps;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
-import io.netty.buffer.Unpooled;
+import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
-import java.util.TreeSet;
+import java.util.TreeMap;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.versioning.Version;
-import org.apache.pulsar.broker.namespace.OwnershipCache;
 import org.apache.pulsar.broker.s3offload.OffloadIndexBlock;
 import org.apache.pulsar.broker.s3offload.OffloadIndexEntry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@Beta
 public class OffloadIndexBlockImpl implements OffloadIndexBlock {
-    private static final Logger log = LoggerFactory.getLogger(OwnershipCache.class);
+    private static final Logger log = LoggerFactory.getLogger(OffloadIndexBlockImpl.class);
 
     private static final int indexMagicWord = 0xDE47DE47;
 
     private LedgerMetadata segmentMetadata;
-    private TreeSet<OffloadIndexEntryImpl> indexEntries;
+    private TreeMap<Long, OffloadIndexEntryImpl> indexEntries;
 
     private final Handle<OffloadIndexBlockImpl> recyclerHandle;
 
@@ -64,8 +61,8 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
 
     public static OffloadIndexBlockImpl get(LedgerMetadata metadata, List<OffloadIndexEntryImpl> entries) {
         OffloadIndexBlockImpl block = RECYCLER.get();
-        block.indexEntries = Sets.newTreeSet();
-        entries.forEach(entry -> block.indexEntries.add(entry));
+        block.indexEntries = Maps.newTreeMap();
+        entries.forEach(entry -> block.indexEntries.putIfAbsent(entry.getEntryId(), entry));
         checkState(entries.size() == block.indexEntries.size());
         block.segmentMetadata = metadata;
         return block;
@@ -73,7 +70,7 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
 
     public static OffloadIndexBlockImpl get(InputStream stream) throws IOException {
         OffloadIndexBlockImpl block = RECYCLER.get();
-        block.indexEntries = Sets.newTreeSet();
+        block.indexEntries = Maps.newTreeMap();
         block.fromStream(stream);
         return block;
     }
@@ -95,7 +92,7 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
             return null;
         }
         // find the greatest mapping Id whose entryId <= messageEntryId
-        return this.indexEntries.floor(OffloadIndexEntryImpl.of(messageEntryId, 0, 0));
+        return this.indexEntries.floorEntry(messageEntryId).getValue();
     }
 
     @Override
@@ -139,7 +136,7 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
             + segmentMetadataLength
             + indexEntryCount * (8 + 4 + 8); /* messageEntryId + blockPartId + blockOffset */
 
-        ByteBuf out = Unpooled.buffer(indexBlockLength, indexBlockLength);
+        ByteBuf out = PooledByteBufAllocator.DEFAULT.buffer(indexBlockLength, indexBlockLength);
 
         out.writeInt(indexMagicWord)
             .writeInt(indexBlockLength)
@@ -151,10 +148,10 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         out.writeBytes(ledgerMetadataByte);
 
         // write entries
-        this.indexEntries.forEach(entry ->
-            out.writeLong(entry.getEntryId())
-                .writeInt(entry.getPartId())
-                .writeLong(entry.getOffset()));
+        this.indexEntries.entrySet().forEach(entry ->
+            out.writeLong(entry.getValue().getEntryId())
+                .writeInt(entry.getValue().getPartId())
+                .writeLong(entry.getValue().getOffset()));
 
         return new ByteBufInputStream(out, true);
     }
@@ -181,7 +178,8 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         this.segmentMetadata = parseLedgerMetadata(metadataBytes);
 
         for (int i = 0; i < indexEntryCount; i ++) {
-            this.indexEntries.add(OffloadIndexEntryImpl.of(dis.readLong(), dis.readInt(), dis.readLong()));
+            long entryId = dis.readLong();
+            this.indexEntries.putIfAbsent(entryId, OffloadIndexEntryImpl.of(entryId, dis.readInt(), dis.readLong()));
         }
 
         return this;

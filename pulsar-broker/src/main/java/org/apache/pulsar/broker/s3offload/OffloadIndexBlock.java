@@ -18,18 +18,20 @@
  */
 package org.apache.pulsar.broker.s3offload;
 
-import com.google.common.annotations.Beta;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
+import org.apache.bookkeeper.common.annotation.InterfaceAudience.LimitedPrivate;
+import org.apache.bookkeeper.common.annotation.InterfaceStability.Unstable;
 
 /**
  *
  * The Index block abstraction used for offload a ledger to long term storage.
  *
  */
-@Beta
+@Unstable
+@LimitedPrivate
 public interface OffloadIndexBlock extends Closeable {
 
     /**
