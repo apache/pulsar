@@ -32,7 +32,6 @@ import com.aerospike.client.listener.WriteListener;
 import com.aerospike.client.policy.ClientPolicy;
 import com.aerospike.client.policy.WritePolicy;
 import org.apache.pulsar.common.util.KeyValue;
-import org.apache.pulsar.connect.core.Message;
 import org.apache.pulsar.connect.core.Sink;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,7 +51,7 @@ public class AerospikeSink<K, V> implements Sink<KeyValue<K, V>> {
     private EventLoop eventLoop;
 
     @Override
-    public void open(Map<String, String> config) throws Exception {
+    public void open(Map<String, Object> config) throws Exception {
         aerospikeSinkConfig = AerospikeSinkConfig.load(config);
         if (aerospikeSinkConfig.getSeedHosts() == null
                 || aerospikeSinkConfig.getKeyspace() == null
@@ -78,10 +77,10 @@ public class AerospikeSink<K, V> implements Sink<KeyValue<K, V>> {
     }
 
     @Override
-    public CompletableFuture<Void> write(Message<KeyValue<K, V>> tuple) {
+    public CompletableFuture<Void> write(KeyValue<K, V> record) {
         CompletableFuture<Void> future = new CompletableFuture<>();
-        Key key = new Key(aerospikeSinkConfig.getKeyspace(), aerospikeSinkConfig.getKeySet(), tuple.getData().getKey().toString());
-        Bin bin = new Bin(aerospikeSinkConfig.getColumnName(), Value.getAsBlob(tuple.getData().getValue()));
+        Key key = new Key(aerospikeSinkConfig.getKeyspace(), aerospikeSinkConfig.getKeySet(), record.getKey().toString());
+        Bin bin = new Bin(aerospikeSinkConfig.getColumnName(), Value.getAsBlob(record.getValue()));
         AWriteListener listener = null;
         try {
             listener = queue.take();

@@ -23,11 +23,13 @@ import static java.lang.Math.min;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 
 import com.google.common.collect.BoundType;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Range;
 import com.google.common.util.concurrent.RateLimiter;
+import com.google.protobuf.ByteString;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -37,7 +39,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Optional;
+import java.util.Queue;
 import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -49,6 +54,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
@@ -56,8 +63,10 @@ import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.common.util.Backoff;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
+import org.apache.bookkeeper.common.util.Retries;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
@@ -72,6 +81,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.BadVersionException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.InvalidCursorPositionException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
@@ -1862,8 +1872,248 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public void asyncOffloadPrefix(Position pos, OffloadCallback callback, Object ctx) {
-        callback.offloadFailed(new ManagedLedgerException("Not implemented"), ctx);
+        PositionImpl requestOffloadTo = (PositionImpl) pos;
+        if (!isValidPosition(requestOffloadTo)) {
+            callback.offloadFailed(new InvalidCursorPositionException("Invalid position for offload"), ctx);
+            return;
+        }
+
+        PositionImpl firstUnoffloaded;
+
+        Queue<LedgerInfo> ledgersToOffload = new ConcurrentLinkedQueue<>();
+        synchronized (this) {
+            log.info("[{}] Start ledgersOffload. ledgers={} totalSize={}", name, ledgers.keySet(),
+                     TOTAL_SIZE_UPDATER.get(this));
+
+            if (STATE_UPDATER.get(this) == State.Closed) {
+                log.info("[{}] Ignoring offload request since the managed ledger was already closed", name);
+                callback.offloadFailed(new ManagedLedgerAlreadyClosedException(
+                                               "Can't offload closed managed ledger (" + name + ")"), ctx);
+                return;
+            }
+
+            if (ledgers.isEmpty()) {
+                log.info("[{}] Tried to offload a managed ledger with no ledgers, giving up", name);
+                callback.offloadFailed(new ManagedLedgerAlreadyClosedException(
+                                               "Can't offload managed ledger (" + name + ") with no ledgers"), ctx);
+                return;
+            }
+
+            long current = ledgers.lastKey();
+
+            // the first ledger which will not be offloaded. Defaults to current,
+            // in the case that the whole headmap is offloaded. Otherwise it will
+            // be set as we iterate through the headmap values
+            long firstLedgerRetained = current;
+            for (LedgerInfo ls : ledgers.headMap(current).values()) {
+                if (requestOffloadTo.getLedgerId() > ls.getLedgerId()) {
+                    if (!ls.getOffloadContext().getComplete()) {
+                        ledgersToOffload.add(ls);
+                    }
+                } else {
+                    firstLedgerRetained = ls.getLedgerId();
+                    break;
+                }
+            }
+            firstUnoffloaded = PositionImpl.get(firstLedgerRetained, 0);
+        }
+
+        if (ledgersToOffload.isEmpty()) {
+            log.info("[{}] No ledgers to offload", name);
+            callback.offloadComplete(firstUnoffloaded, ctx);
+            return;
+        }
+
+        log.info("[{}] Going to offload ledgers {}", name,
+                 ledgersToOffload.stream().map(l -> l.getLedgerId()).collect(Collectors.toList()));
+
+        CompletableFuture<PositionImpl> promise = new CompletableFuture<>();
+        offloadLoop(promise, ledgersToOffload, firstUnoffloaded, Optional.empty());
+        promise.whenComplete((result, exception) -> {
+                if (exception != null) {
+                    callback.offloadFailed(new ManagedLedgerException(exception), ctx);
+                } else {
+                    callback.offloadComplete(result, ctx);
+                }
+            });
     }
+
+    private void offloadLoop(CompletableFuture<PositionImpl> promise, Queue<LedgerInfo> ledgersToOffload,
+                             PositionImpl firstUnoffloaded, Optional<Throwable> firstError) {
+        LedgerInfo info = ledgersToOffload.poll();
+        if (info == null) {
+            if (firstError.isPresent()) {
+                promise.completeExceptionally(firstError.get());
+            } else {
+                promise.complete(firstUnoffloaded);
+            }
+        } else {
+            long ledgerId = info.getLedgerId();
+            UUID uuid = UUID.randomUUID();
+            Map<String, String> extraMetadata = ImmutableMap.of("ManagedLedgerName", name);
+
+            prepareLedgerInfoForOffloaded(ledgerId, uuid)
+                .thenCompose((ignore) -> getLedgerHandle(ledgerId))
+                .thenCompose(readHandle -> config.getLedgerOffloader().offload(readHandle, uuid, extraMetadata))
+                .thenCompose((ignore) -> {
+                        return Retries.run(Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1),
+                                                                       TimeUnit.SECONDS.toHours(1)).limit(10),
+                                           FAIL_ON_CONFLICT,
+                                           () -> completeLedgerInfoForOffloaded(ledgerId, uuid),
+                                           scheduledExecutor, name)
+                            .whenComplete((ignore2, exception) -> {
+                                    if (exception != null) {
+                                        cleanupOffloadedOnFailure(ledgerId, uuid, "Metastore failure");
+                                    }
+                                });
+                    })
+                .whenComplete((ignore, exception) -> {
+                        if (exception != null) {
+                            PositionImpl newFirstUnoffloaded = PositionImpl.get(ledgerId, 0);
+                            if (newFirstUnoffloaded.compareTo(firstUnoffloaded) > 0) {
+                                newFirstUnoffloaded = firstUnoffloaded;
+                            }
+                            Optional<Throwable> errorToReport = firstError;
+                            synchronized (ManagedLedgerImpl.this) {
+                                ledgersListMutex.lock();
+                                if (ledgers.containsKey(ledgerId)) {
+                                    errorToReport = Optional.of(firstError.orElse(exception));
+                                }
+                                ledgersListMutex.unlock();
+                            }
+
+                            offloadLoop(promise, ledgersToOffload,
+                                        newFirstUnoffloaded,
+                                        errorToReport);
+                        } else {
+                            ledgerCache.remove(ledgerId);
+                            offloadLoop(promise, ledgersToOffload, firstUnoffloaded, firstError);
+                        }
+                    });
+        }
+    }
+
+    interface LedgerInfoTransformation {
+        LedgerInfo transform(LedgerInfo oldInfo) throws ManagedLedgerException;
+    }
+
+    static Predicate<Throwable> FAIL_ON_CONFLICT = (throwable) -> {
+        return !(throwable instanceof OffloadConflict) && Retries.NonFatalPredicate.test(throwable);
+    };
+
+    static class OffloadConflict extends ManagedLedgerException {
+        OffloadConflict(String msg) {
+            super(msg);
+        }
+    }
+
+    private CompletableFuture<Void> transformLedgerInfo(long ledgerId, LedgerInfoTransformation transformation) {
+        CompletableFuture<Void> promise = new CompletableFuture<>();
+        synchronized (this) {
+            ledgersListMutex.lock();
+
+            promise.whenComplete((ignore, exception) -> {
+                    ledgersListMutex.unlock();
+                });
+
+            LedgerInfo oldInfo = ledgers.get(ledgerId);
+            if (oldInfo == null) {
+                promise.completeExceptionally(
+                        new OffloadConflict(
+                                "Ledger " + ledgerId + " no longer exists in ManagedLedger, likely trimmed"));
+            } else {
+                try {
+                    LedgerInfo newInfo = transformation.transform(oldInfo);
+                    ledgers.put(ledgerId, newInfo);
+                    store.asyncUpdateLedgerIds(name, getManagedLedgerInfo(), ledgersStat,
+                            new MetaStoreCallback<Void>() {
+                                @Override
+                                public void operationComplete(Void result, Stat stat) {
+                                    ledgersStat = stat;
+                                    promise.complete(null);
+                                }
+
+                                @Override
+                                public void operationFailed(MetaStoreException e) {
+                                    promise.completeExceptionally(e);
+                                }
+                            });
+                } catch (ManagedLedgerException mle) {
+                    promise.completeExceptionally(mle);
+                }
+            }
+
+        }
+        return promise;
+    }
+
+    private CompletableFuture<Void> prepareLedgerInfoForOffloaded(long ledgerId, UUID uuid) {
+        log.info("[{}] Preparing metadata to offload ledger {} with uuid {}", name, ledgerId, uuid);
+        return transformLedgerInfo(ledgerId,
+                                   (oldInfo) -> {
+                                       if (oldInfo.getOffloadContext().hasUidMsb()) {
+                                           UUID oldUuid = new UUID(oldInfo.getOffloadContext().getUidMsb(),
+                                                                   oldInfo.getOffloadContext().getUidLsb());
+                                           log.info("[{}] Found previous offload attempt for ledger {}, uuid {}"
+                                                    + ", cleaning up", name, ledgerId, uuid);
+                                           cleanupOffloadedOnFailure(ledgerId, oldUuid, "Previous failed offload");
+                                       }
+                                       LedgerInfo.Builder builder = oldInfo.toBuilder();
+                                       builder.getOffloadContextBuilder()
+                                           .setUidMsb(uuid.getMostSignificantBits())
+                                           .setUidLsb(uuid.getLeastSignificantBits());
+                                       return builder.build();
+                                   })
+            .whenComplete((result, exception) -> {
+                    if (exception != null) {
+                        log.warn("[{}] Failed to prepare ledger {} for offload, uuid {}", name, ledgerId, uuid);
+                    } else {
+                        log.info("[{}] Metadata prepared for offload of ledger {} with uuid {}", name, ledgerId, uuid);
+                    }
+                });
+    }
+
+    private CompletableFuture<Void> completeLedgerInfoForOffloaded(long ledgerId, UUID uuid) {
+        log.info("[{}] Completing metadata for offload of ledger {} with uuid {}", name, ledgerId, uuid);
+        return transformLedgerInfo(ledgerId,
+                                   (oldInfo) -> {
+                                       UUID existingUuid = new UUID(oldInfo.getOffloadContext().getUidMsb(),
+                                                               oldInfo.getOffloadContext().getUidLsb());
+                                       if (existingUuid.equals(uuid)) {
+                                           LedgerInfo.Builder builder = oldInfo.toBuilder();
+                                           builder.getOffloadContextBuilder()
+                                               .setComplete(true);
+                                           return builder.build();
+                                       } else {
+                                           throw new OffloadConflict(
+                                                   "Existing UUID(" + existingUuid + ") in metadata for offload"
+                                                   + " of ledgerId " + ledgerId + " does not match the UUID(" + uuid
+                                                   + ") for the offload we are trying to complete");
+                                       }
+                                   })
+            .whenComplete((result, exception) -> {
+                    if (exception != null) {
+                        log.info("[{}] End Offload. ledger={}, uuid={}", name, ledgerId, uuid);
+                    } else {
+                        log.warn("[{}] Failed to complete offload of ledger {}, uuid {}",
+                                 name, ledgerId, uuid, exception);
+                    }
+                });
+    }
+
+    private void cleanupOffloadedOnFailure(long ledgerId, UUID uuid, String cleanupReason) {
+        Retries.run(Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1), TimeUnit.SECONDS.toHours(1)).limit(10),
+                    Retries.NonFatalPredicate,
+                    () -> config.getLedgerOffloader().deleteOffloaded(ledgerId, uuid),
+                    scheduledExecutor, name)
+            .whenComplete((ignored, exception) -> {
+                    if (exception != null) {
+                        log.warn("Error cleaning up offload for {}, (cleanup reason: {})",
+                                 ledgerId, cleanupReason, exception);
+                    }
+                });
+    }
+
 
     /**
      * Get the number of entries between a contiguous range of two positions.
