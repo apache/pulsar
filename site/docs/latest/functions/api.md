@@ -230,7 +230,7 @@ Function name | Description
 
 ### Java context object {#java-context}
 
-The {% javadoc Context client org.apache.pulsar.functions.api.Context %} interface provides a number of methods that you can use to access the functions [context](#context). The various method signatures for the `Context` interface are listed below:
+The {% javadoc Context client org.apache.pulsar.functions.api.Context %} interface provides a number of methods that you can use to access the function's [context](#context). The various method signatures for the `Context` interface are listed below:
 
 ```java
 public interface Context {
@@ -503,27 +503,15 @@ Writing Pulsar Functions in Python entails implementing one of two things:
 The requirements for writing Pulsar Functions in Python depend on your [deployment mode](../deployment):
 
 * If you're writing a [Python native function](#python-native), you won't need to install any external dependencies
-* If you're writing a [Python SDK function](#python-sdk)
+* If you're writing a [Python SDK function](#python-sdk), you'll need to install the the [`pulsar-client`](/api/python) Python library.
 
-In order to develop Pulsar Functions in Python, you'll need to install the [`pulsar-client`](/api/python) Python library.
-
-```bash
-$ pip install pulsar-client=={{ site.python_latest }}
-```
-
-In order to run Python Pulsar Functions in [local run](../deployment#local-run) mode, you'll also need to install the following libraries:
-
-* [`grpc`](https://pypi.python.org/pypi/grpc)
-
-To install them all at once:
-
-```bash
-$ pip install grpc
-```
+  ```bash
+  $ pip install pulsar-client=={{ site.python_latest }}
+  ```
 
 ### Packaging
 
-At the moment, the code for Pulsar Functions written in Python must be contained within a single Python file. In the future, Pulsar Functions may support other packaging formats, such as [Python EXecutables](https://github.com/pantsbuild/pex) (PEXes).
+At the moment, the code for Pulsar Functions written in Python must be contained within a single Python file. In the future, Pulsar Functions may support other packaging formats, such as [**P**ython **EX**ecutables](https://github.com/pantsbuild/pex) (PEXes).
 
 ### Python native functions {#python-native}
 
@@ -544,7 +532,22 @@ There is one example Python native function in [this folder](https://github.com/
 
 ### Python SDK functions {#python-sdk}
 
-To get started developing Pulsar Functions using the Python SDK, you'll need to 
+To get started developing Pulsar Functions using the Python SDK, you'll need to install 
+
+### Python SDK examples
+
+There are several example Python functions in [this folder](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/python-examples):
+
+Function file | Description
+:-------------|:-----------
+[`exclamation.py`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/python-examples/exclamation.py) | Adds an exclamation point at the end of each incoming string
+[`logfunction.py`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/python-examples/logfunction.py) | Logs each incoming message
+[`thumbnailer.py`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/python-examples/thumbnailer.py) | Takes image data as input and outputs a 128x128 thumbnail of each image
 
 ### Python context object {#python-context}
 
+The [`Context`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-client-cpp/python/functions/context.py) class provides a number of methods that you can use to access the function's [context](#context). The various methods for the `Context` class are listed below:
+
+Method | What it provides
+:------|:----------------
+`get_message_id` | The message ID of the message currently being processed
