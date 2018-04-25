@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.compaction;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import com.google.common.collect.ImmutableMap;
 import io.netty.buffer.ByteBuf;
 
@@ -114,7 +116,7 @@ public class TwoPhaseCompactor extends Compactor {
                             return;
                         }
                         MessageId id = m.getMessageId();
-                        if (RawBatchConverter.isBatch(m)) {
+                        if (RawBatchConverter.isReadableBatch(m)) {
                             try {
                                 RawBatchConverter.extractIdsAndKeys(m)
                                     .forEach(e -> latestForKey.put(e.getRight(), e.getLeft()));
@@ -155,8 +157,9 @@ public class TwoPhaseCompactor extends Compactor {
 
     private CompletableFuture<Long> phaseTwo(RawReader reader, MessageId from, MessageId to,
                                              Map<String,MessageId> latestForKey, BookKeeper bk) {
-
-        return createLedger(bk).thenCompose((ledger) -> {
+        Map<String, byte[]> metadata = ImmutableMap.of("compactedTopic", reader.getTopic().getBytes(UTF_8),
+                                                       "compactedTo", to.toByteArray());
+        return createLedger(bk, metadata).thenCompose((ledger) -> {
                 log.info("Commencing phase two of compaction for {}, from {} to {}, compacting {} keys to ledger {}",
                          reader.getTopic(), from, to, latestForKey.size(), ledger.getId());
                 return phaseTwoSeekThenLoop(reader, from, to, latestForKey, bk, ledger);
@@ -205,7 +208,7 @@ public class TwoPhaseCompactor extends Compactor {
                     }
                     MessageId id = m.getMessageId();
                     Optional<RawMessage> messageToAdd = Optional.empty();
-                    if (RawBatchConverter.isBatch(m)) {
+                    if (RawBatchConverter.isReadableBatch(m)) {
                         try {
                             messageToAdd = RawBatchConverter.rebatchMessage(
                                     m, (key, subid) -> latestForKey.get(key).equals(subid));
@@ -252,7 +255,7 @@ public class TwoPhaseCompactor extends Compactor {
                 }, scheduler);
     }
 
-    private CompletableFuture<LedgerHandle> createLedger(BookKeeper bk) {
+    private CompletableFuture<LedgerHandle> createLedger(BookKeeper bk, Map<String,byte[]> metadata) {
         CompletableFuture<LedgerHandle> bkf = new CompletableFuture<>();
         bk.asyncCreateLedger(conf.getManagedLedgerDefaultEnsembleSize(),
                              conf.getManagedLedgerDefaultWriteQuorum(),
@@ -265,7 +268,7 @@ public class TwoPhaseCompactor extends Compactor {
                                  } else {
                                      bkf.complete(ledger);
                                  }
-                             }, null, Collections.emptyMap());
+                             }, null, metadata);
         return bkf;
     }
 
@@ -312,10 +315,14 @@ public class TwoPhaseCompactor extends Compactor {
     private static Pair<String,Integer> extractKeyAndSize(RawMessage m) {
         ByteBuf headersAndPayload = m.getHeadersAndPayload();
         MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
-        if (msgMetadata.hasPartitionKey()) {
-            return Pair.of(msgMetadata.getPartitionKey(), headersAndPayload.readableBytes());
-        } else {
-            return null;
+        try {
+            if (msgMetadata.hasPartitionKey()) {
+                return Pair.of(msgMetadata.getPartitionKey(), headersAndPayload.readableBytes());
+            } else {
+                return null;
+            }
+        } finally {
+            msgMetadata.recycle();
         }
     }
 

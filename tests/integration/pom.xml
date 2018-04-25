@@ -35,5 +35,6 @@
   <modules>
     <module>smoke</module>
     <module>compaction</module>
+    <module>cli</module>
   </modules>
 </project>

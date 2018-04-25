@@ -48,8 +48,8 @@ public interface PersistentTopics {
      * Response example:
      *
      * <pre>
-     * <code>["topic://my-property/use/my-namespace/topic-1",
-     *  "topic://my-property/use/my-namespace/topic-2"]</code>
+     * <code>["topic://my-tenant/use/my-namespace/topic-1",
+     *  "topic://my-tenant/use/my-namespace/topic-2"]</code>
      * </pre>
      *
      * @param namespace
@@ -71,8 +71,8 @@ public interface PersistentTopics {
      * Response example:
      *
      * <pre>
-     * <code>["persistent://my-property/use/my-namespace/topic-1",
-     *  "persistent://my-property/use/my-namespace/topic-2"]</code>
+     * <code>["persistent://my-tenant/use/my-namespace/topic-1",
+     *  "persistent://my-tenant/use/my-namespace/topic-2"]</code>
      * </pre>
      *
      * @param namespace

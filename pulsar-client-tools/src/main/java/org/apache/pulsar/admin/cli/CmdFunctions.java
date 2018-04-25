@@ -84,6 +84,8 @@ public class CmdFunctions extends CmdBase {
     private final ListFunctions lister;
     private final StateGetter stateGetter;
     private final TriggerFunction triggerer;
+    private final UploadFunction uploader;
+    private final DownloadFunction downloader;
 
     /**
      * Base command
@@ -459,7 +461,7 @@ public class CmdFunctions extends CmdBase {
         private void inferMissingTenant(FunctionConfig functionConfig) {
             try {
                 String inputTopic = getUniqueInput(functionConfig);
-                functionConfig.setTenant(TopicName.get(inputTopic).getProperty());
+                functionConfig.setTenant(TopicName.get(inputTopic).getTenant());
             } catch (IllegalArgumentException ex) {
                 throw new RuntimeException("You need to specify a tenant for the function", ex);
             }
@@ -691,6 +693,45 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Upload File Data to Pulsar")
+    class UploadFunction extends BaseCommand {
+        @Parameter(
+                names = "--sourceFile",
+                description = "The file whose contents need to be uploaded",
+                listConverter = StringConverter.class, required = true)
+        protected String sourceFile;
+        @Parameter(
+                names = "--path",
+                description = "Path where the contents need to be stored",
+                listConverter = StringConverter.class, required = true)
+        protected String path;
+        @Override
+        void runCmd() throws Exception {
+            admin.functions().uploadFunction(sourceFile, path);
+            print("Uploaded successfully");
+        }
+    }
+
+    @Parameters(commandDescription = "Download File Data from Pulsar")
+    class DownloadFunction extends BaseCommand {
+        @Parameter(
+                names = "--destinationFile",
+                description = "The file where downloaded contents need to be stored",
+                listConverter = StringConverter.class, required = true)
+        protected String destinationFile;
+        @Parameter(
+                names = "--path",
+                description = "Path where the contents are to be stored",
+                listConverter = StringConverter.class, required = true)
+        protected String path;
+
+        @Override
+        void runCmd() throws Exception {
+            admin.functions().downloadFunction(destinationFile, path);
+            print("Downloaded successfully");
+        }
+    }
+
     public CmdFunctions(PulsarAdmin admin) throws PulsarClientException {
         super("functions", admin);
         localRunner = new LocalRunner();
@@ -702,6 +743,8 @@ public class CmdFunctions extends CmdBase {
         lister = new ListFunctions();
         stateGetter = new StateGetter();
         triggerer = new TriggerFunction();
+        uploader = new UploadFunction();
+        downloader = new DownloadFunction();
         jcommander.addCommand("localrun", getLocalRunner());
         jcommander.addCommand("create", getCreater());
         jcommander.addCommand("delete", getDeleter());
@@ -711,6 +754,8 @@ public class CmdFunctions extends CmdBase {
         jcommander.addCommand("list", getLister());
         jcommander.addCommand("querystate", getStateGetter());
         jcommander.addCommand("trigger", getTriggerer());
+        jcommander.addCommand("upload", getUploader());
+        jcommander.addCommand("download", getDownloader());
     }
 
     @VisibleForTesting
@@ -754,6 +799,16 @@ public class CmdFunctions extends CmdBase {
     @VisibleForTesting
     TriggerFunction getTriggerer() {
         return triggerer;
+    }
+
+    @VisibleForTesting
+    UploadFunction getUploader() {
+        return uploader;
+    }
+
+    @VisibleForTesting
+    DownloadFunction getDownloader() {
+        return downloader;
     }
 
     private static FunctionConfig loadConfig(File file) throws IOException {

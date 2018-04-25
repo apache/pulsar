@@ -115,7 +115,7 @@ public interface ProducerBuilder<T> extends Serializable, Cloneable {
      * Set the max size of the queue holding the messages pending to receive an acknowledgment from the broker.
      * <p>
      * When the queue is full, by default, all calls to {@link Producer#send} and {@link Producer#sendAsync} will fail
-     * unless blockIfQueueFull is set to true. Use {@link #setBlockIfQueueFull} to change the blocking behavior.
+     * unless blockIfQueueFull is set to true. Use {@link #blockIfQueueFull(boolean)} to change the blocking behavior.
      *
      * @param maxPendingMessages
      * @return
@@ -148,13 +148,15 @@ public interface ProducerBuilder<T> extends Serializable, Cloneable {
     /**
      * Set the message routing mode for the partitioned producer.
      *
-     * Default routing mode for messages to partition.
+     * Default routing mode is round-robin routing.
      *
      * This logic is applied when the application is not setting a key {@link MessageBuilder#setKey(String)} on a
      * particular message.
      *
      * @param messageRoutingMode
      *            the message routing mode
+     * @return producer builder
+     * @see MessageRoutingMode
      */
     ProducerBuilder<T> messageRoutingMode(MessageRoutingMode messageRoutingMode);
 
@@ -205,9 +207,13 @@ public interface ProducerBuilder<T> extends Serializable, Cloneable {
      * messages will be compressed at the batch level, leading to a much better compression ratio for similar headers or
      * contents.
      *
-     * When enabled default batch delay is set to 10 ms and default batch size is 1000 messages
+     * When enabled default batch delay is set to 1 ms and default batch size is 1000 messages
      *
+     * <p>Batching is enabled by default since 2.0.0.
+     *
+     * @return producer builder.
      * @see #batchingMaxPublishDelay(long, TimeUnit)
+     * @see #batchingMaxMessages(int)
      */
     ProducerBuilder<T> enableBatching(boolean enableBatching);
 

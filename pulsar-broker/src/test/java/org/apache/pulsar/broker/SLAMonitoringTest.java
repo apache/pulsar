@@ -42,7 +42,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -100,7 +100,7 @@ public class SLAMonitoringTest {
 
         Thread.sleep(100);
 
-        createProperty(pulsarAdmins[BROKER_COUNT - 1]);
+        createTenant(pulsarAdmins[BROKER_COUNT - 1]);
         for (int i = 0; i < BROKER_COUNT; i++) {
             String topic = String.format("%s/%s/%s:%s", NamespaceService.SLA_NAMESPACE_PROPERTY, "my-cluster",
                     pulsarServices[i].getAdvertisedAddress(), brokerWebServicePorts[i]);
@@ -108,19 +108,19 @@ public class SLAMonitoringTest {
         }
     }
 
-    private void createProperty(PulsarAdmin pulsarAdmin)
+    private void createTenant(PulsarAdmin pulsarAdmin)
             throws PulsarClientException, MalformedURLException, PulsarAdminException {
         ClusterData clusterData = new ClusterData();
         clusterData.setServiceUrl(pulsarAdmin.getServiceUrl());
         pulsarAdmins[0].clusters().createCluster("my-cluster", clusterData);
         Set<String> allowedClusters = new HashSet<>();
         allowedClusters.add("my-cluster");
-        PropertyAdmin adminConfig = new PropertyAdmin();
+        TenantInfo adminConfig = new TenantInfo();
         adminConfig.setAllowedClusters(allowedClusters);
         Set<String> adminRoles = new HashSet<>();
         adminRoles.add("");
         adminConfig.setAdminRoles(adminRoles);
-        pulsarAdmin.properties().createProperty("sla-monitor", adminConfig);
+        pulsarAdmin.tenants().createTenant("sla-monitor", adminConfig);
     }
 
     @AfterClass

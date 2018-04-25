@@ -136,12 +136,12 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         TestConsumerStateEventListener listener1 = new TestConsumerStateEventListener();
         TestConsumerStateEventListener listener2 = new TestConsumerStateEventListener();
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
-                .acknowledmentGroupTime(0, TimeUnit.SECONDS).subscriptionType(SubscriptionType.Failover);
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscriptionType(SubscriptionType.Failover);
 
 
         // 1. two consumers on the same subscription
         ConsumerBuilder<byte[]> consumerBulder1 = consumerBuilder.clone().consumerName("1")
-                .consumerEventListener(listener1).acknowledmentGroupTime(0, TimeUnit.SECONDS);
+                .consumerEventListener(listener1).acknowledgmentGroupTime(0, TimeUnit.SECONDS);
         Consumer<byte[]> consumer1 = consumerBulder1.subscribe();
         Consumer<byte[]> consumer2 = consumerBuilder.clone().consumerName("2").consumerEventListener(listener2)
                 .subscribe();
@@ -159,7 +159,10 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         assertEquals(subRef.getDispatcher().getType(), SubType.Failover);
 
         List<CompletableFuture<MessageId>> futures = Lists.newArrayListWithCapacity(numMsgs);
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
         for (int i = 0; i < numMsgs; i++) {
             String message = "my-message-" + i;
             futures.add(producer.sendAsync(message.getBytes()));
@@ -354,7 +357,8 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
 
         List<CompletableFuture<MessageId>> futures = Lists.newArrayListWithCapacity(numMsgs);
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
-                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
         for (int i = 0; i < numMsgs; i++) {
             String message = "my-message-" + i;
             futures.add(producer.sendAsync(message.getBytes()));
@@ -545,7 +549,10 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
 
         // enqueue messages
         List<CompletableFuture<MessageId>> futures = Lists.newArrayListWithCapacity(numMsgs);
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
         for (int i = 0; i < numMsgs; i++) {
             String message = "my-message-" + i;
             futures.add(producer.sendAsync(message.getBytes()));

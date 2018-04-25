@@ -28,7 +28,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
@@ -53,7 +53,7 @@ public class ConfigurationCacheService {
     private static final Logger LOG = LoggerFactory.getLogger(ConfigurationCacheService.class);
 
     private final ZooKeeperCache cache;
-    private ZooKeeperDataCache<PropertyAdmin> propertiesCache;
+    private ZooKeeperDataCache<TenantInfo> propertiesCache;
     private ZooKeeperDataCache<Policies> policiesCache;
     private ZooKeeperDataCache<ClusterData> clustersCache;
     private ZooKeeperChildrenCache clustersListCache;
@@ -76,10 +76,10 @@ public class ConfigurationCacheService {
 
         initZK();
 
-        this.propertiesCache = new ZooKeeperDataCache<PropertyAdmin>(cache) {
+        this.propertiesCache = new ZooKeeperDataCache<TenantInfo>(cache) {
             @Override
-            public PropertyAdmin deserialize(String path, byte[] content) throws Exception {
-                return ObjectMapperFactory.getThreadLocal().readValue(content, PropertyAdmin.class);
+            public TenantInfo deserialize(String path, byte[] content) throws Exception {
+                return ObjectMapperFactory.getThreadLocal().readValue(content, TenantInfo.class);
             }
         };
 
@@ -170,7 +170,7 @@ public class ConfigurationCacheService {
         return cache;
     }
     
-    public ZooKeeperDataCache<PropertyAdmin> propertiesCache() {
+    public ZooKeeperDataCache<TenantInfo> propertiesCache() {
         return this.propertiesCache;
     }
 

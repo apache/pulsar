@@ -37,7 +37,7 @@ public class SampleAsyncProducer {
     public static void main(String[] args) throws PulsarClientException, InterruptedException, IOException {
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("http://localhost:8080").build();
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic")
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-tenant/my-ns/my-topic")
                 .sendTimeout(3, TimeUnit.SECONDS).create();
 
         List<CompletableFuture<MessageId>> futures = Lists.newArrayList();

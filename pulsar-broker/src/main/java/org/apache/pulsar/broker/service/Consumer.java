@@ -24,6 +24,7 @@ import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
@@ -37,6 +38,8 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.stream.Collectors;
+
+import lombok.Data;
 
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
@@ -103,6 +106,10 @@ public class Consumer {
     private volatile boolean blockedConsumerOnUnackedMsgs = false;
 
     private final Map<String, String> metadata;
+
+    public interface SendListener {
+        void sendComplete(ChannelFuture future, SendMessageInfo sendMessageInfo);
+    }
 
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
@@ -179,13 +186,28 @@ public class Consumer {
      * Dispatch a list of entries to the consumer. <br/>
      * <b>It is also responsible to release entries data and recycle entries object.</b>
      *
-     * @return a promise that can be use to track when all the data has been written into the socket
+     * @return a SendMessageInfo object that contains the detail of what was sent to consumer
      */
     public SendMessageInfo sendMessages(final List<Entry> entries) {
+        // Empty listener
+        return sendMessages(entries, null);
+    }
+
+    /**
+     * Dispatch a list of entries to the consumer. <br/>
+     * <b>It is also responsible to release entries data and recycle entries object.</b>
+     *
+     * @return a SendMessageInfo object that contains the detail of what was sent to consumer
+     */
+    public SendMessageInfo sendMessages(final List<Entry> entries, SendListener listener) {
         final ChannelHandlerContext ctx = cnx.ctx();
         final SendMessageInfo sentMessages = new SendMessageInfo();
-        final ChannelPromise writePromise = ctx.newPromise();
-        sentMessages.channelPromse = writePromise;
+        final ChannelPromise writePromise = listener != null ? ctx.newPromise() : ctx.voidPromise();
+
+        if (listener != null) {
+            writePromise.addListener(future -> listener.sendComplete(writePromise, sentMessages));
+        }
+
         if (entries.isEmpty()) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}-{}] List of messages is empty, triggering write future immediately for consumerId {}",
@@ -651,30 +673,25 @@ public class Consumer {
         subscription.addUnAckedMessages(-unaAckedMsgs);
     }
 
-    public static class SendMessageInfo {
-        ChannelPromise channelPromse;
-        int totalSentMessages;
-        long totalSentMessageBytes;
+    public static final class SendMessageInfo {
+        private int totalSentMessages;
+        private long totalSentMessageBytes;
 
-        public ChannelPromise getChannelPromse() {
-            return channelPromse;
-        }
-        public void setChannelPromse(ChannelPromise channelPromse) {
-            this.channelPromse = channelPromse;
-        }
         public int getTotalSentMessages() {
             return totalSentMessages;
         }
+
         public void setTotalSentMessages(int totalSentMessages) {
             this.totalSentMessages = totalSentMessages;
         }
+
         public long getTotalSentMessageBytes() {
             return totalSentMessageBytes;
         }
+
         public void setTotalSentMessageBytes(long totalSentMessageBytes) {
             this.totalSentMessageBytes = totalSentMessageBytes;
         }
-
     }
 
     private static final Logger log = LoggerFactory.getLogger(Consumer.class);

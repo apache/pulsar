@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -54,9 +56,9 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public List<String> getNamespaces(String property) throws PulsarAdminException {
+    public List<String> getNamespaces(String tenant) throws PulsarAdminException {
         try {
-            WebTarget path = adminV2Namespaces.path(property);
+            WebTarget path = adminV2Namespaces.path(tenant);
             return request(path).get(new GenericType<List<String>>() {
             });
         } catch (Exception e) {
@@ -65,9 +67,9 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public List<String> getNamespaces(String property, String cluster) throws PulsarAdminException {
+    public List<String> getNamespaces(String tenant, String cluster) throws PulsarAdminException {
         try {
-            WebTarget path = adminNamespaces.path(property).path(cluster);
+            WebTarget path = adminNamespaces.path(tenant).path(cluster);
             return request(path).get(new GenericType<List<String>>() {
             });
         } catch (Exception e) {
@@ -124,6 +126,21 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public void createNamespace(String namespace, int numBundles) throws PulsarAdminException {
         createNamespace(namespace, new BundlesData(numBundles));
+    }
+
+    @Override
+    public void createNamespace(String namespace, Policies policies) throws PulsarAdminException {
+        NamespaceName ns = NamespaceName.get(namespace);
+        checkArgument(ns.isV2(), "Create namespace with policies is only supported on newer namespaces");
+
+        try {
+            WebTarget path = namespacePath(ns);
+
+            // For V2 API we pass full Policy class instance
+            request(path).put(Entity.entity(policies, MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
     }
 
     @Override
@@ -281,11 +298,11 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public List<String> getAntiAffinityNamespaces(String property, String cluster, String namespaceAntiAffinityGroup)
+    public List<String> getAntiAffinityNamespaces(String tenant, String cluster, String namespaceAntiAffinityGroup)
             throws PulsarAdminException {
         try {
             WebTarget path = adminNamespaces.path(cluster).path("antiAffinity").path(namespaceAntiAffinityGroup);
-            return request(path.queryParam("property", property)).get(new GenericType<List<String>>() {});
+            return request(path.queryParam("property", tenant)).get(new GenericType<List<String>>() {});
         } catch (Exception e) {
             throw getApiException(e);
         }

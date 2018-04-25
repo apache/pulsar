@@ -49,7 +49,7 @@ public class KafkaSink<K, V> implements Sink<KeyValue<K, V>> {
     @Override
     public CompletableFuture<Void> write(KeyValue<K, V> message) {
         ProducerRecord<K, V> record = new ProducerRecord<>(kafkaSinkConfig.getTopic(), message.getKey(), message.getValue());
-        LOG.debug("Message sending to kafka, record={}.", record);
+        LOG.debug("Record sending to kafka, record={}.", record);
         Future f = producer.send(record);
         return CompletableFuture.supplyAsync(() -> {
             try {
@@ -68,7 +68,7 @@ public class KafkaSink<K, V> implements Sink<KeyValue<K, V>> {
     }
 
     @Override
-    public void open(Map<String, String> config) throws Exception {
+    public void open(Map<String, Object> config) throws Exception {
         kafkaSinkConfig = KafkaSinkConfig.load(config);
         if (kafkaSinkConfig.getTopic() == null
                 || kafkaSinkConfig.getBootstrapServers() == null
