@@ -1666,7 +1666,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
                     for (LedgerInfo ls : ledgersToDelete) {
                         log.info("[{}] Removing ledger {} - size: {}", name, ls.getLedgerId(), ls.getSize());
-                        asyncDeleteLedger(ls.getLedgerId());
+                        asyncDeleteLedger(ls.getLedgerId(), ls);
                     }
                 }
 
@@ -1758,8 +1758,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    private void asyncDeleteLedger(long ledgerId) {
+    private void asyncDeleteLedger(long ledgerId, LedgerInfo info) {
         asyncDeleteLedger(ledgerId, DEFAULT_LEDGER_DELETE_RETRIES);
+
+        if (info.getOffloadContext().hasUidMsb()) {
+            UUID uuid = new UUID(info.getOffloadContext().getUidMsb(),
+                                 info.getOffloadContext().getUidLsb());
+            cleanupOffloaded(ledgerId, uuid, "Trimming");
+        }
     }
 
     private void asyncDeleteLedger(long ledgerId, long retry) {
@@ -1963,7 +1969,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                            scheduledExecutor, name)
                             .whenComplete((ignore2, exception) -> {
                                     if (exception != null) {
-                                        cleanupOffloadedOnFailure(ledgerId, uuid, "Metastore failure");
+                                        cleanupOffloaded(ledgerId, uuid, "Metastore failure");
                                     }
                                 });
                     })
@@ -2056,7 +2062,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                                                    oldInfo.getOffloadContext().getUidLsb());
                                            log.info("[{}] Found previous offload attempt for ledger {}, uuid {}"
                                                     + ", cleaning up", name, ledgerId, uuid);
-                                           cleanupOffloadedOnFailure(ledgerId, oldUuid, "Previous failed offload");
+                                           cleanupOffloaded(ledgerId, oldUuid, "Previous failed offload");
                                        }
                                        LedgerInfo.Builder builder = oldInfo.toBuilder();
                                        builder.getOffloadContextBuilder()
@@ -2078,7 +2084,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return transformLedgerInfo(ledgerId,
                                    (oldInfo) -> {
                                        UUID existingUuid = new UUID(oldInfo.getOffloadContext().getUidMsb(),
-                                                               oldInfo.getOffloadContext().getUidLsb());
+                                                                    oldInfo.getOffloadContext().getUidLsb());
                                        if (existingUuid.equals(uuid)) {
                                            LedgerInfo.Builder builder = oldInfo.toBuilder();
                                            builder.getOffloadContextBuilder()
@@ -2101,7 +2107,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 });
     }
 
-    private void cleanupOffloadedOnFailure(long ledgerId, UUID uuid, String cleanupReason) {
+    private void cleanupOffloaded(long ledgerId, UUID uuid, String cleanupReason) {
         Retries.run(Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1), TimeUnit.SECONDS.toHours(1)).limit(10),
                     Retries.NonFatalPredicate,
                     () -> config.getLedgerOffloader().deleteOffloaded(ledgerId, uuid),
