@@ -574,8 +574,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         assertEventuallyTrue(() -> ledger.getLedgersInfoAsList().size() == 1);
         Assert.assertEquals(ledger.getLedgersInfoAsList().get(0).getLedgerId(), secondLedger);
 
-        Assert.assertEquals(offloader.deletedOffloads().stream().findFirst().get(),
-                            Long.valueOf(firstLedger));
+        assertEventuallyTrue(() -> offloader.deletedOffloads().contains(firstLedger));
     }
 
     @Test
@@ -631,8 +630,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         assertEventuallyTrue(() -> ledger.getLedgersInfoAsList().size() == 1);
         Assert.assertEquals(ledger.getLedgersInfoAsList().get(0).getLedgerId(), secondLedger);
 
-        Assert.assertEquals(offloader.deletedOffloads().stream().findFirst().get(),
-                            Long.valueOf(firstLedger));
+        assertEventuallyTrue(() -> offloader.deletedOffloads().contains(firstLedger));
     }
 
     void assertEventuallyTrue(BooleanSupplier predicate) throws Exception {
