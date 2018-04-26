@@ -50,6 +50,7 @@ import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.apache.pulsar.client.api.MessageBuilder;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.connect.core.Record;
@@ -194,15 +195,15 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 stats.incrementProcessed(processAt);
                 addLogTopicHandler();
                 JavaExecutionResult result;
+                MessageId messageId = null;
+                String topicName = null;
+
                 if (currentRecord instanceof PulsarRecord) {
                     PulsarRecord pulsarRecord = (PulsarRecord) currentRecord;
-                     result = javaInstance.handleMessage(
-                             pulsarRecord.getMessageId(),
-                             pulsarRecord.getTopicName(),
-                             currentRecord.getValue());
-                } else {
-                    result = javaInstance.handleMessage(currentRecord.getValue());
+                     messageId = pulsarRecord.getMessageId();
+                     topicName = pulsarRecord.getTopicName();
                 }
+                result = javaInstance.handleMessage(messageId, topicName, currentRecord.getValue());
 
                 removeLogTopicHandler();
 

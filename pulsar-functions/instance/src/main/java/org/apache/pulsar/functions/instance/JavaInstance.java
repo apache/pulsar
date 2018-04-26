@@ -84,18 +84,6 @@ public class JavaInstance implements AutoCloseable {
         return executionResult;
     }
 
-    public JavaExecutionResult handleMessage(Object input) {
-        JavaExecutionResult executionResult = new JavaExecutionResult();
-        try {
-            Object output = javaUtilFunction.apply(input);
-
-            executionResult.setResult(output);
-        } catch (Exception ex) {
-            executionResult.setUserException(ex);
-        }
-        return executionResult;
-    }
-
     @Override
     public void close() {
     }

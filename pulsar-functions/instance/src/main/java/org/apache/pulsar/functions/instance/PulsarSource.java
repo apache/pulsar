@@ -62,6 +62,9 @@ public class PulsarSource<T> implements Source<T> {
 
         String topicName;
         String partitionId;
+
+        // If more than one topics are being read than the Message return by the consumer will be TopicMessageImpl
+        // If there is only topic being read then the Message returned by the consumer wil be MessageImpl
         if (message instanceof TopicMessageImpl) {
             topicName = ((TopicMessageImpl) message).getTopicName();
             TopicMessageIdImpl topicMessageId = (TopicMessageIdImpl) message.getMessageId();
