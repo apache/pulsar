@@ -29,10 +29,20 @@ import io.netty.util.Recycler.Handle;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.NavigableMap;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
+import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
-import org.apache.bookkeeper.versioning.Version;
+import org.apache.bookkeeper.net.BookieSocketAddress;
+import org.apache.bookkeeper.proto.DataFormats;
+import org.apache.bookkeeper.proto.DataFormats.LedgerMetadataFormat;
+import org.apache.bookkeeper.proto.DataFormats.LedgerMetadataFormat.State;
+import org.apache.bookkeeper.shaded.com.google.protobuf.ByteString;
 import org.apache.pulsar.broker.s3offload.OffloadIndexBlock;
 import org.apache.pulsar.broker.s3offload.OffloadIndexEntry;
 import org.slf4j.Logger;
@@ -106,12 +116,29 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
     }
 
     private static byte[] buildLedgerMetadataFormat(LedgerMetadata metadata) {
-        checkState(metadata instanceof org.apache.bookkeeper.client.LedgerMetadata);
+        LedgerMetadataFormat.Builder builder = LedgerMetadataFormat.newBuilder();
+        builder.setQuorumSize(metadata.getWriteQuorumSize())
+            .setAckQuorumSize(metadata.getAckQuorumSize())
+            .setEnsembleSize(metadata.getEnsembleSize())
+            .setLength(metadata.getLength())
+            .setState(metadata.isClosed() ? LedgerMetadataFormat.State.CLOSED : LedgerMetadataFormat.State.OPEN)
+            .setLastEntryId(metadata.getLastEntryId())
+            .setCtime(metadata.getCtime())
+            .setDigestType(BookKeeper.DigestType.toProtoDigestType(
+                BookKeeper.DigestType.fromApiDigestType(metadata.getDigestType())));
 
-        org.apache.bookkeeper.client.LedgerMetadata ledgerMetadata =
-            (org.apache.bookkeeper.client.LedgerMetadata) metadata;
+        for (Map.Entry<String, byte[]> e : metadata.getCustomMetadata().entrySet()) {
+            builder.addCustomMetadataBuilder()
+                .setKey(e.getKey()).setValue(ByteString.copyFrom(e.getValue()));
+        }
 
-        return ledgerMetadata.serialize();
+        for (Map.Entry<Long, ? extends List<BookieSocketAddress>> e : metadata.getAllEnsembles().entrySet()) {
+            builder.addSegmentBuilder()
+                .setFirstEntryId(e.getKey())
+                .addAllEnsembleMember(e.getValue().stream().map(a -> a.toString()).collect(Collectors.toList()));
+        }
+
+        return builder.build().toByteArray();
     }
 
     /**
@@ -156,9 +183,119 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         return new ByteBufInputStream(out, true);
     }
 
+    static private class InternalLedgerMetadata implements LedgerMetadata {
+        private LedgerMetadataFormat ledgerMetadataFormat;
+
+        private int ensembleSize;
+        private int writeQuorumSize;
+        private int ackQuorumSize;
+        private long lastEntryId;
+        private long length;
+        private DataFormats.LedgerMetadataFormat.DigestType digestType;
+        private long ctime;
+        private State state;
+        private Map<String, byte[]> customMetadata = Maps.newHashMap();
+        private TreeMap<Long, ArrayList<BookieSocketAddress>> ensembles = new TreeMap<Long, ArrayList<BookieSocketAddress>>();
+
+        InternalLedgerMetadata(LedgerMetadataFormat ledgerMetadataFormat) {
+            this.ensembleSize = ledgerMetadataFormat.getEnsembleSize();
+            this.writeQuorumSize = ledgerMetadataFormat.getQuorumSize();
+            this.ackQuorumSize = ledgerMetadataFormat.getAckQuorumSize();
+            this.lastEntryId = ledgerMetadataFormat.getLastEntryId();
+            this.length = ledgerMetadataFormat.getLength();
+            this.digestType = ledgerMetadataFormat.getDigestType();
+            this.ctime = ledgerMetadataFormat.getCtime();
+            this.state = ledgerMetadataFormat.getState();
+
+            if (ledgerMetadataFormat.getCustomMetadataCount() > 0) {
+                ledgerMetadataFormat.getCustomMetadataList().forEach(
+                    entry -> this.customMetadata.put(entry.getKey(), entry.getValue().toByteArray()));
+            }
+
+            ledgerMetadataFormat.getSegmentList().forEach(segment -> {
+                ArrayList<BookieSocketAddress> addressArrayList = new ArrayList<BookieSocketAddress>();
+                segment.getEnsembleMemberList().forEach(address -> {
+                    try {
+                        addressArrayList.add(new BookieSocketAddress(address));
+                    } catch (IOException e) {
+                        log.error("Exception when create BookieSocketAddress. ", e);
+                    }
+                });
+                this.ensembles.put(segment.getFirstEntryId(), addressArrayList);
+            });
+        }
+
+        @Override
+        public int getEnsembleSize() {
+            return this.ensembleSize;
+        }
+
+        @Override
+        public int getWriteQuorumSize() {
+            return this.writeQuorumSize;
+        }
+
+        @Override
+        public int getAckQuorumSize() {
+            return this.ackQuorumSize;
+        }
+
+        @Override
+        public long getLastEntryId() {
+            return this.lastEntryId;
+        }
+
+        @Override
+        public long getLength() {
+            return this.length;
+        }
+
+        @Override
+        public DigestType getDigestType() {
+            switch (this.digestType) {
+                case HMAC:
+                    return DigestType.MAC;
+                case CRC32:
+                    return DigestType.CRC32;
+                case CRC32C:
+                    return DigestType.CRC32C;
+                case DUMMY:
+                    return DigestType.DUMMY;
+                default:
+                    throw new IllegalArgumentException("Unable to convert digest type " + digestType);
+            }
+        }
+
+        @Override
+        public long getCtime() {
+            return this.ctime;
+        }
+
+        @Override
+        public boolean isClosed() {
+            return this.state == State.CLOSED;
+        }
+
+        @Override
+        public Map<String, byte[]> getCustomMetadata() {
+            return this.customMetadata;
+        }
+
+        @Override
+        public List<BookieSocketAddress> getEnsembleAt(long entryId) {
+            return ensembles.get(ensembles.headMap(entryId + 1).lastKey());
+        }
+
+        @Override
+        public NavigableMap<Long, ? extends List<BookieSocketAddress>> getAllEnsembles() {
+            return this.ensembles;
+        }
+    }
+
     private static LedgerMetadata parseLedgerMetadata(byte[] bytes) throws IOException {
-        return org.apache.bookkeeper.client.LedgerMetadata.parseConfig(bytes, Version.ANY,
-            org.apache.bookkeeper.shaded.com.google.common.base.Optional.<Long>absent());
+        LedgerMetadataFormat.Builder builder = LedgerMetadataFormat.newBuilder();
+        builder.mergeFrom(bytes);
+        return new InternalLedgerMetadata(builder.build());
     }
 
     private OffloadIndexBlock fromStream(InputStream stream) throws IOException {
