@@ -32,6 +32,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.IntStream;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -75,6 +76,7 @@ import net.jodah.typetools.TypeResolver;
 @Slf4j
 @Parameters(commandDescription = "Interface for managing Pulsar Functions (lightweight, Lambda-style compute processes that work with Pulsar)")
 public class CmdFunctions extends CmdBase {
+    private static final String DEFAULT_SERVICE_URL = "pulsar://localhost:6650";
 
     private final LocalRunner localRunner;
     private final CreateFunction creater;
@@ -238,7 +240,8 @@ public class CmdFunctions extends CmdBase {
             }
 
             if (null != inputs) {
-                Arrays.asList(inputs.split(",")).forEach(functionConfig.getInputs()::add);
+                List<String> inputTopics = Arrays.asList(inputs.split(","));
+                functionConfig.setInputs(inputTopics);
             }
             if (null != customSerdeInputString) {
                 Type type = new TypeToken<Map<String, String>>(){}.getType();
@@ -300,7 +303,7 @@ public class CmdFunctions extends CmdBase {
                     && functionConfig.getSubscriptionType() != FunctionConfig.SubscriptionType.FAILOVER
                     && functionConfig.getProcessingGuarantees() != null
                     && functionConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
-                throw new IllegalArgumentException("Effectively Once can only be acheived with Failover subscription");
+                throw new IllegalArgumentException("Effectively-once processing semantics can only be achieved using a Failover subscription type");
             }
 
             functionConfig.setAutoAck(true);
@@ -522,7 +525,7 @@ public class CmdFunctions extends CmdBase {
                 serviceUrl = brokerServiceUrl;
             }
             if (serviceUrl == null) {
-                serviceUrl = "pulsar://localhost:6650";
+                serviceUrl = DEFAULT_SERVICE_URL;
             }
             try (ProcessRuntimeFactory containerFactory = new ProcessRuntimeFactory(
                     serviceUrl, null, null, null)) {
