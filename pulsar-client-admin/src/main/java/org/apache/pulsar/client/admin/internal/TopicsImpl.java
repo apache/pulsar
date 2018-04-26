@@ -147,7 +147,6 @@ public class TopicsImpl extends BaseResource implements Topics, PersistentTopics
         final CompletableFuture<List<String>> future = new CompletableFuture<>();
         WebTarget path = namespacePath("non-persistent", ns, bundleRange);
 
-        System.err.println("List in bundle path: " + path);
         asyncGetRequest(path,
                 new InvocationCallback<List<String>>() {
                     @Override
