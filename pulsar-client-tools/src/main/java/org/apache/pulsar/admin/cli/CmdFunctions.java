@@ -308,6 +308,10 @@ public class CmdFunctions extends CmdBase {
         }
 
         private void doJavaSubmitChecks(FunctionConfig functionConfig) {
+            if (isNull(className)) {
+                throw new IllegalArgumentException("You supplied a jar file but no main class");
+            }
+
             File file = new File(jarFile);
             // check if the function class exists in Jar and it implements Function class
             if (!Reflections.classExistsInJar(file, functionConfig.getClassName())) {
