@@ -41,7 +41,7 @@ configuration-store*:
   image: apachepulsar/pulsar-test-latest-version:latest
   await:
     strategy: org.apache.pulsar.tests.NoopAwaitStrategy
-  env: [ZOOKEEPER_SERVERS=zookeeper]
+  env: [ZOOKEEPER_SERVERS=configuration-store]
   labels:
     cluster: test
     service: configuration-store
