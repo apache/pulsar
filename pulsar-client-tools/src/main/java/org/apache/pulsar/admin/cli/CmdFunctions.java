@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -292,6 +293,9 @@ public class CmdFunctions extends CmdBase {
             if (functionConfig.getInputs().isEmpty() && functionConfig.getCustomSerdeInputs().isEmpty()) {
                 throw new RuntimeException("No input topic(s) specified for the function");
             }
+
+            // Ensure that topics aren't being used as both input and output
+            verifyNoTopicClash(functionConfig.getInputs(), functionConfig.getOutput());;
 
             if (parallelism == null) {
                 if (functionConfig.getParallelism() == 0) {
@@ -834,6 +838,14 @@ public class CmdFunctions extends CmdBase {
 
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         return  mapper.readValue(file, FunctionConfig.class);
+    }
+
+    private static void verifyNoTopicClash(Collection<String> inputTopics, String outputTopic) throws IllegalArgumentException {
+        if (inputTopics.contains(outputTopic)) {
+            throw new IllegalArgumentException(
+                    String.format("Output topic %s is also being used as an input topic (topics must be one or the other)",
+                            outputTopic));
+        }
     }
 
     private static void checkRequiredFields(FunctionConfig config) throws IllegalArgumentException {
