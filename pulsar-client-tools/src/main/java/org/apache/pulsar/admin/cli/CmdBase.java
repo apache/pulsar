@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import javax.ws.rs.WebApplicationException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConnectException;

@@ -21,9 +21,9 @@ package org.apache.pulsar.functions.instance;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.connect.core.Source;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 
@@ -48,11 +48,16 @@ public class JavaInstance implements AutoCloseable {
     public JavaInstance(InstanceConfig config, Object userClassObject,
                  ClassLoader clsLoader,
                  PulsarClient pulsarClient,
-                 Consumer inputConsumer) {
+                 Source source) {
         // TODO: cache logger instances by functions?
         Logger instanceLog = LoggerFactory.getLogger("function-" + config.getFunctionDetails().getName());
 
-        this.context = new ContextImpl(config, instanceLog, pulsarClient, clsLoader, inputConsumer);
+        if (source instanceof PulsarSource) {
+            this.context = new ContextImpl(config, instanceLog, pulsarClient, clsLoader,
+                    ((PulsarSource) source).getInputConsumer());
+        } else {
+            this.context = null;
+        }
 
         // create the functions
         if (userClassObject instanceof Function) {

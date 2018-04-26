@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.annotations.Beta;
 import com.google.common.base.Charsets;
+import java.time.Clock;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.client.api.DigestType;
@@ -57,6 +58,7 @@ public class ManagedLedgerConfig {
     private DigestType digestType = DigestType.CRC32C;
     private byte[] password = "".getBytes(Charsets.UTF_8);
     private LedgerOffloader ledgerOffloader = NullLedgerOffloader.INSTANCE;
+    private Clock clock = Clock.systemUTC();
 
     public boolean isCreateIfMissing() {
         return createIfMissing;
@@ -443,6 +445,25 @@ public class ManagedLedgerConfig {
      */
     public ManagedLedgerConfig setLedgerOffloader(LedgerOffloader offloader) {
         this.ledgerOffloader = offloader;
+        return this;
+    }
+
+    /**
+     * Get clock to use to time operations
+     *
+     * @return a clock
+     */
+    public Clock getClock() {
+        return clock;
+    }
+
+    /**
+     * Set clock to use for time operations
+     *
+     * @param clock the clock to use
+     */
+    public ManagedLedgerConfig setClock(Clock clock) {
+        this.clock = clock;
         return this;
     }
 }

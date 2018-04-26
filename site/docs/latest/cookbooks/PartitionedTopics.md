@@ -6,6 +6,7 @@ tags:
 - partitioning
 - admin
 - clients
+- cookbook
 ---
 
 <!--

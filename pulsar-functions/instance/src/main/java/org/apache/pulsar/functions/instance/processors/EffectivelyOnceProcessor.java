@@ -18,37 +18,28 @@
  */
 package org.apache.pulsar.functions.instance.processors;
 
-import java.util.LinkedList;
-import java.util.List;
-import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.TimeUnit;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.ConsumerEventListener;
-import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.PulsarClientException.ProducerBusyException;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.functions.instance.InputMessage;
+import org.apache.pulsar.connect.core.Record;
+import org.apache.pulsar.functions.instance.PulsarRecord;
 import org.apache.pulsar.functions.instance.producers.MultiConsumersOneOuputTopicProducers;
 import org.apache.pulsar.functions.instance.producers.Producers;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
-import org.apache.pulsar.functions.utils.Utils;
 
 /**
  * A message processor that process messages effectively-once.
  */
 @Slf4j
 class EffectivelyOnceProcessor extends MessageProcessorBase implements ConsumerEventListener {
-
-    private LinkedList<String> inputTopicsToResubscribe = null;
 
     @Getter(AccessLevel.PACKAGE)
     protected Producers outputProducer;
@@ -101,26 +92,29 @@ class EffectivelyOnceProcessor extends MessageProcessorBase implements ConsumerE
     //
 
     @Override
-    public void sendOutputMessage(InputMessage inputMsg,
+    public void sendOutputMessage(Record srcRecord,
                                   MessageBuilder outputMsgBuilder) throws Exception {
         if (null == outputMsgBuilder) {
-            inputMsg.ackCumulative();
+            srcRecord.ack();
             return;
         }
 
         // assign sequence id to output message for idempotent producing
         outputMsgBuilder = outputMsgBuilder
-            .setSequenceId(Utils.getSequenceId(inputMsg.getActualMessage().getMessageId()));
+            .setSequenceId(srcRecord.getRecordSequence());
 
+        // currently on PulsarRecord
+        if (srcRecord instanceof PulsarRecord) {
+            PulsarRecord pulsarMessage = (PulsarRecord) srcRecord;
+            Producer producer = outputProducer.getProducer(pulsarMessage.getTopicName(),
+                    Integer.parseInt(srcRecord.getPartitionId()));
 
-        Producer producer = outputProducer.getProducer(inputMsg.getTopicName(), inputMsg.getTopicPartition());
-
-        Message outputMsg = outputMsgBuilder.build();
-        producer.sendAsync(outputMsg)
-                .thenAccept(messageId -> inputMsg.ackCumulative())
-                .join();
+            org.apache.pulsar.client.api.Message outputMsg = outputMsgBuilder.build();
+            producer.sendAsync(outputMsg)
+                    .thenAccept(messageId -> srcRecord.ack())
+                    .join();
+        }
     }
-
 
     @Override
     public void close() {

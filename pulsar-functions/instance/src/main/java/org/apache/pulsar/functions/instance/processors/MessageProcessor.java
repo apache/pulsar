@@ -19,16 +19,15 @@
 package org.apache.pulsar.functions.instance.processors;
 
 import java.util.Map;
-import java.util.concurrent.LinkedBlockingDeque;
+
 import org.apache.bookkeeper.common.annotation.InterfaceStability.Evolving;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.connect.core.Record;
+import org.apache.pulsar.connect.core.Source;
 import org.apache.pulsar.functions.api.SerDe;
-import org.apache.pulsar.functions.instance.InputMessage;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails.ProcessingGuarantees;
 
@@ -68,6 +67,8 @@ public interface MessageProcessor extends AutoCloseable {
         }
     }
 
+    void postReceiveMessage(Record record);
+
     /**
      * Setup the input with a provided <i>processQueue</i>. The implementation of this processor is responsible for
      * setting up the input and passing the received messages from input to the provided <i>processQueue</i>.
@@ -78,11 +79,11 @@ public interface MessageProcessor extends AutoCloseable {
         throws Exception;
 
     /**
-     * Return the input.
+     * Return the source.
      *
-     * @return the input consumer.
+     * @return the source.
      */
-    Consumer getInputConsumer();
+    Source getSource();
 
     /**
      * Setup the output with a provided <i>outputSerDe</i>. The implementation of this processor is responsible for
@@ -99,10 +100,10 @@ public interface MessageProcessor extends AutoCloseable {
      * <p>If the <i>outputMsgBuilder</i> is null, the implementation doesn't have to send any messages to the output.
      * The implementation can decide to acknowledge the input message based on its process guarantees.
      *
-     * @param inputMsg input message
+     * @param srcRecord record from source
      * @param outputMsgBuilder output message builder. it can be null.
      */
-    void sendOutputMessage(InputMessage inputMsg,
+    void sendOutputMessage(Record srcRecord,
                            MessageBuilder outputMsgBuilder) throws PulsarClientException, Exception;
 
     /**
@@ -110,7 +111,7 @@ public interface MessageProcessor extends AutoCloseable {
      * @return the next input message
      * @throws Exception
      */
-    InputMessage recieveMessage() throws Exception;
+    Record recieveMessage() throws Exception;
 
     @Override
     void close();

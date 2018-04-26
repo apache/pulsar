@@ -21,12 +21,19 @@ syntax = "proto2";
 option java_package = "org.apache.bookkeeper.mledger.proto";
 option optimize_for = SPEED;
 
+message OffloadContext {
+    optional int64 uidMsb = 1;
+    optional int64 uidLsb = 2;
+    optional bool complete = 3;
+}
+
 message ManagedLedgerInfo {
     message LedgerInfo {
     	required int64 ledgerId = 1;
     	optional int64 entries  = 2;
     	optional int64 size     = 3;
     	optional int64 timestamp = 4;
+        optional OffloadContext offloadContext = 5;
     }
     
     repeated LedgerInfo ledgerInfo = 1;

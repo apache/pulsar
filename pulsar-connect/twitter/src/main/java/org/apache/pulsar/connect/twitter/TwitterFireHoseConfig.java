@@ -56,7 +56,7 @@ public class TwitterFireHoseConfig implements Serializable {
         return mapper.readValue(new File(yamlFile), TwitterFireHoseConfig.class);
     }
 
-    public static TwitterFireHoseConfig load(Map<String, String> map) throws IOException {
+    public static TwitterFireHoseConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
         return mapper.readValue(new ObjectMapper().writeValueAsString(map), TwitterFireHoseConfig.class);
     }
