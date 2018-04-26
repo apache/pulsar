@@ -11,24 +11,6 @@ public class StreamingStats {
     public static void writePublisherStats(StatsOutputStream statsStream, PublisherStats stats) {
         statsStream.startObject();
 
-        /*
-            {
-              "msgRateIn": 0,
-              "msgThroughputIn": 0,
-              "averageMsgSize": 0,
-              "producerId": 0,
-              "metadata": {
-                "component-id": "ingress-bolt-2",
-                "id": "eng/default/words-connector",
-                "type": "connector"
-              },
-              "address": "/10.20.0.33:47342",
-              "connectedSince": "2018-04-25T22:34:37.633Z",
-              "clientVersion": "2.0.0-incubating-SNAPSHOT",
-              "producerName": "oldfashioned-salamander-1-1"
-            }
-             */
-
         statsStream.writePair("msgRateIn", stats.msgRateIn);
         statsStream.writePair("msgThroughputIn", stats.msgThroughputIn);
         statsStream.writePair("averageMsgSize", stats.averageMsgSize);
