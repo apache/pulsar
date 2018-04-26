@@ -829,7 +829,7 @@ public class CmdFunctions extends CmdBase {
             throw new IllegalArgumentException("You must specify a class name for the function");
         }
 
-        if (config.getInputs().size() == 0 || config.getCustomSerdeINputs().size() == 0) {
+        if (config.getInputs().size() == 0 || config.getCustomSerdeInputs().size() == 0) {
             throw new IllegalArgumentException("You must specify one or more input topics for the function");
         }
     }
