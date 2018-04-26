@@ -77,7 +77,6 @@ public abstract class CmdBase {
                 System.err.println("Reason: " + e.getMessage());
                 return false;
             } catch (Exception e) {
-                System.err.println("Got exception: " + e.getMessage());
                 e.printStackTrace();
                 return false;
             }
