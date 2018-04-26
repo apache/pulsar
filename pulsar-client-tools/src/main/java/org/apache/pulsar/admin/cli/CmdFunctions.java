@@ -437,6 +437,10 @@ public class CmdFunctions extends CmdBase {
         }
 
         private void doPythonSubmitChecks(FunctionConfig functionConfig) {
+            if (functionConfig.getClassname() == null) {
+                throw new IllegalArgumentException("You specified a Python file but no main class name");
+            }
+
             if (functionConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
                 throw new RuntimeException("Effectively-once processing guarantees not yet supported in Python");
             }
