@@ -42,6 +42,7 @@ import org.apache.bookkeeper.api.kv.result.KeyValue;
 import org.apache.bookkeeper.clients.StorageClientBuilder;
 import org.apache.bookkeeper.clients.config.StorageClientSettings;
 import org.apache.bookkeeper.clients.utils.NetUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -458,16 +459,16 @@ public class CmdFunctions extends CmdBase {
         }
 
         private void inferMissingArguments(FunctionConfig functionConfig) {
-            if (functionConfig.getName() == null || functionConfig.getName().isEmpty()) {
+            if (StringUtils.isEmpty(functionConfig.getName())) {
                 inferMissingFunctionName(functionConfig);
             }
-            if (functionConfig.getTenant() == null || functionConfig.getTenant().isEmpty()) {
+            if (StringUtils.isEmpty(functionConfig.getTenant())) {
                 inferMissingTenant(functionConfig);
             }
-            if (functionConfig.getNamespace() == null || functionConfig.getNamespace().isEmpty()) {
+            if (StringUtils.isEmpty(functionConfig.getNamespace())) {
                 inferMissingNamespace(functionConfig);
             }
-            if (functionConfig.getOutput() == null || functionConfig.getOutput().isEmpty()) {
+            if (StringUtils.isEmpty(functionConfig.getOutput())) {
                 inferMissingOutput(functionConfig);
             }
         }
@@ -502,7 +503,8 @@ public class CmdFunctions extends CmdBase {
         private void inferMissingOutput(FunctionConfig functionConfig) {
             try {
                 String inputTopic = getUniqueInput(functionConfig);
-                functionConfig.setOutput(inputTopic + "-" + functionConfig.getName() + "-output");
+                String outputTopic = String.format("%s-%s-output", inputTopic, functionConfig.getName());
+                functionConfig.setOutput(outputTopic);
             } catch (IllegalArgumentException ex) {
                 // It might be that we really don't need an output topic
                 // So we cannot really throw an exception
