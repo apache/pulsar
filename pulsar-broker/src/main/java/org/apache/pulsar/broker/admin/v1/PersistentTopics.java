@@ -456,7 +456,8 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiOperation(value = "Offload a prefix of a topic to long term storage")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
                             @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
-                            @ApiResponse(code = 404, message = "Topic does not exist")})
+                            @ApiResponse(code = 404, message = "Topic does not exist"),
+                            @ApiResponse(code = 409, message = "Offload already running")})
     public void triggerOffload(@PathParam("tenant") String tenant,
                                @PathParam("cluster") String cluster,
                                @PathParam("namespace") String namespace,
