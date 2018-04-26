@@ -32,7 +32,6 @@ import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.IntStream;
 import lombok.Data;
@@ -128,17 +127,20 @@ public class BlockAwareSegmentInputStreamTest {
         int ledgerId;
         int entrySize;
         int lac;
-        LedgerEntries entries;
         MockReadHandle(int ledgerId, int entrySize, int lac) {
             this.ledgerId = ledgerId;
             this.entrySize = entrySize;
             this.lac = lac;
-            this.entries = new MockLedgerEntries(ledgerId, 0,  lac + 1, entrySize);
         }
 
         @Override
         public CompletableFuture<LedgerEntries> readAsync(long firstEntry, long lastEntry) {
             CompletableFuture<LedgerEntries> future = new CompletableFuture<>();
+            LedgerEntries entries = new MockLedgerEntries(ledgerId,
+                (int)firstEntry,
+                (int)(lastEntry - firstEntry + 1),
+                entrySize);
+
             Executors.newCachedThreadPool(new DefaultThreadFactory("test"))
                 .submit(() -> future.complete(entries));
             return future;
@@ -175,9 +177,8 @@ public class BlockAwareSegmentInputStreamTest {
         }
 
         @Override
-        public CompletableFuture<LastConfirmedAndEntry> readLastAddConfirmedAndEntryAsync(long entryId,
-                                                                                   long timeOutInMillis,
-                                                                                   boolean parallel) {
+        public CompletableFuture<LastConfirmedAndEntry>
+        readLastAddConfirmedAndEntryAsync(long entryId, long timeOutInMillis, boolean parallel) {
             return null;
         }
 

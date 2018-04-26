@@ -27,9 +27,9 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.IntStream;
+import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
-import org.apache.bookkeeper.util.ZeroBuffer;
 import org.apache.pulsar.broker.s3offload.DataBlockHeader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,7 +38,7 @@ import org.slf4j.LoggerFactory;
  *
  * The BlockAwareSegmentInputStream for each cold storage data block.
  * It contains a byte buffer, which contains all the content for this data block.
- * DataBlockHeader + entries(each with format[[entry_size -- int][entry_id -- long][entry_data]])
+ *      DataBlockHeader + entries(each with format[[entry_size -- int][entry_id -- long][entry_data]])
  *
  */
 public class BlockAwareSegmentInputStream extends ByteArrayInputStream {
@@ -78,55 +78,94 @@ public class BlockAwareSegmentInputStream extends ByteArrayInputStream {
         super.close();
     }
 
-    // initialize and fill data from ReadHandle
-    public CompletableFuture<Void> initialize() {
-        CompletableFuture<Void> future = new CompletableFuture<>();
+    // Read entry complete, no space for one more entry, do padding and construct header, complete future
+    private void entryReadComplete(CompletableFuture<Void> future) throws IOException {
+        // padding at end
+        IntStream.range(0, writer.writableBytes()).forEach(i -> writer.writeByte(blockEndPadding));
 
-        ledger.readAsync(startEntryId, ledger.getLastAddConfirmed()).whenComplete((ledgerEntries, exception) -> {
+        // construct and write block header
+        dataBlockHeader = DataBlockHeaderImpl.of(blockSize, blockEntryCount, startEntryId);
+        writer.writerIndex(0);
+        writer.writeBytes(dataBlockHeader.toStream(), dataBlockHeader.getHeaderSize());
+        writer.writerIndex(blockSize);
+        future.complete(null);
+    }
+
+    // roughly get how may entries we would read this time.
+    private int readEntryCount() {
+        // read some more entries than roughly computed each time.
+        final int readAheadNum = 100;
+        long ledgerLength = ledger.getLength();
+        long lac = ledger.getLastAddConfirmed();
+        int averageEntrySize = (int)(ledgerLength / (lac + 1)) + 4 + 8;
+        int numEntriesToRead = writer.writableBytes() / averageEntrySize;
+        return numEntriesToRead + readAheadNum;
+    }
+
+    // put the entries that read from ledger into buffer, and update counters. If buffer is full, complete the future.
+    private void bufReadEntries(CompletableFuture<Void> future, LedgerEntries entries) throws IOException {
+        Iterator<LedgerEntry> iterator = entries.iterator();
+        int entryLength = 0;
+        while (iterator.hasNext()) {
+            LedgerEntry entry = iterator.next();
+            long entryId = entry.getEntryId();
+            entryLength = (int)entry.getLength();
+
+            if (writer.writableBytes() >= entryLength + 4 + 8) {
+                // has space for this entry, write it into buf
+                writer
+                    .writeInt(entryLength)
+                    .writeLong(entryId)
+                    .writeBytes(entry.getEntryBuffer());
+                // set counters
+                blockEntryCount ++;
+                payloadBytesWritten += entryLength;
+                entry.close();
+            } else {
+                // buf has no space left for a whole message entry
+                entry.close();
+                if (iterator.hasNext()) {
+                    iterator.forEachRemaining(LedgerEntry::close);
+                }
+                // padding and write header
+                entryReadComplete(future);
+                return;
+            }
+        }
+
+        // not have read enough entries, read more.
+        checkState(!iterator.hasNext());
+        if (writer.writableBytes() > 4 + 8) {
+            readLedgerEntries(future, startEntryId + blockEntryCount, readEntryCount());
+        } else {
+            entryReadComplete(future);
+        }
+    }
+
+    // read `number` entries start from `start`, if buffer is full, bufReadEntries will complete the future.
+    private void readLedgerEntries(CompletableFuture<Void> future, long start, int number) {
+        ledger.readAsync(start, Math.min(start + number - 1, ledger.getLastAddConfirmed()))
+            .whenComplete((ledgerEntries, exception) -> {
             try {
                 if (exception != null) {
+                    log.error("Meet exception in readAsync.", exception);
                     this.close();
                     future.completeExceptionally(exception);
                     return;
                 }
 
-                Iterator<LedgerEntry> iterator = ledgerEntries.iterator();
-                while (iterator.hasNext()) {
-                    LedgerEntry entry = iterator.next();
-                    int entryLength = (int)entry.getLength();
-                    long entryId = entry.getEntryId();
-
-                    if (writer.writableBytes() >= entryLength + 4 + 8) {
-                        writer
-                            .writeInt(entryLength)
-                            .writeLong(entryId)
-                            .writeBytes(entry.getEntryBuffer());
-                        // set counters
-                        blockEntryCount ++;
-                        payloadBytesWritten += entryLength;
-                        entry.close();
-                    } else {
-                        // this block has no space left for a whole message entry
-                        entry.close();
-                        break;
-                    }
-                }
-
-                iterator.forEachRemaining(LedgerEntry::close);
-                IntStream.range(0, writer.writableBytes()).forEach(i -> writer.writeByte(blockEndPadding));
-
-                // construct and write block header
-                dataBlockHeader = DataBlockHeaderImpl.of(blockSize, blockEntryCount, startEntryId);
-                writer.writerIndex(0);
-                writer.writeBytes(dataBlockHeader.toStream(), dataBlockHeader.getHeaderSize());
-                writer.writerIndex(blockSize);
-
-                future.complete(null);
+                bufReadEntries(future, ledgerEntries);
             } catch (Exception ioe) {
+                log.error("Meet exception while read entries.", ioe);
                 future.completeExceptionally(ioe);
             }
         });
+    }
 
+    // initialize and fill data from ReadHandle
+    public CompletableFuture<Void> initialize() {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        readLedgerEntries(future, startEntryId, readEntryCount());
         return future;
     }
 
