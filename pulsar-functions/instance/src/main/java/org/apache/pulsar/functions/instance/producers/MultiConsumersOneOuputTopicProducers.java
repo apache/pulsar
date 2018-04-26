@@ -37,7 +37,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 public class MultiConsumersOneOuputTopicProducers extends AbstractOneOuputTopicProducers {
 
     @Getter(AccessLevel.PACKAGE)
-    private final Map<String, IntObjectMap<Producer>> producers;
+    private final Map<String, IntObjectMap<Producer<byte[]>>> producers;
 
     public MultiConsumersOneOuputTopicProducers(PulsarClient client,
                                                 String outputTopic)
@@ -56,14 +56,14 @@ public class MultiConsumersOneOuputTopicProducers extends AbstractOneOuputTopicP
     }
 
     @Override
-    public synchronized Producer getProducer(String srcTopicName, int srcTopicPartition) throws PulsarClientException {
-        IntObjectMap<Producer> producerMap = producers.get(srcTopicName);
+    public synchronized Producer<byte[]> getProducer(String srcTopicName, int srcTopicPartition) throws PulsarClientException {
+        IntObjectMap<Producer<byte[]>> producerMap = producers.get(srcTopicName);
         if (null == producerMap) {
             producerMap = new IntObjectHashMap<>();
             producers.put(srcTopicName, producerMap);
         }
 
-        Producer producer = producerMap.get(srcTopicPartition);
+        Producer<byte[]> producer = producerMap.get(srcTopicPartition);
         if (null == producer) {
             producer = createProducer(outputTopic, makeProducerName(srcTopicName, srcTopicPartition));
             producerMap.put(srcTopicPartition, producer);
@@ -73,10 +73,10 @@ public class MultiConsumersOneOuputTopicProducers extends AbstractOneOuputTopicP
 
     @Override
     public synchronized void closeProducer(String srcTopicName, int srcTopicPartition) {
-        IntObjectMap<Producer> producerMap = producers.get(srcTopicName);
+        IntObjectMap<Producer<byte[]>> producerMap = producers.get(srcTopicName);
 
         if (null != producerMap) {
-            Producer producer = producerMap.remove(srcTopicPartition);
+            Producer<byte[]> producer = producerMap.remove(srcTopicPartition);
             if (null != producer) {
                 producer.closeAsync();
             }
@@ -89,8 +89,8 @@ public class MultiConsumersOneOuputTopicProducers extends AbstractOneOuputTopicP
     @Override
     public synchronized void close() {
         List<CompletableFuture<Void>> closeFutures = new ArrayList<>(producers.size());
-        for (IntObjectMap<Producer> producerMap: producers.values()) {
-            for (Producer producer : producerMap.values()) {
+        for (IntObjectMap<Producer<byte[]>> producerMap: producers.values()) {
+            for (Producer<byte[]> producer : producerMap.values()) {
                 closeFutures.add(producer.closeAsync());
             }
         }

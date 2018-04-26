@@ -76,7 +76,7 @@ public class WorkerService {
         // initialize the function metadata manager
         try {
 
-            this.client = PulsarClient.create(this.workerConfig.getPulsarServiceUrl());
+            this.client = PulsarClient.builder().serviceUrl(this.workerConfig.getPulsarServiceUrl()).build();
             log.info("Created Pulsar client");
 
             //create scheduler manager

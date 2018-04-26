@@ -45,7 +45,7 @@ public class FunctionResultRouterTest {
 
     @Test
     public void testChoosePartitionWithoutKeyWithoutSequenceId() {
-        Message msg = mock(Message.class);
+        Message<?> msg = mock(Message.class);
         when(msg.hasKey()).thenReturn(false);
         when(msg.getKey()).thenReturn(null);
         when(msg.getSequenceId()).thenReturn(-1L);
@@ -70,7 +70,7 @@ public class FunctionResultRouterTest {
 
         FunctionResultRouter router = new FunctionResultRouter(0, clock);
         for (int i = 0; i < 10; i++) {
-            Message msg = mock(Message.class);
+            Message<?> msg = mock(Message.class);
             when(msg.hasKey()).thenReturn(false);
             when(msg.getKey()).thenReturn(null);
             when(msg.getSequenceId()).thenReturn((long) (2 * i));
@@ -82,11 +82,11 @@ public class FunctionResultRouterTest {
     public void testChoosePartitionWithKeyWithoutSequenceId() {
         String key1 = "key1";
         String key2 = "key2";
-        Message msg1 = mock(Message.class);
+        Message<?> msg1 = mock(Message.class);
         when(msg1.hasKey()).thenReturn(true);
         when(msg1.getKey()).thenReturn(key1);
         when(msg1.getSequenceId()).thenReturn(-1L);
-        Message msg2 = mock(Message.class);
+        Message<?> msg2 = mock(Message.class);
         when(msg2.hasKey()).thenReturn(true);
         when(msg2.getKey()).thenReturn(key2);
         when(msg1.getSequenceId()).thenReturn(-1L);
@@ -105,12 +105,12 @@ public class FunctionResultRouterTest {
     public void testChoosePartitionWithKeySequenceId() {
         String key1 = "key1";
         String key2 = "key2";
-        Message msg1 = mock(Message.class);
+        Message<?> msg1 = mock(Message.class);
         when(msg1.hasKey()).thenReturn(true);
         when(msg1.getKey()).thenReturn(key1);
         // make sure sequence id is different from hashcode, so the test can be tested correctly.
         when(msg1.getSequenceId()).thenReturn((long) ((key1.hashCode() % 100) + 1));
-        Message msg2 = mock(Message.class);
+        Message<?> msg2 = mock(Message.class);
         when(msg2.hasKey()).thenReturn(true);
         when(msg2.getKey()).thenReturn(key2);
         when(msg1.getSequenceId()).thenReturn((long) ((key2.hashCode() % 100) + 1));
