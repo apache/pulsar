@@ -30,6 +30,7 @@ import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.proto.Function.ConnectorDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
@@ -106,6 +107,13 @@ public class JavaInstanceMain {
     @Parameter(names = "--subscription_type", description = "What subscription type to use")
     protected FunctionDetails.SubscriptionType subscriptionType;
 
+    @Parameter(names = "--source_classname", description = "The source classname")
+    protected String sourceClassname;
+
+    @Parameter(names = "--source_configs", description = "The source classname")
+    protected String sourceConfigs;
+
+
     private Server server;
 
     public JavaInstanceMain() { }
@@ -159,6 +167,16 @@ public class JavaInstanceMain {
             Map<String, String> userConfigMap = new Gson().fromJson(userConfig, type);
             functionDetailsBuilder.putAllUserConfig(userConfigMap);
         }
+
+        ConnectorDetails.Builder sourceDetailsBuilder = ConnectorDetails.newBuilder();
+        sourceDetailsBuilder.setClassName(sourceClassname);
+        if (sourceConfigs != null && !sourceConfigs.isEmpty()) {
+            Type type = new TypeToken<Map<String, String>>(){}.getType();
+            Map<String, String> sourceConfigMap = new Gson().fromJson(sourceConfigs, type);
+            sourceDetailsBuilder.putAllConfigs(sourceConfigMap);
+        }
+        functionDetailsBuilder.setSource(sourceDetailsBuilder);
+
         FunctionDetails functionDetails = functionDetailsBuilder.build();
         instanceConfig.setFunctionDetails(functionDetails);
 
