@@ -176,9 +176,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 404, message = "Partitioned topic does not exist") })
     public void deletePartitionedTopic(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("force") @DefaultValue("false") boolean force,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        internalDeletePartitionedTopic(authoritative);
+        internalDeletePartitionedTopic(authoritative, force);
     }
 
     @PUT
@@ -195,15 +196,16 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}")
-    @ApiOperation(value = "Delete a topic.", notes = "The topic cannot be deleted if there's any active subscription or producer connected to the it.")
+    @ApiOperation(value = "Delete a topic.", notes = "The topic cannot be deleted if delete is not forcefully and there's any active "
+            + "subscription or producer connected to the it. Force delete ignores connected clients and deletes topic by explicitly closing them.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
             @ApiResponse(code = 412, message = "Topic has active producers/subscriptions") })
     public void deleteTopic(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            @PathParam("topic") @Encoded String encodedTopic,
+            @PathParam("topic") @Encoded String encodedTopic, @QueryParam("force") @DefaultValue("false") boolean force,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        internalDeleteTopic(authoritative);
+        internalDeleteTopic(authoritative, force);
     }
 
     @GET

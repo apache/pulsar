@@ -588,8 +588,8 @@ public class PulsarAdminToolTest {
         CmdPersistentTopics topics = new CmdPersistentTopics(admin);
 
         topics.run(split("delete persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).delete("persistent://myprop/clust/ns1/ds1");
-
+        verify(mockTopics).delete("persistent://myprop/clust/ns1/ds1", false);
+        
         topics.run(split("unload persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).unload("persistent://myprop/clust/ns1/ds1");
 
@@ -639,8 +639,8 @@ public class PulsarAdminToolTest {
         verify(mockTopics).getPartitionedTopicMetadata("persistent://myprop/clust/ns1/ds1");
 
         topics.run(split("delete-partitioned-topic persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).deletePartitionedTopic("persistent://myprop/clust/ns1/ds1");
-
+        verify(mockTopics).deletePartitionedTopic("persistent://myprop/clust/ns1/ds1", false);
+        
         topics.run(split("peek-messages persistent://myprop/clust/ns1/ds1 -s sub1 -n 3"));
         verify(mockTopics).peekMessages("persistent://myprop/clust/ns1/ds1", "sub1", 3);
 

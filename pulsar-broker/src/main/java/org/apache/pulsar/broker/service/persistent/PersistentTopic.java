@@ -673,7 +673,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
      * 
      * @return
      */
-    private CompletableFuture<Void> deleteForcefully() {
+    @Override
+    public CompletableFuture<Void> deleteForcefully() {
         return delete(false, true);
     }
     
