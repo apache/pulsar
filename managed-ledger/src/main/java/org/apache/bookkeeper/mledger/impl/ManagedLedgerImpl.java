@@ -1361,7 +1361,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
                 LedgerInfo info = ledgers.get(ledgerId);
                 CompletableFuture<ReadHandle> openFuture = new CompletableFuture<>();
-                if (info.getOffloadContext().getComplete()) {
+                if (info != null && info.hasOffloadContext() && info.getOffloadContext().getComplete()) {
                     UUID uid = new UUID(info.getOffloadContext().getUidMsb(),
                                         info.getOffloadContext().getUidLsb());
                     openFuture = config.getLedgerOffloader().readOffloaded(ledgerId, uid);
