@@ -24,7 +24,9 @@ import java.util.Map;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -51,7 +53,7 @@ abstract class MessageProcessorBase implements MessageProcessor {
     protected SerDe outputSerDe;
 
     @Getter
-    protected Consumer inputConsumer;
+    protected Consumer<byte[]> inputConsumer;
 
     protected List<String> topics;
 

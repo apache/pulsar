@@ -82,7 +82,7 @@ public interface MessageProcessor extends AutoCloseable {
      *
      * @return the input consumer.
      */
-    Consumer getInputConsumer();
+    Consumer<byte[]> getInputConsumer();
 
     /**
      * Setup the output with a provided <i>outputSerDe</i>. The implementation of this processor is responsible for
@@ -103,7 +103,7 @@ public interface MessageProcessor extends AutoCloseable {
      * @param outputMsgBuilder output message builder. it can be null.
      */
     void sendOutputMessage(InputMessage inputMsg,
-                           MessageBuilder outputMsgBuilder) throws PulsarClientException, Exception;
+                           MessageBuilder<byte[]> outputMsgBuilder) throws PulsarClientException, Exception;
 
     /**
      * Get the next message to process

@@ -19,17 +19,21 @@
 package org.apache.pulsar.functions.worker;
 
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.util.HashMap;
 import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.proto.Function;
@@ -42,12 +46,24 @@ import org.testng.annotations.Test;
 @Slf4j
 public class FunctionMetaDataManagerTest {
 
+    private static PulsarClient mockPulsarClient() throws PulsarClientException {
+        ProducerBuilder<byte[]> builder = mock(ProducerBuilder.class);
+        when(builder.topic(anyString())).thenReturn(builder);
+
+        when(builder.create()).thenReturn(mock(Producer.class));
+
+        PulsarClient client = mock(PulsarClient.class);
+        when(client.newProducer()).thenReturn(builder);
+
+        return client;
+    }
+
     @Test
     public void testListFunctions() throws PulsarClientException {
         FunctionMetaDataManager functionMetaDataManager = spy(
                 new FunctionMetaDataManager(new WorkerConfig(),
                         mock(SchedulerManager.class),
-                        mock(PulsarClient.class)));
+                        mockPulsarClient()));
 
         Map<String, Function.FunctionMetaData> functionMetaDataMap1 = new HashMap<>();
         functionMetaDataMap1.put("func-1", Function.FunctionMetaData.newBuilder().setFunctionDetails(
@@ -87,7 +103,7 @@ public class FunctionMetaDataManagerTest {
         FunctionMetaDataManager functionMetaDataManager = spy(
                 new FunctionMetaDataManager(workerConfig,
                         mock(SchedulerManager.class),
-                        mock(PulsarClient.class)));
+                        mockPulsarClient()));
         Function.FunctionMetaData m1 = Function.FunctionMetaData.newBuilder()
                 .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")).build();
 
@@ -123,7 +139,7 @@ public class FunctionMetaDataManagerTest {
         functionMetaDataManager = spy(
                 new FunctionMetaDataManager(workerConfig,
                         mock(SchedulerManager.class),
-                        mock(PulsarClient.class)));
+                        mockPulsarClient()));
         Map<String, Function.FunctionMetaData> functionMetaDataMap = new HashMap<>();
         Function.FunctionMetaData m2 = Function.FunctionMetaData.newBuilder()
                 .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
@@ -167,7 +183,7 @@ public class FunctionMetaDataManagerTest {
         FunctionMetaDataManager functionMetaDataManager = spy(
                 new FunctionMetaDataManager(workerConfig,
                         mock(SchedulerManager.class),
-                        mock(PulsarClient.class)));
+                        mockPulsarClient()));
         Function.FunctionMetaData m1 = Function.FunctionMetaData.newBuilder()
                 .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
                         .setNamespace("namespace-1").setTenant("tenant-1")).setVersion(version).build();
@@ -209,7 +225,7 @@ public class FunctionMetaDataManagerTest {
         FunctionMetaDataManager functionMetaDataManager = spy(
                 new FunctionMetaDataManager(workerConfig,
                         mock(SchedulerManager.class),
-                        mock(PulsarClient.class)));
+                        mockPulsarClient()));
 
         Mockito.doNothing().when(functionMetaDataManager).processUpdate(any(Request.ServiceRequest.class));
         Mockito.doNothing().when(functionMetaDataManager).proccessDeregister(any(Request.ServiceRequest.class));
@@ -247,7 +263,7 @@ public class FunctionMetaDataManagerTest {
         FunctionMetaDataManager functionMetaDataManager = spy(
                 new FunctionMetaDataManager(workerConfig,
                         schedulerManager,
-                        mock(PulsarClient.class)));
+                        mockPulsarClient()));
 
         // worker has no record of function
         Function.FunctionMetaData m1 = Function.FunctionMetaData.newBuilder()
@@ -275,7 +291,7 @@ public class FunctionMetaDataManagerTest {
         functionMetaDataManager = spy(
                 new FunctionMetaDataManager(workerConfig,
                         schedulerManager,
-                        mock(PulsarClient.class)));
+                        mockPulsarClient()));
 
         Function.FunctionMetaData m3 = Function.FunctionMetaData.newBuilder()
                 .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
@@ -324,7 +340,7 @@ public class FunctionMetaDataManagerTest {
         functionMetaDataManager = spy(
                 new FunctionMetaDataManager(workerConfig,
                         schedulerManager,
-                        mock(PulsarClient.class)));
+                        mockPulsarClient()));
 
         Function.FunctionMetaData m4 = Function.FunctionMetaData.newBuilder()
                 .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
@@ -361,7 +377,7 @@ public class FunctionMetaDataManagerTest {
         FunctionMetaDataManager functionMetaDataManager = spy(
                 new FunctionMetaDataManager(workerConfig,
                         schedulerManager,
-                        mock(PulsarClient.class)));
+                        mockPulsarClient()));
         // worker has no record of function
         Function.FunctionMetaData test = Function.FunctionMetaData.newBuilder()
                 .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-2")
@@ -388,7 +404,7 @@ public class FunctionMetaDataManagerTest {
         functionMetaDataManager = spy(
                 new FunctionMetaDataManager(workerConfig,
                         schedulerManager,
-                        mock(PulsarClient.class)));
+                        mockPulsarClient()));
         functionMetaDataManager.setFunctionMetaData(test);
         Function.FunctionMetaData m2 = Function.FunctionMetaData.newBuilder()
                 .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
@@ -415,7 +431,7 @@ public class FunctionMetaDataManagerTest {
         functionMetaDataManager = spy(
                 new FunctionMetaDataManager(workerConfig,
                         schedulerManager,
-                        mock(PulsarClient.class)));
+                        mockPulsarClient()));
         functionMetaDataManager.setFunctionMetaData(test);
 
         Function.FunctionMetaData m3 = Function.FunctionMetaData.newBuilder()

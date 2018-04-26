@@ -22,11 +22,13 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
+
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
@@ -102,7 +104,7 @@ class EffectivelyOnceProcessor extends MessageProcessorBase implements ConsumerE
 
     @Override
     public void sendOutputMessage(InputMessage inputMsg,
-                                  MessageBuilder outputMsgBuilder) throws Exception {
+                                  MessageBuilder<byte[]> outputMsgBuilder) throws Exception {
         if (null == outputMsgBuilder) {
             inputMsg.ackCumulative();
             return;
@@ -113,14 +115,13 @@ class EffectivelyOnceProcessor extends MessageProcessorBase implements ConsumerE
             .setSequenceId(Utils.getSequenceId(inputMsg.getActualMessage().getMessageId()));
 
 
-        Producer producer = outputProducer.getProducer(inputMsg.getTopicName(), inputMsg.getTopicPartition());
+        Producer<byte[]> producer = outputProducer.getProducer(inputMsg.getTopicName(), inputMsg.getTopicPartition());
 
-        Message outputMsg = outputMsgBuilder.build();
+        Message<byte[]> outputMsg = outputMsgBuilder.build();
         producer.sendAsync(outputMsg)
                 .thenAccept(messageId -> inputMsg.ackCumulative())
                 .join();
     }
-
 
     @Override
     public void close() {
