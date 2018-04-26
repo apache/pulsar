@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.runtime;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.runtime.ProcessRuntime;
 import org.apache.pulsar.functions.runtime.ProcessRuntimeFactory;
@@ -80,6 +81,8 @@ public class ProcessRuntimeTest {
         functionDetailsBuilder.setOutput(TEST_NAME + "-output");
         functionDetailsBuilder.setOutputSerdeClassName("org.apache.pulsar.functions.runtime.serde.Utf8Serializer");
         functionDetailsBuilder.setLogTopic(TEST_NAME + "-log");
+        functionDetailsBuilder.setSource(Function.ConnectorDetails.newBuilder()
+                .setClassName("org.pulsar.pulsar.TestSource"));
         return functionDetailsBuilder.build();
     }
 
@@ -101,8 +104,7 @@ public class ProcessRuntimeTest {
 
         ProcessRuntime container = factory.createContainer(config, userJarFile);
         List<String> args = container.getProcessArgs();
-        assertEquals(args.size(), 43);
-        args.remove(args.size() - 1);
+        assertEquals(args.size(), 45);
         String expectedArgs = "java -cp " + javaInstanceJarFile + " -Dlog4j.configurationFile=java_instance_log4j2.yml "
                 + "-Dpulsar.log.dir=" + logDirectory + "/functions" + " -Dpulsar.log.file=" + config.getFunctionDetails().getName()
                 + " org.apache.pulsar.functions.runtime.JavaInstanceMain"
@@ -120,7 +122,8 @@ public class ProcessRuntimeTest {
                 + " --output_serde_classname " + config.getFunctionDetails().getOutputSerdeClassName()
                 + " --processing_guarantees ATLEAST_ONCE"
                 + " --pulsar_serviceurl " + pulsarServiceUrl
-                + " --max_buffered_tuples 1024 --port";
+                + " --max_buffered_tuples 1024 --port " + args.get(42)
+                + " --source_classname " + config.getFunctionDetails().getSource().getClassName();
         assertEquals(expectedArgs, String.join(" ", args));
     }
 
@@ -130,8 +133,7 @@ public class ProcessRuntimeTest {
 
         ProcessRuntime container = factory.createContainer(config, userJarFile);
         List<String> args = container.getProcessArgs();
-        assertEquals(args.size(), 42);
-        args.remove(args.size() - 1);
+        assertEquals(args.size(), 44);
         String expectedArgs = "python " + pythonInstanceFile
                 + " --py " + userJarFile + " --logging_directory "
                 + logDirectory + "/functions" + " --logging_file " + config.getFunctionDetails().getName() + " --instance_id "
@@ -148,7 +150,8 @@ public class ProcessRuntimeTest {
                 + " --output_serde_classname " + config.getFunctionDetails().getOutputSerdeClassName()
                 + " --processing_guarantees ATLEAST_ONCE"
                 + " --pulsar_serviceurl " + pulsarServiceUrl
-                + " --max_buffered_tuples 1024 --port";
+                + " --max_buffered_tuples 1024 --port " + args.get(41)
+                + " --source_classname " + config.getFunctionDetails().getSource().getClassName();
         assertEquals(expectedArgs, String.join(" ", args));
     }
 

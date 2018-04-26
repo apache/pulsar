@@ -236,4 +236,8 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
         conf.setSubscriptionInitialPosition(subscriptionInitialPosition);
 		return this;
 	}
+
+	public ConsumerConfigurationData<T> getConf() {
+	    return conf;
+	}
 }
