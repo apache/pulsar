@@ -22,6 +22,14 @@ public final class MLDataFormats {
     // optional bool complete = 3;
     boolean hasComplete();
     boolean getComplete();
+    
+    // optional bool bookkeeperDeleted = 4;
+    boolean hasBookkeeperDeleted();
+    boolean getBookkeeperDeleted();
+    
+    // optional int64 timestamp = 5;
+    boolean hasTimestamp();
+    long getTimestamp();
   }
   public static final class OffloadContext extends
       com.google.protobuf.GeneratedMessage
@@ -82,10 +90,32 @@ public final class MLDataFormats {
       return complete_;
     }
     
+    // optional bool bookkeeperDeleted = 4;
+    public static final int BOOKKEEPERDELETED_FIELD_NUMBER = 4;
+    private boolean bookkeeperDeleted_;
+    public boolean hasBookkeeperDeleted() {
+      return ((bitField0_ & 0x00000008) == 0x00000008);
+    }
+    public boolean getBookkeeperDeleted() {
+      return bookkeeperDeleted_;
+    }
+    
+    // optional int64 timestamp = 5;
+    public static final int TIMESTAMP_FIELD_NUMBER = 5;
+    private long timestamp_;
+    public boolean hasTimestamp() {
+      return ((bitField0_ & 0x00000010) == 0x00000010);
+    }
+    public long getTimestamp() {
+      return timestamp_;
+    }
+    
     private void initFields() {
       uidMsb_ = 0L;
       uidLsb_ = 0L;
       complete_ = false;
+      bookkeeperDeleted_ = false;
+      timestamp_ = 0L;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -108,6 +138,12 @@ public final class MLDataFormats {
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
         output.writeBool(3, complete_);
       }
+      if (((bitField0_ & 0x00000008) == 0x00000008)) {
+        output.writeBool(4, bookkeeperDeleted_);
+      }
+      if (((bitField0_ & 0x00000010) == 0x00000010)) {
+        output.writeInt64(5, timestamp_);
+      }
       getUnknownFields().writeTo(output);
     }
     
@@ -128,6 +164,14 @@ public final class MLDataFormats {
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
         size += com.google.protobuf.CodedOutputStream
           .computeBoolSize(3, complete_);
+      }
+      if (((bitField0_ & 0x00000008) == 0x00000008)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBoolSize(4, bookkeeperDeleted_);
+      }
+      if (((bitField0_ & 0x00000010) == 0x00000010)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeInt64Size(5, timestamp_);
       }
       size += getUnknownFields().getSerializedSize();
       memoizedSerializedSize = size;
@@ -259,6 +303,10 @@ public final class MLDataFormats {
         bitField0_ = (bitField0_ & ~0x00000002);
         complete_ = false;
         bitField0_ = (bitField0_ & ~0x00000004);
+        bookkeeperDeleted_ = false;
+        bitField0_ = (bitField0_ & ~0x00000008);
+        timestamp_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000010);
         return this;
       }
       
@@ -309,6 +357,14 @@ public final class MLDataFormats {
           to_bitField0_ |= 0x00000004;
         }
         result.complete_ = complete_;
+        if (((from_bitField0_ & 0x00000008) == 0x00000008)) {
+          to_bitField0_ |= 0x00000008;
+        }
+        result.bookkeeperDeleted_ = bookkeeperDeleted_;
+        if (((from_bitField0_ & 0x00000010) == 0x00000010)) {
+          to_bitField0_ |= 0x00000010;
+        }
+        result.timestamp_ = timestamp_;
         result.bitField0_ = to_bitField0_;
         onBuilt();
         return result;
@@ -333,6 +389,12 @@ public final class MLDataFormats {
         }
         if (other.hasComplete()) {
           setComplete(other.getComplete());
+        }
+        if (other.hasBookkeeperDeleted()) {
+          setBookkeeperDeleted(other.getBookkeeperDeleted());
+        }
+        if (other.hasTimestamp()) {
+          setTimestamp(other.getTimestamp());
         }
         this.mergeUnknownFields(other.getUnknownFields());
         return this;
@@ -378,6 +440,16 @@ public final class MLDataFormats {
             case 24: {
               bitField0_ |= 0x00000004;
               complete_ = input.readBool();
+              break;
+            }
+            case 32: {
+              bitField0_ |= 0x00000008;
+              bookkeeperDeleted_ = input.readBool();
+              break;
+            }
+            case 40: {
+              bitField0_ |= 0x00000010;
+              timestamp_ = input.readInt64();
               break;
             }
           }
@@ -445,6 +517,48 @@ public final class MLDataFormats {
       public Builder clearComplete() {
         bitField0_ = (bitField0_ & ~0x00000004);
         complete_ = false;
+        onChanged();
+        return this;
+      }
+      
+      // optional bool bookkeeperDeleted = 4;
+      private boolean bookkeeperDeleted_ ;
+      public boolean hasBookkeeperDeleted() {
+        return ((bitField0_ & 0x00000008) == 0x00000008);
+      }
+      public boolean getBookkeeperDeleted() {
+        return bookkeeperDeleted_;
+      }
+      public Builder setBookkeeperDeleted(boolean value) {
+        bitField0_ |= 0x00000008;
+        bookkeeperDeleted_ = value;
+        onChanged();
+        return this;
+      }
+      public Builder clearBookkeeperDeleted() {
+        bitField0_ = (bitField0_ & ~0x00000008);
+        bookkeeperDeleted_ = false;
+        onChanged();
+        return this;
+      }
+      
+      // optional int64 timestamp = 5;
+      private long timestamp_ ;
+      public boolean hasTimestamp() {
+        return ((bitField0_ & 0x00000010) == 0x00000010);
+      }
+      public long getTimestamp() {
+        return timestamp_;
+      }
+      public Builder setTimestamp(long value) {
+        bitField0_ |= 0x00000010;
+        timestamp_ = value;
+        onChanged();
+        return this;
+      }
+      public Builder clearTimestamp() {
+        bitField0_ = (bitField0_ & ~0x00000010);
+        timestamp_ = 0L;
         onChanged();
         return this;
       }
@@ -5359,29 +5473,31 @@ public final class MLDataFormats {
       descriptor;
   static {
     java.lang.String[] descriptorData = {
-      "\n\"src/main/proto/MLDataFormats.proto\"B\n\016" +
+      "\n\"src/main/proto/MLDataFormats.proto\"p\n\016" +
       "OffloadContext\022\016\n\006uidMsb\030\001 \001(\003\022\016\n\006uidLsb" +
-      "\030\002 \001(\003\022\020\n\010complete\030\003 \001(\010\"\362\001\n\021ManagedLedg" +
-      "erInfo\0221\n\nledgerInfo\030\001 \003(\0132\035.ManagedLedg" +
-      "erInfo.LedgerInfo\022/\n\022terminatedPosition\030" +
-      "\002 \001(\0132\023.NestedPositionInfo\032y\n\nLedgerInfo" +
-      "\022\020\n\010ledgerId\030\001 \002(\003\022\017\n\007entries\030\002 \001(\003\022\014\n\004s" +
-      "ize\030\003 \001(\003\022\021\n\ttimestamp\030\004 \001(\003\022\'\n\016offloadC" +
-      "ontext\030\005 \001(\0132\017.OffloadContext\"\206\001\n\014Positi" +
-      "onInfo\022\020\n\010ledgerId\030\001 \002(\003\022\017\n\007entryId\030\002 \002(",
-      "\003\0220\n\031individualDeletedMessages\030\003 \003(\0132\r.M" +
-      "essageRange\022!\n\nproperties\030\004 \003(\0132\r.LongPr" +
-      "operty\"7\n\022NestedPositionInfo\022\020\n\010ledgerId" +
-      "\030\001 \002(\003\022\017\n\007entryId\030\002 \002(\003\"f\n\014MessageRange\022" +
-      "*\n\rlowerEndpoint\030\001 \002(\0132\023.NestedPositionI" +
-      "nfo\022*\n\rupperEndpoint\030\002 \002(\0132\023.NestedPosit" +
-      "ionInfo\"+\n\014LongProperty\022\014\n\004name\030\001 \002(\t\022\r\n" +
-      "\005value\030\002 \002(\003\"\270\001\n\021ManagedCursorInfo\022\027\n\017cu" +
-      "rsorsLedgerId\030\001 \002(\003\022\032\n\022markDeleteLedgerI" +
-      "d\030\002 \001(\003\022\031\n\021markDeleteEntryId\030\003 \001(\003\0220\n\031in",
-      "dividualDeletedMessages\030\004 \003(\0132\r.MessageR" +
-      "ange\022!\n\nproperties\030\005 \003(\0132\r.LongPropertyB" +
-      "\'\n#org.apache.bookkeeper.mledger.protoH\001"
+      "\030\002 \001(\003\022\020\n\010complete\030\003 \001(\010\022\031\n\021bookkeeperDe" +
+      "leted\030\004 \001(\010\022\021\n\ttimestamp\030\005 \001(\003\"\362\001\n\021Manag" +
+      "edLedgerInfo\0221\n\nledgerInfo\030\001 \003(\0132\035.Manag" +
+      "edLedgerInfo.LedgerInfo\022/\n\022terminatedPos" +
+      "ition\030\002 \001(\0132\023.NestedPositionInfo\032y\n\nLedg" +
+      "erInfo\022\020\n\010ledgerId\030\001 \002(\003\022\017\n\007entries\030\002 \001(" +
+      "\003\022\014\n\004size\030\003 \001(\003\022\021\n\ttimestamp\030\004 \001(\003\022\'\n\016of" +
+      "floadContext\030\005 \001(\0132\017.OffloadContext\"\206\001\n\014",
+      "PositionInfo\022\020\n\010ledgerId\030\001 \002(\003\022\017\n\007entryI" +
+      "d\030\002 \002(\003\0220\n\031individualDeletedMessages\030\003 \003" +
+      "(\0132\r.MessageRange\022!\n\nproperties\030\004 \003(\0132\r." +
+      "LongProperty\"7\n\022NestedPositionInfo\022\020\n\010le" +
+      "dgerId\030\001 \002(\003\022\017\n\007entryId\030\002 \002(\003\"f\n\014Message" +
+      "Range\022*\n\rlowerEndpoint\030\001 \002(\0132\023.NestedPos" +
+      "itionInfo\022*\n\rupperEndpoint\030\002 \002(\0132\023.Neste" +
+      "dPositionInfo\"+\n\014LongProperty\022\014\n\004name\030\001 " +
+      "\002(\t\022\r\n\005value\030\002 \002(\003\"\270\001\n\021ManagedCursorInfo" +
+      "\022\027\n\017cursorsLedgerId\030\001 \002(\003\022\032\n\022markDeleteL",
+      "edgerId\030\002 \001(\003\022\031\n\021markDeleteEntryId\030\003 \001(\003" +
+      "\0220\n\031individualDeletedMessages\030\004 \003(\0132\r.Me" +
+      "ssageRange\022!\n\nproperties\030\005 \003(\0132\r.LongPro" +
+      "pertyB\'\n#org.apache.bookkeeper.mledger.p" +
+      "rotoH\001"
     };
     com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner assigner =
       new com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner() {
@@ -5393,7 +5509,7 @@ public final class MLDataFormats {
           internal_static_OffloadContext_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_OffloadContext_descriptor,
-              new java.lang.String[] { "UidMsb", "UidLsb", "Complete", },
+              new java.lang.String[] { "UidMsb", "UidLsb", "Complete", "BookkeeperDeleted", "Timestamp", },
               org.apache.bookkeeper.mledger.proto.MLDataFormats.OffloadContext.class,
               org.apache.bookkeeper.mledger.proto.MLDataFormats.OffloadContext.Builder.class);
           internal_static_ManagedLedgerInfo_descriptor =
