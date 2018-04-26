@@ -958,7 +958,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic1").subscriptionName("my-subscriber-name")
                 .receiverQueueSize(1).subscriptionType(SubscriptionType.Shared)
-                .acknowledmentGroupTime(0, TimeUnit.SECONDS);
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS);
         Consumer<byte[]> consumer1 = consumerBuilder.subscribe();
         Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
 
@@ -1143,7 +1143,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             Consumer<byte[]> consumer = pulsarClient.newConsumer()
                     .topic("persistent://my-property/my-ns/unacked-topic").subscriptionName("subscriber-1")
                     .receiverQueueSize(receiverQueueSize).subscriptionType(SubscriptionType.Shared)
-                    .acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+                    .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
             Producer<byte[]> producer = pulsarClient.newProducer()
                     .topic("persistent://my-property/my-ns/unacked-topic").create();
@@ -1307,7 +1307,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
                     .topic("persistent://my-property/my-ns/unacked-topic").subscriptionName("subscriber-1")
                     .receiverQueueSize(receiverQueueSize).ackTimeout(1, TimeUnit.SECONDS)
-                    .subscriptionType(SubscriptionType.Shared).acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+                    .subscriptionType(SubscriptionType.Shared).acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
             Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic("persistent://my-property/my-ns/unacked-topic")
@@ -1885,7 +1885,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
                 .subscriptionType(SubscriptionType.Shared).receiverQueueSize(queueSize)
-                .acknowledmentGroupTime(0, TimeUnit.SECONDS);
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS);
         Consumer<byte[]> c1 = consumerBuilder.subscribe();
         Consumer<byte[]> c2 = consumerBuilder.subscribe();
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic2")
@@ -1988,7 +1988,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
                 .topic("persistent://my-property/my-ns/unacked-topic").subscriptionName("subscriber-1")
                 .receiverQueueSize(receiverQueueSize).subscriptionType(SubscriptionType.Failover)
-                .acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/unacked-topic")
                 .create();
@@ -2284,7 +2284,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Set<String> messageSet = Sets.newHashSet();
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic("persistent://my-property/use/myenc-ns/myenc-topic1").subscriptionName("my-subscriber-name")
-                .acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         // 1. Invalid key name
         try {
@@ -2318,7 +2318,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer.close();
         consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/myenc-ns/myenc-topic1")
                 .subscriptionName("my-subscriber-name").cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
-                .acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         int msgNum = 0;
         try {
@@ -2339,7 +2339,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         // Set keyreader
         consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/myenc-ns/myenc-topic1")
                 .subscriptionName("my-subscriber-name").cryptoFailureAction(ConsumerCryptoFailureAction.FAIL)
-                .cryptoKeyReader(new EncKeyReader()).acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+                .cryptoKeyReader(new EncKeyReader()).acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         for (int i = msgNum; i < totalMsg - 1; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
@@ -2356,7 +2356,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer.close();
         consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/myenc-ns/myenc-topic1")
                 .subscriptionName("my-subscriber-name").cryptoFailureAction(ConsumerCryptoFailureAction.DISCARD)
-                .acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         // Receive should proceed and discard encrypted messages
         msg = consumer.receive(5, TimeUnit.SECONDS);
@@ -2382,12 +2382,12 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         // 2, create consumer
         Consumer<byte[]> defaultConsumer = pulsarClient.newConsumer().topic(topicName)
-                .acknowledmentGroupTime(0, TimeUnit.SECONDS).subscriptionName("test-subscription-default").subscribe();
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscriptionName("test-subscription-default").subscribe();
         Consumer<byte[]> latestConsumer = pulsarClient.newConsumer().topic(topicName)
-                .acknowledmentGroupTime(0, TimeUnit.SECONDS).subscriptionName("test-subscription-latest")
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscriptionName("test-subscription-latest")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Latest).subscribe();
         Consumer<byte[]> earliestConsumer = pulsarClient.newConsumer().topic(topicName)
-                .acknowledmentGroupTime(0, TimeUnit.SECONDS).subscriptionName("test-subscription-earliest")
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscriptionName("test-subscription-earliest")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe();
 
         // 3, produce 5 messages more

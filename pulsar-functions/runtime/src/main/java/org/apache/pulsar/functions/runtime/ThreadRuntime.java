@@ -79,7 +79,15 @@ class ThreadRuntime implements Runtime {
             @Override
             public void uncaughtException(Thread t, Throwable e) {
                 startupException = new Exception(e);
+                log.error("Error occured in java instance:", e);
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException e1) {
+                    //ignore
+                }
+                // restart
                 start();
+
             }
         });
         this.fnThread.start();
@@ -95,9 +103,10 @@ class ThreadRuntime implements Runtime {
     @Override
     public void stop() {
         if (fnThread != null) {
+            // Stop instance thread
+            javaInstanceRunnable.stop();
             // interrupt the instance thread
             fnThread.interrupt();
-            javaInstanceRunnable.close();
             try {
                 fnThread.join();
             } catch (InterruptedException e) {

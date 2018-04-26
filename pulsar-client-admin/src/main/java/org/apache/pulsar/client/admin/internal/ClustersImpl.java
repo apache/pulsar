@@ -93,10 +93,11 @@ public class ClustersImpl extends BaseResource implements Clusters {
         } catch (Exception e) {
             throw getApiException(e);
         }
-        
+
     }
 
 	@Override
+    @SuppressWarnings("unchecked")
 	public Set<String> getPeerClusterNames(String cluster) throws PulsarAdminException {
 		try {
 			return request(adminClusters.path(cluster).path("peers")).get(LinkedHashSet.class);
@@ -104,7 +105,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
 			throw getApiException(e);
 		}
 	}
-    
+
     @Override
     public void deleteCluster(String cluster) throws PulsarAdminException {
         try {
@@ -125,7 +126,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
         }
     }
 
-    
+
     @Override
     public List<BrokerNamespaceIsolationData> getBrokersWithNamespaceIsolationPolicy(String cluster)
             throws PulsarAdminException {
@@ -223,7 +224,7 @@ public class ClustersImpl extends BaseResource implements Clusters {
             throw getApiException(e);
         }
     }
-    
+
     private void setDomain(String cluster, String domainName,
             FailureDomain domain) throws PulsarAdminException {
         try {

@@ -256,7 +256,7 @@ public class ResendRequestTest extends BrokerTestBase {
         // 2. Create consumer
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName(subscriptionName).receiverQueueSize(10).subscriptionType(SubscriptionType.Failover)
-                .acknowledmentGroupTime(0, TimeUnit.SECONDS);
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS);
         Consumer<byte[]> consumer1 = consumerBuilder.clone().consumerName("consumer-1").subscribe();
         Consumer<byte[]> consumer2 = consumerBuilder.clone().consumerName("consumer-2").subscribe();
 

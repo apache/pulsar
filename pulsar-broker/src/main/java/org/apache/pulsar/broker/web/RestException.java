@@ -66,8 +66,7 @@ public class RestException extends WebApplicationException {
         if (t instanceof RestException
             || t instanceof WebApplicationException) {
             WebApplicationException e = (WebApplicationException) t;
-            return Response.status(e.getResponse().getStatus()).entity(e.getResponse().getEntity())
-                .type(e.getResponse().getMediaType()).build();
+            return e.getResponse();
         } else {
             return Response
                 .status(Status.INTERNAL_SERVER_ERROR)

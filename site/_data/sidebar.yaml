@@ -142,6 +142,8 @@ groups:
     endpoint: RetentionExpiry
   - title: Encryption
     endpoint: Encryption
+  - title: Using Pulsar as a message queue
+    endpoint: message-queue
 
 - title: Developing Pulsar
   dir: project

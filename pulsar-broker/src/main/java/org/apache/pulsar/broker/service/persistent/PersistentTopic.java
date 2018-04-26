@@ -661,6 +661,21 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return delete(false);
     }
 
+    private CompletableFuture<Void> delete(boolean failIfHasSubscriptions) {
+        return delete(failIfHasSubscriptions, false);
+    }
+
+    /**
+     * Forcefully close all producers/consumers/replicators and deletes the topic. this function is used when local
+     * cluster is removed from global-namespace replication list. Because broker doesn't allow lookup if local cluster
+     * is not part of replication cluster list.
+     * 
+     * @return
+     */
+    private CompletableFuture<Void> deleteForcefully() {
+        return delete(false, true);
+    }
+    
     /**
      * Delete the managed ledger associated with this topic
      *
@@ -668,11 +683,14 @@ public class PersistentTopic implements Topic, AddEntryCallback {
      *            Flag indicating whether delete should succeed if topic still has unconnected subscriptions. Set to
      *            false when called from admin API (it will delete the subs too), and set to true when called from GC
      *            thread
-     *
+     * @param closeIfClientsConnected
+     *            Flag indicate whether explicitly close connected producers/consumers/replicators before trying to delete topic. If
+     *            any client is connected to a topic and if this flag is disable then this operation fails.
+     * 
      * @return Completable future indicating completion of delete operation Completed exceptionally with:
      *         IllegalStateException if topic is still active ManagedLedgerException if ledger delete operation fails
      */
-    private CompletableFuture<Void> delete(boolean failIfHasSubscriptions) {
+    private CompletableFuture<Void> delete(boolean failIfHasSubscriptions, boolean closeIfClientsConnected) {
         CompletableFuture<Void> deleteFuture = new CompletableFuture<>();
 
         lock.writeLock().lock();
@@ -682,48 +700,73 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 deleteFuture.completeExceptionally(new TopicFencedException("Topic is already fenced"));
                 return deleteFuture;
             }
-            if (USAGE_COUNT_UPDATER.get(this) == 0) {
-                isFenced = true;
-
+            
+            CompletableFuture<Void> closeClientFuture = new CompletableFuture<>();
+            if (closeIfClientsConnected) {
                 List<CompletableFuture<Void>> futures = Lists.newArrayList();
-
-                if (failIfHasSubscriptions) {
-                    if (!subscriptions.isEmpty()) {
-                        isFenced = false;
-                        deleteFuture.completeExceptionally(new TopicBusyException("Topic has subscriptions"));
-                        return deleteFuture;
-                    }
-                } else {
-                    subscriptions.forEach((s, sub) -> futures.add(sub.delete()));
-                }
-
-                FutureUtil.waitForAll(futures).whenComplete((v, ex) -> {
-                    if (ex != null) {
-                        log.error("[{}] Error deleting topic", topic, ex);
-                        isFenced = false;
-                        deleteFuture.completeExceptionally(ex);
-                    } else {
-                        ledger.asyncDelete(new AsyncCallbacks.DeleteLedgerCallback() {
-                            @Override
-                            public void deleteLedgerComplete(Object ctx) {
-                                brokerService.removeTopicFromCache(topic);
-                                log.info("[{}] Topic deleted", topic);
-                                deleteFuture.complete(null);
-                            }
-
-                            @Override
-                            public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                                isFenced = false;
-                                log.error("[{}] Error deleting topic", topic, exception);
-                                deleteFuture.completeExceptionally(new PersistenceException(exception));
-                            }
-                        }, null);
-                    }
+                replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
+                producers.forEach(producer -> futures.add(producer.disconnect()));
+                subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
+                FutureUtil.waitForAll(futures).thenRun(() -> {
+                    closeClientFuture.complete(null);
+                }).exceptionally(ex -> {
+                    log.error("[{}] Error closing clients", topic, ex);
+                    isFenced = false;
+                    closeClientFuture.completeExceptionally(ex);
+                    return null;
                 });
             } else {
-                deleteFuture.completeExceptionally(
-                        new TopicBusyException("Topic has " + USAGE_COUNT_UPDATER.get(this) + " connected producers/consumers"));
+                closeClientFuture.complete(null);
             }
+
+            closeClientFuture.thenAccept(delete -> {
+                if (USAGE_COUNT_UPDATER.get(this) == 0) {
+                    isFenced = true;
+
+                    List<CompletableFuture<Void>> futures = Lists.newArrayList();
+
+                    if (failIfHasSubscriptions) {
+                        if (!subscriptions.isEmpty()) {
+                            isFenced = false;
+                            deleteFuture.completeExceptionally(new TopicBusyException("Topic has subscriptions"));
+                            return;
+                        }
+                    } else {
+                        subscriptions.forEach((s, sub) -> futures.add(sub.delete()));
+                    }
+
+                    FutureUtil.waitForAll(futures).whenComplete((v, ex) -> {
+                        if (ex != null) {
+                            log.error("[{}] Error deleting topic", topic, ex);
+                            isFenced = false;
+                            deleteFuture.completeExceptionally(ex);
+                        } else {
+                            ledger.asyncDelete(new AsyncCallbacks.DeleteLedgerCallback() {
+                                @Override
+                                public void deleteLedgerComplete(Object ctx) {
+                                    brokerService.removeTopicFromCache(topic);
+                                    log.info("[{}] Topic deleted", topic);
+                                    deleteFuture.complete(null);
+                                }
+
+                                @Override
+                                public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                                    isFenced = false;
+                                    log.error("[{}] Error deleting topic", topic, exception);
+                                    deleteFuture.completeExceptionally(new PersistenceException(exception));
+                                }
+                            }, null);
+                        }
+                    });
+                } else {
+                    deleteFuture.completeExceptionally(new TopicBusyException(
+                            "Topic has " + USAGE_COUNT_UPDATER.get(this) + " connected producers/consumers"));
+                }
+            }).exceptionally(ex->{
+                deleteFuture.completeExceptionally(
+                        new TopicBusyException("Failed to close clients before deleting topic."));
+                return null;
+            });
         } finally {
             lock.writeLock().unlock();
         }
@@ -858,6 +901,14 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         }
 
         String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
+        
+        // if local cluster is removed from global namespace cluster-list : then delete topic forcefully because pulsar
+        // doesn't serve global topic without local repl-cluster configured.
+        if (TopicName.get(topic).isGlobal() && !configuredClusters.contains(localCluster)) {
+            log.info("Deleting topic [{}] because local cluster is not part of global namespace repl list {}",
+                    configuredClusters);
+            return deleteForcefully();
+        }
 
         List<CompletableFuture<Void>> futures = Lists.newArrayList();
 
@@ -882,6 +933,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                     futures.add(removeReplicator(cluster));
                 }
             }
+            
         });
 
         return FutureUtil.waitForAll(futures);
@@ -962,7 +1014,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     CompletableFuture<Void> removeReplicator(String remoteCluster) {
         log.info("[{}] Removing replicator to {}", topic, remoteCluster);
         final CompletableFuture<Void> future = new CompletableFuture<>();
-
+        
         String name = PersistentReplicator.getReplicatorName(replicatorPrefix, remoteCluster);
 
         replicators.get(remoteCluster).disconnect().thenRun(() -> {
@@ -1075,7 +1127,12 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         nsStats.replicatorCount += topicStatsHelper.remotePublishersStats.size();
         replicators.forEach((cluster, replicator) -> {
             // Update replicator cursor state
-            ((PersistentReplicator) replicator).updateCursorState();
+            try {
+                ((PersistentReplicator) replicator).updateCursorState();
+            } catch (Exception e) {
+                log.warn("[{}] Failed to update cursro state ", topic, e);
+            }
+            
 
             // Update replicator stats
             ReplicatorStats rStat = replicator.getStats();

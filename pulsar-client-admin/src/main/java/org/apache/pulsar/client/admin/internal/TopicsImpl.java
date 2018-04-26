@@ -30,6 +30,7 @@ import io.netty.buffer.Unpooled;
 
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -851,7 +852,7 @@ public class TopicsImpl extends BaseResource implements Topics, PersistentTopics
                 }
             }
 
-            return Lists.newArrayList(new MessageImpl<byte[]>(msgId, properties, data, Schema.IDENTITY));
+            return Collections.singletonList(new MessageImpl<byte[]>(msgId, properties, data, Schema.IDENTITY));
         } finally {
             if (stream != null) {
                 stream.close();

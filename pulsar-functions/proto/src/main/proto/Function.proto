@@ -53,6 +53,12 @@ message FunctionDetails {
     bool autoAck = 13;
     repeated string inputs = 14;
     int32 parallelism = 15;
+    ConnectorDetails source = 16;
+}
+
+message ConnectorDetails {
+    string className = 1;
+    map<string, string> configs = 4;
 }
 
 message PackageLocationMetaData {

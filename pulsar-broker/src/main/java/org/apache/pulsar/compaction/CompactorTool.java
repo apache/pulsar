@@ -21,6 +21,10 @@ package org.apache.pulsar.compaction;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+
 import java.nio.file.Paths;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -31,7 +35,7 @@ import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.BookKeeperClientFactoryImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.client.api.ClientConfiguration;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
@@ -39,12 +43,6 @@ import org.apache.pulsar.zookeeper.ZookeeperBkClientFactoryImpl;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-
-import lombok.Cleanup;
 
 public class CompactorTool {
 
@@ -82,15 +80,16 @@ public class CompactorTool {
         }
 
         String pulsarServiceUrl = PulsarService.brokerUrl(brokerConfig);
-        ClientConfiguration clientConfig = new ClientConfiguration();
+        ClientBuilder clientBuilder = PulsarClient.builder();
 
         if (isNotBlank(brokerConfig.getBrokerClientAuthenticationPlugin())) {
-            clientConfig.setAuthentication(brokerConfig.getBrokerClientAuthenticationPlugin(),
-                                           brokerConfig.getBrokerClientAuthenticationParameters());
+            clientBuilder.authentication(brokerConfig.getBrokerClientAuthenticationPlugin(),
+                    brokerConfig.getBrokerClientAuthenticationParameters());
         }
-        clientConfig.setUseTls(brokerConfig.isTlsEnabled());
-        clientConfig.setTlsAllowInsecureConnection(brokerConfig.isTlsAllowInsecureConnection());
-        clientConfig.setTlsTrustCertsFilePath(brokerConfig.getTlsCertificateFilePath());
+        clientBuilder.serviceUrl(pulsarServiceUrl)
+                .enableTls(brokerConfig.isTlsEnabled())
+                .allowTlsInsecureConnection(brokerConfig.isTlsAllowInsecureConnection())
+                .tlsTrustCertsFilePath(brokerConfig.getTlsCertificateFilePath());
 
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compaction-%d").setDaemon(true).build());
@@ -103,7 +102,7 @@ public class CompactorTool {
                                               (int)brokerConfig.getZooKeeperSessionTimeoutMillis()).get();
         BookKeeperClientFactory bkClientFactory = new BookKeeperClientFactoryImpl();
         BookKeeper bk = bkClientFactory.create(brokerConfig, zk);
-        try (PulsarClient pulsar = PulsarClient.create(pulsarServiceUrl, clientConfig)) {
+        try (PulsarClient pulsar = clientBuilder.build()) {
             Compactor compactor = new TwoPhaseCompactor(brokerConfig, pulsar, bk, scheduler);
             long ledgerId = compactor.compact(arguments.topic).get();
             log.info("Compaction of topic {} complete. Compacted to ledger {}", arguments.topic, ledgerId);
