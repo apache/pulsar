@@ -607,10 +607,25 @@ class Tweet(object):
         self.tweet_content = tweet_content
 ```
 
+In order to use this class in Pulsar Functions, you'd have two options:
+
+1. You could specify `PickleSerDe`, which would apply the [`pickle`](https://docs.python.org/3/library/pickle.html) library's SerDe
+1. You could create your own SerDe class. Here's an example:
+
+  ```python
+  from pulsar import SerDe
+
+  class TweetSerDe(SerDe):
+      def serialize(self, input):
+          # Convert object into bytes
+
+      def deserialize(self, input_bytes):
+          # Convert bytes into object
+  ```
 
 ### Python logging
 
-
+Pulsar Functions that use the [Python SDK](#python-sdk)
 
 ### Python user config
 
