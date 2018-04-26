@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 
@@ -50,7 +51,7 @@ public class JavaInstanceTest {
         JavaInstance instance = new JavaInstance(
             config,
             (Function<String, String>) (input, context) -> input + "-lambda",
-            null, null, null);
+            null, null, mock(PulsarSource.class));
         String testString = "ABC123";
         JavaExecutionResult result = instance.handleMessage(MessageId.earliest, "random", testString);
         assertNotNull(result.getResult());

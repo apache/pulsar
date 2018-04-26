@@ -30,6 +30,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -51,6 +52,7 @@ import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.connect.core.Record;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.instance.processors.MessageProcessor;
@@ -88,7 +90,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     @Getter
     private Exception failureException;
     private JavaInstance javaInstance;
-    private volatile boolean running = true;
+    private AtomicBoolean running = new AtomicBoolean(true);
 
     @Getter(AccessLevel.PACKAGE)
     private Map<String, SerDe> inputSerDe;
@@ -100,6 +102,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     // function stats
     private final FunctionStats stats;
+
+    private Record currentRecord;
 
     public JavaInstanceRunnable(InstanceConfig instanceConfig,
                                 FunctionCacheManager fnCache,
@@ -159,7 +163,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         // start any log topic handler
         setupLogHandler();
 
-        return new JavaInstance(instanceConfig, object, clsLoader, client, processor.getInputConsumer());
+        return new JavaInstance(instanceConfig, object, clsLoader, client, processor.getSource());
     }
 
     /**
@@ -169,9 +173,11 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     public void run() {
         try {
             javaInstance = setupJavaInstance();
-            while (running) {
+            while (running.get()) {
 
-                InputMessage currentMessage = processor.recieveMessage();
+                currentRecord = processor.recieveMessage();
+
+                processor.postReceiveMessage(currentRecord);
 
                 // state object is per function, because we need to have the ability to know what updates
                 // are made in this function and ensure we only acknowledge after the state is persisted.
@@ -184,20 +190,20 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 }
 
                 // process the message
-                Object input;
-                try {
-                    input = currentMessage.getInputSerDe().deserialize(currentMessage.getActualMessage().getData());
-                } catch (Exception ex) {
-                    stats.incrementDeserializationExceptions(currentMessage.getTopicName());
-                    throw ex;
-                }
                 long processAt = System.currentTimeMillis();
                 stats.incrementProcessed(processAt);
                 addLogTopicHandler();
-                JavaExecutionResult result = javaInstance.handleMessage(
-                        currentMessage.getActualMessage().getMessageId(),
-                        currentMessage.getTopicName(),
-                        input);
+                JavaExecutionResult result;
+                if (currentRecord instanceof PulsarRecord) {
+                    PulsarRecord pulsarRecord = (PulsarRecord) currentRecord;
+                     result = javaInstance.handleMessage(
+                             pulsarRecord.getMessageId(),
+                             pulsarRecord.getTopicName(),
+                             currentRecord.getValue());
+                } else {
+                    result = javaInstance.handleMessage(currentRecord.getValue());
+                }
+
                 removeLogTopicHandler();
 
                 long doneProcessing = System.currentTimeMillis();
@@ -209,18 +215,25 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     try {
                         completableFuture.join();
                     } catch (Exception e) {
-                        log.error("Failed to flush the state updates of message {}", currentMessage, e);
-                        throw e;
+                        log.error("Failed to flush the state updates of message {}", currentRecord, e);
+                        currentRecord.fail();
                     }
                 }
-                processResult(currentMessage, result, processAt, doneProcessing);
+                try {
+                    processResult(currentRecord, result, processAt, doneProcessing);
+                } catch (Exception e) {
+                    log.warn("Failed to process result of message {}", currentRecord, e);
+                    currentRecord.fail();
+                }
             }
-
-            javaInstance.close();
         } catch (Exception ex) {
-            log.info("Uncaught exception in Java Instance", ex);
-            failureException = ex;
-            throw new RuntimeException(ex);
+            log.error("Uncaught exception in Java Instance", ex);
+            if (running.get()) {
+                failureException = ex;
+                throw new RuntimeException(ex);
+            }
+        } finally {
+            close();
         }
     }
 
@@ -286,15 +299,15 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         this.stateTable = result(storageClient.openTable(tableName));
     }
 
-    private void processResult(InputMessage msg,
+    private void processResult(Record srcRecord,
                                JavaExecutionResult result,
                                long startTime, long endTime) throws Exception {
         if (result.getUserException() != null) {
-            log.info("Encountered user exception when processing message {}", msg, result.getUserException());
+            log.info("Encountered user exception when processing message {}", srcRecord, result.getUserException());
             stats.incrementUserExceptions(result.getUserException());
-            throw result.getUserException();
+            this.currentRecord.fail();
         } else if (result.getSystemException() != null) {
-            log.info("Encountered system exception when processing message {}", msg, result.getSystemException());
+            log.info("Encountered system exception when processing message {}", srcRecord, result.getSystemException());
             stats.incrementSystemExceptions(result.getSystemException());
             throw result.getSystemException();
         } else {
@@ -308,35 +321,47 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     throw ex;
                 }
                 if (output != null) {
-                    sendOutputMessage(msg, output);
+                    sendOutputMessage(srcRecord, output);
                 } else {
-                    processor.sendOutputMessage(msg, null);
+                    processor.sendOutputMessage(srcRecord, null);
                 }
             } else {
                 // the function doesn't produce any result or the user doesn't want the result.
-                processor.sendOutputMessage(msg, null);
+                processor.sendOutputMessage(srcRecord, null);
             }
         }
     }
 
-    private void sendOutputMessage(InputMessage srcMsg,
+    private void sendOutputMessage(Record srcRecord,
                                    byte[] output) throws Exception {
-        MessageBuilder msgBuilder = MessageBuilder.create()
-                .setContent(output)
-                .setProperty("__pfn_input_topic__", srcMsg.getTopicName())
-                .setProperty("__pfn_input_msg_id__", new String(Base64.getEncoder().encode(srcMsg.getActualMessage().getMessageId().toByteArray())));
 
-        processor.sendOutputMessage(srcMsg, msgBuilder);
+        MessageBuilder msgBuilder = MessageBuilder.create();
+        if (srcRecord instanceof PulsarRecord) {
+            PulsarRecord pulsarMessage = (PulsarRecord) srcRecord;
+            msgBuilder
+                    .setContent(output)
+                    .setProperty("__pfn_input_topic__", pulsarMessage.getTopicName())
+                    .setProperty("__pfn_input_msg_id__", new String(Base64.getEncoder().encode(pulsarMessage.getMessageId().toByteArray())));
+        }
+
+        processor.sendOutputMessage(srcRecord, msgBuilder);
+    }
+
+    /**
+     * Stop java instance runnable
+     */
+    public void stop() {
+        this.running.set(false);
     }
 
     @Override
     public void close() {
-        if (!running) {
+        if (!running.get()) {
             return;
         }
-        running = false;
 
         processor.close();
+        javaInstance.close();
 
         // kill the state table
         if (null != stateTable) {
@@ -401,39 +426,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         bldr.putMetrics(metricName, digest);
     }
 
-    private static SerDe initializeSerDe(String serdeClassName, ClassLoader clsLoader,
-                                         Class<?>[] typeArgs, boolean inputArgs) {
-        if (null == serdeClassName || serdeClassName.isEmpty()) {
-            return null;
-        } else if (serdeClassName.equals(DefaultSerDe.class.getName())) {
-            return initializeDefaultSerDe(typeArgs, inputArgs);
-        } else {
-            return Reflections.createInstance(
-                    serdeClassName,
-                    SerDe.class,
-                    clsLoader);
-        }
-    }
-
-    private static SerDe initializeDefaultSerDe(Class<?>[] typeArgs, boolean inputArgs) {
-        if (inputArgs) {
-            if (!DefaultSerDe.IsSupportedType(typeArgs[0])) {
-                throw new RuntimeException("Default Serializer does not support " + typeArgs[0]);
-            }
-            return new DefaultSerDe(typeArgs[0]);
-        } else {
-            if (!DefaultSerDe.IsSupportedType(typeArgs[1])) {
-                throw new RuntimeException("Default Serializer does not support " + typeArgs[1]);
-            }
-            return new DefaultSerDe(typeArgs[1]);
-        }
-    }
-
     private void setupSerDe(Class<?>[] typeArgs, ClassLoader clsLoader) {
+
         this.inputSerDe = new HashMap<>();
-        instanceConfig.getFunctionDetails().getCustomSerdeInputsMap().forEach((k, v) -> this.inputSerDe.put(k, initializeSerDe(v, clsLoader, typeArgs, true)));
+        instanceConfig.getFunctionDetails().getCustomSerdeInputsMap().forEach((k, v) -> this.inputSerDe.put(k, InstanceUtils.initializeSerDe(v, clsLoader, typeArgs[0])));
         for (String topicName : instanceConfig.getFunctionDetails().getInputsList()) {
-            this.inputSerDe.put(topicName, initializeDefaultSerDe(typeArgs, true));
+            this.inputSerDe.put(topicName, InstanceUtils.initializeDefaultSerDe(typeArgs[0]));
         }
 
         if (Void.class.equals(typeArgs[0])) {
@@ -458,9 +456,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             if (instanceConfig.getFunctionDetails().getOutputSerdeClassName() == null
                     || instanceConfig.getFunctionDetails().getOutputSerdeClassName().isEmpty()
                     || instanceConfig.getFunctionDetails().getOutputSerdeClassName().equals(DefaultSerDe.class.getName())) {
-                outputSerDe = initializeDefaultSerDe(typeArgs, false);
+                outputSerDe = InstanceUtils.initializeDefaultSerDe(typeArgs[1]);
             } else {
-                this.outputSerDe = initializeSerDe(instanceConfig.getFunctionDetails().getOutputSerdeClassName(), clsLoader, typeArgs, false);
+                this.outputSerDe = InstanceUtils.initializeSerDe(instanceConfig.getFunctionDetails().getOutputSerdeClassName(), clsLoader, typeArgs[1]);
             }
             Class<?>[] outputSerdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, outputSerDe.getClass());
             if (outputSerDe.getClass().getName().equals(DefaultSerDe.class.getName())) {
