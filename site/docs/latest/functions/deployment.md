@@ -22,6 +22,45 @@ In order to deploy and manage Pulsar Functions, you need to have a Pulsar {% pop
 
 If you're running a non-{% popover standalone %} cluster, you'll need to obtain the service URL for the cluster. How you obtain the service URL will depend on how you deployed your Pulsar cluster.
 
+## Command-line interface {#cli}
+
+Pulsar Functions are deployed and managed using the [`pulsar-admin functions`](../../reference/CliTools#pulsar-admin-functions) interface, which contains commands such as [`create`](../../reference/CliTools#pulsar-admin-functions-create) for deploying functions in [cluster mode](#cluster-mode), [`trigger`](../../reference/CliTools#pulsar-admin-functions-trigger) for [triggering](#triggering) functions, [`list`](../../reference/CliTools#pulsar-admin-functions-list) for listing deployed functions, and several others.
+
+### Fully Qualified Function Name (FQFN) {#fqfn}
+
+Each Pulsar Function has a **Fully Qualified Function Name** (FQFN) that consists of three elements: the function's {% popover tenant %}, {% popover namespace %}, and function name. FQFN's look like this:
+
+{% include fqfn.html tenant="tenant" namespace="namespace" name="name" %}
+
+FQFNs enable you to, for example, create multiple functions with the same name provided that they're in different namespaces.
+
+### Default arguments
+
+When managing Pulsar Functions, you'll need to specify a variety of information about those functions, including {% popover tenant %}, {% popover namespace %}, input and output topics, etc. There are some parameters, however, that have default values that will be supplied if omitted. The table below lists the defaults:
+
+Parameter | Default
+:---------|:-------
+Function name | Whichever value is specified for the class name. For example, `--className org.example.MyFunction` would give the function a name of `MyFunction`
+Tenant | `public`
+Namespace | `default`
+Output topic | `{input topic}-{function name}-output`. A function with an input topic name of `incoming` and a function name of `exclamation` would have an output topic of `incoming-exclamation-output`
+Subscription type | [`SHARED`](../../getting-started/ConceptsAndArchitecture#shared)
+Processing guarantees | [`ATLEAST_ONCE`](../guarantees)
+Pulsar service URL | `pulsar://localhost:6650`
+
+#### Example use of defaults
+
+Take this `create` command:
+
+```bash
+$ bin/pulsar-admin functions create \
+  --jar my-pulsar-functions.jar \
+  --className org.example.MyFunction \
+  --inputs my-function-input-topic1,my-function-input-topic2
+```
+
+The created function would have default values supplied for the function name (`MyFunction`), tenant (`public`), namespace (`default`), subscription type (`SHARED`), processing guarantees (`ATLEAST_ONCE`), and Pulsar service URL (`pulsar://localhost:6650`).
+
 ## Local run mode {#local-run}
 
 If you run a Pulsar Function in **local run** mode, it will run on the machine from which the command is run (this could be your laptop, an [AWS EC2](https://aws.amazon.com/ec2/) instance, etc.). Here's an example [`localrun`](../../CliTools#pulsar-admin-functions-localrun) command:
