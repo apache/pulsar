@@ -38,6 +38,7 @@ import com.google.common.collect.TreeRangeSet;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.protobuf.InvalidProtocolBufferException;
 
+import java.time.Clock;
 import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.List;
@@ -155,6 +156,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     @SuppressWarnings("unused")
     private volatile int pendingMarkDeletedSubmittedCount = 0;
     private long lastLedgerSwitchTimestamp;
+    private final Clock clock;
 
     enum State {
         Uninitialized, // Cursor is being initialized
@@ -186,7 +188,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         PENDING_READ_OPS_UPDATER.set(this, 0);
         RESET_CURSOR_IN_PROGRESS_UPDATER.set(this, FALSE);
         WAITING_READ_OP_UPDATER.set(this, null);
-        this.lastLedgerSwitchTimestamp = System.currentTimeMillis();
+        this.clock = config.getClock();
+        this.lastLedgerSwitchTimestamp = this.clock.millis();
 
         if (config.getThrottleMarkDelete() > 0.0) {
             markDeleteLimiter = RateLimiter.create(config.getThrottleMarkDelete());
@@ -2110,7 +2113,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     boolean shouldCloseLedger(LedgerHandle lh) {
-        long now = System.currentTimeMillis();
+        long now = clock.millis();
         if ((lh.getLastAddConfirmed() >= config.getMetadataMaxEntriesPerLedger()
                 || lastLedgerSwitchTimestamp < (now - config.getLedgerRolloverTimeout() * 1000))
                 && STATE_UPDATER.get(this) != State.Closed) {
