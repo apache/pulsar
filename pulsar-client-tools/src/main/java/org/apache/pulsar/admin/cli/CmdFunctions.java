@@ -693,7 +693,7 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Upload File Data to Pulsar")
+    @Parameters(commandDescription = "Upload File Data to Pulsar", hidden = true)
     class UploadFunction extends BaseCommand {
         @Parameter(
                 names = "--sourceFile",
@@ -712,7 +712,7 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Download File Data from Pulsar")
+    @Parameters(commandDescription = "Download File Data from Pulsar", hidden = true)
     class DownloadFunction extends BaseCommand {
         @Parameter(
                 names = "--destinationFile",
