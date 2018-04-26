@@ -442,7 +442,7 @@ public class CmdFunctions extends CmdBase {
         }
 
         private void doPythonSubmitChecks(FunctionConfig functionConfig) {
-            if (functionConfig.getClassname() == null) {
+            if (functionConfig.getClassName() == null) {
                 throw new IllegalArgumentException("You specified a Python file but no main class name");
             }
 
