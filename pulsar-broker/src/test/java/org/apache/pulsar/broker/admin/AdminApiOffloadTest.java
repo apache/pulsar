@@ -33,6 +33,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.client.admin.LongRunningProcessStatus;
+import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -74,16 +76,12 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    interface OffloadMethod {
-        public MessageId runOffload(String topicName, MessageId currentId) throws Exception;
-    }
-
-    private void setupAndOffload(String topicName, String mlName,
-                                 OffloadMethod offloadMethod) throws Exception {
+    private void testOffload(String topicName, String mlName) throws Exception {
         LedgerOffloader offloader = mock(LedgerOffloader.class);
         doReturn(offloader).when(pulsar).getManagedLedgerOffloader();
-        doReturn(CompletableFuture.completedFuture(null))
-            .when(offloader).offload(anyObject(), anyObject(), anyObject());
+
+        CompletableFuture<Void> promise = new CompletableFuture<>();
+        doReturn(promise).when(offloader).offload(anyObject(), anyObject(), anyObject());
 
         MessageId currentId = MessageId.latest;
         try (Producer p = pulsarClient.newProducer().topic(topicName).enableBatching(false).create()) {
@@ -95,52 +93,56 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         ManagedLedgerInfo info = pulsar.getManagedLedgerFactory().getManagedLedgerInfo(mlName);
         Assert.assertEquals(info.ledgers.size(), 2);
 
-        MessageId firstUnoffloaded = offloadMethod.runOffload(topicName, currentId);
+        Assert.assertEquals(admin.persistentTopics().offloadStatus(topicName).status,
+                            LongRunningProcessStatus.Status.NOT_RUN);
 
+        admin.persistentTopics().triggerOffload(topicName, currentId);
+
+        Assert.assertEquals(admin.persistentTopics().offloadStatus(topicName).status,
+                            LongRunningProcessStatus.Status.RUNNING);
+
+        try {
+            admin.persistentTopics().triggerOffload(topicName, currentId);
+            Assert.fail("Should have failed");
+        } catch (ConflictException e) {
+            // expected
+        }
+
+        // fail first time
+        promise.completeExceptionally(new Exception("Some random failure"));
+
+        Assert.assertEquals(admin.persistentTopics().offloadStatus(topicName).status,
+                            LongRunningProcessStatus.Status.ERROR);
+        Assert.assertTrue(admin.persistentTopics().offloadStatus(topicName).lastError.contains("Some random failure"));
+
+        // Try again
+        doReturn(CompletableFuture.completedFuture(null))
+            .when(offloader).offload(anyObject(), anyObject(), anyObject());
+
+        admin.persistentTopics().triggerOffload(topicName, currentId);
+
+        Assert.assertEquals(admin.persistentTopics().offloadStatus(topicName).status,
+                            LongRunningProcessStatus.Status.SUCCESS);
+        MessageIdImpl firstUnoffloaded = admin.persistentTopics().offloadStatus(topicName).firstUnoffloadedMessage;
         // First unoffloaded is the first entry of current ledger
-        Assert.assertEquals(((MessageIdImpl)firstUnoffloaded).getLedgerId(),
-                            info.ledgers.get(1).ledgerId);
-        Assert.assertEquals(((MessageIdImpl)firstUnoffloaded).getEntryId(), 0);
+        Assert.assertEquals(firstUnoffloaded.getLedgerId(), info.ledgers.get(1).ledgerId);
+        Assert.assertEquals(firstUnoffloaded.getEntryId(), 0);
 
-        verify(offloader, times(1)).offload(anyObject(), anyObject(), anyObject());
+        verify(offloader, times(2)).offload(anyObject(), anyObject(), anyObject());
     }
+
 
     @Test
     public void testOffloadV2() throws Exception {
         String topicName = "persistent://prop-xyz/ns1/topic1";
         String mlName = "prop-xyz/ns1/persistent/topic1";
-
-        setupAndOffload(topicName, mlName,
-                        (topicName2, currentId) -> admin.persistentTopics().offloadPrefix(topicName2, currentId));
-    }
-
-    @Test
-    public void testOffloadAsyncV2() throws Exception {
-        String topicName = "persistent://prop-xyz/ns1/topic2";
-        String mlName = "prop-xyz/ns1/persistent/topic2";
-
-        setupAndOffload(topicName, mlName,
-                        (topicName2, currentId)
-                        -> admin.persistentTopics().offloadPrefixAsync(topicName2, currentId).get());
+        testOffload(topicName, mlName);
     }
 
     @Test
     public void testOffloadV1() throws Exception {
-        String topicName = "persistent://prop-xyz/test/ns1/topic3";
-        String mlName = "prop-xyz/test/ns1/persistent/topic3";
-
-        setupAndOffload(topicName, mlName,
-                        (topicName2, currentId) -> admin.persistentTopics().offloadPrefix(topicName2, currentId));
+        String topicName = "persistent://prop-xyz/test/ns1/topic2";
+        String mlName = "prop-xyz/test/ns1/persistent/topic2";
+        testOffload(topicName, mlName);
     }
-
-    @Test
-    public void testOffloadAsyncV1() throws Exception {
-        String topicName = "persistent://prop-xyz/test/ns1/topic4";
-        String mlName = "prop-xyz/test/ns1/persistent/topic4";
-
-        setupAndOffload(topicName, mlName,
-                        (topicName2, currentId)
-                        -> admin.persistentTopics().offloadPrefixAsync(topicName2, currentId).get());
-    }
-
 }

@@ -38,9 +38,10 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
+import org.apache.pulsar.client.admin.LongRunningProcessStatus;
+import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.common.compaction.CompactionStatus;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
@@ -428,7 +429,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
                             @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
                             @ApiResponse(code = 404, message = "Topic does not exist, or compaction hasn't run") })
-    public CompactionStatus compactionStatus(
+    public LongRunningProcessStatus compactionStatus(
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
@@ -442,13 +443,26 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
                             @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
                             @ApiResponse(code = 404, message = "Topic does not exist")})
-    public void offloadPrefix(@PathParam("tenant") String tenant,
-                              @PathParam("namespace") String namespace,
-                              @PathParam("topic") @Encoded String encodedTopic,
-                              @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-                              MessageIdImpl messageId,  @Suspended AsyncResponse asyncResponse) {
+    public void triggerOffload(@PathParam("tenant") String tenant,
+                               @PathParam("namespace") String namespace,
+                               @PathParam("topic") @Encoded String encodedTopic,
+                               @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+                               MessageIdImpl messageId) {
         validateTopicName(tenant, namespace, encodedTopic);
-        internalOffloadPrefix(authoritative, messageId, asyncResponse);
+        internalTriggerOffload(authoritative, messageId);
     }
 
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/offload")
+    @ApiOperation(value = "Offload a prefix of a topic to long term storage")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 405, message = "Operation not allowed on persistent topic"),
+                            @ApiResponse(code = 404, message = "Topic does not exist")})
+    public OffloadProcessStatus offloadStatus(@PathParam("tenant") String tenant,
+                                              @PathParam("namespace") String namespace,
+                                              @PathParam("topic") @Encoded String encodedTopic,
+                                              @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        return internalOffloadStatus(authoritative);
+    }
 }

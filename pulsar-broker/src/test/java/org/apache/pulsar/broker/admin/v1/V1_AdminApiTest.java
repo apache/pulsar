@@ -54,6 +54,7 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
@@ -70,7 +71,6 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.compaction.CompactionStatus;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
@@ -1977,7 +1977,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
 
         assertEquals(admin.persistentTopics().compactionStatus(topicName).status,
-                     CompactionStatus.Status.NOT_RUN);
+                     LongRunningProcessStatus.Status.NOT_RUN);
 
         // mock actual compaction, we don't need to really run it
         CompletableFuture<Long> promise = new CompletableFuture<Long>();
@@ -1986,12 +1986,12 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.persistentTopics().triggerCompaction(topicName);
 
         assertEquals(admin.persistentTopics().compactionStatus(topicName).status,
-                     CompactionStatus.Status.RUNNING);
+                     LongRunningProcessStatus.Status.RUNNING);
 
         promise.complete(1L);
 
         assertEquals(admin.persistentTopics().compactionStatus(topicName).status,
-                     CompactionStatus.Status.SUCCESS);
+                     LongRunningProcessStatus.Status.SUCCESS);
 
         CompletableFuture<Long> errorPromise = new CompletableFuture<Long>();
         doReturn(errorPromise).when(compactor).compact(topicName);
@@ -1999,7 +1999,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         errorPromise.completeExceptionally(new Exception("Failed at something"));
 
         assertEquals(admin.persistentTopics().compactionStatus(topicName).status,
-                     CompactionStatus.Status.ERROR);
+                     LongRunningProcessStatus.Status.ERROR);
         assertTrue(admin.persistentTopics().compactionStatus(topicName)
                    .lastError.contains("Failed at something"));
     }

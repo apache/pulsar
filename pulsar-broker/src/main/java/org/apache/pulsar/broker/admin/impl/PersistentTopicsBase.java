@@ -50,7 +50,6 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.OffloadCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -76,6 +75,8 @@ import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.LongRunningProcessStatus;
+import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
@@ -87,7 +88,6 @@ import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.apache.pulsar.common.compaction.CompactionStatus;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -1093,34 +1093,28 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected CompactionStatus internalCompactionStatus(boolean authoritative) {
+    protected LongRunningProcessStatus internalCompactionStatus(boolean authoritative) {
         validateAdminOperationOnTopic(authoritative);
         PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
         return topic.compactionStatus();
     }
 
-    protected void internalOffloadPrefix(boolean authoritative, MessageIdImpl messageId, AsyncResponse asyncResponse) {
+    protected void internalTriggerOffload(boolean authoritative, MessageIdImpl messageId) {
         validateAdminOperationOnTopic(authoritative);
         PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
-        topic.getManagedLedger().asyncOffloadPrefix(
-                PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId()),
-                new OffloadCallback() {
-                    @Override
-                    public void offloadComplete(Position pos, Object ctx) {
-                        PositionImpl impl = (PositionImpl)pos;
+        try {
+            topic.triggerOffload(messageId);
+        } catch (AlreadyRunningException e) {
+            throw new RestException(Status.CONFLICT, e.getMessage());
+        } catch (Exception e) {
+            throw new RestException(e);
+        }
+    }
 
-                        asyncResponse.resume((StreamingOutput) output -> {
-                                jsonMapper().writer().writeValue(
-                                        output, new MessageIdImpl(impl.getLedgerId(), impl.getEntryId(), -1));
-                            });
-
-                    }
-
-                    @Override
-                    public void offloadFailed(ManagedLedgerException exception, Object ctx) {
-                        asyncResponse.resume(exception);
-                    }
-                }, null);
+    protected OffloadProcessStatus internalOffloadStatus(boolean authoritative) {
+        validateAdminOperationOnTopic(authoritative);
+        PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
+        return topic.offloadStatus();
     }
 
     public static CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(PulsarService pulsar,

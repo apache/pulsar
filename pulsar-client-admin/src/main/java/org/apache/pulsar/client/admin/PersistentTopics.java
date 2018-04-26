@@ -30,7 +30,6 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.common.compaction.CompactionStatus;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
@@ -916,23 +915,21 @@ public interface PersistentTopics {
      *
      * @param topic The topic whose compaction status we wish to check
      */
-    CompactionStatus compactionStatus(String topic) throws PulsarAdminException;
+    LongRunningProcessStatus compactionStatus(String topic) throws PulsarAdminException;
 
     /**
-     * Offload messages in topic to longterm storage.
+     * Trigger offloading messages in topic to longterm storage.
      *
      * @param topic the topic to offload
      * @param messageId ID of maximum message which should be offloaded
-     * @return ID of first message which was not offloaded
      */
-    MessageId offloadPrefix(String topic, MessageId messageId) throws PulsarAdminException;
+    void triggerOffload(String topic, MessageId messageId) throws PulsarAdminException;
 
     /**
-     * Asynchronously offload messages in topic to longterm storage.
+     * Check the status of an ongoing offloading operation for a topic.
      *
-     * @param topic the topic to offload
-     * @param messageId ID of maximum message which should be offloaded
-     * @return A future, which when complete, provides the ID of the first message which was not offloaded
+     * @param topic the topic being offloaded
+     * @return the status of the offload operation
      */
-    CompletableFuture<MessageId> offloadPrefixAsync(String topic, MessageId messageId);
+    OffloadProcessStatus offloadStatus(String topic) throws PulsarAdminException;
 }

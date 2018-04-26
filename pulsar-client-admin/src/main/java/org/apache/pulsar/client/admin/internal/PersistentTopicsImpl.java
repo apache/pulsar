@@ -41,6 +41,8 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
+import org.apache.pulsar.client.admin.LongRunningProcessStatus;
+import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.admin.PersistentTopics;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
@@ -54,7 +56,6 @@ import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadata;
-import org.apache.pulsar.common.compaction.CompactionStatus;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -725,55 +726,41 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
     }
 
     @Override
-    public CompactionStatus compactionStatus(String topic)
+    public LongRunningProcessStatus compactionStatus(String topic)
             throws PulsarAdminException {
         try {
             TopicName tn = validateTopic(topic);
             return request(topicPath(tn, "compaction"))
-                .get(CompactionStatus.class);
+                .get(LongRunningProcessStatus.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
     }
 
     @Override
-    public MessageId offloadPrefix(String topic, MessageId messageId) throws PulsarAdminException {
+    public void triggerOffload(String topic, MessageId messageId) throws PulsarAdminException {
         try {
             TopicName tn = validateTopic(topic);
             WebTarget path = topicPath(tn, "offload");
-            return request(path).put(Entity.entity(messageId, MediaType.APPLICATION_JSON), MessageIdImpl.class);
+            request(path).put(Entity.entity(messageId, MediaType.APPLICATION_JSON), MessageIdImpl.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
     }
 
     @Override
-    public CompletableFuture<MessageId> offloadPrefixAsync(String topic, MessageId messageId) {
-        TopicName tn = validateTopic(topic);
-        final WebTarget path = topicPath(tn, "offload");
-
-        final CompletableFuture<MessageId> promise = new CompletableFuture<>();
+    public OffloadProcessStatus offloadStatus(String topic)
+            throws PulsarAdminException {
         try {
-            request(path).async().put(
-                    Entity.entity(messageId, MediaType.APPLICATION_JSON),
-                    new InvocationCallback<MessageIdImpl>() {
-                        @Override
-                        public void completed(MessageIdImpl response) {
-                            promise.complete(response);
-                        }
-
-                        @Override
-                        public void failed(Throwable throwable) {
-                            log.warn("[{}] Failed to perform http offload put request: {}",
-                                     path.getUri(), throwable.getMessage());
-                            promise.completeExceptionally(getApiException(throwable.getCause()));
-                        }
-                    });
-        } catch (PulsarAdminException pae) {
-            promise.completeExceptionally(pae);
+            TopicName tn = validateTopic(topic);
+            return request(topicPath(tn, "offload"))
+                .get(OffloadProcessStatus.class);
+        } catch (Exception e) {
+            throw getApiException(e);
         }
-        return promise;
     }
+
+
 
     private WebTarget namespacePath(NamespaceName namespace, String... parts) {
         final WebTarget base = namespace.isV2() ? adminV2PersistentTopics : adminPersistentTopics;
