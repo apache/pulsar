@@ -31,6 +31,10 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
@@ -51,6 +55,12 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     }
 
     @POST
+    @ApiOperation(value = "Creates a new Pulsar Function in cluster mode")
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Invalid request (function already exists, etc.)"),
+            @ApiResponse(code = 408, message = "Request timeout"),
+            @ApiResponse(code = 200, message = "Pulsar Function successfully created")
+    })
     @Path("/{tenant}/{namespace}/{functionName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public Response registerFunction(final @PathParam("tenant") String tenant,
@@ -62,10 +72,10 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
 
         return functions.registerFunction(
             tenant, namespace, functionName, uploadedInputStream, fileDetail, functionDetailsJson);
-
     }
 
     @PUT
+    @ApiOperation(value = "Updates a Pulsar Function currently running in cluster mode")
     @Path("/{tenant}/{namespace}/{functionName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public Response updateFunction(final @PathParam("tenant") String tenant,
@@ -82,6 +92,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
 
 
     @DELETE
+    @ApiOperation(value = "Delertes a Pulsar Function currently running in cluster mode")
     @Path("/{tenant}/{namespace}/{functionName}")
     public Response deregisterFunction(final @PathParam("tenant") String tenant,
                                        final @PathParam("namespace") String namespace,
@@ -91,6 +102,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     }
 
     @GET
+    @ApiOperation(value = "Fetches information about a Pulsar Function currently running in cluster mode")
     @Path("/{tenant}/{namespace}/{functionName}")
     public Response getFunctionInfo(final @PathParam("tenant") String tenant,
                                     final @PathParam("namespace") String namespace,
@@ -101,6 +113,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     }
 
     @GET
+    @ApiOperation(value = "Displays the status of a Pulsar Function instance")
     @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/status")
     public Response getFunctionInstanceStatus(final @PathParam("tenant") String tenant,
                                               final @PathParam("namespace") String namespace,
@@ -111,6 +124,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     }
 
     @GET
+    @ApiOperation(value = "Displays the status of a Pulsar Function running in cluster mode")
     @Path("/{tenant}/{namespace}/{functionName}/status")
     public Response getFunctionStatus(final @PathParam("tenant") String tenant,
                                       final @PathParam("namespace") String namespace,
@@ -120,6 +134,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     }
 
     @GET
+    @ApiOperation(value = "Lists all Pulsar Functions currently deployed in a given namespace")
     @Path("/{tenant}/{namespace}")
     public Response listFunctions(final @PathParam("tenant") String tenant,
                                   final @PathParam("namespace") String namespace) {
@@ -129,12 +144,14 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     }
 
     @GET
+    @ApiOperation(value = "Fetches information about the Pulsar cluster running Pulsar Functions")
     @Path("/cluster")
     public Response getCluster() {
         return functions.getCluster();
     }
 
     @GET
+    @ApiOperation(value = "Fetches information about which Pulsar Functions are assigned to which Pulsar clusters")
     @Path("/assignments")
     public Response getAssignments() {
         return functions.getAssignments();
@@ -155,6 +172,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     }
 
     @POST
+    @ApiOperation(value = "Uploads Pulsar Function file data")
     @Path("/upload")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public Response uploadFunction(final @FormDataParam("data") InputStream uploadedInputStream,
@@ -163,6 +181,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     }
 
     @GET
+    @ApiOperation(value = "Downloads Pulsar Function file data")
     @Path("/download")
     public Response downloadFunction(final @QueryParam("path") String path) {
         return functions.downloadFunction(path);
