@@ -20,6 +20,7 @@ package org.apache.pulsar.admin.cli;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Objects.isNull;
 import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 
 import java.io.File;
@@ -510,9 +511,7 @@ public class CmdFunctions extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            if (!areAllRequiredFieldsPresent(functionConfig)) {
-                throw new RuntimeException("Missing arguments");
-            }
+            checkRequiredFields(functionConfig);
 
             String serviceUrl = admin.getServiceUrl();
             if (brokerServiceUrl != null) {
@@ -562,9 +561,7 @@ public class CmdFunctions extends CmdBase {
     class CreateFunction extends FunctionDetailsCommand {
         @Override
         void runCmd() throws Exception {
-            if (!areAllRequiredFieldsPresent(functionConfig)) {
-                throw new RuntimeException("Missing arguments");
-            }
+            checkRequiredFields(functionConfig);
             admin.functions().createFunction(convert(functionConfig), userCodeFile);
             print("Created successfully");
         }
@@ -603,9 +600,7 @@ public class CmdFunctions extends CmdBase {
     class UpdateFunction extends FunctionDetailsCommand {
         @Override
         void runCmd() throws Exception {
-            if (!areAllRequiredFieldsPresent(functionConfig)) {
-                throw new RuntimeException("Missing arguments");
-            }
+            checkRequiredFields(functionConfig);
             admin.functions().updateFunction(convert(functionConfig), userCodeFile);
             print("Updated successfully");
         }
@@ -817,11 +812,26 @@ public class CmdFunctions extends CmdBase {
         return  mapper.readValue(file, FunctionConfig.class);
     }
 
-    public static boolean areAllRequiredFieldsPresent(FunctionConfig functionConfig) {
-        return functionConfig.getTenant() != null && functionConfig.getNamespace() != null
-                && functionConfig.getName() != null && functionConfig.getClassName() != null
-                && (functionConfig.getInputs().size() > 0 || functionConfig.getCustomSerdeInputs().size() > 0)
-                && functionConfig.getParallelism() > 0;
+    private static void checkRequiredFields(FunctionConfig config) throws IllegalArgumentException {
+        if (isNull(config.getTenant())) {
+            throw new IllegalArgumentException("You must specify a tenant for the function");
+        }
+
+        if (isNull(config.getNamespace())) {
+            throw new IllegalArgumentException("You must specify a namespace for the function");
+        }
+
+        if (isNull(config.getName())) {
+            throw new IllegalArgumentException("You must specify a name for the function");
+        }
+
+        if (isNull(config.getClassName())) {
+            throw new IllegalArgumentException("You must specify a class name for the function");
+        }
+
+        if (config.getInputs().size() == 0 || config.getCustomSerdeINputs().size() == 0) {
+            throw new IllegalArgumentException("You must specify one or more input topics for the function");
+        }
     }
     
     private org.apache.pulsar.functions.proto.Function.FunctionDetails convertProto2(FunctionConfig functionConfig)
