@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.functions.instance.processors;
 
-import java.util.concurrent.LinkedBlockingDeque;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
@@ -26,7 +25,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.functions.instance.InputMessage;
+import org.apache.pulsar.connect.core.Record;
 import org.apache.pulsar.functions.instance.producers.AbstractOneOuputTopicProducers;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 
@@ -45,10 +44,10 @@ class AtMostOnceProcessor extends MessageProcessorBase {
     }
 
     @Override
-    protected void postReceiveMessage(InputMessage message) {
-        super.postReceiveMessage(message);
+    public void postReceiveMessage(Record record) {
+        super.postReceiveMessage(record);
         if (functionDetails.getAutoAck()) {
-            message.ack();
+            record.ack();
         }
     }
 
@@ -58,7 +57,7 @@ class AtMostOnceProcessor extends MessageProcessorBase {
     }
 
     @Override
-    public void sendOutputMessage(InputMessage inputMsg, MessageBuilder<byte[]> outputMsgBuilder) {
+    public void sendOutputMessage(Record srcRecord, MessageBuilder outputMsgBuilder) {
         if (null == outputMsgBuilder) {
             return;
         }

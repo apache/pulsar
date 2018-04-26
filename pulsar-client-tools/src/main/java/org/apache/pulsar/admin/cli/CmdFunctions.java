@@ -49,6 +49,7 @@ import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.functions.api.Function;
+import org.apache.pulsar.functions.instance.PulsarSource;
 import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
@@ -58,6 +59,7 @@ import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.shaded.io.netty.buffer.ByteBuf;
 import org.apache.pulsar.functions.shaded.io.netty.buffer.ByteBufUtil;
 import org.apache.pulsar.functions.shaded.io.netty.buffer.Unpooled;
+import org.apache.pulsar.functions.shaded.proto.Function.ConnectorDetails;
 import org.apache.pulsar.functions.shaded.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.Utils;
@@ -716,7 +718,7 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Upload File Data to Pulsar")
+    @Parameters(commandDescription = "Upload File Data to Pulsar", hidden = true)
     class UploadFunction extends BaseCommand {
         @Parameter(
                 names = "--sourceFile",
@@ -735,7 +737,7 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Download File Data from Pulsar")
+    @Parameters(commandDescription = "Download File Data from Pulsar", hidden = true)
     class DownloadFunction extends BaseCommand {
         @Parameter(
                 names = "--destinationFile",
@@ -883,6 +885,10 @@ public class CmdFunctions extends CmdBase {
         if (functionConfig.getInputs() != null) {
             functionDetailsBuilder.setTenant(functionConfig.getTenant());
         }
+        functionDetailsBuilder.setSource(
+                ConnectorDetails.newBuilder()
+                        .setClassName(PulsarSource.class.getName())
+                        .build());
         if (functionConfig.getNamespace() != null) {
             functionDetailsBuilder.setNamespace(functionConfig.getNamespace());
         }
