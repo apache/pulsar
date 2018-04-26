@@ -283,7 +283,7 @@ public class CmdFunctions extends CmdBase {
                 throw new RuntimeException("Either a Java jar or a Python file needs to be specified for the function");
             }
 
-            if (functionConfig.getInputs().size() == 0 && functionConfig.getCustomSerdeInputs().size() == 0) {
+            if (functionConfig.getInputs().isEmpty() && functionConfig.getCustomSerdeInputs().isEmpty()) {
                 throw new RuntimeException("No input topic(s) specified for the function");
             }
 
@@ -836,7 +836,7 @@ public class CmdFunctions extends CmdBase {
             throw new IllegalArgumentException("You must specify a class name for the function");
         }
 
-        if (config.getInputs().size() == 0 || config.getCustomSerdeInputs().size() == 0) {
+        if (config.getInputs().isEmpty() && config.getCustomSerdeInputs().isEmpty()) {
             throw new IllegalArgumentException("You must specify one or more input topics for the function");
         }
     }
