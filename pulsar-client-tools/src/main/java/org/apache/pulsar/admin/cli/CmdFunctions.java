@@ -241,14 +241,19 @@ public class CmdFunctions extends CmdBase {
 
             if (null != inputs) {
                 List<String> inputTopics = Arrays.asList(inputs.split(","));
+                inputTopics.forEach(this::validateTopicName);
                 functionConfig.setInputs(inputTopics);
             }
             if (null != customSerdeInputString) {
                 Type type = new TypeToken<Map<String, String>>(){}.getType();
                 Map<String, String> customSerdeInputMap = new Gson().fromJson(customSerdeInputString, type);
+                customSerdeInputMap.forEach((topic, serde) -> {
+                    validateTopicName(topic);
+                });
                 functionConfig.setCustomSerdeInputs(customSerdeInputMap);
             }
             if (null != output) {
+                validateTopicName(output);
                 functionConfig.setOutput(output);
             }
             if (null != logTopic) {
@@ -443,6 +448,12 @@ public class CmdFunctions extends CmdBase {
 
             if (functionConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
                 throw new RuntimeException("Effectively-once processing guarantees not yet supported in Python");
+            }
+        }
+
+        private void validateTopicName(String topic) {
+            if (!TopicName.isValid(topic)) {
+                throw new IllegalArgumentException(String.format("The topic name %s is invalid", topic));
             }
         }
 
