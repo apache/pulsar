@@ -677,7 +677,7 @@ public class NonPersistentTopic implements Topic {
     }
 
     public void updateRates(NamespaceStats nsStats, NamespaceBundleStats bundleStats, StatsOutputStream topicStatsStream,
-            ClusterReplicationMetrics replStats, String namespace) {
+            ClusterReplicationMetrics replStats, String namespace, boolean hydratePublishers) {
 
         TopicStats topicStats = threadLocalTopicStats.get();
         topicStats.reset();

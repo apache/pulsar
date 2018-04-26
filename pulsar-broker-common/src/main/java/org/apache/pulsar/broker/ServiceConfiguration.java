@@ -452,6 +452,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     /**** --- Functions --- ****/
     private boolean functionsWorkerEnabled = false;
 
+    /**** --- Broker Web Stats --- ****/
+    // If true, export publisher stats when returning topics stats from the admin rest api
+    private boolean exposePublisherStats = true;
+
     public String getZookeeperServers() {
         return zookeeperServers;
     }
@@ -1545,6 +1549,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public boolean isFunctionsWorkerEnabled() {
         return functionsWorkerEnabled;
+    }
+
+
+    /**** --- Broker Web Stats ---- ****/
+
+    public void setExposePublisherStats(boolean expose) {
+        this.exposePublisherStats = expose;
+    }
+
+    public boolean exposePublisherStats() {
+        return exposePublisherStats;
     }
 
     public boolean isRunningStandalone() {
