@@ -72,17 +72,9 @@ public abstract class CmdBase {
                 System.err.println("Error connecting to: " + admin.getServiceUrl());
                 return false;
             } catch (PulsarAdminException e) {
-                if (e.getCause() instanceof WebApplicationException) {
-                    WebApplicationException wae = (WebApplicationException) e.getCause();
-                    System.err.println("Code: " + wae.getResponse().getStatus());
-                    System.err.println("Header: " + wae.getResponse().getHeaders());
-                    System.err.println("Location: " + wae.getResponse().getLocation());
-                    System.err.println("Reason: " + wae.getResponse().getEntity());
-                } else {
-                    System.err.println(e.getHttpError());
-                    System.err.println();
-                    System.err.println("Reason: " + e.getMessage());
-                }
+                System.err.println(e.getHttpError());
+                System.err.println();
+                System.err.println("Reason: " + e.getMessage());
                 return false;
             } catch (Exception e) {
                 System.err.println("Got exception: " + e.getMessage());
