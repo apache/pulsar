@@ -16,24 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.connect.core;
+package org.apache.pulsar.functions.instance;
+
+import lombok.Builder;
+import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.functions.api.SerDe;
+import org.apache.pulsar.functions.proto.Function;
 
 import java.util.Map;
 
-public interface Source<T> extends AutoCloseable {
-    /**
-     * Open connector with configuration
-     *
-     * @param config initialization config
-     * @throws Exception IO type exceptions when opening a connector
-     */
-    void open(final Map<String, Object> config) throws Exception;
-
-    /**
-     * Reads the next message from source.
-     * If source does not have any new messages, this call should block.
-     * @return next message from source.  The return result should never be null
-     * @throws Exception
-     */
-    Record<T> read() throws Exception;
+@Getter
+@Setter
+@Data
+@Builder
+@ToString
+public class PulsarConfig {
+    private Function.FunctionDetails.ProcessingGuarantees processingGuarantees;
+    private SubscriptionType subscriptionType;
+    private String subscription;
+    private Map<String, SerDe> topicToSerdeMap;
 }

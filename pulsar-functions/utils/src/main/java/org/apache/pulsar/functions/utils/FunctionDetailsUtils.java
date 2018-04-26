@@ -43,17 +43,6 @@ public class FunctionDetailsUtils {
         return fullyQualifiedName.split("/")[2];
     }
 
-    public static boolean areAllRequiredFieldsPresent(FunctionDetails FunctionDetails) {
-        if (FunctionDetails.getTenant() == null || FunctionDetails.getNamespace() == null
-                || FunctionDetails.getName() == null || FunctionDetails.getClassName() == null
-                || (FunctionDetails.getInputsCount() <= 0 && FunctionDetails.getCustomSerdeInputsCount() <= 0)
-                || FunctionDetails.getParallelism() <= 0) {
-            return false;
-        } else {
-            return true;
-        }
-    }
-
     public static String getDownloadFileName(FunctionDetails FunctionDetails) {
         String[] hierarchy = FunctionDetails.getClassName().split("\\.");
         String fileName;
