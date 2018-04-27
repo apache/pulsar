@@ -93,7 +93,7 @@ import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.LedgerInfo;
-import org.apache.pulsar.common.policies.data.PersistentTopicStats;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
@@ -175,14 +175,14 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     // Whether messages published must be encrypted or not in this topic
     private volatile boolean isEncryptionRequired = false;
 
-    private static final FastThreadLocal<TopicStats> threadLocalTopicStats = new FastThreadLocal<TopicStats>() {
+    private static final FastThreadLocal<TopicStatsHelper> threadLocalTopicStats = new FastThreadLocal<TopicStatsHelper>() {
         @Override
-        protected TopicStats initialValue() {
-            return new TopicStats();
+        protected TopicStatsHelper initialValue() {
+            return new TopicStatsHelper();
         }
     };
 
-    private static class TopicStats {
+    private static class TopicStatsHelper {
         public double averageMsgSize;
         public double aggMsgRateIn;
         public double aggMsgThroughputIn;
@@ -190,7 +190,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         public double aggMsgThroughputOut;
         public final ObjectObjectHashMap<String, PublisherStats> remotePublishersStats;
 
-        public TopicStats() {
+        public TopicStatsHelper() {
             remotePublishersStats = new ObjectObjectHashMap<String, PublisherStats>();
             reset();
         }
@@ -1097,8 +1097,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     public void updateRates(NamespaceStats nsStats, NamespaceBundleStats bundleStats, StatsOutputStream topicStatsStream,
             ClusterReplicationMetrics replStats, String namespace) {
 
-        TopicStats topicStats = threadLocalTopicStats.get();
-        topicStats.reset();
+        TopicStatsHelper topicStatsHelper = threadLocalTopicStats.get();
+        topicStatsHelper.reset();
 
         replicators.forEach((region, replicator) -> replicator.updateRates());
 
@@ -1110,11 +1110,11 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             producer.updateRates();
             PublisherStats publisherStats = producer.getStats();
 
-            topicStats.aggMsgRateIn += publisherStats.msgRateIn;
-            topicStats.aggMsgThroughputIn += publisherStats.msgThroughputIn;
+            topicStatsHelper.aggMsgRateIn += publisherStats.msgRateIn;
+            topicStatsHelper.aggMsgThroughputIn += publisherStats.msgThroughputIn;
 
             if (producer.isRemote()) {
-                topicStats.remotePublishersStats.put(producer.getRemoteCluster(), publisherStats);
+                topicStatsHelper.remotePublishersStats.put(producer.getRemoteCluster(), publisherStats);
             }
         });
 
@@ -1124,7 +1124,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
         // Start replicator stats
         topicStatsStream.startObject("replication");
-        nsStats.replicatorCount += topicStats.remotePublishersStats.size();
+        nsStats.replicatorCount += topicStatsHelper.remotePublishersStats.size();
         replicators.forEach((cluster, replicator) -> {
             // Update replicator cursor state
             try {
@@ -1138,7 +1138,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             ReplicatorStats rStat = replicator.getStats();
 
             // Add incoming msg rates
-            PublisherStats pubStats = topicStats.remotePublishersStats.get(replicator.getRemoteCluster());
+            PublisherStats pubStats = topicStatsHelper.remotePublishersStats.get(replicator.getRemoteCluster());
             if (pubStats != null) {
                 rStat.msgRateIn = pubStats.msgRateIn;
                 rStat.msgThroughputIn = pubStats.msgThroughputIn;
@@ -1146,8 +1146,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 rStat.inboundConnectedSince = pubStats.getConnectedSince();
             }
 
-            topicStats.aggMsgRateOut += rStat.msgRateOut;
-            topicStats.aggMsgThroughputOut += rStat.msgThroughputOut;
+            topicStatsHelper.aggMsgRateOut += rStat.msgRateOut;
+            topicStatsHelper.aggMsgThroughputOut += rStat.msgThroughputOut;
 
             // Populate replicator specific stats here
             topicStatsStream.startObject(cluster);
@@ -1259,8 +1259,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 // Close consumers
                 topicStatsStream.endObject();
 
-                topicStats.aggMsgRateOut += subMsgRateOut;
-                topicStats.aggMsgThroughputOut += subMsgThroughputOut;
+                topicStatsHelper.aggMsgRateOut += subMsgRateOut;
+                topicStatsHelper.aggMsgThroughputOut += subMsgThroughputOut;
                 nsStats.msgBacklog += subscription.getNumberOfEntriesInBacklog();
             } catch (Exception e) {
                 log.error("Got exception when creating consumer stats for subscription {}: {}", subscriptionName,
@@ -1272,36 +1272,36 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         topicStatsStream.endObject();
 
         // Remaining dest stats.
-        topicStats.averageMsgSize = topicStats.aggMsgRateIn == 0.0 ? 0.0
-                : (topicStats.aggMsgThroughputIn / topicStats.aggMsgRateIn);
+        topicStatsHelper.averageMsgSize = topicStatsHelper.aggMsgRateIn == 0.0 ? 0.0
+                : (topicStatsHelper.aggMsgThroughputIn / topicStatsHelper.aggMsgRateIn);
         topicStatsStream.writePair("producerCount", producers.size());
-        topicStatsStream.writePair("averageMsgSize", topicStats.averageMsgSize);
-        topicStatsStream.writePair("msgRateIn", topicStats.aggMsgRateIn);
-        topicStatsStream.writePair("msgRateOut", topicStats.aggMsgRateOut);
-        topicStatsStream.writePair("msgThroughputIn", topicStats.aggMsgThroughputIn);
-        topicStatsStream.writePair("msgThroughputOut", topicStats.aggMsgThroughputOut);
+        topicStatsStream.writePair("averageMsgSize", topicStatsHelper.averageMsgSize);
+        topicStatsStream.writePair("msgRateIn", topicStatsHelper.aggMsgRateIn);
+        topicStatsStream.writePair("msgRateOut", topicStatsHelper.aggMsgRateOut);
+        topicStatsStream.writePair("msgThroughputIn", topicStatsHelper.aggMsgThroughputIn);
+        topicStatsStream.writePair("msgThroughputOut", topicStatsHelper.aggMsgThroughputOut);
         topicStatsStream.writePair("storageSize", ledger.getEstimatedBacklogSize());
         topicStatsStream.writePair("pendingAddEntriesCount", ((ManagedLedgerImpl) ledger).getPendingAddEntriesCount());
 
-        nsStats.msgRateIn += topicStats.aggMsgRateIn;
-        nsStats.msgRateOut += topicStats.aggMsgRateOut;
-        nsStats.msgThroughputIn += topicStats.aggMsgThroughputIn;
-        nsStats.msgThroughputOut += topicStats.aggMsgThroughputOut;
+        nsStats.msgRateIn += topicStatsHelper.aggMsgRateIn;
+        nsStats.msgRateOut += topicStatsHelper.aggMsgRateOut;
+        nsStats.msgThroughputIn += topicStatsHelper.aggMsgThroughputIn;
+        nsStats.msgThroughputOut += topicStatsHelper.aggMsgThroughputOut;
         nsStats.storageSize += ledger.getEstimatedBacklogSize();
 
-        bundleStats.msgRateIn += topicStats.aggMsgRateIn;
-        bundleStats.msgRateOut += topicStats.aggMsgRateOut;
-        bundleStats.msgThroughputIn += topicStats.aggMsgThroughputIn;
-        bundleStats.msgThroughputOut += topicStats.aggMsgThroughputOut;
+        bundleStats.msgRateIn += topicStatsHelper.aggMsgRateIn;
+        bundleStats.msgRateOut += topicStatsHelper.aggMsgRateOut;
+        bundleStats.msgThroughputIn += topicStatsHelper.aggMsgThroughputIn;
+        bundleStats.msgThroughputOut += topicStatsHelper.aggMsgThroughputOut;
         bundleStats.cacheSize += ((ManagedLedgerImpl) ledger).getCacheSize();
 
         // Close topic object
         topicStatsStream.endObject();
     }
 
-    public PersistentTopicStats getStats() {
+    public TopicStats getStats() {
 
-        PersistentTopicStats stats = new PersistentTopicStats();
+        TopicStats stats = new TopicStats();
 
         ObjectObjectHashMap<String, PublisherStats> remotePublishersStats = new ObjectObjectHashMap<String, PublisherStats>();
 
