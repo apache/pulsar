@@ -89,7 +89,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private Table<ByteBuf, ByteBuf> stateTable;
 
     private JavaInstance javaInstance;
-    private AtomicBoolean running = new AtomicBoolean(true);
+    @Getter
+    private Exception deathException;
 
     @Getter(AccessLevel.PACKAGE)
     private Map<String, SerDe> inputSerDe;
@@ -172,7 +173,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     public void run() {
         try {
             javaInstance = setupJavaInstance();
-            while (running.get()) {
+            while (true) {
 
                 currentRecord = processor.recieveMessage();
 
@@ -227,7 +228,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             }
         } catch (Exception ex) {
             log.error("Uncaught exception in Java Instance", ex);
-            throw new RuntimeException(ex);
+            deathException = ex;
+            return;
         } finally {
             close();
         }
@@ -343,19 +345,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         processor.sendOutputMessage(srcRecord, msgBuilder);
     }
 
-    /**
-     * Stop java instance runnable
-     */
-    public void stop() {
-        this.running.set(false);
-    }
-
     @Override
     public void close() {
-        if (!running.get()) {
-            return;
-        }
-
         processor.close();
         javaInstance.close();
 

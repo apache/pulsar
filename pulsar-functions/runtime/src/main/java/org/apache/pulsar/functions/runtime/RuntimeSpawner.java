@@ -72,6 +72,8 @@ public class RuntimeSpawner implements AutoCloseable {
                     if (!runtime.isAlive()) {
                         log.error("Function Container is dead with exception", runtime.getDeathException());
                         log.error("Restarting...");
+                        // Just for the sake of sanity, just destroy the runtime
+                        runtime.stop();
                         runtimeDeathException = runtime.getDeathException();
                         runtime.start();
                         numRestarts++;
