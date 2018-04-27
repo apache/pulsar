@@ -79,11 +79,11 @@ public class PulsarClusterMetadataSetup {
         private String zookeeper;
 
         @Parameter(names = { "-gzk",
-                "--global-zookeeper" }, description = "Global ZooKeeper quorum connection string", required = true, hidden = true)
+                "--global-zookeeper" }, description = "Global ZooKeeper quorum connection string", required = false, hidden = true)
         private String globalZookeeper;
 
         @Parameter(names = { "-cs",
-            "--configuration-store" }, description = "Configuration Store connection string", required = true)
+            "--configuration-store" }, description = "Configuration Store connection string", required = false)
         private String configurationStore;
 
         @Parameter(names = { "-h", "--help" }, description = "Show this help message")
@@ -103,6 +103,18 @@ public class PulsarClusterMetadataSetup {
         } catch (Exception e) {
             jcommander.usage();
             throw e;
+        }
+
+        if (arguments.configurationStore == null && arguments.globalZookeeper == null) {
+            System.err.println("Configuration store address argument is required (--configuration-store)");
+            jcommander.usage();
+            System.exit(1);
+        }
+
+        if (arguments.configurationStore != null && arguments.globalZookeeper != null) {
+            System.err.println("Configuration store argument (--configuration-store) supercedes the deprecated (--global-zookeeper) argument");
+            jcommander.usage();
+            System.exit(1);
         }
 
         if (arguments.configurationStore == null) {
