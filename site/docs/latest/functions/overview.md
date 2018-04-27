@@ -21,6 +21,13 @@ public class ExclamationFunction implements Function<String, String> {
 }
 ```
 
+Here's an equivalent function in Python (also using the [native interface](../api#python-native)):
+
+```python
+def process(input):
+    return "{0}!".format(input)
+```
+
 Functions are executed each time a message is published to the input topic. If a function is listening on the topic `tweet-stream`, for example, then the function would be run each time a message is published to that topic.
 
 ## Goals
@@ -207,11 +214,13 @@ Each Pulsar Function created using the [Pulsar Functions SDK](#sdk) has access t
 
 Both Java and Python support writing "native" functions, i.e. Pulsar Functions with no dependencies.
 
-The benefit of native functions is that they don't have any dependencies beyond what's already available in Java/Python "out of the box." The downside is that they don't provide access to the function's [context](#context)
+The benefit of native functions is that they don't have any dependencies beyond what's already available in Java/Python "out of the box." The downside is that they don't provide access to the function's [context](#context), which is necessary for a variety of functionality, including [logging](#logging), [user configuration](#user-config), and more.
 
 ## The Pulsar Functions SDK {#sdk}
 
-If you'd like a Pulsar Function to have access to a [context object](#context), you can use the Pulsar Functions SDK, available for both [Java](../api#java-sdk) and [Pythnon](../api#python-sdk).
+If you'd like a Pulsar Function to have access to a [context object](#context), you can use the **Pulsar Functions SDK**, available for both [Java](../api#java-sdk) and [Pythnon](../api#python-sdk).
+
+### Java {#java-sdk}
 
 Here's an example Java function that uses information about its context:
 
@@ -233,7 +242,22 @@ public class ContextAwareFunction implements Function<String, Void> {
 }
 ```
 
-## Deployment modes
+### Python {#python-sdk}
+
+Here's an example Python function that uses information about its context:
+
+```python
+from pulsar import Function
+
+class ContextAwareFunction(Function):
+    def process(self, input, context):
+        log = context.get_logger()
+        function_tenant = context.get_tenant()
+        function_namespace = context.get_namespace()
+        function_name = context.get_function_name()
+```
+
+## Deployment
 
 The Pulsar Functions feature was built to support a variety of deployment options. At the moment, there are two ways to run Pulsar Functions:
 

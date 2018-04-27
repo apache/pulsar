@@ -383,7 +383,7 @@ Pulsar does not store your custom SerDe classes separately from your Pulsar Func
 
 ### Java logging
 
-Pulsar Functions that use the [Java SDK](#java-sdk) have access to an [SLF4j](https://www.slf4j.org/) [`Logger`](https://www.slf4j.org/api/org/apache/log4j/Logger.html) object that can be used to create logs. Here's a simple example function that logs either a `WARNING`- or `INFO`-level log based on whether the incoming string contains the word `danger`:
+Pulsar Functions that use the [Java SDK](#java-sdk) have access to an [SLF4j](https://www.slf4j.org/) [`Logger`](https://www.slf4j.org/api/org/apache/log4j/Logger.html) object that can be used to produce logs at the chosen log level. Here's a simple example function that logs either a `WARNING`- or `INFO`-level log based on whether the incoming string contains the word `danger`:
 
 ```java
 import org.apache.pulsar.functions.api.Context;
@@ -485,6 +485,8 @@ public class MetricRecorderFunction implements Function<Integer, Void> {
         if (input == 11) {
             context.recordMetric("elevens-count", 1);
         }
+
+        return null;
     }
 }
 ```
@@ -610,23 +612,88 @@ class Tweet(object):
 In order to use this class in Pulsar Functions, you'd have two options:
 
 1. You could specify `PickleSerDe`, which would apply the [`pickle`](https://docs.python.org/3/library/pickle.html) library's SerDe
-1. You could create your own SerDe class. Here's an example:
+1. You could create your own SerDe class. Here's a simple example:
 
   ```python
   from pulsar import SerDe
 
   class TweetSerDe(SerDe):
+      def __init__(self, tweet):
+          self.tweet = tweet
+
       def serialize(self, input):
-          # Convert object into bytes
+          return bytes("{0}|{1}".format(self.tweet.username, self.tweet.tweet_content))
 
       def deserialize(self, input_bytes):
-          # Convert bytes into object
+          tweet_components = str(input_bytes).split('|')
+          return Tweet(tweet_components[0], tweet_componentsp[1])
   ```
 
 ### Python logging
 
-Pulsar Functions that use the [Python SDK](#python-sdk)
+Pulsar Functions that use the [Python SDK](#python-sdk) have access to a logging object that can be used to produce logs at the chosen log level. Here's a simple example function that logs either a `WARNING`- or `INFO`-level log based on whether the incoming string contains the word `danger`:
+
+```python
+from pulsar import Function
+
+class LoggingFunction(Function):
+    def process(self, input, context):
+        logger = context.get_logger()
+        msg_id = context.get_message_id()
+        if 'danger' in input:
+            logger.warn("A warning was received in message {0}".format(context.get_message_id()))
+        else:
+            logger.info("Message {0} received\nContent: {1}".format(msg_id, input))
+```
+
+If you want your function to produce logs on a Pulsar topic, you need to specify a **log topic** when creating or running the function. Here's an example:
+
+```bash
+$ bin/pulsar-admin functions create \
+  --py logging_function.py \
+  --className logging_function.LoggingFunction \
+  --logTopic logging-function-logs \
+  # Other function configs
+```
+
+Now, all logs produced by the `LoggingFunction` above can be accessed via the `logging-function-logs` topic.
 
 ### Python user config
 
+The Python SDK's [`Context`](#python-context) object enables you to access key/value pairs provided to the Pulsar Function via the command line (as JSON). Here's an example function creation command that passes a key/value pair:
+
+```bash
+$ bin/pulsar-admin functions create \
+  # Other function configs \
+  --userConfig '{"word-of-the-day":"verdure"}'
+```
+
+To access that value in a Python function:
+
+```python
+from pulsar import Function
+
+class UserConfigFunction(Function):
+    def process(self, input, context):
+        logger = context.get_logger()
+        wotd = context.get_user_config_value('word-of-the-day')
+        if wotd is None:
+            logger.warn('No word of the day provided')
+        else:
+            logger.info("The word of the day is {0}".format(wotd))
+```
+
 ### Python metrics
+
+You can record metrics using the [`Context`](#python-context) object on a per-key basis. You can, for example, set a metric for the key `process-count` and a different metric for the key `elevens-count` every time the function processes a message. Here's an example:
+
+```python
+from pulsar import Function
+
+class MetricRecorderFunction(Function):
+    def process(self, input, context):
+        context.record_metric('hit-count', 1)
+
+        if input == 11:
+            context.record_metric('elevens-count', 1)
+```
