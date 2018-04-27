@@ -17,8 +17,8 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6};
-var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
+var methods = {"i0":38,"i1":38,"i2":38,"i3":38,"i4":38,"i5":38,"i6":38,"i7":38,"i8":38,"i9":38,"i10":38,"i11":38,"i12":38,"i13":38};
+var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],32:["t6","Deprecated Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
 var tableTab = "tableTab";
@@ -98,8 +98,12 @@ var activeTableTab = "activeTableTab";
 <ul class="blockList">
 <li class="blockList">
 <hr>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;
+<div class="block"><span class="deprecationComment">since 2.0. See <a href="../../../../../org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin"><code>Topics</code></a></span></div>
+</div>
 <br>
-<pre>public interface <span class="typeNameLabel">NonPersistentTopics</span></pre>
+<pre>@Deprecated
+public interface <span class="typeNameLabel">NonPersistentTopics</span></pre>
 </li>
 </ul>
 </div>
@@ -113,7 +117,7 @@ var activeTableTab = "activeTableTab";
 </a>
 <h3>Method Summary</h3>
 <table class="memberSummary" border="0" cellpadding="3" cellspacing="0" summary="Method Summary table, listing methods, and an explanation">
-<caption><span id="t0" class="activeTableTab"><span>All Methods</span><span class="tabEnd">&nbsp;</span></span><span id="t2" class="tableTab"><span><a href="javascript:show(2);">Instance Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t3" class="tableTab"><span><a href="javascript:show(4);">Abstract Methods</a></span><span class="tabEnd">&nbsp;</span></span></caption>
+<caption><span id="t0" class="activeTableTab"><span>All Methods</span><span class="tabEnd">&nbsp;</span></span><span id="t2" class="tableTab"><span><a href="javascript:show(2);">Instance Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t3" class="tableTab"><span><a href="javascript:show(4);">Abstract Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t6" class="tableTab"><span><a href="javascript:show(32);">Deprecated Methods</a></span><span class="tabEnd">&nbsp;</span></span></caption>
 <tr>
 <th class="colFirst" scope="col">Modifier and Type</th>
 <th class="colLast" scope="col">Method and Description</th>
@@ -122,6 +126,7 @@ var activeTableTab = "activeTableTab";
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#createPartitionedTopic-java.lang.String-int-">createPartitionedTopic</a></span>(String&nbsp;topic,
                       int&nbsp;numPartitions)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Create a partitioned topic.</div>
 </td>
 </tr>
@@ -129,30 +134,35 @@ var activeTableTab = "activeTableTab";
 <td class="colFirst"><code>CompletableFuture&lt;Void&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#createPartitionedTopicAsync-java.lang.String-int-">createPartitionedTopicAsync</a></span>(String&nbsp;topic,
                            int&nbsp;numPartitions)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Create a partitioned topic asynchronously.</div>
 </td>
 </tr>
 <tr id="i2" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicInternalStats</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#getInternalStats-java.lang.String-">getInternalStats</a></span>(String&nbsp;topic)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Get the internal stats for the topic.</div>
 </td>
 </tr>
 <tr id="i3" class="rowColor">
 <td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicInternalStats</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#getInternalStatsAsync-java.lang.String-">getInternalStatsAsync</a></span>(String&nbsp;topic)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Get the internal stats for the topic asynchronously.</div>
 </td>
 </tr>
 <tr id="i4" class="altColor">
 <td class="colFirst"><code>List&lt;String&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#getList-java.lang.String-">getList</a></span>(String&nbsp;namespace)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Get list of topics exist into given namespace</div>
 </td>
 </tr>
 <tr id="i5" class="rowColor">
 <td class="colFirst"><code>CompletableFuture&lt;List&lt;String&gt;&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#getListAsync-java.lang.String-">getListAsync</a></span>(String&nbsp;namespace)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Get list of topics exist into given namespace asynchronously.</div>
 </td>
 </tr>
@@ -160,6 +170,7 @@ var activeTableTab = "activeTableTab";
 <td class="colFirst"><code>List&lt;String&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#getListInBundle-java.lang.String-java.lang.String-">getListInBundle</a></span>(String&nbsp;namespace,
                String&nbsp;bundleRange)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Get list of topics exist into given bundle</div>
 </td>
 </tr>
@@ -167,42 +178,49 @@ var activeTableTab = "activeTableTab";
 <td class="colFirst"><code>CompletableFuture&lt;List&lt;String&gt;&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#getListInBundleAsync-java.lang.String-java.lang.String-">getListInBundleAsync</a></span>(String&nbsp;namespace,
                     String&nbsp;bundleRange)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Get list of topics exist into given bundle asynchronously.</div>
 </td>
 </tr>
 <tr id="i8" class="altColor">
 <td class="colFirst"><code>PartitionedTopicMetadata</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#getPartitionedTopicMetadata-java.lang.String-">getPartitionedTopicMetadata</a></span>(String&nbsp;topic)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Get metadata of a partitioned topic.</div>
 </td>
 </tr>
 <tr id="i9" class="rowColor">
 <td class="colFirst"><code>CompletableFuture&lt;PartitionedTopicMetadata&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#getPartitionedTopicMetadataAsync-java.lang.String-">getPartitionedTopicMetadataAsync</a></span>(String&nbsp;topic)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Get metadata of a partitioned topic asynchronously.</div>
 </td>
 </tr>
 <tr id="i10" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentTopicStats</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#getStats-java.lang.String-">getStats</a></span>(String&nbsp;topic)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Get the stats for the topic.</div>
 </td>
 </tr>
 <tr id="i11" class="rowColor">
 <td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentTopicStats</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#getStatsAsync-java.lang.String-">getStatsAsync</a></span>(String&nbsp;topic)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Get the stats for the topic asynchronously.</div>
 </td>
 </tr>
 <tr id="i12" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#unload-java.lang.String-">unload</a></span>(String&nbsp;topic)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Unload a topic.</div>
 </td>
 </tr>
 <tr id="i13" class="rowColor">
 <td class="colFirst"><code>CompletableFuture&lt;Void&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#unloadAsync-java.lang.String-">unloadAsync</a></span>(String&nbsp;topic)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Unload a topic asynchronously.</div>
 </td>
 </tr>
@@ -229,6 +247,7 @@ var activeTableTab = "activeTableTab";
 <h4>getPartitionedTopicMetadata</h4>
 <pre>PartitionedTopicMetadata&nbsp;getPartitionedTopicMetadata(String&nbsp;topic)
                                               throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Get metadata of a partitioned topic.
  <p>
  Get metadata of a partitioned topic.
@@ -250,6 +269,7 @@ var activeTableTab = "activeTableTab";
 <li class="blockList">
 <h4>getPartitionedTopicMetadataAsync</h4>
 <pre>CompletableFuture&lt;PartitionedTopicMetadata&gt;&nbsp;getPartitionedTopicMetadataAsync(String&nbsp;topic)</pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Get metadata of a partitioned topic asynchronously.
  <p>
  Get metadata of a partitioned topic asynchronously.
@@ -270,6 +290,7 @@ var activeTableTab = "activeTableTab";
 <h4>getStats</h4>
 <pre><a href="../../../../../org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentTopicStats</a>&nbsp;getStats(String&nbsp;topic)
                           throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Get the stats for the topic.
  <p>
  Response Example:
@@ -348,6 +369,7 @@ var activeTableTab = "activeTableTab";
 <li class="blockList">
 <h4>getStatsAsync</h4>
 <pre>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentTopicStats</a>&gt;&nbsp;getStatsAsync(String&nbsp;topic)</pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Get the stats for the topic asynchronously. All the rates are computed over a 1 minute window and are relative
  the last completed 1 minute period.</div>
 <dl>
@@ -366,6 +388,7 @@ var activeTableTab = "activeTableTab";
 <h4>getInternalStats</h4>
 <pre><a href="../../../../../org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicInternalStats</a>&nbsp;getInternalStats(String&nbsp;topic)
                                        throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Get the internal stats for the topic.
  <p>
  Access the internal state of the topic</div>
@@ -388,6 +411,7 @@ var activeTableTab = "activeTableTab";
 <li class="blockList">
 <h4>getInternalStatsAsync</h4>
 <pre>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicInternalStats</a>&gt;&nbsp;getInternalStatsAsync(String&nbsp;topic)</pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Get the internal stats for the topic asynchronously.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -406,6 +430,7 @@ var activeTableTab = "activeTableTab";
 <pre>void&nbsp;createPartitionedTopic(String&nbsp;topic,
                             int&nbsp;numPartitions)
                      throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Create a partitioned topic.
  <p>
  Create a partitioned topic. It needs to be called before creating a producer for a partitioned topic.
@@ -427,6 +452,7 @@ var activeTableTab = "activeTableTab";
 <h4>createPartitionedTopicAsync</h4>
 <pre>CompletableFuture&lt;Void&gt;&nbsp;createPartitionedTopicAsync(String&nbsp;topic,
                                                     int&nbsp;numPartitions)</pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Create a partitioned topic asynchronously.
  <p>
  Create a partitioned topic asynchronously. It needs to be called before creating a producer for a partitioned
@@ -449,6 +475,7 @@ var activeTableTab = "activeTableTab";
 <h4>unload</h4>
 <pre>void&nbsp;unload(String&nbsp;topic)
      throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Unload a topic.
  <p></div>
 <dl>
@@ -468,6 +495,7 @@ var activeTableTab = "activeTableTab";
 <li class="blockList">
 <h4>unloadAsync</h4>
 <pre>CompletableFuture&lt;Void&gt;&nbsp;unloadAsync(String&nbsp;topic)</pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Unload a topic asynchronously.
  <p></div>
 <dl>
@@ -487,6 +515,7 @@ var activeTableTab = "activeTableTab";
 <pre>List&lt;String&gt;&nbsp;getListInBundle(String&nbsp;namespace,
                              String&nbsp;bundleRange)
                       throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Get list of topics exist into given bundle</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -506,6 +535,7 @@ var activeTableTab = "activeTableTab";
 <h4>getListInBundleAsync</h4>
 <pre>CompletableFuture&lt;List&lt;String&gt;&gt;&nbsp;getListInBundleAsync(String&nbsp;namespace,
                                                      String&nbsp;bundleRange)</pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Get list of topics exist into given bundle asynchronously.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -523,6 +553,7 @@ var activeTableTab = "activeTableTab";
 <h4>getList</h4>
 <pre>List&lt;String&gt;&nbsp;getList(String&nbsp;namespace)
               throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Get list of topics exist into given namespace</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -540,6 +571,7 @@ var activeTableTab = "activeTableTab";
 <li class="blockList">
 <h4>getListAsync</h4>
 <pre>CompletableFuture&lt;List&lt;String&gt;&gt;&nbsp;getListAsync(String&nbsp;namespace)</pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Get list of topics exist into given namespace asynchronously.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>

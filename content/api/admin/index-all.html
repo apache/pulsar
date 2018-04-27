@@ -82,8 +82,6 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html#add-org.apache.pulsar.common.policies.data.NonPersistentTopicStats-">add(NonPersistentTopicStats)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentTopicStats</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html#add-org.apache.pulsar.common.policies.data.PersistentTopicStats-">add(PersistentTopicStats)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicStats</a></dt>
-<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PublisherStats.html#add-org.apache.pulsar.common.policies.data.PublisherStats-">add(PublisherStats)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PublisherStats.html" title="class in org.apache.pulsar.common.policies.data">PublisherStats</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ReplicatorStats.html#add-org.apache.pulsar.common.policies.data.ReplicatorStats-">add(ReplicatorStats)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ReplicatorStats.html" title="class in org.apache.pulsar.common.policies.data">ReplicatorStats</a></dt>
@@ -93,6 +91,8 @@
 <div class="block">Add quota.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html#add-org.apache.pulsar.common.policies.data.SubscriptionStats-">add(SubscriptionStats)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">SubscriptionStats</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/TopicStats.html#add-org.apache.pulsar.common.policies.data.TopicStats-">add(TopicStats)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/TopicStats.html" title="class in org.apache.pulsar.common.policies.data">TopicStats</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentOfflineTopicStats.html#addCursorDetails-java.lang.String-long-long-">addCursorDetails(String, long, long)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentOfflineTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentOfflineTopicStats</a></dt>
 <dd>&nbsp;</dd>
@@ -150,13 +150,13 @@
 <dd>
 <div class="block">Number of available message permits for the consumer</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html#averageMsgSize">averageMsgSize</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicStats</a></dt>
-<dd>
-<div class="block">Average size of published messages.</div>
-</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PublisherStats.html#averageMsgSize">averageMsgSize</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PublisherStats.html" title="class in org.apache.pulsar.common.policies.data">PublisherStats</a></dt>
 <dd>
 <div class="block">Average message size published by this publisher</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/TopicStats.html#averageMsgSize">averageMsgSize</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/TopicStats.html" title="class in org.apache.pulsar.common.policies.data">TopicStats</a></dt>
+<dd>
+<div class="block">Average size of published messages.</div>
 </dd>
 </dl>
 <a name="I:B">
@@ -290,7 +290,7 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdmin.html#clusters--">clusters()</a></span> - Method in class org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin">PulsarAdmin</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#compactionStatus-java.lang.String-">compactionStatus(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#compactionStatus-java.lang.String-">compactionStatus(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Check the status of an ongoing compaction for a topic.</div>
 </dd>
@@ -358,17 +358,19 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/NonPersistentTopics.html#createPartitionedTopic-java.lang.String-int-">createPartitionedTopic(String, int)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/NonPersistentTopics.html" title="interface in org.apache.pulsar.client.admin">NonPersistentTopics</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Create a partitioned topic.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#createPartitionedTopic-java.lang.String-int-">createPartitionedTopic(String, int)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#createPartitionedTopic-java.lang.String-int-">createPartitionedTopic(String, int)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Create a partitioned topic.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/NonPersistentTopics.html#createPartitionedTopicAsync-java.lang.String-int-">createPartitionedTopicAsync(String, int)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/NonPersistentTopics.html" title="interface in org.apache.pulsar.client.admin">NonPersistentTopics</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Create a partitioned topic asynchronously.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#createPartitionedTopicAsync-java.lang.String-int-">createPartitionedTopicAsync(String, int)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#createPartitionedTopicAsync-java.lang.String-int-">createPartitionedTopicAsync(String, int)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Create a partitioned topic asynchronously.</div>
 </dd>
@@ -377,11 +379,11 @@
 <div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Create a new property.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#createSubscription-java.lang.String-java.lang.String-MessageId-">createSubscription(String, String, MessageId)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#createSubscription-java.lang.String-java.lang.String-MessageId-">createSubscription(String, String, MessageId)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Create a new subscription on a topic</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#createSubscriptionAsync-java.lang.String-java.lang.String-MessageId-">createSubscriptionAsync(String, String, MessageId)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#createSubscriptionAsync-java.lang.String-java.lang.String-MessageId-">createSubscriptionAsync(String, String, MessageId)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Create a new subscription on a topic</div>
 </dd>
@@ -423,15 +425,15 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/Policies.html#deduplicationEnabled">deduplicationEnabled</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/Policies.html" title="class in org.apache.pulsar.common.policies.data">Policies</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html#deduplicationStatus">deduplicationStatus</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicStats</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/TopicStats.html#deduplicationStatus">deduplicationStatus</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/TopicStats.html" title="class in org.apache.pulsar.common.policies.data">TopicStats</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/Policies.html#defaultBundle--">defaultBundle()</a></span> - Static method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/Policies.html" title="class in org.apache.pulsar.common.policies.data">Policies</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#delete-java.lang.String-">delete(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#delete-java.lang.String-">delete(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Delete a topic.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#deleteAsync-java.lang.String-">deleteAsync(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#deleteAsync-java.lang.String-">deleteAsync(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Delete a topic asynchronously.</div>
 </dd>
@@ -465,11 +467,11 @@
 <dd>
 <div class="block">Delete a namespace isolation policy for a cluster</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#deletePartitionedTopic-java.lang.String-">deletePartitionedTopic(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#deletePartitionedTopic-java.lang.String-">deletePartitionedTopic(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Delete a partitioned topic.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#deletePartitionedTopicAsync-java.lang.String-">deletePartitionedTopicAsync(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#deletePartitionedTopicAsync-java.lang.String-">deletePartitionedTopicAsync(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Delete a partitioned topic asynchronously.</div>
 </dd>
@@ -482,11 +484,11 @@
 <div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Delete an existing property.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#deleteSubscription-java.lang.String-java.lang.String-">deleteSubscription(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#deleteSubscription-java.lang.String-java.lang.String-">deleteSubscription(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Delete a subscription.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#deleteSubscriptionAsync-java.lang.String-java.lang.String-">deleteSubscriptionAsync(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#deleteSubscriptionAsync-java.lang.String-java.lang.String-">deleteSubscriptionAsync(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Delete a subscription asynchronously.</div>
 </dd>
@@ -562,20 +564,20 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ErrorData.html#ErrorData-java.lang.String-">ErrorData(String)</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ErrorData.html" title="class in org.apache.pulsar.common.policies.data">ErrorData</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#expireMessages-java.lang.String-java.lang.String-long-">expireMessages(String, String, long)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#expireMessages-java.lang.String-java.lang.String-long-">expireMessages(String, String, long)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Expire all messages older than given N (expireTimeInSeconds) seconds for a given subscription</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#expireMessagesAsync-java.lang.String-java.lang.String-long-">expireMessagesAsync(String, String, long)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#expireMessagesAsync-java.lang.String-java.lang.String-long-">expireMessagesAsync(String, String, long)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Expire all messages older than given N (expireTimeInSeconds) seconds for a given subscription asynchronously</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#expireMessagesForAllSubscriptions-java.lang.String-long-">expireMessagesForAllSubscriptions(String, long)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#expireMessagesForAllSubscriptions-java.lang.String-long-">expireMessagesForAllSubscriptions(String, long)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Expire all messages older than given N (expireTimeInSeconds) seconds for all subscriptions of the
  persistent-topic</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#expireMessagesForAllSubscriptionsAsync-java.lang.String-long-">expireMessagesForAllSubscriptionsAsync(String, long)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#expireMessagesForAllSubscriptionsAsync-java.lang.String-long-">expireMessagesForAllSubscriptionsAsync(String, long)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Expire all messages older than given N (expireTimeInSeconds) seconds for all subscriptions of the
  persistent-topic asynchronously</div>
@@ -746,27 +748,29 @@
 <dd>
 <div class="block">Get the internal configuration data.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#getInternalInfo-java.lang.String-">getInternalInfo(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#getInternalInfo-java.lang.String-">getInternalInfo(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Get a JSON representation of the topic metadata stored in ZooKeeper</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#getInternalInfoAsync-java.lang.String-">getInternalInfoAsync(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#getInternalInfoAsync-java.lang.String-">getInternalInfoAsync(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Get a JSON representation of the topic metadata stored in ZooKeeper</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/NonPersistentTopics.html#getInternalStats-java.lang.String-">getInternalStats(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/NonPersistentTopics.html" title="interface in org.apache.pulsar.client.admin">NonPersistentTopics</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Get the internal stats for the topic.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#getInternalStats-java.lang.String-">getInternalStats(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#getInternalStats-java.lang.String-">getInternalStats(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Get the internal stats for the topic.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/NonPersistentTopics.html#getInternalStatsAsync-java.lang.String-">getInternalStatsAsync(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/NonPersistentTopics.html" title="interface in org.apache.pulsar.client.admin">NonPersistentTopics</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Get the internal stats for the topic asynchronously.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#getInternalStatsAsync-java.lang.String-">getInternalStatsAsync(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#getInternalStatsAsync-java.lang.String-">getInternalStatsAsync(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Get the internal stats for the topic asynchronously.</div>
 </dd>
@@ -776,21 +780,33 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/NonPersistentTopics.html#getList-java.lang.String-">getList(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/NonPersistentTopics.html" title="interface in org.apache.pulsar.client.admin">NonPersistentTopics</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Get list of topics exist into given namespace</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#getList-java.lang.String-">getList(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#getList-java.lang.String-">getList(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Get the list of topics under a namespace.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/NonPersistentTopics.html#getListAsync-java.lang.String-">getListAsync(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/NonPersistentTopics.html" title="interface in org.apache.pulsar.client.admin">NonPersistentTopics</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Get list of topics exist into given namespace asynchronously.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/NonPersistentTopics.html#getListInBundle-java.lang.String-java.lang.String-">getListInBundle(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/NonPersistentTopics.html" title="interface in org.apache.pulsar.client.admin">NonPersistentTopics</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+<div class="block">Get list of topics exist into given bundle</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#getListInBundle-java.lang.String-java.lang.String-">getListInBundle(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
+<dd>
 <div class="block">Get list of topics exist into given bundle</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/NonPersistentTopics.html#getListInBundleAsync-java.lang.String-java.lang.String-">getListInBundleAsync(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/NonPersistentTopics.html" title="interface in org.apache.pulsar.client.admin">NonPersistentTopics</a></dt>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+<div class="block">Get list of topics exist into given bundle asynchronously.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#getListInBundleAsync-java.lang.String-java.lang.String-">getListInBundleAsync(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Get list of topics exist into given bundle asynchronously.</div>
 </dd>
@@ -870,31 +886,33 @@
 <dd>
 <div class="block">Get the map of owned namespaces and their status from a single broker in the cluster</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#getPartitionedStats-java.lang.String-boolean-">getPartitionedStats(String, boolean)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#getPartitionedStats-java.lang.String-boolean-">getPartitionedStats(String, boolean)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Get the stats for the partitioned topic</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#getPartitionedStatsAsync-java.lang.String-boolean-">getPartitionedStatsAsync(String, boolean)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#getPartitionedStatsAsync-java.lang.String-boolean-">getPartitionedStatsAsync(String, boolean)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Get the stats for the partitioned topic asynchronously</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#getPartitionedTopicList-java.lang.String-">getPartitionedTopicList(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#getPartitionedTopicList-java.lang.String-">getPartitionedTopicList(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Get the list of partitioned topics under a namespace.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/NonPersistentTopics.html#getPartitionedTopicMetadata-java.lang.String-">getPartitionedTopicMetadata(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/NonPersistentTopics.html" title="interface in org.apache.pulsar.client.admin">NonPersistentTopics</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Get metadata of a partitioned topic.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#getPartitionedTopicMetadata-java.lang.String-">getPartitionedTopicMetadata(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#getPartitionedTopicMetadata-java.lang.String-">getPartitionedTopicMetadata(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Get metadata of a partitioned topic.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/NonPersistentTopics.html#getPartitionedTopicMetadataAsync-java.lang.String-">getPartitionedTopicMetadataAsync(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/NonPersistentTopics.html" title="interface in org.apache.pulsar.client.admin">NonPersistentTopics</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Get metadata of a partitioned topic asynchronously.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#getPartitionedTopicMetadataAsync-java.lang.String-">getPartitionedTopicMetadataAsync(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#getPartitionedTopicMetadataAsync-java.lang.String-">getPartitionedTopicMetadataAsync(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Get metadata of a partitioned topic asynchronously.</div>
 </dd>
@@ -910,7 +928,7 @@
 <dd>
 <div class="block">Get permissions on a namespace.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#getPermissions-java.lang.String-">getPermissions(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#getPermissions-java.lang.String-">getPermissions(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Get permissions on a topic.</div>
 </dd>
@@ -984,17 +1002,19 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/NonPersistentTopics.html#getStats-java.lang.String-">getStats(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/NonPersistentTopics.html" title="interface in org.apache.pulsar.client.admin">NonPersistentTopics</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Get the stats for the topic.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#getStats-java.lang.String-">getStats(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#getStats-java.lang.String-">getStats(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Get the stats for the topic.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/NonPersistentTopics.html#getStatsAsync-java.lang.String-">getStatsAsync(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/NonPersistentTopics.html" title="interface in org.apache.pulsar.client.admin">NonPersistentTopics</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Get the stats for the topic asynchronously.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#getStatsAsync-java.lang.String-">getStatsAsync(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#getStatsAsync-java.lang.String-">getStatsAsync(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Get the stats for the topic asynchronously.</div>
 </dd>
@@ -1004,13 +1024,13 @@
 <dd>
 <div class="block">Get subscription-message-dispatch-rate (subscriptions under this namespace can dispatch this many messages per second)</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#getSubscriptions-java.lang.String-">getSubscriptions(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#getSubscriptions-java.lang.String-">getSubscriptions(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Get the list of subscriptions.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html#getSubscriptions--">getSubscriptions()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentTopicStats</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#getSubscriptionsAsync-java.lang.String-">getSubscriptionsAsync(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#getSubscriptionsAsync-java.lang.String-">getSubscriptionsAsync(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Get the list of subscriptions asynchronously.</div>
 </dd>
@@ -1034,7 +1054,7 @@
 <dd>
 <div class="block">Get the list of topics.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#grantPermission-java.lang.String-java.lang.String-java.util.Set-">grantPermission(String, String, Set&lt;AuthAction&gt;)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#grantPermission-java.lang.String-java.lang.String-java.util.Set-">grantPermission(String, String, Set&lt;AuthAction&gt;)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Grant permission on a topic.</div>
 </dd>
@@ -1223,10 +1243,6 @@
 <dd>
 <div class="block">Total rate of messages expired on this subscription.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html#msgRateIn">msgRateIn</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicStats</a></dt>
-<dd>
-<div class="block">Total rate of messages published on the topic.</div>
-</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PublisherStats.html#msgRateIn">msgRateIn</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PublisherStats.html" title="class in org.apache.pulsar.common.policies.data">PublisherStats</a></dt>
 <dd>
 <div class="block">Total rate of messages published by this publisher.</div>
@@ -1235,13 +1251,13 @@
 <dd>
 <div class="block">Total rate of messages received from the remote cluster.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/TopicStats.html#msgRateIn">msgRateIn</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/TopicStats.html" title="class in org.apache.pulsar.common.policies.data">TopicStats</a></dt>
+<dd>
+<div class="block">Total rate of messages published on the topic.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ConsumerStats.html#msgRateOut">msgRateOut</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ConsumerStats.html" title="class in org.apache.pulsar.common.policies.data">ConsumerStats</a></dt>
 <dd>
 <div class="block">Total rate of messages delivered to the consumer.</div>
-</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html#msgRateOut">msgRateOut</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicStats</a></dt>
-<dd>
-<div class="block">Total rate of messages dispatched for the topic.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ReplicatorStats.html#msgRateOut">msgRateOut</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ReplicatorStats.html" title="class in org.apache.pulsar.common.policies.data">ReplicatorStats</a></dt>
 <dd>
@@ -1251,6 +1267,10 @@
 <dd>
 <div class="block">Total rate of messages delivered on this subscription.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/TopicStats.html#msgRateOut">msgRateOut</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/TopicStats.html" title="class in org.apache.pulsar.common.policies.data">TopicStats</a></dt>
+<dd>
+<div class="block">Total rate of messages dispatched for the topic.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ConsumerStats.html#msgRateRedeliver">msgRateRedeliver</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ConsumerStats.html" title="class in org.apache.pulsar.common.policies.data">ConsumerStats</a></dt>
 <dd>
 <div class="block">Total rate of messages redelivered by this consumer.</div>
@@ -1258,10 +1278,6 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html#msgRateRedeliver">msgRateRedeliver</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">SubscriptionStats</a></dt>
 <dd>
 <div class="block">Total rate of messages redelivered on this subscription.</div>
-</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html#msgThroughputIn">msgThroughputIn</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicStats</a></dt>
-<dd>
-<div class="block">Total throughput of messages published on the topic.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PublisherStats.html#msgThroughputIn">msgThroughputIn</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PublisherStats.html" title="class in org.apache.pulsar.common.policies.data">PublisherStats</a></dt>
 <dd>
@@ -1271,13 +1287,13 @@
 <dd>
 <div class="block">Total throughput received from the remote cluster.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/TopicStats.html#msgThroughputIn">msgThroughputIn</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/TopicStats.html" title="class in org.apache.pulsar.common.policies.data">TopicStats</a></dt>
+<dd>
+<div class="block">Total throughput of messages published on the topic.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ConsumerStats.html#msgThroughputOut">msgThroughputOut</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ConsumerStats.html" title="class in org.apache.pulsar.common.policies.data">ConsumerStats</a></dt>
 <dd>
 <div class="block">Total throughput delivered to the consumer.</div>
-</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html#msgThroughputOut">msgThroughputOut</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicStats</a></dt>
-<dd>
-<div class="block">Total throughput of messages dispatched for the topic.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ReplicatorStats.html#msgThroughputOut">msgThroughputOut</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ReplicatorStats.html" title="class in org.apache.pulsar.common.policies.data">ReplicatorStats</a></dt>
 <dd>
@@ -1286,6 +1302,10 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html#msgThroughputOut">msgThroughputOut</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">SubscriptionStats</a></dt>
 <dd>
 <div class="block">Total throughput delivered on this subscription.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/TopicStats.html#msgThroughputOut">msgThroughputOut</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/TopicStats.html" title="class in org.apache.pulsar.common.policies.data">TopicStats</a></dt>
+<dd>
+<div class="block">Total throughput of messages dispatched for the topic.</div>
 </dd>
 </dl>
 <a name="I:N">
@@ -1340,9 +1360,17 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NonPersistentSubscriptionStats.html#NonPersistentSubscriptionStats--">NonPersistentSubscriptionStats()</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NonPersistentSubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentSubscriptionStats</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/client/admin/NonPersistentTopics.html" title="interface in org.apache.pulsar.client.admin"><span class="typeNameLink">NonPersistentTopics</span></a> - Interface in <a href="org/apache/pulsar/client/admin/package-summary.html">org.apache.pulsar.client.admin</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment">since 2.0. See <a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin"><code>Topics</code></a></span></div>
+</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdmin.html#nonPersistentTopics--">nonPersistentTopics()</a></span> - Method in class org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin">PulsarAdmin</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment">Since 2.0. See <a href="org/apache/pulsar/client/admin/PulsarAdmin.html#topics--"><code>PulsarAdmin.topics()</code></a></span></div>
+</div>
+</dd>
 <dt><a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data"><span class="typeNameLink">NonPersistentTopicStats</span></a> - Class in <a href="org/apache/pulsar/common/policies/data/package-summary.html">org.apache.pulsar.common.policies.data</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html#NonPersistentTopicStats--">NonPersistentTopicStats()</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentTopicStats</a></dt>
@@ -1397,11 +1425,11 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PartitionedTopicStats.html#partitions">partitions</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PartitionedTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PartitionedTopicStats</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#peekMessages-java.lang.String-java.lang.String-int-">peekMessages(String, String, int)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#peekMessages-java.lang.String-java.lang.String-int-">peekMessages(String, String, int)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Peek messages from a topic subscription</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#peekMessagesAsync-java.lang.String-java.lang.String-int-">peekMessagesAsync(String, String, int)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#peekMessagesAsync-java.lang.String-java.lang.String-int-">peekMessagesAsync(String, String, int)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Peek messages from a topic subscription asynchronously</div>
 </dd>
@@ -1436,11 +1464,21 @@
 <dt><a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.LedgerInfo.html" title="class in org.apache.pulsar.common.policies.data"><span class="typeNameLink">PersistentTopicInternalStats.LedgerInfo</span></a> - Class in <a href="org/apache/pulsar/common/policies/data/package-summary.html">org.apache.pulsar.common.policies.data</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin"><span class="typeNameLink">PersistentTopics</span></a> - Interface in <a href="org/apache/pulsar/client/admin/package-summary.html">org.apache.pulsar.client.admin</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment">since 2.0. See <a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin"><code>Topics</code></a></span></div>
+</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdmin.html#persistentTopics--">persistentTopics()</a></span> - Method in class org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin">PulsarAdmin</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment">Since 2.0. See <a href="org/apache/pulsar/client/admin/PulsarAdmin.html#topics--"><code>PulsarAdmin.topics()</code></a></span></div>
+</div>
+</dd>
 <dt><a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data"><span class="typeNameLink">PersistentTopicStats</span></a> - Class in <a href="org/apache/pulsar/common/policies/data/package-summary.html">org.apache.pulsar.common.policies.data</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block">Maintain compatibility with previous class name</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html#PersistentTopicStats--">PersistentTopicStats()</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicStats</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/common/policies/data/Policies.html" title="class in org.apache.pulsar.common.policies.data"><span class="typeNameLink">Policies</span></a> - Class in <a href="org/apache/pulsar/common/policies/data/package-summary.html">org.apache.pulsar.common.policies.data</a></dt>
@@ -1475,7 +1513,7 @@
 <dd>
 <div class="block">List of connected publishers on this topic w/ their stats</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html#publishers">publishers</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicStats</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/TopicStats.html#publishers">publishers</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/TopicStats.html" title="class in org.apache.pulsar.common.policies.data">TopicStats</a></dt>
 <dd>
 <div class="block">List of connected publishers on this topic w/ their stats</div>
 </dd>
@@ -1567,7 +1605,7 @@
 <dd>
 <div class="block">Map of replication statistics by remote cluster context</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html#replication">replication</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicStats</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/TopicStats.html#replication">replication</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/TopicStats.html" title="class in org.apache.pulsar.common.policies.data">TopicStats</a></dt>
 <dd>
 <div class="block">Map of replication statistics by remote cluster context</div>
 </dd>
@@ -1593,23 +1631,23 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentOfflineTopicStats.html#reset--">reset()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentOfflineTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentOfflineTopicStats</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html#reset--">reset()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicStats</a></dt>
-<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html#reset--">reset()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/SubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">SubscriptionStats</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#resetCursor-java.lang.String-java.lang.String-long-">resetCursor(String, String, long)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/TopicStats.html#reset--">reset()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/TopicStats.html" title="class in org.apache.pulsar.common.policies.data">TopicStats</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#resetCursor-java.lang.String-java.lang.String-long-">resetCursor(String, String, long)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Reset cursor position on a topic subscription</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#resetCursor-java.lang.String-java.lang.String-MessageId-">resetCursor(String, String, MessageId)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#resetCursor-java.lang.String-java.lang.String-MessageId-">resetCursor(String, String, MessageId)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Reset cursor position on a topic subscription</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#resetCursorAsync-java.lang.String-java.lang.String-long-">resetCursorAsync(String, String, long)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#resetCursorAsync-java.lang.String-java.lang.String-long-">resetCursorAsync(String, String, long)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Reset cursor position on a topic subscription</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#resetCursorAsync-java.lang.String-java.lang.String-MessageId-">resetCursorAsync(String, String, MessageId)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#resetCursorAsync-java.lang.String-java.lang.String-MessageId-">resetCursorAsync(String, String, MessageId)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Reset cursor position on a topic subscription</div>
 </dd>
@@ -1635,7 +1673,7 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/RetentionPolicies.html#RetentionPolicies-int-int-">RetentionPolicies(int, int)</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/RetentionPolicies.html" title="class in org.apache.pulsar.common.policies.data">RetentionPolicies</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#revokePermissions-java.lang.String-java.lang.String-">revokePermissions(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#revokePermissions-java.lang.String-java.lang.String-">revokePermissions(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Revoke permissions on a topic.</div>
 </dd>
@@ -1827,19 +1865,19 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.LedgerInfo.html#size">size</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.LedgerInfo.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicInternalStats.LedgerInfo</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#skipAllMessages-java.lang.String-java.lang.String-">skipAllMessages(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#skipAllMessages-java.lang.String-java.lang.String-">skipAllMessages(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Skip all messages on a topic subscription.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#skipAllMessagesAsync-java.lang.String-java.lang.String-">skipAllMessagesAsync(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#skipAllMessagesAsync-java.lang.String-java.lang.String-">skipAllMessagesAsync(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Skip all messages on a topic subscription asynchronously.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#skipMessages-java.lang.String-java.lang.String-long-">skipMessages(String, String, long)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#skipMessages-java.lang.String-java.lang.String-long-">skipMessages(String, String, long)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Skip messages on a topic subscription.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#skipMessagesAsync-java.lang.String-java.lang.String-long-">skipMessagesAsync(String, String, long)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#skipMessagesAsync-java.lang.String-java.lang.String-long-">skipMessagesAsync(String, String, long)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Skip messages on a topic subscription asynchronously.</div>
 </dd>
@@ -1859,7 +1897,7 @@
 <dd>
 <div class="block">Space used to store the messages for the topic.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html#storageSize">storageSize</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicStats</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/TopicStats.html#storageSize">storageSize</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/TopicStats.html" title="class in org.apache.pulsar.common.policies.data">TopicStats</a></dt>
 <dd>
 <div class="block">Space used to store the messages for the topic.</div>
 </dd>
@@ -1875,7 +1913,7 @@
 <dd>
 <div class="block">Map of subscriptions with their individual statistics</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html#subscriptions">subscriptions</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicStats</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/TopicStats.html#subscriptions">subscriptions</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/TopicStats.html" title="class in org.apache.pulsar.common.policies.data">TopicStats</a></dt>
 <dd>
 <div class="block">Map of subscriptions with their individual statistics</div>
 </dd>
@@ -1905,7 +1943,7 @@
 <dd>
 <div class="block">Admin interface for tenants management</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#terminateTopicAsync-java.lang.String-">terminateTopicAsync(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#terminateTopicAsync-java.lang.String-">terminateTopicAsync(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Terminate the topic and prevent any more messages being published on it.</div>
 </dd>
@@ -1919,6 +1957,14 @@
 <dd>
 <div class="block">offline topic name</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdmin.html#topics--">topics()</a></span> - Method in class org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin">PulsarAdmin</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin"><span class="typeNameLink">Topics</span></a> - Interface in <a href="org/apache/pulsar/client/admin/package-summary.html">org.apache.pulsar.client.admin</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/common/policies/data/TopicStats.html" title="class in org.apache.pulsar.common.policies.data"><span class="typeNameLink">TopicStats</span></a> - Class in <a href="org/apache/pulsar/common/policies/data/package-summary.html">org.apache.pulsar.common.policies.data</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/TopicStats.html#TopicStats--">TopicStats()</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/TopicStats.html" title="class in org.apache.pulsar.common.policies.data">TopicStats</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/AutoFailoverPolicyData.html#toString--">toString()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/AutoFailoverPolicyData.html" title="class in org.apache.pulsar.common.policies.data">AutoFailoverPolicyData</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/BacklogQuota.html#toString--">toString()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/BacklogQuota.html" title="class in org.apache.pulsar.common.policies.data">BacklogQuota</a></dt>
@@ -1955,7 +2001,7 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.html#totalSize">totalSize</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicInternalStats</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#triggerCompaction-java.lang.String-">triggerCompaction(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#triggerCompaction-java.lang.String-">triggerCompaction(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Trigger compaction to run for a topic.</div>
 </dd>
@@ -1987,17 +2033,19 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/NonPersistentTopics.html#unload-java.lang.String-">unload(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/NonPersistentTopics.html" title="interface in org.apache.pulsar.client.admin">NonPersistentTopics</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Unload a topic.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#unload-java.lang.String-">unload(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#unload-java.lang.String-">unload(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Unload a topic.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/NonPersistentTopics.html#unloadAsync-java.lang.String-">unloadAsync(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/NonPersistentTopics.html" title="interface in org.apache.pulsar.client.admin">NonPersistentTopics</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Unload a topic asynchronously.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#unloadAsync-java.lang.String-">unloadAsync(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#unloadAsync-java.lang.String-">unloadAsync(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Unload a topic asynchronously.</div>
 </dd>
@@ -2037,11 +2085,11 @@
 <dd>
 <div class="block">Update a namespace isolation policy for a cluster</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#updatePartitionedTopic-java.lang.String-int-">updatePartitionedTopic(String, int)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#updatePartitionedTopic-java.lang.String-int-">updatePartitionedTopic(String, int)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Update number of partitions of a non-global partitioned topic.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#updatePartitionedTopicAsync-java.lang.String-int-">updatePartitionedTopicAsync(String, int)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#updatePartitionedTopicAsync-java.lang.String-int-">updatePartitionedTopicAsync(String, int)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Update number of partitions of a non-global partitioned topic asynchronously.</div>
 </dd>

@@ -17,12 +17,6 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":10,"i1":10};
-var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
-var altColor = "altColor";
-var rowColor = "rowColor";
-var tableTab = "tableTab";
-var activeTableTab = "activeTableTab";
 </script>
 <noscript>
 <div>JavaScript is disabled on your browser.</div>
@@ -73,15 +67,15 @@ var activeTableTab = "activeTableTab";
 <ul class="subNavList">
 <li>Summary:&nbsp;</li>
 <li>Nested&nbsp;|&nbsp;</li>
-<li><a href="#field.summary">Field</a>&nbsp;|&nbsp;</li>
+<li><a href="#fields.inherited.from.class.org.apache.pulsar.common.policies.data.TopicStats">Field</a>&nbsp;|&nbsp;</li>
 <li><a href="#constructor.summary">Constr</a>&nbsp;|&nbsp;</li>
-<li><a href="#method.summary">Method</a></li>
+<li><a href="#methods.inherited.from.class.org.apache.pulsar.common.policies.data.TopicStats">Method</a></li>
 </ul>
 <ul class="subNavList">
 <li>Detail:&nbsp;</li>
-<li><a href="#field.detail">Field</a>&nbsp;|&nbsp;</li>
+<li>Field&nbsp;|&nbsp;</li>
 <li><a href="#constructor.detail">Constr</a>&nbsp;|&nbsp;</li>
-<li><a href="#method.detail">Method</a></li>
+<li>Method</li>
 </ul>
 </div>
 <a name="skip.navbar.top">
@@ -98,21 +92,23 @@ var activeTableTab = "activeTableTab";
 <li>Object</li>
 <li>
 <ul class="inheritance">
+<li><a href="../../../../../../org/apache/pulsar/common/policies/data/TopicStats.html" title="class in org.apache.pulsar.common.policies.data">org.apache.pulsar.common.policies.data.TopicStats</a></li>
+<li>
+<ul class="inheritance">
 <li>org.apache.pulsar.common.policies.data.PersistentTopicStats</li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
 <div class="description">
 <ul class="blockList">
 <li class="blockList">
-<dl>
-<dt>Direct Known Subclasses:</dt>
-<dd><a href="../../../../../../org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentTopicStats</a>, <a href="../../../../../../org/apache/pulsar/common/policies/data/PartitionedTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PartitionedTopicStats</a></dd>
-</dl>
 <hr>
 <br>
 <pre>public class <span class="typeNameLabel">PersistentTopicStats</span>
-extends Object</pre>
+extends <a href="../../../../../../org/apache/pulsar/common/policies/data/TopicStats.html" title="class in org.apache.pulsar.common.policies.data">TopicStats</a></pre>
+<div class="block">Maintain compatibility with previous class name</div>
 </li>
 </ul>
 </div>
@@ -125,71 +121,13 @@ extends Object</pre>
 <!--   -->
 </a>
 <h3>Field Summary</h3>
-<table class="memberSummary" border="0" cellpadding="3" cellspacing="0" summary="Field Summary table, listing fields, and an explanation">
-<caption><span>Fields</span><span class="tabEnd">&nbsp;</span></caption>
-<tr>
-<th class="colFirst" scope="col">Modifier and Type</th>
-<th class="colLast" scope="col">Field and Description</th>
-</tr>
-<tr class="altColor">
-<td class="colFirst"><code>double</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PersistentTopicStats.html#averageMsgSize">averageMsgSize</a></span></code>
-<div class="block">Average size of published messages.</div>
-</td>
-</tr>
-<tr class="rowColor">
-<td class="colFirst"><code>String</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PersistentTopicStats.html#deduplicationStatus">deduplicationStatus</a></span></code>&nbsp;</td>
-</tr>
-<tr class="altColor">
-<td class="colFirst"><code>double</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PersistentTopicStats.html#msgRateIn">msgRateIn</a></span></code>
-<div class="block">Total rate of messages published on the topic.</div>
-</td>
-</tr>
-<tr class="rowColor">
-<td class="colFirst"><code>double</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PersistentTopicStats.html#msgRateOut">msgRateOut</a></span></code>
-<div class="block">Total rate of messages dispatched for the topic.</div>
-</td>
-</tr>
-<tr class="altColor">
-<td class="colFirst"><code>double</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PersistentTopicStats.html#msgThroughputIn">msgThroughputIn</a></span></code>
-<div class="block">Total throughput of messages published on the topic.</div>
-</td>
-</tr>
-<tr class="rowColor">
-<td class="colFirst"><code>double</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PersistentTopicStats.html#msgThroughputOut">msgThroughputOut</a></span></code>
-<div class="block">Total throughput of messages dispatched for the topic.</div>
-</td>
-</tr>
-<tr class="altColor">
-<td class="colFirst"><code>List&lt;<a href="../../../../../../org/apache/pulsar/common/policies/data/PublisherStats.html" title="class in org.apache.pulsar.common.policies.data">PublisherStats</a>&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PersistentTopicStats.html#publishers">publishers</a></span></code>
-<div class="block">List of connected publishers on this topic w/ their stats</div>
-</td>
-</tr>
-<tr class="rowColor">
-<td class="colFirst"><code>Map&lt;String,<a href="../../../../../../org/apache/pulsar/common/policies/data/ReplicatorStats.html" title="class in org.apache.pulsar.common.policies.data">ReplicatorStats</a>&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PersistentTopicStats.html#replication">replication</a></span></code>
-<div class="block">Map of replication statistics by remote cluster context</div>
-</td>
-</tr>
-<tr class="altColor">
-<td class="colFirst"><code>long</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PersistentTopicStats.html#storageSize">storageSize</a></span></code>
-<div class="block">Space used to store the messages for the topic.</div>
-</td>
-</tr>
-<tr class="rowColor">
-<td class="colFirst"><code>Map&lt;String,<a href="../../../../../../org/apache/pulsar/common/policies/data/SubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">SubscriptionStats</a>&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PersistentTopicStats.html#subscriptions">subscriptions</a></span></code>
-<div class="block">Map of subscriptions with their individual statistics</div>
-</td>
-</tr>
-</table>
+<ul class="blockList">
+<li class="blockList"><a name="fields.inherited.from.class.org.apache.pulsar.common.policies.data.TopicStats">
+<!--   -->
+</a>
+<h3>Fields inherited from class&nbsp;org.apache.pulsar.common.policies.data.<a href="../../../../../../org/apache/pulsar/common/policies/data/TopicStats.html" title="class in org.apache.pulsar.common.policies.data">TopicStats</a></h3>
+<code><a href="../../../../../../org/apache/pulsar/common/policies/data/TopicStats.html#averageMsgSize">averageMsgSize</a>, <a href="../../../../../../org/apache/pulsar/common/policies/data/TopicStats.html#deduplicationStatus">deduplicationStatus</a>, <a href="../../../../../../org/apache/pulsar/common/policies/data/TopicStats.html#msgRateIn">msgRateIn</a>, <a href="../../../../../../org/apache/pulsar/common/policies/data/TopicStats.html#msgRateOut">msgRateOut</a>, <a href="../../../../../../org/apache/pulsar/common/policies/data/TopicStats.html#msgThroughputIn">msgThroughputIn</a>, <a href="../../../../../../org/apache/pulsar/common/policies/data/TopicStats.html#msgThroughputOut">msgThroughputOut</a>, <a href="../../../../../../org/apache/pulsar/common/policies/data/TopicStats.html#publishers">publishers</a>, <a href="../../../../../../org/apache/pulsar/common/policies/data/TopicStats.html#replication">replication</a>, <a href="../../../../../../org/apache/pulsar/common/policies/data/TopicStats.html#storageSize">storageSize</a>, <a href="../../../../../../org/apache/pulsar/common/policies/data/TopicStats.html#subscriptions">subscriptions</a></code></li>
+</ul>
 </li>
 </ul>
 <!-- ======== CONSTRUCTOR SUMMARY ======== -->
@@ -215,21 +153,13 @@ extends Object</pre>
 <!--   -->
 </a>
 <h3>Method Summary</h3>
-<table class="memberSummary" border="0" cellpadding="3" cellspacing="0" summary="Method Summary table, listing methods, and an explanation">
-<caption><span id="t0" class="activeTableTab"><span>All Methods</span><span class="tabEnd">&nbsp;</span></span><span id="t2" class="tableTab"><span><a href="javascript:show(2);">Instance Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t4" class="tableTab"><span><a href="javascript:show(8);">Concrete Methods</a></span><span class="tabEnd">&nbsp;</span></span></caption>
-<tr>
-<th class="colFirst" scope="col">Modifier and Type</th>
-<th class="colLast" scope="col">Method and Description</th>
-</tr>
-<tr id="i0" class="altColor">
-<td class="colFirst"><code><a href="../../../../../../org/apache/pulsar/common/policies/data/PersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicStats</a></code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PersistentTopicStats.html#add-org.apache.pulsar.common.policies.data.PersistentTopicStats-">add</a></span>(<a href="../../../../../../org/apache/pulsar/common/policies/data/PersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicStats</a>&nbsp;stats)</code>&nbsp;</td>
-</tr>
-<tr id="i1" class="rowColor">
-<td class="colFirst"><code>void</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/PersistentTopicStats.html#reset--">reset</a></span>()</code>&nbsp;</td>
-</tr>
-</table>
+<ul class="blockList">
+<li class="blockList"><a name="methods.inherited.from.class.org.apache.pulsar.common.policies.data.TopicStats">
+<!--   -->
+</a>
+<h3>Methods inherited from class&nbsp;org.apache.pulsar.common.policies.data.<a href="../../../../../../org/apache/pulsar/common/policies/data/TopicStats.html" title="class in org.apache.pulsar.common.policies.data">TopicStats</a></h3>
+<code><a href="../../../../../../org/apache/pulsar/common/policies/data/TopicStats.html#add-org.apache.pulsar.common.policies.data.TopicStats-">add</a>, <a href="../../../../../../org/apache/pulsar/common/policies/data/TopicStats.html#reset--">reset</a></code></li>
+</ul>
 <ul class="blockList">
 <li class="blockList"><a name="methods.inherited.from.class.Object">
 <!--   -->
@@ -245,113 +175,6 @@ extends Object</pre>
 <div class="details">
 <ul class="blockList">
 <li class="blockList">
-<!-- ============ FIELD DETAIL =========== -->
-<ul class="blockList">
-<li class="blockList"><a name="field.detail">
-<!--   -->
-</a>
-<h3>Field Detail</h3>
-<a name="msgRateIn">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>msgRateIn</h4>
-<pre>public&nbsp;double msgRateIn</pre>
-<div class="block">Total rate of messages published on the topic. msg/s</div>
-</li>
-</ul>
-<a name="msgThroughputIn">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>msgThroughputIn</h4>
-<pre>public&nbsp;double msgThroughputIn</pre>
-<div class="block">Total throughput of messages published on the topic. byte/s</div>
-</li>
-</ul>
-<a name="msgRateOut">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>msgRateOut</h4>
-<pre>public&nbsp;double msgRateOut</pre>
-<div class="block">Total rate of messages dispatched for the topic. msg/s</div>
-</li>
-</ul>
-<a name="msgThroughputOut">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>msgThroughputOut</h4>
-<pre>public&nbsp;double msgThroughputOut</pre>
-<div class="block">Total throughput of messages dispatched for the topic. byte/s</div>
-</li>
-</ul>
-<a name="averageMsgSize">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>averageMsgSize</h4>
-<pre>public&nbsp;double averageMsgSize</pre>
-<div class="block">Average size of published messages. bytes</div>
-</li>
-</ul>
-<a name="storageSize">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>storageSize</h4>
-<pre>public&nbsp;long storageSize</pre>
-<div class="block">Space used to store the messages for the topic. bytes</div>
-</li>
-</ul>
-<a name="publishers">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>publishers</h4>
-<pre>public&nbsp;List&lt;<a href="../../../../../../org/apache/pulsar/common/policies/data/PublisherStats.html" title="class in org.apache.pulsar.common.policies.data">PublisherStats</a>&gt; publishers</pre>
-<div class="block">List of connected publishers on this topic w/ their stats</div>
-</li>
-</ul>
-<a name="subscriptions">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>subscriptions</h4>
-<pre>public&nbsp;Map&lt;String,<a href="../../../../../../org/apache/pulsar/common/policies/data/SubscriptionStats.html" title="class in org.apache.pulsar.common.policies.data">SubscriptionStats</a>&gt; subscriptions</pre>
-<div class="block">Map of subscriptions with their individual statistics</div>
-</li>
-</ul>
-<a name="replication">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>replication</h4>
-<pre>public&nbsp;Map&lt;String,<a href="../../../../../../org/apache/pulsar/common/policies/data/ReplicatorStats.html" title="class in org.apache.pulsar.common.policies.data">ReplicatorStats</a>&gt; replication</pre>
-<div class="block">Map of replication statistics by remote cluster context</div>
-</li>
-</ul>
-<a name="deduplicationStatus">
-<!--   -->
-</a>
-<ul class="blockListLast">
-<li class="blockList">
-<h4>deduplicationStatus</h4>
-<pre>public&nbsp;String deduplicationStatus</pre>
-</li>
-</ul>
-</li>
-</ul>
 <!-- ========= CONSTRUCTOR DETAIL ======== -->
 <ul class="blockList">
 <li class="blockList"><a name="constructor.detail">
@@ -365,32 +188,6 @@ extends Object</pre>
 <li class="blockList">
 <h4>PersistentTopicStats</h4>
 <pre>public&nbsp;PersistentTopicStats()</pre>
-</li>
-</ul>
-</li>
-</ul>
-<!-- ============ METHOD DETAIL ========== -->
-<ul class="blockList">
-<li class="blockList"><a name="method.detail">
-<!--   -->
-</a>
-<h3>Method Detail</h3>
-<a name="reset--">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>reset</h4>
-<pre>public&nbsp;void&nbsp;reset()</pre>
-</li>
-</ul>
-<a name="add-org.apache.pulsar.common.policies.data.PersistentTopicStats-">
-<!--   -->
-</a>
-<ul class="blockListLast">
-<li class="blockList">
-<h4>add</h4>
-<pre>public&nbsp;<a href="../../../../../../org/apache/pulsar/common/policies/data/PersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicStats</a>&nbsp;add(<a href="../../../../../../org/apache/pulsar/common/policies/data/PersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicStats</a>&nbsp;stats)</pre>
 </li>
 </ul>
 </li>
@@ -446,15 +243,15 @@ extends Object</pre>
 <ul class="subNavList">
 <li>Summary:&nbsp;</li>
 <li>Nested&nbsp;|&nbsp;</li>
-<li><a href="#field.summary">Field</a>&nbsp;|&nbsp;</li>
+<li><a href="#fields.inherited.from.class.org.apache.pulsar.common.policies.data.TopicStats">Field</a>&nbsp;|&nbsp;</li>
 <li><a href="#constructor.summary">Constr</a>&nbsp;|&nbsp;</li>
-<li><a href="#method.summary">Method</a></li>
+<li><a href="#methods.inherited.from.class.org.apache.pulsar.common.policies.data.TopicStats">Method</a></li>
 </ul>
 <ul class="subNavList">
 <li>Detail:&nbsp;</li>
-<li><a href="#field.detail">Field</a>&nbsp;|&nbsp;</li>
+<li>Field&nbsp;|&nbsp;</li>
 <li><a href="#constructor.detail">Constr</a>&nbsp;|&nbsp;</li>
-<li><a href="#method.detail">Method</a></li>
+<li>Method</li>
 </ul>
 </div>
 <a name="skip.navbar.bottom">
