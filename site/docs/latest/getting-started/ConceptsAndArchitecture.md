@@ -101,7 +101,7 @@ As in other pub-sub systems, topics in Pulsar are named channels for transmittin
 
 Topic name component | Description
 :--------------------|:-----------
-`persistent` / `non-persistent` | This identifies the type of topic. Pulsar supports two kind of topics: [persistent](#persistent-storage) and [non-persistent](#non-persistent-topics). In persistent topic, all messages are durably [persisted](#persistent-storage) on disk (that means on multiple disks unless the {% popover broker %} is {% popover standalone %}), whereas [non-persistent](#non-persistent-topics) topic does not persist message into storage disk.
+`persistent` / `non-persistent` | This identifies the type of topic. Pulsar supports two kind of topics: [persistent](#persistent-storage) and [non-persistent](#non-persistent-topics) (persistent is the default, so if you don't specify a type the topic will be persistent). With persistent topics, all messages are durably [persisted](#persistent-storage) on disk (that means on multiple disks unless the {% popover broker %} is {% popover standalone %}), whereas data for [non-persistent](#non-persistent-topics) topics isn't persisted to storage disks.
 `tenant`             | The topic's {% popover tenant %} within the instance. Tenants are essential to {% popover multi-tenancy %} in Pulsar and can be spread across clusters.
 `namespace`          | The administrative unit of the topic, which acts as a grouping mechanism for related topics. Most topic configuration is performed at the [namespace](#namespace) level. Each tenant can have multiple namespaces.
 `topic`              | The final part of the name. Topic names are freeform and have no special meaning in a Pulsar instance.
