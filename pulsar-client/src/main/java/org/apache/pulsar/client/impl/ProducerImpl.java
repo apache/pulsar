@@ -847,7 +847,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         long requestId = client.newRequestId();
 
         cnx.sendRequestWithId(
-                Commands.newProducer(topic, producerId, requestId, producerName, conf.isEncryptionEnabled(), metadata),
+                Commands.newProducer(topic, producerId, requestId, producerName, conf.isEncryptionEnabled(), metadata,
+                    schema == null ? null : schema.getSchemaInfo()),
                 requestId).thenAccept(response -> {
                     String producerName = response.getProducerName();
                     long lastSequenceId = response.getLastSequenceId();
