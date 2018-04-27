@@ -83,7 +83,7 @@ public class TenantsBase extends AdminResource {
     @Path("/{tenant}")
     @ApiOperation(value = "Create a new tenant.", notes = "This operation requires Pulsar super-user privileges.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 409, message = "Property already exist"),
+            @ApiResponse(code = 409, message = "Property already exists"),
             @ApiResponse(code = 412, message = "Property name is not valid") })
     public void createProperty(@PathParam("tenant") String tenant, TenantInfo config) {
         validateSuperUserAccess();
@@ -110,7 +110,7 @@ public class TenantsBase extends AdminResource {
     @ApiOperation(value = "Update the admins for a tenant.", notes = "This operation requires Pulsar super-user privileges.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property does not exist"),
-            @ApiResponse(code = 409, message = "Property already exist") })
+            @ApiResponse(code = 409, message = "Property already exists") })
     public void updateProperty(@PathParam("tenant") String tenant, TenantInfo newPropertyAdmin) {
         validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();

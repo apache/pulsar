@@ -36,6 +36,7 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
@@ -57,6 +58,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     @POST
     @ApiOperation(value = "Creates a new Pulsar Function in cluster mode")
     @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 400, message = "Invalid request (function already exists, etc.)"),
             @ApiResponse(code = 408, message = "Request timeout"),
             @ApiResponse(code = 200, message = "Pulsar Function successfully created")
@@ -76,6 +78,11 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
 
     @PUT
     @ApiOperation(value = "Updates a Pulsar Function currently running in cluster mode")
+    @ApiResponses(
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 400, message = "Invalid request (function doesn't exist, etc.)"),
+            @ApiResponse(code = 200, message = "Pulsar Function successfully updated")
+    )
     @Path("/{tenant}/{namespace}/{functionName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public Response updateFunction(final @PathParam("tenant") String tenant,
@@ -92,7 +99,14 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
 
 
     @DELETE
-    @ApiOperation(value = "Delertes a Pulsar Function currently running in cluster mode")
+    @ApiOperation(value = "Deletes a Pulsar Function currently running in cluster mode")
+    @ApiResponses(
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 404, message = "The function doesn't exist"),
+            @ApiResponse(code = 408, message = "Request timeout"),
+            @ApiResponse(code = 200, message = "The function was successfully deleted")
+    )
     @Path("/{tenant}/{namespace}/{functionName}")
     public Response deregisterFunction(final @PathParam("tenant") String tenant,
                                        final @PathParam("namespace") String namespace,
@@ -102,7 +116,16 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     }
 
     @GET
-    @ApiOperation(value = "Fetches information about a Pulsar Function currently running in cluster mode")
+    @ApiOperation(
+            value = "Fetches information about a Pulsar Function currently running in cluster mode",
+            response = FunctionMetaData.class
+    )
+    @ApiResponses(
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 408, message = "Request timeout"),
+            @ApiResponse(code = 404, message = "The function doesn't exist")
+    )
     @Path("/{tenant}/{namespace}/{functionName}")
     public Response getFunctionInfo(final @PathParam("tenant") String tenant,
                                     final @PathParam("namespace") String namespace,
