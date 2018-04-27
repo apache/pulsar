@@ -64,7 +64,7 @@ import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
-import org.apache.pulsar.common.policies.data.PersistentTopicStats;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
@@ -139,27 +139,27 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         URL pulsarUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
 
-        admin.persistentTopics().createPartitionedTopic(partitionedTopicName, startPartitions);
+        admin.topics().createPartitionedTopic(partitionedTopicName, startPartitions);
         // validate partition topic is created
-        assertEquals(admin.persistentTopics().getPartitionedTopicMetadata(partitionedTopicName).partitions,
+        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions,
                 startPartitions);
 
         // create consumer and subscriptions : check subscriptions
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).build();
         Consumer<byte[]> consumer1 = client.newConsumer().topic(partitionedTopicName).subscriptionName(subName1)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
-        assertEquals(admin.persistentTopics().getSubscriptions(partitionedTopicName), Lists.newArrayList(subName1));
+        assertEquals(admin.topics().getSubscriptions(partitionedTopicName), Lists.newArrayList(subName1));
         Consumer<byte[]> consumer2 = client.newConsumer().topic(partitionedTopicName).subscriptionName(subName2)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
-        assertEquals(Sets.newHashSet(admin.persistentTopics().getSubscriptions(partitionedTopicName)),
+        assertEquals(Sets.newHashSet(admin.topics().getSubscriptions(partitionedTopicName)),
                 Sets.newHashSet(subName1, subName2));
 
         // (1) update partitions
-        admin.persistentTopics().updatePartitionedTopic(partitionedTopicName, newPartitions);
+        admin.topics().updatePartitionedTopic(partitionedTopicName, newPartitions);
         // invalidate global-cache to make sure that mock-zk-cache reds fresh data
         pulsar.getGlobalZkCache().invalidateAll();
         // verify new partitions have been created
-        assertEquals(admin.persistentTopics().getPartitionedTopicMetadata(partitionedTopicName).partitions,
+        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions,
                 newPartitions);
         // (2) No Msg loss: verify new partitions have the same existing subscription names
         final String newPartitionTopicName = TopicName.get(partitionedTopicName).getPartition(startPartitions + 1)
@@ -183,13 +183,13 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
                 .subscriptionType(SubscriptionType.Shared).subscribe();
         // sometime: mockZk fails to refresh ml-cache: so, invalidate the cache to get fresh data
         pulsar.getLocalZkCacheService().managedLedgerListCache().clearTree();
-        assertEquals(Sets.newHashSet(admin.persistentTopics().getSubscriptions(newPartitionTopicName)),
+        assertEquals(Sets.newHashSet(admin.topics().getSubscriptions(newPartitionTopicName)),
                 Sets.newHashSet(subName1, subName2));
 
-        assertEquals(Sets.newHashSet(admin.persistentTopics().getList("prop-xyz/use/ns1")).size(), newPartitions);
+        assertEquals(Sets.newHashSet(admin.topics().getList("prop-xyz/use/ns1")).size(), newPartitions);
 
         // test cumulative stats for partitioned topic
-        PartitionedTopicStats topicStats = admin.persistentTopics().getPartitionedStats(partitionedTopicName, false);
+        PartitionedTopicStats topicStats = admin.topics().getPartitionedStats(partitionedTopicName, false);
         assertEquals(topicStats.subscriptions.keySet(), Sets.newTreeSet(Lists.newArrayList(subName1, subName2)));
         assertEquals(topicStats.subscriptions.get(subName2).consumers.size(), 1);
         assertEquals(topicStats.subscriptions.get(subName2).msgBacklog, totalMessages);
@@ -197,7 +197,7 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.partitions, Maps.newHashMap());
 
         // (5) verify: each partition should have backlog
-        topicStats = admin.persistentTopics().getPartitionedStats(partitionedTopicName, true);
+        topicStats = admin.topics().getPartitionedStats(partitionedTopicName, true);
         assertEquals(topicStats.metadata.partitions, newPartitions);
         Set<String> partitionSet = Sets.newHashSet();
         for (int i = 0; i < newPartitions; i++) {
@@ -205,7 +205,7 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
         }
         assertEquals(topicStats.partitions.keySet(), partitionSet);
         for (int i = 0; i < newPartitions; i++) {
-            PersistentTopicStats partitionStats = topicStats.partitions
+            TopicStats partitionStats = topicStats.partitions
                     .get(TopicName.get(partitionedTopicName).getPartition(i).toString());
             assertEquals(partitionStats.publishers.size(), 1);
             assertEquals(partitionStats.subscriptions.get(subName2).consumers.size(), 1);
@@ -402,7 +402,7 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
     private void unloadTopic(String topicName, boolean isPersistentTopic) throws Exception {
         if (isPersistentTopic) {
-            admin.persistentTopics().unload(topicName);
+            admin.topics().unload(topicName);
         } else {
             admin.nonPersistentTopics().unload(topicName);
         }
@@ -433,11 +433,11 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-sub")
                 .subscriptionType(SubscriptionType.Shared).subscribe();
 
-        assertEquals(admin.persistentTopics().getSubscriptions(topicName), Lists.newArrayList("my-sub"));
+        assertEquals(admin.topics().getSubscriptions(topicName), Lists.newArrayList("my-sub"));
 
         publishMessagesOnPersistentTopic(topicName, totalProducedMessages, 0);
 
-        List<Message<byte[]>> messages = admin.persistentTopics().peekMessages(topicName, "my-sub", 10);
+        List<Message<byte[]>> messages = admin.topics().peekMessages(topicName, "my-sub", 10);
         assertEquals(messages.size(), 10);
 
         Message<byte[]> message = null;
@@ -457,7 +457,7 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
         // messages should still be available due to retention
         MessageIdImpl messageId = new MessageIdImpl(resetMessageId.getLedgerId(), resetMessageId.getEntryId(), -1);
         // reset position at resetMessageId
-        admin.persistentTopics().resetCursor(topicName, "my-sub", messageId);
+        admin.topics().resetCursor(topicName, "my-sub", messageId);
 
         consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-sub")
                 .subscriptionType(SubscriptionType.Shared).subscribe();
@@ -478,7 +478,7 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         // invalid topic name
         try {
-            admin.persistentTopics().resetCursor(topicName + "invalid", "my-sub", messageId);
+            admin.topics().resetCursor(topicName + "invalid", "my-sub", messageId);
             fail("It should have failed due to invalid topic name");
         } catch (PulsarAdminException.NotFoundException e) {
             // Ok
@@ -486,7 +486,7 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         // invalid cursor name
         try {
-            admin.persistentTopics().resetCursor(topicName, "invalid-sub", messageId);
+            admin.topics().resetCursor(topicName, "invalid-sub", messageId);
             fail("It should have failed due to invalid subscription name");
         } catch (PulsarAdminException.NotFoundException e) {
             // Ok
@@ -495,7 +495,7 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
         // invalid position
         try {
             messageId = new MessageIdImpl(0, 0, -1);
-            admin.persistentTopics().resetCursor(topicName, "my-sub", messageId);
+            admin.topics().resetCursor(topicName, "my-sub", messageId);
             fail("It should have failed due to invalid subscription name");
         } catch (PulsarAdminException.PreconditionFailedException e) {
             // Ok
@@ -761,9 +761,9 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
             .create();
 
         retryStrategically((test) -> {
-            PersistentTopicStats stats;
+            TopicStats stats;
             try {
-                stats = admin.persistentTopics().getStats(topic);
+                stats = admin.topics().getStats(topic);
                 return stats.publishers.size() > 0 && stats.subscriptions.get(subscriberName) != null
                         && stats.subscriptions.get(subscriberName).consumers.size() > 0;
             } catch (PulsarAdminException e) {
@@ -771,7 +771,7 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
             }
         }, 5, 200);
 
-        PersistentTopicStats topicStats = admin.persistentTopics().getStats(topic);
+        TopicStats topicStats = admin.topics().getStats(topic);
         assertEquals(topicStats.publishers.size(), 1);
         assertNotNull(topicStats.publishers.get(0).getAddress());
         assertNotNull(topicStats.publishers.get(0).getClientVersion());
@@ -806,7 +806,7 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .create();
 
-        PersistentTopicStats stats = admin.persistentTopics().getStats(topic);
+        TopicStats stats = admin.topics().getStats(topic);
         assertEquals(stats.publishers.size(), 1);
         producer.close();
     }
