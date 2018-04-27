@@ -236,7 +236,7 @@ public class ContextAwareFunction implements Function<String, Void> {
         String functionTenant = context.getTenant();
         String functionNamespace = context.getNamespace();
         String functionName = context.getName();
-        LOG.info("{}/{}/{}", functionTenant, functionNamespace, functionName);
+        LOG.info("Function tenant/namespace/name: {}/{}/{}", functionTenant, functionNamespace, functionName);
         return null;
     }
 }
@@ -252,9 +252,10 @@ from pulsar import Function
 class ContextAwareFunction(Function):
     def process(self, input, context):
         log = context.get_logger()
-        function_tenant = context.get_tenant()
-        function_namespace = context.get_namespace()
+        function_tenant = context.get_function_tenant()
+        function_namespace = context.get_function_namespace()
         function_name = context.get_function_name()
+        log.info("Function tenant/namespace/name: {0}/{1}/{2}".format(function_tenant, function_namespace, function_name))
 ```
 
 ## Deployment
