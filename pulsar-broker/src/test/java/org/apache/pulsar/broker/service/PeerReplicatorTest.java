@@ -31,7 +31,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.common.policies.data.PersistentTopicStats;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -121,10 +121,10 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         assertNotNull(topic);
         pulsar1.getBrokerService().updateRates();
         // get stats for topic1 using cluster-r3's admin3
-        PersistentTopicStats stats = admin1.persistentTopics().getStats(topic1);
+        TopicStats stats = admin1.topics().getStats(topic1);
         assertNotNull(stats);
         assertEquals(stats.publishers.size(), 1);
-        stats = admin3.persistentTopics().getStats(topic1);
+        stats = admin3.topics().getStats(topic1);
         assertNotNull(stats);
         assertEquals(stats.publishers.size(), 1);
         producer.close();
@@ -136,10 +136,10 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         assertNotNull(topic);
         pulsar2.getBrokerService().updateRates();
         // get stats for topic1 using cluster-r3's admin3
-        stats = admin3.persistentTopics().getStats(topic2);
+        stats = admin3.topics().getStats(topic2);
         assertNotNull(stats);
         assertEquals(stats.publishers.size(), 1);
-        stats = admin3.persistentTopics().getStats(topic2);
+        stats = admin3.topics().getStats(topic2);
         assertNotNull(stats);
         assertEquals(stats.publishers.size(), 1);
         producer.close();

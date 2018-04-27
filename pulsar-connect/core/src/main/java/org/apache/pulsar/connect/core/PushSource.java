@@ -41,12 +41,12 @@ public interface PushSource<T> extends AutoCloseable {
      * @param config initialization config
      * @throws Exception IO type exceptions when opening a connector
      */
-    void open(final Map<String, String> config) throws Exception;
+    void open(final Map<String, Object> config) throws Exception;
 
     /**
      * Attach a consumer function to this Source. This is invoked by the implementation
      * to pass messages whenever there is data to be pushed to Pulsar.
      * @param consumer
      */
-    void setConsumer(Function<Message<T>, CompletableFuture<Void>> consumer);
+    void setConsumer(Function<Record<T>, CompletableFuture<Void>> consumer);
 }

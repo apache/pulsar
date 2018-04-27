@@ -269,14 +269,18 @@ public class TopicName implements ServiceUnitId {
 
     /**
      * Returns the http rest path for use in the admin web service
+     * Eg:
+     *
+     *   * "persistent/my-tenant/my-namespace/my-topic"
+     *   * "non-persistent/my-tenant/my-namespace/my-topic"
      *
      * @return topic rest path
      */
     public String getRestPath() {
         if (isV2()) {
-            return String.format("%s/%s/%s", tenant, namespacePortion, getEncodedLocalName());
+            return String.format("%s/%s/%s/%s", domain, tenant, namespacePortion, getEncodedLocalName());
         } else {
-            return String.format("%s/%s/%s/%s", tenant, cluster, namespacePortion, getEncodedLocalName());
+            return String.format("%s/%s/%s/%s/%s", domain, tenant, cluster, namespacePortion, getEncodedLocalName());
         }
     }
 

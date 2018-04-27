@@ -229,7 +229,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         admin.close();
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString()).build());
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
-        admin.persistentTopics().grantPermission("persistent://my-property/my-ns/my-topic", "anonymousUser",
+        admin.topics().grantPermission("persistent://my-property/my-ns/my-topic", "anonymousUser",
                 EnumSet.allOf(AuthAction.class));
 
         // setup the client
@@ -311,7 +311,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         mockZookKeeper.shutdown();
         pulsar.getConfiguration().setSuperUserRoles(Sets.newHashSet());
         try {
-            admin.persistentTopics().getPartitionedTopicMetadata(topic);
+            admin.topics().getPartitionedTopicMetadata(topic);
         } catch (PulsarAdminException e) {
             Assert.assertTrue(e.getCause() instanceof InternalServerErrorException);
         }

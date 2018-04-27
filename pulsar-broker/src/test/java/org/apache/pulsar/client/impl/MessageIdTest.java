@@ -182,7 +182,7 @@ public class MessageIdTest extends BrokerTestBase {
         final String messagePredicate = "my-message-" + key + "-";
         final int numberOfMessages = 30;
         int numberOfPartitions = 3;
-        admin.persistentTopics().createPartitionedTopic(topicName, numberOfPartitions);
+        admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
 
         // 2. Create Producer
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
@@ -234,7 +234,7 @@ public class MessageIdTest extends BrokerTestBase {
         final String messagePredicate = "my-message-" + key + "-";
         final int numberOfMessages = 30;
         int numberOfPartitions = 7;
-        admin.persistentTopics().createPartitionedTopic(topicName, numberOfPartitions);
+        admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
 
         // 2. Create Producer
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)

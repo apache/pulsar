@@ -29,13 +29,13 @@ import org.apache.pulsar.functions.proto.Request.ServiceRequest;
 
 @Slf4j
 public class FunctionMetaDataTopicTailer
-        implements java.util.function.Consumer<Message>, Function<Throwable, Void>, AutoCloseable {
+        implements java.util.function.Consumer<Message<byte[]>>, Function<Throwable, Void>, AutoCloseable {
 
     private final FunctionMetaDataManager functionMetaDataManager;
-    private final Reader reader;
+    private final Reader<byte[]> reader;
 
     public FunctionMetaDataTopicTailer(FunctionMetaDataManager functionMetaDataManager,
-                                       Reader reader)
+                                       Reader<byte[]> reader)
             throws PulsarClientException {
         this.functionMetaDataManager = functionMetaDataManager;
         this.reader = reader;
@@ -62,7 +62,7 @@ public class FunctionMetaDataTopicTailer
         log.info("Stopped function state consumer");
     }
 
-    public void processRequest(Message msg) {
+    public void processRequest(Message<byte[]> msg) {
         ServiceRequest serviceRequest;
 
         try {
@@ -80,7 +80,7 @@ public class FunctionMetaDataTopicTailer
     }
 
     @Override
-    public void accept(Message msg) {
+    public void accept(Message<byte[]> msg) {
 
         processRequest(msg);
         // receive next request

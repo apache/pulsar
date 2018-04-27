@@ -195,7 +195,7 @@ public class KafkaConsumerTest extends BrokerTestBase {
 
         // Create 8 partitions in topic
         admin.tenants().createTenant("sample", new TenantInfo());
-        admin.persistentTopics().createPartitionedTopic(topic, 8);
+        admin.topics().createPartitionedTopic(topic, 8);
 
         Properties props = new Properties();
         props.put("bootstrap.servers", lookupUrl.toString());

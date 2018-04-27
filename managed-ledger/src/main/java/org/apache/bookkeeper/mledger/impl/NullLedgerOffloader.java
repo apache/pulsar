@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.bookkeeper.client.api.ReadHandle;
@@ -31,22 +32,23 @@ public class NullLedgerOffloader implements LedgerOffloader {
     public static NullLedgerOffloader INSTANCE = new NullLedgerOffloader();
 
     @Override
-    public CompletableFuture<byte[]> offload(ReadHandle ledger,
-                                             Map<String, String> extraMetadata) {
-        CompletableFuture<byte[]> promise = new CompletableFuture<>();
+    public CompletableFuture<Void> offload(ReadHandle ledger,
+                                           UUID uid,
+                                           Map<String, String> extraMetadata) {
+        CompletableFuture<Void> promise = new CompletableFuture<>();
         promise.completeExceptionally(new UnsupportedOperationException());
         return promise;
     }
 
     @Override
-    public CompletableFuture<ReadHandle> readOffloaded(long ledgerId, byte[] offloadContext) {
+    public CompletableFuture<ReadHandle> readOffloaded(long ledgerId, UUID uid) {
         CompletableFuture<ReadHandle> promise = new CompletableFuture<>();
         promise.completeExceptionally(new UnsupportedOperationException());
         return promise;
     }
 
     @Override
-    public CompletableFuture<Void> deleteOffloaded(long ledgerId, byte[] offloadContext) {
+    public CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uid) {
         CompletableFuture<Void> promise = new CompletableFuture<>();
         promise.completeExceptionally(new UnsupportedOperationException());
         return promise;
