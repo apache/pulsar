@@ -41,10 +41,10 @@ When managing Pulsar Functions, you'll need to specify a variety of information 
 Parameter | Default
 :---------|:-------
 Function name | Whichever value is specified for the class name. For example, `--className org.example.MyFunction` would give the function a name of `MyFunction`
-Tenant | `public`
-Namespace | `default`
-Output topic | `{input topic}-{function name}-output`. A function with an input topic name of `incoming` and a function name of `exclamation` would have an output topic of `incoming-exclamation-output`
-Subscription type | [`SHARED`](../../getting-started/ConceptsAndArchitecture#shared)
+Tenant | Derived from the input topics' names. If the input topics are under the `marketing` tenant---i.e. the topic names have the form `persistent://marketing/{namespace}/{topicName}`---then the tenant will be `marketing`.
+Namespace | Derived from the input topics' names. If the input topics are under the `asia` namespace under the `marketing` tenant---i.e. the topic names have the form `persistent://marketing/asia/{topicName}`, then the namespace will be `asia`.
+Output topic | `{input topic}-{function name}-output`. A function with an input topic name of `incoming` and a function name of `exclamation`, for example, would have an output topic of `incoming-exclamation-output`.
+Subscription type | For at-least-once and at-most-once [processing guarantees](../guarantees), the [`SHARED`](../../getting-started/ConceptsAndArchitecture#shared) is applied by default; for effectively-once guarantees, [`FAILOVER`](../../getting-started/ConceptsAndArchitecture#failover) is applied
 Processing guarantees | [`ATLEAST_ONCE`](../guarantees)
 Pulsar service URL | `pulsar://localhost:6650`
 

@@ -47,8 +47,8 @@ Deploying Pulsar Functions is handled by the [`pulsar-admin`](../../reference/Cl
 $ bin/pulsar-admin functions localrun \
   --py sanitizer.py \          # The Python file with the function's code
   --className sanitizer \      # The class or function holding the processing logic
-  --tenant sample \            # The function's tenant ("public" by default)
-  --namespace ns1 \            # The function's namespace ("default" by default)
+  --tenant sample \            # The function's tenant (derived from the topic name by default)
+  --namespace ns1 \            # The function's namespace (derived from the topic name by default)
   --name sanitizer-function \  # The name of the function (the class name by default)
   --inputs dirty-strings-in \  # The input topic(s) for the function
   --output clean-strings-out \ # The output topic for the function
