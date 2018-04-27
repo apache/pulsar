@@ -87,7 +87,7 @@ commands:
     description: The broker service URL for the new cluster with TLS encryption
   - flags: -c, --cluster
     description: Cluster name
-  - flags: -css, --configuration-store-servers
+  - flags: --configuration-store
     description: The configuration store quorum connection string
   - flags: -uw, --web-service-url
     description: The web service URL for the new cluster
@@ -100,12 +100,12 @@ commands:
   example: |
     pulsar proxy \
       --zookeeper-servers zk-0,zk-1,zk2 \
-      --configuration-store-servers zk-0,zk-1,zk-2
+      --configuration-store zk-0,zk-1,zk-2
   options:
   - flags: -c, --config
     description: Path to a Pulsar proxy configuration file
-  - flags: -css, --configuration-store-servers
-    description: Configuratino store connection string
+  - flags: --configuration-store
+    description: Configuration store connection string
   - flags: -zk, --zookeeper-servers
     description: Local ZooKeeper connection string
 - name: standalone
