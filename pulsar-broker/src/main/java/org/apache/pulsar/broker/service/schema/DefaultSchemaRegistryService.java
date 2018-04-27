@@ -51,6 +51,11 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
     }
 
     @Override
+    public CompletableFuture<Boolean> isCompatibleWithLatestVersion(String schemaId, SchemaData schema) {
+        return CompletableFuture.completedFuture(true);
+    }
+
+    @Override
     public void close() throws Exception {
 
     }

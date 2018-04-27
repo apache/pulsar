@@ -103,6 +103,11 @@
       <version>4.4.9</version>
     </dependency>
 
+    <dependency>
+      <groupId>com.fasterxml.jackson.module</groupId>
+      <artifactId>jackson-module-jsonSchema</artifactId>
+    </dependency>
+
   </dependencies>
 
   <build>

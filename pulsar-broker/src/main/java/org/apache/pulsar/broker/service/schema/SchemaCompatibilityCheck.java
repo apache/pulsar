@@ -16,30 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.api;
+package org.apache.pulsar.broker.service.schema;
 
-import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaData;
+import org.apache.pulsar.common.schema.SchemaType;
 
-public interface Schema<T> {
-    byte[] encode(T message) throws SchemaSerializationException;
-    T decode(byte[] bytes);
+public interface SchemaCompatibilityCheck {
+    SchemaType getSchemaType();
+    boolean isCompatible(SchemaData from, SchemaData to);
 
-    SchemaInfo getSchemaInfo();
-
-    Schema<byte[]> IDENTITY = new Schema<byte[]>() {
+    SchemaCompatibilityCheck DEFAULT = new SchemaCompatibilityCheck() {
         @Override
-        public byte[] encode(byte[] message) {
-            return message;
+        public SchemaType getSchemaType() {
+            return SchemaType.NONE;
         }
 
         @Override
-        public byte[] decode(byte[] bytes) {
-            return bytes;
-        }
-
-        @Override
-        public SchemaInfo getSchemaInfo() {
-            return null;
+        public boolean isCompatible(SchemaData from, SchemaData to) {
+            return true;
         }
     };
 }
