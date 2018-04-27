@@ -75,8 +75,6 @@ public class RuntimeSpawner implements AutoCloseable {
                         runtimeDeathException = runtime.getDeathException();
                         runtime.start();
                         numRestarts++;
-                    } else {
-
                     }
                 }
             }, instanceLivenessCheckFreqMs, instanceLivenessCheckFreqMs);
