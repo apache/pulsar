@@ -313,18 +313,6 @@ class ProcessRuntime implements Runtime {
             }
             return false;
         }
-        FunctionStatus status;
-        try {
-            status = getFunctionStatus().get();
-        } catch (Exception ex) {
-            return false;
-        }
-        if (!status.getRunning()) {
-            if (status.getFailureException() != null && !status.getFailureException().isEmpty()) {
-                deathException = new Exception(status.getFailureException());
-            }
-            return false;
-        }
         return true;
     }
 
