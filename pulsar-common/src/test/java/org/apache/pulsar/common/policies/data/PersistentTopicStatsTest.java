@@ -21,7 +21,7 @@ package org.apache.pulsar.common.policies.data;
 import static org.testng.Assert.assertEquals;
 
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
-import org.apache.pulsar.common.policies.data.PersistentTopicStats;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.testng.annotations.Test;
@@ -30,37 +30,37 @@ public class PersistentTopicStatsTest {
 
     @Test
     public void testPersistentTopicStats() {
-        PersistentTopicStats persistentTopicStats = new PersistentTopicStats();
-        persistentTopicStats.msgRateIn = 1;
-        persistentTopicStats.msgThroughputIn = 1;
-        persistentTopicStats.msgRateOut = 1;
-        persistentTopicStats.msgThroughputOut = 1;
-        persistentTopicStats.averageMsgSize = 1;
-        persistentTopicStats.storageSize = 1;
-        persistentTopicStats.publishers.add(new PublisherStats());
-        persistentTopicStats.subscriptions.put("test_ns", new SubscriptionStats());
-        persistentTopicStats.replication.put("test_ns", new ReplicatorStats());
-        PersistentTopicStats target = new PersistentTopicStats();
-        target.add(persistentTopicStats);
-        assertEquals(persistentTopicStats.msgRateIn, 1.0);
-        assertEquals(persistentTopicStats.msgThroughputIn, 1.0);
-        assertEquals(persistentTopicStats.msgRateOut, 1.0);
-        assertEquals(persistentTopicStats.msgThroughputOut, 1.0);
-        assertEquals(persistentTopicStats.averageMsgSize, 1.0);
-        assertEquals(persistentTopicStats.storageSize, 1);
-        assertEquals(persistentTopicStats.publishers.size(), 1);
-        assertEquals(persistentTopicStats.subscriptions.size(), 1);
-        assertEquals(persistentTopicStats.replication.size(), 1);
-        persistentTopicStats.reset();
-        assertEquals(persistentTopicStats.msgRateIn, 0.0);
-        assertEquals(persistentTopicStats.msgThroughputIn, 0.0);
-        assertEquals(persistentTopicStats.msgRateOut, 0.0);
-        assertEquals(persistentTopicStats.msgThroughputOut, 0.0);
-        assertEquals(persistentTopicStats.averageMsgSize, 0.0);
-        assertEquals(persistentTopicStats.storageSize, 0);
-        assertEquals(persistentTopicStats.publishers.size(), 0);
-        assertEquals(persistentTopicStats.subscriptions.size(), 0);
-        assertEquals(persistentTopicStats.replication.size(), 0);
+        TopicStats topicStats = new TopicStats();
+        topicStats.msgRateIn = 1;
+        topicStats.msgThroughputIn = 1;
+        topicStats.msgRateOut = 1;
+        topicStats.msgThroughputOut = 1;
+        topicStats.averageMsgSize = 1;
+        topicStats.storageSize = 1;
+        topicStats.publishers.add(new PublisherStats());
+        topicStats.subscriptions.put("test_ns", new SubscriptionStats());
+        topicStats.replication.put("test_ns", new ReplicatorStats());
+        TopicStats target = new TopicStats();
+        target.add(topicStats);
+        assertEquals(topicStats.msgRateIn, 1.0);
+        assertEquals(topicStats.msgThroughputIn, 1.0);
+        assertEquals(topicStats.msgRateOut, 1.0);
+        assertEquals(topicStats.msgThroughputOut, 1.0);
+        assertEquals(topicStats.averageMsgSize, 1.0);
+        assertEquals(topicStats.storageSize, 1);
+        assertEquals(topicStats.publishers.size(), 1);
+        assertEquals(topicStats.subscriptions.size(), 1);
+        assertEquals(topicStats.replication.size(), 1);
+        topicStats.reset();
+        assertEquals(topicStats.msgRateIn, 0.0);
+        assertEquals(topicStats.msgThroughputIn, 0.0);
+        assertEquals(topicStats.msgRateOut, 0.0);
+        assertEquals(topicStats.msgThroughputOut, 0.0);
+        assertEquals(topicStats.averageMsgSize, 0.0);
+        assertEquals(topicStats.storageSize, 0);
+        assertEquals(topicStats.publishers.size(), 0);
+        assertEquals(topicStats.subscriptions.size(), 0);
+        assertEquals(topicStats.replication.size(), 0);
     }
 
 }

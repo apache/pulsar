@@ -441,14 +441,14 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
 
         log.info("reset cursor to " + timestamp + " for topic " + topicName.toString() + " for subs " + subsId);
         log.info("issuing admin operation on " + admin.getServiceUrl());
-        List<String> subList = admin.persistentTopics().getSubscriptions(topicName.toString());
+        List<String> subList = admin.topics().getSubscriptions(topicName.toString());
         for (String subs : subList) {
             log.info("got sub " + subs);
         }
         publishTimeIdMap.clear();
         // reset the cursor to this timestamp
         Assert.assertTrue(subList.contains(subsId));
-        admin.persistentTopics().resetCursor(topicName.toString(), subsId, timestamp);
+        admin.topics().resetCursor(topicName.toString(), subsId, timestamp);
 
         Thread.sleep(3000);
         int totalExpected = 0;

@@ -18,24 +18,12 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import java.util.List;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import org.apache.pulsar.client.admin.PersistentTopics;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.impl.BatchMessageIdImpl;
-import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.common.compaction.CompactionStatus;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.CommaParameterSplitter;
-import static com.google.common.base.Preconditions.checkArgument;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -44,14 +32,26 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 
-@SuppressWarnings("deprecation")
-@Parameters(commandDescription = "Operations on persistent topics", hidden = true)
-public class CmdPersistentTopics extends CmdBase {
-    private final PersistentTopics persistentTopics;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
-    public CmdPersistentTopics(PulsarAdmin admin) {
-        super("persistent", admin);
-        persistentTopics = admin.persistentTopics();
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.Topics;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
+import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.compaction.CompactionStatus;
+
+@Parameters(commandDescription = "Operations on persistent topics")
+public class CmdTopics extends CmdBase {
+    private final Topics topics;
+
+    public CmdTopics(PulsarAdmin admin) {
+        super("topics", admin);
+        topics = admin.topics();
 
         jcommander.addCommand("list", new ListCmd());
         jcommander.addCommand("list-partitioned-topics", new PartitionedTopicListCmd());
@@ -65,17 +65,23 @@ public class CmdPersistentTopics extends CmdBase {
         jcommander.addCommand("subscriptions", new ListSubscriptions());
         jcommander.addCommand("unsubscribe", new DeleteSubscription());
         jcommander.addCommand("create-subscription", new CreateSubscription());
+
         jcommander.addCommand("stats", new GetStats());
         jcommander.addCommand("stats-internal", new GetInternalStats());
         jcommander.addCommand("info-internal", new GetInternalInfo());
+
         jcommander.addCommand("partitioned-stats", new GetPartitionedStats());
+
         jcommander.addCommand("skip", new Skip());
-        jcommander.addCommand("skip-all", new SkipAll());
+        jcommander.addCommand("clear-backlog", new ClearBacklog());
+
         jcommander.addCommand("expire-messages", new ExpireMessages());
         jcommander.addCommand("expire-messages-all-subscriptions", new ExpireMessagesForAllSubscriptions());
+
         jcommander.addCommand("create-partitioned-topic", new CreatePartitionedCmd());
         jcommander.addCommand("update-partitioned-topic", new UpdatePartitionedCmd());
         jcommander.addCommand("get-partitioned-topic-metadata", new GetPartitionedTopicMetadataCmd());
+
         jcommander.addCommand("delete-partitioned-topic", new DeletePartitionedCmd());
         jcommander.addCommand("peek-messages", new PeekMessages());
         jcommander.addCommand("reset-cursor", new ResetCursor());
@@ -86,31 +92,31 @@ public class CmdPersistentTopics extends CmdBase {
 
     @Parameters(commandDescription = "Get the list of topics under a namespace.")
     private class ListCmd extends CliCommand {
-        @Parameter(description = "property/cluster/namespace\n", required = true)
+        @Parameter(description = "property/namespace\n", required = true)
         private java.util.List<String> params;
 
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            print(persistentTopics.getList(namespace));
+            print(topics.getList(namespace));
         }
     }
 
     @Parameters(commandDescription = "Get the list of partitioned topics under a namespace.")
     private class PartitionedTopicListCmd extends CliCommand {
-        @Parameter(description = "property/cluster/namespace\n", required = true)
+        @Parameter(description = "property/namespace\n", required = true)
         private java.util.List<String> params;
 
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            print(persistentTopics.getPartitionedTopicList(namespace));
+            print(topics.getPartitionedTopicList(namespace));
         }
     }
 
     @Parameters(commandDescription = "Grant a new permission to a client role on a single topic.")
     private class GrantPermissions extends CliCommand {
-        @Parameter(description = "persistent://property/cluster/namespace/topic", required = true)
+        @Parameter(description = "persistent://property/namespace/topic", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = "--role", description = "Client role to which grant permissions", required = true)
@@ -122,7 +128,7 @@ public class CmdPersistentTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            persistentTopics.grantPermission(topic, role, getAuthActions(actions));
+            topics.grantPermission(topic, role, getAuthActions(actions));
         }
     }
 
@@ -131,7 +137,7 @@ public class CmdPersistentTopics extends CmdBase {
             + "\t\t\t   was not set at the topic level, but rather at the namespace level, this \n"
             + "\t\t\t   operation will return an error (HTTP status code 412).")
     private class RevokePermissions extends CliCommand {
-        @Parameter(description = "persistent://property/cluster/namespace/topic", required = true)
+        @Parameter(description = "persistent://property/namespace/topic", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = "--role", description = "Client role to which revoke permissions", required = true)
@@ -140,7 +146,7 @@ public class CmdPersistentTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            persistentTopics.revokePermissions(topic, role);
+            topics.revokePermissions(topic, role);
         }
     }
 
@@ -149,19 +155,19 @@ public class CmdPersistentTopics extends CmdBase {
             + "\t\t     by the permissions set at the namespace level combined (union) with any eventual \n"
             + "\t\t     specific permission set on the topic.")
     private class Permissions extends CliCommand {
-        @Parameter(description = "persistent://property/cluster/namespace/topic\n", required = true)
+        @Parameter(description = "persistent://property/namespace/topic\n", required = true)
         private java.util.List<String> params;
 
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            print(persistentTopics.getPermissions(topic));
+            print(topics.getPermissions(topic));
         }
     }
 
     @Parameters(commandDescription = "Lookup a topic from the current serving broker")
     private class Lookup extends CliCommand {
-        @Parameter(description = "persistent://property/cluster/namespace/topic\n", required = true)
+        @Parameter(description = "persistent://property/namespace/topic\n", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -173,7 +179,7 @@ public class CmdPersistentTopics extends CmdBase {
 
     @Parameters(commandDescription = "Get Namespace bundle range of a topic")
     private class GetBundleRange extends CliCommand {
-        @Parameter(description = "persistent://property/cluster/namespace/topic\n", required = true)
+        @Parameter(description = "persistent://property/namespace/topic\n", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -187,7 +193,7 @@ public class CmdPersistentTopics extends CmdBase {
             + "\t\tThe partitioned topic has to be created before creating a producer on it.")
     private class CreatePartitionedCmd extends CliCommand {
 
-        @Parameter(description = "persistent://property/cluster/namespace/topic\n", required = true)
+        @Parameter(description = "persistent://property/namespace/topic\n", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = { "-p",
@@ -196,8 +202,8 @@ public class CmdPersistentTopics extends CmdBase {
 
         @Override
         void run() throws Exception {
-            String persistentTopic = validatePersistentTopic(params);
-            persistentTopics.createPartitionedTopic(persistentTopic, numPartitions);
+            String topic = validateTopicName(params);
+            topics.createPartitionedTopic(topic, numPartitions);
         }
     }
 
@@ -205,7 +211,7 @@ public class CmdPersistentTopics extends CmdBase {
             + "\t\tNew updating number of partitions must be greater than existing number of partitions.")
     private class UpdatePartitionedCmd extends CliCommand {
 
-        @Parameter(description = "persistent://property/cluster/namespace/topic\n", required = true)
+        @Parameter(description = "persistent://property/namespace/topic\n", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = { "-p",
@@ -214,8 +220,8 @@ public class CmdPersistentTopics extends CmdBase {
 
         @Override
         void run() throws Exception {
-            String persistentTopic = validatePersistentTopic(params);
-            persistentTopics.updatePartitionedTopic(persistentTopic, numPartitions);
+            String topic = validateTopicName(params);
+            topics.updatePartitionedTopic(topic, numPartitions);
         }
     }
 
@@ -223,13 +229,13 @@ public class CmdPersistentTopics extends CmdBase {
             + "\t\tIf the topic is not created or is a non-partitioned topic, it returns empty topic with 0 partitions")
     private class GetPartitionedTopicMetadataCmd extends CliCommand {
 
-        @Parameter(description = "persistent://property/cluster/namespace/topic\n", required = true)
+        @Parameter(description = "persistent://property/namespace/topic\n", required = true)
         private java.util.List<String> params;
 
         @Override
         void run() throws Exception {
-            String persistentTopic = validatePersistentTopic(params);
-            print(persistentTopics.getPartitionedTopicMetadata(persistentTopic));
+            String topic = validateTopicName(params);
+            print(topics.getPartitionedTopicMetadata(topic));
         }
     }
 
@@ -237,57 +243,57 @@ public class CmdPersistentTopics extends CmdBase {
             + "\t\tIt will also delete all the partitions of the topic if it exists.")
     private class DeletePartitionedCmd extends CliCommand {
 
-        @Parameter(description = "persistent://property/cluster/namespace/topic\n", required = true)
+        @Parameter(description = "persistent://property/namespace/topic\n", required = true)
         private java.util.List<String> params;
 
         @Override
         void run() throws Exception {
-            String persistentTopic = validatePersistentTopic(params);
-            persistentTopics.deletePartitionedTopic(persistentTopic);
+            String topic = validateTopicName(params);
+            topics.deletePartitionedTopic(topic);
         }
     }
 
     @Parameters(commandDescription = "Delete a topic. \n"
             + "\t\tThe topic cannot be deleted if there's any active subscription or producers connected to it.")
     private class DeleteCmd extends CliCommand {
-        @Parameter(description = "persistent://property/cluster/namespace/topic\n", required = true)
+        @Parameter(description = "persistent://property/namespace/topic\n", required = true)
         private java.util.List<String> params;
 
         @Override
         void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(params);
-            persistentTopics.delete(persistentTopic);
+            String topic = validateTopicName(params);
+            topics.delete(topic);
         }
     }
 
     @Parameters(commandDescription = "Unload a topic. \n")
     private class UnloadCmd extends CliCommand {
-        @Parameter(description = "persistent://property/cluster/namespace/topic\n", required = true)
+        @Parameter(description = "persistent://property/namespace/topic\n", required = true)
         private java.util.List<String> params;
 
         @Override
         void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(params);
-            persistentTopics.unload(persistentTopic);
+            String topic = validateTopicName(params);
+            topics.unload(topic);
         }
     }
 
     @Parameters(commandDescription = "Get the list of subscriptions on the topic")
     private class ListSubscriptions extends CliCommand {
-        @Parameter(description = "persistent://property/cluster/namespace/topic\n", required = true)
+        @Parameter(description = "persistent://property/namespace/topic\n", required = true)
         private java.util.List<String> params;
 
         @Override
         void run() throws Exception {
-            String persistentTopic = validatePersistentTopic(params);
-            print(persistentTopics.getSubscriptions(persistentTopic));
+            String topic = validateTopicName(params);
+            print(topics.getSubscriptions(topic));
         }
     }
 
     @Parameters(commandDescription = "Delete a durable subscriber from a topic. \n"
             + "\t\tThe subscription cannot be deleted if there are any active consumers attached to it \n")
     private class DeleteSubscription extends CliCommand {
-        @Parameter(description = "persistent://property/cluster/namespace/topic", required = true)
+        @Parameter(description = "persistent://property/namespace/topic", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = { "-s", "--subscription" }, description = "Subscription to be deleted", required = true)
@@ -295,45 +301,45 @@ public class CmdPersistentTopics extends CmdBase {
 
         @Override
         void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(params);
-            persistentTopics.deleteSubscription(persistentTopic, subName);
+            String topic = validateTopicName(params);
+            topics.deleteSubscription(topic, subName);
         }
     }
 
     @Parameters(commandDescription = "Get the stats for the topic and its connected producers and consumers. \n"
             + "\t       All the rates are computed over a 1 minute window and are relative the last completed 1 minute period.")
     private class GetStats extends CliCommand {
-        @Parameter(description = "persistent://property/cluster/namespace/topic\n", required = true)
+        @Parameter(description = "persistent://property/namespace/topic\n", required = true)
         private java.util.List<String> params;
 
         @Override
         void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(params);
-            print(persistentTopics.getStats(persistentTopic));
+            String topic = validateTopicName(params);
+            print(topics.getStats(topic));
         }
     }
 
     @Parameters(commandDescription = "Get the internal stats for the topic")
     private class GetInternalStats extends CliCommand {
-        @Parameter(description = "persistent://property/cluster/namespace/topic\n", required = true)
+        @Parameter(description = "persistent://property/namespace/topic\n", required = true)
         private java.util.List<String> params;
 
         @Override
         void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(params);
-            print(persistentTopics.getInternalStats(persistentTopic));
+            String topic = validateTopicName(params);
+            print(topics.getInternalStats(topic));
         }
     }
 
     @Parameters(commandDescription = "Get the internal metadata info for the topic")
     private class GetInternalInfo extends CliCommand {
-        @Parameter(description = "persistent://property/cluster/namespace/topic\n", required = true)
+        @Parameter(description = "persistent://property/namespace/topic\n", required = true)
         private java.util.List<String> params;
 
         @Override
         void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(params);
-            JsonObject result = persistentTopics.getInternalInfo(persistentTopic);
+            String topic = validateTopicName(params);
+            JsonObject result = topics.getInternalInfo(topic);
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             System.out.println(gson.toJson(result));
         }
@@ -342,7 +348,7 @@ public class CmdPersistentTopics extends CmdBase {
     @Parameters(commandDescription = "Get the stats for the partitioned topic and its connected producers and consumers. \n"
             + "\t       All the rates are computed over a 1 minute window and are relative the last completed 1 minute period.")
     private class GetPartitionedStats extends CliCommand {
-        @Parameter(description = "persistent://property/cluster/namespace/topic\n", required = true)
+        @Parameter(description = "persistent://property/namespace/topic\n", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = "--per-partition", description = "Get per partition stats")
@@ -350,14 +356,14 @@ public class CmdPersistentTopics extends CmdBase {
 
         @Override
         void run() throws Exception {
-            String persistentTopic = validatePersistentTopic(params);
-            print(persistentTopics.getPartitionedStats(persistentTopic, perPartition));
+            String topic = validateTopicName(params);
+            print(topics.getPartitionedStats(topic, perPartition));
         }
     }
 
     @Parameters(commandDescription = "Skip all the messages for the subscription")
-    private class SkipAll extends CliCommand {
-        @Parameter(description = "persistent://property/cluster/namespace/topic", required = true)
+    private class ClearBacklog extends CliCommand {
+        @Parameter(description = "persistent://property/namespace/topic", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = { "-s", "--subscription" }, description = "Subscription to be cleared", required = true)
@@ -365,14 +371,14 @@ public class CmdPersistentTopics extends CmdBase {
 
         @Override
         void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(params);
-            persistentTopics.skipAllMessages(persistentTopic, subName);
+            String topic = validateTopicName(params);
+            topics.skipAllMessages(topic, subName);
         }
     }
 
     @Parameters(commandDescription = "Skip some messages for the subscription")
     private class Skip extends CliCommand {
-        @Parameter(description = "persistent://property/cluster/namespace/topic", required = true)
+        @Parameter(description = "persistent://property/namespace/topic", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = { "-s",
@@ -384,14 +390,14 @@ public class CmdPersistentTopics extends CmdBase {
 
         @Override
         void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(params);
-            persistentTopics.skipMessages(persistentTopic, subName, numMessages);
+            String topic = validateTopicName(params);
+            topics.skipMessages(topic, subName, numMessages);
         }
     }
 
     @Parameters(commandDescription = "Expire messages that older than given expiry time (in seconds) for the subscription")
     private class ExpireMessages extends CliCommand {
-        @Parameter(description = "persistent://property/cluster/namespace/topic", required = true)
+        @Parameter(description = "persistent://property/namespace/topic", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = { "-s",
@@ -403,14 +409,14 @@ public class CmdPersistentTopics extends CmdBase {
 
         @Override
         void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(params);
-            persistentTopics.expireMessages(persistentTopic, subName, expireTimeInSeconds);
+            String topic = validateTopicName(params);
+            topics.expireMessages(topic, subName, expireTimeInSeconds);
         }
     }
 
     @Parameters(commandDescription = "Expire messages that older than given expiry time (in seconds) for all subscriptions")
     private class ExpireMessagesForAllSubscriptions extends CliCommand {
-        @Parameter(description = "persistent://property/cluster/namespace/topic", required = true)
+        @Parameter(description = "persistent://property/namespace/topic", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = { "-t", "--expireTime" }, description = "Expire messages older than time in seconds", required = true)
@@ -418,14 +424,14 @@ public class CmdPersistentTopics extends CmdBase {
 
         @Override
         void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(params);
-            persistentTopics.expireMessagesForAllSubscriptions(persistentTopic, expireTimeInSeconds);
+            String topic = validateTopicName(params);
+            topics.expireMessagesForAllSubscriptions(topic, expireTimeInSeconds);
         }
     }
 
     @Parameters(commandDescription = "Create a new subscription on a topic")
     private class CreateSubscription extends CliCommand {
-        @Parameter(description = "persistent://property/cluster/namespace/topic", required = true)
+        @Parameter(description = "persistent://property/namespace/topic", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = { "-s",
@@ -438,7 +444,7 @@ public class CmdPersistentTopics extends CmdBase {
 
         @Override
         void run() throws PulsarAdminException {
-            String persistentTopic = validatePersistentTopic(params);
+            String topic = validateTopicName(params);
             MessageId messageId;
             if (messageIdStr.equals("latest")) {
                 messageId = MessageId.latest;
@@ -448,13 +454,13 @@ public class CmdPersistentTopics extends CmdBase {
                 messageId = validateMessageIdString(messageIdStr);
             }
 
-            persistentTopics.createSubscription(persistentTopic, subscriptionName, messageId);
+            topics.createSubscription(topic, subscriptionName, messageId);
         }
     }
 
     @Parameters(commandDescription = "Reset position for subscription to position closest to timestamp or messageId")
     private class ResetCursor extends CliCommand {
-        @Parameter(description = "persistent://property/cluster/namespace/topic", required = true)
+        @Parameter(description = "persistent://property/namespace/topic", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = { "-s",
@@ -474,13 +480,13 @@ public class CmdPersistentTopics extends CmdBase {
             String persistentTopic = validatePersistentTopic(params);
             if (isNotBlank(resetMessageIdStr)) {
                 MessageId messageId = validateMessageIdString(resetMessageIdStr);
-                persistentTopics.resetCursor(persistentTopic, subName, messageId);
+                topics.resetCursor(persistentTopic, subName, messageId);
             } else if (isNotBlank(resetTimeStr)) {
                 int resetBackTimeInMin = validateTimeString(resetTimeStr);
                 long resetTimeInMillis = TimeUnit.MILLISECONDS.convert(resetBackTimeInMin, TimeUnit.MINUTES);
                 // now - go back time
                 long timestamp = System.currentTimeMillis() - resetTimeInMillis;
-                persistentTopics.resetCursor(persistentTopic, subName, timestamp);
+                topics.resetCursor(persistentTopic, subName, timestamp);
             } else {
                 throw new PulsarAdminException(
                         "Either Timestamp (--time) or Position (--position) has to be provided to reset cursor");
@@ -490,7 +496,7 @@ public class CmdPersistentTopics extends CmdBase {
 
     @Parameters(commandDescription = "Terminate a topic and don't allow any more messages to be published")
     private class Terminate extends CliCommand {
-        @Parameter(description = "persistent://property/cluster/namespace/topic", required = true)
+        @Parameter(description = "persistent://property/namespace/topic", required = true)
         private java.util.List<String> params;
 
         @Override
@@ -498,7 +504,7 @@ public class CmdPersistentTopics extends CmdBase {
             String persistentTopic = validatePersistentTopic(params);
 
             try {
-                MessageId lastMessageId = persistentTopics.terminateTopicAsync(persistentTopic).get();
+                MessageId lastMessageId = topics.terminateTopicAsync(persistentTopic).get();
                 System.out.println("Topic succesfully terminated at " + lastMessageId);
             } catch (InterruptedException | ExecutionException e) {
                 throw new PulsarAdminException(e);
@@ -508,7 +514,7 @@ public class CmdPersistentTopics extends CmdBase {
 
     @Parameters(commandDescription = "Peek some messages for the subscription")
     private class PeekMessages extends CliCommand {
-        @Parameter(description = "persistent://property/cluster/namespace/topic", required = true)
+        @Parameter(description = "persistent://property/namespace/topic", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = { "-s",
@@ -521,7 +527,7 @@ public class CmdPersistentTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            List<Message<byte[]>> messages = persistentTopics.peekMessages(persistentTopic, subName, numMessages);
+            List<Message<byte[]>> messages = topics.peekMessages(persistentTopic, subName, numMessages);
             int position = 0;
             for (Message<byte[]> msg : messages) {
                 if (++position != 1) {
@@ -546,21 +552,21 @@ public class CmdPersistentTopics extends CmdBase {
 
     @Parameters(commandDescription = "Compact a topic")
     private class Compact extends CliCommand {
-        @Parameter(description = "persistent://property/cluster/namespace/topic", required = true)
+        @Parameter(description = "persistent://property/namespace/topic", required = true)
         private java.util.List<String> params;
 
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
 
-            persistentTopics.triggerCompaction(persistentTopic);
+            topics.triggerCompaction(persistentTopic);
             System.out.println("Topic compaction requested for " + persistentTopic);
         }
     }
 
     @Parameters(commandDescription = "Status of compaction on a topic")
     private class CompactionStatusCmd extends CliCommand {
-        @Parameter(description = "persistent://property/cluster/namespace/topic", required = true)
+        @Parameter(description = "persistent://property/namespace/topic", required = true)
         private java.util.List<String> params;
 
         @Parameter(names = { "-w", "--wait-complete" },
@@ -572,10 +578,10 @@ public class CmdPersistentTopics extends CmdBase {
             String persistentTopic = validatePersistentTopic(params);
 
             try {
-                CompactionStatus status = persistentTopics.compactionStatus(persistentTopic);
+                CompactionStatus status = topics.compactionStatus(persistentTopic);
                 while (wait && status.status == CompactionStatus.Status.RUNNING) {
                     Thread.sleep(1000);
-                    status = persistentTopics.compactionStatus(persistentTopic);
+                    status = topics.compactionStatus(persistentTopic);
                 }
 
                 switch (status.status) {
