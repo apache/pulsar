@@ -88,8 +88,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     @Getter(AccessLevel.PACKAGE)
     private Table<ByteBuf, ByteBuf> stateTable;
 
-    @Getter
-    private Exception failureException;
     private JavaInstance javaInstance;
     private AtomicBoolean running = new AtomicBoolean(true);
 
@@ -229,10 +227,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             }
         } catch (Exception ex) {
             log.error("Uncaught exception in Java Instance", ex);
-            if (running.get()) {
-                failureException = ex;
-                throw new RuntimeException(ex);
-            }
+            throw new RuntimeException(ex);
         } finally {
             close();
         }
