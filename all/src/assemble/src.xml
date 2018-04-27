@@ -42,6 +42,7 @@
         <include>**/conf/**</include>
         <include>**/bin/**</include>
         <include>**/*.txt</include>
+        <include>pulsar-common/*.sh</include>
         <include>docker/**</include>
         <include>dashboard/**</include>
         <include>deployment/**</include>

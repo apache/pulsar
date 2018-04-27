@@ -167,7 +167,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 20;
         final int numberOfPartitions = 3;
-        admin.persistentTopics().createPartitionedTopic(topicName, numberOfPartitions);
+        admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
         // Special step to create partitioned topic
 
         // 1. producer connect
@@ -255,7 +255,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 10;
         final int numberOfPartitions = 3;
-        admin.persistentTopics().createPartitionedTopic(topicName, numberOfPartitions);
+        admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
         // Special step to create partitioned topic
 
         // 1. producer connect

@@ -133,7 +133,7 @@ public class ProcessRuntimeTest {
 
         ProcessRuntime container = factory.createContainer(config, userJarFile);
         List<String> args = container.getProcessArgs();
-        assertEquals(args.size(), 44);
+        assertEquals(args.size(), 42);
         String expectedArgs = "python " + pythonInstanceFile
                 + " --py " + userJarFile + " --logging_directory "
                 + logDirectory + "/functions" + " --logging_file " + config.getFunctionDetails().getName() + " --instance_id "
@@ -150,8 +150,7 @@ public class ProcessRuntimeTest {
                 + " --output_serde_classname " + config.getFunctionDetails().getOutputSerdeClassName()
                 + " --processing_guarantees ATLEAST_ONCE"
                 + " --pulsar_serviceurl " + pulsarServiceUrl
-                + " --max_buffered_tuples 1024 --port " + args.get(41)
-                + " --source_classname " + config.getFunctionDetails().getSource().getClassName();
+                + " --max_buffered_tuples 1024 --port " + args.get(41);
         assertEquals(expectedArgs, String.join(" ", args));
     }
 
