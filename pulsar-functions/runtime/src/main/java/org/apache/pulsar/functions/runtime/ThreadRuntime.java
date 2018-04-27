@@ -80,14 +80,6 @@ class ThreadRuntime implements Runtime {
             public void uncaughtException(Thread t, Throwable e) {
                 startupException = new Exception(e);
                 log.error("Error occured in java instance:", e);
-                try {
-                    Thread.sleep(500);
-                } catch (InterruptedException e1) {
-                    //ignore
-                }
-                // restart
-                start();
-
             }
         });
         this.fnThread.start();
@@ -117,13 +109,14 @@ class ThreadRuntime implements Runtime {
 
     @Override
     public CompletableFuture<FunctionStatus> getFunctionStatus() {
-        FunctionStatus.Builder functionStatusBuilder = javaInstanceRunnable.getFunctionStatus();
-        if (javaInstanceRunnable.getFailureException() != null) {
+        if (!isAlive()) {
+            FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
             functionStatusBuilder.setRunning(false);
-            functionStatusBuilder.setFailureException(javaInstanceRunnable.getFailureException().getMessage());
-        } else {
-            functionStatusBuilder.setRunning(true);
+            functionStatusBuilder.setFailureException(getDeathException().getMessage());
+            return CompletableFuture.completedFuture(functionStatusBuilder.build());
         }
+        FunctionStatus.Builder functionStatusBuilder = javaInstanceRunnable.getFunctionStatus();
+        functionStatusBuilder.setRunning(true);
         return CompletableFuture.completedFuture(functionStatusBuilder.build());
     }
 
@@ -147,8 +140,6 @@ class ThreadRuntime implements Runtime {
             return null;
         } else if (null != startupException) {
             return startupException;
-        } else if (null != javaInstanceRunnable){
-            return javaInstanceRunnable.getFailureException();
         } else {
             return null;
         }
