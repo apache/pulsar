@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -20,7 +20,6 @@ package org.apache.pulsar.client.api;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Sets;
-import java.security.SecureRandom;
 import java.time.Clock;
 import java.util.Collections;
 import java.util.Objects;
@@ -144,8 +143,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
     public void testJsonConsumerWithWrongPrestoredSchema() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        byte[] randomSchemaBytes = new byte[20];
-        SecureRandom.getInstanceStrong().nextBytes(randomSchemaBytes);
+        byte[] randomSchemaBytes = "hello".getBytes();
 
         pulsar.getSchemaRegistryService()
             .putSchemaIfAbsent("my-property/my-ns/my-topic1",
@@ -172,8 +170,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
     public void testJsonProducerWithWrongPrestoredSchema() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        byte[] randomSchemaBytes = new byte[20];
-        SecureRandom.getInstanceStrong().nextBytes(randomSchemaBytes);
+        byte[] randomSchemaBytes = "hello".getBytes();
 
         pulsar.getSchemaRegistryService()
             .putSchemaIfAbsent("my-property/my-ns/my-topic1",
