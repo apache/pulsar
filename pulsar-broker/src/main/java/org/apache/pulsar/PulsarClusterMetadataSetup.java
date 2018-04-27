@@ -78,13 +78,12 @@ public class PulsarClusterMetadataSetup {
                 "--zookeeper" }, description = "Local ZooKeeper quorum connection string", required = true)
         private String zookeeper;
 
-        @Deprecated
         @Parameter(names = { "-gzk",
-                "--global-zookeeper" }, description = "Global ZooKeeper quorum connection string", required = true)
+                "--global-zookeeper" }, description = "Global ZooKeeper quorum connection string", required = true, hidden = true)
         private String globalZookeeper;
 
         @Parameter(names = { "-cs",
-            "--configuration-store" }, description = "Configuration Store connection string", required = false)
+            "--configuration-store" }, description = "Configuration Store connection string", required = true)
         private String configurationStore;
 
         @Parameter(names = { "-h", "--help" }, description = "Show this help message")

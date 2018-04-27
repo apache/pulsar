@@ -464,6 +464,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
         this.zookeeperServers = zookeeperServers;
     }
 
+    /**
+     * @deprecated See {@link #getConfigurationStoreServers}
+     */
     @Deprecated
     public String getGlobalZookeeperServers() {
         if (this.globalZookeeperServers == null || this.globalZookeeperServers.isEmpty()) {
@@ -474,6 +477,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
         return globalZookeeperServers;
     }
 
+    /**
+     * @deprecated See {@link #setConfigurationStoreServers(String)}
+     */
     @Deprecated
     public void setGlobalZookeeperServers(String globalZookeeperServers) {
         this.globalZookeeperServers = globalZookeeperServers;
