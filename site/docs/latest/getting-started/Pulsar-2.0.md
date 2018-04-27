@@ -12,7 +12,6 @@ Pulsar 2.0 is a major new release for Pulsar that brings some bold changes to th
 Feature | Description
 :-------|:-----------
 [Pulsar Functions](../../functions/overview) | A lightweight compute option for Pulsar
-<!-- [Topic compaction](../../cookbooks/compaction) | TODO -->
 
 ## Major changes
 
@@ -39,6 +38,8 @@ Two important changes have been made in Pulsar 2.0:
 The {% popover cluster %} component has been removed from topic names. Thus, all topic names now have the following form:
 
 {% include topic.html type="{persistent|non-persistent}" ten="tenant" n="namespace" t="topic" %}
+
+{% include admonition.html type="success" content="Existing topics that use the legacy name format will continue to work without any change, and there are no plans to change that." %}
 
 #### Flexible topic naming
 
