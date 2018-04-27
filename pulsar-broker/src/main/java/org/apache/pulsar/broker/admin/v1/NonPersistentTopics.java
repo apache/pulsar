@@ -41,6 +41,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
 
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
@@ -236,9 +237,11 @@ public class NonPersistentTopics extends PersistentTopics {
         try {
             final List<String> topicList = Lists.newArrayList();
             pulsar().getBrokerService().getTopics().forEach((name, topicFuture) -> {
-                TopicName topicName = TopicName.get(name);
-                if (nsBundle.includes(topicName)) {
-                    topicList.add(name);
+                if (BrokerService.extractTopic(topicFuture).isPresent()) {
+                    TopicName topicName = TopicName.get(name);
+                    if (nsBundle.includes(topicName)) {
+                        topicList.add(name);
+                    }
                 }
             });
             return topicList;

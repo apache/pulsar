@@ -37,7 +37,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.PersistentTopicStats;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.slf4j.Logger;
@@ -149,7 +149,7 @@ public class BacklogQuotaManagerTest {
         Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA + 1) * 1000);
         rolloverStats();
 
-        PersistentTopicStats stats = admin.persistentTopics().getStats(topic1);
+        TopicStats stats = admin.topics().getStats(topic1);
         Assert.assertTrue(stats.storageSize < 10 * 1024, "Storage size is [" + stats.storageSize + "]");
         client.close();
     }
@@ -180,7 +180,7 @@ public class BacklogQuotaManagerTest {
         Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA + 1) * 1000);
         rolloverStats();
 
-        PersistentTopicStats stats = admin.persistentTopics().getStats(topic1);
+        TopicStats stats = admin.topics().getStats(topic1);
         Assert.assertTrue(stats.storageSize <= 10 * 1024, "Storage size is [" + stats.storageSize + "]");
         client.close();
     }
@@ -251,7 +251,7 @@ public class BacklogQuotaManagerTest {
         Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA + 1) * 1000);
         rolloverStats();
 
-        PersistentTopicStats stats = admin.persistentTopics().getStats(topic1);
+        TopicStats stats = admin.topics().getStats(topic1);
         Assert.assertTrue(stats.storageSize <= 10 * 1024, "Storage size is [" + stats.storageSize + "]");
         client.close();
         client2.close();
@@ -423,7 +423,7 @@ public class BacklogQuotaManagerTest {
         Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA + 1) * 1000);
         rolloverStats();
 
-        PersistentTopicStats stats = admin.persistentTopics().getStats(topic1);
+        TopicStats stats = admin.topics().getStats(topic1);
         Assert.assertTrue(stats.storageSize <= 15 * 1024, "Storage size is [" + stats.storageSize + "]");
         client.close();
         client2.close();
@@ -462,7 +462,7 @@ public class BacklogQuotaManagerTest {
 
         Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA + 1) * 1000);
         rolloverStats();
-        PersistentTopicStats stats = admin.persistentTopics().getStats(topic1);
+        TopicStats stats = admin.topics().getStats(topic1);
         Assert.assertEquals(stats.publishers.size(), 0,
                 "Number of producers on topic " + topic1 + " are [" + stats.publishers.size() + "]");
         client.close();
@@ -573,7 +573,7 @@ public class BacklogQuotaManagerTest {
         Assert.assertTrue(gotException, "backlog exceeded exception did not occur");
         // now remove backlog and ensure that producer is unblockedrolloverStats();
 
-        PersistentTopicStats stats = admin.persistentTopics().getStats(topic1);
+        TopicStats stats = admin.topics().getStats(topic1);
         int backlog = (int) stats.subscriptions.get(subName1).msgBacklog;
 
         for (int i = 0; i < backlog; i++) {

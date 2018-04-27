@@ -110,7 +110,7 @@ def main():
   if args.output_serde_classname != None and len(args.output_serde_classname) != 0:
     function_details.outputSerdeClassName = args.output_serde_classname
   function_details.processingGuarantees = Function_pb2.FunctionDetails.ProcessingGuarantees.Value(args.processing_guarantees)
-  function_details.subscriptionType = Function_pb2.FunctionDetails.SubscriptionType.Values(args.subscription_type)
+  function_details.subscriptionType = Function_pb2.FunctionDetails.SubscriptionType.Value(args.subscription_type)
   if args.auto_ack == "true":
     function_details.autoAck = True
   else:

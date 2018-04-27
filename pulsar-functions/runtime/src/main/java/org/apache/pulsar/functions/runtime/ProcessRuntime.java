@@ -175,12 +175,14 @@ class ProcessRuntime implements Runtime {
         instancePort = findAvailablePort();
         args.add("--port");
         args.add(String.valueOf(instancePort));
-        args.add("--source_classname");
-        args.add(instanceConfig.getFunctionDetails().getSource().getClassName());
-        Map<String, String> sourceConfigs = instanceConfig.getFunctionDetails().getSource().getConfigsMap();
-        if (sourceConfigs != null && !sourceConfigs.isEmpty()) {
-            args.add("--source_config");
-            args.add(new Gson().toJson(sourceConfigs));
+        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
+            args.add("--source_classname");
+            args.add(instanceConfig.getFunctionDetails().getSource().getClassName());
+            Map<String, String> sourceConfigs = instanceConfig.getFunctionDetails().getSource().getConfigsMap();
+            if (sourceConfigs != null && !sourceConfigs.isEmpty()) {
+                args.add("--source_config");
+                args.add(new Gson().toJson(sourceConfigs));
+            }
         }
 
         return args;
