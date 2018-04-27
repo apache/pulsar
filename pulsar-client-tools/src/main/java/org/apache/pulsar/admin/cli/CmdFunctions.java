@@ -120,6 +120,17 @@ public class CmdFunctions extends CmdBase {
 
         @Parameter(names = "--namespace", description = "The function's namespace", required = true)
         protected String namespace;
+
+        @Override
+        void processArguments() throws IllegalArgumentException {
+            if (isNull(tenant)) {
+                throw new IllegalArgumentException("You must specify a tenant");
+            }
+
+            if (isNull(namespace)) {
+                throw new IllegalArgumentException("You must specify a namespace");
+            }
+        }
     }
 
     /**
@@ -138,7 +149,7 @@ public class CmdFunctions extends CmdBase {
 
         @Parameter(names = "--name", description = "The function's name")
         protected String functionName;
-
+        
         @Override
         void processArguments() throws Exception {
             super.processArguments();
