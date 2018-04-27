@@ -81,7 +81,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
         final String subscriptionName = "my-ex-subscription-" + key;
         int numberOfPartitions = 3;
-        admin.persistentTopics().createPartitionedTopic(topicName, numberOfPartitions);
+        admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
         pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).receiverQueueSize(0).subscribe();
     }
 

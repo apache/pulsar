@@ -18,14 +18,13 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import javax.ws.rs.WebApplicationException;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.admin.PulsarAdminException.ConnectException;
-
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
+
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.PulsarAdminException.ConnectException;
 
 public abstract class CmdBase {
     protected final JCommander jcommander;
@@ -77,7 +76,6 @@ public abstract class CmdBase {
                 System.err.println("Reason: " + e.getMessage());
                 return false;
             } catch (Exception e) {
-                System.err.println("Got exception: " + e.getMessage());
                 e.printStackTrace();
                 return false;
             }

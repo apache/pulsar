@@ -79,7 +79,7 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null), true);
         assertEquals(auth.canProduce(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null), true);
 
-        admin.persistentTopics().grantPermission("persistent://p1/c1/ns1/ds2", "other-role",
+        admin.topics().grantPermission("persistent://p1/c1/ns1/ds2", "other-role",
                 EnumSet.of(AuthAction.consume));
         waitForChange();
 
@@ -150,7 +150,7 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds2"), "my.role.1", null), false);
         assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds2"), "my.role.2", null), false);
 
-        admin.persistentTopics().grantPermission("persistent://p1/c1/ns1/ds1", "my.*",
+        admin.topics().grantPermission("persistent://p1/c1/ns1/ds1", "my.*",
                 EnumSet.of(AuthAction.produce));
         waitForChange();
 
@@ -173,7 +173,7 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds2"), "1.role.my", null), false);
         assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds2"), "2.role.my", null), false);
 
-        admin.persistentTopics().grantPermission("persistent://p1/c1/ns1/ds1", "*.my",
+        admin.topics().grantPermission("persistent://p1/c1/ns1/ds1", "*.my",
                 EnumSet.of(AuthAction.consume));
         waitForChange();
 
@@ -186,8 +186,8 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds2"), "1.role.my", null), false);
         assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds2"), "2.role.my", null), false);
 
-        admin.persistentTopics().revokePermissions("persistent://p1/c1/ns1/ds1", "my.*");
-        admin.persistentTopics().revokePermissions("persistent://p1/c1/ns1/ds1", "*.my");
+        admin.topics().revokePermissions("persistent://p1/c1/ns1/ds1", "my.*");
+        admin.topics().revokePermissions("persistent://p1/c1/ns1/ds1", "*.my");
 
         // tests for subscription auth mode
         admin.namespaces().grantPermissionOnNamespace("p1/c1/ns1", "*", EnumSet.of(AuthAction.consume));
