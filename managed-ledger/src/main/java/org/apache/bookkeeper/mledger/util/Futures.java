@@ -29,6 +29,8 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
  */
 public class Futures {
 
+    public static CompletableFuture<Void> NULL_PROMISE = CompletableFuture.completedFuture(null);
+
     /**
      * Adapts a {@link CloseCallback} to a {@link CompletableFuture}.
      */
