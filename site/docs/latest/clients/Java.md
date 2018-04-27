@@ -297,8 +297,8 @@ consumerBuilder
         .thenAccept(consumer -> {
             do {
                 try {
-                    String.out.printf();
-                    consumer.receive();
+                    Message msg = consumer.receive();
+                    // Do something with the received message
                 } catch (PulsarClientException e) {
                     e.printStackTrace();
                 }

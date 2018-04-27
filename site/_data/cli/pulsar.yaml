@@ -170,7 +170,7 @@ env_vars:
   default: conf/zookeeper.conf
 - name: PULSAR_CONFIGURATION_STORE_CONF
   description:  Configuration file for the configuration store
-  default: conf/configuration_store.conf
+  default: conf/global_zookeeper.conf
 - name: PULSAR_DISCOVERY_CONF
   description: Configuration file for discovery service
   default: conf/discovery.conf
