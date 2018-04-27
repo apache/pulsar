@@ -34,6 +34,7 @@ import com.google.protobuf.ByteString;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
+import java.time.Clock;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -209,6 +210,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private final OrderedExecutor executor;
     final ManagedLedgerFactoryImpl factory;
     protected final ManagedLedgerMBeanImpl mbean;
+    private final Clock clock;
 
     /**
      * Queue of pending entries to be added to the managed ledger. Typically entries are queued when a new ledger is
@@ -239,6 +241,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.waitingCursors = Queues.newConcurrentLinkedQueue();
         this.uninitializedCursors = Maps.newHashMap();
         this.updateCursorRateLimit = RateLimiter.create(1);
+        this.clock = config.getClock();
 
         // Get the next rollover time. Add a random value upto 5% to avoid rollover multiple ledgers at the same time
         this.maximumRolloverTimeMs = (long) (config.getMaximumRolloverTimeMs() * (1 + random.nextDouble() * 5 / 100.0));
@@ -274,7 +277,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                             if (rc == BKException.Code.OK) {
                                 LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(id)
                                         .setEntries(lh.getLastAddConfirmed() + 1).setSize(lh.getLength())
-                                        .setTimestamp(System.currentTimeMillis()).build();
+                                        .setTimestamp(clock.millis()).build();
                                 ledgers.put(id, info);
                                 initializeBookKeeper(callback);
                             } else if (rc == BKException.Code.NoSuchLedgerExistsException) {
@@ -367,7 +370,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
                         log.info("[{}] Created ledger {}", name, lh.getId());
                         STATE_UPDATER.set(this, State.LedgerOpened);
-                        lastLedgerCreatedTimestamp = System.currentTimeMillis();
+                        lastLedgerCreatedTimestamp = clock.millis();
                         currentLedger = lh;
 
                         lastConfirmedEntry = new PositionImpl(lh.getId(), -1);
@@ -541,7 +544,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 log.debug("[{}] Queue addEntry request", name);
             }
         } else if (state == State.ClosedLedger) {
-            long now = System.currentTimeMillis();
+            long now = clock.millis();
             if (now < lastLedgerCreationFailureTimestamp + WaitTimeAfterLedgerCreationFailureMs) {
                 // Deny the write request, since we haven't waited enough time since last attempt to create a new ledger
                 pendingAddEntries.remove(addOperation);
@@ -860,7 +863,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                             MessageMetadata msgMetadata = null;
                             try {
                                 msgMetadata = Commands.parseMessageMetadata(entry.getDataBuffer());
-                                long msgTimeSincePublish = (System.currentTimeMillis() - msgMetadata.getPublishTime());
+                                long msgTimeSincePublish = (clock.millis() - msgMetadata.getPublishTime());
                                 if (msgTimeSincePublish > maxMessageCacheRetentionTimeMillis) {
                                     cursor.setInactive();
                                 }
@@ -1136,7 +1139,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             // Empty the list of pending requests and make all of them fail
             clearPendingAddEntries(status);
-            lastLedgerCreationFailureTimestamp = System.currentTimeMillis();
+            lastLedgerCreationFailureTimestamp = clock.millis();
             STATE_UPDATER.set(this, State.ClosedLedger);
         } else {
             log.info("[{}] Created new ledger {}", name, lh.getId());
@@ -1189,7 +1192,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     ledgersListMutex.unlock();
 
                     synchronized (ManagedLedgerImpl.this) {
-                        lastLedgerCreationFailureTimestamp = System.currentTimeMillis();
+                        lastLedgerCreationFailureTimestamp = clock.millis();
                         STATE_UPDATER.set(ManagedLedgerImpl.this, State.ClosedLedger);
                         clearPendingAddEntries(e);
                     }
@@ -1215,7 +1218,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     public synchronized void updateLedgersIdsComplete(Stat stat) {
         STATE_UPDATER.set(this, State.LedgerOpened);
-        lastLedgerCreatedTimestamp = System.currentTimeMillis();
+        lastLedgerCreatedTimestamp = clock.millis();
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] Resending {} pending messages", name, pendingAddEntries.size());
@@ -1269,7 +1272,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         if (entriesInLedger > 0) {
             LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lh.getId()).setEntries(entriesInLedger)
-                    .setSize(lh.getLength()).setTimestamp(System.currentTimeMillis()).build();
+                    .setSize(lh.getLength()).setTimestamp(clock.millis()).build();
             ledgers.put(lh.getId(), info);
         } else {
             // The last ledger was empty, so we can discard it
@@ -1546,7 +1549,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return false;
         }
 
-        long elapsedMs = System.currentTimeMillis() - ledgerTimestamp;
+        long elapsedMs = clock.millis() - ledgerTimestamp;
         return elapsedMs > config.getRetentionTimeMillis();
     }
 
@@ -1610,7 +1613,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     log.debug(
                         "[{}] Checking ledger {} -- time-old: {} sec -- "
                             + "expired: {} -- over-quota: {} -- current-ledger: {}",
-                        name, ls.getLedgerId(), (System.currentTimeMillis() - ls.getTimestamp()) / 1000.0, expired,
+                        name, ls.getLedgerId(), (clock.millis() - ls.getTimestamp()) / 1000.0, expired,
                         overRetentionQuota, currentLedger.getId());
                 }
                 if (ls.getLedgerId() == currentLedger.getId() || (!expired && !overRetentionQuota)) {
@@ -1666,7 +1669,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
                     for (LedgerInfo ls : ledgersToDelete) {
                         log.info("[{}] Removing ledger {} - size: {}", name, ls.getLedgerId(), ls.getSize());
-                        asyncDeleteLedger(ls.getLedgerId());
+                        asyncDeleteLedger(ls.getLedgerId(), ls);
                     }
                 }
 
@@ -1758,8 +1761,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    private void asyncDeleteLedger(long ledgerId) {
+    private void asyncDeleteLedger(long ledgerId, LedgerInfo info) {
         asyncDeleteLedger(ledgerId, DEFAULT_LEDGER_DELETE_RETRIES);
+
+        if (info.getOffloadContext().hasUidMsb()) {
+            UUID uuid = new UUID(info.getOffloadContext().getUidMsb(),
+                                 info.getOffloadContext().getUidLsb());
+            cleanupOffloaded(ledgerId, uuid, "Trimming");
+        }
     }
 
     private void asyncDeleteLedger(long ledgerId, long retry) {
@@ -1963,7 +1972,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                            scheduledExecutor, name)
                             .whenComplete((ignore2, exception) -> {
                                     if (exception != null) {
-                                        cleanupOffloadedOnFailure(ledgerId, uuid, "Metastore failure");
+                                        cleanupOffloaded(ledgerId, uuid, "Metastore failure");
                                     }
                                 });
                     })
@@ -2056,7 +2065,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                                                    oldInfo.getOffloadContext().getUidLsb());
                                            log.info("[{}] Found previous offload attempt for ledger {}, uuid {}"
                                                     + ", cleaning up", name, ledgerId, uuid);
-                                           cleanupOffloadedOnFailure(ledgerId, oldUuid, "Previous failed offload");
+                                           cleanupOffloaded(ledgerId, oldUuid, "Previous failed offload");
                                        }
                                        LedgerInfo.Builder builder = oldInfo.toBuilder();
                                        builder.getOffloadContextBuilder()
@@ -2078,7 +2087,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return transformLedgerInfo(ledgerId,
                                    (oldInfo) -> {
                                        UUID existingUuid = new UUID(oldInfo.getOffloadContext().getUidMsb(),
-                                                               oldInfo.getOffloadContext().getUidLsb());
+                                                                    oldInfo.getOffloadContext().getUidLsb());
                                        if (existingUuid.equals(uuid)) {
                                            LedgerInfo.Builder builder = oldInfo.toBuilder();
                                            builder.getOffloadContextBuilder()
@@ -2092,7 +2101,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                        }
                                    })
             .whenComplete((result, exception) -> {
-                    if (exception != null) {
+                    if (exception == null) {
                         log.info("[{}] End Offload. ledger={}, uuid={}", name, ledgerId, uuid);
                     } else {
                         log.warn("[{}] Failed to complete offload of ledger {}, uuid {}",
@@ -2101,7 +2110,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 });
     }
 
-    private void cleanupOffloadedOnFailure(long ledgerId, UUID uuid, String cleanupReason) {
+    private void cleanupOffloaded(long ledgerId, UUID uuid, String cleanupReason) {
         Retries.run(Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1), TimeUnit.SECONDS.toHours(1)).limit(10),
                     Retries.NonFatalPredicate,
                     () -> config.getLedgerOffloader().deleteOffloaded(ledgerId, uuid),
@@ -2399,7 +2408,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         boolean spaceQuotaReached = (currentLedgerEntries >= config.getMaxEntriesPerLedger()
                 || currentLedgerSize >= (config.getMaxSizePerLedgerMb() * MegaByte));
 
-        long timeSinceLedgerCreationMs = System.currentTimeMillis() - lastLedgerCreatedTimestamp;
+        long timeSinceLedgerCreationMs = clock.millis() - lastLedgerCreatedTimestamp;
         boolean maxLedgerTimeReached = timeSinceLedgerCreationMs >= maximumRolloverTimeMs;
 
         if (spaceQuotaReached || maxLedgerTimeReached) {
@@ -2408,7 +2417,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 boolean switchLedger = timeSinceLedgerCreationMs > config.getMinimumRolloverTimeMs();
                 if (log.isDebugEnabled()) {
                     log.debug("Diff: {}, threshold: {} -- switch: {}",
-                            System.currentTimeMillis() - lastLedgerCreatedTimestamp, config.getMinimumRolloverTimeMs(),
+                            clock.millis() - lastLedgerCreatedTimestamp, config.getMinimumRolloverTimeMs(),
                             switchLedger);
                 }
                 return switchLedger;

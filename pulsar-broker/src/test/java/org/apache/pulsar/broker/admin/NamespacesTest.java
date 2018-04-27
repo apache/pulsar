@@ -1106,7 +1106,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         producer.close();
         NamespaceBundle bundle1 = pulsar.getNamespaceService().getBundle(topic);
         // (2) Delete topic
-        admin.persistentTopics().delete(topicName);
+        admin.topics().delete(topicName);
         // (3) Delete ns
         admin.namespaces().deleteNamespace(namespace);
         // (4) check bundle

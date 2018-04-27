@@ -32,11 +32,16 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import com.google.common.collect.Lists;
+import com.google.common.hash.Hashing;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -74,10 +79,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
-import com.google.common.collect.Lists;
-import com.google.common.hash.Hashing;
 
 public class NamespaceServiceTest extends BrokerTestBase {
 
@@ -260,10 +261,11 @@ public class NamespaceServiceTest extends BrokerTestBase {
         final String topicName = "persistent://my-property/use/my-ns/my-topic1";
         pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name").subscribe();
 
-        ConcurrentOpenHashMap<String, CompletableFuture<Topic>> topics = pulsar.getBrokerService().getTopics();
-        Topic spyTopic = spy(topics.get(topicName).get());
+        ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics = pulsar.getBrokerService()
+                .getTopics();
+        Topic spyTopic = spy(topics.get(topicName).get().get());
         topics.clear();
-        CompletableFuture<Topic> topicFuture = CompletableFuture.completedFuture(spyTopic);
+        CompletableFuture<Optional<Topic>> topicFuture = CompletableFuture.completedFuture(Optional.of(spyTopic));
         // add mock topic
         topics.put(topicName, topicFuture);
         doAnswer(new Answer<CompletableFuture<Void>>() {
@@ -300,10 +302,10 @@ public class NamespaceServiceTest extends BrokerTestBase {
         final String topicName = "persistent://my-property/use/my-ns/my-topic1";
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
                 .subscribe();
-        ConcurrentOpenHashMap<String, CompletableFuture<Topic>> topics = pulsar.getBrokerService().getTopics();
-        Topic spyTopic = spy(topics.get(topicName).get());
+        ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics = pulsar.getBrokerService().getTopics();
+        Topic spyTopic = spy(topics.get(topicName).get().get());
         topics.clear();
-        CompletableFuture<Topic> topicFuture = CompletableFuture.completedFuture(spyTopic);
+        CompletableFuture<Optional<Topic>> topicFuture = CompletableFuture.completedFuture(Optional.of(spyTopic));
         // add mock topic
         topics.put(topicName, topicFuture);
         // return uncompleted future as close-topic result.
