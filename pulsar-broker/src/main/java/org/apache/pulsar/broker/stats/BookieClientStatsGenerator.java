@@ -19,9 +19,12 @@
 package org.apache.pulsar.broker.stats;
 
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.bookkeeper.mledger.proto.PendingBookieOpsStats;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.naming.TopicName;
 
@@ -47,8 +50,9 @@ public class BookieClientStatsGenerator {
     private Map<String, Map<String, PendingBookieOpsStats>> generate() throws Exception {
         if (pulsar.getBrokerService() != null && pulsar.getBrokerService().getTopics() != null) {
             pulsar.getBrokerService().getTopics().forEach((name, topicFuture) -> {
-                PersistentTopic persistentTopic = (PersistentTopic) topicFuture.getNow(null);
-                if (persistentTopic != null) {
+                Optional<Topic> topic = BrokerService.extractTopic(topicFuture);
+                if (topic.isPresent() && topic.get() instanceof PersistentTopic) {
+                    PersistentTopic persistentTopic = (PersistentTopic) topic.get();
                     TopicName topicName = TopicName.get(persistentTopic.getName());
                     put(topicName, persistentTopic.getManagedLedger().getStats().getPendingBookieOpsStats());
                 }

@@ -84,19 +84,23 @@ public class SchemasResource extends AdminResource {
         pulsar().getSchemaRegistryService().getSchema(schemaId)
             .handle((schema, error) -> {
                 if (isNull(error)) {
-                    response.resume(
-                        Response.ok()
-                            .encoding(MediaType.APPLICATION_JSON)
-                            .entity(GetSchemaResponse.builder()
-                                .version(schema.version)
-                                .type(schema.schema.getType())
-                                .timestamp(schema.schema.getTimestamp())
-                                .data(new String(schema.schema.getData()))
-                                .properties(schema.schema.getProps())
+                    if (isNull(schema)) {
+                        response.resume(Response.status(Response.Status.NOT_FOUND).build());
+                    } else {
+                        response.resume(
+                            Response.ok()
+                                .encoding(MediaType.APPLICATION_JSON)
+                                .entity(GetSchemaResponse.builder()
+                                    .version(schema.version)
+                                    .type(schema.schema.getType())
+                                    .timestamp(schema.schema.getTimestamp())
+                                    .data(new String(schema.schema.getData()))
+                                    .properties(schema.schema.getProps())
+                                    .build()
+                                )
                                 .build()
-                            )
-                            .build()
-                    );
+                        );
+                    }
                 } else {
                     response.resume(error);
                 }
@@ -122,7 +126,9 @@ public class SchemasResource extends AdminResource {
         pulsar().getSchemaRegistryService().getSchema(schemaId, v)
             .handle((schema, error) -> {
                 if (isNull(error)) {
-                    if (schema.schema.isDeleted()) {
+                    if (isNull(schema)) {
+                        response.resume(Response.status(Response.Status.NOT_FOUND).build());
+                    } else if (schema.schema.isDeleted()) {
                         response.resume(Response.noContent());
                     } else {
                         response.resume(

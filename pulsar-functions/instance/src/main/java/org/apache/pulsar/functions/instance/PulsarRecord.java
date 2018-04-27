@@ -18,39 +18,36 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import lombok.Builder;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import lombok.Setter;
 import lombok.ToString;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.functions.api.SerDe;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.connect.core.Record;
 
+@Data
+@Builder
 @Getter
-@Setter
 @ToString
-public class InputMessage {
+@EqualsAndHashCode
+public class PulsarRecord<T> implements Record<T> {
 
-    private Message actualMessage;
-    String topicName;
-    SerDe inputSerDe;
-    Consumer consumer;
+    private String partitionId;
+    private Long sequenceId;
+    private T value;
+    private MessageId messageId;
+    private String topicName;
+    private Runnable failFunction;
+    private Runnable ackFunction;
 
-    public int getTopicPartition() {
-        MessageIdImpl msgId = (MessageIdImpl) actualMessage.getMessageId();
-        return msgId.getPartitionIndex();
-    }
-
+    @Override
     public void ack() {
-        if (null != consumer) {
-            consumer.acknowledgeAsync(actualMessage);
-        }
+        this.ackFunction.run();
     }
 
-    public void ackCumulative() {
-        if (null != consumer) {
-            consumer.acknowledgeCumulativeAsync(actualMessage);
-        }
+    @Override
+    public void fail() {
+        this.failFunction.run();
     }
-
 }

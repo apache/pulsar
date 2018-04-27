@@ -27,12 +27,12 @@ public interface Source<T> extends AutoCloseable {
      * @param config initialization config
      * @throws Exception IO type exceptions when opening a connector
      */
-    void open(final Map<String, String> config) throws Exception;
+    void open(final Map<String, Object> config) throws Exception;
 
     /**
-     * Reads the next message from source, if one exists, and returns.  This call should be non-blocking.
-     * If source does not have any new messages, return null immediately.
-     * @return next message from source or null, if no new messages are available.
+     * Reads the next message from source.
+     * If source does not have any new messages, this call should block.
+     * @return next message from source.  The return result should never be null
      * @throws Exception
      */
     Record<T> read() throws Exception;

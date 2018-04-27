@@ -44,7 +44,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 
-@Parameters(commandDescription = "Operations on persistent topics")
+@SuppressWarnings("deprecation")
+@Parameters(commandDescription = "Operations on persistent topics", hidden = true)
 public class CmdPersistentTopics extends CmdBase {
     private final PersistentTopics persistentTopics;
 

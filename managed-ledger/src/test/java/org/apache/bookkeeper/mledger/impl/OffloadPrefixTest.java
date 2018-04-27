@@ -541,7 +541,99 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         Assert.assertTrue(ledger.getLedgersInfoAsList().get(0).getOffloadContext().getComplete());
     }
 
-    void assertEventuallyTrue(BooleanSupplier predicate) throws Exception {
+    @Test
+    public void testOffloadDelete() throws Exception {
+        Set<Pair<Long, UUID>> deleted = ConcurrentHashMap.newKeySet();
+        CompletableFuture<Set<Long>> errorLedgers = new CompletableFuture<>();
+        Set<Pair<Long, UUID>> failedOffloads = ConcurrentHashMap.newKeySet();
+
+        MockLedgerOffloader offloader = new MockLedgerOffloader();
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        config.setRetentionTime(0, TimeUnit.MINUTES);
+        config.setLedgerOffloader(offloader);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("my_test_ledger", config);
+        ManagedCursor cursor = ledger.openCursor("foobar");
+        for (int i = 0; i < 15; i++) {
+            String content = "entry-" + i;
+            ledger.addEntry(content.getBytes());
+        }
+
+        Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 2);
+        ledger.offloadPrefix(ledger.getLastConfirmedEntry());
+        Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 2);
+
+        Assert.assertEquals(ledger.getLedgersInfoAsList().stream()
+                            .filter(e -> e.getOffloadContext().getComplete()).count(), 1);
+        Assert.assertTrue(ledger.getLedgersInfoAsList().get(0).getOffloadContext().getComplete());
+        long firstLedger = ledger.getLedgersInfoAsList().get(0).getLedgerId();
+        long secondLedger = ledger.getLedgersInfoAsList().get(1).getLedgerId();
+
+        cursor.markDelete(ledger.getLastConfirmedEntry());
+        assertEventuallyTrue(() -> ledger.getLedgersInfoAsList().size() == 1);
+        Assert.assertEquals(ledger.getLedgersInfoAsList().get(0).getLedgerId(), secondLedger);
+
+        assertEventuallyTrue(() -> offloader.deletedOffloads().contains(firstLedger));
+    }
+
+    @Test
+    public void testOffloadDeleteIncomplete() throws Exception {
+        Set<Pair<Long, UUID>> deleted = ConcurrentHashMap.newKeySet();
+        CompletableFuture<Set<Long>> errorLedgers = new CompletableFuture<>();
+        Set<Pair<Long, UUID>> failedOffloads = ConcurrentHashMap.newKeySet();
+
+        MockLedgerOffloader offloader = new MockLedgerOffloader() {
+                @Override
+                public CompletableFuture<Void> offload(ReadHandle ledger,
+                                                       UUID uuid,
+                                                       Map<String, String> extraMetadata) {
+                    return super.offload(ledger, uuid, extraMetadata)
+                        .thenCompose((res) -> {
+                                CompletableFuture<Void> f = new CompletableFuture<>();
+                                f.completeExceptionally(new Exception("Fail after offload occurred"));
+                                return f;
+                            });
+                }
+            };
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        config.setRetentionTime(0, TimeUnit.MINUTES);
+        config.setLedgerOffloader(offloader);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("my_test_ledger", config);
+        ManagedCursor cursor = ledger.openCursor("foobar");
+        for (int i = 0; i < 15; i++) {
+            String content = "entry-" + i;
+            ledger.addEntry(content.getBytes());
+        }
+
+        Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 2);
+        try {
+            ledger.offloadPrefix(ledger.getLastConfirmedEntry());
+        } catch (ManagedLedgerException mle) {
+            // expected
+        }
+
+        Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 2);
+
+        Assert.assertEquals(ledger.getLedgersInfoAsList().stream()
+                            .filter(e -> e.getOffloadContext().getComplete()).count(), 0);
+        Assert.assertEquals(ledger.getLedgersInfoAsList().stream()
+                            .filter(e -> e.getOffloadContext().hasUidMsb()).count(), 1);
+        Assert.assertTrue(ledger.getLedgersInfoAsList().get(0).getOffloadContext().hasUidMsb());
+
+        long firstLedger = ledger.getLedgersInfoAsList().get(0).getLedgerId();
+        long secondLedger = ledger.getLedgersInfoAsList().get(1).getLedgerId();
+
+        cursor.markDelete(ledger.getLastConfirmedEntry());
+        assertEventuallyTrue(() -> ledger.getLedgersInfoAsList().size() == 1);
+        Assert.assertEquals(ledger.getLedgersInfoAsList().get(0).getLedgerId(), secondLedger);
+
+        assertEventuallyTrue(() -> offloader.deletedOffloads().contains(firstLedger));
+    }
+
+    static void assertEventuallyTrue(BooleanSupplier predicate) throws Exception {
         // wait up to 3 seconds
         for (int i = 0; i < 30 && !predicate.getAsBoolean(); i++) {
             Thread.sleep(100);
@@ -563,9 +655,14 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
 
     static class MockLedgerOffloader implements LedgerOffloader {
         ConcurrentHashMap<Long, UUID> offloads = new ConcurrentHashMap<Long, UUID>();
+        ConcurrentHashMap<Long, UUID> deletes = new ConcurrentHashMap<Long, UUID>();
 
         Set<Long> offloadedLedgers() {
             return offloads.keySet();
+        }
+
+        Set<Long> deletedOffloads() {
+            return deletes.keySet();
         }
 
         @Override
@@ -592,6 +689,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         public CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uuid) {
             CompletableFuture<Void> promise = new CompletableFuture<>();
             if (offloads.remove(ledgerId, uuid)) {
+                deletes.put(ledgerId, uuid);
                 promise.complete(null);
             } else {
                 promise.completeExceptionally(new Exception("Not found"));

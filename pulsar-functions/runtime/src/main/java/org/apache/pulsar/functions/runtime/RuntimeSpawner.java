@@ -43,12 +43,13 @@ public class RuntimeSpawner implements AutoCloseable {
     private Runtime runtime;
     private Timer processLivenessCheckTimer;
     private int numRestarts;
-    private Long instanceLivenessCheckFreqMs;
+    private long instanceLivenessCheckFreqMs;
+    private Exception runtimeDeathException;
 
 
     public RuntimeSpawner(InstanceConfig instanceConfig,
                           String codeFile,
-                          RuntimeFactory containerFactory, Long instanceLivenessCheckFreqMs) {
+                          RuntimeFactory containerFactory, long instanceLivenessCheckFreqMs) {
         this.instanceConfig = instanceConfig;
         this.runtimeFactory = containerFactory;
         this.codeFile = codeFile;
@@ -63,7 +64,7 @@ public class RuntimeSpawner implements AutoCloseable {
         runtime.start();
 
         // monitor function runtime to make sure it is running.  If not, restart the function runtime
-        if (instanceLivenessCheckFreqMs != null) {
+        if (instanceLivenessCheckFreqMs > 0) {
             processLivenessCheckTimer = new Timer();
             processLivenessCheckTimer.scheduleAtFixedRate(new TimerTask() {
                 @Override
@@ -71,6 +72,9 @@ public class RuntimeSpawner implements AutoCloseable {
                     if (!runtime.isAlive()) {
                         log.error("Function Container is dead with exception", runtime.getDeathException());
                         log.error("Restarting...");
+                        // Just for the sake of sanity, just destroy the runtime
+                        runtime.stop();
+                        runtimeDeathException = runtime.getDeathException();
                         runtime.start();
                         numRestarts++;
                     }
@@ -89,8 +93,8 @@ public class RuntimeSpawner implements AutoCloseable {
         return runtime.getFunctionStatus().thenApply(f -> {
            FunctionStatus.Builder builder = FunctionStatus.newBuilder();
            builder.mergeFrom(f).setNumRestarts(numRestarts).setInstanceId(instanceConfig.getInstanceId());
-           if (runtime.getDeathException() != null) {
-               builder.setFailureException(runtime.getDeathException().getMessage());
+           if (runtimeDeathException != null) {
+               builder.setFailureException(runtimeDeathException.getMessage());
            }
            return builder.build();
         });

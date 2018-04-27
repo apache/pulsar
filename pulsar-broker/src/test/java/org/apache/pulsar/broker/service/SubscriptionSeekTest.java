@@ -92,7 +92,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
     public void testSeekOnPartitionedTopic() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/testSeekPartitions";
 
-        admin.persistentTopics().createPartitionedTopic(topicName, 2);
+        admin.topics().createPartitionedTopic(topicName, 2);
         org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName("my-subscription").subscribe();
 

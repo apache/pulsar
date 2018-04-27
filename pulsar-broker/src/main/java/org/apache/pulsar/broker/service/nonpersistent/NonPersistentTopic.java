@@ -489,8 +489,12 @@ public class NonPersistentTopic implements Topic {
 
         FutureUtil.waitForAll(futures).thenRun(() -> {
             log.info("[{}] Topic closed", topic);
-            brokerService.pulsar().getExecutor().execute(() -> brokerService.removeTopicFromCache(topic));
-            closeFuture.complete(null);
+            // unload topic iterates over topics map and removing from the map with the same thread creates deadlock.
+            // so, execute it in different thread
+            brokerService.executor().execute(() -> {
+                brokerService.removeTopicFromCache(topic);
+                closeFuture.complete(null);
+            });
         }).exceptionally(exception -> {
             log.error("[{}] Error closing topic", topic, exception);
             isFenced = false;
@@ -989,5 +993,14 @@ public class NonPersistentTopic implements Topic {
         return brokerService.pulsar()
             .getSchemaRegistryService()
             .putSchemaIfAbsent(id, schema);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> isSchemaCompatible(SchemaData schema) {
+        String base = TopicName.get(getName()).getPartitionedTopicName();
+        String id = TopicName.get(base).getSchemaName();
+        return brokerService.pulsar()
+            .getSchemaRegistryService()
+            .isCompatibleWithLatestVersion(id, schema);
     }
 }

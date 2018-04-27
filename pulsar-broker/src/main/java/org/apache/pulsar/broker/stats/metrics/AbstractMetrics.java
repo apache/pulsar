@@ -29,7 +29,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.common.policies.data.PersistentTopicStats;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.stats.Metrics;
 
 import com.google.common.collect.Lists;
@@ -237,8 +237,8 @@ abstract class AbstractMetrics {
         }
     }
 
-    protected void populateDimensionMap(Map<Metrics, List<PersistentTopicStats>> topicsStatsByDimensionMap,
-            Metrics metrics, PersistentTopicStats destStats) {
+    protected void populateDimensionMap(Map<Metrics, List<TopicStats>> topicsStatsByDimensionMap,
+            Metrics metrics, TopicStats destStats) {
         if (!topicsStatsByDimensionMap.containsKey(metrics)) {
             // create new list
             topicsStatsByDimensionMap.put(metrics, Lists.newArrayList(destStats));

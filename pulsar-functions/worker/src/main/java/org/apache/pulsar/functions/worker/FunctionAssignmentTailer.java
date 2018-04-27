@@ -29,13 +29,13 @@ import java.util.function.Function;
 
 @Slf4j
 public class FunctionAssignmentTailer
-    implements java.util.function.Consumer<Message>, Function<Throwable, Void>, AutoCloseable {
+    implements java.util.function.Consumer<Message<byte[]>>, Function<Throwable, Void>, AutoCloseable {
 
         private final FunctionRuntimeManager functionRuntimeManager;
-        private final Reader reader;
+        private final Reader<byte[]> reader;
 
     public FunctionAssignmentTailer(FunctionRuntimeManager functionRuntimeManager,
-                Reader reader)
+                Reader<byte[]> reader)
             throws PulsarClientException {
             this.functionRuntimeManager = functionRuntimeManager;
             this.reader = reader;
@@ -64,7 +64,7 @@ public class FunctionAssignmentTailer
     }
 
     @Override
-    public void accept(Message msg) {
+    public void accept(Message<byte[]> msg) {
 
         // check if latest
         boolean hasMessageAvailable;

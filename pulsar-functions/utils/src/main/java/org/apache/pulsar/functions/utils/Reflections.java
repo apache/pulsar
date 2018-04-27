@@ -116,6 +116,40 @@ public class Reflections {
 
     }
 
+    public static Object createInstance(String userClassName,
+                                        ClassLoader classLoader, Object[] params, Class[] paramTypes) {
+        if (params.length != paramTypes.length) {
+            throw new RuntimeException(
+                    "Unequal number of params and paramTypes. Each param must have a correspoinding param type");
+        }
+        Class<?> theCls;
+        try {
+            theCls = Class.forName(userClassName, true, classLoader);
+        } catch (ClassNotFoundException cnfe) {
+            throw new RuntimeException("User class must be in class path", cnfe);
+        }
+        Object result;
+        try {
+            Constructor<?> meth = constructorCache.get(theCls);
+            if (null == meth) {
+                meth = theCls.getDeclaredConstructor(paramTypes);
+                meth.setAccessible(true);
+                constructorCache.put(theCls, meth);
+            }
+            result = meth.newInstance(params);
+        } catch (InstantiationException ie) {
+            throw new RuntimeException("User class must be concrete", ie);
+        } catch (NoSuchMethodException e) {
+            throw new RuntimeException("User class doesn't have such method", e);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException("User class must have a no-arg constructor", e);
+        } catch (InvocationTargetException e) {
+            throw new RuntimeException("User class constructor throws exception", e);
+        }
+        return result;
+
+    }
+
     public static Object createInstance(String userClassName, java.io.File jar) {
         try {
             return createInstance(userClassName, loadJar(jar));

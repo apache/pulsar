@@ -27,6 +27,7 @@ import java.util.Map;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 
@@ -48,7 +49,7 @@ public class MessageBuilderImpl<T> implements MessageBuilder<T> {
     }
 
     @Override
-    public MessageBuilder<T> setValue(T value) {
+    public MessageBuilder<T> setValue(T value) throws SchemaSerializationException {
         return setContent(schema.encode(value));
     }
 

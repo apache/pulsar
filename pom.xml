@@ -534,6 +534,12 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
+        <groupId>com.fasterxml.jackson.module</groupId>
+        <artifactId>jackson-module-jsonSchema</artifactId>
+        <version>2.9.0</version>
+      </dependency>
+
+      <dependency>
         <artifactId>log4j</artifactId>
         <groupId>log4j</groupId>
         <version>1.2.17</version>

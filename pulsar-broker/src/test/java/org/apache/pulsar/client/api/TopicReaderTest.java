@@ -34,7 +34,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
-import org.apache.pulsar.common.policies.data.PersistentTopicStats;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -163,16 +163,16 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
         Reader<byte[]> reader2 = pulsarClient.newReader().topic(topicName).startMessageId(MessageId.earliest).create();
 
-        PersistentTopicStats stats = admin.persistentTopics().getStats(topicName);
+        TopicStats stats = admin.topics().getStats(topicName);
         assertEquals(stats.subscriptions.size(), 2);
 
         reader1.close();
-        stats = admin.persistentTopics().getStats(topicName);
+        stats = admin.topics().getStats(topicName);
         assertEquals(stats.subscriptions.size(), 1);
 
         reader2.close();
 
-        stats = admin.persistentTopics().getStats(topicName);
+        stats = admin.topics().getStats(topicName);
         assertEquals(stats.subscriptions.size(), 0);
     }
 

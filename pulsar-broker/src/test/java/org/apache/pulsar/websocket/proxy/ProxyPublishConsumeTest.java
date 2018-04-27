@@ -339,8 +339,8 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
                     HttpServletResponse.SC_SERVICE_UNAVAILABLE);
         } finally {
             stopWebSocketClient(produceClient2);
-            admin.persistentTopics().skipAllMessages("persistent://" + topic, subscription);
-            admin.persistentTopics().delete("persistent://" + topic);
+            admin.topics().skipAllMessages("persistent://" + topic, subscription);
+            admin.topics().delete("persistent://" + topic);
             admin.namespaces().removeBacklogQuota(namespace);
             admin.namespaces().deleteNamespace(namespace);
         }
