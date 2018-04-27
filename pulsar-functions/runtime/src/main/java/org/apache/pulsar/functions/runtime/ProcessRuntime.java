@@ -213,6 +213,8 @@ class ProcessRuntime implements Runtime {
     public void stop() {
         process.destroy();
         channel.shutdown();
+        channel = null;
+        stub = null;
     }
 
     @Override
