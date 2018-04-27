@@ -44,7 +44,6 @@ class ThreadRuntime implements Runtime {
     @Getter
     private InstanceConfig instanceConfig;
     private JavaInstanceRunnable javaInstanceRunnable;
-    private Exception startupException;
     private ThreadGroup threadGroup;
 
     ThreadRuntime(InstanceConfig instanceConfig,
@@ -72,16 +71,8 @@ class ThreadRuntime implements Runtime {
     @Override
     public void start() {
         log.info("ThreadContainer starting function with instance config {}", instanceConfig);
-        startupException = null;
         this.fnThread = new Thread(threadGroup, javaInstanceRunnable,
                 FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
-        this.fnThread.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
-            @Override
-            public void uncaughtException(Thread t, Throwable e) {
-                startupException = new Exception(e);
-                log.error("Error occured in java instance:", e);
-            }
-        });
         this.fnThread.start();
     }
 
@@ -95,8 +86,6 @@ class ThreadRuntime implements Runtime {
     @Override
     public void stop() {
         if (fnThread != null) {
-            // Stop instance thread
-            javaInstanceRunnable.stop();
             // interrupt the instance thread
             fnThread.interrupt();
             try {
@@ -138,8 +127,8 @@ class ThreadRuntime implements Runtime {
     public Exception getDeathException() {
         if (isAlive()) {
             return null;
-        } else if (null != startupException) {
-            return startupException;
+        } else if (null != javaInstanceRunnable) {
+            return javaInstanceRunnable.getDeathException();
         } else {
             return null;
         }
