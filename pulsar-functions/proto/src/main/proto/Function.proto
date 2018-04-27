@@ -32,6 +32,7 @@ message FunctionDetails {
     enum SubscriptionType {
         SHARED = 0;
         EXCLUSIVE = 1;
+        FAILOVER = 2;
     }
     enum Runtime {
         JAVA = 0;
