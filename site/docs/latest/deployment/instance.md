@@ -142,7 +142,7 @@ Pulsar was built as a fundamentally {% popover multi-tenant %} system.
 To allow a new {% popover tenant %} to use the system, we need to create a new one. You can create a new tenant using the [`pulsar-admin`](../../reference/CliTools#pulsar-admin-tenants-create) CLI tool:
 
 ```shell
-$ bin/pulsar-admin tenants create test-prop \
+$ bin/pulsar-admin tenants create test-tentant \
   --allowed-clusters us-west \
   --admin-roles test-admin-role
 ```
@@ -173,18 +173,18 @@ Start a consumer that will create a subscription on the topic and will wait
 for messages:
 
 ```shell
-$ bin/pulsar-perf consume persistent://test-prop/us-west/ns1/my-topic
+$ bin/pulsar-perf consume persistent://test-tenant/us-west/ns1/my-topic
 ```
 
 Start a producer that publishes messages at a fixed rate and report stats every
 10 seconds:
 
 ```shell
-$ bin/pulsar-perf produce persistent://test-prop/us-west/ns1/my-topic
+$ bin/pulsar-perf produce persistent://test-tenant/us-west/ns1/my-topic
 ```
 
 To report the topic stats:
 
 ```shell
-$ bin/pulsar-admin persistent stats persistent://test-prop/us-west/ns1/my-topic
+$ bin/pulsar-admin persistent stats persistent://test-tenant/us-west/ns1/my-topic
 ```
