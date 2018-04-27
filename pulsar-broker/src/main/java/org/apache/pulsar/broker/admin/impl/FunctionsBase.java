@@ -36,8 +36,11 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
+import org.apache.pulsar.functions.worker.MembershipManager;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
@@ -172,7 +175,15 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     }
 
     @GET
-    @ApiOperation(value = "Lists all Pulsar Functions currently deployed in a given namespace")
+    @ApiOperation(
+            value = "Lists all Pulsar Functions currently deployed in a given namespace",
+            response = String.class,
+            responseContainer = "Collection"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions")
+    })
     @Path("/{tenant}/{namespace}")
     public Response listFunctions(final @PathParam("tenant") String tenant,
                                   final @PathParam("namespace") String namespace) {
@@ -182,20 +193,45 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     }
 
     @GET
-    @ApiOperation(value = "Fetches information about the Pulsar cluster running Pulsar Functions")
+    @ApiOperation(
+            value = "Fetches information about the Pulsar cluster running Pulsar Functions",
+            response = MembershipManager.WorkerInfo.class,
+            responseContainer = "List"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions")
+
+    })
     @Path("/cluster")
     public Response getCluster() {
         return functions.getCluster();
     }
 
     @GET
-    @ApiOperation(value = "Fetches information about which Pulsar Functions are assigned to which Pulsar clusters")
+    @ApiOperation(
+            value = "Fetches information about which Pulsar Functions are assigned to which Pulsar clusters",
+            response = Assignment.class,
+            responseContainer = "Map"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions")
+    })
     @Path("/assignments")
     public Response getAssignments() {
         return functions.getAssignments();
     }
 
     @POST
+    @ApiOperation(
+            value = "Triggers a Pulsar Function with a user-specified value or file data",
+            response = Message.class
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 404, message = "The function does not exist"),
+            @ApiResponse(code = 408, message = "Request timeout"),
+            @ApiResponse(code = 500, message = "Internal server error")
+    })
     @Path("/{tenant}/{namespace}/{functionName}/trigger")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public Response triggerFunction(final @PathParam("tenant") String tenant,
@@ -210,7 +246,10 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     }
 
     @POST
-    @ApiOperation(value = "Uploads Pulsar Function file data")
+    @ApiOperation(
+            value = "Uploads Pulsar Function file data",
+            hidden = true
+    )
     @Path("/upload")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public Response uploadFunction(final @FormDataParam("data") InputStream uploadedInputStream,
@@ -219,7 +258,10 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     }
 
     @GET
-    @ApiOperation(value = "Downloads Pulsar Function file data")
+    @ApiOperation(
+            value = "Downloads Pulsar Function file data",
+            hidden = true
+    )
     @Path("/download")
     public Response downloadFunction(final @QueryParam("path") String path) {
         return functions.downloadFunction(path);
