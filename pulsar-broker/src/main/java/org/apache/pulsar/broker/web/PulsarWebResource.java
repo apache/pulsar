@@ -573,7 +573,7 @@ public abstract class PulsarWebResource {
                 Policies policies = policiesResult.get();
                 if (policies.replication_clusters.isEmpty()) {
                     String msg = String.format(
-                            "Global namespace does not have any clusters configured : local_cluster=%s ns=%s",
+                            "Namespace does not have any clusters configured : local_cluster=%s ns=%s",
                             localCluster, namespace.toString());
                     log.warn(msg);
                     validationFuture.completeExceptionally(new RestException(Status.PRECONDITION_FAILED, msg));
@@ -586,7 +586,7 @@ public abstract class PulsarWebResource {
                         return;
                     }
                     String msg = String.format(
-                            "Global namespace missing local cluster name in replication list : local_cluster=%s ns=%s repl_clusters=%s",
+                            "Namespace missing local cluster name in clusters list: local_cluster=%s ns=%s clusters=%s",
                             localCluster, namespace.toString(), policies.replication_clusters);
 
                     log.warn(msg);
