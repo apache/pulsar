@@ -16,26 +16,38 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.proto;
+package org.apache.pulsar.functions.source;
 
-import static org.testng.Assert.assertEquals;
+import lombok.Builder;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.connect.core.Record;
 
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.proto.Function.ProcessingGuarantees;
-import org.testng.annotations.Test;
+@Data
+@Builder
+@Getter
+@ToString
+@EqualsAndHashCode
+public class PulsarRecord<T> implements Record<T> {
 
-/**
- * Unit test for {@link FunctionDetails}.
- */
-public class FunctionDetailsTest {
+    private String partitionId;
+    private Long sequenceId;
+    private T value;
+    private MessageId messageId;
+    private String topicName;
+    private Runnable failFunction;
+    private Runnable ackFunction;
 
-    /**
-     * Make sure the default processing guarantee is always `ATLEAST_ONCE`.
-     */
-    @Test
-    public void testDefaultProcessingGuarantee() {
-        FunctionDetails fc = FunctionDetails.newBuilder().build();
-        assertEquals(ProcessingGuarantees.ATLEAST_ONCE, fc.getProcessingGuarantees());
+    @Override
+    public void ack() {
+        this.ackFunction.run();
     }
 
+    @Override
+    public void fail() {
+        this.failFunction.run();
+    }
 }

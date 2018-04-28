@@ -16,38 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.instance;
+package org.apache.pulsar.functions.source;
 
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.ToString;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.connect.core.Record;
-
-@Data
-@Builder
-@Getter
-@ToString
-@EqualsAndHashCode
-public class PulsarRecord<T> implements Record<T> {
-
-    private String partitionId;
-    private Long sequenceId;
-    private T value;
-    private MessageId messageId;
-    private String topicName;
-    private Runnable failFunction;
-    private Runnable ackFunction;
-
-    @Override
-    public void ack() {
-        this.ackFunction.run();
-    }
-
-    @Override
-    public void fail() {
-        this.failFunction.run();
-    }
+public class PulsarConstants {
+    public static final String PROCESSING_GUARANTEES = "processingGuarantees";
+    public static final String SUBSCRIPTION_TYPE = "subscriptionType";
+    public static final String SUBSCRIPTION_NAME = "subscriptionName";
+    public static final String TOPIC_SERDE_CLASS_NAME_MAP = "topicSerdeClassNameMap";
+    public static final String TYPE_CLASS_NAME = "typeClassName";
 }

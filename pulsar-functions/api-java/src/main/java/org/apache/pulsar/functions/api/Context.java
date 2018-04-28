@@ -162,8 +162,7 @@ public interface Context {
      * By default acknowledgement management is done transparently by Pulsar Functions framework.
      * However users can disable that and do ack management by themselves by using this API.
      * @param messageId The messageId that needs to be acknowledged
-     * @param topic The topic name that the message belongs to that  needs to be acknowledged
      * @return A future that completes when the framework is done acking the message
      */
-    CompletableFuture<Void> ack(byte[] messageId, String topic);
+    CompletableFuture<Void> ack(byte[] messageId);
 }

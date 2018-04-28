@@ -54,6 +54,7 @@ import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
+import org.apache.pulsar.functions.source.PulsarSource;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.MembershipManager;
@@ -447,17 +448,18 @@ public class FunctionsImpl {
     }
 
     @POST
-    @Path("/{tenant}/{namespace}/{functionName}/trigger")
+    @Path("/{tenant}/{namespace}/{functionName}/{topic}/trigger")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public Response triggerFunction(final @PathParam("tenant") String tenant,
                                     final @PathParam("namespace") String namespace,
                                     final @PathParam("name") String functionName,
+                                    final @PathParam("topic") String topic,
                                     final @FormDataParam("data") String input,
                                     final @FormDataParam("dataStream") InputStream uploadedInputStream) {
         FunctionDetails functionDetails;
         // validate parameters
         try {
-            validateTriggerRequestParams(tenant, namespace, functionName, input, uploadedInputStream);
+            validateTriggerRequestParams(tenant, namespace, functionName, topic, input, uploadedInputStream);
         } catch (IllegalArgumentException e) {
             log.error("Invalid trigger function request @ /{}/{}/{}",
                     tenant, namespace, functionName, e);
@@ -476,11 +478,13 @@ public class FunctionsImpl {
         }
 
         FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, functionName);
+
         String inputTopicToWrite;
-        if (functionMetaData.getFunctionDetails().getInputsList().size() > 0) {
-            inputTopicToWrite = functionMetaData.getFunctionDetails().getInputsList().get(0);
+        // only if the source is PulsarSource
+        if (functionMetaData.getFunctionDetails().getSource().getClassName().equals(PulsarSource.class.getName())) {
+            inputTopicToWrite =  topic;
         } else {
-            inputTopicToWrite = functionMetaData.getFunctionDetails().getCustomSerdeInputs().entrySet().iterator().next().getKey();
+            return Response.status(Status.BAD_REQUEST).build();
         }
         String outputTopic = functionMetaData.getFunctionDetails().getOutput();
         Reader reader = null;
@@ -667,8 +671,11 @@ public class FunctionsImpl {
             if (functionDetails.getClassName() == null || functionDetails.getClassName().isEmpty()) {
                 missingFields.add("ClassName");
             }
-            if (functionDetails.getInputsCount() == 0 && functionDetails.getCustomSerdeInputsCount() == 0) {
-                missingFields.add("Input");
+            if (!functionDetails.getSource().isInitialized()) {
+                missingFields.add("Source");
+            }
+            else if (functionDetails.getSource().getTopicsToSerDeClassNameMap().isEmpty()) {
+                missingFields.add("Source Topics Serde Map");
             }
             if (!missingFields.isEmpty()) {
                 String errorMessage = StringUtils.join(missingFields, ",");
@@ -688,6 +695,7 @@ public class FunctionsImpl {
     private void validateTriggerRequestParams(String tenant,
                                               String namespace,
                                               String functionName,
+                                              String topic,
                                               String input,
                                               InputStream uploadedInputStream) {
         if (tenant == null) {
@@ -698,6 +706,9 @@ public class FunctionsImpl {
         }
         if (functionName == null) {
             throw new IllegalArgumentException("Function Name is not provided");
+        }
+        if (topic == null) {
+            throw new IllegalArgumentException("Topic Name is not provided");
         }
         if (uploadedInputStream == null && input == null) {
             throw new IllegalArgumentException("Trigger Data is not provided");

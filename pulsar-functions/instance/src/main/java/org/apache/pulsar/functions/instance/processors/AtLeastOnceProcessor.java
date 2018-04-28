@@ -40,9 +40,8 @@ public class AtLeastOnceProcessor extends MessageProcessorBase {
     private Producer<byte[]> producer;
 
     AtLeastOnceProcessor(PulsarClient client,
-                         FunctionDetails functionDetails,
-                         SubscriptionType subType) {
-        super(client, functionDetails, subType);
+                         FunctionDetails functionDetails) {
+        super(client, functionDetails);
     }
 
     @Override
