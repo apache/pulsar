@@ -266,11 +266,14 @@ var activeTableTab = "activeTableTab";
 <ul class="blockList">
 <li class="blockList">
 <h4>setValue</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="type parameter in MessageBuilder">T</a>&gt;&nbsp;setValue(<a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="type parameter in MessageBuilder">T</a>&nbsp;value)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="type parameter in MessageBuilder">T</a>&gt;&nbsp;setValue(<a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="type parameter in MessageBuilder">T</a>&nbsp;value)
+                    throws <a href="../../../../../org/apache/pulsar/client/api/SchemaSerializationException.html" title="class in org.apache.pulsar.client.api">SchemaSerializationException</a></pre>
 <div class="block">Set a domain object on the message</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>value</code> - the domain object</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="../../../../../org/apache/pulsar/client/api/SchemaSerializationException.html" title="class in org.apache.pulsar.client.api">SchemaSerializationException</a></code></dd>
 </dl>
 </li>
 </ul>
