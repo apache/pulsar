@@ -115,10 +115,10 @@ public class CmdFunctions extends CmdBase {
      */
     @Getter
     abstract class NamespaceCommand extends BaseCommand {
-        @Parameter(names = "--tenant", description = "The function's tenant", required = true)
+        @Parameter(names = "--tenant", description = "The function's tenant")
         protected String tenant;
 
-        @Parameter(names = "--namespace", description = "The function's namespace", required = true)
+        @Parameter(names = "--namespace", description = "The function's namespace")
         protected String namespace;
 
         @Override
@@ -154,18 +154,22 @@ public class CmdFunctions extends CmdBase {
         void processArguments() throws Exception {
             super.processArguments();
 
+            processFqfn();
+        }
+
+        private void processFqfn() throws IllegalArgumentException {
             boolean usesSetters = (null != tenant || null != namespace || null != functionName);
             boolean usesFqfn = (null != fqfn);
 
             // Throw an exception if --fqfn is set alongside any combination of --tenant, --namespace, and --name
             if (usesFqfn && usesSetters) {
-                throw new RuntimeException(
+                throw new IllegalArgumentException(
                         "You must specify either a Fully Qualified Function Name (FQFN) or tenant, namespace, and function name");
             } else if (usesFqfn) {
                 // If the --fqfn flag is used, parse tenant, namespace, and name using that flag
                 String[] fqfnParts = fqfn.split("/");
                 if (fqfnParts.length != 3) {
-                    throw new RuntimeException(
+                    throw new IllegalArgumentException(
                             "Fully qualified function names (FQFNs) must be of the form tenant/namespace/name");
                 }
                 tenant = fqfnParts[0];
@@ -173,7 +177,7 @@ public class CmdFunctions extends CmdBase {
                 functionName = fqfnParts[2];
             } else {
                 if (null == tenant || null == namespace || null == functionName) {
-                    throw new RuntimeException(
+                    throw new IllegalArgumentException(
                             "You must specify a tenant, namespace, and name for the function or a Fully Qualified Function Name (FQFN)");
                 }
             }
@@ -230,7 +234,7 @@ public class CmdFunctions extends CmdBase {
         protected String userCodeFile;
 
         @Override
-        void processArguments() throws Exception {
+        void processArguments() throws IllegalArgumentException {
             super.processArguments();
 
             // Initialize config builder either from a supplied YAML config file or from scratch
@@ -300,11 +304,11 @@ public class CmdFunctions extends CmdBase {
                 functionConfig.setRuntime(FunctionConfig.Runtime.PYTHON);
                 userCodeFile = pyFile;
             } else {
-                throw new RuntimeException("Either a Java jar or a Python file needs to be specified for the function");
+                throw new IllegalArgumentException("Either a Java jar or a Python file needs to be specified for the function");
             }
 
             if (functionConfig.getInputs().isEmpty() && functionConfig.getCustomSerdeInputs().isEmpty()) {
-                throw new RuntimeException("No input topic(s) specified for the function");
+                throw new IllegalArgumentException("No input topic(s) specified for the function");
             }
 
             // Ensure that topics aren't being used as both input and output
@@ -465,7 +469,7 @@ public class CmdFunctions extends CmdBase {
             }
 
             if (functionConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
-                throw new RuntimeException("Effectively-once processing guarantees not yet supported in Python");
+                throw new IllegalArgumentException("Effectively-once processing guarantees not yet supported in Python");
             }
         }
 
@@ -722,7 +726,7 @@ public class CmdFunctions extends CmdBase {
         @Override
         void runCmd() throws Exception {
             if (triggerFile == null && triggerValue == null) {
-                throw new RuntimeException("Either a trigger value or a trigger filepath needs to be specified");
+                throw new IllegalArgumentException("Either a trigger value or a trigger filepath needs to be specified");
             }
             String retval = admin.functions().triggerFunction(tenant, namespace, functionName, triggerValue, triggerFile);
             System.out.println(retval);
@@ -944,7 +948,7 @@ public class CmdFunctions extends CmdBase {
                 return type;
             }
         }
-        throw new RuntimeException("Unrecognized subscription type: " + subscriptionType.name());
+        throw new IllegalArgumentException("Unrecognized subscription type: " + subscriptionType.name());
     }
 
     private static FunctionDetails.ProcessingGuarantees convertProcessingGuarantee(
@@ -954,7 +958,7 @@ public class CmdFunctions extends CmdBase {
                 return type;
             }
         }
-        throw new RuntimeException("Unrecognized processing guarantee: " + processingGuarantees.name());
+        throw new IllegalArgumentException("Unrecognized processing guarantee: " + processingGuarantees.name());
     }
 
     private static FunctionDetails.Runtime convertRuntime(FunctionConfig.Runtime runtime) {
@@ -963,13 +967,13 @@ public class CmdFunctions extends CmdBase {
                 return type;
             }
         }
-        throw new RuntimeException("Unrecognized runtime: " + runtime.name());
+        throw new IllegalArgumentException("Unrecognized runtime: " + runtime.name());
     }
 
     private void parseFullyQualifiedFunctionName(String fqfn, FunctionConfig functionConfig) {
         String[] args = fqfn.split("/");
         if (args.length != 3) {
-            throw new RuntimeException("Fully qualified function names (FQFNs) must be of the form tenant/namespace/name");
+            throw new IllegalArgumentException("Fully qualified function names (FQFNs) must be of the form tenant/namespace/name");
         } else {
             functionConfig.setTenant(args[0]);
             functionConfig.setNamespace(args[1]);
