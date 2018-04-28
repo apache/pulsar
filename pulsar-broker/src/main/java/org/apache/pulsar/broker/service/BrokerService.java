@@ -109,7 +109,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
-import org.apache.pulsar.common.policies.data.PersistentTopicStats;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.stats.Metrics;
@@ -1033,8 +1033,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return producerNameGenerator.getNextId();
     }
 
-    public Map<String, PersistentTopicStats> getTopicStats() {
-        HashMap<String, PersistentTopicStats> stats = new HashMap<>();
+    public Map<String, TopicStats> getTopicStats() {
+        HashMap<String, TopicStats> stats = new HashMap<>();
         topics.forEach((name, topicFuture) -> {
             Optional<Topic> topic = extractTopic(topicFuture);
             if (topic.isPresent()) {

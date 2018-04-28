@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.schema;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
 
+import com.google.common.collect.Maps;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -74,7 +75,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         BookkeeperSchemaStorage storage = new BookkeeperSchemaStorage(pulsar);
         storage.init();
         storage.start();
-        schemaRegistryService = new SchemaRegistryServiceImpl(storage, MockClock);
+        schemaRegistryService = new SchemaRegistryServiceImpl(storage, Maps.newHashMap(), MockClock);
     }
 
     @AfterMethod

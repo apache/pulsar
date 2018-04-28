@@ -74,8 +74,13 @@ public class PulsarAdminTool {
         commandMap.put("tenants", CmdTenants.class);
         commandMap.put("properties", CmdTenants.CmdProperties.class); // deprecated, doesn't show in usage()
         commandMap.put("namespaces", CmdNamespaces.class);
+        commandMap.put("topics", CmdTopics.class);
+
+        // Hidden deprecated "persistent" and "non-persistent" subcommands
         commandMap.put("persistent", CmdPersistentTopics.class);
         commandMap.put("non-persistent", CmdNonPersistentTopics.class);
+
+
         commandMap.put("resource-quotas", CmdResourceQuotas.class);
         commandMap.put("functions", CmdFunctions.class);
     }

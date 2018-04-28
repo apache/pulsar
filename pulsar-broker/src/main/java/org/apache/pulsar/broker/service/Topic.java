@@ -29,7 +29,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosi
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
-import org.apache.pulsar.common.policies.data.PersistentTopicStats;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaVersion;
@@ -40,7 +40,7 @@ import org.apache.pulsar.utils.StatsOutputStream;
 
 public interface Topic {
 
-    public interface PublishContext {
+    interface PublishContext {
 
         default String getProducerName() {
             return null;
@@ -117,17 +117,19 @@ public interface Topic {
 
     void updateRates(NamespaceStats nsStats, NamespaceBundleStats currentBundleStats,
             StatsOutputStream topicStatsStream, ClusterReplicationMetrics clusterReplicationMetrics,
-            String namespaceName);
+            String namespaceName, boolean hydratePublishers);
 
     Subscription getSubscription(String subscription);
 
     ConcurrentOpenHashMap<String, ? extends Replicator> getReplicators();
 
-    PersistentTopicStats getStats();
+    TopicStats getStats();
 
     PersistentTopicInternalStats getInternalStats();
 
     Position getLastMessageId();
 
     CompletableFuture<SchemaVersion> addSchema(SchemaData schema);
+
+    CompletableFuture<Boolean> isSchemaCompatible(SchemaData schema);
 }

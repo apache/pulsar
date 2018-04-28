@@ -75,7 +75,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         /* MessageId msgId2 = */producer.send("test-msg-2".getBytes());
         MessageId msgId3 = producer.send("test-msg-3".getBytes());
 
-        MessageId lastMessageId = admin.persistentTopics().terminateTopicAsync(topicName).get();
+        MessageId lastMessageId = admin.topics().terminateTopicAsync(topicName).get();
         assertEquals(lastMessageId, msgId3);
 
         try {
@@ -97,7 +97,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         /* MessageId msgId2 = */producer.send("test-msg-2".getBytes());
         MessageId msgId3 = producer.send("test-msg-3".getBytes());
 
-        MessageId lastMessageId = admin.persistentTopics().terminateTopicAsync(topicName).get();
+        MessageId lastMessageId = admin.topics().terminateTopicAsync(topicName).get();
         assertEquals(lastMessageId, msgId3);
 
         try {
@@ -132,7 +132,7 @@ public class TopicTerminationTest extends BrokerTestBase {
 
         barrier.await();
 
-        admin.persistentTopics().terminateTopicAsync(topicName).get();
+        admin.topics().terminateTopicAsync(topicName).get();
 
         t.join();
 
@@ -167,20 +167,20 @@ public class TopicTerminationTest extends BrokerTestBase {
         /* MessageId msgId2 = */producer.send("test-msg-2".getBytes());
         MessageId msgId3 = producer.send("test-msg-3".getBytes());
 
-        MessageId lastMessageId = admin.persistentTopics().terminateTopicAsync(topicName).get();
+        MessageId lastMessageId = admin.topics().terminateTopicAsync(topicName).get();
         assertEquals(lastMessageId, msgId3);
 
         // Terminate it again
-        lastMessageId = admin.persistentTopics().terminateTopicAsync(topicName).get();
+        lastMessageId = admin.topics().terminateTopicAsync(topicName).get();
         assertEquals(lastMessageId, msgId3);
     }
 
     @Test
     public void testTerminatePartitionedTopic() throws Exception {
-        admin.persistentTopics().createPartitionedTopic(topicName, 4);
+        admin.topics().createPartitionedTopic(topicName, 4);
 
         try {
-            admin.persistentTopics().terminateTopicAsync(topicName).get();
+            admin.topics().terminateTopicAsync(topicName).get();
             fail("Should have failed");
         } catch (ExecutionException ee) {
             assertEquals(ee.getCause().getClass(), NotAllowedException.class);
@@ -207,7 +207,7 @@ public class TopicTerminationTest extends BrokerTestBase {
 
         assertFalse(consumer.hasReachedEndOfTopic());
 
-        MessageId lastMessageId = admin.persistentTopics().terminateTopicAsync(topicName).get();
+        MessageId lastMessageId = admin.topics().terminateTopicAsync(topicName).get();
         assertEquals(lastMessageId, msgId3);
 
         Message<byte[]> msg2 = consumer.receive();
@@ -258,7 +258,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         Thread.sleep(100);
         assertFalse(consumer.hasReachedEndOfTopic());
 
-        MessageId lastMessageId = admin.persistentTopics().terminateTopicAsync(topicName).get();
+        MessageId lastMessageId = admin.topics().terminateTopicAsync(topicName).get();
         assertEquals(lastMessageId, msgId3);
 
         assertTrue(latch.await(3, TimeUnit.SECONDS));
@@ -276,7 +276,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         MessageId msgId2 = producer.send("test-msg-2".getBytes());
         MessageId msgId3 = producer.send("test-msg-3".getBytes());
 
-        MessageId lastMessageId = admin.persistentTopics().terminateTopicAsync(topicName).get();
+        MessageId lastMessageId = admin.topics().terminateTopicAsync(topicName).get();
         assertEquals(lastMessageId, msgId3);
 
         Reader<byte[]> reader = pulsarClient.newReader().topic(topicName).startMessageId(MessageId.earliest).create();
@@ -327,7 +327,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         Thread.sleep(100);
         assertFalse(reader.hasReachedEndOfTopic());
 
-        MessageId lastMessageId = admin.persistentTopics().terminateTopicAsync(topicName).get();
+        MessageId lastMessageId = admin.topics().terminateTopicAsync(topicName).get();
         assertEquals(lastMessageId, msgId3);
 
         assertTrue(latch.await(3, TimeUnit.SECONDS));
@@ -343,7 +343,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         /* MessageId msgId1 = */ producer.send("test-msg-1".getBytes());
         MessageId msgId2 = producer.send("test-msg-2".getBytes());
 
-        MessageId lastMessageId = admin.persistentTopics().terminateTopicAsync(topicName).get();
+        MessageId lastMessageId = admin.topics().terminateTopicAsync(topicName).get();
         assertEquals(lastMessageId, msgId2);
 
         org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
@@ -359,7 +359,7 @@ public class TopicTerminationTest extends BrokerTestBase {
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .create();
-        admin.persistentTopics().terminateTopicAsync(topicName).get();
+        admin.topics().terminateTopicAsync(topicName).get();
 
         org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName("my-sub").subscribe();
