@@ -204,11 +204,11 @@ public class BlockAwareSegmentInputStreamTest {
     public void blockAwareSegmentInputStreamTestHaveEndPadding() throws Exception {
         int ledgerId = 1;
         int entrySize = 8;
-        int lac = 300;
+        int lac = 160;
         ReadHandle readHandle = new MockReadHandle(ledgerId, entrySize, lac);
 
         // set block size bigger than to (header + entry) size.
-        int blockSize = 2148 + 5;
+        int blockSize = 3148 + 5;
         BlockAwareSegmentInputStream inputStream = new BlockAwareSegmentInputStream(readHandle, 0, blockSize);
         int expectedEntryCount = (blockSize - DataBlockHeaderImpl.getDataStartOffset()) / (entrySize + 4 + 8);
 
@@ -280,7 +280,7 @@ public class BlockAwareSegmentInputStreamTest {
     public void blockAwareSegmentInputStreamTestNoEndPadding() throws Exception {
         int ledgerId = 1;
         int entrySize = 8;
-        int lac = 300;
+        int lac = 120;
         ReadHandle readHandle = new MockReadHandle(ledgerId, entrySize, lac);
 
         // set block size equals to (header + entry) size.
