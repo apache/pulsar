@@ -82,26 +82,24 @@ public class PulsarSourceTest {
         return pulsarClient;
     }
 
-
-    private static Map<String, Object> getSourceConfigs() {
-        Map<String, Object> configs = new HashMap<>();
-        configs.put(PulsarConstants.PROCESSING_GUARANTEES, FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
-        configs.put(PulsarConstants.SUBSCRIPTION_TYPE, FunctionConfig.SubscriptionType.FAILOVER);
-        configs.put(PulsarConstants.SUBSCRIPTION_NAME, SUBSCRIPTION_NAME);
-        configs.put(PulsarConstants.TOPIC_SERDE_CLASS_NAME_MAP, topicSerdeClassNameMap);
-        configs.put(PulsarConstants.TYPE_CLASS_NAME, String.class.getName());
-        return configs;
+    private static PulsarConfig getPulsarConfigs() {
+        PulsarConfig pulsarConfig = new PulsarConfig();
+        pulsarConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
+        pulsarConfig.setSubscriptionType(FunctionConfig.SubscriptionType.FAILOVER);
+        pulsarConfig.setTopicSerdeClassNameMap(topicSerdeClassNameMap);
+        pulsarConfig.setTypeClassName(String.class.getName());
+        return pulsarConfig;
     }
 
     @Test
     public void testVoidInputClasses() throws IOException {
-        Map<String, Object> configs = getSourceConfigs();
+        PulsarConfig pulsarConfig = getPulsarConfigs();
         // set type to void
-        configs.put(PulsarConstants.TYPE_CLASS_NAME, Void.class.getName());
-        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), PulsarConfig.load(configs));
+        pulsarConfig.setTypeClassName(Void.class.getName());
+        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig);
 
         try {
-            pulsarSource.open(configs);
+            pulsarSource.open(new HashMap<>());
             assertFalse(true);
         } catch (RuntimeException ex) {
             log.error("RuntimeException: {}", ex, ex);
@@ -117,15 +115,15 @@ public class PulsarSourceTest {
      */
     @Test
     public void testInconsistentInputType() throws IOException {
-        Map<String, Object> configs = getSourceConfigs();
+        PulsarConfig pulsarConfig = getPulsarConfigs();
         // set type to be inconsistent to that of SerDe
-        configs.put(PulsarConstants.TYPE_CLASS_NAME, Integer.class.getName());
+        pulsarConfig.setTypeClassName(Integer.class.getName());
         Map<String, String> topicSerdeClassNameMap = new HashMap<>();
         topicSerdeClassNameMap.put("persistent://sample/standalone/ns1/test_result", TestSerDe.class.getName());
-        configs.put(PulsarConstants.TOPIC_SERDE_CLASS_NAME_MAP, topicSerdeClassNameMap);
-        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), PulsarConfig.load(configs));
+        pulsarConfig.setTopicSerdeClassNameMap(topicSerdeClassNameMap);
+        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig);
         try {
-            pulsarSource.open(configs);
+            pulsarSource.open(new HashMap<>());
             fail("Should fail constructing java instance if function type is inconsistent with serde type");
         } catch (RuntimeException ex) {
             log.error("RuntimeException: {}", ex, ex);
