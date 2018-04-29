@@ -1397,30 +1397,25 @@
 
 <h3 id="producer-example">Producer example</h3>
 
-<p>This creates a Python <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producer</span> for the <code class="highlighter-rouge">persistent://sample/standalone/ns/my-topic</code> topic and send 10 messages on that topic:</p>
+<p>This creates a Python <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producer</span> for the <code class="highlighter-rouge">my-topic</code> topic and send 10 messages on that topic:</p>
 
 <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">pulsar</span>
 
-<span class="n">TOPIC</span> <span class="o">=</span> <span class="s">'persistent://sample/standalone/ns/my-topic'</span>
-<span class="n">PULSAR_SERVICE_URL</span> <span class="o">=</span> <span class="s">'pulsar://localhost:6650'</span>
+<span class="n">client</span> <span class="o">=</span> <span class="n">pulsar</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span><span class="s">'pulsar://localhost:6650'</span><span class="p">)</span>
 
-<span class="n">client</span> <span class="o">=</span> <span class="n">pulsar</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span><span class="n">PULSAR_SERVICE_URL</span><span class="p">)</span>
-
-<span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">create_producer</span><span class="p">(</span><span class="n">TOPIC</span><span class="p">)</span>
+<span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">create_producer</span><span class="p">(</span><span class="s">'my-topic'</span><span class="p">)</span>
 
 <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span>
-    <span class="n">producer</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="s">'Hello-</span><span class="si">%</span><span class="s">d'</span> <span class="o">%</span> <span class="n">i</span><span class="p">)</span>
+    <span class="n">producer</span><span class="o">.</span><span class="n">send</span><span class="p">((</span><span class="s">'Hello-</span><span class="si">%</span><span class="s">d'</span> <span class="o">%</span> <span class="n">i</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s">'utf-8'</span><span class="p">))</span>
 
 <span class="n">client</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 </code></pre></div></div>
 
 <h3 id="consumer-example">Consumer example</h3>
 
-<p>This creates a <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span> with the <code class="highlighter-rouge">my-sub</code> <span class="popover-term" tabindex="0" title="What is a subscription?" data-placement="top" data-content="A lease on a topic established by a consumer. Pulsar has three subscription modes (exclusive, shared, and failover)." data-toggle="popover" data-trigger="focus">subscription</span> on the <code class="highlighter-rouge">persistent://sample/standalone/ns/my-topic</code> topic, listen for incoming messages, print the content and ID of messages that arrive, and <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledge</span> each message to the Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span>:</p>
+<p>This creates a <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span> with the <code class="highlighter-rouge">my-subscription</code> <span class="popover-term" tabindex="0" title="What is a subscription?" data-placement="top" data-content="A lease on a topic established by a consumer. Pulsar has three subscription modes (exclusive, shared, and failover)." data-toggle="popover" data-trigger="focus">subscription</span> on the <code class="highlighter-rouge">my-topic</code> topic, listen for incoming messages, print the content and ID of messages that arrive, and <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledge</span> each message to the Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span>:</p>
 
-<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">SUBSCRIPTION</span> <span class="o">=</span> <span class="s">'my-sub'</span>
-
-<span class="n">consumer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span><span class="n">TOPIC</span><span class="p">,</span> <span class="n">SUBSCRIPTION</span><span class="p">)</span>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">consumer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span><span class="s">'my-topic'</span><span class="p">,</span> <span class="s">'my-subscription'</span><span class="p">)</span>
 
 <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
     <span class="n">msg</span> <span class="o">=</span> <span class="n">consumer</span><span class="o">.</span><span class="n">receive</span><span class="p">()</span>
@@ -1437,7 +1432,7 @@
 <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># MessageId taken from a previously fetched message</span>
 <span class="n">msg_id</span> <span class="o">=</span> <span class="n">msg</span><span class="o">.</span><span class="n">message_id</span><span class="p">()</span>
 
-<span class="n">reader</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">create_reader</span><span class="p">(</span><span class="n">TOPIC</span><span class="p">,</span> <span class="n">msg_id</span><span class="p">)</span>
+<span class="n">reader</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">create_reader</span><span class="p">(</span><span class="s">'my-topic'</span><span class="p">,</span> <span class="n">msg_id</span><span class="p">)</span>
 
 <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
     <span class="n">msg</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">receive</span><span class="p">()</span>

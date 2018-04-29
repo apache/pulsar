@@ -1563,7 +1563,7 @@ and follow the instructions for your OS.</p>
   <span class="nt">-p</span> 8080:8080 <span class="se">\</span>
   <span class="nt">-v</span> <span class="nv">$PWD</span>/data:/pulsar/data <span class="se">\</span>
   apachepulsar/pulsar:1.22.0-incubating <span class="se">\</span>
-  bin/pulsar standalone <span class="nt">--advertised-address</span> 127.0.0.1
+  bin/pulsar standalone
 </code></pre></div></div>
 
 <p>A few things to note about this command:</p>
@@ -1639,7 +1639,7 @@ client API.</p>
 <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">pulsar</span>
 
 <span class="n">client</span> <span class="o">=</span> <span class="n">pulsar</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span><span class="s">'pulsar://localhost:6650'</span><span class="p">)</span>
-<span class="n">consumer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span><span class="s">'persistent://sample/standalone/ns1/my-topic'</span><span class="p">,</span>
+<span class="n">consumer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span><span class="s">'my-topic'</span><span class="p">,</span>
                             <span class="n">subscription_name</span><span class="o">=</span><span class="s">'my-sub'</span><span class="p">)</span>
 
 <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
@@ -1655,10 +1655,10 @@ client API.</p>
 <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">pulsar</span>
 
 <span class="n">client</span> <span class="o">=</span> <span class="n">pulsar</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span><span class="s">'pulsar://localhost:6650'</span><span class="p">)</span>
-<span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">create_producer</span><span class="p">(</span><span class="s">'persistent://sample/standalone/ns1/my-topic'</span><span class="p">)</span>
+<span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">create_producer</span><span class="p">(</span><span class="s">'my-topic'</span><span class="p">)</span>
 
 <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span>
-    <span class="n">producer</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="s">'hello-pulsar-</span><span class="si">%</span><span class="s">d'</span> <span class="o">%</span> <span class="n">i</span><span class="p">)</span>
+    <span class="n">producer</span><span class="o">.</span><span class="n">send</span><span class="p">((</span><span class="s">'hello-pulsar-</span><span class="si">%</span><span class="s">d'</span> <span class="o">%</span> <span class="n">i</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s">'utf-8'</span><span class="p">))</span>
 
 <span class="n">client</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 </code></pre></div></div>
@@ -1670,7 +1670,7 @@ You can find detailed documentation of all the APIs in the <a href="../../admin-
 
 <p>In the simplest example, you can use curl to probe the stats for a particular topic:</p>
 
-<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>curl http://localhost:8080/admin/persistent/sample/standalone/ns1/my-topic/stats | python <span class="nt">-m</span> json.tool
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>curl http://localhost:8080/admin/persistent/public/default/my-topic/stats | python <span class="nt">-m</span> json.tool
 </code></pre></div></div>
 
 <p>The output will be something like this:</p>

@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -162,35 +162,42 @@ extends Serializable, Cloneable</pre>
 </tr>
 <tr id="i5" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html#readCompacted-boolean-">readCompacted</a></span>(boolean&nbsp;readCompacted)</code>
+<div class="block">If enabled, the reader will read messages from the compacted topic rather than reading the full message backlog
+ of the topic.</div>
+</td>
+</tr>
+<tr id="i6" class="altColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html#readerListener-org.apache.pulsar.client.api.ReaderListener-">readerListener</a></span>(<a href="../../../../../org/apache/pulsar/client/api/ReaderListener.html" title="interface in org.apache.pulsar.client.api">ReaderListener</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;&nbsp;readerListener)</code>
 <div class="block">Sets a <a href="../../../../../org/apache/pulsar/client/api/ReaderListener.html" title="interface in org.apache.pulsar.client.api"><code>ReaderListener</code></a> for the reader</div>
 </td>
 </tr>
-<tr id="i6" class="altColor">
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html#readerName-java.lang.String-">readerName</a></span>(String&nbsp;readerName)</code>
 <div class="block">Set the reader name.</div>
 </td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i8" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html#receiverQueueSize-int-">receiverQueueSize</a></span>(int&nbsp;receiverQueueSize)</code>
 <div class="block">Sets the size of the consumer receive queue.</div>
 </td>
 </tr>
-<tr id="i8" class="altColor">
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html#startMessageId-org.apache.pulsar.client.api.MessageId-">startMessageId</a></span>(<a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&nbsp;startMessageId)</code>
 <div class="block">The initial reader positioning is done by specifying a message id.</div>
 </td>
 </tr>
-<tr id="i9" class="rowColor">
+<tr id="i10" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html#subscriptionRolePrefix-java.lang.String-">subscriptionRolePrefix</a></span>(String&nbsp;subscriptionRolePrefix)</code>
 <div class="block">Set the subscription role prefix.</div>
 </td>
 </tr>
-<tr id="i10" class="altColor">
+<tr id="i11" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html#topic-java.lang.String-">topic</a></span>(String&nbsp;topicName)</code>
 <div class="block">Specify the topic this consumer will subscribe on.</div>
@@ -385,7 +392,7 @@ extends Serializable, Cloneable</pre>
 <a name="subscriptionRolePrefix-java.lang.String-">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>subscriptionRolePrefix</h4>
 <pre><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;&nbsp;subscriptionRolePrefix(String&nbsp;subscriptionRolePrefix)</pre>
@@ -393,6 +400,26 @@ extends Serializable, Cloneable</pre>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>subscriptionRolePrefix</code> - </dd>
+</dl>
+</li>
+</ul>
+<a name="readCompacted-boolean-">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>readCompacted</h4>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;&nbsp;readCompacted(boolean&nbsp;readCompacted)</pre>
+<div class="block">If enabled, the reader will read messages from the compacted topic rather than reading the full message backlog
+ of the topic. This means that, if the topic has been compacted, the reader will only see the latest value for
+ each key in the topic, up until the point in the topic message backlog that has been compacted. Beyond that
+ point, the messages will be sent as normal.
+
+ readCompacted can only be enabled when reading from a persistent topic. Attempting to enable it on non-persistent
+ topics will lead to the reader create call throwing a PulsarClientException.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>readCompacted</code> - whether to read from the compacted topic</dd>
 </dl>
 </li>
 </ul>
