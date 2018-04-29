@@ -43,7 +43,7 @@ $ docker run -it \
   -p 8080:8080 \
   -v $PWD/data:/pulsar/data \
   apachepulsar/pulsar:{{site.current_version}} \
-  bin/pulsar standalone --advertised-address 127.0.0.1
+  bin/pulsar standalone
 ```
 
 A few things to note about this command:
@@ -92,7 +92,7 @@ First create a consumer and subscribe to the topic:
 import pulsar
 
 client = pulsar.Client('pulsar://localhost:6650')
-consumer = client.subscribe('persistent://sample/standalone/ns1/my-topic',
+consumer = client.subscribe('my-topic',
                             subscription_name='my-sub')
 
 while True:
@@ -109,10 +109,10 @@ Now we can start a producer to send some test messages:
 import pulsar
 
 client = pulsar.Client('pulsar://localhost:6650')
-producer = client.create_producer('persistent://sample/standalone/ns1/my-topic')
+producer = client.create_producer('my-topic')
 
 for i in range(10):
-    producer.send('hello-pulsar-%d' % i)
+    producer.send(('hello-pulsar-%d' % i).encode('utf-8'))
 
 client.close()
 ```
@@ -126,7 +126,7 @@ You can find detailed documentation of all the APIs in the [Admin API Overview](
 In the simplest example, you can use curl to probe the stats for a particular topic:
 
 ```shell
-$ curl http://localhost:8080/admin/persistent/sample/standalone/ns1/my-topic/stats | python -m json.tool
+$ curl http://localhost:8080/admin/persistent/public/default/my-topic/stats | python -m json.tool
 ```
 
 The output will be something like this:
