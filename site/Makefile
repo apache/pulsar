@@ -100,4 +100,4 @@ protobuf_setup:
 
 api_docs: javadoc python_doc_gen cpp_doc_gen
 
-publish: deep_clean setup swagger_definition_copy build
+publish: deep_clean setup swagger_docs_update build
