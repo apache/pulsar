@@ -28,7 +28,7 @@ RUN apt-get install -y maven tig g++ cmake libssl-dev libcurl4-openssl-dev \
                 liblog4cxx-dev libprotobuf-dev libboost-all-dev google-mock libgtest-dev \
                 libjsoncpp-dev libxml2-utils protobuf-compiler wget \
                 curl doxygen openjdk-8-jdk-headless clang-format-5.0 \
-                gnupg2 golang-1.10-go
+                gnupg2
 
 # Compile and install gtest
 RUN cd /usr/src/gtest && cmake . && make && cp libgtest.a /usr/lib
@@ -54,11 +54,9 @@ RUN rvm install 2.4.1
 RUN wget https://bootstrap.pypa.io/get-pip.py && python get-pip.py
 RUN pip install pdoc
 
-# Install Protobuf doc generator
-ENV GOPATH /go
-ENV GOROOT /usr/local/go
-ENV PATH /usr/local/go/bin:/go/bin:/usr/local/bin:$PATH
-
+# Install Protobuf doc generator (requires Go)
+RUN apt-get install -y golang-1.10-go
+ENV PATH /usr/lib/go-1.10/bin:$PATH
 RUN go get -u github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
 
 # Build the patched protoc
