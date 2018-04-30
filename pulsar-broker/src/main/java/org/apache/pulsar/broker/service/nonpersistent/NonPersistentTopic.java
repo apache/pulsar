@@ -61,6 +61,7 @@ import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.ServerCnx;
+import org.apache.pulsar.broker.service.StreamingStats;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
@@ -489,8 +490,12 @@ public class NonPersistentTopic implements Topic {
 
         FutureUtil.waitForAll(futures).thenRun(() -> {
             log.info("[{}] Topic closed", topic);
-            brokerService.pulsar().getExecutor().execute(() -> brokerService.removeTopicFromCache(topic));
-            closeFuture.complete(null);
+            // unload topic iterates over topics map and removing from the map with the same thread creates deadlock.
+            // so, execute it in different thread
+            brokerService.executor().execute(() -> {
+                brokerService.removeTopicFromCache(topic);
+                closeFuture.complete(null);
+            });
         }).exceptionally(exception -> {
             log.error("[{}] Error closing topic", topic, exception);
             isFenced = false;
@@ -677,7 +682,7 @@ public class NonPersistentTopic implements Topic {
     }
 
     public void updateRates(NamespaceStats nsStats, NamespaceBundleStats bundleStats, StatsOutputStream topicStatsStream,
-            ClusterReplicationMetrics replStats, String namespace) {
+            ClusterReplicationMetrics replStats, String namespace, boolean hydratePublishers) {
 
         TopicStats topicStats = threadLocalTopicStats.get();
         topicStats.reset();
@@ -688,21 +693,24 @@ public class NonPersistentTopic implements Topic {
         bundleStats.producerCount += producers.size();
         topicStatsStream.startObject(topic);
 
+        topicStatsStream.startList("publishers");
         producers.forEach(producer -> {
             producer.updateRates();
-            PublisherStats PublisherStats = producer.getStats();
+            PublisherStats publisherStats = producer.getStats();
 
-            topicStats.aggMsgRateIn += PublisherStats.msgRateIn;
-            topicStats.aggMsgThroughputIn += PublisherStats.msgThroughputIn;
+            topicStats.aggMsgRateIn += publisherStats.msgRateIn;
+            topicStats.aggMsgThroughputIn += publisherStats.msgThroughputIn;
 
             if (producer.isRemote()) {
-                topicStats.remotePublishersStats.put(producer.getRemoteCluster(), PublisherStats);
+                topicStats.remotePublishersStats.put(producer.getRemoteCluster(), publisherStats);
+            }
+
+            if (hydratePublishers) {
+                StreamingStats.writePublisherStats(topicStatsStream, publisherStats);
             }
         });
-
-        // Creating publishers object for backward compatibility
-        topicStatsStream.startList("publishers");
         topicStatsStream.endList();
+
 
         // Start replicator stats
         topicStatsStream.startObject("replication");
@@ -740,24 +748,7 @@ public class NonPersistentTopic implements Topic {
                     subMsgRateRedeliver += consumerStats.msgRateRedeliver;
 
                     // Populate consumer specific stats here
-                    topicStatsStream.startObject();
-                    topicStatsStream.writePair("address", consumerStats.getAddress());
-                    topicStatsStream.writePair("consumerName", consumerStats.consumerName);
-                    topicStatsStream.writePair("availablePermits", consumerStats.availablePermits);
-                    topicStatsStream.writePair("connectedSince", consumerStats.getConnectedSince());
-                    topicStatsStream.writePair("msgRateOut", consumerStats.msgRateOut);
-                    topicStatsStream.writePair("msgThroughputOut", consumerStats.msgThroughputOut);
-                    topicStatsStream.writePair("msgRateRedeliver", consumerStats.msgRateRedeliver);
-
-                    if (SubType.Shared.equals(subscription.getType())) {
-                        topicStatsStream.writePair("unackedMessages", consumerStats.unackedMessages);
-                        topicStatsStream.writePair("blockedConsumerOnUnackedMsgs",
-                                consumerStats.blockedConsumerOnUnackedMsgs);
-                    }
-                    if (consumerStats.getClientVersion() != null) {
-                        topicStatsStream.writePair("clientVersion", consumerStats.getClientVersion());
-                    }
-                    topicStatsStream.endObject();
+                    StreamingStats.writeConsumerStats(topicStatsStream, subscription.getType(), consumerStats);
                 }
 
                 // Close Consumer stats
@@ -989,5 +980,14 @@ public class NonPersistentTopic implements Topic {
         return brokerService.pulsar()
             .getSchemaRegistryService()
             .putSchemaIfAbsent(id, schema);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> isSchemaCompatible(SchemaData schema) {
+        String base = TopicName.get(getName()).getPartitionedTopicName();
+        String id = TopicName.get(base).getSchemaName();
+        return brokerService.pulsar()
+            .getSchemaRegistryService()
+            .isCompatibleWithLatestVersion(id, schema);
     }
 }

@@ -213,6 +213,8 @@ class ProcessRuntime implements Runtime {
     public void stop() {
         process.destroy();
         channel.shutdown();
+        channel = null;
+        stub = null;
     }
 
     @Override
@@ -308,18 +310,6 @@ class ProcessRuntime implements Runtime {
         if (!process.isAlive()) {
             if (deathException == null) {
                 tryExtractingDeathException();
-            }
-            return false;
-        }
-        FunctionStatus status;
-        try {
-            status = getFunctionStatus().get();
-        } catch (Exception ex) {
-            return false;
-        }
-        if (!status.getRunning()) {
-            if (status.getFailureException() != null && !status.getFailureException().isEmpty()) {
-                deathException = new Exception(status.getFailureException());
             }
             return false;
         }

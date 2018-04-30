@@ -57,7 +57,7 @@ public interface MessageBuilder<T> {
      * @param value
      *            the domain object
      */
-    MessageBuilder<T> setValue(T value);
+    MessageBuilder<T> setValue(T value) throws SchemaSerializationException;
 
     /**
      * Set the content of the message
