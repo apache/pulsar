@@ -318,26 +318,23 @@ public final class PulsarApi {
     
     public enum Type
         implements com.google.protobuf.Internal.EnumLite {
-      Json(0, 1),
-      Protobuf(1, 2),
-      Thrift(2, 3),
-      Avro(3, 4),
+      None(0, 0),
+      String(1, 1),
+      Json(2, 2),
       ;
       
-      public static final int Json_VALUE = 1;
-      public static final int Protobuf_VALUE = 2;
-      public static final int Thrift_VALUE = 3;
-      public static final int Avro_VALUE = 4;
+      public static final int None_VALUE = 0;
+      public static final int String_VALUE = 1;
+      public static final int Json_VALUE = 2;
       
       
       public final int getNumber() { return value; }
       
       public static Type valueOf(int value) {
         switch (value) {
-          case 1: return Json;
-          case 2: return Protobuf;
-          case 3: return Thrift;
-          case 4: return Avro;
+          case 0: return None;
+          case 1: return String;
+          case 2: return Json;
           default: return null;
         }
       }
@@ -440,7 +437,7 @@ public final class PulsarApi {
     private void initFields() {
       name_ = "";
       schemaData_ = com.google.protobuf.ByteString.EMPTY;
-      type_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.Type.Json;
+      type_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.Type.None;
       properties_ = java.util.Collections.emptyList();
     }
     private byte memoizedIsInitialized = -1;
@@ -631,7 +628,7 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000001);
         schemaData_ = com.google.protobuf.ByteString.EMPTY;
         bitField0_ = (bitField0_ & ~0x00000002);
-        type_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.Type.Json;
+        type_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.Type.None;
         bitField0_ = (bitField0_ & ~0x00000004);
         properties_ = java.util.Collections.emptyList();
         bitField0_ = (bitField0_ & ~0x00000008);
@@ -849,7 +846,7 @@ public final class PulsarApi {
       }
       
       // required .pulsar.proto.Schema.Type type = 4;
-      private org.apache.pulsar.common.api.proto.PulsarApi.Schema.Type type_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.Type.Json;
+      private org.apache.pulsar.common.api.proto.PulsarApi.Schema.Type type_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.Type.None;
       public boolean hasType() {
         return ((bitField0_ & 0x00000004) == 0x00000004);
       }
@@ -867,7 +864,7 @@ public final class PulsarApi {
       }
       public Builder clearType() {
         bitField0_ = (bitField0_ & ~0x00000004);
-        type_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.Type.Json;
+        type_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.Type.None;
         
         return this;
       }
