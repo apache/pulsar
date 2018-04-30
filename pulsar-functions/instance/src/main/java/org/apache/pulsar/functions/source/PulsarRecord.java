@@ -16,27 +16,38 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.instance;
+package org.apache.pulsar.functions.source;
 
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import lombok.Setter;
 import lombok.ToString;
-import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.functions.api.SerDe;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.connect.core.Record;
 
-import java.util.Map;
-
-@Getter
-@Setter
 @Data
 @Builder
+@Getter
 @ToString
-public class PulsarConfig {
-    private Function.FunctionDetails.ProcessingGuarantees processingGuarantees;
-    private SubscriptionType subscriptionType;
-    private String subscription;
-    private Map<String, SerDe> topicToSerdeMap;
+@EqualsAndHashCode
+public class PulsarRecord<T> implements Record<T> {
+
+    private String partitionId;
+    private Long sequenceId;
+    private T value;
+    private MessageId messageId;
+    private String topicName;
+    private Runnable failFunction;
+    private Runnable ackFunction;
+
+    @Override
+    public void ack() {
+        this.ackFunction.run();
+    }
+
+    @Override
+    public void fail() {
+        this.failFunction.run();
+    }
 }

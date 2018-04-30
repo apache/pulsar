@@ -26,15 +26,13 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.source.PulsarSource;
 import org.testng.annotations.Test;
-
-import java.util.HashMap;
 
 public class JavaInstanceTest {
 
     private static InstanceConfig createInstanceConfig() {
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
-        functionDetailsBuilder.addInputs("TEST");
         functionDetailsBuilder.setOutputSerdeClassName(DefaultSerDe.class.getName());
         InstanceConfig instanceConfig = new InstanceConfig();
         instanceConfig.setFunctionDetails(functionDetailsBuilder.build());
