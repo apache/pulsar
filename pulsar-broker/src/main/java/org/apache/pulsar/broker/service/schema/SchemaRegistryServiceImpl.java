@@ -148,29 +148,25 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     interface Functions {
         static SchemaType convertToDomainType(SchemaRegistryFormat.SchemaInfo.SchemaType type) {
             switch (type) {
-                case AVRO:
-                    return SchemaType.AVRO;
-                case JSON:
-                    return SchemaType.JSON;
-                case PROTO:
-                    return SchemaType.PROTOBUF;
-                case THRIFT:
-                    return SchemaType.THRIFT;
-                default:
-                    return SchemaType.NONE;
+            case NONE:
+                return SchemaType.NONE;
+            case STRING:
+                return SchemaType.STRING;
+            case JSON:
+                return SchemaType.JSON;
+            default:
+                return SchemaType.NONE;
             }
         }
 
         static SchemaRegistryFormat.SchemaInfo.SchemaType convertFromDomainType(SchemaType type) {
             switch (type) {
-                case AVRO:
-                    return SchemaRegistryFormat.SchemaInfo.SchemaType.AVRO;
+                case NONE:
+                    return SchemaRegistryFormat.SchemaInfo.SchemaType.NONE;
+                case STRING:
+                    return SchemaRegistryFormat.SchemaInfo.SchemaType.STRING;
                 case JSON:
                     return SchemaRegistryFormat.SchemaInfo.SchemaType.JSON;
-                case THRIFT:
-                    return SchemaRegistryFormat.SchemaInfo.SchemaType.THRIFT;
-                case PROTOBUF:
-                    return SchemaRegistryFormat.SchemaInfo.SchemaType.PROTO;
                 default:
                     return SchemaRegistryFormat.SchemaInfo.SchemaType.NONE;
             }

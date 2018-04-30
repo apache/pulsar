@@ -722,16 +722,14 @@ public class ServerCnx extends PulsarHandler {
 
     private static SchemaType getType(PulsarApi.Schema.Type protocolType) {
         switch (protocolType) {
-            case Json:
-                return SchemaType.JSON;
-            case Avro:
-                return SchemaType.AVRO;
-            case Thrift:
-                return SchemaType.THRIFT;
-            case Protobuf:
-                return SchemaType.PROTOBUF;
-            default:
-                return SchemaType.NONE;
+        case None:
+            return SchemaType.NONE;
+        case String:
+            return SchemaType.STRING;
+        case Json:
+            return SchemaType.JSON;
+        default:
+            return SchemaType.NONE;
         }
     }
 

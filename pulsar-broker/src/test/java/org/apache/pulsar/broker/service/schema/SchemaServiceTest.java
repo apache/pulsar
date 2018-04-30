@@ -44,7 +44,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
 
     private SchemaData schema1 = SchemaData.builder()
         .user(userId)
-        .type(SchemaType.PROTOBUF)
+        .type(SchemaType.JSON)
         .timestamp(MockClock.millis())
         .isDeleted(false)
         .data("message { required int64 a = 1};".getBytes())
@@ -52,7 +52,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
 
     private SchemaData schema2 = SchemaData.builder()
         .user(userId)
-        .type(SchemaType.PROTOBUF)
+        .type(SchemaType.JSON)
         .timestamp(MockClock.millis())
         .isDeleted(false)
         .data("message { required int64 b = 1};".getBytes())
@@ -60,7 +60,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
 
     private SchemaData schema3 = SchemaData.builder()
         .user(userId)
-        .type(SchemaType.PROTOBUF)
+        .type(SchemaType.JSON)
         .timestamp(MockClock.millis())
         .isDeleted(false)
         .data("message { required int64 c = 1};".getBytes())
@@ -243,7 +243,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         UUID randomString = UUID.randomUUID();
         return SchemaData.builder()
             .user(userId)
-            .type(SchemaType.PROTOBUF)
+            .type(SchemaType.JSON)
             .timestamp(MockClock.millis())
             .isDeleted(false)
             .data(randomString.toString().getBytes())

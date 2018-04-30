@@ -444,16 +444,14 @@ public class Commands {
 
     private static PulsarApi.Schema.Type getSchemaType(SchemaType type) {
         switch (type) {
-            case PROTOBUF:
-                return PulsarApi.Schema.Type.Protobuf;
-            case THRIFT:
-                return PulsarApi.Schema.Type.Thrift;
-            case AVRO:
-                return PulsarApi.Schema.Type.Avro;
+            case NONE:
+                return PulsarApi.Schema.Type.None;
+            case STRING:
+                return PulsarApi.Schema.Type.String;
             case JSON:
                 return PulsarApi.Schema.Type.Json;
             default:
-                return null;
+                return PulsarApi.Schema.Type.None;
         }
     }
 
