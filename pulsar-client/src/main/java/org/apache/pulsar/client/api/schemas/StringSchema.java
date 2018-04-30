@@ -48,7 +48,8 @@ public class StringSchema implements Schema<String> {
     public SchemaInfo getSchemaInfo() {
         SchemaInfo schemaInfo = new SchemaInfo();
         schemaInfo.setName("String");
-        schemaInfo.setType(SchemaType.NONE);
+        schemaInfo.setType(SchemaType.STRING);
+        schemaInfo.setSchema(new byte[0]);
         return schemaInfo;
     }
 }
