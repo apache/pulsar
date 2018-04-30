@@ -52,7 +52,6 @@ message FunctionDetails {
     bool autoAck = 11;
     int32 parallelism = 12;
     SourceSpec source = 13;
-    SinkSpec sink = 14;
 }
 
 message SourceSpec {
@@ -63,12 +62,6 @@ message SourceSpec {
     // configs used only when source feeds into functions
     SubscriptionType subscriptionType = 3;
     map<string,string> topicsToSerDeClassName = 4;
-}
-
-message SinkSpec {
-    string className = 1;
-    // map in json format
-    string configs = 2;
 }
 
 message PackageLocationMetaData {
