@@ -122,7 +122,7 @@ class ContextImpl implements Context {
     }
 
     @Override
-    public String getTopicName() {
+    public String getCurrentMessageTopicName() {
         return currentTopicName;
     }
 
