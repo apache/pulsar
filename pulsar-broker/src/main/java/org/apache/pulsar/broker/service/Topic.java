@@ -40,7 +40,7 @@ import org.apache.pulsar.utils.StatsOutputStream;
 
 public interface Topic {
 
-    public interface PublishContext {
+    interface PublishContext {
 
         default String getProducerName() {
             return null;
@@ -117,7 +117,7 @@ public interface Topic {
 
     void updateRates(NamespaceStats nsStats, NamespaceBundleStats currentBundleStats,
             StatsOutputStream topicStatsStream, ClusterReplicationMetrics clusterReplicationMetrics,
-            String namespaceName);
+            String namespaceName, boolean hydratePublishers);
 
     Subscription getSubscription(String subscription);
 
@@ -130,4 +130,6 @@ public interface Topic {
     Position getLastMessageId();
 
     CompletableFuture<SchemaVersion> addSchema(SchemaData schema);
+
+    CompletableFuture<Boolean> isSchemaCompatible(SchemaData schema);
 }

@@ -54,7 +54,8 @@ class ProcessRuntime implements Runtime {
     @Getter
     private List<String> processArgs;
     private int instancePort;
-    private Exception startupException;
+    @Getter
+    private Exception deathException;
     private ManagedChannel channel;
     private InstanceControlGrpc.InstanceControlFutureStub stub;
 
@@ -212,6 +213,8 @@ class ProcessRuntime implements Runtime {
     public void stop() {
         process.destroy();
         channel.shutdown();
+        channel = null;
+        stub = null;
     }
 
     @Override
@@ -227,8 +230,8 @@ class ProcessRuntime implements Runtime {
             public void onFailure(Throwable throwable) {
                 FunctionStatus.Builder builder = FunctionStatus.newBuilder();
                 builder.setRunning(false);
-                if (startupException != null) {
-                    builder.setFailureException(startupException.getMessage());
+                if (deathException != null) {
+                    builder.setFailureException(deathException.getMessage());
                 } else {
                     builder.setFailureException(throwable.getMessage());
                 }
@@ -280,19 +283,20 @@ class ProcessRuntime implements Runtime {
     }
 
     private void startProcess() {
-        startupException = null;
+        deathException = null;
         try {
             ProcessBuilder processBuilder = new ProcessBuilder(processArgs);
             log.info("ProcessBuilder starting the process with args {}", String.join(" ", processBuilder.command()));
             process = processBuilder.start();
         } catch (Exception ex) {
             log.error("Starting process failed", ex);
-            startupException = ex;
+            deathException = ex;
             return;
         }
         try {
             int exitValue = process.exitValue();
             log.error("Instance Process quit unexpectedly with return value " + exitValue);
+            tryExtractingDeathException();
         } catch (IllegalThreadStateException ex) {
             log.info("Started process successfully");
         }
@@ -300,49 +304,29 @@ class ProcessRuntime implements Runtime {
 
     @Override
     public boolean isAlive() {
-        return process != null && process.isAlive();
+        if (process == null) {
+            return false;
+        }
+        if (!process.isAlive()) {
+            if (deathException == null) {
+                tryExtractingDeathException();
+            }
+            return false;
+        }
+        return true;
     }
 
-    @Override
-    public Exception getDeathException() {
-        if (isAlive()) return null;
-        if (startupException != null) return startupException;
+    private void tryExtractingDeathException() {
         InputStream errorStream = process.getErrorStream();
         try {
             byte[] errorBytes = new byte[errorStream.available()];
             errorStream.read(errorBytes);
             String errorMessage = new String(errorBytes);
-            startupException = new RuntimeException(errorMessage);
+            deathException = new RuntimeException(errorMessage);
+            log.error("Extracted Process death exception", deathException);
         } catch (Exception ex) {
-            startupException = ex;
+            deathException = ex;
+            log.error("Error extracting Process death exception", deathException);
         }
-        return startupException;
-    }
-
-    public static void main(String[] args) throws ExecutionException, InterruptedException {
-        int port = Integer.parseInt(args[0]);
-
-        ManagedChannel channel = ManagedChannelBuilder.forAddress("127.0.0.1", port)
-                .usePlaintext(true)
-                .build();
-        InstanceControlFutureStub stub = InstanceControlGrpc.newFutureStub(channel);
-        ListenableFuture<FunctionStatus> response = stub.getFunctionStatus(Empty.newBuilder().build());
-        CompletableFuture<FunctionStatus> future = new CompletableFuture<>();
-        Futures.addCallback(response, new FutureCallback<FunctionStatus>() {
-            @Override
-            public void onFailure(Throwable throwable) {
-                log.info("GetFunctionStatus:", throwable);
-                future.completeExceptionally(throwable);
-            }
-
-            @Override
-            public void onSuccess(InstanceCommunication.FunctionStatus t) {
-                log.info("GetFunctionStatus: {}", t);
-                future.complete(t);
-            }
-        });
-        FunctionStatus status = future.get();
-
-        log.info("Function Status : {}", status);
     }
 }

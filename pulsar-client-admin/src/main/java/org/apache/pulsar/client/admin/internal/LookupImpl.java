@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
-import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.client.WebTarget;
 
 import org.apache.pulsar.client.admin.Lookup;
@@ -38,14 +37,6 @@ public class LookupImpl extends BaseResource implements Lookup {
         v2lookup = web.path("/lookup/v2");
     }
 
-    private PulsarAdminException getLookupApiException(WebTarget target, Exception e) {
-        if (e instanceof ClientErrorException) {
-            return new PulsarAdminException((ClientErrorException) e, e.getMessage() + " at " + target.getUri());
-        } else {
-            return getApiException(e);
-        }
-    }
-
     @Override
     public String lookupTopic(String topic) throws PulsarAdminException {
         TopicName topicName = TopicName.get(topic);
@@ -55,7 +46,7 @@ public class LookupImpl extends BaseResource implements Lookup {
         try {
             return doTopicLookup(target);
         } catch (Exception e) {
-            throw getLookupApiException(target, e);
+            throw getApiException(e);
         }
     }
 
@@ -68,7 +59,7 @@ public class LookupImpl extends BaseResource implements Lookup {
         try {
             return request(target).get(String.class);
         } catch (Exception e) {
-            throw getLookupApiException(target, e);
+            throw getApiException(e);
         }
     }
 

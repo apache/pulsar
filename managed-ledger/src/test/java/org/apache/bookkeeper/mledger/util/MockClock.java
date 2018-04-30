@@ -16,30 +16,35 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.api;
+package org.apache.bookkeeper.mledger.util;
 
-import org.apache.pulsar.common.schema.SchemaInfo;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
-public interface Schema<T> {
-    byte[] encode(T message) throws SchemaSerializationException;
-    T decode(byte[] bytes);
+public class MockClock extends Clock {
+    private Instant initialInstant = Clock.systemUTC().instant();
+    private AtomicLong delta = new AtomicLong(0);
 
-    SchemaInfo getSchemaInfo();
+    public void advance(long period, TimeUnit unit) {
+        delta.addAndGet(unit.toNanos(period));
+    }
 
-    Schema<byte[]> IDENTITY = new Schema<byte[]>() {
-        @Override
-        public byte[] encode(byte[] message) {
-            return message;
-        }
+    @Override
+    public Instant instant() {
+        return initialInstant.plusNanos(delta.get());
+    }
 
-        @Override
-        public byte[] decode(byte[] bytes) {
-            return bytes;
-        }
+    @Override
+    public Clock withZone(ZoneId zone) {
+        return this;
+    }
 
-        @Override
-        public SchemaInfo getSchemaInfo() {
-            return null;
-        }
-    };
+    @Override
+    public ZoneId getZone() {
+        return ZoneId.systemDefault();
+    }
 }
+

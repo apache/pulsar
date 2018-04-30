@@ -18,28 +18,8 @@
  */
 package org.apache.pulsar.client.api;
 
-import org.apache.pulsar.common.schema.SchemaInfo;
-
-public interface Schema<T> {
-    byte[] encode(T message) throws SchemaSerializationException;
-    T decode(byte[] bytes);
-
-    SchemaInfo getSchemaInfo();
-
-    Schema<byte[]> IDENTITY = new Schema<byte[]>() {
-        @Override
-        public byte[] encode(byte[] message) {
-            return message;
-        }
-
-        @Override
-        public byte[] decode(byte[] bytes) {
-            return bytes;
-        }
-
-        @Override
-        public SchemaInfo getSchemaInfo() {
-            return null;
-        }
-    };
+public class SchemaSerializationException extends PulsarClientException {
+    public SchemaSerializationException(Throwable cause) {
+        super(cause);
+    }
 }
