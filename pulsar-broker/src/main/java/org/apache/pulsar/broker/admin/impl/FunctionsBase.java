@@ -237,12 +237,12 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     public Response triggerFunction(final @PathParam("tenant") String tenant,
                                     final @PathParam("namespace") String namespace,
                                     final @PathParam("functionName") String functionName,
-                                    final @PathParam("topic") String topic,
                                     final @FormDataParam("data") String triggerValue,
-                                    final @FormDataParam("dataStream") InputStream triggerStream) {
+                                    final @FormDataParam("dataStream") InputStream triggerStream,
+                                    final @FormDataParam("topic") String topic) {
 
         return functions.triggerFunction(
-                tenant, namespace, functionName, topic, triggerValue, triggerStream);
+                tenant, namespace, functionName, triggerValue, triggerStream, topic);
 
     }
 

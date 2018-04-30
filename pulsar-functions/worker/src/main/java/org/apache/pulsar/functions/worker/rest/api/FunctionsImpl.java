@@ -492,7 +492,6 @@ public class FunctionsImpl {
         } else {
             return Response.status(Status.BAD_REQUEST).build();
         }
-        log.info("SANJEEV2 {}", inputTopicToWrite);
         String outputTopic = functionMetaData.getFunctionDetails().getOutput();
         Reader reader = null;
         Producer producer = null;
@@ -500,9 +499,7 @@ public class FunctionsImpl {
             if (outputTopic != null && !outputTopic.isEmpty()) {
                 reader = worker().getClient().newReader().topic(outputTopic).startMessageId(MessageId.latest).create();
             }
-            log.info("SANJEEV4");
             producer = worker().getClient().newProducer().topic(inputTopicToWrite).create();
-            log.info("SANJEEV5");
             byte[] targetArray;
             if (uploadedInputStream != null) {
                 targetArray = new byte[uploadedInputStream.available()];
@@ -510,13 +507,10 @@ public class FunctionsImpl {
             } else {
                 targetArray = input.getBytes();
             }
-            log.info("SANJEEV6");
-
             MessageId msgId = producer.send(targetArray);
             if (reader == null) {
                 return Response.status(Status.OK).build();
             }
-            log.info("SANJEEV7");
             long curTime = System.currentTimeMillis();
             long maxTime = curTime + 1000;
             while (curTime < maxTime) {
@@ -531,8 +525,6 @@ public class FunctionsImpl {
                 }
                 curTime = System.currentTimeMillis();
             }
-            log.info("SANJEEV8");
-
             return Response.status(Status.REQUEST_TIMEOUT).build();
         } catch (Exception e) {
             return Response.status(Status.INTERNAL_SERVER_ERROR).build();
@@ -543,8 +535,6 @@ public class FunctionsImpl {
             if (producer != null) {
                 producer.closeAsync();
             }
-            log.info("SANJEEV9");
-
         }
     }
 
