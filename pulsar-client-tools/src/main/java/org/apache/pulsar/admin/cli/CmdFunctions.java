@@ -234,7 +234,7 @@ public class CmdFunctions extends CmdBase {
         protected String userCodeFile;
 
         @Override
-        void processArguments() throws IllegalArgumentException {
+        void processArguments() throws Exception {
             super.processArguments();
 
             // Initialize config builder either from a supplied YAML config file or from scratch
