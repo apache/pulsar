@@ -107,7 +107,7 @@ public class NonPersistentTopics extends PersistentTopics {
     @Path("/{tenant}/{namespace}/{topic}/partitions")
     @ApiOperation(value = "Create a partitioned topic.", notes = "It needs to be called before creating a producer on a partitioned topic.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 409, message = "Partitioned topic already exist") })
+            @ApiResponse(code = 409, message = "Partitioned topic already exists") })
     public void createPartitionedTopic(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic, int numPartitions,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
@@ -126,7 +126,7 @@ public class NonPersistentTopics extends PersistentTopics {
             log.info("[{}] Successfully created partitioned topic {}", clientAppId(), topicName);
         } catch (KeeperException.NodeExistsException e) {
             log.warn("[{}] Failed to create already existing partitioned topic {}", clientAppId(), topicName);
-            throw new RestException(Status.CONFLICT, "Partitioned topic already exist");
+            throw new RestException(Status.CONFLICT, "Partitioned topic already exists");
         } catch (Exception e) {
             log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
             throw new RestException(e);
