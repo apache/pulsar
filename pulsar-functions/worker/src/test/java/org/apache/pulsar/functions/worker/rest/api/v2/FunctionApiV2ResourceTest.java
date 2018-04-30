@@ -33,7 +33,9 @@ import com.google.gson.Gson;
 import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
@@ -47,6 +49,9 @@ import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
+import org.apache.pulsar.functions.proto.Function.ProcessingGuarantees;
+import org.apache.pulsar.functions.proto.Function.SourceSpec;
+import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
@@ -87,10 +92,13 @@ public class FunctionApiV2ResourceTest {
     private static final String namespace = "test-namespace";
     private static final String function = "test-function";
     private static final String outputTopic = "test-output-topic";
-    private static final String inputTopic = "test-input-topic";
-    private static final String inputSerdeClassName = DefaultSerDe.class.getName();
     private static final String outputSerdeClassName = DefaultSerDe.class.getName();
     private static final String className = TestFunction.class.getName();
+    private SubscriptionType subscriptionType = SubscriptionType.FAILOVER;
+    private static final Map<String, String> topicsToSerDeClassName = new HashMap<>();
+    static {
+        topicsToSerDeClassName.put("persistent://sample/standalone/ns1/test_src", DefaultSerDe.class.getName());
+    }
     private static final int parallelism = 1;
 
     private WorkerService mockedWorkerService;
@@ -137,12 +145,10 @@ public class FunctionApiV2ResourceTest {
             mockedInputStream,
             mockedFormData,
             outputTopic,
-            inputTopic,
-            inputSerdeClassName,
-            outputSerdeClassName,
+                outputSerdeClassName,
             className,
             parallelism,
-            "Tenant");
+                subscriptionType, topicsToSerDeClassName, "Tenant");
     }
 
     @Test
@@ -154,12 +160,10 @@ public class FunctionApiV2ResourceTest {
             mockedInputStream,
             mockedFormData,
             outputTopic,
-            inputTopic,
-            inputSerdeClassName,
-            outputSerdeClassName,
+                outputSerdeClassName,
             className,
             parallelism,
-            "Namespace");
+                subscriptionType, topicsToSerDeClassName, "Namespace");
     }
 
     @Test
@@ -171,12 +175,10 @@ public class FunctionApiV2ResourceTest {
             mockedInputStream,
             mockedFormData,
             outputTopic,
-            inputTopic,
-            inputSerdeClassName,
-            outputSerdeClassName,
+                outputSerdeClassName,
             className,
             parallelism,
-            "Function Name");
+                subscriptionType, topicsToSerDeClassName, "Function Name");
     }
 
     @Test
@@ -188,12 +190,10 @@ public class FunctionApiV2ResourceTest {
             null,
             mockedFormData,
             outputTopic,
-            inputTopic,
-            inputSerdeClassName,
-            outputSerdeClassName,
+                outputSerdeClassName,
             className,
             parallelism,
-            "Function Package");
+                subscriptionType, topicsToSerDeClassName, "Function Package");
     }
 
     @Test
@@ -205,46 +205,10 @@ public class FunctionApiV2ResourceTest {
             mockedInputStream,
             null,
             outputTopic,
-            inputTopic,
-            inputSerdeClassName,
-            outputSerdeClassName,
+                outputSerdeClassName,
             className,
             parallelism,
-            "Function Package");
-    }
-
-    @Test
-    public void testRegisterFunctionMissingInputTopic() throws IOException {
-        testRegisterFunctionMissingArguments(
-            tenant,
-            namespace,
-            function,
-            mockedInputStream,
-            mockedFormData,
-            outputTopic,
-            null,
-            inputSerdeClassName,
-            outputSerdeClassName,
-            className,
-            parallelism,
-            "Input");
-    }
-
-    @Test
-    public void testRegisterFunctionMissingInputSerde() throws IOException {
-        testRegisterFunctionMissingArguments(
-            tenant,
-            namespace,
-            function,
-            mockedInputStream,
-            mockedFormData,
-            outputTopic,
-            inputTopic,
-            null,
-            outputSerdeClassName,
-            className,
-            parallelism,
-            "Input");
+                subscriptionType, topicsToSerDeClassName, "Function Package");
     }
 
     @Test
@@ -256,12 +220,10 @@ public class FunctionApiV2ResourceTest {
             mockedInputStream,
             mockedFormData,
             outputTopic,
-            inputTopic,
-            inputSerdeClassName,
-            outputSerdeClassName,
+                outputSerdeClassName,
             null,
             parallelism,
-            "ClassName");
+                subscriptionType, topicsToSerDeClassName, "ClassName");
     }
 
     @Test
@@ -273,28 +235,40 @@ public class FunctionApiV2ResourceTest {
                 mockedInputStream,
                 mockedFormData,
                 outputTopic,
-                inputTopic,
-                inputSerdeClassName,
                 outputSerdeClassName,
                 className,
                 null,
-                "parallelism");
+                subscriptionType, topicsToSerDeClassName, "parallelism");
+    }
+
+    @Test
+    public void testRegisterFunctionMissingTopicsToSerDeClassName() throws IOException {
+        testRegisterFunctionMissingArguments(
+                tenant,
+                namespace,
+                function,
+                mockedInputStream,
+                mockedFormData,
+                outputTopic,
+                outputSerdeClassName,
+                className,
+                parallelism,
+                subscriptionType, null, "Source Topics Serde Map");
     }
 
     private void testRegisterFunctionMissingArguments(
-        String tenant,
-        String namespace,
-        String function,
-        InputStream inputStream,
-        FormDataContentDisposition details,
-        String outputTopic,
-        String inputTopic,
-        String inputSerdeClassName,
-        String outputSerdeClassName,
-        String className,
-        Integer parallelism,
-        String missingFieldName
-    ) throws IOException {
+            String tenant,
+            String namespace,
+            String function,
+            InputStream inputStream,
+            FormDataContentDisposition details,
+            String outputTopic,
+            String outputSerdeClassName,
+            String className,
+            Integer parallelism,
+            SubscriptionType subscriptionType,
+            Map<String, String> topicToSerDeClassName,
+            String missingFieldName) throws IOException {
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
         if (tenant != null) {
             functionDetailsBuilder.setTenant(tenant);
@@ -308,9 +282,6 @@ public class FunctionApiV2ResourceTest {
         if (outputTopic != null) {
             functionDetailsBuilder.setOutput(outputTopic);
         }
-        if (inputTopic != null && inputSerdeClassName != null) {
-            functionDetailsBuilder.putCustomSerdeInputs(inputTopic, inputSerdeClassName);
-        }
         if (outputSerdeClassName != null) {
             functionDetailsBuilder.setOutputSerdeClassName(outputSerdeClassName);
         }
@@ -319,6 +290,14 @@ public class FunctionApiV2ResourceTest {
         }
         if (parallelism != null) {
             functionDetailsBuilder.setParallelism(parallelism);
+        }
+        if (subscriptionType != null) {
+            functionDetailsBuilder.setSource(
+                    SourceSpec.newBuilder().setSubscriptionType(subscriptionType));
+        }
+        if (topicToSerDeClassName != null) {
+            functionDetailsBuilder.setSource(
+                    SourceSpec.newBuilder().putAllTopicsToSerDeClassName(topicToSerDeClassName));
         }
 
         FunctionDetails functionDetails = functionDetailsBuilder.build();
@@ -341,10 +320,12 @@ public class FunctionApiV2ResourceTest {
     private Response registerDefaultFunction() throws IOException {
         FunctionDetails functionDetails = FunctionDetails.newBuilder()
                 .setTenant(tenant).setNamespace(namespace).setName(function)
-                .setOutput(outputTopic).putCustomSerdeInputs(inputTopic, inputSerdeClassName)
+                .setOutput(outputTopic)
                 .setOutputSerdeClassName(outputSerdeClassName)
                 .setClassName(className)
-                .setParallelism(parallelism).build();
+                .setParallelism(parallelism)
+                .setSource(SourceSpec.newBuilder().setSubscriptionType(subscriptionType)
+                        .putAllTopicsToSerDeClassName(topicsToSerDeClassName)).build();
         return resource.registerFunction(
             tenant,
             namespace,
@@ -457,12 +438,10 @@ public class FunctionApiV2ResourceTest {
             mockedInputStream,
             mockedFormData,
             outputTopic,
-            inputTopic,
-            inputSerdeClassName,
-            outputSerdeClassName,
+                outputSerdeClassName,
             className,
             parallelism,
-            "Tenant");
+                subscriptionType, topicsToSerDeClassName, "Tenant");
     }
 
     @Test
@@ -474,12 +453,10 @@ public class FunctionApiV2ResourceTest {
             mockedInputStream,
             mockedFormData,
             outputTopic,
-            inputTopic,
-            inputSerdeClassName,
-            outputSerdeClassName,
+                outputSerdeClassName,
             className,
             parallelism,
-            "Namespace");
+                subscriptionType, topicsToSerDeClassName, "Namespace");
     }
 
     @Test
@@ -491,12 +468,10 @@ public class FunctionApiV2ResourceTest {
             mockedInputStream,
             mockedFormData,
             outputTopic,
-            inputTopic,
-            inputSerdeClassName,
-            outputSerdeClassName,
+                outputSerdeClassName,
             className,
             parallelism,
-            "Function Name");
+                subscriptionType, topicsToSerDeClassName, "Function Name");
     }
 
     @Test
@@ -508,12 +483,10 @@ public class FunctionApiV2ResourceTest {
             null,
             mockedFormData,
             outputTopic,
-            inputTopic,
-            inputSerdeClassName,
-            outputSerdeClassName,
+                outputSerdeClassName,
             className,
             parallelism,
-            "Function Package");
+                subscriptionType, topicsToSerDeClassName, "Function Package");
     }
 
     @Test
@@ -525,46 +498,10 @@ public class FunctionApiV2ResourceTest {
             mockedInputStream,
             null,
             outputTopic,
-            inputTopic,
-            inputSerdeClassName,
-            outputSerdeClassName,
+                outputSerdeClassName,
             className,
             parallelism,
-            "Function Package");
-    }
-
-    @Test
-    public void testUpdateFunctionMissingSourceTopic() throws IOException {
-        testUpdateFunctionMissingArguments(
-            tenant,
-            namespace,
-            function,
-            mockedInputStream,
-            mockedFormData,
-            outputTopic,
-            null,
-            inputSerdeClassName,
-            outputSerdeClassName,
-            className,
-            parallelism,
-            "Input");
-    }
-
-    @Test
-    public void testUpdateFunctionMissingInputSerde() throws IOException {
-        testUpdateFunctionMissingArguments(
-            tenant,
-            namespace,
-            function,
-            mockedInputStream,
-            mockedFormData,
-            outputTopic,
-            inputTopic,
-            null,
-            outputSerdeClassName,
-            className,
-            parallelism,
-            "Input");
+                subscriptionType, topicsToSerDeClassName, "Function Package");
     }
 
     @Test
@@ -576,12 +513,10 @@ public class FunctionApiV2ResourceTest {
             mockedInputStream,
             mockedFormData,
             outputTopic,
-            inputTopic,
-            inputSerdeClassName,
-            outputSerdeClassName,
+                outputSerdeClassName,
             null,
             parallelism,
-            "ClassName");
+                subscriptionType, topicsToSerDeClassName, "ClassName");
     }
     @Test
     public void testUpdateFunctionMissingParallelism() throws IOException {
@@ -592,29 +527,40 @@ public class FunctionApiV2ResourceTest {
                 mockedInputStream,
                 mockedFormData,
                 outputTopic,
-                inputTopic,
-                inputSerdeClassName,
                 outputSerdeClassName,
                 className,
                 null,
-                "parallelism");
+                subscriptionType, topicsToSerDeClassName, "parallelism");
     }
 
+    @Test
+    public void testUpdateFunctionMissingTopicsToSerDeClassName() throws IOException {
+        testUpdateFunctionMissingArguments(
+                tenant,
+                namespace,
+                function,
+                mockedInputStream,
+                mockedFormData,
+                outputTopic,
+                outputSerdeClassName,
+                className,
+                parallelism,
+                subscriptionType, null, "Source Topics Serde Map");
+    }
 
     private void testUpdateFunctionMissingArguments(
-        String tenant,
-        String namespace,
-        String function,
-        InputStream inputStream,
-        FormDataContentDisposition details,
-        String outputTopic,
-        String inputTopic,
-        String inputSerdeClassName,
-        String outputSerdeClassName,
-        String className,
-        Integer parallelism,
-        String missingFieldName
-    ) throws IOException {
+            String tenant,
+            String namespace,
+            String function,
+            InputStream inputStream,
+            FormDataContentDisposition details,
+            String outputTopic,
+            String outputSerdeClassName,
+            String className,
+            Integer parallelism,
+            SubscriptionType subscriptionType,
+            Map<String, String> topicToSerDeClassName,
+            String missingFieldName) throws IOException {
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
         if (tenant != null) {
             functionDetailsBuilder.setTenant(tenant);
@@ -628,9 +574,6 @@ public class FunctionApiV2ResourceTest {
         if (outputTopic != null) {
             functionDetailsBuilder.setOutput(outputTopic);
         }
-        if (inputTopic != null && inputSerdeClassName != null) {
-            functionDetailsBuilder.putCustomSerdeInputs(inputTopic, inputSerdeClassName);
-        }
         if (outputSerdeClassName != null) {
             functionDetailsBuilder.setOutputSerdeClassName(outputSerdeClassName);
         }
@@ -639,6 +582,14 @@ public class FunctionApiV2ResourceTest {
         }
         if (parallelism != null) {
             functionDetailsBuilder.setParallelism(parallelism);
+        }
+        if (subscriptionType != null) {
+            functionDetailsBuilder.setSource(
+                    SourceSpec.newBuilder().setSubscriptionType(this.subscriptionType));
+        }
+        if (topicToSerDeClassName != null) {
+            functionDetailsBuilder.setSource(
+                    SourceSpec.newBuilder().putAllTopicsToSerDeClassName(topicToSerDeClassName));
         }
 
         FunctionDetails functionDetails = functionDetailsBuilder.build();
@@ -661,10 +612,12 @@ public class FunctionApiV2ResourceTest {
     private Response updateDefaultFunction() throws IOException {
         FunctionDetails functionDetails = FunctionDetails.newBuilder()
                 .setTenant(tenant).setNamespace(namespace).setName(function)
-                .setOutput(outputTopic).putCustomSerdeInputs(inputTopic, inputSerdeClassName)
+                .setOutput(outputTopic)
                 .setOutputSerdeClassName(outputSerdeClassName)
                 .setClassName(className)
-                .setParallelism(parallelism).build();
+                .setParallelism(parallelism)
+                .setSource(SourceSpec.newBuilder().setSubscriptionType(subscriptionType)
+                        .putAllTopicsToSerDeClassName(topicsToSerDeClassName)).build();
         return resource.updateFunction(
             tenant,
             namespace,
@@ -935,14 +888,15 @@ public class FunctionApiV2ResourceTest {
 
         FunctionDetails functionDetails = FunctionDetails.newBuilder()
                 .setClassName(className)
-                .putCustomSerdeInputs(inputTopic, inputSerdeClassName)
                 .setOutputSerdeClassName(outputSerdeClassName)
                 .setName(function)
                 .setNamespace(namespace)
-                .setProcessingGuarantees(FunctionDetails.ProcessingGuarantees.ATMOST_ONCE)
+                .setProcessingGuarantees(ProcessingGuarantees.ATMOST_ONCE)
                 .setOutput(outputTopic)
                 .setTenant(tenant)
-                .setParallelism(parallelism).build();
+                .setParallelism(parallelism)
+                .setSource(SourceSpec.newBuilder().setSubscriptionType(subscriptionType)
+                        .putAllTopicsToSerDeClassName(topicsToSerDeClassName)).build();
         FunctionMetaData metaData = FunctionMetaData.newBuilder()
             .setCreateTime(System.currentTimeMillis())
             .setFunctionDetails(functionDetails)

@@ -16,19 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.instance;
+package org.apache.pulsar.functions.source;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import net.jodah.typetools.TypeResolver;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.connect.core.Record;
 import org.apache.pulsar.connect.core.Source;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.api.SerDe;
+import org.apache.pulsar.functions.api.utils.DefaultSerDe;
+import org.apache.pulsar.functions.instance.InstanceUtils;
+import org.apache.pulsar.functions.utils.FunctionConfig;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -37,6 +42,7 @@ public class PulsarSource<T> implements Source<T> {
 
     private PulsarClient pulsarClient;
     private PulsarConfig pulsarConfig;
+    private Map<String, SerDe> topicToSerDeMap = new HashMap<>();
 
     @Getter
     private org.apache.pulsar.client.api.Consumer inputConsumer;
@@ -48,10 +54,14 @@ public class PulsarSource<T> implements Source<T> {
 
     @Override
     public void open(Map<String, Object> config) throws Exception {
+        // Setup Serialization/Deserialization
+        setupSerde();
+
+        // Setup pulsar consumer
         this.inputConsumer = this.pulsarClient.newConsumer()
-                .topics(new ArrayList<>(this.pulsarConfig.getTopicToSerdeMap().keySet()))
-                .subscriptionName(this.pulsarConfig.getSubscription())
-                .subscriptionType(this.pulsarConfig.getSubscriptionType())
+                .topics(new ArrayList<>(this.pulsarConfig.getTopicSerdeClassNameMap().keySet()))
+                .subscriptionName(this.pulsarConfig.getSubscriptionName())
+                .subscriptionType(this.pulsarConfig.getSubscriptionType().get())
                 .ackTimeout(1, TimeUnit.MINUTES)
                 .subscribe();
     }
@@ -71,13 +81,13 @@ public class PulsarSource<T> implements Source<T> {
             MessageIdImpl messageId = (MessageIdImpl) topicMessageId.getInnerMessageId();
             partitionId = Long.toString(messageId.getPartitionIndex());
         } else {
-            topicName = this.pulsarConfig.getTopicToSerdeMap().keySet().iterator().next();
+            topicName = this.pulsarConfig.getTopicSerdeClassNameMap().keySet().iterator().next();
             partitionId = Long.toString(((MessageIdImpl) message.getMessageId()).getPartitionIndex());
         }
 
         Object object;
         try {
-            object = this.pulsarConfig.getTopicToSerdeMap().get(topicName).deserialize(message.getData());
+            object = this.topicToSerDeMap.get(topicName).deserialize(message.getData());
         } catch (Exception e) {
             //TODO Add deserialization exception stats
             throw new RuntimeException("Error occured when attempting to deserialize input:", e);
@@ -97,15 +107,13 @@ public class PulsarSource<T> implements Source<T> {
                 .sequenceId(message.getSequenceId())
                 .topicName(topicName)
                 .ackFunction(() -> {
-                    if (pulsarConfig.getProcessingGuarantees()
-                            == Function.FunctionDetails.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+                    if (pulsarConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
                         inputConsumer.acknowledgeCumulativeAsync(message);
                     } else {
                         inputConsumer.acknowledgeAsync(message);
                     }
                 }).failFunction(() -> {
-                    if (pulsarConfig.getProcessingGuarantees()
-                            == Function.FunctionDetails.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+                    if (pulsarConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
                         throw new RuntimeException("Failed to process message: " + message.getMessageId());
                     }
                 })
@@ -116,5 +124,38 @@ public class PulsarSource<T> implements Source<T> {
     @Override
     public void close() throws Exception {
         this.inputConsumer.close();
+    }
+
+    private void setupSerde() throws ClassNotFoundException {
+
+        Class<?> typeArg = Class.forName(this.pulsarConfig.getTypeClassName());
+        if (Void.class.equals(typeArg)) {
+            throw new RuntimeException("Input type of Pulsar Function cannot be Void");
+        }
+
+        for (Map.Entry<String, String> entry : this.pulsarConfig.getTopicSerdeClassNameMap().entrySet()) {
+            String topic = entry.getKey();
+            String serDeClassname = entry.getValue();
+            if (serDeClassname.isEmpty()) {
+                serDeClassname = DefaultSerDe.class.getName();
+            }
+            SerDe serDe = InstanceUtils.initializeSerDe(serDeClassname,
+                    Thread.currentThread().getContextClassLoader(), typeArg);
+            this.topicToSerDeMap.put(topic, serDe);
+        }
+
+        for (SerDe serDe : this.topicToSerDeMap.values()) {
+            if (serDe.getClass().getName().equals(DefaultSerDe.class.getName())) {
+                if (!DefaultSerDe.IsSupportedType(typeArg)) {
+                    throw new RuntimeException("Default Serde does not support " + typeArg);
+                }
+            } else {
+                Class<?>[] inputSerdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
+                if (!typeArg.isAssignableFrom(inputSerdeTypeArgs[0])) {
+                    throw new RuntimeException("Inconsistent types found between function input type and input serde type: "
+                            + " function type = " + typeArg + " should be assignable from " + inputSerdeTypeArgs[0]);
+                }
+            }
+        }
     }
 }
