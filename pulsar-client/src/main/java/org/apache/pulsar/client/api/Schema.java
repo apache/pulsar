@@ -35,7 +35,7 @@ public interface Schema<T> {
      * @throws SchemaSerializationException
      *             if the serialization fails
      */
-    byte[] encode(T message) throws SchemaSerializationException;
+    byte[] encode(T message);
 
     /**
      * Decode a byte array into an object using the schema definition and deserializer implementation

@@ -95,7 +95,7 @@ public interface TypedMessageBuilder<T> extends Serializable {
      * @param value
      *            the domain object
      */
-    TypedMessageBuilder<T> value(T value) throws SchemaSerializationException;
+    TypedMessageBuilder<T> value(T value);
 
     /**
      * Sets a new property on a message.

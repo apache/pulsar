@@ -28,11 +28,9 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
@@ -68,7 +66,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     }
 
     @Override
-    public TypedMessageBuilder<T> value(T value) throws SchemaSerializationException {
+    public TypedMessageBuilder<T> value(T value) {
         this.content = ByteBuffer.wrap(schema.encode(value));
         return this;
     }
