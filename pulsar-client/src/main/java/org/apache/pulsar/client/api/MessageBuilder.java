@@ -44,7 +44,7 @@ public interface MessageBuilder<T> {
     }
 
     static MessageBuilder<byte[]> create() {
-        return create(Schema.IDENTITY);
+        return create(Schema.BYTES);
     }
 
     /**
