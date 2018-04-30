@@ -22,12 +22,13 @@ import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 
 import java.util.Arrays;
+import java.util.List;
 
 public class CounterFunction implements Function<String, Void> {
     @Override
-    public Void process(String input, Context context) throws Exception {
-        Arrays.asList(input.split("\\.")).forEach(word -> context.incrCounter(word, 1));
-
+    public Void process(String input, Context context) {
+        List<String> words = Arrays.asList(input.split("\\."));
+        words.forEach(word -> context.incrCounter(word, 1));
         return null;
     }
 }
