@@ -44,7 +44,8 @@ public class TestCompaction extends Arquillian {
 
     @BeforeMethod
     public void waitServicesUp() throws Exception {
-        Assert.assertTrue(PulsarClusterUtils.startAllBrokers(docker, clusterName));
+        Assert.assertTrue(PulsarClusterUtils.waitZooKeeperUp(docker, clusterName, 30, TimeUnit.SECONDS));
+        Assert.assertTrue(PulsarClusterUtils.waitAllBrokersUp(docker, clusterName));
     }
 
     @Test
