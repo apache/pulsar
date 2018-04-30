@@ -75,6 +75,7 @@ import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.ServerCnx;
+import org.apache.pulsar.broker.service.StreamingStats;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
@@ -1095,7 +1096,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     }
 
     public void updateRates(NamespaceStats nsStats, NamespaceBundleStats bundleStats, StatsOutputStream topicStatsStream,
-            ClusterReplicationMetrics replStats, String namespace) {
+            ClusterReplicationMetrics replStats, String namespace, boolean hydratePublishers) {
 
         TopicStatsHelper topicStatsHelper = threadLocalTopicStats.get();
         topicStatsHelper.reset();
@@ -1106,6 +1107,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         bundleStats.producerCount += producers.size();
         topicStatsStream.startObject(topic);
 
+        // start publisher stats
+        topicStatsStream.startList("publishers");
         producers.forEach(producer -> {
             producer.updateRates();
             PublisherStats publisherStats = producer.getStats();
@@ -1116,10 +1119,12 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             if (producer.isRemote()) {
                 topicStatsHelper.remotePublishersStats.put(producer.getRemoteCluster(), publisherStats);
             }
-        });
 
-        // Creating publishers object for backward compatibility
-        topicStatsStream.startList("publishers");
+            // Populate consumer specific stats here
+            if (hydratePublishers) {
+                StreamingStats.writePublisherStats(topicStatsStream, publisherStats);
+            }
+        });
         topicStatsStream.endList();
 
         // Start replicator stats
@@ -1215,25 +1220,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                     subMsgThroughputOut += consumerStats.msgThroughputOut;
                     subMsgRateRedeliver += consumerStats.msgRateRedeliver;
 
-                    // Populate consumer specific stats here
-                    topicStatsStream.startObject();
-                    topicStatsStream.writePair("address", consumerStats.getAddress());
-                    topicStatsStream.writePair("consumerName", consumerStats.consumerName);
-                    topicStatsStream.writePair("availablePermits", consumerStats.availablePermits);
-                    topicStatsStream.writePair("connectedSince", consumerStats.getConnectedSince());
-                    topicStatsStream.writePair("msgRateOut", consumerStats.msgRateOut);
-                    topicStatsStream.writePair("msgThroughputOut", consumerStats.msgThroughputOut);
-                    topicStatsStream.writePair("msgRateRedeliver", consumerStats.msgRateRedeliver);
-
-                    if (SubType.Shared.equals(subscription.getType())) {
-                        topicStatsStream.writePair("unackedMessages", consumerStats.unackedMessages);
-                        topicStatsStream.writePair("blockedConsumerOnUnackedMsgs",
-                                consumerStats.blockedConsumerOnUnackedMsgs);
-                    }
-                    if (consumerStats.getClientVersion() != null) {
-                        topicStatsStream.writePair("clientVersion", consumerStats.getClientVersion());
-                    }
-                    topicStatsStream.endObject();
+                    StreamingStats.writeConsumerStats(topicStatsStream, subscription.getType(), consumerStats);
                 }
 
                 // Close Consumer stats

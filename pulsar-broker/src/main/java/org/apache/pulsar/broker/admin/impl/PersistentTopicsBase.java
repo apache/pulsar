@@ -346,7 +346,7 @@ public class PersistentTopicsBase extends AdminResource {
             log.info("[{}] Successfully created partitioned topic {}", clientAppId(), topicName);
         } catch (KeeperException.NodeExistsException e) {
             log.warn("[{}] Failed to create already existing partitioned topic {}", clientAppId(), topicName);
-            throw new RestException(Status.CONFLICT, "Partitioned topic already exist");
+            throw new RestException(Status.CONFLICT, "Partitioned topic already exists");
         } catch (Exception e) {
             log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
             throw new RestException(e);
@@ -354,7 +354,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     /**
-     * It updates number of partitions of an existing non-global partitioned topic. It requires partitioned-topic to be
+     * It updates number of partitions of an existing non-global partitioned topic. It requires partitioned-topic to
      * already exist and number of new partitions must be greater than existing number of partitions. Decrementing
      * number of partitions requires deletion of topic which is not supported.
      *

@@ -58,6 +58,7 @@ public class PulsarStats implements Closeable {
     private List<Metrics> metricsCollection;
     private List<NonPersistentTopic> tempNonPersistentTopics;
     private final BrokerOperabilityMetrics brokerOperabilityMetrics;
+    private final boolean exposePublisherStats;
 
     private final ReentrantReadWriteLock bufferLock = new ReentrantReadWriteLock();
 
@@ -74,6 +75,8 @@ public class PulsarStats implements Closeable {
         this.brokerOperabilityMetrics = new BrokerOperabilityMetrics(pulsar.getConfiguration().getClusterName(),
                 pulsar.getAdvertisedAddress());
         this.tempNonPersistentTopics = Lists.newArrayList();
+
+        this.exposePublisherStats = pulsar.getConfiguration().exposePublisherStats();
     }
 
     @Override
@@ -129,7 +132,7 @@ public class PulsarStats implements Closeable {
                             if (topic instanceof PersistentTopic) {
                                 try {
                                     topic.updateRates(nsStats, currentBundleStats, topicStatsStream,
-                                            clusterReplicationMetrics, namespaceName);
+                                            clusterReplicationMetrics, namespaceName, exposePublisherStats);
                                 } catch (Exception e) {
                                     log.error("Failed to generate topic stats for topic {}: {}", name, e.getMessage(), e);
                                 }
@@ -151,7 +154,7 @@ public class PulsarStats implements Closeable {
                             tempNonPersistentTopics.forEach(topic -> {
                                 try {
                                     topic.updateRates(nsStats, currentBundleStats, topicStatsStream,
-                                            clusterReplicationMetrics, namespaceName);
+                                            clusterReplicationMetrics, namespaceName, exposePublisherStats);
                                 } catch (Exception e) {
                                     log.error("Failed to generate topic stats for topic {}: {}", topic.getName(), e.getMessage(), e);
                                 }

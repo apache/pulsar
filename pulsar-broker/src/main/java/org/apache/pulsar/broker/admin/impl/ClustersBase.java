@@ -118,7 +118,7 @@ public class ClustersBase extends AdminResource {
             log.info("[{}] Created cluster {}", clientAppId(), cluster);
         } catch (KeeperException.NodeExistsException e) {
             log.warn("[{}] Failed to create already existing cluster {}", clientAppId(), cluster);
-            throw new RestException(Status.CONFLICT, "Cluster already exist");
+            throw new RestException(Status.CONFLICT, "Cluster already exists");
         } catch (IllegalArgumentException e) {
             log.warn("[{}] Failed to create cluster with invalid name {}", clientAppId(), cluster, e);
             throw new RestException(Status.PRECONDITION_FAILED, "Cluster name is not valid");
@@ -593,7 +593,7 @@ public class ClustersBase extends AdminResource {
     @Path("/{cluster}/failureDomains/{domainName}")
     @ApiOperation(value = "Set cluster's failure Domain")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 409, message = "Broker already exist into other domain"),
+            @ApiResponse(code = 409, message = "Broker already exists in another domain"),
             @ApiResponse(code = 404, message = "Cluster doesn't exist") })
     public void setFailureDomain(@PathParam("cluster") String cluster, @PathParam("domainName") String domainName,
             FailureDomain domain) throws Exception {
@@ -719,7 +719,7 @@ public class ClustersBase extends AdminResource {
                                     .filter(inputDomain.brokers::contains).collect(Collectors.toList());
                             if (!duplicateBrokers.isEmpty()) {
                                 throw new RestException(Status.CONFLICT,
-                                        duplicateBrokers + " already exist into " + domainName);
+                                        duplicateBrokers + " already exists in " + domainName);
                             }
                         }
                     } catch (Exception e) {
