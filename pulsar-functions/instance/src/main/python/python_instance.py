@@ -110,8 +110,8 @@ class PythonInstance(object):
     self.function_purefunction = None
     self.producer = None
     self.exeuction_thread = None
-    self.atmost_once = self.instance_config.function_details.processingGuarantees == Function_pb2.FunctionDetails.ProcessingGuarantees.Value('ATMOST_ONCE')
-    self.atleast_once = self.instance_config.function_details.processingGuarantees == Function_pb2.FunctionDetails.ProcessingGuarantees.Value('ATLEAST_ONCE')
+    self.atmost_once = self.instance_config.function_details.processingGuarantees == Function_pb2.ProcessingGuarantees.Value('ATMOST_ONCE')
+    self.atleast_once = self.instance_config.function_details.processingGuarantees == Function_pb2.ProcessingGuarantees.Value('ATLEAST_ONCE')
     self.auto_ack = self.instance_config.function_details.autoAck
     self.contextimpl = None
     self.total_stats = Stats()
@@ -120,27 +120,17 @@ class PythonInstance(object):
   def run(self):
     # Setup consumers and input deserializers
     mode = pulsar._pulsar.ConsumerType.Shared
-    if self.instance_config.function_details.subscriptionType == Function_pb2.FunctionDetails.SubscriptionType.Value('EXCLUSIVE'):
-      mode = pulsar._pulsar.ConsumerType.Exclusive
-    elif self.instance_config.function_details.subscriptionType == Function_pb2.FunctionDetails.SubscriptionType.Value('FAILOVER'):
+    if self.instance_config.function_details.source.subscriptionType == Function_pb2.SubscriptionType.Value("FAILOVER"):
       mode = pulsar._pulsar.ConsumerType.Failover
 
     subscription_name = str(self.instance_config.function_details.tenant) + "/" + \
                         str(self.instance_config.function_details.namespace) + "/" + \
                         str(self.instance_config.function_details.name)
-    for topic, serde in self.instance_config.function_details.customSerdeInputs.items():
-      serde_kclass = util.import_class(os.path.dirname(self.user_code), serde)
-      self.input_serdes[topic] = serde_kclass()
-      Log.info("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
-      self.consumers[topic] = self.pulsar_client.subscribe(
-        str(topic), subscription_name,
-        consumer_type=mode,
-        message_listener=partial(self.message_listener, topic, self.input_serdes[topic])
-      )
-
-    for topic in self.instance_config.function_details.inputs:
-      global DEFAULT_SERIALIZER
-      serde_kclass = util.import_class(os.path.dirname(self.user_code), DEFAULT_SERIALIZER)
+    for topic, serde in self.instance_config.function_details.source.topicsToSerDeClassName.items():
+      if not serde:
+        serde_kclass = util.import_class(os.path.dirname(self.user_code), DEFAULT_SERIALIZER)
+      else:
+        serde_kclass = util.import_class(os.path.dirname(self.user_code), serde)
       self.input_serdes[topic] = serde_kclass()
       Log.info("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
       self.consumers[topic] = self.pulsar_client.subscribe(

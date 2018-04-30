@@ -27,6 +27,7 @@ destination: ../generated-site/content
 
 preview_version_id: 20180426.125800-32
 current_version: 1.22.0-incubating
+python_latest: "1.22.0"
 archived_releases:
   - 1.21.0-incubating
   - 1.20.0-incubating

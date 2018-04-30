@@ -24,12 +24,11 @@ import org.apache.bookkeeper.common.annotation.InterfaceStability.Evolving;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.connect.core.Record;
 import org.apache.pulsar.connect.core.Source;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails.ProcessingGuarantees;
+import org.apache.pulsar.functions.proto.Function.ProcessingGuarantees;
 
 /**
  * A processor that processes messages, used by {@link org.apache.pulsar.functions.instance.JavaInstanceRunnable}.
@@ -39,16 +38,7 @@ public interface MessageProcessor extends AutoCloseable {
 
     static MessageProcessor create(PulsarClient client,
                                    FunctionDetails functionDetails) {
-        FunctionDetails.SubscriptionType fnSubType = functionDetails.getSubscriptionType();
         ProcessingGuarantees processingGuarantees = functionDetails.getProcessingGuarantees();
-        SubscriptionType subType;
-        if (FunctionDetails.SubscriptionType.SHARED == fnSubType) {
-            subType = SubscriptionType.Shared;
-        } else if (FunctionDetails.SubscriptionType.EXCLUSIVE == fnSubType) {
-            subType = SubscriptionType.Exclusive;
-        } else {
-            subType = SubscriptionType.Failover;
-        }
 
         if (processingGuarantees == ProcessingGuarantees.EFFECTIVELY_ONCE) {
             return new EffectivelyOnceProcessor(
@@ -57,25 +47,23 @@ public interface MessageProcessor extends AutoCloseable {
         } else if (processingGuarantees == ProcessingGuarantees.ATMOST_ONCE) {
             return new AtMostOnceProcessor(
                 client,
-                functionDetails,
-                subType);
+                functionDetails);
         } else {
             return new AtLeastOnceProcessor(
                 client,
-                functionDetails,
-                subType);
+                functionDetails);
         }
     }
 
     void postReceiveMessage(Record record);
 
     /**
-     * Setup the input with a provided <i>processQueue</i>. The implementation of this processor is responsible for
-     * setting up the input and passing the received messages from input to the provided <i>processQueue</i>.
-     *
-     * @param inputSerDe SerDe to deserialize messages from input.
+     * Setup the source. Implementation is responsible for initializing the source
+     * and for calling open method for source
+     * @param inputType the input type of the function
+     * @throws Exception
      */
-    void setupInput(Map<String, SerDe> inputSerDe)
+    void setupInput(Class<?> inputType)
         throws Exception;
 
     /**

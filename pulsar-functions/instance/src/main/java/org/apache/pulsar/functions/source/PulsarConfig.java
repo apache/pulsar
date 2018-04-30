@@ -16,38 +16,33 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.instance;
+package org.apache.pulsar.functions.source;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Builder;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import lombok.ToString;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.connect.core.Record;
+import org.apache.pulsar.functions.utils.FunctionConfig;
 
-@Data
-@Builder
+import java.io.IOException;
+import java.util.Map;
+
 @Getter
+@Setter
 @ToString
-@EqualsAndHashCode
-public class PulsarRecord<T> implements Record<T> {
+public class PulsarConfig {
 
-    private String partitionId;
-    private Long sequenceId;
-    private T value;
-    private MessageId messageId;
-    private String topicName;
-    private Runnable failFunction;
-    private Runnable ackFunction;
+    private FunctionConfig.ProcessingGuarantees processingGuarantees;
+    private FunctionConfig.SubscriptionType subscriptionType;
+    private String subscriptionName;
+    private Map<String, String> topicSerdeClassNameMap;
+    private String typeClassName;
 
-    @Override
-    public void ack() {
-        this.ackFunction.run();
-    }
-
-    @Override
-    public void fail() {
-        this.failFunction.run();
+    public static PulsarConfig load(Map<String, Object> map) throws IOException {
+        ObjectMapper mapper = new ObjectMapper();
+        return mapper.readValue(new ObjectMapper().writeValueAsString(map), PulsarConfig.class);
     }
 }
