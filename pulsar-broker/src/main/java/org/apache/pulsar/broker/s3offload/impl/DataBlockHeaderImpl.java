@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.s3offload.impl;
 
-import static com.google.common.base.Preconditions.checkState;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.PooledByteBufAllocator;
@@ -40,6 +38,7 @@ public class DataBlockHeaderImpl implements DataBlockHeader {
     // This is bigger than header size. Leaving some place for alignment and future enhancement.
     // Payload use this as the start offset.
     private static final int dataBlockHeaderAlign = 128;
+    private static final byte padding = 0;
     // The size of this header.
     private static final int dataBlockHeaderSize = 4 /* magic word */
         + 4 /* index block length */
@@ -49,20 +48,36 @@ public class DataBlockHeaderImpl implements DataBlockHeader {
         return new DataBlockHeaderImpl(blockLength, firstEntryId);
     }
 
-    // Construct DataBlockHeader from InputStream
-    public static DataBlockHeaderImpl fromStream(InputStream stream) throws IOException {
+    // Construct DataBlockHeader from InputStream, which contains `dataBlockHeaderAlign` bytes readable.
+    public static DataBlockHeader fromStream(InputStream stream) throws IOException {
         DataInputStream dis = new DataInputStream(stream);
         int magic = dis.readInt();
-        checkState(magic == dataBlockMagicWord);
-        return new DataBlockHeaderImpl(dis.readInt(), dis.readLong());
+        if (magic != dataBlockMagicWord) {
+            throw new IOException("Data block header magic word not match.");
+        }
+
+        int blockLen = dis.readInt();
+        long firstEntryId = dis.readLong();
+
+        // verify padding
+        for (int index = 0; index < dataBlockHeaderAlign - dataBlockHeaderSize; index ++) {
+            if (dis.readByte() != padding) {
+                throw new IOException("Data block header magic word not match.");
+            }
+        };
+
+        return new DataBlockHeaderImpl(blockLen, firstEntryId);
     }
 
     private final int blockLength;
     private final long firstEntryId;
 
-    @Override
-    public int getBlockMagicWord() {
+    static public int getBlockMagicWord() {
         return dataBlockMagicWord;
+    }
+
+    static public int getDataStartOffset() {
+        return dataBlockHeaderAlign;
     }
 
     @Override
@@ -77,10 +92,6 @@ public class DataBlockHeaderImpl implements DataBlockHeader {
 
     @Override
     public int getHeaderSize() {
-        return dataBlockHeaderSize;
-    }
-
-    static public int getDataStartOffset() {
         return dataBlockHeaderAlign;
     }
 
@@ -92,18 +103,21 @@ public class DataBlockHeaderImpl implements DataBlockHeader {
     /**
      * Get the content of the data block header as InputStream.
      * Read out in format:
-     *   [ magic_word -- int ][ block_len -- int ][ first_entry_id  -- long]
+     *   [ magic_word -- int ][ block_len -- int ][ first_entry_id  -- long] [padding zeros]
      */
+    @Override
     public InputStream toStream() throws IOException {
         int headerSize = 4 /* magic word */
             + 4 /* index block length */
             + 8 /* first entry id */;
 
-        ByteBuf out = PooledByteBufAllocator.DEFAULT.buffer(headerSize, headerSize);
+        ByteBuf out = PooledByteBufAllocator.DEFAULT.buffer(dataBlockHeaderAlign, dataBlockHeaderAlign);
         out.writeInt(dataBlockMagicWord)
             .writeInt(blockLength)
-            .writeLong(firstEntryId);
+            .writeLong(firstEntryId)
+            .writeBytes(new byte[dataBlockHeaderAlign - headerSize]);
 
+        // true means the input stream will release the ByteBuf on close
         return new ByteBufInputStream(out, true);
     }
 }

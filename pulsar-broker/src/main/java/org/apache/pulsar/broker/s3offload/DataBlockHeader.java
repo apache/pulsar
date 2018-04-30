@@ -27,17 +27,12 @@ import org.apache.pulsar.broker.s3offload.impl.DataBlockHeaderImpl;
  * The data block header in code storage for each data block
  *
  * Currently, It is in format:
- * [ magic_word -- int ][ block_len -- int ][ first_entry_id  -- long]
+ * [ magic_word -- int ][ block_len -- int ][ first_entry_id  -- long][padding]
  *
- * with the size: 4 + 4 + 8 = 16 Bytes
+ * with the size: 4 + 4 + 8 + padding = 128 Bytes
  */
 @Unstable
 public interface DataBlockHeader {
-    /**
-     * Get Magic Word for data block.
-     * It is a sequence of bytes used to identify the start of a block.
-     */
-    int getBlockMagicWord();
 
     /**
      * Get the length of the block in bytes, including the header.
@@ -66,6 +61,14 @@ public interface DataBlockHeader {
      */
     static int getDataStartOffset() {
         return DataBlockHeaderImpl.getDataStartOffset();
+    }
+
+    /**
+     * Get Magic Word for data block.
+     * It is a sequence of bytes used to identify the start of a block.
+     */
+    static int getBlockMagicWord() {
+        return DataBlockHeaderImpl.getBlockMagicWord();
     }
 }
 

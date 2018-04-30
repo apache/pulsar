@@ -18,10 +18,15 @@
  */
 package org.apache.pulsar.s3offload;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.s3offload.DataBlockHeader;
 import org.apache.pulsar.broker.s3offload.impl.DataBlockHeaderImpl;
 import org.testng.annotations.Test;
 
@@ -37,17 +42,42 @@ public class DataBlockHeaderTest {
             firstEntryId);
 
         // verify get methods
-        assertTrue(dataBlockHeader.getBlockMagicWord() == 0xDBDBDBDB);
-        assertTrue(dataBlockHeader.getBlockLength() == headerLength);
-        assertTrue(dataBlockHeader.getFirstEntryId() == firstEntryId);
+        assertEquals(dataBlockHeader.getBlockMagicWord(), 0xDBDBDBDB);
+        assertEquals(dataBlockHeader.getBlockLength(), headerLength);
+        assertEquals(dataBlockHeader.getFirstEntryId(), firstEntryId);
 
         // verify toStream and fromStream
         InputStream stream = dataBlockHeader.toStream();
-        DataBlockHeaderImpl rebuild = DataBlockHeaderImpl.fromStream(stream);
+        stream.mark(0);
+        DataBlockHeader rebuild = DataBlockHeaderImpl.fromStream(stream);
+        assertEquals(rebuild.getBlockLength(), headerLength);
+        assertEquals(rebuild.getFirstEntryId(), firstEntryId);
+        // verify InputStream reach end
+        assertEquals(stream.read(), -1);
 
-        assertTrue(rebuild.getBlockMagicWord() == 0xDBDBDBDB);
-        assertTrue(rebuild.getBlockLength() == headerLength);
-        assertTrue(rebuild.getFirstEntryId() == firstEntryId);
+        stream.reset();
+        byte streamContent[] = new byte[DataBlockHeader.getDataStartOffset()];
+
+        // stream with all 0, simulate junk data, should throw exception for header magic not match.
+        try(InputStream stream2 = new ByteArrayInputStream(streamContent, 0, DataBlockHeader.getDataStartOffset())) {
+            DataBlockHeader rebuild2 = DataBlockHeaderImpl.fromStream(stream2);
+            fail("Should throw IOException");
+        } catch (Exception e) {
+            assertTrue(e instanceof IOException);
+            assertTrue(e.getMessage().equals("Data block header magic word not match."));
+        }
+
+        // simulate read header too small, throw EOFException.
+        stream.read(streamContent);
+        try(InputStream stream3 =
+                new ByteArrayInputStream(streamContent, 0, DataBlockHeader.getDataStartOffset() - 1)) {
+            DataBlockHeader rebuild3 = DataBlockHeaderImpl.fromStream(stream3);
+            fail("Should throw EOFException");
+        } catch (Exception e) {
+            assertTrue(e instanceof java.io.EOFException);
+        }
+
+        stream.close();
     }
 
 }
