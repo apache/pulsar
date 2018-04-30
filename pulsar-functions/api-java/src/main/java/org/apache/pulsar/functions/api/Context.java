@@ -40,10 +40,10 @@ public interface Context {
     byte[] getMessageId();
 
     /**
-     * The topic that this message belongs to
-     * @return The topic name
+     * The input topic that this message belongs to
+     * @return The input topic name
      */
-    String getTopicName();
+    String getInputTopicName();
 
     /**
      * Get a list of all input topics
