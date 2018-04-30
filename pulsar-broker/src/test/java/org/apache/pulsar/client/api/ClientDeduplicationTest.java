@@ -123,11 +123,11 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
 
         producer.newMessage().value("my-message-0".getBytes()).sequenceId(0).send();
         producer.newMessage().value("my-message-1".getBytes()).sequenceId(1).send();
-        producer.newMessage().value("my-message-0".getBytes()).sequenceId(2).send();
+        producer.newMessage().value("my-message-2".getBytes()).sequenceId(2).send();
 
         // Repeat the messages and verify they're not received by consumer
         producer.newMessage().value("my-message-1".getBytes()).sequenceId(1).send();
-        producer.newMessage().value("my-message-0".getBytes()).sequenceId(2).send();
+        producer.newMessage().value("my-message-2".getBytes()).sequenceId(2).send();
 
         producer.close();
 
@@ -149,7 +149,7 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
 
         // Repeat the messages and verify they're not received by consumer
         producer.newMessage().value("my-message-1".getBytes()).sequenceId(1).send();
-        producer.newMessage().value("my-message-0".getBytes()).sequenceId(2).send();
+        producer.newMessage().value("my-message-2".getBytes()).sequenceId(2).send();
 
         msg = consumer.receive(1, TimeUnit.SECONDS);
         assertNull(msg);

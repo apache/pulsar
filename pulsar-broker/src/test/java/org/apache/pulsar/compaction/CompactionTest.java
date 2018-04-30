@@ -517,7 +517,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             producerBatch.newMessage().key("key1").value("my-message-1".getBytes()).sendAsync();
             producerBatch.newMessage().key("key1").value("my-message-2".getBytes()).sendAsync();
             producerBatch.newMessage().key("key1").value("my-message-3".getBytes()).sendAsync();
-            producerBatch.newMessage().key("key1").value("my-message-4".getBytes()).send();
+            producerNormal.newMessage().key("key1").value("my-message-4".getBytes()).send();
         }
 
         // compact the topic
@@ -545,8 +545,8 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 .enableBatching(true).batchingMaxMessages(3)
                 .batchingMaxPublishDelay(1, TimeUnit.HOURS).create()) {
             producerNormal.newMessage().value("my-message-1".getBytes()).send();
-            producerNormal.newMessage().value("my-message-2".getBytes()).sendAsync();
 
+            producerBatch.newMessage().value("my-message-2".getBytes()).sendAsync();
             producerBatch.newMessage().key("key1").value("my-message-3".getBytes()).sendAsync();
             producerBatch.newMessage().key("key1").value("my-message-4".getBytes()).send();
 

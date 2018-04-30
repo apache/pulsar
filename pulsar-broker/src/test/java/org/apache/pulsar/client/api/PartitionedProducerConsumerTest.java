@@ -188,7 +188,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
 
         Set<String> messageSet = Sets.newHashSet();
         for (int i = 0; i < 10; i++) {
-            Message<byte[] >msg = consumer.receive(5, TimeUnit.SECONDS);
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertNotNull(msg, "Message should not be null");
             consumer.acknowledge(msg);
             String receivedMessage = new String(msg.getData());
