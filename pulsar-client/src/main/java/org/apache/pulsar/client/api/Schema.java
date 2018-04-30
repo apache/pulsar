@@ -18,7 +18,8 @@
  */
 package org.apache.pulsar.client.api;
 
-import org.apache.pulsar.client.api.schemas.StringSchema;
+import org.apache.pulsar.client.impl.schema.BytesSchema;
+import org.apache.pulsar.client.impl.schema.StringSchema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
@@ -51,22 +52,10 @@ public interface Schema<T> {
      */
     SchemaInfo getSchemaInfo();
 
-    Schema<byte[]> IDENTITY = new Schema<byte[]>() {
-        @Override
-        public byte[] encode(byte[] message) {
-            return message;
-        }
-
-        @Override
-        public byte[] decode(byte[] bytes) {
-            return bytes;
-        }
-
-        @Override
-        public SchemaInfo getSchemaInfo() {
-            return null;
-        }
-    };
+    /**
+     * Schema that doesn't perform any encoding on the message payloads. Accepts a byte array and it passes it through.
+     */
+    Schema<byte[]> BYTES = new BytesSchema();
 
     /**
      * Schema that can be used to encode/decode messages whose values are String. The payload is encoded with UTF-8.
