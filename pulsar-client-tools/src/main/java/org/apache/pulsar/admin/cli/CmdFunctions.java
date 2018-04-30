@@ -546,9 +546,11 @@ public class CmdFunctions extends CmdBase {
                 sourceSpecBuilder.setClassName(PulsarSource.class.getName());
             }
             functionConfig.getInputs().forEach(v -> topicToSerDeClassNameMap.put(v, ""));
-            sourceSpecBuilder
-                    .setSubscriptionType(convertSubscriptionType(functionConfig.getSubscriptionType()))
-                    .putAllTopicsToSerDeClassName(topicToSerDeClassNameMap);
+            sourceSpecBuilder.putAllTopicsToSerDeClassName(topicToSerDeClassNameMap);
+            if (functionConfig.getSubscriptionType() != null) {
+                sourceSpecBuilder
+                        .setSubscriptionType(convertSubscriptionType(functionConfig.getSubscriptionType()));
+            }
             functionDetailsBuilder.setSource(sourceSpecBuilder);
 
             if (functionConfig.getTenant() != null) {
