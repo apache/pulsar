@@ -28,7 +28,7 @@ RUN apt-get update && \
                 liblog4cxx-dev libprotobuf-dev libboost-all-dev google-mock libgtest-dev \
                 libjsoncpp-dev libxml2-utils protobuf-compiler wget \
                 curl doxygen openjdk-8-jdk-headless clang-format-5.0 \
-                gnupg2
+                gnupg2 golang-1.10-go
 
 # Compile and install gtest
 RUN cd /usr/src/gtest && cmake . && make && cp libgtest.a /usr/lib
@@ -55,7 +55,6 @@ RUN wget https://bootstrap.pypa.io/get-pip.py && python get-pip.py
 RUN pip install pdoc
 
 # Install Protobuf doc generator (requires Go)
-RUN apt-get install -y golang-1.10-go
 ENV GOPATH "$HOME/go"
 ENV PATH "/usr/lib/go-1.10/bin:$GOPATH/bin:$PATH"
 RUN go get -u github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
