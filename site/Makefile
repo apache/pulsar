@@ -87,11 +87,7 @@ protobuf_doc_gen:
 	scripts/protobuf-doc-gen.sh
 
 protobuf_setup:
-	rm -rf protoc-gen-doc scripts/protoc-gen-doc
-	git clone https://github.com/pseudomuto/protoc-gen-doc
-	rm -rf protoc-gen-doc/.git
-	mv protoc-gen-doc scripts
-	(cd scripts/protoc-gen-doc && PROTOBUF_PREFIX=$(shell brew --prefix protobuf) qmake && make)
+	go get -u github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
 
 api_docs: javadoc python_doc_gen cpp_doc_gen
 
