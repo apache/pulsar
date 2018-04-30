@@ -776,12 +776,14 @@ public class CmdFunctions extends CmdBase {
         protected String triggerValue;
         @Parameter(names = "--triggerFile", description = "The path to the file that contains the data with which you'd like to trigger the function")
         protected String triggerFile;
+        @Parameter(names = "--topic", description = "The specific topic name that the function consumes from that you want to inject the data to")
+        protected String topic;
         @Override
         void runCmd() throws Exception {
             if (triggerFile == null && triggerValue == null) {
                 throw new RuntimeException("Either a trigger value or a trigger filepath needs to be specified");
             }
-            String retval = admin.functions().triggerFunction(tenant, namespace, functionName, triggerValue, triggerFile);
+            String retval = admin.functions().triggerFunction(tenant, namespace, functionName, topic, triggerValue, triggerFile);
             System.out.println(retval);
         }
     }

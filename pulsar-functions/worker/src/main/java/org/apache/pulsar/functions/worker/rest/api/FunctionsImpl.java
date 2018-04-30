@@ -486,6 +486,54 @@ public class FunctionsImpl {
         } else {
             return Response.status(Status.BAD_REQUEST).build();
         }
+        return serviceTriggerRequest(functionMetaData, inputTopicToWrite, input, uploadedInputStream);
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{functionName}/trigger")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    public Response triggerFunction(final @PathParam("tenant") String tenant,
+                                    final @PathParam("namespace") String namespace,
+                                    final @PathParam("name") String functionName,
+                                    final @FormDataParam("data") String input,
+                                    final @FormDataParam("dataStream") InputStream uploadedInputStream) {
+        FunctionDetails functionDetails;
+        // validate parameters
+        try {
+            validateTriggerRequestParams(tenant, namespace, functionName, null, input, uploadedInputStream);
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid trigger function request @ /{}/{}/{}",
+                    tenant, namespace, functionName, e);
+            return Response.status(Status.BAD_REQUEST)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(e.getMessage())).build();
+        }
+
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
+            log.error("Function in getFunction does not exist @ /{}/{}/{}",
+                    tenant, namespace, functionName);
+            return Response.status(Status.NOT_FOUND)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
+        }
+
+        FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, functionName);
+
+        String inputTopicToWrite;
+        // only if the source is PulsarSource and if the function consumes only one topic
+        if (functionMetaData.getFunctionDetails().getSource().getClassName().equals(PulsarSource.class.getName())
+                && functionMetaData.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap().size() == 1) {
+            inputTopicToWrite =
+                    functionMetaData.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap().keySet().iterator().next();
+        } else {
+            return Response.status(Status.BAD_REQUEST).build();
+        }
+        return serviceTriggerRequest(functionMetaData, inputTopicToWrite, input, uploadedInputStream);
+    }
+
+    private Response serviceTriggerRequest(FunctionMetaData functionMetaData, String inputTopicToWrite,
+                                           String input, InputStream uploadedInputStream) {
         String outputTopic = functionMetaData.getFunctionDetails().getOutput();
         Reader reader = null;
         Producer producer = null;
@@ -706,9 +754,6 @@ public class FunctionsImpl {
         }
         if (functionName == null) {
             throw new IllegalArgumentException("Function Name is not provided");
-        }
-        if (topic == null) {
-            throw new IllegalArgumentException("Topic Name is not provided");
         }
         if (uploadedInputStream == null && input == null) {
             throw new IllegalArgumentException("Trigger Data is not provided");
