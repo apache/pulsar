@@ -97,7 +97,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                     .build();
                 return schemaStorage.put(schemaId, info.toByteArray(), context);
             } else {
-                return FutureUtil.failedFuture(new Exception());
+                return FutureUtil.failedFuture(new IncompatibleSchemaException());
             }
         });
     }
