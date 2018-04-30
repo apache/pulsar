@@ -448,14 +448,14 @@ public class FunctionsImpl {
     }
 
     @POST
-    @Path("/{tenant}/{namespace}/{functionName}/{topic}/trigger")
+    @Path("/{tenant}/{namespace}/{functionName}/trigger")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public Response triggerFunction(final @PathParam("tenant") String tenant,
                                     final @PathParam("namespace") String namespace,
                                     final @PathParam("name") String functionName,
-                                    final @PathParam("topic") String topic,
                                     final @FormDataParam("data") String input,
-                                    final @FormDataParam("dataStream") InputStream uploadedInputStream) {
+                                    final @FormDataParam("dataStream") InputStream uploadedInputStream,
+                                    final @FormDataParam("topic") String topic) {
         FunctionDetails functionDetails;
         // validate parameters
         try {
@@ -480,60 +480,19 @@ public class FunctionsImpl {
         FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, functionName);
 
         String inputTopicToWrite;
-        // only if the source is PulsarSource
-        if (functionMetaData.getFunctionDetails().getSource().getClassName().equals(PulsarSource.class.getName())) {
-            inputTopicToWrite =  topic;
-        } else {
+        // only if the source is PulsarSource and if the function consumes only one topic
+        if (!functionMetaData.getFunctionDetails().getSource().getClassName().equals(PulsarSource.class.getName())) {
             return Response.status(Status.BAD_REQUEST).build();
         }
-        return serviceTriggerRequest(functionMetaData, inputTopicToWrite, input, uploadedInputStream);
-    }
-
-    @POST
-    @Path("/{tenant}/{namespace}/{functionName}/trigger")
-    @Consumes(MediaType.MULTIPART_FORM_DATA)
-    public Response triggerFunction(final @PathParam("tenant") String tenant,
-                                    final @PathParam("namespace") String namespace,
-                                    final @PathParam("name") String functionName,
-                                    final @FormDataParam("data") String input,
-                                    final @FormDataParam("dataStream") InputStream uploadedInputStream) {
-        FunctionDetails functionDetails;
-        // validate parameters
-        try {
-            validateTriggerRequestParams(tenant, namespace, functionName, null, input, uploadedInputStream);
-        } catch (IllegalArgumentException e) {
-            log.error("Invalid trigger function request @ /{}/{}/{}",
-                    tenant, namespace, functionName, e);
-            return Response.status(Status.BAD_REQUEST)
-                    .type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData(e.getMessage())).build();
-        }
-
-        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
-        if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
-            log.error("Function in getFunction does not exist @ /{}/{}/{}",
-                    tenant, namespace, functionName);
-            return Response.status(Status.NOT_FOUND)
-                    .type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
-        }
-
-        FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, functionName);
-
-        String inputTopicToWrite;
-        // only if the source is PulsarSource and if the function consumes only one topic
-        if (functionMetaData.getFunctionDetails().getSource().getClassName().equals(PulsarSource.class.getName())
-                && functionMetaData.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap().size() == 1) {
+        if (topic != null) {
+            inputTopicToWrite = topic;
+        } else if (functionMetaData.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap().size() == 1) {
             inputTopicToWrite =
                     functionMetaData.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap().keySet().iterator().next();
         } else {
             return Response.status(Status.BAD_REQUEST).build();
         }
-        return serviceTriggerRequest(functionMetaData, inputTopicToWrite, input, uploadedInputStream);
-    }
-
-    private Response serviceTriggerRequest(FunctionMetaData functionMetaData, String inputTopicToWrite,
-                                           String input, InputStream uploadedInputStream) {
+        log.info("SANJEEV2 {}", inputTopicToWrite);
         String outputTopic = functionMetaData.getFunctionDetails().getOutput();
         Reader reader = null;
         Producer producer = null;
@@ -541,7 +500,9 @@ public class FunctionsImpl {
             if (outputTopic != null && !outputTopic.isEmpty()) {
                 reader = worker().getClient().newReader().topic(outputTopic).startMessageId(MessageId.latest).create();
             }
+            log.info("SANJEEV4");
             producer = worker().getClient().newProducer().topic(inputTopicToWrite).create();
+            log.info("SANJEEV5");
             byte[] targetArray;
             if (uploadedInputStream != null) {
                 targetArray = new byte[uploadedInputStream.available()];
@@ -549,10 +510,13 @@ public class FunctionsImpl {
             } else {
                 targetArray = input.getBytes();
             }
+            log.info("SANJEEV6");
+
             MessageId msgId = producer.send(targetArray);
             if (reader == null) {
                 return Response.status(Status.OK).build();
             }
+            log.info("SANJEEV7");
             long curTime = System.currentTimeMillis();
             long maxTime = curTime + 1000;
             while (curTime < maxTime) {
@@ -567,6 +531,8 @@ public class FunctionsImpl {
                 }
                 curTime = System.currentTimeMillis();
             }
+            log.info("SANJEEV8");
+
             return Response.status(Status.REQUEST_TIMEOUT).build();
         } catch (Exception e) {
             return Response.status(Status.INTERNAL_SERVER_ERROR).build();
@@ -577,6 +543,8 @@ public class FunctionsImpl {
             if (producer != null) {
                 producer.closeAsync();
             }
+            log.info("SANJEEV9");
+
         }
     }
 
