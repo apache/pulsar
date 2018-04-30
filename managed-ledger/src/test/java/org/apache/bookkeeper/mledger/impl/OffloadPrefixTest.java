@@ -633,7 +633,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         assertEventuallyTrue(() -> offloader.deletedOffloads().contains(firstLedger));
     }
 
-    void assertEventuallyTrue(BooleanSupplier predicate) throws Exception {
+    static void assertEventuallyTrue(BooleanSupplier predicate) throws Exception {
         // wait up to 3 seconds
         for (int i = 0; i < 30 && !predicate.getAsBoolean(); i++) {
             Thread.sleep(100);

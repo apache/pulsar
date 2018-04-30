@@ -45,8 +45,8 @@ public abstract class ProducerConsumerBase extends MockedPulsarServiceBaseTest {
         admin.namespaces().setNamespaceReplicationClusters("my-property/my-ns", Sets.newHashSet("test"));
     }
 
-    protected void testMessageOrderAndDuplicates(Set<String> messagesReceived, String receivedMessage,
-            String expectedMessage) {
+    protected <T> void testMessageOrderAndDuplicates(Set<T> messagesReceived, T receivedMessage,
+            T expectedMessage) {
         // Make sure that messages are received in order
         Assert.assertEquals(receivedMessage, expectedMessage,
                 "Received message " + receivedMessage + " did not match the expected message " + expectedMessage);
