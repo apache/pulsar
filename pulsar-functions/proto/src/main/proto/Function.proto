@@ -23,16 +23,18 @@ package proto;
 option java_package = "org.apache.pulsar.functions.proto";
 option java_outer_classname = "Function";
 
-message FunctionConfig {
-    enum ProcessingGuarantees {
-        ATLEAST_ONCE = 0; // [default value]
-        ATMOST_ONCE = 1;
-        EFFECTIVELY_ONCE = 2;
-    }
-    enum SubscriptionType {
-        SHARED = 0;
-        EXCLUSIVE = 1;
-    }
+enum ProcessingGuarantees {
+    ATLEAST_ONCE = 0; // [default value]
+    ATMOST_ONCE = 1;
+    EFFECTIVELY_ONCE = 2;
+}
+
+enum SubscriptionType {
+    SHARED = 0;
+    FAILOVER = 1;
+}
+
+message FunctionDetails {
     enum Runtime {
         JAVA = 0;
         PYTHON = 1;
@@ -41,21 +43,25 @@ message FunctionConfig {
     string namespace = 2;
     string name = 3;
     string className = 4;
-    // map from input topic name to serde
-    map<string, string> customSerdeInputs = 5;
-    string outputSerdeClassName = 6;
-    string output = 7;
-    string logTopic = 8;
-    ProcessingGuarantees processingGuarantees = 9;
-    map<string,string> userConfig = 10;
-    SubscriptionType subscriptionType = 11;
-    Runtime runtime = 12;
-    bool autoAck = 13;
-    repeated string inputs = 14;
-    int32 parallelism = 15;
-    // Fully qualified function name
-    // (alternative to specifying tenant/namespace/name)
-    string fqfn = 16;
+    string outputSerdeClassName = 5;
+    string output = 6;
+    string logTopic = 7;
+    ProcessingGuarantees processingGuarantees = 8;
+    map<string,string> userConfig = 9;
+    Runtime runtime = 10;
+    bool autoAck = 11;
+    int32 parallelism = 12;
+    SourceSpec source = 13;
+}
+
+message SourceSpec {
+    string className = 1;
+    // map in json format
+    string configs = 2;
+
+    // configs used only when source feeds into functions
+    SubscriptionType subscriptionType = 3;
+    map<string,string> topicsToSerDeClassName = 4;
 }
 
 message PackageLocationMetaData {
@@ -63,15 +69,10 @@ message PackageLocationMetaData {
 }
 
 message FunctionMetaData {
-    FunctionConfig functionConfig = 1;
+    FunctionDetails functionDetails = 1;
     PackageLocationMetaData packageLocation = 2;
     uint64 version = 3;
     uint64 createTime = 4;
-}
-
-message Snapshot {
-    repeated FunctionMetaData functionMetaDataList = 1;
-    bytes lastAppliedMessageId = 2;
 }
 
 message Instance {

@@ -24,6 +24,9 @@ import static org.apache.pulsar.websocket.WebSocketError.FailedToDeserializeFrom
 import static org.apache.pulsar.websocket.WebSocketError.PayloadEncodingError;
 import static org.apache.pulsar.websocket.WebSocketError.UnknownError;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.base.Enums;
+
 import java.io.IOException;
 import java.util.Base64;
 import java.util.concurrent.TimeUnit;
@@ -35,15 +38,16 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.CompressionType;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageBuilder;
+import org.apache.pulsar.client.api.HashingScheme;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
-import org.apache.pulsar.client.api.ProducerConfiguration.HashingScheme;
-import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
+import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerBlockedQuotaExceededError;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerBlockedQuotaExceededException;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerBusyException;
+import org.apache.pulsar.client.api.SchemaSerializationException;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ProducerAck;
 import org.apache.pulsar.websocket.data.ProducerMessage;
@@ -51,9 +55,6 @@ import org.apache.pulsar.websocket.stats.StatsBuckets;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.google.common.base.Enums;
 
 
 /**
@@ -91,8 +92,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         }
 
         try {
-            ProducerConfiguration conf = getProducerConfiguration();
-            this.producer = service.getPulsarClient().createProducer(topic.toString(), conf);
+            this.producer = getProducerBuilder(service.getPulsarClient()).topic(topic.toString()).create();
             if (!this.service.addProducer(this)) {
                 log.warn("[{}:{}] Failed to add producer handler for topic {}", request.getRemoteAddr(),
                         request.getRemotePort(), topic);
@@ -166,27 +166,35 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         }
 
         final long msgSize = rawPayload.length;
-        MessageBuilder builder = MessageBuilder.create().setContent(rawPayload);
+        TypedMessageBuilder<byte[]> builder = producer.newMessage();
+
+        try {
+            builder.value(rawPayload);
+        } catch (SchemaSerializationException e) {
+            sendAckResponse(new ProducerAck(PayloadEncodingError, e.getMessage(), null, requestContext));
+            return;
+        }
 
         if (sendRequest.properties != null) {
-            builder.setProperties(sendRequest.properties);
+            builder.properties(sendRequest.properties);
         }
         if (sendRequest.key != null) {
-            builder.setKey(sendRequest.key);
+            builder.key(sendRequest.key);
         }
         if (sendRequest.replicationClusters != null) {
-            builder.setReplicationClusters(sendRequest.replicationClusters);
+            builder.replicationClusters(sendRequest.replicationClusters);
         }
-        Message<byte[]> msg = builder.build();
 
         final long now = System.nanoTime();
-        producer.sendAsync(msg).thenAccept(msgId -> {
+        builder.sendAsync().thenAccept(msgId -> {
             updateSentMsgStats(msgSize, TimeUnit.NANOSECONDS.toMicros(System.nanoTime() - now));
             if (isConnected()) {
                 String messageId = Base64.getEncoder().encodeToString(msgId.toByteArray());
                 sendAckResponse(new ProducerAck(messageId, sendRequest.context));
             }
         }).exceptionally(exception -> {
+            log.warn("[{}] Error occurred while producer handler was sending msg from {}: {}", producer.getTopic(),
+                    getRemote().getInetSocketAddress().toString(), exception.getMessage());
             numMsgsFailed.increment();
             sendAckResponse(
                     new ProducerAck(UnknownError, exception.getMessage(), null, sendRequest.context));
@@ -194,7 +202,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         });
     }
 
-    public Producer getProducer() {
+    public Producer<byte[]> getProducer() {
         return this.producer;
     }
 
@@ -220,7 +228,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
     }
 
     public long getMsgPublishedCounter() {
-        return MSG_PUBLISHED_COUNTER_UPDATER.get(this);
+        return msgPublishedCounter;
     }
 
     @Override
@@ -246,42 +254,44 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         MSG_PUBLISHED_COUNTER_UPDATER.getAndIncrement(this);
     }
 
-    private ProducerConfiguration getProducerConfiguration() {
-        ProducerConfiguration conf = new ProducerConfiguration();
+    private ProducerBuilder<byte[]> getProducerBuilder(PulsarClient client) {
+        ProducerBuilder<byte[]> builder = client.newProducer()
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition);
 
         // Set to false to prevent the server thread from being blocked if a lot of messages are pending.
-        conf.setBlockIfQueueFull(false);
+        builder.blockIfQueueFull(false);
 
         if (queryParams.containsKey("producerName")) {
-            conf.setProducerName(queryParams.get("producerName"));
+            builder.producerName(queryParams.get("producerName"));
         }
 
         if (queryParams.containsKey("initialSequenceId")) {
-            conf.setInitialSequenceId(Long.parseLong("initialSequenceId"));
+            builder.initialSequenceId(Long.parseLong("initialSequenceId"));
         }
 
         if (queryParams.containsKey("hashingScheme")) {
-            conf.setHashingScheme(HashingScheme.valueOf(queryParams.get("hashingScheme")));
+            builder.hashingScheme(HashingScheme.valueOf(queryParams.get("hashingScheme")));
         }
 
         if (queryParams.containsKey("sendTimeoutMillis")) {
-            conf.setSendTimeout(Integer.parseInt(queryParams.get("sendTimeoutMillis")), TimeUnit.MILLISECONDS);
+            builder.sendTimeout(Integer.parseInt(queryParams.get("sendTimeoutMillis")), TimeUnit.MILLISECONDS);
         }
 
         if (queryParams.containsKey("batchingEnabled")) {
-            conf.setBatchingEnabled(Boolean.parseBoolean(queryParams.get("batchingEnabled")));
+            builder.enableBatching(Boolean.parseBoolean(queryParams.get("batchingEnabled")));
         }
 
         if (queryParams.containsKey("batchingMaxMessages")) {
-            conf.setBatchingMaxMessages(Integer.parseInt(queryParams.get("batchingMaxMessages")));
+            builder.batchingMaxMessages(Integer.parseInt(queryParams.get("batchingMaxMessages")));
         }
 
         if (queryParams.containsKey("maxPendingMessages")) {
-            conf.setMaxPendingMessages(Integer.parseInt(queryParams.get("maxPendingMessages")));
+            builder.maxPendingMessages(Integer.parseInt(queryParams.get("maxPendingMessages")));
         }
 
         if (queryParams.containsKey("batchingMaxPublishDelay")) {
-            conf.setBatchingMaxPublishDelay(Integer.parseInt(queryParams.get("batchingMaxPublishDelay")),
+            builder.batchingMaxPublishDelay(Integer.parseInt(queryParams.get("batchingMaxPublishDelay")),
                     TimeUnit.MILLISECONDS);
         }
 
@@ -291,17 +301,17 @@ public class ProducerHandler extends AbstractWebSocketHandler {
                     "Invalid messageRoutingMode %s", queryParams.get("messageRoutingMode"));
             MessageRoutingMode routingMode = MessageRoutingMode.valueOf(queryParams.get("messageRoutingMode"));
             if (!MessageRoutingMode.CustomPartition.equals(routingMode)) {
-                conf.setMessageRoutingMode(routingMode);
+                builder.messageRoutingMode(routingMode);
             }
         }
 
         if (queryParams.containsKey("compressionType")) {
             checkArgument(Enums.getIfPresent(CompressionType.class, queryParams.get("compressionType")).isPresent(),
                     "Invalid compressionType %s", queryParams.get("compressionType"));
-            conf.setCompressionType(CompressionType.valueOf(queryParams.get("compressionType")));
+            builder.compressionType(CompressionType.valueOf(queryParams.get("compressionType")));
         }
 
-        return conf;
+        return builder;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ProducerHandler.class);

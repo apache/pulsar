@@ -336,14 +336,19 @@ public class Commands {
         }
         subscribeBuilder.addAllMetadata(CommandUtils.toKeyValueList(metadata));
 
-        if (null != schemaInfo) {
-            subscribeBuilder.setSchema(getSchema(schemaInfo));
+        PulsarApi.Schema schema = null;
+        if (schemaInfo != null) {
+            schema = getSchema(schemaInfo);
+            subscribeBuilder.setSchema(schema);
         }
 
         CommandSubscribe subscribe = subscribeBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.SUBSCRIBE).setSubscribe(subscribe));
         subscribeBuilder.recycle();
         subscribe.recycle();
+        if (null != schema) {
+            schema.recycle();
+        }
         return res;
     }
 
@@ -426,6 +431,7 @@ public class Commands {
         return res;
     }
 
+    @VisibleForTesting
     public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
                 Map<String, String> metadata) {
         return newProducer(topic, producerId, requestId, producerName, false, metadata);
@@ -438,21 +444,19 @@ public class Commands {
 
     private static PulsarApi.Schema.Type getSchemaType(SchemaType type) {
         switch (type) {
-            case PROTOBUF:
-                return PulsarApi.Schema.Type.Protobuf;
-            case THRIFT:
-                return PulsarApi.Schema.Type.Thrift;
-            case AVRO:
-                return PulsarApi.Schema.Type.Avro;
+            case NONE:
+                return PulsarApi.Schema.Type.None;
+            case STRING:
+                return PulsarApi.Schema.Type.String;
             case JSON:
                 return PulsarApi.Schema.Type.Json;
             default:
-                return null;
+                return PulsarApi.Schema.Type.None;
         }
     }
 
     private static PulsarApi.Schema getSchema(SchemaInfo schemaInfo) {
-        return PulsarApi.Schema.newBuilder()
+        PulsarApi.Schema.Builder builder = PulsarApi.Schema.newBuilder()
             .setName(schemaInfo.getName())
             .setSchemaData(copyFrom(schemaInfo.getSchema()))
             .setType(getSchemaType(schemaInfo.getType()))
@@ -463,7 +467,10 @@ public class Commands {
                         .setValue(entry.getValue())
                         .build()
                 ).collect(Collectors.toList())
-            ).build();
+            );
+        PulsarApi.Schema schema = builder.build();
+        builder.recycle();
+        return schema;
     }
 
     public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,

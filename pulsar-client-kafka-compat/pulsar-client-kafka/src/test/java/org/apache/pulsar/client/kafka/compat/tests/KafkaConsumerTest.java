@@ -36,10 +36,8 @@ import org.apache.kafka.clients.consumer.PulsarKafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.pulsar.broker.service.BrokerTestBase;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -61,7 +59,7 @@ public class KafkaConsumerTest extends BrokerTestBase {
 
     @Test
     public void testSimpleConsumer() throws Exception {
-        String topic = "persistent://sample/standalone/ns/testSimpleConsumer";
+        String topic = "persistent://prop/ns-abc/testSimpleConsumer";
 
         Properties props = new Properties();
         props.put("bootstrap.servers", lookupUrl.toString());
@@ -76,9 +74,7 @@ public class KafkaConsumerTest extends BrokerTestBase {
         Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic).create();
 
         for (int i = 0; i < 10; i++) {
-            Message<byte[]> msg = MessageBuilder.create().setKey(Integer.toString(i))
-                    .setContent(("hello-" + i).getBytes()).build();
-            pulsarProducer.send(msg);
+            pulsarProducer.newMessage().key(Integer.toString(i)).value(("hello-" + i).getBytes()).send();
         }
 
         AtomicInteger received = new AtomicInteger();
@@ -99,7 +95,7 @@ public class KafkaConsumerTest extends BrokerTestBase {
 
     @Test
     public void testConsumerAutoCommit() throws Exception {
-        String topic = "persistent://sample/standalone/ns/testConsumerAutoCommit";
+        String topic = "persistent://prop/ns-abc/testConsumerAutoCommit";
 
         Properties props = new Properties();
         props.put("bootstrap.servers", lookupUrl.toString());
@@ -114,9 +110,7 @@ public class KafkaConsumerTest extends BrokerTestBase {
         Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic).create();
 
         for (int i = 0; i < 10; i++) {
-            Message<byte[]> msg = MessageBuilder.create().setKey(Integer.toString(i))
-                    .setContent(("hello-" + i).getBytes()).build();
-            pulsarProducer.send(msg);
+            pulsarProducer.newMessage().key(Integer.toString(i)).value(("hello-" + i).getBytes()).send();
         }
 
         AtomicInteger received = new AtomicInteger();
@@ -157,9 +151,7 @@ public class KafkaConsumerTest extends BrokerTestBase {
         Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic).create();
 
         for (int i = 0; i < 10; i++) {
-            Message<byte[]> msg = MessageBuilder.create().setKey(Integer.toString(i))
-                    .setContent(("hello-" + i).getBytes()).build();
-            pulsarProducer.send(msg);
+            pulsarProducer.newMessage().key(Integer.toString(i)).value(("hello-" + i).getBytes()).send();
         }
 
         AtomicInteger received = new AtomicInteger();
@@ -194,8 +186,8 @@ public class KafkaConsumerTest extends BrokerTestBase {
         String topic = "persistent://sample/standalone/ns/testPartitions";
 
         // Create 8 partitions in topic
-        admin.properties().createProperty("sample", new PropertyAdmin());
-        admin.persistentTopics().createPartitionedTopic(topic, 8);
+        admin.tenants().createTenant("sample", new TenantInfo());
+        admin.topics().createPartitionedTopic(topic, 8);
 
         Properties props = new Properties();
         props.put("bootstrap.servers", lookupUrl.toString());
@@ -218,9 +210,7 @@ public class KafkaConsumerTest extends BrokerTestBase {
         int N = 8 * 3;
 
         for (int i = 0; i < N; i++) {
-            Message<byte[]> msg = MessageBuilder.create().setKey(Integer.toString(i))
-                    .setContent(("hello-" + i).getBytes()).build();
-            pulsarProducer.send(msg);
+            pulsarProducer.newMessage().key(Integer.toString(i)).value(("hello-" + i).getBytes()).send();
         }
 
         consumers.forEach(consumer -> {
@@ -257,9 +247,7 @@ public class KafkaConsumerTest extends BrokerTestBase {
         Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic).create();
 
         for (int i = 0; i < 10; i++) {
-            Message<byte[]> msg = MessageBuilder.create().setKey(Integer.toString(i))
-                    .setContent(("hello-" + i).getBytes()).build();
-            pulsarProducer.send(msg);
+            pulsarProducer.newMessage().key(Integer.toString(i)).value(("hello-" + i).getBytes()).send();
         }
 
         AtomicInteger received = new AtomicInteger();
@@ -314,9 +302,7 @@ public class KafkaConsumerTest extends BrokerTestBase {
         Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic).create();
 
         for (int i = 0; i < 10; i++) {
-            Message<byte[]> msg = MessageBuilder.create().setKey(Integer.toString(i))
-                    .setContent(("hello-" + i).getBytes()).build();
-            pulsarProducer.send(msg);
+            pulsarProducer.newMessage().key(Integer.toString(i)).value(("hello-" + i).getBytes()).send();
         }
 
         AtomicInteger received = new AtomicInteger();

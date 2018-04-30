@@ -31,8 +31,9 @@ import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
@@ -43,7 +44,6 @@ import org.slf4j.LoggerFactory;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.ea.agentloader.AgentLoader;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 public class PulsarStandaloneStarter {
@@ -203,13 +203,14 @@ public class PulsarStandaloneStarter {
         broker = new PulsarService(config, Optional.ofNullable(fnWorkerService));
         broker.start();
 
-        // Create a sample namespace
         URL webServiceUrl = new URL(
                 String.format("http://%s:%d", config.getAdvertisedAddress(), config.getWebServicePort()));
         final String brokerServiceUrl = String.format("pulsar://%s:%d", config.getAdvertisedAddress(),
                 config.getBrokerServicePort());
         admin = PulsarAdmin.builder().serviceHttpUrl(webServiceUrl.toString()).authentication(
                 config.getBrokerClientAuthenticationPlugin(), config.getBrokerClientAuthenticationParameters()).build();
+
+        // Create a sample namespace
         final String property = "sample";
         final String cluster = config.getClusterName();
         final String globalCluster = "global";
@@ -228,9 +229,9 @@ public class PulsarStandaloneStarter {
                 admin.clusters().createCluster(globalCluster, new ClusterData(null, null));
             }
 
-            if (!admin.properties().getProperties().contains(property)) {
-                admin.properties().createProperty(property,
-                        new PropertyAdmin(Sets.newHashSet(config.getSuperUserRoles()), Sets.newHashSet(cluster)));
+            if (!admin.tenants().getTenants().contains(property)) {
+                admin.tenants().createTenant(property,
+                        new TenantInfo(Sets.newHashSet(config.getSuperUserRoles()), Sets.newHashSet(cluster)));
             }
 
             if (!admin.namespaces().getNamespaces(property).contains(namespace)) {
@@ -240,8 +241,20 @@ public class PulsarStandaloneStarter {
             log.info(e.getMessage());
         }
 
-        if (null != fnWorkerService) {
-            fnWorkerService.start();
+        // Create a public tenant and default namespace
+        final String publicTenant = TopicName.PUBLIC_TENANT;
+        final String defaultNamespace = TopicName.PUBLIC_TENANT + "/" + TopicName.DEFAULT_NAMESPACE;
+        try {
+            if (!admin.tenants().getTenants().contains(publicTenant)) {
+                admin.tenants().createTenant(publicTenant,
+                        new TenantInfo(Sets.newHashSet(config.getSuperUserRoles()), Sets.newHashSet(cluster)));
+            }
+            if (!admin.namespaces().getNamespaces(publicTenant).contains(defaultNamespace)) {
+                admin.namespaces().createNamespace(defaultNamespace);
+                admin.namespaces().setNamespaceReplicationClusters(defaultNamespace, Sets.newHashSet(config.getClusterName()));
+            }
+        } catch (PulsarAdminException e) {
+            log.info(e.getMessage());
         }
 
         log.debug("--- setup completed ---");

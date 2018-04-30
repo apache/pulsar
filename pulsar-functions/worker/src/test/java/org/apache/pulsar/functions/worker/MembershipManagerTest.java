@@ -18,24 +18,6 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import java.util.concurrent.atomic.AtomicReference;
-import org.apache.distributedlog.api.namespace.Namespace;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
-import org.apache.pulsar.client.api.ConsumerEventListener;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.Reader;
-import org.apache.pulsar.client.api.ReaderBuilder;
-import org.apache.pulsar.functions.proto.Function;
-import org.mockito.ArgumentMatcher;
-import org.mockito.Mockito;
-import org.testng.Assert;
-import org.testng.annotations.Test;
-
-import java.util.Collection;
-import java.util.LinkedList;
-import java.util.List;
-
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.argThat;
@@ -46,9 +28,30 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+
+import java.util.Collection;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
+
+import org.apache.distributedlog.api.namespace.Namespace;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.ConsumerEventListener;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.ReaderBuilder;
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.functions.proto.Function;
+import org.mockito.ArgumentMatcher;
+import org.mockito.Mockito;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 public class MembershipManagerTest {
 
@@ -64,29 +67,33 @@ public class MembershipManagerTest {
 
     @Test
     public void testConsumerEventListener() throws Exception {
-        PulsarClient mockClient = mock(PulsarClient.class);
-        Consumer mockConsumer = mock(Consumer.class);
+        PulsarClientImpl mockClient = mock(PulsarClientImpl.class);
+
+        Consumer<byte[]> mockConsumer = mock(Consumer.class);
+        ConsumerBuilder<byte[]> mockConsumerBuilder = mock(ConsumerBuilder.class);
+
+        when(mockConsumerBuilder.topic(anyString())).thenReturn(mockConsumerBuilder);
+        when(mockConsumerBuilder.subscriptionName(anyString())).thenReturn(mockConsumerBuilder);
+        when(mockConsumerBuilder.subscriptionType(any(SubscriptionType.class))).thenReturn(mockConsumerBuilder);
+        when(mockConsumerBuilder.property(anyString(), anyString())).thenReturn(mockConsumerBuilder);
+
+        when(mockConsumerBuilder.subscribe()).thenReturn(mockConsumer);
 
         AtomicReference<ConsumerEventListener> listenerHolder = new AtomicReference<>();
-        when(mockClient.subscribe(
-            eq(workerConfig.getClusterCoordinationTopic()),
-            eq(MembershipManager.COORDINATION_TOPIC_SUBSCRIPTION),
-            any(ConsumerConfiguration.class)
-        )).thenAnswer(invocationOnMock -> {
+        when(mockConsumerBuilder.consumerEventListener(any(ConsumerEventListener.class))).thenAnswer(invocationOnMock -> {
 
-            ConsumerConfiguration conf = invocationOnMock.getArgumentAt(2, ConsumerConfiguration.class);
-            listenerHolder.set(conf.getConsumerEventListener());
+            ConsumerEventListener listener = invocationOnMock.getArgumentAt(0, ConsumerEventListener.class);
+            listenerHolder.set(listener);
 
-            return mockConsumer;
+            return mockConsumerBuilder;
         });
+
+        when(mockClient.newConsumer()).thenReturn(mockConsumerBuilder);
 
         MembershipManager membershipManager = spy(new MembershipManager(workerConfig, mockClient));
         assertFalse(membershipManager.isLeader());
         verify(mockClient, times(1))
-            .subscribe(
-                eq(workerConfig.getClusterCoordinationTopic()),
-                eq(MembershipManager.COORDINATION_TOPIC_SUBSCRIPTION),
-                any(ConsumerConfiguration.class));
+            .newConsumer();
 
         listenerHolder.get().becameActive(mockConsumer, 0);
         assertTrue(membershipManager.isLeader());
@@ -95,11 +102,31 @@ public class MembershipManagerTest {
         assertFalse(membershipManager.isLeader());
     }
 
+    private static PulsarClient mockPulsarClient() throws PulsarClientException {
+        PulsarClientImpl mockClient = mock(PulsarClientImpl.class);
+
+        Consumer<byte[]> mockConsumer = mock(Consumer.class);
+        ConsumerBuilder<byte[]> mockConsumerBuilder = mock(ConsumerBuilder.class);
+
+        when(mockConsumerBuilder.topic(anyString())).thenReturn(mockConsumerBuilder);
+        when(mockConsumerBuilder.subscriptionName(anyString())).thenReturn(mockConsumerBuilder);
+        when(mockConsumerBuilder.subscriptionType(any(SubscriptionType.class))).thenReturn(mockConsumerBuilder);
+        when(mockConsumerBuilder.property(anyString(), anyString())).thenReturn(mockConsumerBuilder);
+
+        when(mockConsumerBuilder.subscribe()).thenReturn(mockConsumer);
+
+        when(mockConsumerBuilder.consumerEventListener(any(ConsumerEventListener.class))).thenReturn(mockConsumerBuilder);
+
+        when(mockClient.newConsumer()).thenReturn(mockConsumerBuilder);
+
+        return mockClient;
+    }
+
     @Test
     public void testCheckFailuresNoFailures() throws Exception {
         SchedulerManager schedulerManager = mock(SchedulerManager.class);
         PulsarClient pulsarClient = mock(PulsarClient.class);
-        ReaderBuilder readerBuilder = mock(ReaderBuilder.class);
+        ReaderBuilder<byte[]> readerBuilder = mock(ReaderBuilder.class);
         doReturn(readerBuilder).when(pulsarClient).newReader();
         doReturn(readerBuilder).when(readerBuilder).topic(anyString());
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
@@ -111,7 +138,7 @@ public class MembershipManagerTest {
                 mock(MembershipManager.class)
         ));
         FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
-        MembershipManager membershipManager = spy(new MembershipManager(workerConfig, mock(PulsarClient.class)));
+        MembershipManager membershipManager = spy(new MembershipManager(workerConfig, mockPulsarClient()));
 
         List<MembershipManager.WorkerInfo> workerInfoList = new LinkedList<>();
         workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "host-1", 8000));
@@ -119,12 +146,12 @@ public class MembershipManagerTest {
 
         Mockito.doReturn(workerInfoList).when(membershipManager).getCurrentMembership();
 
-        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionConfig(
-                Function.FunctionConfig.newBuilder()
+        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                Function.FunctionDetails.newBuilder()
                         .setTenant("test-tenant").setNamespace("test-namespace").setName("func-1")).build();
 
-        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder().setFunctionConfig(
-                Function.FunctionConfig.newBuilder()
+        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                Function.FunctionDetails.newBuilder()
                         .setTenant("test-tenant").setNamespace("test-namespace").setName("func-2")).build();
 
         List<Function.FunctionMetaData> metaDataList = new LinkedList<>();
@@ -163,7 +190,7 @@ public class MembershipManagerTest {
         workerConfig.setRescheduleTimeoutMs(30000);
         SchedulerManager schedulerManager = mock(SchedulerManager.class);
         PulsarClient pulsarClient = mock(PulsarClient.class);
-        ReaderBuilder readerBuilder = mock(ReaderBuilder.class);
+        ReaderBuilder<byte[]> readerBuilder = mock(ReaderBuilder.class);
         doReturn(readerBuilder).when(pulsarClient).newReader();
         doReturn(readerBuilder).when(readerBuilder).topic(anyString());
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
@@ -176,19 +203,19 @@ public class MembershipManagerTest {
         ));
 
         FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
-        MembershipManager membershipManager = spy(new MembershipManager(workerConfig, mock(PulsarClient.class)));
+        MembershipManager membershipManager = spy(new MembershipManager(workerConfig, mockPulsarClient()));
 
         List<MembershipManager.WorkerInfo> workerInfoList = new LinkedList<>();
         workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "host-1", 8000));
 
         Mockito.doReturn(workerInfoList).when(membershipManager).getCurrentMembership();
 
-        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionConfig(
-                Function.FunctionConfig.newBuilder()
+        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                Function.FunctionDetails.newBuilder()
                         .setTenant("test-tenant").setNamespace("test-namespace").setName("func-1")).build();
 
-        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder().setFunctionConfig(
-                Function.FunctionConfig.newBuilder()
+        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                Function.FunctionDetails.newBuilder()
                         .setTenant("test-tenant").setNamespace("test-namespace").setName("func-2")).build();
 
         List<Function.FunctionMetaData> metaDataList = new LinkedList<>();
@@ -252,7 +279,7 @@ public class MembershipManagerTest {
         workerConfig.setRescheduleTimeoutMs(30000);
         SchedulerManager schedulerManager = mock(SchedulerManager.class);
         PulsarClient pulsarClient = mock(PulsarClient.class);
-        ReaderBuilder readerBuilder = mock(ReaderBuilder.class);
+        ReaderBuilder<byte[]> readerBuilder = mock(ReaderBuilder.class);
         doReturn(readerBuilder).when(pulsarClient).newReader();
         doReturn(readerBuilder).when(readerBuilder).topic(anyString());
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
@@ -264,7 +291,7 @@ public class MembershipManagerTest {
                 mock(MembershipManager.class)
         ));
         FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
-        MembershipManager membershipManager = spy(new MembershipManager(workerConfig, mock(PulsarClient.class)));
+        MembershipManager membershipManager = spy(new MembershipManager(workerConfig, mockPulsarClient()));
 
         List<MembershipManager.WorkerInfo> workerInfoList = new LinkedList<>();
         workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "host-1", 8000));
@@ -272,12 +299,12 @@ public class MembershipManagerTest {
 
         Mockito.doReturn(workerInfoList).when(membershipManager).getCurrentMembership();
 
-        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionConfig(
-                Function.FunctionConfig.newBuilder().setParallelism(1)
+        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                Function.FunctionDetails.newBuilder().setParallelism(1)
                         .setTenant("test-tenant").setNamespace("test-namespace").setName("func-1")).build();
 
-        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder().setFunctionConfig(
-                Function.FunctionConfig.newBuilder().setParallelism(1)
+        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
+                Function.FunctionDetails.newBuilder().setParallelism(1)
                         .setTenant("test-tenant").setNamespace("test-namespace").setName("func-2")).build();
 
         List<Function.FunctionMetaData> metaDataList = new LinkedList<>();

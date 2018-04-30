@@ -30,6 +30,8 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.StreamingOutput;
+import java.io.OutputStream;
 import java.util.Collection;
 import java.util.Map;
 
@@ -39,7 +41,22 @@ import java.util.Map;
 public class BrokerStats extends BrokerStatsBase {
 
     @GET
-    @Path("/broker-resource-availability/{property}/{namespace}")
+    @Path("/topics")
+    @ApiOperation(
+            value = "Get all the topic stats by namesapce",
+            response = OutputStream.class,
+            responseContainer = "OutputStream")
+    // https://github.com/swagger-api/swagger-ui/issues/558
+    // map
+    // support
+    // missing
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    public StreamingOutput getTopics2() throws Exception {
+        return super.getTopics2();
+    }
+
+    @GET
+    @Path("/broker-resource-availability/{tenant}/{namespace}")
     @ApiOperation(value = "Broker availability report", notes = "This API gives the current broker availability in "
             + "percent, each resource percentage usage is calculated and then"
             + "sum of all of the resource usage percent is called broker-resource-availability"
@@ -47,9 +64,9 @@ public class BrokerStats extends BrokerStatsBase {
             response = ResourceUnit.class, responseContainer = "Map")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 409, message = "Load-manager doesn't support operation") })
-    public Map<Long, Collection<ResourceUnit>> getBrokerResourceAvailability(@PathParam("property") String property,
+    public Map<Long, Collection<ResourceUnit>> getBrokerResourceAvailability(@PathParam("tenant") String tenant,
         @PathParam("namespace") String namespace) {
-        validateNamespaceName(property, namespace);
+        validateNamespaceName(tenant, namespace);
         return internalBrokerResourceAvailability(namespaceName);
     }
 }

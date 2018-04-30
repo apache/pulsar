@@ -25,7 +25,7 @@ import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
-import org.apache.pulsar.functions.proto.Function.FunctionConfig;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.InvocationTargetException;
@@ -48,17 +48,12 @@ public class JavaInstanceRunnableTest {
     }
 
     private static InstanceConfig createInstanceConfig(boolean addCustom, String outputSerde) {
-        FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
-        if (!addCustom) {
-            functionConfigBuilder.addInputs("TEST");
-        } else {
-            functionConfigBuilder.putCustomSerdeInputs("TEST", IntegerSerDe.class.getName());
-        }
+        FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
         if (outputSerde != null) {
-            functionConfigBuilder.setOutputSerdeClassName(outputSerde);
+            functionDetailsBuilder.setOutputSerdeClassName(outputSerde);
         }
         InstanceConfig instanceConfig = new InstanceConfig();
-        instanceConfig.setFunctionConfig(functionConfigBuilder.build());
+        instanceConfig.setFunctionDetails(functionDetailsBuilder.build());
         instanceConfig.setMaxBufferedTuples(1024);
         return instanceConfig;
     }
@@ -117,26 +112,6 @@ public class JavaInstanceRunnableTest {
     }
 
     /**
-     * Verify that JavaInstance does not support functions that take Void type as input
-     */
-    @Test
-    public void testVoidInputClasses() {
-        try {
-            JavaInstanceRunnable runnable = createRunnable(false, DefaultSerDe.class.getName());
-            Method method = makeAccessible(runnable);
-            VoidInputHandler pulsarFunction = new VoidInputHandler();
-            ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
-            Class<?>[] typeArgs = TypeResolver.resolveRawArguments(Function.class, pulsarFunction.getClass());
-            method.invoke(runnable, typeArgs, clsLoader);
-            assertFalse(true);
-        } catch (InvocationTargetException ex) {
-            // Good
-        } catch (Exception ex) {
-            assertFalse(true);
-        }
-    }
-
-    /**
      * Verify that JavaInstance does support functions that output Void type
      */
     @Test
@@ -148,26 +123,6 @@ public class JavaInstanceRunnableTest {
             VoidOutputHandler pulsarFunction = new VoidOutputHandler();
             Class<?>[] typeArgs = TypeResolver.resolveRawArguments(Function.class, pulsarFunction.getClass());
             method.invoke(runnable, typeArgs, clsLoader);
-        } catch (Exception ex) {
-            assertTrue(false);
-        }
-    }
-
-    /**
-     * Verify that function input type should be consistent with input serde type.
-     */
-    @Test
-    public void testInconsistentInputType() {
-        try {
-            JavaInstanceRunnable runnable = createRunnable(true, DefaultSerDe.class.getName());
-            Method method = makeAccessible(runnable);
-            ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
-            Function function = (Function<String, String>) (input, context) -> input + "-lambda";
-            Class<?>[] typeArgs = TypeResolver.resolveRawArguments(Function.class, function.getClass());
-            method.invoke(runnable, typeArgs, clsLoader);
-            fail("Should fail constructing java instance if function type is inconsistent with serde type");
-        } catch (InvocationTargetException ex) {
-            assertTrue(ex.getCause().getMessage().startsWith("Inconsistent types found between function input type and input serde type:"));
         } catch (Exception ex) {
             assertTrue(false);
         }

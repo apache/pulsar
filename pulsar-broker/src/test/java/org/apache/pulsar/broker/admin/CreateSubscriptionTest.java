@@ -21,26 +21,27 @@ package org.apache.pulsar.broker.admin;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
 
+import com.google.common.collect.Lists;
+
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.core.Response.Status;
 
-import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.common.naming.TopicName;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Lists;
-
-public class CreateSubscriptionTest extends MockedPulsarServiceBaseTest {
+public class CreateSubscriptionTest extends ProducerConsumerBase {
 
     @BeforeMethod
     @Override
     public void setup() throws Exception {
         super.internalSetup();
+        producerBaseSetup();
     }
 
     @AfterMethod
@@ -51,54 +52,54 @@ public class CreateSubscriptionTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void createSubscriptionSingleTopic() throws Exception {
-        String topic = "persistent://prop-xyz/use/ns1/my-topic";
-        admin.persistentTopics().createSubscription(topic, "sub-1", MessageId.latest);
+        String topic = "persistent://my-property/my-ns/my-topic";
+        admin.topics().createSubscription(topic, "sub-1", MessageId.latest);
 
         // Create should fail if the subscription already exists
         try {
-            admin.persistentTopics().createSubscription(topic, "sub-1", MessageId.latest);
+            admin.topics().createSubscription(topic, "sub-1", MessageId.latest);
             fail("Should have failed");
         } catch (ConflictException e) {
             assertEquals(((ClientErrorException) e.getCause()).getResponse().getStatus(),
                     Status.CONFLICT.getStatusCode());
         }
 
-        assertEquals(admin.persistentTopics().getSubscriptions(topic), Lists.newArrayList("sub-1"));
+        assertEquals(admin.topics().getSubscriptions(topic), Lists.newArrayList("sub-1"));
 
         Producer<byte[]> p1 = pulsarClient.newProducer().topic(topic).create();
         p1.send("test-1".getBytes());
         p1.send("test-2".getBytes());
         MessageId m3 = p1.send("test-3".getBytes());
 
-        assertEquals(admin.persistentTopics().getStats(topic).subscriptions.get("sub-1").msgBacklog, 3);
+        assertEquals(admin.topics().getStats(topic).subscriptions.get("sub-1").msgBacklog, 3);
 
-        admin.persistentTopics().createSubscription(topic, "sub-2", MessageId.latest);
-        assertEquals(admin.persistentTopics().getStats(topic).subscriptions.get("sub-2").msgBacklog, 0);
+        admin.topics().createSubscription(topic, "sub-2", MessageId.latest);
+        assertEquals(admin.topics().getStats(topic).subscriptions.get("sub-2").msgBacklog, 0);
 
-        admin.persistentTopics().createSubscription(topic, "sub-3", MessageId.earliest);
-        assertEquals(admin.persistentTopics().getStats(topic).subscriptions.get("sub-3").msgBacklog, 3);
+        admin.topics().createSubscription(topic, "sub-3", MessageId.earliest);
+        assertEquals(admin.topics().getStats(topic).subscriptions.get("sub-3").msgBacklog, 3);
 
-        admin.persistentTopics().createSubscription(topic, "sub-5", m3);
-        assertEquals(admin.persistentTopics().getStats(topic).subscriptions.get("sub-5").msgBacklog, 1);
+        admin.topics().createSubscription(topic, "sub-5", m3);
+        assertEquals(admin.topics().getStats(topic).subscriptions.get("sub-5").msgBacklog, 1);
     }
 
     @Test
     public void createSubscriptionOnPartitionedTopic() throws Exception {
-        String topic = "persistent://prop-xyz/use/ns1/my-partitioned-topic";
-        admin.persistentTopics().createPartitionedTopic(topic, 10);
+        String topic = "persistent://my-property/my-ns/my-partitioned-topic";
+        admin.topics().createPartitionedTopic(topic, 10);
 
-        admin.persistentTopics().createSubscription(topic, "sub-1", MessageId.latest);
+        admin.topics().createSubscription(topic, "sub-1", MessageId.latest);
 
         // Create should fail if the subscription already exists
         try {
-            admin.persistentTopics().createSubscription(topic, "sub-1", MessageId.latest);
+            admin.topics().createSubscription(topic, "sub-1", MessageId.latest);
             fail("Should have failed");
         } catch (Exception e) {
             // Expected
         }
 
         for (int i = 0; i < 10; i++) {
-            assertEquals(admin.persistentTopics().getSubscriptions(TopicName.get(topic).getPartition(i).toString()),
+            assertEquals(admin.topics().getSubscriptions(TopicName.get(topic).getPartition(i).toString()),
                     Lists.newArrayList("sub-1"));
         }
     }

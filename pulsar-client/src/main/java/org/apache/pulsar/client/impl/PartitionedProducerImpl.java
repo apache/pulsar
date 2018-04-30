@@ -144,15 +144,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     }
 
     @Override
-    public MessageId send(Message<T> message) throws PulsarClientException {
-        int partition = routerPolicy.choosePartition(message, topicMetadata);
-        checkArgument(partition >= 0 && partition < topicMetadata.numPartitions(),
-            "Illegal partition index chosen by the message routing policy");
-        return producers.get(partition).send(message);
-    }
-
-    @Override
-    public CompletableFuture<MessageId> sendAsync(Message<T> message) {
+    CompletableFuture<MessageId> internalSendAsync(Message<T> message) {
 
         switch (getState()) {
         case Ready:
@@ -161,6 +153,8 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         case Closing:
         case Closed:
             return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Producer already closed"));
+        case Terminated:
+            return FutureUtil.failedFuture(new PulsarClientException.TopicTerminatedException("Topic was terminated"));
         case Failed:
         case Uninitialized:
             return FutureUtil.failedFuture(new PulsarClientException.NotConnectedException());
@@ -168,8 +162,13 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
 
         int partition = routerPolicy.choosePartition(message, topicMetadata);
         checkArgument(partition >= 0 && partition < topicMetadata.numPartitions(),
-                "Illegal partition index chosen by the message routing policy");
-        return producers.get(partition).sendAsync(message);
+                "Illegal partition index chosen by the message routing policy: " + partition);
+        return producers.get(partition).internalSendAsync(message);
+    }
+
+    @Override
+    void flush() {
+        producers.forEach(ProducerImpl::flush);
     }
 
     @Override

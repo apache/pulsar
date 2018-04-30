@@ -194,11 +194,15 @@ public abstract class ZooKeeperCache implements Watcher {
      * @throws InterruptedException
      */
     public boolean exists(final String path) throws KeeperException, InterruptedException {
+        return exists(path, this);
+    }
+
+    private boolean exists(final String path, Watcher watcher) throws KeeperException, InterruptedException {
         try {
             return existsCache.get(path, new Callable<Boolean>() {
                 @Override
                 public Boolean call() throws Exception {
-                    return zkSession.get().exists(path, ZooKeeperCache.this) != null;
+                    return zkSession.get().exists(path, watcher) != null;
                 }
             });
         } catch (ExecutionException e) {
@@ -386,7 +390,14 @@ public abstract class ZooKeeperCache implements Watcher {
             });
         } catch (ExecutionException e) {
             Throwable cause = e.getCause();
-            if (cause instanceof KeeperException) {
+            // The node we want may not exist yet, so put a watcher on its existance
+            // before throwing up the exception. Its possible that the node could have
+            // been created after the call to getChildren, but before the call to exists().
+            // If this is the case, exists will return true, and we just call getChildren again.
+            if (cause instanceof KeeperException.NoNodeException
+                    && exists(path, watcher)) {
+                return getChildren(path, watcher);
+            } else if (cause instanceof KeeperException) {
                 throw (KeeperException) cause;
             } else if (cause instanceof InterruptedException) {
                 throw (InterruptedException) cause;

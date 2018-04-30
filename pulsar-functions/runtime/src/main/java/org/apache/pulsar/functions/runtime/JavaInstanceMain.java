@@ -30,7 +30,10 @@ import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.proto.Function.FunctionConfig;
+import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.Function.ProcessingGuarantees;
+import org.apache.pulsar.functions.proto.Function.SourceSpec;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
 
@@ -60,13 +63,6 @@ public class JavaInstanceMain {
     @Parameter(names = "--output_topic", description = "Output Topic Name\n")
     protected String outputTopicName;
 
-    @Parameter(names = "--custom_serde_input_topics", description = "Input Topics that need custom deserialization\n", required = false)
-    protected String customSerdeInputTopics;
-    @Parameter(names = "--custom_serde_classnames", description = "Input SerDe\n", required = false)
-    protected String customSerdeClassnames;
-    @Parameter(names = "--input_topics", description = "Input Topics\n", required = false)
-    protected String defaultSerdeInputTopics;
-
     @Parameter(names = "--output_serde_classname", description = "Output SerDe\n")
     protected String outputSerdeClassName;
 
@@ -74,7 +70,7 @@ public class JavaInstanceMain {
     protected String logTopic;
 
     @Parameter(names = "--processing_guarantees", description = "Processing Guarantees\n", required = true)
-    protected FunctionConfig.ProcessingGuarantees processingGuarantees;
+    protected ProcessingGuarantees processingGuarantees;
 
     @Parameter(names = "--instance_id", description = "Instance Id\n", required = true)
     protected String instanceId;
@@ -103,6 +99,19 @@ public class JavaInstanceMain {
     @Parameter(names = "--auto_ack", description = "Enable Auto Acking?\n")
     protected String autoAck = "true";
 
+    @Parameter(names = "--source_classname", description = "The source classname", required = true)
+    protected String sourceClassname;
+
+    @Parameter(names = "--source_configs", description = "The source configs")
+    protected String sourceConfigs;
+
+    @Parameter(names = "--source_subscription_type", description = "The source subscription type", required = true)
+    protected String sourceSubscriptionType;
+
+    @Parameter(names = "--source_topics_serde_classname", description = "A map of topics to SerDe for the source", required = true)
+    protected String sourceTopicsSerdeClassName;
+
+
     private Server server;
 
     public JavaInstanceMain() { }
@@ -114,49 +123,46 @@ public class JavaInstanceMain {
         instanceConfig.setFunctionVersion(functionVersion);
         instanceConfig.setInstanceId(instanceId);
         instanceConfig.setMaxBufferedTuples(maxBufferedTuples);
-        FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
-        functionConfigBuilder.setTenant(tenant);
-        functionConfigBuilder.setNamespace(namespace);
-        functionConfigBuilder.setName(functionName);
-        functionConfigBuilder.setClassName(className);
-        if (defaultSerdeInputTopics != null) {
-            String[] inputTopics = defaultSerdeInputTopics.split(",");
-            for (String inputTopic : inputTopics) {
-                functionConfigBuilder.addInputs(inputTopic);
-            }
-        }
-        if (customSerdeInputTopics != null && customSerdeClassnames != null) {
-            String[] inputTopics = customSerdeInputTopics.split(",");
-            String[] inputSerdeClassNames = customSerdeClassnames.split(",");
-            if (inputTopics.length != inputSerdeClassNames.length) {
-                throw new RuntimeException("Error specifying inputs");
-            }
-            for (int i = 0; i < inputTopics.length; ++i) {
-                functionConfigBuilder.putCustomSerdeInputs(inputTopics[i], inputSerdeClassNames[i]);
-            }
-        }
+        FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
+        functionDetailsBuilder.setTenant(tenant);
+        functionDetailsBuilder.setNamespace(namespace);
+        functionDetailsBuilder.setName(functionName);
+        functionDetailsBuilder.setClassName(className);
+
         if (outputSerdeClassName != null) {
-            functionConfigBuilder.setOutputSerdeClassName(outputSerdeClassName);
+            functionDetailsBuilder.setOutputSerdeClassName(outputSerdeClassName);
         }
         if (outputTopicName != null) {
-            functionConfigBuilder.setOutput(outputTopicName);
+            functionDetailsBuilder.setOutput(outputTopicName);
         }
         if (logTopic != null) {
-            functionConfigBuilder.setLogTopic(logTopic);
+            functionDetailsBuilder.setLogTopic(logTopic);
         }
-        functionConfigBuilder.setProcessingGuarantees(processingGuarantees);
+        functionDetailsBuilder.setProcessingGuarantees(processingGuarantees);
         if (autoAck.equals("true")) {
-            functionConfigBuilder.setAutoAck(true);
+            functionDetailsBuilder.setAutoAck(true);
         } else {
-            functionConfigBuilder.setAutoAck(false);
+            functionDetailsBuilder.setAutoAck(false);
         }
         if (userConfig != null && !userConfig.isEmpty()) {
             Type type = new TypeToken<Map<String, String>>(){}.getType();
             Map<String, String> userConfigMap = new Gson().fromJson(userConfig, type);
-            functionConfigBuilder.putAllUserConfig(userConfigMap);
+            functionDetailsBuilder.putAllUserConfig(userConfigMap);
         }
-        FunctionConfig functionConfig = functionConfigBuilder.build();
-        instanceConfig.setFunctionConfig(functionConfig);
+
+        SourceSpec.Builder sourceDetailsBuilder = SourceSpec.newBuilder();
+        sourceDetailsBuilder.setClassName(sourceClassname);
+        if (sourceConfigs != null && !sourceConfigs.isEmpty()) {;
+            sourceDetailsBuilder.setConfigs(sourceConfigs);
+        }
+        sourceDetailsBuilder.setSubscriptionType(Function.SubscriptionType.valueOf(sourceSubscriptionType));
+
+        sourceDetailsBuilder.putAllTopicsToSerDeClassName(new Gson().fromJson(sourceTopicsSerdeClassName, Map.class));
+
+        functionDetailsBuilder.setSource(sourceDetailsBuilder);
+
+        FunctionDetails functionDetails = functionDetailsBuilder.build();
+        instanceConfig.setFunctionDetails(functionDetails);
 
         ThreadRuntimeFactory containerFactory = new ThreadRuntimeFactory(
                 "LocalRunnerThreadGroup",
@@ -167,7 +173,7 @@ public class JavaInstanceMain {
                 instanceConfig,
                 jarFile,
                 containerFactory,
-                null);
+                30000);
 
         server = ServerBuilder.forPort(port)
                 .addService(new InstanceControlImpl(runtimeSpawner))

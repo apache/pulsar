@@ -26,6 +26,7 @@ import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -80,7 +81,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
         final String subscriptionName = "my-ex-subscription-" + key;
         int numberOfPartitions = 3;
-        admin.persistentTopics().createPartitionedTopic(topicName, numberOfPartitions);
+        admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
         pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).receiverQueueSize(0).subscribe();
     }
 
@@ -94,7 +95,10 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         final String messagePredicate = "my-message-" + key + "-";
 
         // 2. Create Producer
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
 
         // 3. Create Consumer
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
@@ -128,7 +132,10 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         final String messagePredicate = "my-message-" + key + "-";
 
         // 2. Create Producer
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
 
         // 3. Create Consumer
         int numOfSubscribers = 4;
@@ -166,7 +173,10 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         final String messagePredicate = "my-message-" + key + "-";
 
         // 2. Create Producer
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
 
         // 3. Create Consumer
         ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
@@ -217,11 +227,14 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
                 .subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
-                .topic("persistent://prop-xyz/use/ns-abc/topic1");
+            .topic("persistent://prop-xyz/use/ns-abc/topic1")
+            .messageRoutingMode(MessageRoutingMode.SinglePartition);
 
         if (batchMessageDelayMs != 0) {
             producerBuilder.enableBatching(true).batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
                     .batchingMaxMessages(5);
+        } else {
+            producerBuilder.enableBatching(false);
         }
 
         Producer<byte[]> producer = producerBuilder.create();

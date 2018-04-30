@@ -20,13 +20,23 @@ package org.apache.pulsar;
 
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES_ROOT;
 
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
+import com.google.common.collect.Lists;
+
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 
 import org.apache.bookkeeper.client.BookKeeperAdmin;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.meta.HierarchicalLedgerManagerFactory;
 import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory.SessionType;
@@ -35,11 +45,9 @@ import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException.NodeExistsException;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
 
 /**
  * Setup the metadata for a new Pulsar cluster
@@ -96,17 +104,18 @@ public class PulsarClusterMetadataSetup {
         log.info("Setting up cluster {} with zk={} global-zk={}", arguments.cluster, arguments.zookeeper,
                 arguments.globalZookeeper);
 
+        ZooKeeperClientFactory zkfactory = new ZookeeperClientFactoryImpl();
+        ZooKeeper localZk = zkfactory.create(arguments.zookeeper, SessionType.ReadWrite, 30000).get();
+        ZooKeeper globalZk = zkfactory.create(arguments.globalZookeeper, SessionType.ReadWrite, 30000).get();
+
         // Format BookKeeper metadata
         ServerConfiguration bkConf = new ServerConfiguration();
         bkConf.setLedgerManagerFactoryClass(HierarchicalLedgerManagerFactory.class);
         bkConf.setZkServers(arguments.zookeeper);
-        if (!BookKeeperAdmin.format(bkConf, false /* interactive */, false /* force */)) {
+        if (localZk.exists("/ledgers", false) == null // only format if /ledgers doesn't exist
+                && !BookKeeperAdmin.format(bkConf, false /* interactive */, false /* force */)) {
             throw new IOException("Failed to initialize BookKeeper metadata");
         }
-
-        ZooKeeperClientFactory zkfactory = new ZookeeperClientFactoryImpl();
-        ZooKeeper localZk = zkfactory.create(arguments.zookeeper, SessionType.ReadWrite, 30000).get();
-        ZooKeeper globalZk = zkfactory.create(arguments.globalZookeeper, SessionType.ReadWrite, 30000).get();
 
         localZk.create("/managed-ledgers", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         localZk.create("/namespace", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
@@ -143,7 +152,85 @@ public class PulsarClusterMetadataSetup {
             // Ignore
         }
 
+        // Create public tenant, whitelisted to use the this same cluster, along with other clusters
+        String publicTenantPath = POLICIES_ROOT + "/" + TopicName.PUBLIC_TENANT;
+
+        Stat stat = globalZk.exists(publicTenantPath, false);
+        if (stat == null) {
+            TenantInfo publicTenant = new TenantInfo(Collections.emptySet(), Collections.singleton(arguments.cluster));
+
+            try {
+                ZkUtils.createFullPathOptimistic(globalZk, publicTenantPath,
+                        ObjectMapperFactory.getThreadLocal().writeValueAsBytes(publicTenant),
+                        ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+            } catch (NodeExistsException e) {
+                // Ignore
+            }
+        } else {
+            // Update existing public tenant with new cluster
+            byte[] content = globalZk.getData(publicTenantPath, false, null);
+            TenantInfo publicTenant = ObjectMapperFactory.getThreadLocal().readValue(content, TenantInfo.class);
+
+            // Only update z-node if the list of clusters should be modified
+            if (!publicTenant.getAllowedClusters().contains(arguments.cluster)) {
+                publicTenant.getAllowedClusters().add(arguments.cluster);
+
+                globalZk.setData(publicTenantPath, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(publicTenant),
+                        stat.getVersion());
+            }
+        }
+
+        // Create default namespace
+        String defaultNamespacePath = POLICIES_ROOT + "/" + TopicName.PUBLIC_TENANT + "/" + TopicName.DEFAULT_NAMESPACE;
+        Policies policies;
+
+        stat = globalZk.exists(defaultNamespacePath, false);
+        if (stat == null) {
+            policies = new Policies();
+            policies.bundles = getBundles(16);
+            policies.replication_clusters = Collections.singleton(arguments.cluster);
+
+            try {
+                ZkUtils.createFullPathOptimistic(
+                    globalZk,
+                    defaultNamespacePath,
+                    ObjectMapperFactory.getThreadLocal().writeValueAsBytes(policies),
+                    ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                    CreateMode.PERSISTENT);
+            } catch (NodeExistsException e) {
+                // Ignore
+            }
+        } else {
+            byte[] content = globalZk.getData(defaultNamespacePath, false, null);
+            policies = ObjectMapperFactory.getThreadLocal().readValue(content, Policies.class);
+
+            // Only update z-node if the list of clusters should be modified
+            if (!policies.replication_clusters.contains(arguments.cluster)) {
+                policies.replication_clusters.add(arguments.cluster);
+
+                globalZk.setData(defaultNamespacePath, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(policies),
+                        stat.getVersion());
+            }
+        }
+
         log.info("Cluster metadata for '{}' setup correctly", arguments.cluster);
+    }
+
+    private static BundlesData getBundles(int numBundles) {
+        Long maxVal = ((long) 1) << 32;
+        Long segSize = maxVal / numBundles;
+        List<String> partitions = Lists.newArrayList();
+        partitions.add(String.format("0x%08x", 0l));
+        Long curPartition = segSize;
+        for (int i = 0; i < numBundles; i++) {
+            if (i != numBundles - 1) {
+                partitions.add(String.format("0x%08x", curPartition));
+            } else {
+                partitions.add(String.format("0x%08x", maxVal - 1));
+            }
+            curPartition += segSize;
+        }
+        return new BundlesData(partitions);
     }
 
     private static final Logger log = LoggerFactory.getLogger(PulsarClusterMetadataSetup.class);

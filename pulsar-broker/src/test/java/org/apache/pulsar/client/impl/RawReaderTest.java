@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.common.collect.Sets;
+
+import io.netty.buffer.ByteBuf;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -33,24 +37,19 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-
-import io.netty.buffer.ByteBuf;
 
 public class RawReaderTest extends MockedPulsarServiceBaseTest {
     private static final int BATCH_MAX_MESSAGES = 10;
@@ -61,11 +60,11 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
     public void setup() throws Exception {
         super.internalSetup();
 
-        admin.clusters().createCluster("use",
+        admin.clusters().createCluster("test",
                 new ClusterData("http://127.0.0.1:" + BROKER_WEBSERVICE_PORT));
-        admin.properties().createProperty("my-property",
-                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
-        admin.namespaces().createNamespace("my-property/use/my-ns");
+        admin.tenants().createTenant("my-property",
+                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
     }
 
     @AfterMethod
@@ -77,14 +76,17 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
     private Set<String> publishMessages(String topic, int count) throws Exception {
         Set<String> keys = new HashSet<>();
 
-        try (Producer<byte[]> producer = pulsarClient.newProducer().maxPendingMessages(count).topic(topic).create()) {
+        try (Producer<byte[]> producer = pulsarClient.newProducer()
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .maxPendingMessages(count)
+            .topic(topic)
+            .create()) {
             Future<?> lastFuture = null;
             for (int i = 0; i < count; i++) {
                 String key = "key"+i;
                 byte[] data = ("my-message-" + i).getBytes();
-                lastFuture = producer.sendAsync(MessageBuilder.create()
-                                                .setKey(key)
-                                                .setContent(data).build());
+                lastFuture = producer.newMessage().key(key).value(data).sendAsync();
                 keys.add(key);
             }
             lastFuture.get();
@@ -102,7 +104,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
     public void testRawReader() throws Exception {
         int numKeys = 10;
 
-        String topic = "persistent://my-property/use/my-ns/my-raw-topic";
+        String topic = "persistent://my-property/my-ns/my-raw-topic";
 
         Set<String> keys = publishMessages(topic, numKeys);
 
@@ -123,7 +125,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testSeekToStart() throws Exception {
         int numKeys = 10;
-        String topic = "persistent://my-property/use/my-ns/my-raw-topic";
+        String topic = "persistent://my-property/my-ns/my-raw-topic";
 
         publishMessages(topic, numKeys);
 
@@ -157,7 +159,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testSeekToMiddle() throws Exception {
         int numKeys = 10;
-        String topic = "persistent://my-property/use/my-ns/my-raw-topic";
+        String topic = "persistent://my-property/my-ns/my-raw-topic";
 
         publishMessages(topic, numKeys);
 
@@ -203,7 +205,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testFlowControl() throws Exception {
         int numMessages = RawReaderImpl.DEFAULT_RECEIVER_QUEUE_SIZE * 5;
-        String topic = "persistent://my-property/use/my-ns/my-raw-topic";
+        String topic = "persistent://my-property/my-ns/my-raw-topic";
 
         publishMessages(topic, numMessages);
 
@@ -230,16 +232,18 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testBatchingExtractKeysAndIds() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-raw-topic";
+        String topic = "persistent://my-property/my-ns/my-raw-topic";
 
-        try (Producer producer = pulsarClient.newProducer().topic(topic).maxPendingMessages(3)
-                .enableBatching(true).batchingMaxMessages(3).batchingMaxPublishDelay(1, TimeUnit.HOURS).create()) {
-            producer.sendAsync(MessageBuilder.create()
-                               .setKey("key1").setContent("my-content-1".getBytes()).build());
-            producer.sendAsync(MessageBuilder.create()
-                               .setKey("key2").setContent("my-content-2".getBytes()).build());
-            producer.sendAsync(MessageBuilder.create()
-                               .setKey("key3").setContent("my-content-3".getBytes()).build()).get();
+        try (Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
+            .maxPendingMessages(3)
+            .enableBatching(true)
+            .batchingMaxMessages(3)
+            .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create()) {
+            producer.newMessage().key("key1").value("my-content-1".getBytes()).sendAsync();
+            producer.newMessage().key("key2").value("my-content-2".getBytes()).sendAsync();
+            producer.newMessage().key("key3").value("my-content-3".getBytes()).send();
         }
 
         RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
@@ -263,16 +267,18 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testBatchingRebatch() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-raw-topic";
+        String topic = "persistent://my-property/my-ns/my-raw-topic";
 
-        try (Producer producer = pulsarClient.newProducer().topic(topic).maxPendingMessages(3)
-                .enableBatching(true).batchingMaxMessages(3).batchingMaxPublishDelay(1, TimeUnit.HOURS).create()) {
-            producer.sendAsync(MessageBuilder.create()
-                               .setKey("key1").setContent("my-content-1".getBytes()).build());
-            producer.sendAsync(MessageBuilder.create()
-                               .setKey("key2").setContent("my-content-2".getBytes()).build());
-            producer.sendAsync(MessageBuilder.create()
-                               .setKey("key3").setContent("my-content-3".getBytes()).build()).get();
+        try (Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
+            .maxPendingMessages(3)
+            .enableBatching(true)
+            .batchingMaxMessages(3)
+            .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create()) {
+            producer.newMessage().key("key1").value("my-content-1".getBytes()).sendAsync();
+            producer.newMessage().key("key2").value("my-content-2".getBytes()).sendAsync();
+            producer.newMessage().key("key3").value("my-content-3".getBytes()).send();
         }
 
         RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
@@ -292,7 +298,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
     public void testAcknowledgeWithProperties() throws Exception {
         int numKeys = 10;
 
-        String topic = "persistent://my-property/use/my-ns/my-raw-topic";
+        String topic = "persistent://my-property/my-ns/my-raw-topic";
 
         Set<String> keys = publishMessages(topic, numKeys);
 
@@ -330,7 +336,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
     public void testReadCancellationOnClose() throws Exception {
         int numKeys = 10;
 
-        String topic = "persistent://my-property/use/my-ns/my-raw-topic";
+        String topic = "persistent://my-property/my-ns/my-raw-topic";
         publishMessages(topic, numKeys/2);
 
         RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();

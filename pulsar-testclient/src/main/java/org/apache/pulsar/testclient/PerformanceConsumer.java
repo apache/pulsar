@@ -71,7 +71,7 @@ public class PerformanceConsumer {
         @Parameter(names = { "--conf-file" }, description = "Configuration file")
         public String confFile;
 
-        @Parameter(description = "persistent://prop/cluster/ns/my-topic", required = true)
+        @Parameter(description = "persistent://prop/ns/my-topic", required = true)
         public List<String> topic;
 
         @Parameter(names = { "-t", "--num-topics" }, description = "Number of topics")
@@ -252,7 +252,7 @@ public class PerformanceConsumer {
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer() //
                 .messageListener(listener) //
                 .receiverQueueSize(arguments.receiverQueueSize) //
-                .acknowledmentGroupTime(arguments.acknowledgmentsGroupingDelayMillis, TimeUnit.MILLISECONDS) //
+                .acknowledgmentGroupTime(arguments.acknowledgmentsGroupingDelayMillis, TimeUnit.MILLISECONDS) //
                 .subscriptionType(arguments.subscriptionType);
 
         if (arguments.encKeyName != null) {

@@ -21,6 +21,13 @@ public class ExclamationFunction implements Function<String, String> {
 }
 ```
 
+Here's an equivalent function in Python (also using the [native interface](../api#python-native)):
+
+```python
+def process(input):
+    return "{0}!".format(input)
+```
+
 Functions are executed each time a message is published to the input topic. If a function is listening on the topic `tweet-stream`, for example, then the function would be run each time a message is published to that topic.
 
 ## Goals
@@ -61,8 +68,6 @@ The core programming model behind Pulsar Functions is very simple:
 If you were to implement the classic word count example using Pulsar Functions, it might look something like this:
 
 ![Pulsar Functions word count example](/img/pulsar-functions-word-count.png)
-
-Here, sentences are produced on the `sentences` topic. The Pulsar Function listens on that topic and whenever a message arrives it splits the sentence up into individual words and increments a [counter](#counters) for each word every time that word is encountered. The value of that counter is then available to all [instances](#parallelism) of the function.
 
 If you were writing the function in [Java](../api#java) using the [Pulsar Functions SDK for Java](../api#java-sdk), you could write the function like this...
 
@@ -193,7 +198,7 @@ Pulsar Functions can currently be written in [Java](../../functions/api#java) an
 * SerDe (built-in vs. custom)
 * Pulsar messages are always just bytes, but Pulsar Functions handles data types for you *unless* you need custom types
 
-## Function context {#context}
+### Function context {#context}
 
 Each Pulsar Function created using the [Pulsar Functions SDK](#sdk) has access to a context object that both provides:
 
@@ -209,11 +214,13 @@ Each Pulsar Function created using the [Pulsar Functions SDK](#sdk) has access t
 
 Both Java and Python support writing "native" functions, i.e. Pulsar Functions with no dependencies.
 
-The benefit of native functions is that they don't have any dependencies beyond what's already available in Java/Python "out of the box." The downside is that they don't provide access to the function's [context](#context)
+The benefit of native functions is that they don't have any dependencies beyond what's already available in Java/Python "out of the box." The downside is that they don't provide access to the function's [context](#context), which is necessary for a variety of functionality, including [logging](#logging), [user configuration](#user-config), and more.
 
 ## The Pulsar Functions SDK {#sdk}
 
-If you'd like a Pulsar Function to have access to a [context object](#context), you can use the Pulsar Functions SDK, available for both [Java](../api#java-sdk) and [Pythnon](../api#python-sdk).
+If you'd like a Pulsar Function to have access to a [context object](#context), you can use the **Pulsar Functions SDK**, available for both [Java](../api#java-sdk) and [Pythnon](../api#python-sdk).
+
+### Java {#java-sdk}
 
 Here's an example Java function that uses information about its context:
 
@@ -229,13 +236,29 @@ public class ContextAwareFunction implements Function<String, Void> {
         String functionTenant = context.getTenant();
         String functionNamespace = context.getNamespace();
         String functionName = context.getName();
-        LOG.info("{}/{}/{}", functionTenant, functionNamespace, functionName);
+        LOG.info("Function tenant/namespace/name: {}/{}/{}", functionTenant, functionNamespace, functionName);
         return null;
     }
 }
 ```
 
-## Deployment modes
+### Python {#python-sdk}
+
+Here's an example Python function that uses information about its context:
+
+```python
+from pulsar import Function
+
+class ContextAwareFunction(Function):
+    def process(self, input, context):
+        log = context.get_logger()
+        function_tenant = context.get_function_tenant()
+        function_namespace = context.get_function_namespace()
+        function_name = context.get_function_name()
+        log.info("Function tenant/namespace/name: {0}/{1}/{2}".format(function_tenant, function_namespace, function_name))
+```
+
+## Deployment
 
 The Pulsar Functions feature was built to support a variety of deployment options. At the moment, there are two ways to run Pulsar Functions:
 
@@ -346,6 +369,33 @@ public class ConfigMapFunction implements Function<String, Void> {
     }
 }
 ```
+
+### Triggering Pulsar Functions {#triggering}
+
+Pulsar Functions running in [cluster mode](#cluster-mode) can be [triggered](../deployment#triggering) via the [command line](#cli). With triggering you can easily pass a specific value to a function and get the function's return value *without* needing to worry about creating a client, sending a message to the right input topic, etc. Triggering can be very useful for---but is by no means limited to---testing and debugging purposes.
+
+{% include admonition.html type="info" content="Triggering a function is ultimately no different from invoking a function by producing a message on one of the function's input topics. The [`pulsar-admin functions trigger`](../../CliTools#pulsar-admin-functions-trigger) command is essentially a convenient mechanism for sending messages to functions without needing to use the [`pulsar-client`](../../CliTools#pulsar-client) tool or a language-specific client library." %}
+
+Let's take an example Pulsar Function written in Python (using the [native interface](../api#python-native)) that simply reverses string inputs:
+
+```python
+def process(input):
+    return input[::-1]
+```
+
+If that function were running in a Pulsar cluster, it could be triggered like this:
+
+```bash
+$ bin/pulsar-admin functions trigger \
+  --tenant sample \
+  --namespace ns1 \
+  --name reverse-func \
+  --triggerValue "snoitcnuf raslup ot emoclew"
+```
+
+That should return `welcome to pulsar functions` as the console output.
+
+{% include admonition.html type="success" content="Instead of passing in a string via the CLI, you can also trigger a Pulsar Function with the contents of a file using the `--triggerFile` flag." %}
 
 ## Processing guarantees {#guarantees}
 

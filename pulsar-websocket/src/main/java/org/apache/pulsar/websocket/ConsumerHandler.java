@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Enums;
 import com.google.common.base.Splitter;
+
 import java.io.IOException;
 import java.util.Base64;
 import java.util.List;
@@ -30,14 +31,19 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
+
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
-import org.apache.pulsar.client.api.PulsarClientException.ConsumerBusyException;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException;
+import org.apache.pulsar.client.api.PulsarClientException.ConsumerBusyException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.ConsumerBuilderImpl;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ConsumerAck;
@@ -62,10 +68,10 @@ import org.slf4j.LoggerFactory;
 public class ConsumerHandler extends AbstractWebSocketHandler {
 
     private String subscription = null;
-    private final ConsumerConfiguration conf;
+    private SubscriptionType subscriptionType;
     private Consumer<byte[]> consumer;
 
-    private final int maxPendingMessages;
+    private int maxPendingMessages;
     private final AtomicInteger pendingMessages = new AtomicInteger();
 
     private final LongAdder numMsgsDelivered;
@@ -77,20 +83,26 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
     public ConsumerHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
         super(service, request, response);
-        this.conf = getConsumerConfiguration();
-        this.maxPendingMessages = (conf.getReceiverQueueSize() == 0) ? 1 : conf.getReceiverQueueSize();
+
+        ConsumerBuilderImpl<byte[]> builder;
+
         this.numMsgsDelivered = new LongAdder();
         this.numBytesDelivered = new LongAdder();
         this.numMsgsAcked = new LongAdder();
 
         try {
+            builder = (ConsumerBuilderImpl<byte[]>) getConsumerConfiguration(service.getPulsarClient());
+            this.maxPendingMessages = (builder.getConf().getReceiverQueueSize() == 0) ? 1
+                    : builder.getConf().getReceiverQueueSize();
+            this.subscriptionType = builder.getConf().getSubscriptionType();
+
             // checkAuth() should be called after assigning a value to this.subscription
             this.subscription = extractSubscription(request);
             if (!checkAuth(response)) {
                 return;
             }
 
-            this.consumer = service.getPulsarClient().subscribe(topic.toString(), subscription, conf);
+            this.consumer = builder.topic(topic.toString()).subscriptionName(subscription).subscribe();
             if (!this.service.addConsumer(this)) {
                 log.warn("[{}:{}] Failed to add consumer handler for topic {}", request.getRemoteAddr(),
                         request.getRemotePort(), topic);
@@ -181,6 +193,14 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                 service.getExecutor().execute(() -> receiveMessage());
             }
         }).exceptionally(exception -> {
+            if (exception.getCause() instanceof AlreadyClosedException) {
+                log.info("[{}/{}] Consumer was closed while receiving msg from broker", consumer.getTopic(),
+                        subscription);
+            } else {
+                log.warn("[{}/{}] Error occurred while consumer handler was delivering msg to {}: {}",
+                        consumer.getTopic(), subscription, getRemote().getInetSocketAddress().toString(),
+                        exception.getMessage());
+            }
             return null;
         });
     }
@@ -233,7 +253,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         }
     }
 
-    public Consumer getConsumer() {
+    public Consumer<byte[]> getConsumer() {
         return this.consumer;
     }
 
@@ -242,7 +262,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     }
 
     public SubscriptionType getSubscriptionType() {
-        return conf.getSubscriptionType();
+        return subscriptionType;
     }
 
     public long getAndResetNumMsgsDelivered() {
@@ -258,7 +278,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     }
 
     public long getMsgDeliveredCounter() {
-        return MSG_DELIVERED_COUNTER_UPDATER.get(this);
+        return msgDeliveredCounter;
     }
 
     protected void updateDeliverMsgStat(long msgSize) {
@@ -267,32 +287,32 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         numBytesDelivered.add(msgSize);
     }
 
-    private ConsumerConfiguration getConsumerConfiguration() {
-        ConsumerConfiguration conf = new ConsumerConfiguration();
+    private ConsumerBuilder<byte[]> getConsumerConfiguration(PulsarClient client) {
+        ConsumerBuilder<byte[]> builder = client.newConsumer();
 
         if (queryParams.containsKey("ackTimeoutMillis")) {
-            conf.setAckTimeout(Integer.parseInt(queryParams.get("ackTimeoutMillis")), TimeUnit.MILLISECONDS);
+            builder.ackTimeout(Integer.parseInt(queryParams.get("ackTimeoutMillis")), TimeUnit.MILLISECONDS);
         }
 
         if (queryParams.containsKey("subscriptionType")) {
             checkArgument(Enums.getIfPresent(SubscriptionType.class, queryParams.get("subscriptionType")).isPresent(),
                     "Invalid subscriptionType %s", queryParams.get("subscriptionType"));
-            conf.setSubscriptionType(SubscriptionType.valueOf(queryParams.get("subscriptionType")));
+            builder.subscriptionType(SubscriptionType.valueOf(queryParams.get("subscriptionType")));
         }
 
         if (queryParams.containsKey("receiverQueueSize")) {
-            conf.setReceiverQueueSize(Math.min(Integer.parseInt(queryParams.get("receiverQueueSize")), 1000));
+            builder.receiverQueueSize(Math.min(Integer.parseInt(queryParams.get("receiverQueueSize")), 1000));
         }
 
         if (queryParams.containsKey("consumerName")) {
-            conf.setConsumerName(queryParams.get("consumerName"));
+            builder.consumerName(queryParams.get("consumerName"));
         }
 
         if (queryParams.containsKey("priorityLevel")) {
-            conf.setPriorityLevel(Integer.parseInt(queryParams.get("priorityLevel")));
+            builder.priorityLevel(Integer.parseInt(queryParams.get("priorityLevel")));
         }
 
-        return conf;
+        return builder;
     }
 
     @Override

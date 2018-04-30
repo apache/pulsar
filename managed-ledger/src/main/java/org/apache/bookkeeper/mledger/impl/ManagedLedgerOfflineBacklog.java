@@ -34,6 +34,7 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeperAdmin;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.pulsar.common.naming.TopicName;
@@ -52,9 +53,9 @@ public class ManagedLedgerOfflineBacklog {
     private boolean accurate = false;
     private String brokerName;
 
-    public ManagedLedgerOfflineBacklog(BookKeeper.DigestType digestType, byte[] password, String brokerName,
+    public ManagedLedgerOfflineBacklog(DigestType digestType, byte[] password, String brokerName,
             boolean accurate) {
-        this.digestType = digestType;
+        this.digestType = BookKeeper.DigestType.fromApiDigestType(digestType);
         this.password = password;
         this.accurate = accurate;
         this.brokerName = brokerName;

@@ -31,6 +31,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -93,7 +94,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
 
             this.reader = builder.create();
 
-            this.subscription = ((ReaderImpl)this.reader).getConsumer().getSubscription();
+            this.subscription = ((ReaderImpl<?>) this.reader).getConsumer().getSubscription();
             if (!this.service.addReader(this)) {
                 log.warn("[{}:{}] Failed to add reader handler for topic {}", request.getRemoteAddr(),
                         request.getRemotePort(), topic);
@@ -166,8 +167,12 @@ public class ReaderHandler extends AbstractWebSocketHandler {
                 service.getExecutor().execute(() -> receiveMessage());
             }
         }).exceptionally(exception -> {
-            log.warn("[{}/{}] Failed to deliver msg to {} {}", reader.getTopic(),
-                    subscription, getRemote().getInetSocketAddress().toString(), exception);
+            if (exception.getCause() instanceof AlreadyClosedException) {
+                log.info("[{}/{}] Reader was closed while receiving msg from broker", reader.getTopic(), subscription);
+            } else {
+                log.warn("[{}/{}] Error occurred while reader handler was delivering msg to {}: {}", reader.getTopic(),
+                        subscription, getRemote().getInetSocketAddress().toString(), exception.getMessage());
+            }
             return null;
         });
     }
@@ -209,8 +214,8 @@ public class ReaderHandler extends AbstractWebSocketHandler {
         }
     }
 
-    public Consumer getConsumer() {
-        return reader != null ? ((ReaderImpl)reader).getConsumer() : null;
+    public Consumer<?> getConsumer() {
+        return reader != null ? ((ReaderImpl<?>) reader).getConsumer() : null;
     }
 
     public String getSubscription() {
@@ -230,7 +235,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
     }
 
     public long getMsgDeliveredCounter() {
-        return MSG_DELIVERED_COUNTER_UPDATER.get(this);
+        return msgDeliveredCounter;
     }
 
     protected void updateDeliverMsgStat(long msgSize) {

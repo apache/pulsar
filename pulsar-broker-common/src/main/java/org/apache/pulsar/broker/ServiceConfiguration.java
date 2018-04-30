@@ -24,7 +24,7 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 
-import org.apache.bookkeeper.client.BookKeeper.DigestType;
+import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
@@ -443,6 +443,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean preferLaterVersions = false;
 
     private String schemaRegistryStorageClassName = "org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory";
+    private Set<String> schemaRegistryCompatibilityCheckers = Sets.newHashSet(
+        "org.apache.pulsar.broker.service.schema.JsonSchemaCompatibilityCheck"
+    );
 
     /**** --- WebSocket --- ****/
     // Number of IO threads in Pulsar Client used in WebSocket proxy
@@ -456,6 +459,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     /**** --- Functions --- ****/
     private boolean functionsWorkerEnabled = false;
+
+    /**** --- Broker Web Stats --- ****/
+    // If true, export publisher stats when returning topics stats from the admin rest api
+    private boolean exposePublisherStats = true;
 
     public String getZookeeperServers() {
         return zookeeperServers;
@@ -1527,6 +1534,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
         schemaRegistryStorageClassName = className;
     }
 
+    public Set<String> getSchemaRegistryCompatibilityCheckers() {
+        return schemaRegistryCompatibilityCheckers;
+    }
+
+    public void setSchemaRegistryCompatibilityCheckers(Set<String> schemaRegistryCompatibilityCheckers) {
+        this.schemaRegistryCompatibilityCheckers = schemaRegistryCompatibilityCheckers;
+    }
+
     public boolean authenticateOriginalAuthData() {
         return authenticateOriginalAuthData;
     }
@@ -1566,6 +1581,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public boolean isFunctionsWorkerEnabled() {
         return functionsWorkerEnabled;
+    }
+
+
+    /**** --- Broker Web Stats ---- ****/
+
+    public void setExposePublisherStats(boolean expose) {
+        this.exposePublisherStats = expose;
+    }
+
+    public boolean exposePublisherStats() {
+        return exposePublisherStats;
     }
 
     public boolean isRunningStandalone() {

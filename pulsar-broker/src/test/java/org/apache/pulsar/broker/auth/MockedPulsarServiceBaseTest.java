@@ -222,11 +222,11 @@ public abstract class MockedPulsarServiceBaseTest {
     }
 
     public static NonClosableMockBookKeeper createMockBookKeeper(ZooKeeper zookeeper) throws Exception {
-        return new NonClosableMockBookKeeper(new ClientConfiguration(), zookeeper);
+        return spy(new NonClosableMockBookKeeper(new ClientConfiguration(), zookeeper));
     }
 
     // Prevent the MockBookKeeper instance from being closed when the broker is restarted within a test
-    private static class NonClosableMockBookKeeper extends MockBookKeeper {
+    public static class NonClosableMockBookKeeper extends MockBookKeeper {
 
         public NonClosableMockBookKeeper(ClientConfiguration conf, ZooKeeper zk) throws Exception {
             super(zk);

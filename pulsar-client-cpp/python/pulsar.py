@@ -51,11 +51,10 @@ To install the Python bindings:
 
     client = pulsar.Client('pulsar://localhost:6650')
 
-    producer = client.create_producer(
-                    'persistent://sample/standalone/ns/my-topic')
+    producer = client.create_producer('my-topic')
 
     for i in range(10):
-        producer.send('Hello-%d' % i)
+        producer.send(('Hello-%d' % i).encode('utf-8'))
 
     client.close()
 
@@ -65,13 +64,11 @@ To install the Python bindings:
     import pulsar
 
     client = pulsar.Client('pulsar://localhost:6650')
-    consumer = client.subscribe(
-            'persistent://sample/standalone/ns/my-topic',
-            'my-sub')
+    consumer = client.subscribe('my-topic', 'my-subscription')
 
     while True:
         msg = consumer.receive()
-        print("Received message '%s' id='%s'", msg.data(), msg.message_id())
+        print("Received message '%s' id='%s'", msg.data().decode('utf-8'), msg.message_id())
         consumer.acknowledge(msg)
 
     client.close()
@@ -84,7 +81,7 @@ To install the Python bindings:
     client = pulsar.Client('pulsar://localhost:6650')
 
     producer = client.create_producer(
-                    'persistent://sample/standalone/ns/my-topic',
+                    'my-topic',
                     block_if_queue_full=True,
                     batching_enabled=True,
                     batching_max_publish_delay_ms=10
@@ -94,7 +91,7 @@ To install the Python bindings:
         print('Message published res=%s', res)
 
     while True:
-        producer.send_async('Hello-%d' % i, send_callback)
+        producer.send_async(('Hello-%d' % i).encode('utf-8'), send_callback)
 
     client.close()
 """
@@ -554,7 +551,7 @@ class Producer:
         **Args**
 
         * `content`:
-          A string with the message payload
+          A `bytes` object with the message payload.
 
         **Options**
 
@@ -604,7 +601,7 @@ class Producer:
         **Args**
 
         * `content`:
-          A string with the message payload.
+          A `bytes` object with the message payload.
 
         **Options**
 

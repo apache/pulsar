@@ -43,8 +43,8 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
 
     @Test
     public void testProducerSequenceAfterReconnect() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/testProducerSequenceAfterReconnect";
-        admin.namespaces().setDeduplicationStatus("my-property/use/my-ns", true);
+        String topic = "persistent://my-property/my-ns/testProducerSequenceAfterReconnect";
+        admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic)
                 .producerName("my-producer-name");
@@ -74,8 +74,8 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
 
     @Test
     public void testProducerSequenceAfterRestart() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/testProducerSequenceAfterRestart";
-        admin.namespaces().setDeduplicationStatus("my-property/use/my-ns", true);
+        String topic = "persistent://my-property/my-ns/testProducerSequenceAfterRestart";
+        admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic)
                 .producerName("my-producer-name");
@@ -108,8 +108,8 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
 
     @Test(timeOut = 30000)
     public void testProducerDeduplication() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/testProducerDeduplication";
-        admin.namespaces().setDeduplicationStatus("my-property/use/my-ns", true);
+        String topic = "persistent://my-property/my-ns/testProducerDeduplication";
+        admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
 
         // Set infinite timeout
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic)
@@ -121,13 +121,13 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("my-subscription")
                 .subscribe();
 
-        producer.send(MessageBuilder.create().setContent("my-message-0".getBytes()).setSequenceId(0).build());
-        producer.send(MessageBuilder.create().setContent("my-message-1".getBytes()).setSequenceId(1).build());
-        producer.send(MessageBuilder.create().setContent("my-message-2".getBytes()).setSequenceId(2).build());
+        producer.newMessage().value("my-message-0".getBytes()).sequenceId(0).send();
+        producer.newMessage().value("my-message-1".getBytes()).sequenceId(1).send();
+        producer.newMessage().value("my-message-2".getBytes()).sequenceId(2).send();
 
         // Repeat the messages and verify they're not received by consumer
-        producer.send(MessageBuilder.create().setContent("my-message-1".getBytes()).setSequenceId(1).build());
-        producer.send(MessageBuilder.create().setContent("my-message-2".getBytes()).setSequenceId(2).build());
+        producer.newMessage().value("my-message-1".getBytes()).sequenceId(1).send();
+        producer.newMessage().value("my-message-2".getBytes()).sequenceId(2).send();
 
         producer.close();
 
@@ -148,8 +148,8 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         assertEquals(producer.getLastSequenceId(), 2L);
 
         // Repeat the messages and verify they're not received by consumer
-        producer.send(MessageBuilder.create().setContent("my-message-1".getBytes()).setSequenceId(1).build());
-        producer.send(MessageBuilder.create().setContent("my-message-2".getBytes()).setSequenceId(2).build());
+        producer.newMessage().value("my-message-1".getBytes()).sequenceId(1).send();
+        producer.newMessage().value("my-message-2".getBytes()).sequenceId(2).send();
 
         msg = consumer.receive(1, TimeUnit.SECONDS);
         assertNull(msg);

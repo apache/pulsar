@@ -27,7 +27,10 @@ import org.apache.pulsar.client.impl.MessageBuilderImpl;
 /**
  * Message builder factory. Use this class to create messages to be send to the Pulsar producer
  *
+ * @deprecated since 2.0. Use {@link TypedMessageBuilder} as returned by {@link Producer#newMessage()} to create a new
+ *             message builder.
  */
+@Deprecated
 public interface MessageBuilder<T> {
     /**
      * Create a new message builder instance.
@@ -41,7 +44,7 @@ public interface MessageBuilder<T> {
     }
 
     static MessageBuilder<byte[]> create() {
-        return create(Schema.IDENTITY);
+        return create(Schema.BYTES);
     }
 
     /**
@@ -57,7 +60,7 @@ public interface MessageBuilder<T> {
      * @param value
      *            the domain object
      */
-    MessageBuilder<T> setValue(T value);
+    MessageBuilder<T> setValue(T value) throws SchemaSerializationException;
 
     /**
      * Set the content of the message
@@ -112,10 +115,12 @@ public interface MessageBuilder<T> {
     /**
      * Set the event time for a given message.
      *
-     * <p>Applications can retrieve the event time by calling {@link Message#getEventTime()}.
+     * <p>
+     * Applications can retrieve the event time by calling {@link Message#getEventTime()}.
      *
-     * <p>Note: currently pulsar doesn't support event-time based index. so the subscribers can't
-     * seek the messages by event time.
+     * <p>
+     * Note: currently pulsar doesn't support event-time based index. so the subscribers can't seek the messages by
+     * event time.
      *
      * @since 1.20.0
      */

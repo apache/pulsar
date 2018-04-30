@@ -71,10 +71,16 @@ public class PulsarAdminTool {
         commandMap.put("ns-isolation-policy", CmdNamespaceIsolationPolicy.class);
         commandMap.put("brokers", CmdBrokers.class);
         commandMap.put("broker-stats", CmdBrokerStats.class);
-        commandMap.put("properties", CmdProperties.class);
+        commandMap.put("tenants", CmdTenants.class);
+        commandMap.put("properties", CmdTenants.CmdProperties.class); // deprecated, doesn't show in usage()
         commandMap.put("namespaces", CmdNamespaces.class);
+        commandMap.put("topics", CmdTopics.class);
+
+        // Hidden deprecated "persistent" and "non-persistent" subcommands
         commandMap.put("persistent", CmdPersistentTopics.class);
         commandMap.put("non-persistent", CmdNonPersistentTopics.class);
+
+
         commandMap.put("resource-quotas", CmdResourceQuotas.class);
         commandMap.put("functions", CmdFunctions.class);
     }
@@ -132,7 +138,7 @@ public class PulsarAdminTool {
         if (help) {
             setupCommands(adminFactory);
             jcommander.usage();
-            return false;
+            return true;
         }
 
         if (cmdPos == args.length) {

@@ -23,12 +23,12 @@ FROM ubuntu:16.04
 RUN mkdir /pulsar
 ADD protobuf.patch /pulsar
 
-RUN apt-get update
-RUN apt-get install -y maven tig g++ cmake libssl-dev libcurl4-openssl-dev \
+RUN apt-get update && \
+    apt-get install -y maven tig g++ cmake libssl-dev libcurl4-openssl-dev \
                 liblog4cxx-dev libprotobuf-dev libboost-all-dev google-mock libgtest-dev \
                 libjsoncpp-dev libxml2-utils protobuf-compiler wget \
                 curl doxygen openjdk-8-jdk-headless clang-format-5.0 \
-                gnupg2
+                gnupg2 golang-1.10-go
 
 # Compile and install gtest
 RUN cd /usr/src/gtest && cmake . && make && cp libgtest.a /usr/lib
@@ -54,11 +54,8 @@ RUN rvm install 2.4.1
 RUN wget https://bootstrap.pypa.io/get-pip.py && python get-pip.py
 RUN pip install pdoc
 
-# Protogen doc generator
-RUN wget https://github.com/pseudomuto/protoc-gen-doc/releases/download/v1.0.0-alpha/protoc-gen-doc-1.0.0-alpha.linux-amd64.go1.8.1.tar.gz && \
-    tar xvfz protoc-gen-doc-1.0.0-alpha.linux-amd64.go1.8.1.tar.gz && \
-    cp protoc-gen-doc-1.0.0-alpha.linux-amd64.go1.8.1/protoc-gen-doc /usr/local/bin && \
-    rm protoc-gen-doc-1.0.0-alpha.linux-amd64.go1.8.1.tar.gz
+# Install Protobuf doc generator
+RUN go get -u github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
 
 # Build the patched protoc
 RUN git clone https://github.com/google/protobuf.git /pulsar/protobuf && \

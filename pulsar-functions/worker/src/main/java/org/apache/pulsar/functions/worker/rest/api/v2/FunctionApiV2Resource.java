@@ -30,6 +30,7 @@ import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
@@ -47,10 +48,10 @@ public class FunctionApiV2Resource extends FunctionApiResource {
                                      final @PathParam("functionName") String functionName,
                                      final @FormDataParam("data") InputStream uploadedInputStream,
                                      final @FormDataParam("data") FormDataContentDisposition fileDetail,
-                                     final @FormDataParam("functionConfig") String functionConfigJson) {
+                                     final @FormDataParam("functionDetails") String functionDetailsJson) {
 
         return functions.registerFunction(
-            tenant, namespace, functionName, uploadedInputStream, fileDetail, functionConfigJson);
+            tenant, namespace, functionName, uploadedInputStream, fileDetail, functionDetailsJson);
 
     }
 
@@ -62,10 +63,10 @@ public class FunctionApiV2Resource extends FunctionApiResource {
                                    final @PathParam("functionName") String functionName,
                                    final @FormDataParam("data") InputStream uploadedInputStream,
                                    final @FormDataParam("data") FormDataContentDisposition fileDetail,
-                                   final @FormDataParam("functionConfig") String functionConfigJson) {
+                                   final @FormDataParam("functionDetails") String functionDetailsJson) {
 
         return functions.updateFunction(
-            tenant, namespace, functionName, uploadedInputStream, fileDetail, functionConfigJson);
+            tenant, namespace, functionName, uploadedInputStream, fileDetail, functionDetailsJson);
 
     }
 
@@ -135,8 +136,24 @@ public class FunctionApiV2Resource extends FunctionApiResource {
     public Response triggerFunction(final @PathParam("tenant") String tenant,
                                     final @PathParam("namespace") String namespace,
                                     final @PathParam("name") String functionName,
+                                    final @PathParam("topic") String topic,
                                     final @FormDataParam("data") String input,
                                     final @FormDataParam("dataStream") InputStream uploadedInputStream) {
-        return functions.triggerFunction(tenant, namespace, functionName, input, uploadedInputStream);
+        return functions.triggerFunction(tenant, namespace, functionName, topic, input, uploadedInputStream);
     }
+
+    @POST
+    @Path("/upload")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    public Response uploadFunction(final @FormDataParam("data") InputStream uploadedInputStream,
+                                   final @FormDataParam("path") String path) {
+        return functions.uploadFunction(uploadedInputStream, path);
+    }
+
+    @GET
+    @Path("/download")
+    public Response downloadFunction(final @QueryParam("path") String path) {
+        return functions.downloadFunction(path);
+    }
+
 }

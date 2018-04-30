@@ -21,10 +21,11 @@ package org.apache.pulsar.broker.service;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.admin.impl.PersistentTopicsBase.getPartitionedTopicMetadata;
-import static org.apache.pulsar.broker.lookup.TopicLookup.lookupTopicAsync;
+import static org.apache.pulsar.broker.lookup.v1.TopicLookup.lookupTopicAsync;
 import static org.apache.pulsar.common.api.Commands.newLookupErrorResponse;
 import static org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion.v5;
 
+import com.google.common.base.Strings;
 import com.google.protobuf.GeneratedMessageLite;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
@@ -91,6 +92,7 @@ import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.schema.SchemaVersion;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -561,6 +563,7 @@ public class ServerCnx extends PulsarHandler {
         final boolean readCompacted = subscribe.getReadCompacted();
         final Map<String, String> metadata = CommandUtils.metadataFromCommand(subscribe);
         final InitialPosition initialPosition = subscribe.getInitialPosition();
+        final SchemaData schema = subscribe.hasSchema() ? getSchema(subscribe.getSchema()) : null;
 
         CompletableFuture<Boolean> isProxyAuthorizedFuture;
         if (service.isAuthorizationEnabled() && originalPrincipal != null) {
@@ -622,9 +625,25 @@ public class ServerCnx extends PulsarHandler {
                         }
 
                         service.getOrCreateTopic(topicName.toString())
-                                .thenCompose(topic -> topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
-                                                                      subType, priorityLevel, consumerName, isDurable,
-                                                                      startMessageId, metadata, readCompacted, initialPosition))
+                                .thenCompose(topic -> {
+                                    if (schema != null) {
+                                        return topic.isSchemaCompatible(schema).thenCompose(isCompatible -> {
+                                            if (isCompatible) {
+                                                return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
+                                                    subType, priorityLevel, consumerName, isDurable,
+                                                    startMessageId, metadata, readCompacted, initialPosition);
+                                            } else {
+                                                return FutureUtil.failedFuture(new BrokerServiceException(
+                                                    "Trying to subscribe with incompatible schema"
+                                                ));
+                                            }
+                                        });
+                                    } else {
+                                        return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
+                                            subType, priorityLevel, consumerName, isDurable,
+                                            startMessageId, metadata, readCompacted, initialPosition);
+                                    }
+                                })
                                 .thenAccept(consumer -> {
                                     if (consumerFuture.complete(consumer)) {
                                         log.info("[{}] Created subscription on topic {} / {}", remoteAddress, topicName,
@@ -703,16 +722,14 @@ public class ServerCnx extends PulsarHandler {
 
     private static SchemaType getType(PulsarApi.Schema.Type protocolType) {
         switch (protocolType) {
-            case Json:
-                return SchemaType.JSON;
-            case Avro:
-                return SchemaType.AVRO;
-            case Thrift:
-                return SchemaType.THRIFT;
-            case Protobuf:
-                return SchemaType.PROTOBUF;
-            default:
-                return SchemaType.NONE;
+        case None:
+            return SchemaType.NONE;
+        case String:
+            return SchemaType.STRING;
+        case Json:
+            return SchemaType.JSON;
+        default:
+            return SchemaType.NONE;
         }
     }
 
@@ -721,7 +738,7 @@ public class ServerCnx extends PulsarHandler {
             .data(protocolSchema.getSchemaData().toByteArray())
             .isDeleted(false)
             .timestamp(System.currentTimeMillis())
-            .user(originalPrincipal)
+            .user(Strings.nullToEmpty(originalPrincipal))
             .type(getType(protocolSchema.getType()))
             .props(protocolSchema.getPropertiesList().stream().collect(
                 Collectors.toMap(
@@ -741,6 +758,7 @@ public class ServerCnx extends PulsarHandler {
                 : service.generateUniqueProducerName();
         final boolean isEncrypted = cmdProducer.getEncrypted();
         final Map<String, String> metadata = CommandUtils.metadataFromCommand(cmdProducer);
+        final SchemaData schema = cmdProducer.hasSchema() ? getSchema(cmdProducer.getSchema()) : null;
 
         TopicName topicName = validateTopicName(cmdProducer.getTopic(), requestId, cmdProducer);
         if (topicName == null) {
@@ -841,8 +859,8 @@ public class ServerCnx extends PulsarHandler {
                             disableTcpNoDelayIfNeeded(topicName.toString(), producerName);
 
                             CompletableFuture<SchemaVersion> schemaVersionFuture;
-                            if (cmdProducer.hasSchema()) {
-                                schemaVersionFuture = topic.addSchema(getSchema(cmdProducer.getSchema()));
+                            if (schema != null) {
+                                schemaVersionFuture = topic.addSchema(schema);
                             } else {
                                 schemaVersionFuture = CompletableFuture.completedFuture(SchemaVersion.Empty);
                             }

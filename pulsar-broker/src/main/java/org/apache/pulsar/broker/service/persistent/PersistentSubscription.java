@@ -155,7 +155,11 @@ public class PersistentSubscription implements Subscription {
             if (!cursor.isDurable()) {
                 // If cursor is not durable, we need to clean up the subscription as well
                 close();
-                topic.removeSubscription(subName);
+                // when topic closes: it iterates through concurrent-subscription map to close each subscription. so,
+                // topic.remove again try to access same map which creates deadlock. so, execute it in different thread.
+                topic.getBrokerService().pulsar().getExecutor().submit(() ->{
+                    topic.removeSubscription(subName);
+                });
             }
         }
 
@@ -540,7 +544,9 @@ public class PersistentSubscription implements Subscription {
                     disconnectFuture.complete(null);
                 }).exceptionally(exception -> {
                     IS_FENCED_UPDATER.set(this, FALSE);
-                    dispatcher.reset();
+                    if (dispatcher != null) {
+                        dispatcher.reset();
+                    }
                     log.error("[{}][{}] Error disconnecting consumers from subscription", topicName, subName,
                             exception);
                     disconnectFuture.completeExceptionally(exception);
@@ -675,8 +681,11 @@ public class PersistentSubscription implements Subscription {
 
     void topicTerminated() {
         if (cursor.getNumberOfEntriesInBacklog() == 0) {
-            // Immediately notify the consumer that there are no more available messages
-            dispatcher.getConsumers().forEach(Consumer::reachedEndOfTopic);
+            // notify the consumers if there are consumers connected to this topic.
+            if (null != dispatcher) {
+                // Immediately notify the consumer that there are no more available messages
+                dispatcher.getConsumers().forEach(Consumer::reachedEndOfTopic);
+            }
         }
     }
 

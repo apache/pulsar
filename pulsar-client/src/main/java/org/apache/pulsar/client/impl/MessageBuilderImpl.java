@@ -27,16 +27,17 @@ import java.util.Map;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 
 import com.google.common.base.Preconditions;
 
 public class MessageBuilderImpl<T> implements MessageBuilder<T> {
-
+    private static final ByteBuffer EMPTY_CONTENT = ByteBuffer.allocate(0);
     private final MessageMetadata.Builder msgMetadataBuilder = MessageMetadata.newBuilder();
     private final Schema<T> schema;
-    private ByteBuffer content;
+    private ByteBuffer content = EMPTY_CONTENT;
 
     public MessageBuilderImpl(Schema<T> schema) {
         this.schema = schema;
@@ -48,7 +49,7 @@ public class MessageBuilderImpl<T> implements MessageBuilder<T> {
     }
 
     @Override
-    public MessageBuilder<T> setValue(T value) {
+    public MessageBuilder<T> setValue(T value) throws SchemaSerializationException {
         return setContent(schema.encode(value));
     }
 
