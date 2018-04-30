@@ -39,21 +39,24 @@ import org.apache.pulsar.broker.service.schema.proto.SchemaRegistryFormat;
 import org.apache.pulsar.common.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.schema.SchemaVersion;
+import org.apache.pulsar.common.util.FutureUtil;
 
 public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     private static HashFunction hashFunction = Hashing.sha256();
+    private final Map<SchemaType, SchemaCompatibilityCheck> compatibilityChecks;
     private final SchemaStorage schemaStorage;
     private final Clock clock;
 
     @VisibleForTesting
-    SchemaRegistryServiceImpl(SchemaStorage schemaStorage, Clock clock) {
+    SchemaRegistryServiceImpl(SchemaStorage schemaStorage, Map<SchemaType, SchemaCompatibilityCheck> compatibilityChecks, Clock clock) {
         this.schemaStorage = schemaStorage;
+        this.compatibilityChecks = compatibilityChecks;
         this.clock = clock;
     }
 
     @VisibleForTesting
-    SchemaRegistryServiceImpl(SchemaStorage schemaStorage) {
-        this(schemaStorage, Clock.systemUTC());
+    SchemaRegistryServiceImpl(SchemaStorage schemaStorage, Map<SchemaType, SchemaCompatibilityCheck> compatibilityChecks) {
+        this(schemaStorage, compatibilityChecks, Clock.systemUTC());
     }
 
     @Override
@@ -80,17 +83,23 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     @Override
     @NotNull
     public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema) {
-        byte[] context = hashFunction.hashBytes(schema.getData()).asBytes();
-        SchemaRegistryFormat.SchemaInfo info = SchemaRegistryFormat.SchemaInfo.newBuilder()
-            .setType(Functions.convertFromDomainType(schema.getType()))
-            .setSchema(ByteString.copyFrom(schema.getData()))
-            .setSchemaId(schemaId)
-            .setUser(schema.getUser())
-            .setDeleted(false)
-            .setTimestamp(clock.millis())
-            .addAllProps(toPairs(schema.getProps()))
-            .build();
-        return schemaStorage.put(schemaId, info.toByteArray(), context);
+        return checkCompatibilityWithLatest(schemaId, schema).thenCompose(isCompatible -> {
+            if (isCompatible) {
+                byte[] context = hashFunction.hashBytes(schema.getData()).asBytes();
+                SchemaRegistryFormat.SchemaInfo info = SchemaRegistryFormat.SchemaInfo.newBuilder()
+                    .setType(Functions.convertFromDomainType(schema.getType()))
+                    .setSchema(ByteString.copyFrom(schema.getData()))
+                    .setSchemaId(schemaId)
+                    .setUser(schema.getUser())
+                    .setDeleted(false)
+                    .setTimestamp(clock.millis())
+                    .addAllProps(toPairs(schema.getProps()))
+                    .build();
+                return schemaStorage.put(schemaId, info.toByteArray(), context);
+            } else {
+                return FutureUtil.failedFuture(new Exception());
+            }
+        });
     }
 
     @Override
@@ -98,6 +107,11 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     public CompletableFuture<SchemaVersion> deleteSchema(String schemaId, String user) {
         byte[] deletedEntry = deleted(schemaId, user).toByteArray();
         return schemaStorage.put(schemaId, deletedEntry, new byte[]{});
+    }
+
+    @Override
+    public CompletableFuture<Boolean> isCompatibleWithLatestVersion(String schemaId, SchemaData schema) {
+        return checkCompatibilityWithLatest(schemaId, schema);
     }
 
     @Override
@@ -119,6 +133,16 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
             .setDeleted(true)
             .setTimestamp(clock.millis())
             .build();
+    }
+
+    private CompletableFuture<Boolean> checkCompatibilityWithLatest(String schemaId, SchemaData schema) {
+        return getSchema(schemaId).thenApply(storedSchema ->
+            (storedSchema == null) ||
+                compatibilityChecks.getOrDefault(
+                    schema.getType(),
+                    SchemaCompatibilityCheck.DEFAULT
+                ).isCompatible(storedSchema.schema, schema)
+        );
     }
 
     interface Functions {

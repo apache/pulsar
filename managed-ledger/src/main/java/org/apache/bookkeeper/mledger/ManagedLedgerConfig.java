@@ -54,6 +54,7 @@ public class ManagedLedgerConfig {
     private long retentionTimeMs = 0;
     private long retentionSizeInMB = 0;
     private boolean autoSkipNonRecoverableData;
+    private long offloadLedgerDeletionLagMs = TimeUnit.HOURS.toMillis(4);
 
     private DigestType digestType = DigestType.CRC32C;
     private byte[] password = "".getBytes(Charsets.UTF_8);
@@ -384,6 +385,28 @@ public class ManagedLedgerConfig {
      */
     public long getRetentionSizeInMB() {
         return retentionSizeInMB;
+    }
+
+    /**
+     * When a ledger is offloaded from bookkeeper storage to longterm storage, the bookkeeper ledger
+     * is not deleted immediately. Instead we wait for a grace period before deleting from bookkeeper.
+     * The offloadLedgerDeleteLag sets this grace period.
+     *
+     * @param lagTime period to wait before deleting offloaded ledgers from bookkeeper
+     * @param unit timeunit for lagTime
+     */
+    public ManagedLedgerConfig setOffloadLedgerDeletionLag(int lagTime, TimeUnit unit) {
+        this.offloadLedgerDeletionLagMs = unit.toMillis(lagTime);
+        return this;
+    }
+
+    /**
+     * Number of milliseconds before an offloaded ledger will be deleted from bookkeeper.
+     *
+     * @return the offload ledger deletion lag time in milliseconds
+     */
+    public long getOffloadLedgerDeletionLagMillis() {
+        return offloadLedgerDeletionLagMs;
     }
 
     /**

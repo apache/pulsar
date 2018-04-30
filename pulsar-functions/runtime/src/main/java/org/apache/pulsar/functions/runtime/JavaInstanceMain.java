@@ -189,7 +189,7 @@ public class JavaInstanceMain {
                 instanceConfig,
                 jarFile,
                 containerFactory,
-                null);
+                30000);
 
         server = ServerBuilder.forPort(port)
                 .addService(new InstanceControlImpl(runtimeSpawner))

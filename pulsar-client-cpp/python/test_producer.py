@@ -24,7 +24,7 @@ import pulsar
 client = pulsar.Client('pulsar://localhost:6650')
 
 producer = client.create_producer(
-                    'persistent://sample/standalone/ns/my-topic',
+                    'my-topic',
                     block_if_queue_full=True,
                     batching_enabled=True,
                     batching_max_publish_delay_ms=10
@@ -32,7 +32,7 @@ producer = client.create_producer(
 
 for i in range(10):
     try:
-        producer.send('hello', None)
+        producer.send('hello'.encode('utf-8'), None)
     except Exception as e:
         print("Failed to send message: %s", e)
 

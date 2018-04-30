@@ -141,4 +141,10 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
         conf.setSubscriptionRolePrefix(subscriptionRolePrefix);
         return this;
     }
+
+    @Override
+    public ReaderBuilder<T> readCompacted(boolean readCompacted) {
+        conf.setReadCompacted(readCompacted);
+        return this;
+    }
 }
