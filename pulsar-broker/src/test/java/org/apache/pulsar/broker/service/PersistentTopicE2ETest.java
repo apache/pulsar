@@ -921,11 +921,10 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         for (int i = SyncMessages; i < (SyncMessages + AsyncMessages); i++) {
             String content = "my-message-" + i;
-            Message<byte[]> msg = MessageBuilder.create().setContent(content.getBytes()).build();
             final int index = i;
 
-            producer.sendAsync(msg).thenRun(() -> {
-                assertEquals(msg.getMessageId(), new MessageIdImpl(ledgerId, index, -1));
+            producer.sendAsync(content.getBytes()).thenAccept((msgId) -> {
+                assertEquals(msgId, new MessageIdImpl(ledgerId, index, -1));
                 counter.countDown();
             }).exceptionally((ex) -> {
                 return null;

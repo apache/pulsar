@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
@@ -44,7 +45,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     private final Schema<T> schema;
     private ByteBuffer content;
 
-    public TypedMessageBuilderImpl(ProducerBase producer, Schema schema) {
+    public TypedMessageBuilderImpl(ProducerBase<T> producer, Schema<T> schema) {
         this.producer = producer;
         this.schema = schema;
         this.content = EMPTY_CONTENT;
@@ -115,5 +116,21 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
         msgMetadataBuilder.clearReplicateTo();
         msgMetadataBuilder.addReplicateTo("__local__");
         return this;
+    }
+
+    public long getPublishTime() {
+        return msgMetadataBuilder.getPublishTime();
+    }
+
+    public boolean hasKey() {
+        return msgMetadataBuilder.hasPartitionKey();
+    }
+
+    public String getKey() {
+        return msgMetadataBuilder.getPartitionKey();
+    }
+
+    public ByteBuffer getContent() {
+        return content;
     }
 }

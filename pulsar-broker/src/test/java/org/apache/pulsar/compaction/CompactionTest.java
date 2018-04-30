@@ -113,7 +113,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             int keyIndex = r.nextInt(maxKeys);
             String key = "key" + keyIndex;
             byte[] data = ("my-message-" + key + "-" + j).getBytes();
-            producer.send(MessageBuilder.create().setKey(key).setContent(data).build());
+            producer.newMessage().key(key).value(data).send();
             expected.put(key, data);
             all.add(Pair.of(key, data));
         }
@@ -173,7 +173,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             int keyIndex = r.nextInt(maxKeys);
             String key = "key" + keyIndex;
             String value = "my-message-" + key + "-" + j;
-            producer.send(MessageBuilder.create().setKey(key).setContent(value.getBytes()).build());
+            producer.newMessage().key(key).value(value.getBytes()).send();
             expected.put(key, value);
             all.add(Pair.of(key, value));
         }
@@ -224,9 +224,9 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub1").readCompacted(true).subscribe().close();
 
-        producer.send(MessageBuilder.create().setKey("key0").setContent("content0".getBytes()).build());
-        producer.send(MessageBuilder.create().setKey("key0").setContent("content1".getBytes()).build());
-        producer.send(MessageBuilder.create().setKey("key0").setContent("content2".getBytes()).build());
+        producer.newMessage().key("key0").value("content0".getBytes()).send();
+        producer.newMessage().key("key0").value("content1".getBytes()).send();
+        producer.newMessage().key("key0").value("content2".getBytes()).send();
 
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
@@ -265,14 +265,14 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub1").readCompacted(true).subscribe().close();
 
-        producer.send(MessageBuilder.create().setKey("key0").setContent("content0".getBytes()).build());
-        producer.send(MessageBuilder.create().setKey("key0").setContent("content1".getBytes()).build());
-        producer.send(MessageBuilder.create().setKey("key0").setContent("content2".getBytes()).build());
+        producer.newMessage().key("key0").value("content0".getBytes()).send();
+        producer.newMessage().key("key0").value("content1".getBytes()).send();
+        producer.newMessage().key("key0").value("content2".getBytes()).send();
 
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         compactor.compact(topic).get();
 
-        producer.send(MessageBuilder.create().setKey("key0").setContent("content3".getBytes()).build());
+        producer.newMessage().key("key0").value("content3".getBytes()).send();
 
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
@@ -295,9 +295,9 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             .enableBatching(false)
             .create();
 
-        producer.send(MessageBuilder.create().setKey("key0").setContent("content0".getBytes()).build());
-        producer.send(MessageBuilder.create().setKey("key0").setContent("content1".getBytes()).build());
-        producer.send(MessageBuilder.create().setKey("key0").setContent("content2".getBytes()).build());
+        producer.newMessage().key("key0").value("content0".getBytes()).send();
+        producer.newMessage().key("key0").value("content1".getBytes()).send();
+        producer.newMessage().key("key0").value("content2".getBytes()).send();
 
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         compactor.compact(topic).get();
@@ -339,9 +339,9 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub1").readCompacted(true).subscribe().close();
 
-        producer.send(MessageBuilder.create().setKey("key0").setContent("content0".getBytes()).build());
-        producer.send(MessageBuilder.create().setKey("key0").setContent("content1".getBytes()).build());
-        producer.send(MessageBuilder.create().setKey("key0").setContent("content2".getBytes()).build());
+        producer.newMessage().key("key0").value("content0".getBytes()).send();
+        producer.newMessage().key("key0").value("content1".getBytes()).send();
+        producer.newMessage().key("key0").value("content2".getBytes()).send();
 
         Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         compactor.compact(topic).get();
@@ -384,7 +384,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
 
-        producer.send(MessageBuilder.create().setKey("key0").setContent("content0".getBytes()).build());
+        producer.newMessage().key("key0").value("content0".getBytes()).send();
 
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
@@ -403,15 +403,9 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             .readCompacted(true).subscribe().close();
 
         try (Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).enableBatching(false).create()) {
-            producer.sendAsync(MessageBuilder.create()
-                               .setKey("key1")
-                               .setContent("my-message-1".getBytes()).build());
-            producer.sendAsync(MessageBuilder.create()
-                               .setKey("key2")
-                               .setContent("my-message-2".getBytes()).build());
-            producer.sendAsync(MessageBuilder.create()
-                               .setKey("key2")
-                               .setContent("my-message-3".getBytes()).build()).get();
+            producer.newMessage().key("key1").value("my-message-1".getBytes()).sendAsync();
+            producer.newMessage().key("key2").value("my-message-2".getBytes()).sendAsync();
+            producer.newMessage().key("key2").value("my-message-3".getBytes()).send();
         }
 
         // Read messages before compaction to get ids
@@ -458,15 +452,9 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .create()
         ) {
-            producer.sendAsync(MessageBuilder.create()
-                               .setKey("key1")
-                               .setContent("my-message-1".getBytes()).build());
-            producer.sendAsync(MessageBuilder.create()
-                               .setKey("key2")
-                               .setContent("my-message-2".getBytes()).build());
-            producer.sendAsync(MessageBuilder.create()
-                               .setKey("key2")
-                               .setContent("my-message-3".getBytes()).build()).get();
+            producer.newMessage().key("key1").value("my-message-1".getBytes()).sendAsync();
+            producer.newMessage().key("key2").value("my-message-2".getBytes()).sendAsync();
+            producer.newMessage().key("key2").value("my-message-3".getBytes()).send();
         }
 
         // Read messages before compaction to get ids
@@ -526,18 +514,10 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                  .batchingMaxPublishDelay(1, TimeUnit.HOURS)
                  .messageRoutingMode(MessageRoutingMode.SinglePartition)
                  .create()) {
-            producerBatch.sendAsync(MessageBuilder.create()
-                                    .setKey("key1")
-                                    .setContent("my-message-1".getBytes()).build());
-            producerBatch.sendAsync(MessageBuilder.create()
-                                    .setKey("key1")
-                                    .setContent("my-message-2".getBytes()).build());
-            producerBatch.sendAsync(MessageBuilder.create()
-                                    .setKey("key1")
-                                    .setContent("my-message-3".getBytes()).build()).get();
-            producerNormal.sendAsync(MessageBuilder.create()
-                                     .setKey("key1")
-                                     .setContent("my-message-4".getBytes()).build()).get();
+            producerBatch.newMessage().key("key1").value("my-message-1".getBytes()).sendAsync();
+            producerBatch.newMessage().key("key1").value("my-message-2".getBytes()).sendAsync();
+            producerBatch.newMessage().key("key1").value("my-message-3".getBytes()).sendAsync();
+            producerBatch.newMessage().key("key1").value("my-message-4".getBytes()).send();
         }
 
         // compact the topic
@@ -564,29 +544,17 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 Producer<byte[]> producerBatch = pulsarClient.newProducer().topic(topic).maxPendingMessages(3)
                 .enableBatching(true).batchingMaxMessages(3)
                 .batchingMaxPublishDelay(1, TimeUnit.HOURS).create()) {
-            producerNormal.sendAsync(MessageBuilder.create()
-                                     .setContent("my-message-1".getBytes()).build()).get();
+            producerNormal.newMessage().value("my-message-1".getBytes()).send();
+            producerNormal.newMessage().value("my-message-2".getBytes()).sendAsync();
 
-            producerBatch.sendAsync(MessageBuilder.create()
-                                    .setContent("my-message-2".getBytes()).build());
-            producerBatch.sendAsync(MessageBuilder.create()
-                                    .setKey("key1")
-                                    .setContent("my-message-3".getBytes()).build());
-            producerBatch.sendAsync(MessageBuilder.create()
-                                    .setKey("key1")
-                                    .setContent("my-message-4".getBytes()).build()).get();
+            producerBatch.newMessage().key("key1").value("my-message-3".getBytes()).sendAsync();
+            producerBatch.newMessage().key("key1").value("my-message-4".getBytes()).send();
 
-            producerBatch.sendAsync(MessageBuilder.create()
-                                    .setKey("key2")
-                                    .setContent("my-message-5".getBytes()).build());
-            producerBatch.sendAsync(MessageBuilder.create()
-                                    .setKey("key2")
-                                    .setContent("my-message-6".getBytes()).build());
-            producerBatch.sendAsync(MessageBuilder.create()
-                                    .setContent("my-message-7".getBytes()).build()).get();
+            producerBatch.newMessage().key("key2").value("my-message-5".getBytes()).sendAsync();
+            producerBatch.newMessage().key("key2").value("my-message-6".getBytes()).sendAsync();
+            producerBatch.newMessage().value("my-message-7".getBytes()).send();
 
-            producerNormal.sendAsync(MessageBuilder.create()
-                                     .setContent("my-message-8".getBytes()).build()).get();
+            producerNormal.newMessage().value("my-message-8".getBytes()).send();
         }
 
         // compact the topic
