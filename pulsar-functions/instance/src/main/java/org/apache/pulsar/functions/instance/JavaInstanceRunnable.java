@@ -348,7 +348,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     @Override
     public void close() {
         processor.close();
-        javaInstance.close();
+        if (null != javaInstance) {
+            javaInstance.close();
+        }
 
         // kill the state table
         if (null != stateTable) {
