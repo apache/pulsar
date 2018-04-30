@@ -85,7 +85,7 @@ if create:
 elif watch:
     while not zk.exists(znode):
         print "Waiting for %s" % znode
-        time.sleep(1000)
+        time.sleep(1)
 elif exists:
     if zk.exists(znode):
         sys.exit(0)
