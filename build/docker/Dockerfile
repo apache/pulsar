@@ -23,8 +23,8 @@ FROM ubuntu:16.04
 RUN mkdir /pulsar
 ADD protobuf.patch /pulsar
 
-RUN apt-get update
-RUN apt-get install -y maven tig g++ cmake libssl-dev libcurl4-openssl-dev \
+RUN apt-get update && \
+    apt-get install -y maven tig g++ cmake libssl-dev libcurl4-openssl-dev \
                 liblog4cxx-dev libprotobuf-dev libboost-all-dev google-mock libgtest-dev \
                 libjsoncpp-dev libxml2-utils protobuf-compiler wget \
                 curl doxygen openjdk-8-jdk-headless clang-format-5.0 \
