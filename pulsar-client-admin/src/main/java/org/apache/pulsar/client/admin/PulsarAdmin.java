@@ -38,7 +38,7 @@ import org.apache.pulsar.client.admin.internal.JacksonConfigurator;
 import org.apache.pulsar.client.admin.internal.LookupImpl;
 import org.apache.pulsar.client.admin.internal.NamespacesImpl;
 import org.apache.pulsar.client.admin.internal.NonPersistentTopicsImpl;
-import org.apache.pulsar.client.admin.internal.PersistentTopicsImpl;
+import org.apache.pulsar.client.admin.internal.TopicsImpl;
 import org.apache.pulsar.client.admin.internal.TenantsImpl;
 import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.admin.internal.ResourceQuotasImpl;
@@ -71,7 +71,7 @@ public class PulsarAdmin implements Closeable {
     private final Tenants tenants;
     private final Properties properties;
     private final Namespaces namespaces;
-    private final PersistentTopics persistentTopics;
+    private final TopicsImpl topics;
     private final NonPersistentTopics nonPersistentTopics;
     private final ResourceQuotas resourceQuotas;
     private final ClientConfigurationData clientConfigData;
@@ -170,7 +170,7 @@ public class PulsarAdmin implements Closeable {
         this.tenants = new TenantsImpl(root, auth);
         this.properties = new TenantsImpl(root, auth);;
         this.namespaces = new NamespacesImpl(root, auth);
-        this.persistentTopics = new PersistentTopicsImpl(root, auth);
+        this.topics = new TopicsImpl(root, auth);
         this.nonPersistentTopics = new NonPersistentTopicsImpl(root, auth);
         this.resourceQuotas = new ResourceQuotasImpl(root, auth);
         this.lookups = new LookupImpl(root, auth, useTls);
@@ -289,16 +289,24 @@ public class PulsarAdmin implements Closeable {
         return namespaces;
     }
 
-    /**
-     * @return the persistentTopics management object
-     */
-    public PersistentTopics persistentTopics() {
-        return persistentTopics;
+    public Topics topics() {
+        return topics;
     }
 
     /**
      * @return the persistentTopics management object
+     * @deprecated Since 2.0. See {@link #topics()}
      */
+    @Deprecated
+    public PersistentTopics persistentTopics() {
+        return topics;
+    }
+
+    /**
+     * @return the persistentTopics management object
+     * @deprecated Since 2.0. See {@link #topics()}
+     */
+    @Deprecated
     public NonPersistentTopics nonPersistentTopics() {
         return nonPersistentTopics;
     }

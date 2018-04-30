@@ -21,7 +21,7 @@ package org.apache.pulsar.client.api;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 public interface Schema<T> {
-    byte[] encode(T message);
+    byte[] encode(T message) throws SchemaSerializationException;
     T decode(byte[] bytes);
 
     SchemaInfo getSchemaInfo();

@@ -306,7 +306,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         int numPartitions = 8;
         TopicName topicName = TopicName.get("persistent://my-property/my-ns/my-partitionedtopic1");
 
-        admin.persistentTopics().createPartitionedTopic(topicName.toString(), numPartitions);
+        admin.topics().createPartitionedTopic(topicName.toString(), numPartitions);
 
         /**** start broker-2 ****/
         ServiceConfiguration conf2 = new ServiceConfiguration();
@@ -362,7 +362,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         producer.close();
         consumer.unsubscribe();
         consumer.close();
-        admin.persistentTopics().deletePartitionedTopic(topicName.toString());
+        admin.topics().deletePartitionedTopic(topicName.toString());
 
         pulsar2.close();
         loadManager2 = null;
@@ -1025,7 +1025,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         admin.tenants().createTenant(property,
                 new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
         admin.namespaces().createNamespace(property + "/" + cluster + "/" + namespace);
-        admin.persistentTopics().createPartitionedTopic(dest.toString(), totalPartitions);
+        admin.topics().createPartitionedTopic(dest.toString(), totalPartitions);
 
         stopBroker();
         conf.setClientLibraryVersionCheckEnabled(true);
