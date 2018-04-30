@@ -23,6 +23,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PersistentTopics;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -30,7 +31,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.common.compaction.CompactionStatus;
+
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
@@ -572,8 +573,8 @@ public class CmdPersistentTopics extends CmdBase {
             String persistentTopic = validatePersistentTopic(params);
 
             try {
-                CompactionStatus status = persistentTopics.compactionStatus(persistentTopic);
-                while (wait && status.status == CompactionStatus.Status.RUNNING) {
+                LongRunningProcessStatus status = persistentTopics.compactionStatus(persistentTopic);
+                while (wait && status.status == LongRunningProcessStatus.Status.RUNNING) {
                     Thread.sleep(1000);
                     status = persistentTopics.compactionStatus(persistentTopic);
                 }
