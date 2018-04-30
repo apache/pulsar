@@ -532,6 +532,42 @@ Reader reader = pulsarClient.createReader(topic, id, new ReaderConfiguration());
 
 ## Schema registry
 
+Type safety is extremely important in any application built around a message bus. Applications typically adopt one of two basic approaches:
+
+1. A "client-side" approach in which message producers and consumers are responsible for not only serializing and deserializing messages (which consist of raw bytes) but also knowing which types are being transmitted via which topics
+1. A "server-side" approach in which producers and consumers
+
+In Pulsar, both approaches are available.
+
+1. For the "client-side" approach, producers and consumers can send and receive messages consisting of raw byte arrays and leave all type safety enforcement to the application
+1. For the "server-side" approach, Pulsar has a built-in **schema registry** that:
+  * Enables clients to upload schemas
+
+### How schemas work
+
+Pulsar schemas are applied and enforced *at the topic level*. Schemas *cannot* be applied at the {% popover namespace %} or {% popover tenant %} level.
+
+Each Pulsar schema consists of:
+
+* A name. In Pulsar, the name of a schema is always the {% popover topic %} to which the schema applies
+
+### Supported schema types
+
+The following schema formats are supported by the Pulsar schema registry:
+
+* [JSON](https://www.json.org/)
+
+For usage instructions, see the documentation for your preferred client library:
+
+* [Java](../../clients/Java#schemas)
+
+
+
+
+
+Pulsar also enables you to write your own schemas from scratch.
+
+
 Allows for type safety in messaging (across topics, producers/consumers, etc.)
 Coordination mechanism (rather than "out of band" coordination)
 With a schema registry, there's no way to know "what" messages are and how to process them
@@ -540,11 +576,6 @@ Centralized storage of metadata
 System for storing and serving schema data
 Versioned history (all schemas have versioned; version must be specified when fetching)
 Supported schema formats:
-
-* [Thrift](https://thrift.apache.org/)
-* [Avro](https://avro.apache.org/)
-* [JSON](https://www.json.org/)
-* [Protobuf](https://developers.google.com/protocol-buffers/)
 
 Each schema has the following fields:
 
