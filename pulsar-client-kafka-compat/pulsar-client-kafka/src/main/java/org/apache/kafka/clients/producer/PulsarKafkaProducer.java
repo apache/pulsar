@@ -39,13 +39,14 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.pulsar.client.api.CompressionType;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SchemaSerializationException;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.client.kafka.compat.MessageIdUtils;
 import org.apache.pulsar.client.kafka.compat.PulsarClientKafkaConfig;
 import org.apache.pulsar.client.kafka.compat.PulsarProducerKafkaConfig;
@@ -160,15 +161,15 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
             return future;
         }
 
-        Message<byte[]> msg = getMessage(record);
-        int messageSize = msg.getData().length;
+        TypedMessageBuilder<byte[]> messageBuilder = producer.newMessage();
+        int messageSize = buildMessage(messageBuilder, record);;
 
         CompletableFuture<RecordMetadata> future = new CompletableFuture<>();
-        CompletableFuture<MessageId> sendFuture = producer.sendAsync(msg);
+        CompletableFuture<MessageId> sendFuture = messageBuilder.sendAsync();
         lastSendFuture.put(record.topic(), sendFuture);
 
         sendFuture.thenAccept((messageId) -> {
-            future.complete(getRecordMetadata(record.topic(), msg, messageId, messageSize));
+            future.complete(getRecordMetadata(record.topic(), messageBuilder, messageId, messageSize));
         }).exceptionally(ex -> {
             future.completeExceptionally(ex);
             return null;
@@ -231,20 +232,24 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
         }
     }
 
-    private Message<byte[]> getMessage(ProducerRecord<K, V> record) {
+    private int buildMessage(TypedMessageBuilder<byte[]> builder, ProducerRecord<K, V> record) {
         if (record.partition() != null) {
             throw new UnsupportedOperationException("");
         }
 
-        MessageBuilder<byte[]> builder = MessageBuilder.create();
         if (record.key() != null) {
-            builder.setKey(getKey(record.topic(), record.key()));
+            builder.key(getKey(record.topic(), record.key()));
         }
         if (record.timestamp() != null) {
-            builder.setEventTime(record.timestamp());
+            builder.eventTime(record.timestamp());
         }
-        builder.setContent(valueSerializer.serialize(record.topic(), record.value()));
-        return builder.build();
+        byte[] value = valueSerializer.serialize(record.topic(), record.value());
+        try {
+            builder.value(value);
+        } catch (SchemaSerializationException e) {
+            throw new RuntimeException(e);
+        }
+        return value.length;
     }
 
     private String getKey(String topic, K key) {
@@ -257,7 +262,8 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
         }
     }
 
-    private RecordMetadata getRecordMetadata(String topic, Message<byte[]> msg, MessageId messageId, int size) {
+    private RecordMetadata getRecordMetadata(String topic, TypedMessageBuilder<byte[]> msgBuilder, MessageId messageId,
+            int size) {
         MessageIdImpl msgId = (MessageIdImpl) messageId;
 
         // Combine ledger id and entry id to form offset
@@ -265,8 +271,7 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
         int partition = msgId.getPartitionIndex();
 
         TopicPartition tp = new TopicPartition(topic, partition);
-
-        return new RecordMetadata(tp, offset, 0, msg.getPublishTime(), 0, msg.hasKey() ? msg.getKey().length() : 0,
-                size);
+        TypedMessageBuilderImpl<byte[]> mb = (TypedMessageBuilderImpl<byte[]>) msgBuilder;
+        return new RecordMetadata(tp, offset, 0, mb.getPublishTime(), 0, mb.hasKey() ? mb.getKey().length() : 0, size);
     }
 }
