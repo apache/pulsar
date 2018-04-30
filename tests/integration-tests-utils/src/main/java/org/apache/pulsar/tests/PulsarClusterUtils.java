@@ -41,8 +41,8 @@ public class PulsarClusterUtils {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarClusterUtils.class);
     static final short BROKER_PORT = 8080;
 
-    public static final String PULSAR_ADMIN = "PULSAR_MEM=-Xms128M /pulsar/bin/pulsar-admin";
-    public static final String PULSAR = "PULSAR_MEM=-Xms128M /pulsar/bin/pulsar";
+    public static final String PULSAR_ADMIN = "/pulsar/bin/pulsar-admin";
+    public static final String PULSAR = "/pulsar/bin/pulsar";
 
     public static String zookeeperConnectString(DockerClient docker, String cluster) {
         return DockerUtils.cubeIdsWithLabels(docker, ImmutableMap.of("service", "zookeeper", "cluster", cluster))
