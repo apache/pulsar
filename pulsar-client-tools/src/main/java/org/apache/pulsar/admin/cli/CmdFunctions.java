@@ -277,13 +277,9 @@ public class CmdFunctions extends CmdBase {
             }
             if (null != processingGuarantees) {
                 functionConfig.setProcessingGuarantees(processingGuarantees);
-            } else if (functionConfig.getProcessingGuarantees() == null) {
-                functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
             }
             if (null != subscriptionType) {
                 functionConfig.setSubscriptionType(subscriptionType);
-            } else if (functionConfig.getSubscriptionType() == null) {
-                functionConfig.setSubscriptionType(FunctionConfig.SubscriptionType.SHARED);
             }
             if (null != userConfigString) {
                 Type type = new TypeToken<Map<String, String>>(){}.getType();
@@ -541,9 +537,6 @@ public class CmdFunctions extends CmdBase {
         protected FunctionDetails convert(FunctionConfig functionConfig)
                 throws IOException {
             FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
-            if (functionConfig.getInputs() != null) {
-                functionDetailsBuilder.setTenant(functionConfig.getTenant());
-            }
 
             // Setup source
             Map<String, String> topicToSerDeClassNameMap = new HashMap<>();
@@ -558,6 +551,9 @@ public class CmdFunctions extends CmdBase {
                     .putAllTopicsToSerDeClassName(topicToSerDeClassNameMap);
             functionDetailsBuilder.setSource(sourceSpecBuilder);
 
+            if (functionConfig.getTenant() != null) {
+                functionDetailsBuilder.setTenant(functionConfig.getTenant());
+            }
             if (functionConfig.getNamespace() != null) {
                 functionDetailsBuilder.setNamespace(functionConfig.getNamespace());
             }
@@ -570,11 +566,21 @@ public class CmdFunctions extends CmdBase {
             if (functionConfig.getOutput() != null) {
                 functionDetailsBuilder.setOutput(functionConfig.getOutput());
             }
+            if (functionConfig.getOutputSerdeClassName() != null) {
+                functionDetailsBuilder.setOutputSerdeClassName(functionConfig.getOutputSerdeClassName());
+            }
             if (functionConfig.getLogTopic() != null) {
                 functionDetailsBuilder.setLogTopic(functionConfig.getLogTopic());
             }
             if (functionConfig.getRuntime() != null) {
                 functionDetailsBuilder.setRuntime(convertRuntime(functionConfig.getRuntime()));
+            }
+            if (!functionConfig.getUserConfig().isEmpty()) {
+                functionDetailsBuilder.putAllUserConfig(functionConfig.getUserConfig());
+            }
+            if (functionConfig.getProcessingGuarantees() != null) {
+                functionDetailsBuilder.setProcessingGuarantees(
+                        convertProcessingGuarantee(functionConfig.getProcessingGuarantees()));
             }
             functionDetailsBuilder.setAutoAck(functionConfig.isAutoAck());
             functionDetailsBuilder.setParallelism(functionConfig.getParallelism());

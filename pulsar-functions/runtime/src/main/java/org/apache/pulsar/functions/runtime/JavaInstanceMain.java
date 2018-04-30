@@ -105,10 +105,10 @@ public class JavaInstanceMain {
     @Parameter(names = "--source_configs", description = "The source configs")
     protected String sourceConfigs;
 
-    @Parameter(names = "--source_subscription_type", description = "The source configs", required = true)
+    @Parameter(names = "--source_subscription_type", description = "The source subscription type", required = true)
     protected String sourceSubscriptionType;
 
-    @Parameter(names = "--source_topics_serde_classname", description = "The source configs", required = true)
+    @Parameter(names = "--source_topics_serde_classname", description = "A map of topics to SerDe for the source", required = true)
     protected String sourceTopicsSerdeClassName;
 
 
