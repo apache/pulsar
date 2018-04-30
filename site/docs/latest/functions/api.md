@@ -534,9 +534,9 @@ There is one example Python native function in [this folder](https://github.com/
 
 ### Python SDK functions {#python-sdk}
 
-To get started developing Pulsar Functions using the Python SDK, you'll need to install 
+To get started developing Pulsar Functions using the Python SDK, you'll need to install the [`pulsar-client`](/api/python) library using the instructions [above](#getting-started).
 
-### Python SDK examples
+#### Python SDK examples
 
 There are several example Python functions in [this folder](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/python-examples):
 
@@ -546,7 +546,7 @@ Function file | Description
 [`logfunction.py`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/python-examples/logfunction.py) | Logs each incoming message
 [`thumbnailer.py`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/python-examples/thumbnailer.py) | Takes image data as input and outputs a 128x128 thumbnail of each image
 
-### Python context object {#python-context}
+#### Python context object {#python-context}
 
 The [`Context`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-client-cpp/python/functions/context.py) class provides a number of methods that you can use to access the function's [context](#context). The various methods for the `Context` class are listed below:
 
@@ -568,7 +568,7 @@ Method | What it provides
 
 ### Python SerDe
 
-Pulsar Functions use [SerDe](#serde) when publishing data to and consuming data from Pulsar topics. You can specify the SerDe when [creating](../deployment#cluster-mode) or [running](../deployment#local-run). Here's an example:
+Pulsar Functions use [SerDe](#serde) when publishing data to and consuming data from Pulsar topics (this is true of both [native](#python-native) functions and [SDK](#python-sdk) functions). You can specify the SerDe when [creating](../deployment#cluster-mode) or [running](../deployment#local-run) functions. Here's an example:
 
 ```bash
 $ bin/pulsar-admin functions create \
