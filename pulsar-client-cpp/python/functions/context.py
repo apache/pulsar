@@ -50,7 +50,7 @@ class Context(object):
     pass
 
   @abstractmethod
-  def get_input_topic_name(self):
+  def get_current_message_topic_name(self):
     """Returns the topic name of the message that we are processing"""
     pass
   

@@ -69,7 +69,7 @@ class ContextImpl(pulsar.Context):
   def get_message_id(self):
     return self.current_message_id
 
-  def get_input_topic_name(self):
+  def get_current_message_topic_name(self):
     return self.current_topic_name
 
   def get_function_name(self):
