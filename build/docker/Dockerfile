@@ -56,7 +56,8 @@ RUN pip install pdoc
 
 # Install Protobuf doc generator (requires Go)
 RUN apt-get install -y golang-1.10-go
-ENV PATH /usr/lib/go-1.10/bin:$PATH
+ENV GOPATH "$HOME/go"
+ENV PATH "/usr/lib/go-1.10/bin:$GOPATH/bin:$PATH"
 RUN go get -u github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
 
 # Build the patched protoc
