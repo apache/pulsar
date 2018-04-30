@@ -71,7 +71,7 @@ public class DefaultSchemasTest {
     }
 
     @Test
-    public void testStringSchema() {
+    public void testStringSchema() throws Exception {
         String testString = "hello world";
         byte[] testBytes = testString.getBytes(StandardCharsets.UTF_8);
         StringSchema stringSchema = new StringSchema();
