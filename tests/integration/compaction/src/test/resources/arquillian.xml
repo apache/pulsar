@@ -26,7 +26,7 @@
 
   <extension qualifier="docker">
     <property name="definitionFormat">CUBE</property>
-    <property name="dockerContainersResource">cube-definitions/single-cluster-3-bookie-2-broker.yaml</property>
+    <property name="dockerContainersResource">cube-definitions/single-cluster-3-bookie-2-broker-unstarted.yaml</property>
   </extension>
 
 </arquillian>
