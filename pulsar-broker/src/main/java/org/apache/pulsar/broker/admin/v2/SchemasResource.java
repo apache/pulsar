@@ -25,6 +25,7 @@ import static org.apache.pulsar.common.util.Codec.decode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import io.swagger.annotations.ApiOperation;
+import java.nio.ByteBuffer;
 import java.time.Clock;
 import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.Consumes;
@@ -122,7 +123,9 @@ public class SchemasResource extends AdminResource {
         validateDestinationAndAdminOperation(tenant, namespace, topic);
 
         String schemaId = buildSchemaId(tenant, namespace, topic);
-        SchemaVersion v = pulsar().getSchemaRegistryService().versionFromBytes(version.getBytes());
+        ByteBuffer bbVersion = ByteBuffer.allocate(Long.SIZE);
+        bbVersion.putLong(Long.parseLong(version));
+        SchemaVersion v = pulsar().getSchemaRegistryService().versionFromBytes(bbVersion.array());
         pulsar().getSchemaRegistryService().getSchema(schemaId, v)
             .handle((schema, error) -> {
                 if (isNull(error)) {
