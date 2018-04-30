@@ -74,7 +74,7 @@ public class MessageImpl<T> extends MessageRecordImpl<T, MessageId> {
         msg.cnx = null;
         msg.payload = Unpooled.wrappedBuffer(payload);
         msg.properties = null;
-        msg.schema = Schema.IDENTITY;
+        msg.schema = Schema.BYTES;
         return msg;
     }
 
