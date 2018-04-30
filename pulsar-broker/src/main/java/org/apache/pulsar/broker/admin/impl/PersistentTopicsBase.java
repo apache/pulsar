@@ -96,7 +96,7 @@ import org.apache.pulsar.common.policies.data.AuthPolicies;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
-import org.apache.pulsar.common.policies.data.PersistentTopicStats;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -346,7 +346,7 @@ public class PersistentTopicsBase extends AdminResource {
             log.info("[{}] Successfully created partitioned topic {}", clientAppId(), topicName);
         } catch (KeeperException.NodeExistsException e) {
             log.warn("[{}] Failed to create already existing partitioned topic {}", clientAppId(), topicName);
-            throw new RestException(Status.CONFLICT, "Partitioned topic already exist");
+            throw new RestException(Status.CONFLICT, "Partitioned topic already exists");
         } catch (Exception e) {
             log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
             throw new RestException(e);
@@ -354,7 +354,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     /**
-     * It updates number of partitions of an existing non-global partitioned topic. It requires partitioned-topic to be
+     * It updates number of partitions of an existing non-global partitioned topic. It requires partitioned-topic to
      * already exist and number of new partitions must be greater than existing number of partitions. Decrementing
      * number of partitions requires deletion of topic which is not supported.
      *
@@ -404,7 +404,7 @@ public class PersistentTopicsBase extends AdminResource {
             try {
                 for (int i = 0; i < numPartitions; i++) {
                     TopicName topicNamePartition = topicName.getPartition(i);
-                    pulsar().getAdminClient().persistentTopics().deleteAsync(topicNamePartition.toString())
+                    pulsar().getAdminClient().topics().deleteAsync(topicNamePartition.toString())
                             .whenComplete((r, ex) -> {
                                 if (ex != null) {
                                     if (ex instanceof NotFoundException) {
@@ -503,7 +503,7 @@ public class PersistentTopicsBase extends AdminResource {
             try {
                 // get the subscriptions only from the 1st partition since all the other partitions will have the same
                 // subscriptions
-                subscriptions.addAll(pulsar().getAdminClient().persistentTopics()
+                subscriptions.addAll(pulsar().getAdminClient().topics()
                         .getSubscriptions(topicName.getPartition(0).toString()));
             } catch (Exception e) {
                 throw new RestException(e);
@@ -523,7 +523,7 @@ public class PersistentTopicsBase extends AdminResource {
         return subscriptions;
     }
 
-    protected PersistentTopicStats internalGetStats(boolean authoritative) {
+    protected TopicStats internalGetStats(boolean authoritative) {
         validateAdminAndClientPermission();
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
@@ -575,7 +575,7 @@ public class PersistentTopicsBase extends AdminResource {
         PartitionedTopicStats stats = new PartitionedTopicStats(partitionMetadata);
         try {
             for (int i = 0; i < partitionMetadata.partitions; i++) {
-                PersistentTopicStats partitionStats = pulsar().getAdminClient().persistentTopics()
+                TopicStats partitionStats = pulsar().getAdminClient().topics()
                         .getStats(topicName.getPartition(i).toString());
                 stats.add(partitionStats);
                 stats.partitions.put(topicName.getPartition(i).toString(), partitionStats);
@@ -594,7 +594,7 @@ public class PersistentTopicsBase extends AdminResource {
         if (partitionMetadata.partitions > 0) {
             try {
                 for (int i = 0; i < partitionMetadata.partitions; i++) {
-                    pulsar().getAdminClient().persistentTopics()
+                    pulsar().getAdminClient().topics()
                             .deleteSubscription(topicName.getPartition(i).toString(), subName);
                 }
             } catch (Exception e) {
@@ -637,7 +637,7 @@ public class PersistentTopicsBase extends AdminResource {
         if (partitionMetadata.partitions > 0) {
             try {
                 for (int i = 0; i < partitionMetadata.partitions; i++) {
-                    pulsar().getAdminClient().persistentTopics()
+                    pulsar().getAdminClient().topics()
                             .skipAllMessages(topicName.getPartition(i).toString(), subName);
                 }
             } catch (Exception e) {
@@ -707,7 +707,7 @@ public class PersistentTopicsBase extends AdminResource {
             try {
                 // expire messages for each partition topic
                 for (int i = 0; i < partitionMetadata.partitions; i++) {
-                    pulsar().getAdminClient().persistentTopics().expireMessagesForAllSubscriptions(
+                    pulsar().getAdminClient().topics().expireMessagesForAllSubscriptions(
                             topicName.getPartition(i).toString(), expireTimeInSeconds);
                 }
             } catch (Exception e) {
@@ -740,7 +740,7 @@ public class PersistentTopicsBase extends AdminResource {
             Exception partitionException = null;
             try {
                 for (int i = 0; i < numParts; i++) {
-                    pulsar().getAdminClient().persistentTopics().resetCursor(topicName.getPartition(i).toString(),
+                    pulsar().getAdminClient().topics().resetCursor(topicName.getPartition(i).toString(),
                             subName, timestamp);
                 }
             } catch (PreconditionFailedException pfe) {
@@ -811,8 +811,7 @@ public class PersistentTopicsBase extends AdminResource {
                 PulsarAdmin admin = pulsar().getAdminClient();
 
                 for (int i = 0; i < partitionMetadata.partitions; i++) {
-                    futures.add(admin.persistentTopics().createSubscriptionAsync(
-                            topicName.getPartition(i).toString(),
+                    futures.add(admin.topics().createSubscriptionAsync(topicName.getPartition(i).toString(),
                             subscriptionName, messageId));
                 }
 
@@ -1039,7 +1038,7 @@ public class PersistentTopicsBase extends AdminResource {
             // expire messages for each partition topic
             try {
                 for (int i = 0; i < partitionMetadata.partitions; i++) {
-                    pulsar().getAdminClient().persistentTopics()
+                    pulsar().getAdminClient().topics()
                             .expireMessages(topicName.getPartition(i).toString(), subName, expireTimeInSeconds);
                 }
             } catch (Exception e) {
@@ -1237,13 +1236,13 @@ public class PersistentTopicsBase extends AdminResource {
                 return;
             }
 
-            admin.persistentTopics().getStatsAsync(topicName.getPartition(0).toString()).thenAccept(stats -> {
+            admin.topics().getStatsAsync(topicName.getPartition(0).toString()).thenAccept(stats -> {
                 stats.subscriptions.keySet().forEach(subscription -> {
                     List<CompletableFuture<Void>> subscriptionFutures = new ArrayList<>();
                     for (int i = partitionMetadata.partitions; i < numPartitions; i++) {
                         final String topicNamePartition = topicName.getPartition(i).toString();
 
-                        subscriptionFutures.add(admin.persistentTopics().createSubscriptionAsync(topicNamePartition,
+                        subscriptionFutures.add(admin.topics().createSubscriptionAsync(topicNamePartition,
                                 subscription, MessageId.latest));
                     }
 

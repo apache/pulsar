@@ -46,7 +46,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
-import org.apache.pulsar.common.policies.data.PersistentTopicStats;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.eclipse.jetty.util.BlockingArrayQueue;
@@ -172,7 +172,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         producer.close();
         consumer2.close();
 
-        admin.persistentTopics().delete(topicName);
+        admin.topics().delete(topicName);
     }
 
     @Test
@@ -220,7 +220,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         assertTrue(CollectionUtils.subtract(messagesProduced, messagesConsumed).isEmpty());
 
         consumer1.close();
-        admin.persistentTopics().delete(topicName);
+        admin.topics().delete(topicName);
     }
 
     @Test
@@ -279,7 +279,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
 
         consumer1.close();
         consumer2.close();
-        admin.persistentTopics().delete(topicName);
+        admin.topics().delete(topicName);
     }
 
     // this test is good to have to see the distribution, but every now and then it gets slightly different than the
@@ -352,7 +352,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         consumer1.close();
         consumer2.close();
         consumer3.close();
-        admin.persistentTopics().delete(topicName);
+        admin.topics().delete(topicName);
     }
 
     @Test(timeOut = 300000)
@@ -508,7 +508,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
 
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                 .receiverQueueSize(10).subscriptionType(SubscriptionType.Shared)
-                .acknowledmentGroupTime(0, TimeUnit.SECONDS);
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS);
         ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) consumerBuilder.subscribe();
 
         for (int i = 0; i < numMsgs; i++) {
@@ -537,7 +537,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
             consumer1.acknowledge(msgId);
         }
 
-        PersistentTopicStats stats = admin.persistentTopics().getStats(topicName);
+        TopicStats stats = admin.topics().getStats(topicName);
 
         // Unacked messages count should be 0 for both consumers at this point
         SubscriptionStats subStats = stats.subscriptions.get(subName);
@@ -550,6 +550,6 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         producer.close();
         consumer1.close();
         consumer2.close();
-        admin.persistentTopics().delete(topicName);
+        admin.topics().delete(topicName);
     }
 }

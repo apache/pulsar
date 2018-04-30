@@ -56,7 +56,7 @@ if (LINK_STATIC)
     find_library(ZLIB_LIBRARY_PATH REQUIRED NAMES libz.a z)
     find_library(PROTOBUF_LIBRARIES NAMES libprotobuf.a)
     find_library(CURL_LIBRARY_PATH NAMES libcurl.a curl)
-    find_library(LIB_JSON NAMES libjsoncpp.a)
+    find_library(LIB_JSON NAMES libjsoncpp.a libjsoncpp_static.a)
     find_library(LOG4CXX_LIBRARY_PATH NAMES liblog4cxx.a)
 
     # Libraries needed by log4cxx to link statically with

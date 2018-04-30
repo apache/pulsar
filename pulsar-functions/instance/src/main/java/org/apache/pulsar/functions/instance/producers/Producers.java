@@ -42,8 +42,7 @@ public interface Producers extends AutoCloseable {
      *          src topic partition
      * @return the producer instance to produce messages
      */
-    Producer getProducer(String srcTopicName,
-                         int srcTopicPartition) throws PulsarClientException;
+    Producer<byte[]> getProducer(String srcTopicName, int srcTopicPartition) throws PulsarClientException;
 
     /**
      * Close a producer specified by <tt>srcTopicName</tt> and <tt>srcTopicPartition</tt>

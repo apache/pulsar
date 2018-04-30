@@ -57,6 +57,7 @@
 
               <artifactSet>
                 <includes>
+                  <include>org.apache.pulsar:pulsar-connect-core</include>
                   <include>org.apache.pulsar:pulsar-client-original</include>
                   <include>org.apache.pulsar:pulsar-client-admin-original</include>
                   <include>org.apache.commons:commons-lang3</include>
@@ -88,6 +89,12 @@
               <filters>
                 <filter>
                   <artifact>net.jpountz.lz4:lz4</artifact>
+                  <includes>
+                    <include>**</include>
+                  </includes>
+                </filter>
+                <filter>
+                  <artifact>org.apache.pulsar:pulsar-connect-core</artifact>
                   <includes>
                     <include>**</include>
                   </includes>

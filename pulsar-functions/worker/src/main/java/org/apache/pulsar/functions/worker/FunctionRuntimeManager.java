@@ -85,7 +85,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
                                   MembershipManager membershipManager) throws Exception {
         this.workerConfig = workerConfig;
 
-        Reader reader = pulsarClient.newReader()
+        Reader<byte[]> reader = pulsarClient.newReader()
                 .topic(this.workerConfig.getFunctionAssignmentTopic())
                 .startMessageId(MessageId.earliest)
                 .create();

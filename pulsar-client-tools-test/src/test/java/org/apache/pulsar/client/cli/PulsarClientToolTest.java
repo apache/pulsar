@@ -80,7 +80,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         // Make sure subscription has been created
         while (true) {
             try {
-                List<String> subscriptions = admin.persistentTopics().getSubscriptions(topicName);
+                List<String> subscriptions = admin.topics().getSubscriptions(topicName);
                 if(subscriptions.size() == 1){
                     break;
                 }

@@ -41,6 +41,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
 
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
@@ -106,7 +107,7 @@ public class NonPersistentTopics extends PersistentTopics {
     @Path("/{tenant}/{namespace}/{topic}/partitions")
     @ApiOperation(value = "Create a partitioned topic.", notes = "It needs to be called before creating a producer on a partitioned topic.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 409, message = "Partitioned topic already exist") })
+            @ApiResponse(code = 409, message = "Partitioned topic already exists") })
     public void createPartitionedTopic(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic, int numPartitions,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
@@ -125,7 +126,7 @@ public class NonPersistentTopics extends PersistentTopics {
             log.info("[{}] Successfully created partitioned topic {}", clientAppId(), topicName);
         } catch (KeeperException.NodeExistsException e) {
             log.warn("[{}] Failed to create already existing partitioned topic {}", clientAppId(), topicName);
-            throw new RestException(Status.CONFLICT, "Partitioned topic already exist");
+            throw new RestException(Status.CONFLICT, "Partitioned topic already exists");
         } catch (Exception e) {
             log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
             throw new RestException(e);
@@ -170,8 +171,7 @@ public class NonPersistentTopics extends PersistentTopics {
         for (int i = 0; i < boundaries.size() - 1; i++) {
             final String bundle = String.format("%s_%s", boundaries.get(i), boundaries.get(i + 1));
             try {
-                futures.add(pulsar().getAdminClient().nonPersistentTopics().getListInBundleAsync(namespaceName.toString(),
-                        bundle));
+                futures.add(pulsar().getAdminClient().topics().getListInBundleAsync(namespaceName.toString(), bundle));
             } catch (PulsarServerException e) {
                 log.error(String.format("[%s] Failed to get list of topics under namespace %s/%s", clientAppId(),
                         namespaceName, bundle), e);
@@ -228,9 +228,11 @@ public class NonPersistentTopics extends PersistentTopics {
         try {
             final List<String> topicList = Lists.newArrayList();
             pulsar().getBrokerService().getTopics().forEach((name, topicFuture) -> {
-                TopicName topicName = TopicName.get(name);
-                if (nsBundle.includes(topicName)) {
-                    topicList.add(name);
+                if (BrokerService.extractTopic(topicFuture).isPresent()) {
+                    TopicName topicName = TopicName.get(name);
+                    if (nsBundle.includes(topicName)) {
+                        topicList.add(name);
+                    }
                 }
             });
             return topicList;

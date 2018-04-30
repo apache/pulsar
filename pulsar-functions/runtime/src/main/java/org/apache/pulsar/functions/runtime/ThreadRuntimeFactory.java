@@ -20,8 +20,9 @@
 package org.apache.pulsar.functions.runtime;
 
 import com.google.common.annotations.VisibleForTesting;
+
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.ClientConfiguration;
+
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -46,7 +47,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
             throws Exception {
         this(
             threadGroupName,
-            pulsarServiceUrl != null ? PulsarClient.create(pulsarServiceUrl, new ClientConfiguration()) : null,
+            pulsarServiceUrl != null ? PulsarClient.builder().serviceUrl(pulsarServiceUrl).build() : null,
             storageServiceUrl);
     }
 
