@@ -24,8 +24,8 @@ import threading
 import uuid
 
 
-DEFAULT_CLIENT_TOPIC = 'persistent://sample/standalone/ns/rpc-client-topic'
-DEFAULT_SERVER_TOPIC = 'persistent://sample/standalone/ns/rpc-server-topic'
+DEFAULT_CLIENT_TOPIC = 'rpc-client-topic'
+DEFAULT_SERVER_TOPIC = 'rpc-server-topic'
 UUID = str(uuid.uuid4())
 NUM_CLIENT = 0
 LOCK = threading.Lock()
@@ -58,13 +58,14 @@ class RPCClient(object):
     def on_response(self, consumer, message):
         if message.partition_key() == self.partition_key \
            and consumer.topic() == self.client_topic:
-            print('Received: {0}'.format(message.data()))
-            self.response = message.data().decode()
+            msg = message.data().decode('utf-8')
+            print('Received: {0}'.format(msg))
+            self.response = msg
             consumer.acknowledge(message)
 
     def call(self, message):
         self.response = None
-        self.producer.send(message, partition_key=self.partition_key)
+        self.producer.send(message.encode('utf-8'), partition_key=self.partition_key)
 
         while self.response is None:
             pass

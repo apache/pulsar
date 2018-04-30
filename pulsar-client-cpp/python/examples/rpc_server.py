@@ -22,8 +22,8 @@
 import pulsar
 
 
-DEFAULT_CLIENT_TOPIC = 'persistent://sample/standalone/ns/rpc-client-topic'
-DEFAULT_SERVER_TOPIC = 'persistent://sample/standalone/ns/rpc-server-topic'
+DEFAULT_CLIENT_TOPIC = 'rpc-client-topic'
+DEFAULT_SERVER_TOPIC = 'rpc-server-topic'
 
 
 class RPCServer(object):
@@ -43,9 +43,9 @@ class RPCServer(object):
 
     def on_response(self, consumer, message):
         print('Received from {0}: {1}'.format(message.partition_key(),
-                                              message.data().decode()))
+                                              message.data().decode('utf-8')))
 
-        self.producer.send('{} bar'.format(message.data().decode()),
+        self.producer.send('{} bar'.format(message.data().decode('utf-8')),
                            partition_key=message.partition_key())
         consumer.acknowledge(message)
 

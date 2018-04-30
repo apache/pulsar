@@ -94,13 +94,13 @@ class ContextImpl(pulsar.Context):
     return self.log
 
   def get_user_config_value(self, key):
-    if key in self.instance_config.function_config.userConfig:
-      return str(self.instance_config.function_config.userConfig[key])
+    if key in self.instance_config.function_details.userConfig:
+      return str(self.instance_config.function_details.userConfig[key])
     else:
       return None
   
   def get_user_config_map(self):
-    return self.instance_config.function_config.userConfig
+    return self.instance_config.function_details.userConfig
 
   def record_metric(self, metric_name, metric_value):
     if not metric_name in self.accumulated_metrics:
@@ -108,10 +108,10 @@ class ContextImpl(pulsar.Context):
     self.accumulated_metrics[metric_name].update(metric_value)
 
   def get_output_topic(self):
-    return self.instance_config.function_config.output
+    return self.instance_config.function_details.output
 
   def get_output_serde_class_name(self):
-    return self.instance_config.function_config.outputSerdeClassName
+    return self.instance_config.function_details.outputSerdeClassName
 
   def publish(self, topic_name, message):
     return self.publish(topic_name, message, "serde.IdentitySerDe")
