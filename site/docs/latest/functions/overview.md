@@ -397,4 +397,9 @@ Pulsar Functions that use the [Pulsar Functions SDK](#sdk) can publish metrics t
 
 ## State storage
 
-Pulsar Functions use [Apache BookKeeper](https://bookkeeper.apache.org) as a state storage interface. All Pulsar installations, including local {% popover standalone %} installations, include a deployment of BookKeeper {% popover bookies %}.
+Pulsar Functions are a great choice for performing stateless computations using Pulsar message data. But they can also be used for operations that do require state via the **state storage API**. For a more in-depth guide, see [State storage for Pulsar Functions](../state).
+
+{% include admonition.html type="info" content="Pulsar Function [counters](#counters) are simply a special case of Pulsar Function state storage." %}
+
+{% include admonition.html type="success" title="No need for an external database"
+content="Pulsar uses the [Apache BookKeeper](../../getting-started/ConceptsAndArchitecture#persistent-storage) log storage system for persistent storage of message data (and for other purposes). Pulsar Functions also use BookKeeper for state storage. This means that get state storage \"for free\" in Pulsar Functions, i.e. you get a fast, strongly consistent, highly available data storage system without needing to deploy your own." %}

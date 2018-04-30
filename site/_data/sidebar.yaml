@@ -44,6 +44,8 @@ groups:
     endpoint: deployment
   - title: Processing guarantees
     endpoint: guarantees
+  - title: State storage
+    endpoint: state
   - title: Metrics for Pulsar Functions
     endpoint: metrics
 
