@@ -32,6 +32,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.ProcessingGuarantees;
+import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
@@ -129,12 +130,15 @@ public class JavaInstanceMain {
         functionDetailsBuilder.setName(functionName);
         functionDetailsBuilder.setClassName(className);
 
+        SinkSpec.Builder sinkSpecBuilder = SinkSpec.newBuilder();
         if (outputSerdeClassName != null) {
-            functionDetailsBuilder.setOutputSerdeClassName(outputSerdeClassName);
+            sinkSpecBuilder.setSerDeClassName(outputSerdeClassName);
         }
         if (outputTopicName != null) {
-            functionDetailsBuilder.setOutput(outputTopicName);
+            sinkSpecBuilder.setTopic(outputTopicName);
         }
+        functionDetailsBuilder.setSink(sinkSpecBuilder);
+
         if (logTopic != null) {
             functionDetailsBuilder.setLogTopic(logTopic);
         }

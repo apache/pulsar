@@ -70,7 +70,7 @@ public class AtLeastOnceProcessor extends MessageProcessorBase {
             try {
                 producer.close();
             } catch (PulsarClientException e) {
-                log.warn("Fail to close producer for processor {}", functionDetails.getOutput(), e);
+                log.warn("Fail to close producer for processor {}", functionDetails.getSink().getTopic(), e);
             }
         }
     }
