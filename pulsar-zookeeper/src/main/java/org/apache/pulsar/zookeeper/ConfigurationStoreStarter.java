@@ -21,10 +21,10 @@ package org.apache.pulsar.zookeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class GlobalZooKeeperStarter extends ZooKeeperStarter {
+public class ConfigurationStoreStarter extends ZooKeeperStarter {
     public static void main(String[] args) throws Exception {
         start(args, "8001");
     }
 
-    private static final Logger log = LoggerFactory.getLogger(GlobalZooKeeperStarter.class);
+    private static final Logger log = LoggerFactory.getLogger(ConfigurationStoreStarter.class);
 }

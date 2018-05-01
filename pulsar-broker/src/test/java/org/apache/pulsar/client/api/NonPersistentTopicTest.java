@@ -886,7 +886,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             config1.setAdvertisedAddress("localhost");
             config1.setWebServicePort(webServicePort1);
             config1.setZookeeperServers("127.0.0.1:" + zkPort1);
-            config1.setGlobalZookeeperServers("127.0.0.1:" + globalZKPort + "/foo");
+            config1.setConfigurationStoreServers("127.0.0.1:" + globalZKPort + "/foo");
             config1.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
             config1.setBrokerServicePurgeInactiveFrequencyInSeconds(
                     inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
@@ -912,7 +912,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             config2.setWebServicePort(webServicePort2);
             config2.setAdvertisedAddress("localhost");
             config2.setZookeeperServers("127.0.0.1:" + zkPort2);
-            config2.setGlobalZookeeperServers("127.0.0.1:" + globalZKPort + "/foo");
+            config2.setConfigurationStoreServers("127.0.0.1:" + globalZKPort + "/foo");
             config2.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
             config2.setBrokerServicePurgeInactiveFrequencyInSeconds(
                     inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
@@ -938,7 +938,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             config3.setWebServicePort(webServicePort3);
             config3.setAdvertisedAddress("localhost");
             config3.setZookeeperServers("127.0.0.1:" + zkPort3);
-            config3.setGlobalZookeeperServers("127.0.0.1:" + globalZKPort + "/foo");
+            config3.setConfigurationStoreServers("127.0.0.1:" + globalZKPort + "/foo");
             config3.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
             config3.setBrokerServicePurgeInactiveFrequencyInSeconds(
                     inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
