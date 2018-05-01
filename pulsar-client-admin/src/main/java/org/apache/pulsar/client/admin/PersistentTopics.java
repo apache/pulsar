@@ -18,10 +18,5 @@
  */
 package org.apache.pulsar.client.admin;
 
-/**
- * @deprecated since 2.0. See {@link Topics}
- */
 @Deprecated
-public interface PersistentTopics extends Topics {
-
-}
+public interface PersistentTopics extends Topics {}

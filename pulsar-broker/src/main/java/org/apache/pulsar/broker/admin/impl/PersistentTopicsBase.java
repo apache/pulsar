@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -285,6 +286,17 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
+    protected void internalDeleteTopicForcefully(boolean authoritative) {
+        validateAdminOperationOnTopic(true);
+        Topic topic = getTopicReference(topicName);
+        try {
+            topic.deleteForcefully().get();
+        } catch (Exception e) {
+            log.error("[{}] Failed to delete topic forcefully {}", clientAppId(), topicName, e);
+            throw new RestException(e);
+        }
+    }
+
     protected void internalRevokePermissionsOnTopic(String role) {
         // This operation should be reading from zookeeper and it should be allowed without having admin privileges
         validateAdminAccessForTenant(namespaceName.getTenant());
@@ -394,7 +406,7 @@ public class PersistentTopicsBase extends AdminResource {
         return metadata;
     }
 
-    protected void internalDeletePartitionedTopic(boolean authoritative) {
+    protected void internalDeletePartitionedTopic(boolean authoritative, boolean force) {
         validateAdminAccessForTenant(topicName.getTenant());
         PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(topicName, authoritative);
         int numPartitions = partitionMetadata.partitions;
@@ -404,7 +416,7 @@ public class PersistentTopicsBase extends AdminResource {
             try {
                 for (int i = 0; i < numPartitions; i++) {
                     TopicName topicNamePartition = topicName.getPartition(i);
-                    pulsar().getAdminClient().topics().deleteAsync(topicNamePartition.toString())
+                    pulsar().getAdminClient().persistentTopics().deleteAsync(topicNamePartition.toString(), force)
                             .whenComplete((r, ex) -> {
                                 if (ex != null) {
                                     if (ex instanceof NotFoundException) {
@@ -465,6 +477,14 @@ public class PersistentTopicsBase extends AdminResource {
         unloadTopic(topicName, authoritative);
     }
 
+    protected void internalDeleteTopic(boolean authoritative, boolean force) {
+        if (force) {
+            internalDeleteTopicForcefully(authoritative);
+        } else {
+            internalDeleteTopic(authoritative);
+        }
+    }
+    
     protected void internalDeleteTopic(boolean authoritative) {
         validateAdminOperationOnTopic(authoritative);
         Topic topic = getTopicReference(topicName);
