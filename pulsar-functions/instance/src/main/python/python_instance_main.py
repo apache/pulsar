@@ -103,10 +103,13 @@ def main():
     sourceSpec.topicsToSerDeClassName[topics] = serde_classname
   function_details.source.MergeFrom(sourceSpec)
 
+  sinkSpec = Function_pb2.SinkSpec()
   if args.output_topic != None and len(args.output_topic) != 0:
-    function_details.output = args.output_topic
+    sinkSpec.topic = args.output_topic
   if args.output_serde_classname != None and len(args.output_serde_classname) != 0:
-    function_details.outputSerdeClassName = args.output_serde_classname
+    sinkSpec.serDeClassName = args.output_serde_classname
+  function_details.sink.MergeFrom(sinkSpec)
+
   function_details.processingGuarantees = Function_pb2.ProcessingGuarantees.Value(args.processing_guarantees)
   if args.auto_ack == "true":
     function_details.autoAck = True

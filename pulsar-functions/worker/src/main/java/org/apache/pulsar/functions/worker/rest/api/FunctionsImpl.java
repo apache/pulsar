@@ -492,7 +492,7 @@ public class FunctionsImpl {
         } else {
             return Response.status(Status.BAD_REQUEST).build();
         }
-        String outputTopic = functionMetaData.getFunctionDetails().getOutput();
+        String outputTopic = functionMetaData.getFunctionDetails().getSink().getTopic();
         Reader reader = null;
         Producer producer = null;
         try {
