@@ -75,6 +75,8 @@ import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.PersistentTopicStats;
+import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -270,8 +272,13 @@ public class TopicsImpl extends BaseResource implements Topics, PersistentTopics
 
     @Override
     public void deletePartitionedTopic(String topic) throws PulsarAdminException {
+        deletePartitionedTopic(topic, false);
+    }
+
+    @Override
+    public void deletePartitionedTopic(String topic, boolean force) throws PulsarAdminException {
         try {
-            deletePartitionedTopicAsync(topic).get();
+            deletePartitionedTopicAsync(topic, force).get();
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -281,16 +288,22 @@ public class TopicsImpl extends BaseResource implements Topics, PersistentTopics
     }
 
     @Override
-    public CompletableFuture<Void> deletePartitionedTopicAsync(String topic) {
+    public CompletableFuture<Void> deletePartitionedTopicAsync(String topic, boolean force) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "partitions");
+        path = path.queryParam("force", force);
         return asyncDeleteRequest(path);
     }
 
     @Override
     public void delete(String topic) throws PulsarAdminException {
+        delete(topic, false);
+    }
+
+    @Override
+    public void delete(String topic, boolean force) throws PulsarAdminException {
         try {
-            deleteAsync(topic).get();
+            deleteAsync(topic, force).get();
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -300,9 +313,10 @@ public class TopicsImpl extends BaseResource implements Topics, PersistentTopics
     }
 
     @Override
-    public CompletableFuture<Void> deleteAsync(String topic) {
+    public CompletableFuture<Void> deleteAsync(String topic, boolean force) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn);
+        path = path.queryParam("force", Boolean.toString(force));
         return asyncDeleteRequest(path);
     }
 
