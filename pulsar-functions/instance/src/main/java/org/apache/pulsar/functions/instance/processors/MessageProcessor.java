@@ -63,7 +63,7 @@ public interface MessageProcessor extends AutoCloseable {
      * @param inputType the input type of the function
      * @throws Exception
      */
-    void setupInput(Class<?> inputType)
+    void setupInput(Class<?> inputType, ClassLoader clsLoader)
         throws Exception;
 
     /**

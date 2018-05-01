@@ -61,7 +61,7 @@ abstract class MessageProcessorBase implements MessageProcessor {
     //
 
     @Override
-    public void setupInput(Class<?> inputType) throws Exception {
+    public void setupInput(Class<?> inputType, ClassLoader clsLoader) throws Exception {
 
         org.apache.pulsar.functions.proto.Function.SourceSpec sourceSpec = this.functionDetails.getSource();
         Object object;
@@ -75,6 +75,7 @@ abstract class MessageProcessorBase implements MessageProcessor {
             pulsarConfig.setSubscriptionType(
                     FunctionConfig.SubscriptionType.valueOf(this.functionDetails.getSource().getSubscriptionType().name()));
             pulsarConfig.setTypeClassName(inputType.getName());
+            pulsarConfig.setClsLoader(clsLoader);
 
             Object[] params = {this.client, pulsarConfig};
             Class[] paramTypes = {PulsarClient.class, PulsarConfig.class};

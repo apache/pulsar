@@ -159,7 +159,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         // start the output producer
         processor.setupOutput(outputSerDe);
         // start the input consumer
-        processor.setupInput(typeArgs[0]);
+        processor.setupInput(typeArgs[0], clsLoader);
         // start any log topic handler
         setupLogHandler();
 
