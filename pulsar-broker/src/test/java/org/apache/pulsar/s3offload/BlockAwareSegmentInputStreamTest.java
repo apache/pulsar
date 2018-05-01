@@ -217,18 +217,11 @@ public class BlockAwareSegmentInputStreamTest {
         assertTrue(inputStream.getStartEntryId() == 0);
         assertTrue(inputStream.getBlockSize() == blockSize);
 
-        // verify header
-        DataBlockHeader header = inputStream.getDataBlockHeader();
-        assertTrue(header.getBlockMagicWord() == 0xDBDBDBDB);
-        assertTrue(header.getBlockLength() == blockSize);
-        assertTrue(header.getFirstEntryId() == 0);
-
         // verify read inputStream
         // 1. read header. 128
-        byte headerB[] = new byte[DataBlockHeader.getDataStartOffset()];
+        byte headerB[] = new byte[DataBlockHeaderImpl.getDataStartOffset()];
         ByteStreams.readFully(inputStream, headerB);
         DataBlockHeader headerRead = DataBlockHeaderImpl.fromStream(new ByteArrayInputStream(headerB));
-        assertTrue(headerRead.getBlockMagicWord() == 0xDBDBDBDB);
         assertTrue(headerRead.getBlockLength() == blockSize);
         assertTrue(headerRead.getFirstEntryId() == 0);
 
@@ -256,7 +249,7 @@ public class BlockAwareSegmentInputStreamTest {
         });
 
         // 3. read padding
-        int left = blockSize - DataBlockHeader.getDataStartOffset() -  expectedEntryCount * (entrySize + 4 + 8);
+        int left = blockSize - DataBlockHeaderImpl.getDataStartOffset() -  expectedEntryCount * (entrySize + 4 + 8);
         assertEquals(left, 5);
         byte padding[] = new byte[left];
         inputStream.read(padding);
@@ -293,18 +286,11 @@ public class BlockAwareSegmentInputStreamTest {
         assertTrue(inputStream.getStartEntryId() == 0);
         assertTrue(inputStream.getBlockSize() == blockSize);
 
-        // verify header
-        DataBlockHeader header = inputStream.getDataBlockHeader();
-        assertTrue(header.getBlockMagicWord() == 0xDBDBDBDB);
-        assertTrue(header.getBlockLength() == blockSize);
-        assertTrue(header.getFirstEntryId() == 0);
-
         // verify read inputStream
         // 1. read header. 128
-        byte headerB[] = new byte[DataBlockHeader.getDataStartOffset()];
+        byte headerB[] = new byte[DataBlockHeaderImpl.getDataStartOffset()];
         ByteStreams.readFully(inputStream, headerB);
         DataBlockHeader headerRead = DataBlockHeaderImpl.fromStream(new ByteArrayInputStream(headerB));
-        assertTrue(headerRead.getBlockMagicWord() == 0xDBDBDBDB);
         assertTrue(headerRead.getBlockLength() == blockSize);
         assertTrue(headerRead.getFirstEntryId() == 0);
 
@@ -332,7 +318,7 @@ public class BlockAwareSegmentInputStreamTest {
         });
 
         // 3. should be no padding
-        int left = blockSize - DataBlockHeader.getDataStartOffset() -  expectedEntryCount * (entrySize + 4 + 8);
+        int left = blockSize - DataBlockHeaderImpl.getDataStartOffset() -  expectedEntryCount * (entrySize + 4 + 8);
         assertEquals(left, 0);
 
         // 4. reach end.
@@ -363,18 +349,11 @@ public class BlockAwareSegmentInputStreamTest {
         assertTrue(inputStream.getStartEntryId() == 0);
         assertTrue(inputStream.getBlockSize() == blockSize);
 
-        // verify header
-        DataBlockHeader header = inputStream.getDataBlockHeader();
-        assertTrue(header.getBlockMagicWord() == 0xDBDBDBDB);
-        assertTrue(header.getBlockLength() == blockSize);
-        assertTrue(header.getFirstEntryId() == 0);
-
         // verify read inputStream
         // 1. read header. 128
-        byte headerB[] = new byte[DataBlockHeader.getDataStartOffset()];
+        byte headerB[] = new byte[DataBlockHeaderImpl.getDataStartOffset()];
         ByteStreams.readFully(inputStream, headerB);
         DataBlockHeader headerRead = DataBlockHeaderImpl.fromStream(new ByteArrayInputStream(headerB));
-        assertTrue(headerRead.getBlockMagicWord() == 0xDBDBDBDB);
         assertTrue(headerRead.getBlockLength() == blockSize);
         assertTrue(headerRead.getFirstEntryId() == 0);
 
@@ -402,7 +381,7 @@ public class BlockAwareSegmentInputStreamTest {
         });
 
         // 3. should have no padding
-        int left = blockSize - DataBlockHeader.getDataStartOffset() -  expectedEntryCount * (entrySize + 4 + 8);
+        int left = blockSize - DataBlockHeaderImpl.getDataStartOffset() -  expectedEntryCount * (entrySize + 4 + 8);
         assertEquals(left, 0);
 
         // 4. reach end.
