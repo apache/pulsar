@@ -69,8 +69,8 @@ message SinkSpec {
     string configs = 2;
 
     // configs used only when functions output to sink
-    string topic = 4;
-    string serDeClassName = 5;
+    string topic = 3;
+    string serDeClassName = 4;
 }
 
 message PackageLocationMetaData {
