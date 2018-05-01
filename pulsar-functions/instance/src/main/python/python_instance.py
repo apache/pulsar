@@ -226,9 +226,9 @@ class PythonInstance(object):
       msg.consumer.acknowledge(msg.message)
 
   def setup_output_serde(self):
-    if self.instance_config.function_details.outputSerdeClassName != None and \
-            len(self.instance_config.function_details.outputSerdeClassName) > 0:
-      serde_kclass = util.import_class(os.path.dirname(self.user_code), self.instance_config.function_details.outputSerdeClassName)
+    if self.instance_config.function_details.sink.serDeClassName != None and \
+            len(self.instance_config.function_details.sink.serDeClassName) > 0:
+      serde_kclass = util.import_class(os.path.dirname(self.user_code), self.instance_config.function_details.sink.serDeClassName)
       self.output_serde = serde_kclass()
     else:
       global DEFAULT_SERIALIZER
@@ -236,11 +236,11 @@ class PythonInstance(object):
       self.output_serde = serde_kclass()
 
   def setup_producer(self):
-    if self.instance_config.function_details.output != None and \
-            len(self.instance_config.function_details.output) > 0:
-      Log.info("Setting up producer for topic %s" % self.instance_config.function_details.output)
+    if self.instance_config.function_details.sink.topic != None and \
+            len(self.instance_config.function_details.sink.topic) > 0:
+      Log.info("Setting up producer for topic %s" % self.instance_config.function_details.sink.topic)
       self.producer = self.pulsar_client.create_producer(
-        str(self.instance_config.function_details.output),
+        str(self.instance_config.function_details.sink.topic),
         block_if_queue_full=True,
         batching_enabled=True,
         batching_max_publish_delay_ms=1,
