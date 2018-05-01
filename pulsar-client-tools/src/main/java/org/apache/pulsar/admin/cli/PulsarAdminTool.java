@@ -50,7 +50,7 @@ public class PulsarAdminTool {
     Boolean tlsAllowInsecureConnection;
 
 
-    @Parameter(names = { "--tls-enable-hostname-verification" }, description = "Enalbe TLS common name verification")
+    @Parameter(names = { "--tls-enable-hostname-verification" }, description = "Enable TLS common name verification")
     Boolean tlsEnableHostnameVerification;
 
     @Parameter(names = { "-h", "--help", }, help = true, description = "Show this help.")

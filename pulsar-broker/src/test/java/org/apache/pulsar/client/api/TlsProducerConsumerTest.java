@@ -19,17 +19,11 @@
 package org.apache.pulsar.client.api;
 
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
@@ -128,34 +122,6 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
                     .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
         } catch (Exception ex) {
             Assert.fail("Should not fail since certs are sent.");
-        }
-    }
-
-    @DataProvider(name = "hostnameVerification")
-    public Object[][] hostnameVerificationCodecProvider() {
-        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
-    }
-
-    @Test(dataProvider = "hostnameVerification")
-    public void testTlsHostVerificationAdminClient(boolean hostnameVerificationEnabled) throws Exception {
-        Map<String, String> authParams = new HashMap<>();
-        authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
-        authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
-        PulsarAdmin adminClient = PulsarAdmin.builder().serviceHttpUrl("https://127.0.0.1:" + BROKER_WEBSERVICE_PORT_TLS)
-                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(false)
-                .authentication(AuthenticationTls.class.getName(), authParams)
-                .enableTlsHostnameVerification(hostnameVerificationEnabled).build();
-
-        try {
-            adminClient.tenants().getTenants();
-            if (hostnameVerificationEnabled) {
-                Assert.fail("Admin call should be failed due to hostnameVerification enabled");
-            }
-        } catch (PulsarAdminException e) {
-            if (!hostnameVerificationEnabled) {
-                e.printStackTrace();
-                Assert.fail("Admin call should have succeeded because hostnameverification is disabled");
-            }
         }
     }
 }
