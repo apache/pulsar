@@ -86,7 +86,6 @@ public class TestCompaction extends Arquillian {
             }
 
             PulsarClusterUtils.runOnAnyBroker(docker, clusterName,
-                                              "",
                                               PulsarClusterUtils.PULSAR, "compact-topic",
                                               "-t", topic);
 
