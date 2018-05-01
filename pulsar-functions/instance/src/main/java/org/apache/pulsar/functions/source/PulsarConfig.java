@@ -40,6 +40,7 @@ public class PulsarConfig {
     private String subscriptionName;
     private Map<String, String> topicSerdeClassNameMap;
     private String typeClassName;
+    private ClassLoader clsLoader;
 
     public static PulsarConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
