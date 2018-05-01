@@ -217,9 +217,7 @@ public class SchemasResource extends AdminResource {
             )
         ).exceptionally(error -> {
             if (error instanceof IncompatibleSchemaException) {
-                response.resume(
-                    Response.status(Response.Status.BAD_REQUEST).build()
-                );
+                response.resume(Response.status(Response.Status.CONFLICT).build());
             } else {
                 response.resume(
                     Response.serverError().build()
