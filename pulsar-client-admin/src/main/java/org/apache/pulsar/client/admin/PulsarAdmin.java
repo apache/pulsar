@@ -30,6 +30,8 @@ import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.conn.ssl.DefaultHostnameVerifier;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.pulsar.client.admin.internal.BrokerStatsImpl;
 import org.apache.pulsar.client.admin.internal.BrokersImpl;
 import org.apache.pulsar.client.admin.internal.ClustersImpl;
@@ -147,6 +149,12 @@ public class PulsarAdmin implements Closeable {
                 }
 
                 clientBuilder.sslContext(sslCtx);
+                if (clientConfigData.isTlsHostnameVerificationEnable()) {
+                    clientBuilder.hostnameVerifier(new DefaultHostnameVerifier());
+                } else {
+                    // Disable hostname verification
+                    clientBuilder.hostnameVerifier(NoopHostnameVerifier.INSTANCE);
+                }
             } catch (Exception e) {
                 try {
                     if (auth != null) {
