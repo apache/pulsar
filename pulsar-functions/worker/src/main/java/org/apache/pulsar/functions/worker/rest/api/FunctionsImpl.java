@@ -76,10 +76,22 @@ public class FunctionsImpl {
     private WorkerService worker() {
         try {
             return checkNotNull(workerServiceSupplier.get());
+
         } catch (Throwable t) {
             log.info("Failed to get worker service", t);
             throw t;
         }
+    }
+
+    private boolean isWorkerServiceAvaible() {
+        WorkerService workerService = workerServiceSupplier.get();
+        if (workerService == null) {
+            return false;
+        }
+        if (!workerService.isInitialized()) {
+            return false;
+        }
+        return true;
     }
 
     @POST
@@ -91,6 +103,15 @@ public class FunctionsImpl {
                                      final @FormDataParam("data") InputStream uploadedInputStream,
                                      final @FormDataParam("data") FormDataContentDisposition fileDetail,
                                      final @FormDataParam("functionDetails") String functionDetailsJson) {
+
+        if (!isWorkerServiceAvaible()) {
+            return Response.status(Status.SERVICE_UNAVAILABLE)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData("Function worker service is not done initializing. "
+                            + "Please try again in a little while."))
+                    .build();
+        }
+
         FunctionDetails functionDetails;
         // validate parameters
         try {
@@ -141,6 +162,14 @@ public class FunctionsImpl {
                                    final @FormDataParam("data") FormDataContentDisposition fileDetail,
                                    final @FormDataParam("functionDetails") String functionDetailsJson) {
 
+        if (!isWorkerServiceAvaible()) {
+            return Response.status(Status.SERVICE_UNAVAILABLE)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData("Function worker service is not done initializing. "
+                            + "Please try again in a little while."))
+                    .build();
+        }
+
         FunctionDetails functionDetails;
         // validate parameters
         try {
@@ -186,6 +215,14 @@ public class FunctionsImpl {
     public Response deregisterFunction(final @PathParam("tenant") String tenant,
                                        final @PathParam("namespace") String namespace,
                                        final @PathParam("functionName") String functionName) {
+
+        if (!isWorkerServiceAvaible()) {
+            return Response.status(Status.SERVICE_UNAVAILABLE)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData("Function worker service is not done initializing. "
+                            + "Please try again in a little while."))
+                    .build();
+        }
 
         // validate parameters
         try {
@@ -244,6 +281,14 @@ public class FunctionsImpl {
                                     final @PathParam("functionName") String functionName)
             throws IOException {
 
+        if (!isWorkerServiceAvaible()) {
+            return Response.status(Status.SERVICE_UNAVAILABLE)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData("Function worker service is not done initializing. "
+                            + "Please try again in a little while."))
+                    .build();
+        }
+
         // validate parameters
         try {
             validateGetFunctionRequestParams(tenant, namespace, functionName);
@@ -275,6 +320,14 @@ public class FunctionsImpl {
                                               final @PathParam("namespace") String namespace,
                                               final @PathParam("functionName") String functionName,
                                               final @PathParam("instanceId") String instanceId) throws IOException {
+
+        if (!isWorkerServiceAvaible()) {
+            return Response.status(Status.SERVICE_UNAVAILABLE)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData("Function worker service is not done initializing. "
+                            + "Please try again in a little while."))
+                    .build();
+        }
 
         // validate parameters
         try {
@@ -319,6 +372,14 @@ public class FunctionsImpl {
                                       final @PathParam("namespace") String namespace,
                                       final @PathParam("functionName") String functionName) throws IOException {
 
+        if (!isWorkerServiceAvaible()) {
+            return Response.status(Status.SERVICE_UNAVAILABLE)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData("Function worker service is not done initializing. "
+                            + "Please try again in a little while."))
+                    .build();
+        }
+
         // validate parameters
         try {
             validateGetFunctionRequestParams(tenant, namespace, functionName);
@@ -359,6 +420,14 @@ public class FunctionsImpl {
     @Path("/{tenant}/{namespace}")
     public Response listFunctions(final @PathParam("tenant") String tenant,
                                   final @PathParam("namespace") String namespace) {
+
+        if (!isWorkerServiceAvaible()) {
+            return Response.status(Status.SERVICE_UNAVAILABLE)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData("Function worker service is not done initializing. "
+                            + "Please try again in a little while."))
+                    .build();
+        }
 
         // validate parameters
         try {
@@ -429,6 +498,15 @@ public class FunctionsImpl {
     @GET
     @Path("/cluster")
     public Response getCluster() {
+
+        if (!isWorkerServiceAvaible()) {
+            return Response.status(Status.SERVICE_UNAVAILABLE)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData("Function worker service is not done initializing. "
+                            + "Please try again in a little while."))
+                    .build();
+        }
+
         MembershipManager membershipManager = worker().getMembershipManager();
         List<MembershipManager.WorkerInfo> members = membershipManager.getCurrentMembership();
         return Response.status(Status.OK).entity(new Gson().toJson(members)).build();
@@ -437,6 +515,15 @@ public class FunctionsImpl {
     @GET
     @Path("/assignments")
     public Response getAssignments() {
+
+        if (!isWorkerServiceAvaible()) {
+            return Response.status(Status.SERVICE_UNAVAILABLE)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData("Function worker service is not done initializing. "
+                            + "Please try again in a little while."))
+                    .build();
+        }
+
         FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
         Map<String, Map<String, Function.Assignment>> assignments = functionRuntimeManager.getCurrentAssignments();
         Map<String, Collection<String>> ret = new HashMap<>();
@@ -456,6 +543,15 @@ public class FunctionsImpl {
                                     final @FormDataParam("data") String input,
                                     final @FormDataParam("dataStream") InputStream uploadedInputStream,
                                     final @FormDataParam("topic") String topic) {
+
+        if (!isWorkerServiceAvaible()) {
+            return Response.status(Status.SERVICE_UNAVAILABLE)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData("Function worker service is not done initializing. "
+                            + "Please try again in a little while."))
+                    .build();
+        }
+
         FunctionDetails functionDetails;
         // validate parameters
         try {
