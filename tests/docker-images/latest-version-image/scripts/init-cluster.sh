@@ -27,7 +27,7 @@ if [ $? != 0 ]; then
     echo Initializing cluster
     bin/apply-config-from-env.py conf/bookkeeper.conf &&
         bin/pulsar initialize-cluster-metadata --cluster $cluster --zookeeper $zkServers \
-                   --global-zookeeper $globalZkServers --web-service-url http://$pulsarNode:8080/ \
+                   --configuration-store $configurationStore --web-service-url http://$pulsarNode:8080/ \
                    --broker-service-url http://$pulsarNode:6650/ &&
         bin/watch-znode.py -z $zkServers -p $ZNODE -c
     echo Initialized

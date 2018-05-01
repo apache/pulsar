@@ -51,7 +51,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
 
         proxyConfig.setServicePort(PortManager.nextFreePort());
         proxyConfig.setZookeeperServers(DUMMY_VALUE);
-        proxyConfig.setGlobalZookeeperServers(DUMMY_VALUE);
+        proxyConfig.setConfigurationStoreServers(DUMMY_VALUE);
 
         proxyService = Mockito.spy(new ProxyService(proxyConfig));
         doReturn(mockZooKeeperClientFactory).when(proxyService).getZooKeeperClientFactory();

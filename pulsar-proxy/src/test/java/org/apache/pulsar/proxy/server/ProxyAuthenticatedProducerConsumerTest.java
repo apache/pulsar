@@ -117,7 +117,7 @@ public class ProxyAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         proxyConfig.setAuthenticationProviders(providers);
 
         proxyConfig.setZookeeperServers(DUMMY_VALUE);
-        proxyConfig.setGlobalZookeeperServers(DUMMY_VALUE);
+        proxyConfig.setConfigurationStoreServers(DUMMY_VALUE);
 
         proxyService = Mockito.spy(new ProxyService(proxyConfig));
         doReturn(mockZooKeeperClientFactory).when(proxyService).getZooKeeperClientFactory();

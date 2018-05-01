@@ -31,7 +31,6 @@
     <version>2.0.0-incubating-SNAPSHOT</version>
   </parent>
 
-  <groupId>org.apache.pulsar.tests</groupId>
   <artifactId>integration-tests-base</artifactId>
   <packaging>pom</packaging>
 
