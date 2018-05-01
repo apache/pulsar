@@ -166,9 +166,10 @@ var activeTableTab = "activeTableTab";
 </tr>
 <tr id="i6" class="altColor">
 <td class="colFirst"><code>String</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#triggerFunction-java.lang.String-java.lang.String-java.lang.String-java.lang.String-java.lang.String-">triggerFunction</a></span>(String&nbsp;tenant,
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#triggerFunction-java.lang.String-java.lang.String-java.lang.String-java.lang.String-java.lang.String-java.lang.String-">triggerFunction</a></span>(String&nbsp;tenant,
                String&nbsp;namespace,
                String&nbsp;function,
+               String&nbsp;topic,
                String&nbsp;triggerValue,
                String&nbsp;triggerFile)</code>
 <div class="block">Triggers the function by writing to the input topic.</div>
@@ -345,7 +346,7 @@ var activeTableTab = "activeTableTab";
 </dl>
 </li>
 </ul>
-<a name="triggerFunction-java.lang.String-java.lang.String-java.lang.String-java.lang.String-java.lang.String-">
+<a name="triggerFunction-java.lang.String-java.lang.String-java.lang.String-java.lang.String-java.lang.String-java.lang.String-">
 <!--   -->
 </a>
 <ul class="blockList">
@@ -354,6 +355,7 @@ var activeTableTab = "activeTableTab";
 <pre>String&nbsp;triggerFunction(String&nbsp;tenant,
                        String&nbsp;namespace,
                        String&nbsp;function,
+                       String&nbsp;topic,
                        String&nbsp;triggerValue,
                        String&nbsp;triggerFile)
                 throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
