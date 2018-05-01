@@ -157,7 +157,7 @@ public interface Functions {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    String triggerFunction(String tenant, String namespace, String function, String triggerValue, String triggerFile) throws PulsarAdminException;
+    String triggerFunction(String tenant, String namespace, String function, String topic, String triggerValue, String triggerFile) throws PulsarAdminException;
 
     /**
      * Upload Data.

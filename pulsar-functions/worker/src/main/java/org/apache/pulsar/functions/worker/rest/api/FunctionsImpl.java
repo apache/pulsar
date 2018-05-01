@@ -448,14 +448,14 @@ public class FunctionsImpl {
     }
 
     @POST
-    @Path("/{tenant}/{namespace}/{functionName}/{topic}/trigger")
+    @Path("/{tenant}/{namespace}/{functionName}/trigger")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public Response triggerFunction(final @PathParam("tenant") String tenant,
                                     final @PathParam("namespace") String namespace,
                                     final @PathParam("name") String functionName,
-                                    final @PathParam("topic") String topic,
                                     final @FormDataParam("data") String input,
-                                    final @FormDataParam("dataStream") InputStream uploadedInputStream) {
+                                    final @FormDataParam("dataStream") InputStream uploadedInputStream,
+                                    final @FormDataParam("topic") String topic) {
         FunctionDetails functionDetails;
         // validate parameters
         try {
@@ -480,9 +480,15 @@ public class FunctionsImpl {
         FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, functionName);
 
         String inputTopicToWrite;
-        // only if the source is PulsarSource
-        if (functionMetaData.getFunctionDetails().getSource().getClassName().equals(PulsarSource.class.getName())) {
-            inputTopicToWrite =  topic;
+        // only if the source is PulsarSource and if the function consumes only one topic
+        if (!functionMetaData.getFunctionDetails().getSource().getClassName().equals(PulsarSource.class.getName())) {
+            return Response.status(Status.BAD_REQUEST).build();
+        }
+        if (topic != null) {
+            inputTopicToWrite = topic;
+        } else if (functionMetaData.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap().size() == 1) {
+            inputTopicToWrite =
+                    functionMetaData.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap().keySet().iterator().next();
         } else {
             return Response.status(Status.BAD_REQUEST).build();
         }
@@ -706,9 +712,6 @@ public class FunctionsImpl {
         }
         if (functionName == null) {
             throw new IllegalArgumentException("Function Name is not provided");
-        }
-        if (topic == null) {
-            throw new IllegalArgumentException("Topic Name is not provided");
         }
         if (uploadedInputStream == null && input == null) {
             throw new IllegalArgumentException("Trigger Data is not provided");
