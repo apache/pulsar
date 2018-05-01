@@ -82,7 +82,7 @@ public class FunctionsImpl {
         }
     }
 
-    private boolean isWorkerServiceAvaible() {
+    private boolean isWorkerServiceAvailable() {
         WorkerService workerService = workerServiceSupplier.get();
         if (workerService == null) {
             return false;
@@ -103,7 +103,7 @@ public class FunctionsImpl {
                                      final @FormDataParam("data") FormDataContentDisposition fileDetail,
                                      final @FormDataParam("functionDetails") String functionDetailsJson) {
 
-        if (!isWorkerServiceAvaible()) {
+        if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
         }
 
@@ -157,7 +157,7 @@ public class FunctionsImpl {
                                    final @FormDataParam("data") FormDataContentDisposition fileDetail,
                                    final @FormDataParam("functionDetails") String functionDetailsJson) {
 
-        if (!isWorkerServiceAvaible()) {
+        if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
         }
 
@@ -207,7 +207,7 @@ public class FunctionsImpl {
                                        final @PathParam("namespace") String namespace,
                                        final @PathParam("functionName") String functionName) {
 
-        if (!isWorkerServiceAvaible()) {
+        if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
         }
 
@@ -268,7 +268,7 @@ public class FunctionsImpl {
                                     final @PathParam("functionName") String functionName)
             throws IOException {
 
-        if (!isWorkerServiceAvaible()) {
+        if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
         }
 
@@ -304,7 +304,7 @@ public class FunctionsImpl {
                                               final @PathParam("functionName") String functionName,
                                               final @PathParam("instanceId") String instanceId) throws IOException {
 
-        if (!isWorkerServiceAvaible()) {
+        if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
         }
 
@@ -351,7 +351,7 @@ public class FunctionsImpl {
                                       final @PathParam("namespace") String namespace,
                                       final @PathParam("functionName") String functionName) throws IOException {
 
-        if (!isWorkerServiceAvaible()) {
+        if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
         }
 
@@ -396,7 +396,7 @@ public class FunctionsImpl {
     public Response listFunctions(final @PathParam("tenant") String tenant,
                                   final @PathParam("namespace") String namespace) {
 
-        if (!isWorkerServiceAvaible()) {
+        if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
         }
 
@@ -470,7 +470,7 @@ public class FunctionsImpl {
     @Path("/cluster")
     public Response getCluster() {
 
-        if (!isWorkerServiceAvaible()) {
+        if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
         }
 
@@ -483,7 +483,7 @@ public class FunctionsImpl {
     @Path("/assignments")
     public Response getAssignments() {
 
-        if (!isWorkerServiceAvaible()) {
+        if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
         }
 
@@ -507,7 +507,7 @@ public class FunctionsImpl {
                                     final @FormDataParam("dataStream") InputStream uploadedInputStream,
                                     final @FormDataParam("topic") String topic) {
 
-        if (!isWorkerServiceAvaible()) {
+        if (!isWorkerServiceAvailable()) {
             return getUnavailableResponse();
         }
 
