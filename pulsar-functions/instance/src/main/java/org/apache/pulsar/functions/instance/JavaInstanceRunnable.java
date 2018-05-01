@@ -58,6 +58,7 @@ import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.instance.processors.MessageProcessor;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.apache.pulsar.functions.source.PulsarRecord;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.instance.state.StateContextImpl;
@@ -93,7 +94,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private Exception deathException;
 
     @Getter(AccessLevel.PACKAGE)
-    private Map<String, SerDe> inputSerDe;
     private SerDe outputSerDe;
 
     @Getter(AccessLevel.PACKAGE)
@@ -159,7 +159,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         // start the output producer
         processor.setupOutput(outputSerDe);
         // start the input consumer
-        processor.setupInput(inputSerDe);
+        processor.setupInput(typeArgs[0]);
         // start any log topic handler
         setupLogHandler();
 
@@ -310,7 +310,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             throw result.getSystemException();
         } else {
             stats.incrementSuccessfullyProcessed(endTime - startTime);
-            if (result.getResult() != null && instanceConfig.getFunctionDetails().getOutput() != null) {
+            if (result.getResult() != null && instanceConfig.getFunctionDetails().getSink().getTopic() != null) {
                 byte[] output;
                 try {
                     output = outputSerDe.serialize(result.getResult());
@@ -348,7 +348,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     @Override
     public void close() {
         processor.close();
-        javaInstance.close();
+        if (null != javaInstance) {
+            javaInstance.close();
+        }
 
         // kill the state table
         if (null != stateTable) {
@@ -414,38 +416,13 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     private void setupSerDe(Class<?>[] typeArgs, ClassLoader clsLoader) {
-
-        this.inputSerDe = new HashMap<>();
-        instanceConfig.getFunctionDetails().getCustomSerdeInputsMap().forEach((k, v) -> this.inputSerDe.put(k, InstanceUtils.initializeSerDe(v, clsLoader, typeArgs[0])));
-        for (String topicName : instanceConfig.getFunctionDetails().getInputsList()) {
-            this.inputSerDe.put(topicName, InstanceUtils.initializeDefaultSerDe(typeArgs[0]));
-        }
-
-        if (Void.class.equals(typeArgs[0])) {
-            throw new RuntimeException("Input type of Pulsar Function cannot be Void");
-        }
-
-        for (SerDe serDe : inputSerDe.values()) {
-            if (serDe.getClass().getName().equals(DefaultSerDe.class.getName())) {
-                if (!DefaultSerDe.IsSupportedType(typeArgs[0])) {
-                    throw new RuntimeException("Default Serde does not support " + typeArgs[0]);
-                }
-            } else {
-                Class<?>[] inputSerdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
-                if (!typeArgs[0].isAssignableFrom(inputSerdeTypeArgs[0])) {
-                    throw new RuntimeException("Inconsistent types found between function input type and input serde type: "
-                            + " function type = " + typeArgs[0] + " should be assignable from " + inputSerdeTypeArgs[0]);
-                }
-            }
-        }
-
         if (!Void.class.equals(typeArgs[1])) { // return type is not `Void.class`
-            if (instanceConfig.getFunctionDetails().getOutputSerdeClassName() == null
-                    || instanceConfig.getFunctionDetails().getOutputSerdeClassName().isEmpty()
-                    || instanceConfig.getFunctionDetails().getOutputSerdeClassName().equals(DefaultSerDe.class.getName())) {
+            if (instanceConfig.getFunctionDetails().getSink().getSerDeClassName() == null
+                    || instanceConfig.getFunctionDetails().getSink().getSerDeClassName().isEmpty()
+                    || instanceConfig.getFunctionDetails().getSink().getSerDeClassName().equals(DefaultSerDe.class.getName())) {
                 outputSerDe = InstanceUtils.initializeDefaultSerDe(typeArgs[1]);
             } else {
-                this.outputSerDe = InstanceUtils.initializeSerDe(instanceConfig.getFunctionDetails().getOutputSerdeClassName(), clsLoader, typeArgs[1]);
+                this.outputSerDe = InstanceUtils.initializeSerDe(instanceConfig.getFunctionDetails().getSink().getSerDeClassName(), clsLoader, typeArgs[1]);
             }
             Class<?>[] outputSerdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, outputSerDe.getClass());
             if (outputSerDe.getClass().getName().equals(DefaultSerDe.class.getName())) {

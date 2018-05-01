@@ -20,9 +20,8 @@
 
 
 ROOT_DIR=$(git rev-parse --show-toplevel)
-PROTO_FILE=pulsar-common/src/main/proto/PulsarApi.proto
 
 (
-  cd $ROOT_DIR
-  protoc --doc_out=json,protobuf.json:site/_data/ $PROTO_FILE
+    cd $ROOT_DIR
+    mvn clean package -DskipTests -Pswagger
 )
