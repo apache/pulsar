@@ -51,7 +51,7 @@ import org.slf4j.LoggerFactory;
 public class OffloadIndexBlockImpl implements OffloadIndexBlock {
     private static final Logger log = LoggerFactory.getLogger(OffloadIndexBlockImpl.class);
 
-    private static final int indexMagicWord = 0xDE47DE47;
+    private static final int INDEX_MAGIC_WORD = 0xDE47DE47;
 
     private LedgerMetadata segmentMetadata;
     private TreeMap<Long, OffloadIndexEntryImpl> indexEntries;
@@ -95,11 +95,12 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
     }
 
     @Override
-    public OffloadIndexEntry getIndexEntryForEntry(long messageEntryId) {
+    public OffloadIndexEntry getIndexEntryForEntry(long messageEntryId) throws IOException {
         if(messageEntryId > segmentMetadata.getLastEntryId()) {
             log.warn("Try to get entry: {}, which beyond lastEntryId {}, return null",
                 messageEntryId, segmentMetadata.getLastEntryId());
-            return null;
+            throw new IndexOutOfBoundsException("Entry index: " + messageEntryId +
+                " beyond lastEntryId: " + segmentMetadata.getLastEntryId());
         }
         // find the greatest mapping Id whose entryId <= messageEntryId
         return this.indexEntries.floorEntry(messageEntryId).getValue();
@@ -165,13 +166,12 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
 
         ByteBuf out = PooledByteBufAllocator.DEFAULT.buffer(indexBlockLength, indexBlockLength);
 
-        out.writeInt(indexMagicWord)
+        out.writeInt(INDEX_MAGIC_WORD)
             .writeInt(indexBlockLength)
             .writeInt(segmentMetadataLength)
             .writeInt(indexEntryCount);
 
         // write metadata
-        checkState(out.writerIndex() == 16);
         out.writeBytes(ledgerMetadataByte);
 
         // write entries
@@ -301,7 +301,9 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
     private OffloadIndexBlock fromStream(InputStream stream) throws IOException {
         DataInputStream dis = new DataInputStream(stream);
         int magic = dis.readInt();
-        checkState(magic == this.indexMagicWord);
+        if (magic != this.INDEX_MAGIC_WORD) {
+            throw new IOException("Invalid MagicWord. read: " + magic + " expected: " + INDEX_MAGIC_WORD);
+        }
         int indexBlockLength = dis.readInt();
         int segmentMetadataLength = dis.readInt();
         int indexEntryCount = dis.readInt();
@@ -322,9 +324,8 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         return this;
     }
 
-    @Override
-    public int getIndexMagicWord() {
-        return indexMagicWord;
+    public static int getIndexMagicWord() {
+        return INDEX_MAGIC_WORD;
     }
 
     @Override

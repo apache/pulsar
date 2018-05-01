@@ -22,7 +22,6 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
-import org.apache.bookkeeper.common.annotation.InterfaceAudience.LimitedPrivate;
 import org.apache.bookkeeper.common.annotation.InterfaceStability.Unstable;
 
 /**
@@ -31,7 +30,6 @@ import org.apache.bookkeeper.common.annotation.InterfaceStability.Unstable;
  *
  */
 @Unstable
-@LimitedPrivate
 public interface OffloadIndexBlock extends Closeable {
 
     /**
@@ -49,7 +47,7 @@ public interface OffloadIndexBlock extends Closeable {
      *                      the entry id of message
      * @return the offload index entry
      */
-    OffloadIndexEntry getIndexEntryForEntry(long messageEntryId);
+    OffloadIndexEntry getIndexEntryForEntry(long messageEntryId) throws IOException;
 
     /**
      * Get the entry count that contained in this index Block.
@@ -61,9 +59,5 @@ public interface OffloadIndexBlock extends Closeable {
      */
     LedgerMetadata getLedgerMetadata();
 
-    /**
-     * Get Magic Word for index block.
-     */
-    int getIndexMagicWord();
 }
 
