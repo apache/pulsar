@@ -869,4 +869,10 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         } catch (PulsarAdminException.NotFoundException e) {// expected
         }
     }
+
+    @Test
+    public void clustersList() throws PulsarAdminException {
+        final String cluster = pulsar.getConfiguration().getClusterName();
+        assertEquals(admin.clusters().getClusters(), Lists.newArrayList(cluster));
+    }
 }

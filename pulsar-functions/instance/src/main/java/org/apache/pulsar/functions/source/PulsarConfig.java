@@ -16,27 +16,33 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.instance;
+package org.apache.pulsar.functions.source;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Builder;
 import lombok.Data;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
-import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.functions.api.SerDe;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.utils.FunctionConfig;
 
+import java.io.IOException;
 import java.util.Map;
 
 @Getter
 @Setter
-@Data
-@Builder
 @ToString
 public class PulsarConfig {
-    private Function.FunctionDetails.ProcessingGuarantees processingGuarantees;
-    private SubscriptionType subscriptionType;
-    private String subscription;
-    private Map<String, SerDe> topicToSerdeMap;
+
+    private FunctionConfig.ProcessingGuarantees processingGuarantees;
+    private FunctionConfig.SubscriptionType subscriptionType;
+    private String subscriptionName;
+    private Map<String, String> topicSerdeClassNameMap;
+    private String typeClassName;
+
+    public static PulsarConfig load(Map<String, Object> map) throws IOException {
+        ObjectMapper mapper = new ObjectMapper();
+        return mapper.readValue(new ObjectMapper().writeValueAsString(map), PulsarConfig.class);
+    }
 }

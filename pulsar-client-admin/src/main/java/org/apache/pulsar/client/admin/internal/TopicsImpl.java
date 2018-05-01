@@ -851,7 +851,7 @@ public class TopicsImpl extends BaseResource implements Topics, PersistentTopics
                 }
             }
 
-            return Collections.singletonList(new MessageImpl<byte[]>(msgId, properties, data, Schema.IDENTITY));
+            return Collections.singletonList(new MessageImpl<byte[]>(msgId, properties, data, Schema.BYTES));
         } finally {
             if (stream != null) {
                 stream.close();
@@ -876,7 +876,7 @@ public class TopicsImpl extends BaseResource implements Topics, PersistentTopics
                         properties.put(entry.getKey(), entry.getValue());
                     }
                 }
-                ret.add(new MessageImpl<>(batchMsgId, properties, singleMessagePayload, Schema.IDENTITY));
+                ret.add(new MessageImpl<>(batchMsgId, properties, singleMessagePayload, Schema.BYTES));
             } catch (Exception ex) {
                 log.error("Exception occured while trying to get BatchMsgId: {}", batchMsgId, ex);
             }

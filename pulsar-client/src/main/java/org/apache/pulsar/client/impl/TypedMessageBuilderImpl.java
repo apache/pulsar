@@ -25,53 +25,60 @@ import com.google.common.base.Preconditions;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageBuilder;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 
-public class MessageBuilderImpl<T> implements MessageBuilder<T> {
+public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     private static final ByteBuffer EMPTY_CONTENT = ByteBuffer.allocate(0);
+
+    private final ProducerBase<T> producer;
     private final MessageMetadata.Builder msgMetadataBuilder = MessageMetadata.newBuilder();
     private final Schema<T> schema;
-    private ByteBuffer content = EMPTY_CONTENT;
+    private ByteBuffer content;
 
-    public MessageBuilderImpl(Schema<T> schema) {
+    public TypedMessageBuilderImpl(ProducerBase<T> producer, Schema<T> schema) {
+        this.producer = producer;
         this.schema = schema;
+        this.content = EMPTY_CONTENT;
     }
 
     @Override
-    public Message<T> build() {
-        return MessageImpl.create(msgMetadataBuilder, content, schema);
+    public MessageId send() throws PulsarClientException {
+        return producer.send((Message<T>) MessageImpl.create(msgMetadataBuilder, content, schema));
     }
 
     @Override
-    public MessageBuilder<T> setValue(T value) {
-        return setContent(schema.encode(value));
+    public CompletableFuture<MessageId> sendAsync() {
+        return producer.internalSendAsync((Message<T>) MessageImpl.create(msgMetadataBuilder, content, schema));
     }
 
     @Override
-    public MessageBuilder<T> setContent(byte[] data) {
-        setContent(data, 0, data.length);
+    public TypedMessageBuilder<T> key(String key) {
+        msgMetadataBuilder.setPartitionKey(key);
         return this;
     }
 
     @Override
-    public MessageBuilder<T> setContent(byte[] data, int offet, int length) {
-        this.content = ByteBuffer.wrap(data, offet, length);
+    public TypedMessageBuilder<T> value(T value) {
+        this.content = ByteBuffer.wrap(schema.encode(value));
         return this;
     }
 
     @Override
-    public MessageBuilder<T> setContent(ByteBuffer buf) {
-        this.content = buf.duplicate();
+    public TypedMessageBuilder<T> property(String name, String value) {
+        msgMetadataBuilder.addProperties(KeyValue.newBuilder().setKey(name).setValue(value).build());
         return this;
     }
 
     @Override
-    public MessageBuilder<T> setProperties(Map<String, String> properties) {
+    public TypedMessageBuilder<T> properties(Map<String, String> properties) {
         for (Map.Entry<String, String> entry : properties.entrySet()) {
             msgMetadataBuilder
                     .addProperties(KeyValue.newBuilder().setKey(entry.getKey()).setValue(entry.getValue()).build());
@@ -81,33 +88,21 @@ public class MessageBuilderImpl<T> implements MessageBuilder<T> {
     }
 
     @Override
-    public MessageBuilder<T> setProperty(String name, String value) {
-        msgMetadataBuilder.addProperties(KeyValue.newBuilder().setKey(name).setValue(value).build());
-        return this;
-    }
-
-    @Override
-    public MessageBuilder<T> setKey(String key) {
-        msgMetadataBuilder.setPartitionKey(key);
-        return this;
-    }
-
-    @Override
-    public MessageBuilder<T> setEventTime(long timestamp) {
+    public TypedMessageBuilder<T> eventTime(long timestamp) {
         checkArgument(timestamp > 0, "Invalid timestamp : '%s'", timestamp);
         msgMetadataBuilder.setEventTime(timestamp);
         return this;
     }
 
     @Override
-    public MessageBuilder<T> setSequenceId(long sequenceId) {
+    public TypedMessageBuilder<T> sequenceId(long sequenceId) {
         checkArgument(sequenceId >= 0);
         msgMetadataBuilder.setSequenceId(sequenceId);
         return this;
     }
 
     @Override
-    public MessageBuilder<T> setReplicationClusters(List<String> clusters) {
+    public TypedMessageBuilder<T> replicationClusters(List<String> clusters) {
         Preconditions.checkNotNull(clusters);
         msgMetadataBuilder.clearReplicateTo();
         msgMetadataBuilder.addAllReplicateTo(clusters);
@@ -115,11 +110,25 @@ public class MessageBuilderImpl<T> implements MessageBuilder<T> {
     }
 
     @Override
-    public MessageBuilder<T> disableReplication() {
+    public TypedMessageBuilder<T> disableReplication() {
         msgMetadataBuilder.clearReplicateTo();
         msgMetadataBuilder.addReplicateTo("__local__");
         return this;
     }
 
+    public long getPublishTime() {
+        return msgMetadataBuilder.getPublishTime();
+    }
 
+    public boolean hasKey() {
+        return msgMetadataBuilder.hasPartitionKey();
+    }
+
+    public String getKey() {
+        return msgMetadataBuilder.getPartitionKey();
+    }
+
+    public ByteBuffer getContent() {
+        return content;
+    }
 }
