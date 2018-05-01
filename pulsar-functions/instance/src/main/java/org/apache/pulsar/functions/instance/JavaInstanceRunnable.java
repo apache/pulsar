@@ -310,7 +310,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             throw result.getSystemException();
         } else {
             stats.incrementSuccessfullyProcessed(endTime - startTime);
-            if (result.getResult() != null && instanceConfig.getFunctionDetails().getOutput() != null) {
+            if (result.getResult() != null && instanceConfig.getFunctionDetails().getSink().getTopic() != null) {
                 byte[] output;
                 try {
                     output = outputSerDe.serialize(result.getResult());
@@ -348,7 +348,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     @Override
     public void close() {
         processor.close();
-        javaInstance.close();
+        if (null != javaInstance) {
+            javaInstance.close();
+        }
 
         // kill the state table
         if (null != stateTable) {
@@ -415,12 +417,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private void setupSerDe(Class<?>[] typeArgs, ClassLoader clsLoader) {
         if (!Void.class.equals(typeArgs[1])) { // return type is not `Void.class`
-            if (instanceConfig.getFunctionDetails().getOutputSerdeClassName() == null
-                    || instanceConfig.getFunctionDetails().getOutputSerdeClassName().isEmpty()
-                    || instanceConfig.getFunctionDetails().getOutputSerdeClassName().equals(DefaultSerDe.class.getName())) {
+            if (instanceConfig.getFunctionDetails().getSink().getSerDeClassName() == null
+                    || instanceConfig.getFunctionDetails().getSink().getSerDeClassName().isEmpty()
+                    || instanceConfig.getFunctionDetails().getSink().getSerDeClassName().equals(DefaultSerDe.class.getName())) {
                 outputSerDe = InstanceUtils.initializeDefaultSerDe(typeArgs[1]);
             } else {
-                this.outputSerDe = InstanceUtils.initializeSerDe(instanceConfig.getFunctionDetails().getOutputSerdeClassName(), clsLoader, typeArgs[1]);
+                this.outputSerDe = InstanceUtils.initializeSerDe(instanceConfig.getFunctionDetails().getSink().getSerDeClassName(), clsLoader, typeArgs[1]);
             }
             Class<?>[] outputSerdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, outputSerDe.getClass());
             if (outputSerDe.getClass().getName().equals(DefaultSerDe.class.getName())) {

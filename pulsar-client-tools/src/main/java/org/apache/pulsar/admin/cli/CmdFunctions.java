@@ -62,6 +62,7 @@ import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.shaded.io.netty.buffer.ByteBuf;
 import org.apache.pulsar.functions.shaded.io.netty.buffer.ByteBufUtil;
 import org.apache.pulsar.functions.shaded.io.netty.buffer.Unpooled;
+import org.apache.pulsar.functions.shaded.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.shaded.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.shaded.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.shaded.proto.Function.SubscriptionType;
@@ -553,6 +554,16 @@ public class CmdFunctions extends CmdBase {
             }
             functionDetailsBuilder.setSource(sourceSpecBuilder);
 
+            // Setup sink
+            SinkSpec.Builder sinkSpecBuilder = SinkSpec.newBuilder();
+            if (functionConfig.getOutput() != null) {
+                sinkSpecBuilder.setTopic(functionConfig.getOutput());
+            }
+            if (functionConfig.getOutputSerdeClassName() != null) {
+                sinkSpecBuilder.setSerDeClassName(functionConfig.getOutputSerdeClassName());
+            }
+            functionDetailsBuilder.setSink(sinkSpecBuilder);
+
             if (functionConfig.getTenant() != null) {
                 functionDetailsBuilder.setTenant(functionConfig.getTenant());
             }
@@ -564,12 +575,6 @@ public class CmdFunctions extends CmdBase {
             }
             if (functionConfig.getClassName() != null) {
                 functionDetailsBuilder.setClassName(functionConfig.getClassName());
-            }
-            if (functionConfig.getOutput() != null) {
-                functionDetailsBuilder.setOutput(functionConfig.getOutput());
-            }
-            if (functionConfig.getOutputSerdeClassName() != null) {
-                functionDetailsBuilder.setOutputSerdeClassName(functionConfig.getOutputSerdeClassName());
             }
             if (functionConfig.getLogTopic() != null) {
                 functionDetailsBuilder.setLogTopic(functionConfig.getLogTopic());
@@ -776,12 +781,14 @@ public class CmdFunctions extends CmdBase {
         protected String triggerValue;
         @Parameter(names = "--triggerFile", description = "The path to the file that contains the data with which you'd like to trigger the function")
         protected String triggerFile;
+        @Parameter(names = "--topic", description = "The specific topic name that the function consumes from that you want to inject the data to")
+        protected String topic;
         @Override
         void runCmd() throws Exception {
             if (triggerFile == null && triggerValue == null) {
                 throw new RuntimeException("Either a trigger value or a trigger filepath needs to be specified");
             }
-            String retval = admin.functions().triggerFunction(tenant, namespace, functionName, triggerValue, triggerFile);
+            String retval = admin.functions().triggerFunction(tenant, namespace, functionName, topic, triggerValue, triggerFile);
             System.out.println(retval);
         }
     }

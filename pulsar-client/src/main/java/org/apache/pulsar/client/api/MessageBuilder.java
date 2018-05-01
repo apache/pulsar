@@ -44,7 +44,7 @@ public interface MessageBuilder<T> {
     }
 
     static MessageBuilder<byte[]> create() {
-        return create(Schema.IDENTITY);
+        return create(Schema.BYTES);
     }
 
     /**
@@ -60,7 +60,7 @@ public interface MessageBuilder<T> {
      * @param value
      *            the domain object
      */
-    MessageBuilder<T> setValue(T value) throws SchemaSerializationException;
+    MessageBuilder<T> setValue(T value);
 
     /**
      * Set the content of the message

@@ -36,7 +36,10 @@ public class ServiceConfig implements PulsarConfiguration {
     // Local-Zookeeper quorum connection string
     private String zookeeperServers;
     // Global-Zookeeper quorum connection string
+    @Deprecated
     private String globalZookeeperServers;
+    // Configuration Store connection string
+    private String configurationStoreServers;
 
     // ZooKeeper session timeout
     private int zookeeperSessionTimeoutMs = 30_000;
@@ -91,7 +94,7 @@ public class ServiceConfig implements PulsarConfiguration {
     // Specify whether Client certificates are required for TLS
     // Reject the Connection if the Client Certificate is not trusted.
     private boolean tlsRequireTrustedClientCertOnConnect = false;
-    
+
     private Properties properties = new Properties();
 
     public String getZookeeperServers() {
@@ -102,12 +105,22 @@ public class ServiceConfig implements PulsarConfiguration {
         this.zookeeperServers = zookeeperServers;
     }
 
+    @Deprecated
     public String getGlobalZookeeperServers() {
         return globalZookeeperServers;
     }
 
+    @Deprecated
     public void setGlobalZookeeperServers(String globalZookeeperServers) {
         this.globalZookeeperServers = globalZookeeperServers;
+    }
+
+    public String getConfigurationStoreServers() {
+        return null == configurationStoreServers ? getGlobalZookeeperServers() : configurationStoreServers;
+    }
+
+    public void setConfigurationStoreServers(String configurationStoreServers) {
+        this.configurationStoreServers = configurationStoreServers;
     }
 
     public int getZookeeperSessionTimeoutMs() {
@@ -253,7 +266,7 @@ public class ServiceConfig implements PulsarConfiguration {
     public void setProperties(Properties properties) {
         this.properties = properties;
     }
-    
+
     public Set<String> getTlsProtocols() {
         return tlsProtocols;
     }
@@ -269,7 +282,7 @@ public class ServiceConfig implements PulsarConfiguration {
     public void setTlsCiphers(Set<String> tlsCiphers) {
         this.tlsCiphers = tlsCiphers;
     }
-    
+
     public boolean getTlsRequireTrustedClientCertOnConnect() {
         return tlsRequireTrustedClientCertOnConnect;
     }

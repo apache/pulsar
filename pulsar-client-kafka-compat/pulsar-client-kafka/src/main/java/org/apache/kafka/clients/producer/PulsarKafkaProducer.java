@@ -240,15 +240,13 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
         if (record.key() != null) {
             builder.key(getKey(record.topic(), record.key()));
         }
+
         if (record.timestamp() != null) {
             builder.eventTime(record.timestamp());
         }
+
         byte[] value = valueSerializer.serialize(record.topic(), record.value());
-        try {
-            builder.value(value);
-        } catch (SchemaSerializationException e) {
-            throw new RuntimeException(e);
-        }
+        builder.value(value);
         return value.length;
     }
 

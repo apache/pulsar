@@ -137,12 +137,12 @@ class ContextImpl implements Context {
 
     @Override
     public String getOutputTopic() {
-        return config.getFunctionDetails().getOutput();
+        return config.getFunctionDetails().getSink().getTopic();
     }
 
     @Override
     public String getOutputSerdeClassName() {
-        return config.getFunctionDetails().getOutputSerdeClassName();
+        return config.getFunctionDetails().getSink().getSerDeClassName();
     }
 
     @Override

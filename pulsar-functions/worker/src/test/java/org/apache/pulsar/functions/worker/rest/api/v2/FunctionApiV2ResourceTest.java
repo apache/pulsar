@@ -51,6 +51,7 @@ import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
 import org.apache.pulsar.functions.proto.Function.ProcessingGuarantees;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
+import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
@@ -118,6 +119,7 @@ public class FunctionApiV2ResourceTest {
         this.mockedWorkerService = mock(WorkerService.class);
         when(mockedWorkerService.getFunctionMetaDataManager()).thenReturn(mockedManager);
         when(mockedWorkerService.getDlogNamespace()).thenReturn(mockedNamespace);
+        when(mockedWorkerService.isInitialized()).thenReturn(true);
 
         // worker config
         WorkerConfig workerConfig = new WorkerConfig()
@@ -279,12 +281,14 @@ public class FunctionApiV2ResourceTest {
         if (function != null) {
             functionDetailsBuilder.setName(function);
         }
+        SinkSpec.Builder sinkSpecBuilder = SinkSpec.newBuilder();
         if (outputTopic != null) {
-            functionDetailsBuilder.setOutput(outputTopic);
+            sinkSpecBuilder.setTopic(outputTopic);
         }
         if (outputSerdeClassName != null) {
-            functionDetailsBuilder.setOutputSerdeClassName(outputSerdeClassName);
+            sinkSpecBuilder.setSerDeClassName(outputSerdeClassName);
         }
+        functionDetailsBuilder.setSink(sinkSpecBuilder);
         if (className != null) {
             functionDetailsBuilder.setClassName(className);
         }
@@ -318,10 +322,12 @@ public class FunctionApiV2ResourceTest {
     }
 
     private Response registerDefaultFunction() throws IOException {
+        SinkSpec sinkSpec = SinkSpec.newBuilder()
+                .setTopic(outputTopic)
+                .setSerDeClassName(outputSerdeClassName).build();
         FunctionDetails functionDetails = FunctionDetails.newBuilder()
                 .setTenant(tenant).setNamespace(namespace).setName(function)
-                .setOutput(outputTopic)
-                .setOutputSerdeClassName(outputSerdeClassName)
+                .setSink(sinkSpec)
                 .setClassName(className)
                 .setParallelism(parallelism)
                 .setSource(SourceSpec.newBuilder().setSubscriptionType(subscriptionType)
@@ -571,12 +577,14 @@ public class FunctionApiV2ResourceTest {
         if (function != null) {
             functionDetailsBuilder.setName(function);
         }
+        SinkSpec.Builder sinkSpecBuilder = SinkSpec.newBuilder();
         if (outputTopic != null) {
-            functionDetailsBuilder.setOutput(outputTopic);
+            sinkSpecBuilder.setTopic(outputTopic);
         }
         if (outputSerdeClassName != null) {
-            functionDetailsBuilder.setOutputSerdeClassName(outputSerdeClassName);
+            sinkSpecBuilder.setSerDeClassName(outputSerdeClassName);
         }
+        functionDetailsBuilder.setSink(sinkSpecBuilder);
         if (className != null) {
             functionDetailsBuilder.setClassName(className);
         }
@@ -610,10 +618,12 @@ public class FunctionApiV2ResourceTest {
     }
 
     private Response updateDefaultFunction() throws IOException {
+        SinkSpec sinkSpec = SinkSpec.newBuilder()
+                .setTopic(outputTopic)
+                .setSerDeClassName(outputSerdeClassName).build();
         FunctionDetails functionDetails = FunctionDetails.newBuilder()
                 .setTenant(tenant).setNamespace(namespace).setName(function)
-                .setOutput(outputTopic)
-                .setOutputSerdeClassName(outputSerdeClassName)
+                .setSink(sinkSpec)
                 .setClassName(className)
                 .setParallelism(parallelism)
                 .setSource(SourceSpec.newBuilder().setSubscriptionType(subscriptionType)
@@ -886,13 +896,15 @@ public class FunctionApiV2ResourceTest {
     public void testGetFunctionSuccess() throws Exception {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
+        SinkSpec sinkSpec = SinkSpec.newBuilder()
+                .setTopic(outputTopic)
+                .setSerDeClassName(outputSerdeClassName).build();
         FunctionDetails functionDetails = FunctionDetails.newBuilder()
                 .setClassName(className)
-                .setOutputSerdeClassName(outputSerdeClassName)
+                .setSink(sinkSpec)
                 .setName(function)
                 .setNamespace(namespace)
                 .setProcessingGuarantees(ProcessingGuarantees.ATMOST_ONCE)
-                .setOutput(outputTopic)
                 .setTenant(tenant)
                 .setParallelism(parallelism)
                 .setSource(SourceSpec.newBuilder().setSubscriptionType(subscriptionType)

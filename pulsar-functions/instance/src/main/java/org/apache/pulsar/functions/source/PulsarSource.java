@@ -128,7 +128,7 @@ public class PulsarSource<T> implements Source<T> {
 
     private void setupSerde() throws ClassNotFoundException {
 
-        Class<?> typeArg = Class.forName(this.pulsarConfig.getTypeClassName());
+        Class<?> typeArg = Thread.currentThread().getContextClassLoader().loadClass(this.pulsarConfig.getTypeClassName());
         if (Void.class.equals(typeArg)) {
             throw new RuntimeException("Input type of Pulsar Function cannot be Void");
         }

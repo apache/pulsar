@@ -54,7 +54,9 @@ RUN rvm install 2.4.1
 RUN wget https://bootstrap.pypa.io/get-pip.py && python get-pip.py
 RUN pip install pdoc
 
-# Install Protobuf doc generator
+# Install Protobuf doc generator (requires Go)
+ENV GOPATH "$HOME/go"
+ENV PATH "/usr/lib/go-1.10/bin:$GOPATH/bin:$PATH"
 RUN go get -u github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
 
 # Build the patched protoc

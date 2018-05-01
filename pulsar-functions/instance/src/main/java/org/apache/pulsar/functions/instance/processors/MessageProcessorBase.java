@@ -128,9 +128,9 @@ abstract class MessageProcessorBase implements MessageProcessor {
 
     @Override
     public void setupOutput(SerDe outputSerDe) throws Exception {
-        String outputTopic = functionDetails.getOutput();
+        String outputTopic = functionDetails.getSink().getTopic();
         if (outputTopic != null
-                && !functionDetails.getOutput().isEmpty()
+                && !outputTopic.isEmpty()
                 && outputSerDe != null) {
             log.info("Starting producer for output topic {}", outputTopic);
             initializeOutputProducer(outputTopic);

@@ -16,40 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.api.schemas;
+package org.apache.pulsar.client.impl.schema;
 
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaInfo;
-import org.apache.pulsar.common.schema.SchemaType;
 
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-
-public class StringSchema implements Schema<String> {
-    private final Charset charset;
-    private static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
-
-    public StringSchema() {
-        this.charset = DEFAULT_CHARSET;
+public class BytesSchema implements Schema<byte[]> {
+    @Override
+    public byte[] encode(byte[] message) {
+        return message;
     }
 
-    public StringSchema(Charset charset) {
-        this.charset = charset;
+    @Override
+    public byte[] decode(byte[] bytes) {
+        return bytes;
     }
 
-    public byte[] encode(String message) {
-        return message.getBytes(charset);
-    }
-
-    public String decode(byte[] bytes) {
-        return new String(bytes, charset);
-    }
-
+    @Override
     public SchemaInfo getSchemaInfo() {
-        SchemaInfo schemaInfo = new SchemaInfo();
-        schemaInfo.setName("String");
-        schemaInfo.setType(SchemaType.STRING);
-        schemaInfo.setSchema(new byte[0]);
-        return schemaInfo;
+        return null;
     }
 }
