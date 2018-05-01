@@ -56,21 +56,21 @@ public class DataBlockHeaderTest {
         assertEquals(stream.read(), -1);
 
         stream.reset();
-        byte streamContent[] = new byte[DataBlockHeader.getDataStartOffset()];
+        byte streamContent[] = new byte[DataBlockHeaderImpl.getDataStartOffset()];
 
         // stream with all 0, simulate junk data, should throw exception for header magic not match.
-        try(InputStream stream2 = new ByteArrayInputStream(streamContent, 0, DataBlockHeader.getDataStartOffset())) {
+        try(InputStream stream2 = new ByteArrayInputStream(streamContent, 0, DataBlockHeaderImpl.getDataStartOffset())) {
             DataBlockHeader rebuild2 = DataBlockHeaderImpl.fromStream(stream2);
             fail("Should throw IOException");
         } catch (Exception e) {
             assertTrue(e instanceof IOException);
-            assertTrue(e.getMessage().equals("Data block header magic word not match."));
+            assertTrue(e.getMessage().contains("Data block header magic word not match"));
         }
 
         // simulate read header too small, throw EOFException.
         stream.read(streamContent);
         try(InputStream stream3 =
-                new ByteArrayInputStream(streamContent, 0, DataBlockHeader.getDataStartOffset() - 1)) {
+                new ByteArrayInputStream(streamContent, 0, DataBlockHeaderImpl.getDataStartOffset() - 1)) {
             DataBlockHeader rebuild3 = DataBlockHeaderImpl.fromStream(stream3);
             fail("Should throw EOFException");
         } catch (Exception e) {

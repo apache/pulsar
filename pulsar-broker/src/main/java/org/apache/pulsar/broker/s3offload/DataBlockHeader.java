@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.s3offload;
 import java.io.IOException;
 import java.io.InputStream;
 import org.apache.bookkeeper.common.annotation.InterfaceStability.Unstable;
-import org.apache.pulsar.broker.s3offload.impl.DataBlockHeaderImpl;
 
 /**
  * The data block header in code storage for each data block
@@ -53,22 +52,6 @@ public interface DataBlockHeader {
      * Get the content of the data block header as InputStream.
      * Read out in current format.
      */
-    InputStream toStream() throws IOException;
-
-    /**
-     * Get the payload start offset in this block.
-     * Space before this offset is for header and alignment.
-     */
-    static int getDataStartOffset() {
-        return DataBlockHeaderImpl.getDataStartOffset();
-    }
-
-    /**
-     * Get Magic Word for data block.
-     * It is a sequence of bytes used to identify the start of a block.
-     */
-    static int getBlockMagicWord() {
-        return DataBlockHeaderImpl.getBlockMagicWord();
-    }
+    InputStream toStream();
 }
 
