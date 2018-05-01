@@ -183,6 +183,7 @@ public class DockerUtils {
         }
         int retCode = resp.getExitCode();
         if (retCode != 0) {
+            LOG.error("DOCKER.exec({}:{}): failed with {} : {}", containerId, cmdString, retCode, output);
             throw new RuntimeException(
                     String.format("cmd(%s) failed on %s with exitcode %d",
                                   cmdString, containerId, retCode));

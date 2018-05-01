@@ -22,18 +22,17 @@ import static java.util.concurrent.Executors.newFixedThreadPool;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
+import com.google.common.collect.Sets;
 import java.net.URI;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Invocation;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.websocket.WebSocketService;
@@ -49,8 +48,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Sets;
 
 public class ProxyAuthenticationTest extends ProducerConsumerBase {
 
@@ -70,11 +67,9 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
         config.setWebServicePort(port);
         config.setClusterName("test");
         config.setAuthenticationEnabled(true);
-        config.setGlobalZookeeperServers("dummy-zk-servers");
-        config.setSuperUserRoles(Sets.newHashSet("pulsar.super_user"));
-
         // If this is not set, 500 error occurs.
-        config.setGlobalZookeeperServers("dummy");
+        config.setConfigurationStoreServers("dummy");
+        config.setSuperUserRoles(Sets.newHashSet("pulsar.super_user"));
 
         if (methodName.equals("authenticatedSocketTest") || methodName.equals("statsTest")) {
             config.setAuthenticationProviders(Sets.newHashSet("org.apache.pulsar.websocket.proxy.MockAuthenticationProvider"));
