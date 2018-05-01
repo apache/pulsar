@@ -119,6 +119,7 @@ public class FunctionApiV2ResourceTest {
         this.mockedWorkerService = mock(WorkerService.class);
         when(mockedWorkerService.getFunctionMetaDataManager()).thenReturn(mockedManager);
         when(mockedWorkerService.getDlogNamespace()).thenReturn(mockedNamespace);
+        when(mockedWorkerService.isInitialized()).thenReturn(true);
 
         // worker config
         WorkerConfig workerConfig = new WorkerConfig()
