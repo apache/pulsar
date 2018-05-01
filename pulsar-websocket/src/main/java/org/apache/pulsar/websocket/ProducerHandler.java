@@ -39,8 +39,6 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.HashingScheme;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
@@ -48,6 +46,8 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerBlockedQuotaExceededError;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerBlockedQuotaExceededException;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerBusyException;
+import org.apache.pulsar.client.api.SchemaSerializationException;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ProducerAck;
 import org.apache.pulsar.websocket.data.ProducerMessage;
@@ -166,21 +166,27 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         }
 
         final long msgSize = rawPayload.length;
-        MessageBuilder<byte[]> builder = MessageBuilder.create().setContent(rawPayload);
+        TypedMessageBuilder<byte[]> builder = producer.newMessage();
+
+        try {
+            builder.value(rawPayload);
+        } catch (SchemaSerializationException e) {
+            sendAckResponse(new ProducerAck(PayloadEncodingError, e.getMessage(), null, requestContext));
+            return;
+        }
 
         if (sendRequest.properties != null) {
-            builder.setProperties(sendRequest.properties);
+            builder.properties(sendRequest.properties);
         }
         if (sendRequest.key != null) {
-            builder.setKey(sendRequest.key);
+            builder.key(sendRequest.key);
         }
         if (sendRequest.replicationClusters != null) {
-            builder.setReplicationClusters(sendRequest.replicationClusters);
+            builder.replicationClusters(sendRequest.replicationClusters);
         }
-        Message<byte[]> msg = builder.build();
 
         final long now = System.nanoTime();
-        producer.sendAsync(msg).thenAccept(msgId -> {
+        builder.sendAsync().thenAccept(msgId -> {
             updateSentMsgStats(msgSize, TimeUnit.NANOSECONDS.toMicros(System.nanoTime() - now));
             if (isConnected()) {
                 String messageId = Base64.getEncoder().encodeToString(msgId.toByteArray());

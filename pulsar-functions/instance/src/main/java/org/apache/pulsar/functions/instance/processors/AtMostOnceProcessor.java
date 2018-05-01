@@ -38,9 +38,8 @@ class AtMostOnceProcessor extends MessageProcessorBase {
     private Producer<byte[]> producer;
 
     AtMostOnceProcessor(PulsarClient client,
-                        FunctionDetails functionDetails,
-                        SubscriptionType subType) {
-        super(client, functionDetails, subType);
+                        FunctionDetails functionDetails) {
+        super(client, functionDetails);
     }
 
     @Override
@@ -73,7 +72,7 @@ class AtMostOnceProcessor extends MessageProcessorBase {
             try {
                 producer.close();
             } catch (PulsarClientException e) {
-                log.warn("Fail to close producer for processor {}", functionDetails.getOutput(), e);
+                log.warn("Fail to close producer for processor {}", functionDetails.getSink().getTopic(), e);
             }
         }
     }

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.api.schemas;
+package org.apache.pulsar.client.impl.schema;
 
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -48,7 +48,8 @@ public class StringSchema implements Schema<String> {
     public SchemaInfo getSchemaInfo() {
         SchemaInfo schemaInfo = new SchemaInfo();
         schemaInfo.setName("String");
-        schemaInfo.setType(SchemaType.NONE);
+        schemaInfo.setType(SchemaType.STRING);
+        schemaInfo.setSchema(new byte[0]);
         return schemaInfo;
     }
 }

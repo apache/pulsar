@@ -44,8 +44,16 @@ public class FunctionConfig {
 
     public enum SubscriptionType {
         SHARED,
-        EXCLUSIVE,
-        FAILOVER
+        FAILOVER;
+
+        public org.apache.pulsar.client.api.SubscriptionType get() {
+            switch (this) {
+                case FAILOVER:
+                    return org.apache.pulsar.client.api.SubscriptionType.Failover;
+                default:
+                    return org.apache.pulsar.client.api.SubscriptionType.Shared;
+            }
+        }
     }
 
     public enum Runtime {

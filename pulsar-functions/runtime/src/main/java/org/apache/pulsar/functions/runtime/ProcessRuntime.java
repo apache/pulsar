@@ -80,7 +80,7 @@ class ProcessRuntime implements Runtime {
             args.add("-Dlog4j.configurationFile=java_instance_log4j2.yml");
             args.add("-Dpulsar.log.dir=" + logDirectory);
             args.add("-Dpulsar.log.file=" + instanceConfig.getFunctionDetails().getName());
-            args.add("org.apache.pulsar.functions.runtime.JavaInstanceMain");
+            args.add(JavaInstanceMain.class.getName());
             args.add("--jar");
             args.add(codeFile);
         } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON) {
@@ -107,44 +107,10 @@ class ProcessRuntime implements Runtime {
         args.add(instanceConfig.getFunctionDetails().getName());
         args.add("--function_classname");
         args.add(instanceConfig.getFunctionDetails().getClassName());
-        args.add("--subscription_type");
-        args.add(instanceConfig.getFunctionDetails().getSubscriptionType().toString());
         if (instanceConfig.getFunctionDetails().getLogTopic() != null &&
-            !instanceConfig.getFunctionDetails().getLogTopic().isEmpty()) {
+                !instanceConfig.getFunctionDetails().getLogTopic().isEmpty()) {
             args.add("--log_topic");
             args.add(instanceConfig.getFunctionDetails().getLogTopic());
-        }
-        if (instanceConfig.getFunctionDetails().getCustomSerdeInputsCount() > 0) {
-            String inputTopicString = "";
-            String inputSerdeClassNameString = "";
-            for (Map.Entry<String, String> entry : instanceConfig.getFunctionDetails().getCustomSerdeInputsMap().entrySet()) {
-                if (inputTopicString.isEmpty()) {
-                    inputTopicString = entry.getKey();
-                } else {
-                    inputTopicString = inputTopicString + "," + entry.getKey();
-                }
-                if (inputSerdeClassNameString.isEmpty()) {
-                    inputSerdeClassNameString = entry.getValue();
-                } else {
-                    inputSerdeClassNameString = inputSerdeClassNameString + "," + entry.getValue();
-                }
-            }
-            args.add("--custom_serde_input_topics");
-            args.add(inputTopicString);
-            args.add("--custom_serde_classnames");
-            args.add(inputSerdeClassNameString);
-        }
-        if (instanceConfig.getFunctionDetails().getInputsCount() > 0) {
-            String inputTopicString = "";
-            for (String topicName : instanceConfig.getFunctionDetails().getInputsList()) {
-                if (inputTopicString.isEmpty()) {
-                    inputTopicString = topicName;
-                } else {
-                    inputTopicString = inputTopicString + "," + topicName;
-                }
-            }
-            args.add("--input_topics");
-            args.add(inputTopicString);
         }
         args.add("--auto_ack");
         if (instanceConfig.getFunctionDetails().getAutoAck()) {
@@ -152,15 +118,15 @@ class ProcessRuntime implements Runtime {
         } else {
             args.add("false");
         }
-        if (instanceConfig.getFunctionDetails().getOutput() != null
-                && !instanceConfig.getFunctionDetails().getOutput().isEmpty()) {
+        if (instanceConfig.getFunctionDetails().getSink().getTopic() != null
+                && !instanceConfig.getFunctionDetails().getSink().getTopic().isEmpty()) {
             args.add("--output_topic");
-            args.add(instanceConfig.getFunctionDetails().getOutput());
+            args.add(instanceConfig.getFunctionDetails().getSink().getTopic());
         }
-        if (instanceConfig.getFunctionDetails().getOutputSerdeClassName() != null
-                && !instanceConfig.getFunctionDetails().getOutputSerdeClassName().isEmpty()) {
+        if (instanceConfig.getFunctionDetails().getSink().getSerDeClassName() != null
+                && !instanceConfig.getFunctionDetails().getSink().getSerDeClassName().isEmpty()) {
             args.add("--output_serde_classname");
-            args.add(instanceConfig.getFunctionDetails().getOutputSerdeClassName());
+            args.add(instanceConfig.getFunctionDetails().getSink().getSerDeClassName());
         }
         args.add("--processing_guarantees");
         args.add(String.valueOf(instanceConfig.getFunctionDetails().getProcessingGuarantees()));
@@ -176,16 +142,23 @@ class ProcessRuntime implements Runtime {
         instancePort = findAvailablePort();
         args.add("--port");
         args.add(String.valueOf(instancePort));
+
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
-            args.add("--source_classname");
-            args.add(instanceConfig.getFunctionDetails().getSource().getClassName());
-            Map<String, String> sourceConfigs = instanceConfig.getFunctionDetails().getSource().getConfigsMap();
+            if (!instanceConfig.getFunctionDetails().getSource().getClassName().isEmpty()) {
+                args.add("--source_classname");
+                args.add(instanceConfig.getFunctionDetails().getSource().getClassName());
+            }
+            String sourceConfigs = instanceConfig.getFunctionDetails().getSource().getConfigs();
             if (sourceConfigs != null && !sourceConfigs.isEmpty()) {
-                args.add("--source_config");
-                args.add(new Gson().toJson(sourceConfigs));
+                args.add("--source_configs");
+                args.add(sourceConfigs);
             }
         }
+        args.add("--source_subscription_type");
+        args.add(instanceConfig.getFunctionDetails().getSource().getSubscriptionType().toString());
 
+        args.add("--source_topics_serde_classname");
+        args.add(new Gson().toJson(instanceConfig.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap()));
         return args;
     }
 

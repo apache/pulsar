@@ -23,17 +23,18 @@ package proto;
 option java_package = "org.apache.pulsar.functions.proto";
 option java_outer_classname = "Function";
 
+enum ProcessingGuarantees {
+    ATLEAST_ONCE = 0; // [default value]
+    ATMOST_ONCE = 1;
+    EFFECTIVELY_ONCE = 2;
+}
+
+enum SubscriptionType {
+    SHARED = 0;
+    FAILOVER = 1;
+}
+
 message FunctionDetails {
-    enum ProcessingGuarantees {
-        ATLEAST_ONCE = 0; // [default value]
-        ATMOST_ONCE = 1;
-        EFFECTIVELY_ONCE = 2;
-    }
-    enum SubscriptionType {
-        SHARED = 0;
-        EXCLUSIVE = 1;
-        FAILOVER = 2;
-    }
     enum Runtime {
         JAVA = 0;
         PYTHON = 1;
@@ -42,24 +43,34 @@ message FunctionDetails {
     string namespace = 2;
     string name = 3;
     string className = 4;
-    // map from input topic name to serde
-    map<string, string> customSerdeInputs = 5;
-    string outputSerdeClassName = 6;
-    string output = 7;
-    string logTopic = 8;
-    ProcessingGuarantees processingGuarantees = 9;
-    map<string,string> userConfig = 10;
-    SubscriptionType subscriptionType = 11;
-    Runtime runtime = 12;
-    bool autoAck = 13;
-    repeated string inputs = 14;
-    int32 parallelism = 15;
-    ConnectorDetails source = 16;
+    string logTopic = 5;
+    ProcessingGuarantees processingGuarantees = 6;
+    map<string,string> userConfig = 7;
+    Runtime runtime = 8;
+    bool autoAck = 9;
+    int32 parallelism = 10;
+    SourceSpec source = 11;
+    SinkSpec sink = 12;
 }
 
-message ConnectorDetails {
+message SourceSpec {
     string className = 1;
-    map<string, string> configs = 4;
+    // map in json format
+    string configs = 2;
+
+    // configs used only when source feeds into functions
+    SubscriptionType subscriptionType = 3;
+    map<string,string> topicsToSerDeClassName = 4;
+}
+
+message SinkSpec {
+    string className = 1;
+    // map in json format
+    string configs = 2;
+
+    // configs used only when functions output to sink
+    string topic = 3;
+    string serDeClassName = 4;
 }
 
 message PackageLocationMetaData {

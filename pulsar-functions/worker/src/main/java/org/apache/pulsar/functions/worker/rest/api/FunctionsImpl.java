@@ -54,6 +54,7 @@ import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
+import org.apache.pulsar.functions.source.PulsarSource;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.MembershipManager;
@@ -453,11 +454,12 @@ public class FunctionsImpl {
                                     final @PathParam("namespace") String namespace,
                                     final @PathParam("name") String functionName,
                                     final @FormDataParam("data") String input,
-                                    final @FormDataParam("dataStream") InputStream uploadedInputStream) {
+                                    final @FormDataParam("dataStream") InputStream uploadedInputStream,
+                                    final @FormDataParam("topic") String topic) {
         FunctionDetails functionDetails;
         // validate parameters
         try {
-            validateTriggerRequestParams(tenant, namespace, functionName, input, uploadedInputStream);
+            validateTriggerRequestParams(tenant, namespace, functionName, topic, input, uploadedInputStream);
         } catch (IllegalArgumentException e) {
             log.error("Invalid trigger function request @ /{}/{}/{}",
                     tenant, namespace, functionName, e);
@@ -476,13 +478,21 @@ public class FunctionsImpl {
         }
 
         FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, functionName);
+
         String inputTopicToWrite;
-        if (functionMetaData.getFunctionDetails().getInputsList().size() > 0) {
-            inputTopicToWrite = functionMetaData.getFunctionDetails().getInputsList().get(0);
-        } else {
-            inputTopicToWrite = functionMetaData.getFunctionDetails().getCustomSerdeInputs().entrySet().iterator().next().getKey();
+        // only if the source is PulsarSource and if the function consumes only one topic
+        if (!functionMetaData.getFunctionDetails().getSource().getClassName().equals(PulsarSource.class.getName())) {
+            return Response.status(Status.BAD_REQUEST).build();
         }
-        String outputTopic = functionMetaData.getFunctionDetails().getOutput();
+        if (topic != null) {
+            inputTopicToWrite = topic;
+        } else if (functionMetaData.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap().size() == 1) {
+            inputTopicToWrite =
+                    functionMetaData.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap().keySet().iterator().next();
+        } else {
+            return Response.status(Status.BAD_REQUEST).build();
+        }
+        String outputTopic = functionMetaData.getFunctionDetails().getSink().getTopic();
         Reader reader = null;
         Producer producer = null;
         try {
@@ -667,8 +677,11 @@ public class FunctionsImpl {
             if (functionDetails.getClassName() == null || functionDetails.getClassName().isEmpty()) {
                 missingFields.add("ClassName");
             }
-            if (functionDetails.getInputsCount() == 0 && functionDetails.getCustomSerdeInputsCount() == 0) {
-                missingFields.add("Input");
+            if (!functionDetails.getSource().isInitialized()) {
+                missingFields.add("Source");
+            }
+            else if (functionDetails.getSource().getTopicsToSerDeClassNameMap().isEmpty()) {
+                missingFields.add("Source Topics Serde Map");
             }
             if (!missingFields.isEmpty()) {
                 String errorMessage = StringUtils.join(missingFields, ",");
@@ -688,6 +701,7 @@ public class FunctionsImpl {
     private void validateTriggerRequestParams(String tenant,
                                               String namespace,
                                               String functionName,
+                                              String topic,
                                               String input,
                                               InputStream uploadedInputStream) {
         if (tenant == null) {
