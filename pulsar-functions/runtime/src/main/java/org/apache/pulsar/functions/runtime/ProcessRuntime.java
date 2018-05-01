@@ -118,15 +118,15 @@ class ProcessRuntime implements Runtime {
         } else {
             args.add("false");
         }
-        if (instanceConfig.getFunctionDetails().getOutput() != null
-                && !instanceConfig.getFunctionDetails().getOutput().isEmpty()) {
+        if (instanceConfig.getFunctionDetails().getSink().getTopic() != null
+                && !instanceConfig.getFunctionDetails().getSink().getTopic().isEmpty()) {
             args.add("--output_topic");
-            args.add(instanceConfig.getFunctionDetails().getOutput());
+            args.add(instanceConfig.getFunctionDetails().getSink().getTopic());
         }
-        if (instanceConfig.getFunctionDetails().getOutputSerdeClassName() != null
-                && !instanceConfig.getFunctionDetails().getOutputSerdeClassName().isEmpty()) {
+        if (instanceConfig.getFunctionDetails().getSink().getSerDeClassName() != null
+                && !instanceConfig.getFunctionDetails().getSink().getSerDeClassName().isEmpty()) {
             args.add("--output_serde_classname");
-            args.add(instanceConfig.getFunctionDetails().getOutputSerdeClassName());
+            args.add(instanceConfig.getFunctionDetails().getSink().getSerDeClassName());
         }
         args.add("--processing_guarantees");
         args.add(String.valueOf(instanceConfig.getFunctionDetails().getProcessingGuarantees()));

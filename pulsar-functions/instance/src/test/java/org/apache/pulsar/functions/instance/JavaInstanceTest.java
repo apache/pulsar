@@ -26,6 +26,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.source.PulsarSource;
 import org.testng.annotations.Test;
 
@@ -33,7 +34,7 @@ public class JavaInstanceTest {
 
     private static InstanceConfig createInstanceConfig() {
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
-        functionDetailsBuilder.setOutputSerdeClassName(DefaultSerDe.class.getName());
+        functionDetailsBuilder.setSink(SinkSpec.newBuilder().setSerDeClassName(DefaultSerDe.class.getName()).build());
         InstanceConfig instanceConfig = new InstanceConfig();
         instanceConfig.setFunctionDetails(functionDetailsBuilder.build());
         return instanceConfig;

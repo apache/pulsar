@@ -43,8 +43,8 @@ message FunctionDetails {
     string namespace = 2;
     string name = 3;
     string className = 4;
-    string outputSerdeClassName = 5;
-    string output = 6;
+//    string outputSerdeClassName = 5;
+//    string output = 6;
     string logTopic = 7;
     ProcessingGuarantees processingGuarantees = 8;
     map<string,string> userConfig = 9;
@@ -52,6 +52,7 @@ message FunctionDetails {
     bool autoAck = 11;
     int32 parallelism = 12;
     SourceSpec source = 13;
+    SinkSpec sink = 14;
 }
 
 message SourceSpec {
@@ -62,6 +63,17 @@ message SourceSpec {
     // configs used only when source feeds into functions
     SubscriptionType subscriptionType = 3;
     map<string,string> topicsToSerDeClassName = 4;
+}
+
+message SinkSpec {
+    string className = 1;
+    // map in json format
+    string configs = 2;
+
+    // configs used only when source feeds into functions
+    SubscriptionType subscriptionType = 3;
+    string topic = 4;
+    string serDeClassName = 5;
 }
 
 message PackageLocationMetaData {
