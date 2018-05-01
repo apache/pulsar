@@ -96,6 +96,7 @@ public class PersistentSubscription implements Subscription {
 
     @Override
     public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
+        cursor.updateLastActive();
         if (IS_FENCED_UPDATER.get(this) == TRUE) {
             log.warn("Attempting to add consumer {} on a fenced subscription", consumer);
             throw new SubscriptionFencedException("Subscription is fenced");
@@ -144,6 +145,7 @@ public class PersistentSubscription implements Subscription {
 
     @Override
     public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
+        cursor.updateLastActive();
         if (dispatcher != null) {
             dispatcher.removeConsumer(consumer);
         }

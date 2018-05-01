@@ -227,12 +227,10 @@ public class NonPersistentTopics extends PersistentTopics {
         NamespaceBundle nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange, true, true);
         try {
             final List<String> topicList = Lists.newArrayList();
-            pulsar().getBrokerService().getTopics().forEach((name, topicFuture) -> {
-                if (BrokerService.extractTopic(topicFuture).isPresent()) {
-                    TopicName topicName = TopicName.get(name);
-                    if (nsBundle.includes(topicName)) {
-                        topicList.add(name);
-                    }
+            pulsar().getBrokerService().forEachTopic(topic -> {
+                TopicName topicName = TopicName.get(topic.getName());
+                if (nsBundle.includes(topicName)) {
+                    topicList.add(topic.getName());
                 }
             });
             return topicList;
