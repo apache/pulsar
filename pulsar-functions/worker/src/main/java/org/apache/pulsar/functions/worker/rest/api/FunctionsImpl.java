@@ -104,11 +104,7 @@ public class FunctionsImpl {
                                      final @FormDataParam("functionDetails") String functionDetailsJson) {
 
         if (!isWorkerServiceAvaible()) {
-            return Response.status(Status.SERVICE_UNAVAILABLE)
-                    .type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData("Function worker service is not done initializing. "
-                            + "Please try again in a little while."))
-                    .build();
+            return getUnavailableResponse();
         }
 
         FunctionDetails functionDetails;
@@ -162,11 +158,7 @@ public class FunctionsImpl {
                                    final @FormDataParam("functionDetails") String functionDetailsJson) {
 
         if (!isWorkerServiceAvaible()) {
-            return Response.status(Status.SERVICE_UNAVAILABLE)
-                    .type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData("Function worker service is not done initializing. "
-                            + "Please try again in a little while."))
-                    .build();
+            return getUnavailableResponse();
         }
 
         FunctionDetails functionDetails;
@@ -216,11 +208,7 @@ public class FunctionsImpl {
                                        final @PathParam("functionName") String functionName) {
 
         if (!isWorkerServiceAvaible()) {
-            return Response.status(Status.SERVICE_UNAVAILABLE)
-                    .type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData("Function worker service is not done initializing. "
-                            + "Please try again in a little while."))
-                    .build();
+            return getUnavailableResponse();
         }
 
         // validate parameters
@@ -281,11 +269,7 @@ public class FunctionsImpl {
             throws IOException {
 
         if (!isWorkerServiceAvaible()) {
-            return Response.status(Status.SERVICE_UNAVAILABLE)
-                    .type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData("Function worker service is not done initializing. "
-                            + "Please try again in a little while."))
-                    .build();
+            return getUnavailableResponse();
         }
 
         // validate parameters
@@ -321,11 +305,7 @@ public class FunctionsImpl {
                                               final @PathParam("instanceId") String instanceId) throws IOException {
 
         if (!isWorkerServiceAvaible()) {
-            return Response.status(Status.SERVICE_UNAVAILABLE)
-                    .type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData("Function worker service is not done initializing. "
-                            + "Please try again in a little while."))
-                    .build();
+            return getUnavailableResponse();
         }
 
         // validate parameters
@@ -372,11 +352,7 @@ public class FunctionsImpl {
                                       final @PathParam("functionName") String functionName) throws IOException {
 
         if (!isWorkerServiceAvaible()) {
-            return Response.status(Status.SERVICE_UNAVAILABLE)
-                    .type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData("Function worker service is not done initializing. "
-                            + "Please try again in a little while."))
-                    .build();
+            return getUnavailableResponse();
         }
 
         // validate parameters
@@ -421,11 +397,7 @@ public class FunctionsImpl {
                                   final @PathParam("namespace") String namespace) {
 
         if (!isWorkerServiceAvaible()) {
-            return Response.status(Status.SERVICE_UNAVAILABLE)
-                    .type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData("Function worker service is not done initializing. "
-                            + "Please try again in a little while."))
-                    .build();
+            return getUnavailableResponse();
         }
 
         // validate parameters
@@ -499,11 +471,7 @@ public class FunctionsImpl {
     public Response getCluster() {
 
         if (!isWorkerServiceAvaible()) {
-            return Response.status(Status.SERVICE_UNAVAILABLE)
-                    .type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData("Function worker service is not done initializing. "
-                            + "Please try again in a little while."))
-                    .build();
+            return getUnavailableResponse();
         }
 
         MembershipManager membershipManager = worker().getMembershipManager();
@@ -516,11 +484,7 @@ public class FunctionsImpl {
     public Response getAssignments() {
 
         if (!isWorkerServiceAvaible()) {
-            return Response.status(Status.SERVICE_UNAVAILABLE)
-                    .type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData("Function worker service is not done initializing. "
-                            + "Please try again in a little while."))
-                    .build();
+            return getUnavailableResponse();
         }
 
         FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
@@ -544,11 +508,7 @@ public class FunctionsImpl {
                                     final @FormDataParam("topic") String topic) {
 
         if (!isWorkerServiceAvaible()) {
-            return Response.status(Status.SERVICE_UNAVAILABLE)
-                    .type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData("Function worker service is not done initializing. "
-                            + "Please try again in a little while."))
-                    .build();
+            return getUnavailableResponse();
         }
 
         FunctionDetails functionDetails;
@@ -811,6 +771,14 @@ public class FunctionsImpl {
         if (uploadedInputStream == null && input == null) {
             throw new IllegalArgumentException("Trigger Data is not provided");
         }
+    }
+
+    private Response getUnavailableResponse() {
+        return Response.status(Status.SERVICE_UNAVAILABLE)
+                .type(MediaType.APPLICATION_JSON)
+                .entity(new ErrorData("Function worker service is not done initializing. "
+                        + "Please try again in a little while."))
+                .build();
     }
 
 }
