@@ -551,6 +551,31 @@ Each Pulsar schema consists of:
 
 * A name. In Pulsar, the name of a schema is always the {% popover topic %} to which the schema applies
 
+### Schema versions
+
+In order to illustrate how schema versioning works, let's walk through an example. Imagine that the Pulsar [Java client](../../clients/Java) created using the code below attempts to connect to Pulsar and begin sending messages:
+
+```java
+PulsarClient client = PulsarClient.builder()
+        .serviceUrl("pulsar://localhost:6650")
+        .build();
+
+Producer<SensorReading> producer = client.newProducer(JSONSchema.of(SensorReading.class))
+        .topic("sensor-data")
+        .sendTimeout(3, TimeUnit.SECONDS)
+        .create();
+```
+
+The table below lists the possible scenarios when this connection attempt occurs and what will happen in light of each scenario:
+
+Scenario | What happens
+:--------|:------------
+No schema exists for the topic | The {% popover producer %} is created using the given schema. The schema is transmitted to the {% popover broker %} and stored (since no existing schema is "compatible" with the `SensorReading` schema). Any {% popover consumer %} created using the same schema/topic can consume messages from the `sensor-data` topic.
+A schema already exists; the producer connects using the same schema that's already stored | The schema is transmitted to the Pulsar broker. The broker determines that the schema is compatible. The broker attempts to store the schema in [BookKeeper](#persistent-storage) but then determines that it's already stored, so it's then used to tag produced messages.
+A schema already exists; the producer connects using a new schema that is compatible | The producer transmits the schema to the broker. The broker determines that the schema is compatible and stores the new schema as the current version (with a new version number).
+
+{% include admonition.html type="info" content="Schemas are versioned in succession. Schema storage happens in the broker that handles the associated topic so that version assignments can be made. Once a version is assigned/fetched to/for a schema, all subsequent messages produced by that producer are tagged with the appropriate version." %}
+
 ### Supported schema types
 
 The following schema formats are supported by the Pulsar schema registry:
