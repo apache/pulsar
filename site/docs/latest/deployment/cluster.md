@@ -142,7 +142,7 @@ You can initialize this metadata using the [`initialize-cluster-metadata`](../..
 $ bin/pulsar initialize-cluster-metadata \
   --cluster pulsar-cluster-1 \
   --zookeeper zk1.us-west.example.com:2181 \
-  --global-zookeeper zk1.us-west.example.com:2181 \
+  --configuration-store zk1.us-west.example.com:2181 \
   --web-service-url http://pulsar.us-west.example.com:8080 \
   --web-service-url-tls https://pulsar.us-west.example.com:8443 \
   --broker-service-url pulsar://pulsar.us-west.example.com:6650 \
@@ -155,7 +155,7 @@ Flag | Description
 :----|:-----------
 `--cluster` | A name for the cluster
 `--zookeeper` | A "local" ZooKeeper connection string for the cluster. This connection string only needs to include *one* machine in the ZooKeeper cluster.
-`--global-zookeeper` | The "global" ZooKeeper connection string for the entire instance. As with the `--zookeeper` flag, this connection string only needs to include *one* machine in the ZooKeeper cluster.
+`--configuration-store` | The configuration store (ZooKeeper) where the configuration policies for all tenants and namespaces across all clusters will be stored. As with the `--zookeeper` flag, this connection string only needs to include *one* machine in the ZooKeeper cluster.
 `--web-service-url` | The web service URL for the cluster, plus a port. This URL should be a standard DNS name. The default port is 8080 (we don't recommend using a different port).
 `--web-service-url-tls` | If you're using [TLS](../../../admin/Authz#tls-client-auth), you'll also need to specify a TLS web service URL for the cluster. The default port is 8443 (we don't recommend using a different port).
 `--broker-service-url` | A broker service URL enabling interaction with the {% popover brokers %} in the cluster. This URL should use the same DNS name as the web service URL but should use the `pulsar` scheme instead. The default port is 6650 (we don't recommend using a different port).

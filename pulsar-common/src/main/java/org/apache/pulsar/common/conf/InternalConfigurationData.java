@@ -24,17 +24,17 @@ import java.util.Objects;
 public class InternalConfigurationData {
 
     private String zookeeperServers;
-    private String globalZooKeeperServers;
+    private String configurationStoreServers;
     private String ledgersRootPath;
 
     public InternalConfigurationData() {
     }
 
     public InternalConfigurationData(String zookeeperServers,
-                                     String globalZooKeeperServers,
+                                     String configurationStoreServers,
                                      String ledgersRootPath) {
         this.zookeeperServers = zookeeperServers;
-        this.globalZooKeeperServers = globalZooKeeperServers;
+        this.configurationStoreServers = configurationStoreServers;
         this.ledgersRootPath = ledgersRootPath;
     }
 
@@ -42,8 +42,8 @@ public class InternalConfigurationData {
         return zookeeperServers;
     }
 
-    public String getGlobalZooKeeperServers() {
-        return globalZooKeeperServers;
+    public String getConfigurationStoreServers() {
+        return configurationStoreServers;
     }
 
     public String getLedgersRootPath() {
@@ -57,20 +57,20 @@ public class InternalConfigurationData {
         }
         InternalConfigurationData other = (InternalConfigurationData) obj;
         return Objects.equals(zookeeperServers, other.zookeeperServers)
-            && Objects.equals(globalZooKeeperServers, other.globalZooKeeperServers)
+            && Objects.equals(configurationStoreServers, other.configurationStoreServers)
             && Objects.equals(ledgersRootPath, other.ledgersRootPath);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(zookeeperServers, globalZooKeeperServers, ledgersRootPath);
+        return Objects.hash(zookeeperServers, configurationStoreServers, ledgersRootPath);
     }
 
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
             .add("zookeeperServers", zookeeperServers)
-            .add("globalZooKeeperServers", globalZooKeeperServers)
+            .add("configurationStoreServers", configurationStoreServers)
             .add("ledgersRootPath", ledgersRootPath)
             .toString();
     }

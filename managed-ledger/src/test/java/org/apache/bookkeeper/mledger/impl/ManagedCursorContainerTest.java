@@ -122,6 +122,16 @@ public class ManagedCursorContainerTest {
             return name;
         }
 
+        @Override
+        public long getLastActive() {
+            return System.currentTimeMillis();
+        }
+
+        @Override
+        public void updateLastActive() {
+            // no-op
+        }
+
         public String toString() {
             return String.format("%s=%s", name, position);
         }

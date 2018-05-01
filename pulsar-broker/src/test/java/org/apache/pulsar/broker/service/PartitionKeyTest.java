@@ -22,7 +22,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.Producer;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -59,12 +58,10 @@ public class PartitionKeyTest extends BrokerTestBase {
         // 2. Producer without batches
         Producer<byte[]> producerWithoutBatches = pulsarClient.newProducer().topic(topicName).create();
 
-        producerWithBatches.sendAsync(MessageBuilder.create().setKey("key-1").setContent("msg-1".getBytes()).build());
-        producerWithBatches.sendAsync(MessageBuilder.create().setKey("key-2").setContent("msg-2".getBytes()).build())
-                .get();
+        producerWithBatches.newMessage().key("key-1").value("msg-1".getBytes()).sendAsync();
+        producerWithBatches.newMessage().key("key-2").value("msg-2".getBytes()).send();
 
-        producerWithoutBatches
-                .sendAsync(MessageBuilder.create().setKey("key-3").setContent("msg-3".getBytes()).build());
+        producerWithoutBatches.newMessage().key("key-3").value("msg-3".getBytes()).sendAsync();
 
         for (int i = 1; i <= 3; i++) {
             Message<byte[]> msg = consumer.receive();

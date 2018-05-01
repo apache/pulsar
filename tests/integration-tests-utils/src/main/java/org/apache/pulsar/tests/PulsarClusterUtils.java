@@ -41,6 +41,9 @@ public class PulsarClusterUtils {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarClusterUtils.class);
     static final short BROKER_PORT = 8080;
 
+    public static final String PULSAR_ADMIN = "/pulsar/bin/pulsar-admin";
+    public static final String PULSAR = "/pulsar/bin/pulsar";
+
     public static String zookeeperConnectString(DockerClient docker, String cluster) {
         return DockerUtils.cubeIdsWithLabels(docker, ImmutableMap.of("service", "zookeeper", "cluster", cluster))
             .stream().map((id) -> DockerUtils.getContainerIP(docker, id)).collect(Collectors.joining(":"));
@@ -166,6 +169,7 @@ public class PulsarClusterUtils {
                     return true;
                 } catch (Exception e) {
                     // couldn't connect, try again after sleep
+                    LOG.info("Failed to connect {} @ {}", ip, BROKER_PORT, e);
                 }
                 try {
                     Thread.sleep(pollMillis);
