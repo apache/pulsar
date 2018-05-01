@@ -18,28 +18,47 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.client.impl.schema.BytesSchema;
+import org.apache.pulsar.client.impl.schema.StringSchema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
+/**
+ * Message schema definition
+ */
 public interface Schema<T> {
+
+    /**
+     * Encode an object representing the message content into a byte array.
+     *
+     * @param message
+     *            the message object
+     * @return a byte array with the serialized content
+     * @throws SchemaSerializationException
+     *             if the serialization fails
+     */
     byte[] encode(T message) throws SchemaSerializationException;
+
+    /**
+     * Decode a byte array into an object using the schema definition and deserializer implementation
+     *
+     * @param bytes
+     *            the byte array to decode
+     * @return the deserialized object
+     */
     T decode(byte[] bytes);
 
+    /**
+     * @return an object that represents the Schema associated metadata
+     */
     SchemaInfo getSchemaInfo();
 
-    Schema<byte[]> IDENTITY = new Schema<byte[]>() {
-        @Override
-        public byte[] encode(byte[] message) {
-            return message;
-        }
+    /**
+     * Schema that doesn't perform any encoding on the message payloads. Accepts a byte array and it passes it through.
+     */
+    Schema<byte[]> BYTES = new BytesSchema();
 
-        @Override
-        public byte[] decode(byte[] bytes) {
-            return bytes;
-        }
-
-        @Override
-        public SchemaInfo getSchemaInfo() {
-            return null;
-        }
-    };
+    /**
+     * Schema that can be used to encode/decode messages whose values are String. The payload is encoded with UTF-8.
+     */
+    Schema<String> STRING = new StringSchema();
 }

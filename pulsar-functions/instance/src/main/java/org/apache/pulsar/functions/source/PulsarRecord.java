@@ -16,28 +16,38 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-syntax = "proto2";
+package org.apache.pulsar.functions.source;
 
-package pulsar.schema;
-option java_package = "org.apache.pulsar.broker.service.schema.proto";
-option optimize_for = LITE_RUNTIME;
+import lombok.Builder;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.connect.core.Record;
 
-message SchemaInfo {
-    enum SchemaType {
-        NONE = 1;
-        STRING = 2;
-        JSON = 3;
+@Data
+@Builder
+@Getter
+@ToString
+@EqualsAndHashCode
+public class PulsarRecord<T> implements Record<T> {
+
+    private String partitionId;
+    private Long sequenceId;
+    private T value;
+    private MessageId messageId;
+    private String topicName;
+    private Runnable failFunction;
+    private Runnable ackFunction;
+
+    @Override
+    public void ack() {
+        this.ackFunction.run();
     }
-    message KeyValuePair {
-        required string key = 1;
-        required string value = 2;
-    }
-    required string schema_id = 1;
-    required string user = 2;
-    required SchemaType type = 3;
-    required bytes schema = 4;
-    required int64 timestamp = 5;
-    required bool deleted = 6;
 
-    repeated KeyValuePair props = 7;
+    @Override
+    public void fail() {
+        this.failFunction.run();
+    }
 }

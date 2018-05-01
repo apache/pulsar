@@ -561,9 +561,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         try {
             final String topic = "persistent://my-property/my-ns/bigMsg";
             Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
-            Message<byte[]> message = MessageBuilder.create().setContent(new byte[PulsarDecoder.MaxMessageSize + 1])
-                    .build();
-            producer.send(message);
+            producer.send(new byte[PulsarDecoder.MaxMessageSize + 1]);
             fail("Should have thrown exception");
         } catch (PulsarClientException.InvalidMessageException e) {
             // OK
@@ -622,9 +620,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .compressionType(CompressionType.NONE)
             .create();
-        message = MessageBuilder.create().setContent(new byte[PulsarDecoder.MaxMessageSize + 1]).build();
         try {
-            producer.send(message);
+            producer.send(new byte[PulsarDecoder.MaxMessageSize + 1]);
             fail("Should have thrown exception");
         } catch (PulsarClientException.InvalidMessageException e) {
             // OK
@@ -639,8 +636,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             .compressionType(CompressionType.LZ4).create();
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1").subscribe();
         byte[] content = new byte[PulsarDecoder.MaxMessageSize + 10];
-        message = MessageBuilder.create().setContent(content).build();
-        producer.send(message);
+        producer.send(content);
         assertEquals(consumer.receive().getData(), content);
         producer.close();
         consumer.close();
@@ -930,13 +926,13 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             .create();
         for (int i = 0; i < totalMsg; i++) {
             final String message = "my-message-" + i;
-            Message<byte[]> msg = MessageBuilder.create().setContent(message.getBytes()).build();
+            int len = message.getBytes().length;
             final AtomicInteger msgLength = new AtomicInteger();
-            CompletableFuture<MessageId> future = producer.sendAsync(msg).handle((r, ex) -> {
+            CompletableFuture<MessageId> future = producer.sendAsync(message.getBytes()).handle((r, ex) -> {
                 if (ex != null) {
                     log.error("Message send failed:", ex);
                 } else {
-                    msgLength.set(msg.getData().length);
+                    msgLength.set(len);
                 }
                 return null;
             });

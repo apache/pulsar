@@ -30,7 +30,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.connect.core.Record;
-import org.apache.pulsar.functions.instance.PulsarRecord;
+import org.apache.pulsar.functions.source.PulsarRecord;
 import org.apache.pulsar.functions.instance.producers.MultiConsumersOneOuputTopicProducers;
 import org.apache.pulsar.functions.instance.producers.Producers;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
@@ -46,15 +46,7 @@ class EffectivelyOnceProcessor extends MessageProcessorBase implements ConsumerE
 
     EffectivelyOnceProcessor(PulsarClient client,
                              FunctionDetails functionDetails) {
-        super(client, functionDetails, SubscriptionType.Failover);
-    }
-
-    /**
-     * An effectively-once processor can only use `Failover` subscription.
-     */
-    @Override
-    protected SubscriptionType getSubscriptionType() {
-        return SubscriptionType.Failover;
+        super(client, functionDetails);
     }
 
     @Override

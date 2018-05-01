@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.functions.instance.processors;
 
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 
+import com.google.gson.Gson;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -31,9 +30,10 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.connect.core.Record;
 import org.apache.pulsar.connect.core.Source;
 import org.apache.pulsar.functions.api.SerDe;
-import org.apache.pulsar.functions.instance.PulsarConfig;
-import org.apache.pulsar.functions.instance.PulsarSource;
+import org.apache.pulsar.functions.source.PulsarConfig;
+import org.apache.pulsar.functions.source.PulsarSource;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.apache.pulsar.functions.utils.Reflections;
 
@@ -45,22 +45,15 @@ abstract class MessageProcessorBase implements MessageProcessor {
 
     protected final PulsarClient client;
     protected final FunctionDetails functionDetails;
-    protected final SubscriptionType subType;
 
     @Getter
     protected Source source;
 
-    protected List<String> topics;
 
     protected MessageProcessorBase(PulsarClient client,
-                                   FunctionDetails functionDetails,
-                                   SubscriptionType subType) {
+                                   FunctionDetails functionDetails) {
         this.client = client;
         this.functionDetails = functionDetails;
-        this.subType = subType;
-        this.topics = new LinkedList<>();
-        this.topics.addAll(this.functionDetails.getInputsList());
-        this.topics.addAll(this.functionDetails.getCustomSerdeInputsMap().keySet());
     }
 
     //
@@ -68,26 +61,31 @@ abstract class MessageProcessorBase implements MessageProcessor {
     //
 
     @Override
-    public void setupInput(Map<String, SerDe> inputSerDe) throws Exception {
+    public void setupInput(Class<?> inputType) throws Exception {
 
-        org.apache.pulsar.functions.proto.Function.ConnectorDetails connectorDetails = this.functionDetails.getSource();
+        org.apache.pulsar.functions.proto.Function.SourceSpec sourceSpec = this.functionDetails.getSource();
         Object object;
-        if (connectorDetails.getClassName().equals(PulsarSource.class.getName())) {
-            PulsarConfig pulsarConfig = PulsarConfig.builder()
-                    .topicToSerdeMap(inputSerDe)
-                    .subscription(FunctionDetailsUtils.getFullyQualifiedName(this.functionDetails))
-                    .processingGuarantees(this.functionDetails.getProcessingGuarantees())
-                    .subscriptionType(this.subType)
-                    .build();
+        if (sourceSpec.getClassName().equals(PulsarSource.class.getName())) {
+
+            PulsarConfig pulsarConfig = new PulsarConfig();
+            pulsarConfig.setTopicSerdeClassNameMap(this.functionDetails.getSource().getTopicsToSerDeClassNameMap());
+            pulsarConfig.setSubscriptionName(FunctionDetailsUtils.getFullyQualifiedName(this.functionDetails));
+            pulsarConfig.setProcessingGuarantees(
+                    FunctionConfig.ProcessingGuarantees.valueOf(this.functionDetails.getProcessingGuarantees().name()));
+            pulsarConfig.setSubscriptionType(
+                    FunctionConfig.SubscriptionType.valueOf(this.functionDetails.getSource().getSubscriptionType().name()));
+            pulsarConfig.setTypeClassName(inputType.getName());
+
             Object[] params = {this.client, pulsarConfig};
             Class[] paramTypes = {PulsarClient.class, PulsarConfig.class};
+
             object = Reflections.createInstance(
-                    connectorDetails.getClassName(),
+                    sourceSpec.getClassName(),
                     PulsarSource.class.getClassLoader(), params, paramTypes);
 
         } else {
             object = Reflections.createInstance(
-                    connectorDetails.getClassName(),
+                    sourceSpec.getClassName(),
                     Thread.currentThread().getContextClassLoader());
         }
 
@@ -101,16 +99,12 @@ abstract class MessageProcessorBase implements MessageProcessor {
         this.source = (Source) object;
 
         try {
-            this.source.open(connectorDetails.getConfigsMap());
+            this.source.open(new Gson().fromJson(sourceSpec.getConfigs(), Map.class));
         } catch (Exception e) {
             log.info("Error occurred executing open for source: {}",
                     this.functionDetails.getSource().getClassName(), e);
         }
 
-    }
-
-    protected SubscriptionType getSubscriptionType() {
-        return subType;
     }
 
     public Record recieveMessage() throws Exception {

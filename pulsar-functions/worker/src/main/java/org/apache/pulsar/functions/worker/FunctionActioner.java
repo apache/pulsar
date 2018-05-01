@@ -108,7 +108,7 @@ public class FunctionActioner implements AutoCloseable {
                 functionMetaData.getFunctionDetails().getName(), instance.getInstanceId());
         File pkgDir = new File(
                 workerConfig.getDownloadDirectory(),
-                getDownloadPackagePath(functionMetaData));
+                getDownloadPackagePath(functionMetaData, instance.getInstanceId()));
         pkgDir.mkdirs();
 
         int instanceId = functionRuntimeInfo.getFunctionInstance().getInstanceId();
@@ -184,7 +184,7 @@ public class FunctionActioner implements AutoCloseable {
         // clean up function package
         File pkgDir = new File(
                 workerConfig.getDownloadDirectory(),
-                getDownloadPackagePath(functionMetaData));
+                getDownloadPackagePath(functionMetaData, instance.getInstanceId()));
 
         if (pkgDir.exists()) {
             try {
@@ -196,12 +196,13 @@ public class FunctionActioner implements AutoCloseable {
         }
     }
 
-    private String getDownloadPackagePath(FunctionMetaData functionMetaData) {
+    private String getDownloadPackagePath(FunctionMetaData functionMetaData, int instanceId) {
         return StringUtils.join(
                 new String[]{
                         functionMetaData.getFunctionDetails().getTenant(),
                         functionMetaData.getFunctionDetails().getNamespace(),
                         functionMetaData.getFunctionDetails().getName(),
+                        Integer.toString(instanceId),
                 },
                 File.separatorChar);
     }

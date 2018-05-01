@@ -139,7 +139,7 @@ class WordFilter(Function):
 Writing Pulsar Functions in Java involves implementing one of two interfaces:
 
 * The [`java.util.Function`](https://docs.oracle.com/javase/8/docs/api/java/util/function/Function.html) interface
-* The {% javadoc Function client org.apache.pulsar.functions.api.Function %} interface. This interface works much like the `java.util.Function` ihterface, but with the important difference that it provides a {% javadoc Context client org.apache.pulsar.functions.api.Context %} object that you can use in a [variety of ways](#context)
+* The {% javadoc Function client org.apache.pulsar.functions.api.Function %} interface. This interface works much like the `java.util.Function` interface, but with the important difference that it provides a {% javadoc Context client org.apache.pulsar.functions.api.Context %} object that you can use in a [variety of ways](#context)
 
 ### Getting started
 
@@ -149,8 +149,8 @@ In order to write Pulsar Functions in Java, you'll need to install the proper [d
 
 How you get started writing Pulsar Functions in Java depends on which API you're using:
 
-* If you're writing [Java native function](#java-native), you won't need any external dependencies.
-* If you're writing a [Java SDK](#java-sdk) function, you'll need to import the `pulsar-functions-api` library.
+* If you're writing a [Java native function](#java-native), you won't need any external dependencies.
+* If you're writing a [Java SDK function](#java-sdk), you'll need to import the `pulsar-functions-api` library.
 
   Here's an example for a Maven `pom.xml` configuration file:
 
@@ -178,7 +178,7 @@ Whether you're writing Java Pulsar Functions using the [native](#java-native) Ja
 
 ### Java native functions {#java-native}
 
-If your function doesn't require access to its [context](#context), you can create a Pulsar Function by implementing the [`java.util.Function`](https://docs.oracle.com/javase/8/docs/api/java/util/function/Function.html) interface, which has this very simple, single-method signature:
+If your function doesn't require access to its [context](#java-context), you can create a Pulsar Function by implementing the [`java.util.Function`](https://docs.oracle.com/javase/8/docs/api/java/util/function/Function.html) interface, which has this very simple, single-method signature:
 
 ```java
 public interface Function<I, O> {
@@ -205,7 +205,7 @@ In general, you should use native functions when you don't need access to the fu
 
 There is one example Java native function in [this folder](https://github.com/apache/incubator-pulsar/tree/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples):
 
-* [`ExclamationFunction`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/JavaNativeExclmationFunction.java)
+* [`JavaNativeExclmationFunction`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/JavaNativeExclmationFunction.java)
 
 ### Java SDK functions {#java-sdk}
 
@@ -219,11 +219,18 @@ There are several example Java SDK functions in [this folder](https://github.com
 
 Function name | Description
 :-------------|:-----------
-[`ContextFunction`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/ContextFunction.java) | Illustrate [context](#context)-specific functionality like [logging](#java-logging) and [metrics](#java-metrics)
+[`ContextFunction`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/ContextFunction.java) | Illustrates [context](#context)-specific functionality like [logging](#java-logging) and [metrics](#java-metrics)
+[`CounterFunction`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/CounterFunction.java) | Illustrates usage of Pulsar Function [counters](../overview#counters)
+[`ExclamationFunction`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/ExclamationFunction.java) | A basic string manipulation function for the Java SDK
+[`LoggingFunction`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/LoggingFunction.java) | A function that shows how [logging](#java-logging) works for Java
+[`PublishFunction`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/PublishFunction.java) | Publishes results to a topic specified in the function's [user config](#java-user-config) (rather than on the function's output topic)
+[`UserConfigFunction`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/UserConfigFunction.java) | A function that consumes [user-supplied configuration](#java-user-config) values
+[`UserMetricFunction`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/UserMetricFunction.java) | A function that records metrics
+[`VoidFunction`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/UserMetricFunction.java)  | A simple [void function](#void-functions)
 
 ### Java context object {#java-context}
 
-The {% javadoc Context client org.apache.pulsar.functions.api.Context %} interface provides a number of methods that you can use to access the functions [context](#context). The various method signatures for the `Context` interface are listed below:
+The {% javadoc Context client org.apache.pulsar.functions.api.Context %} interface provides a number of methods that you can use to access the function's [context](#context). The various method signatures for the `Context` interface are listed below:
 
 ```java
 public interface Context {
@@ -239,7 +246,9 @@ public interface Context {
     String getInstanceId();
     String getFunctionVersion();
     Logger getLogger();
-    String getUserConfigValue(String key);
+    Map<String, String> getUserConfigMap();
+    Optional<String> getUserConfigValue(String key);
+    String getUserConfigValueOrDefault(String key, String default);
     void recordMetric(String metricName, double value);
     <O> CompletableFuture<Void> publish(String topicName, O object, String serDeClassName);
     <O> CompletableFuture<Void> publish(String topicName, O object);
@@ -374,7 +383,7 @@ Pulsar does not store your custom SerDe classes separately from your Pulsar Func
 
 ### Java logging
 
-Pulsar Functions that use the [Java SDK](#java-sdk) have access to an [SLF4j](https://www.slf4j.org/) [`Logger`](https://www.slf4j.org/api/org/apache/log4j/Logger.html) object that can be used to create logs. Here's a simple example function that logs either a `WARNING`- or `INFO`-level log based on whether the incoming string contains the word `danger`:
+Pulsar Functions that use the [Java SDK](#java-sdk) have access to an [SLF4j](https://www.slf4j.org/) [`Logger`](https://www.slf4j.org/api/org/apache/log4j/Logger.html) object that can be used to produce logs at the chosen log level. Here's a simple example function that logs either a `WARNING`- or `INFO`-level log based on whether the incoming string contains the word `danger`:
 
 ```java
 import org.apache.pulsar.functions.api.Context;
@@ -446,9 +455,19 @@ public class UserConfigFunction implements Function<String, Void> {
 
 The `UserConfigFunction` function will log the string `"The word of the day is verdure"` every time the function is invoked (i.e. every time a message arrives). The `word-of-the-day` user config will be changed only when the function is updated with a new config value via the command line.
 
+You can also access the entire user config map or set a default value in case no value is present:
+
+```java
+// Get the whole config map
+Map<String, String> allConfigs = context.getUserConfigMap();
+
+// Get value or resort to default
+String wotd = context.getUserConfigValueOrDefault("word-of-the-day", "perspicacious");
+```
+
 {% include admonition.html type="info" content="For all key/value pairs passed to Java Pulsar Functions, both the key *and* the value are `String`s. If you'd like the value to be of a different type, you will need to deserialize from the `String` type." %}
 
-## Java metrics
+### Java metrics
 
 You can record metrics using the [`Context`](#java-context) object on a per-key basis. You can, for example, set a metric for the key `process-count` and a different metric for the key `elevens-count` every time the function processes a message. Here's an example:
 
@@ -461,11 +480,13 @@ public class MetricRecorderFunction implements Function<Integer, Void> {
     public void apply(Integer input, Context context) {
         // Records the metric 1 every time a message arrives
         context.recordMetric("hit-count", 1);
-        
+
         // Records the metric only if the arriving number equals 11
         if (input == 11) {
             context.recordMetric("elevens-count", 1);
         }
+
+        return null;
     }
 }
 ```
@@ -474,4 +495,205 @@ public class MetricRecorderFunction implements Function<Integer, Void> {
 
 ## Pulsar Functions for Python {#python}
 
-Documentation for the Python SDK for Pulsar Functions is coming soon.
+Writing Pulsar Functions in Python entails implementing one of two things:
+
+* A `process` function that takes an input (message data from the function's input topic(s)), applies some kind of logic to it, and either returns an object (to be published to the function's output topic) or `pass`es and thus doesn't produce a message
+* A `Function` class that has a `process` method that provides a message input to process and a [context](#python-context) object
+
+### Getting started
+
+The requirements for writing Pulsar Functions in Python depend on your [deployment mode](../deployment):
+
+* If you're writing a [Python native function](#python-native), you won't need to install any external dependencies
+* If you're writing a [Python SDK function](#python-sdk), you'll need to install the the [`pulsar-client`](/api/python) Python library.
+
+  ```bash
+  $ pip install pulsar-client=={{ site.python_latest }}
+  ```
+
+### Packaging
+
+At the moment, the code for Pulsar Functions written in Python must be contained within a single Python file. In the future, Pulsar Functions may support other packaging formats, such as [**P**ython **EX**ecutables](https://github.com/pantsbuild/pex) (PEXes).
+
+### Python native functions {#python-native}
+
+If your function doesn't require access to its [context](#context), you can create a Pulsar Function by implementing a `process` function, which provides a single input object that you can process however you wish. Here's an example function that takes a string as its input, adds an exclamation point at the end of the string, and then publishes the resulting string:
+
+```python
+def process(input):
+    return "{0}!".format(input)
+```
+
+In general, you should use native functions when you don't need access to the function's [context](#context). If you *do* need access to the function's context, then we recommend using the [Pulsar Functions Python SDK](#python-sdk).
+
+#### Python native examples
+
+There is one example Python native function in [this folder](https://github.com/apache/incubator-pulsar/tree/master/pulsar-functions/python-examples):
+
+* [`pure_python_function_exclamation.py`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/python-examples/pure_python_function_exclamation.py)
+
+### Python SDK functions {#python-sdk}
+
+To get started developing Pulsar Functions using the Python SDK, you'll need to install the [`pulsar-client`](/api/python) library using the instructions [above](#getting-started).
+
+#### Python SDK examples
+
+There are several example Python functions in [this folder](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/python-examples):
+
+Function file | Description
+:-------------|:-----------
+[`exclamation.py`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/python-examples/exclamation.py) | Adds an exclamation point at the end of each incoming string
+[`logfunction.py`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/python-examples/logfunction.py) | Logs each incoming message
+[`thumbnailer.py`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/python-examples/thumbnailer.py) | Takes image data as input and outputs a 128x128 thumbnail of each image
+
+#### Python context object {#python-context}
+
+The [`Context`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-client-cpp/python/functions/context.py) class provides a number of methods that you can use to access the function's [context](#context). The various methods for the `Context` class are listed below:
+
+Method | What it provides
+:------|:----------------
+`get_message_id` | The message ID of the message being processed
+`get_topic_name` | The input topic of the message being processed
+`get_function_name` | The name of the current Pulsar Function
+`get_function_id` | The ID of the current Pulsar Function
+`get_instance_id` | The ID of the current Pulsar Functions instance
+`get_function_version` | The version of the current Pulsar Function
+`get_logger` | A logger object that can be used for [logging](#python-logging)
+`get_user_config_value` | Returns the value of a [user-defined config](#python-user-config) (or `None` if the config doesn't exist)
+`get_user_config_map` | Returns the entire user-defined config as a dict
+`record_metric` | Records a per-key [metric](#python-metrics)
+`publish` | Publishes a message to the specified Pulsar topic
+`get_output_serde_class_name` | The name of the output [SerDe](#python-serde) class
+`ack` | {% popover Acks %} the message being processed to Pulsar
+
+### Python SerDe
+
+Pulsar Functions use [SerDe](#serde) when publishing data to and consuming data from Pulsar topics (this is true of both [native](#python-native) functions and [SDK](#python-sdk) functions). You can specify the SerDe when [creating](../deployment#cluster-mode) or [running](../deployment#local-run) functions. Here's an example:
+
+```bash
+$ bin/pulsar-admin functions create \
+  --tenant sample \
+  --namespace ns1 \
+  --name my_function \
+  --py my_function.py \
+  --className my_function.MyFunction \
+  --customSerdeInputs '{"input-topic-1":"Serde1","input-topic-2":"Serde2"}' \
+  --outputSerdeClassName Serde3 \
+  --output output-topic-1
+```
+
+In this case, there are two input topics, `input-topic-1` and `input-topic-2`, each of which is mapped to a different SerDe class (the map must be specified as a JSON string). The output topic, `output-topic-1`, uses the `Serde3` class for SerDe. At the moment, all Pulsar Function logic, include processing function and SerDe classes, must be contained within a single Python file.
+
+When using Pulsar Functions for Python, you essentially have three SerDe options:
+
+1. You can use the [`IdentitySerde`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-client-cpp/python/functions/serde.py#L70), which leaves the data unchanged. The `IdentitySerDe` is the **default**. Creating or running a function without explicitly specifying SerDe will mean that this option is used.
+2. You can use the [`PickeSerDe`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-client-cpp/python/functions/serde.py#L62), which uses Python's [`pickle`](https://docs.python.org/3/library/pickle.html) for SerDe.
+3. You can create a custom SerDe class by implementing the baseline [`SerDe`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-client-cpp/python/functions/serde.py#L50) class, which has just two methods: [`serialize`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-client-cpp/python/functions/serde.py#L53) for converting the object into bytes, and [`deserialize`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-client-cpp/python/functions/serde.py#L58) for converting bytes into an object of the required application-specific type.
+
+The table below shows when you should use each SerDe:
+
+SerDe option | When to use
+:------------|:-----------
+`IdentitySerde` | When you're working with simple types like strings, Booleans, integers, and the like
+`PickleSerDe` | When you're working with complex, application-specific types and are comfortable with `pickle`'s "best effort" approach
+Custom SerDe | When you require explicit control over SerDe, potentially for performance or data compatibility purposes
+
+#### Python SerDe example
+
+Imagine that you're writing Pulsar Functions in Python that are processing tweet objects. Here's a simple `Tweet` class:
+
+```python
+class Tweet(object):
+    def __init__(self, username, tweet_content):
+        self.username = username
+        self.tweet_content = tweet_content
+```
+
+In order to use this class in Pulsar Functions, you'd have two options:
+
+1. You could specify `PickleSerDe`, which would apply the [`pickle`](https://docs.python.org/3/library/pickle.html) library's SerDe
+1. You could create your own SerDe class. Here's a simple example:
+
+  ```python
+  from pulsar import SerDe
+
+  class TweetSerDe(SerDe):
+      def __init__(self, tweet):
+          self.tweet = tweet
+
+      def serialize(self, input):
+          return bytes("{0}|{1}".format(self.tweet.username, self.tweet.tweet_content))
+
+      def deserialize(self, input_bytes):
+          tweet_components = str(input_bytes).split('|')
+          return Tweet(tweet_components[0], tweet_componentsp[1])
+  ```
+
+### Python logging
+
+Pulsar Functions that use the [Python SDK](#python-sdk) have access to a logging object that can be used to produce logs at the chosen log level. Here's a simple example function that logs either a `WARNING`- or `INFO`-level log based on whether the incoming string contains the word `danger`:
+
+```python
+from pulsar import Function
+
+class LoggingFunction(Function):
+    def process(self, input, context):
+        logger = context.get_logger()
+        msg_id = context.get_message_id()
+        if 'danger' in input:
+            logger.warn("A warning was received in message {0}".format(context.get_message_id()))
+        else:
+            logger.info("Message {0} received\nContent: {1}".format(msg_id, input))
+```
+
+If you want your function to produce logs on a Pulsar topic, you need to specify a **log topic** when creating or running the function. Here's an example:
+
+```bash
+$ bin/pulsar-admin functions create \
+  --py logging_function.py \
+  --className logging_function.LoggingFunction \
+  --logTopic logging-function-logs \
+  # Other function configs
+```
+
+Now, all logs produced by the `LoggingFunction` above can be accessed via the `logging-function-logs` topic.
+
+### Python user config
+
+The Python SDK's [`Context`](#python-context) object enables you to access key/value pairs provided to the Pulsar Function via the command line (as JSON). Here's an example function creation command that passes a key/value pair:
+
+```bash
+$ bin/pulsar-admin functions create \
+  # Other function configs \
+  --userConfig '{"word-of-the-day":"verdure"}'
+```
+
+To access that value in a Python function:
+
+```python
+from pulsar import Function
+
+class UserConfigFunction(Function):
+    def process(self, input, context):
+        logger = context.get_logger()
+        wotd = context.get_user_config_value('word-of-the-day')
+        if wotd is None:
+            logger.warn('No word of the day provided')
+        else:
+            logger.info("The word of the day is {0}".format(wotd))
+```
+
+### Python metrics
+
+You can record metrics using the [`Context`](#python-context) object on a per-key basis. You can, for example, set a metric for the key `process-count` and a different metric for the key `elevens-count` every time the function processes a message. Here's an example:
+
+```python
+from pulsar import Function
+
+class MetricRecorderFunction(Function):
+    def process(self, input, context):
+        context.record_metric('hit-count', 1)
+
+        if input == 11:
+            context.record_metric('elevens-count', 1)
+```

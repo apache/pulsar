@@ -24,17 +24,16 @@ option optimize_for = LITE_RUNTIME;
 
 message Schema {
 	enum Type {
-		Json = 1;
-		Protobuf = 2;
-		Thrift = 3;
-		Avro = 4;
+		None = 0;
+		String = 1;
+		Json = 2;
 	}
 
     required string name = 1;
     required bytes schema_data = 3;
 	required Type type = 4;
     repeated KeyValue properties = 5;
-	
+
 }
 
 message MessageIdData {
