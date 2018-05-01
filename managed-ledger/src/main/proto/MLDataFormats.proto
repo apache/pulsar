@@ -86,4 +86,6 @@ message ManagedCursorInfo {
 	// Additional custom properties associated with
 	// the current cursor position
 	repeated LongProperty properties = 5;
+
+  optional int64 lastActive = 6;
 }

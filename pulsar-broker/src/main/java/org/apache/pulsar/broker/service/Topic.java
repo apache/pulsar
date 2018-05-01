@@ -101,6 +101,8 @@ public interface Topic {
 
     void checkGC(int gcInterval);
 
+    void checkInactiveSubscriptions();
+
     void checkMessageExpiry();
 
     void checkMessageDeduplicationInfo();
