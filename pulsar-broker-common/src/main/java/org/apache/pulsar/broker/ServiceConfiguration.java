@@ -93,6 +93,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int messageExpiryCheckIntervalInMinutes = 5;
     // How long to delay rewinding cursor and dispatching messages when active consumer is changed
     private int activeConsumerFailoverDelayTimeMillis = 1000;
+    // How long to delete inactive subscriptions from last consuming
+    // When it is 0, inactive subscriptions are not deleted automatically
+    private long subscriptionExpirationTimeMinutes = 0;
+    // How frequently to proactively check and purge expired subscription
+    private long subscriptionExpiryCheckIntervalInMinutes = 5;
 
     // Set the default behavior for message deduplication in the broker
     // This can be overridden per-namespace. If enabled, broker will reject
@@ -679,6 +684,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setActiveConsumerFailoverDelayTimeMillis(int activeConsumerFailoverDelayTimeMillis) {
         this.activeConsumerFailoverDelayTimeMillis = activeConsumerFailoverDelayTimeMillis;
+    }
+
+    public long getSubscriptionExpirationTimeMinutes() {
+        return subscriptionExpirationTimeMinutes;
+    }
+
+    public void setSubscriptionExpirationTimeMinutes(long subscriptionExpirationTimeMinutes) {
+        this.subscriptionExpirationTimeMinutes = subscriptionExpirationTimeMinutes;
+    }
+
+    public long getSubscriptionExpiryCheckIntervalInMinutes() {
+        return subscriptionExpiryCheckIntervalInMinutes;
+    }
+
+    public void setSubscriptionExpiryCheckIntervalInMinutes(long subscriptionExpiryCheckIntervalInMinutes) {
+        this.subscriptionExpiryCheckIntervalInMinutes = subscriptionExpiryCheckIntervalInMinutes;
     }
 
     public boolean isClientLibraryVersionCheckEnabled() {
