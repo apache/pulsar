@@ -76,7 +76,6 @@ public class FunctionsImpl {
     private WorkerService worker() {
         try {
             return checkNotNull(workerServiceSupplier.get());
-
         } catch (Throwable t) {
             log.info("Failed to get worker service", t);
             throw t;
