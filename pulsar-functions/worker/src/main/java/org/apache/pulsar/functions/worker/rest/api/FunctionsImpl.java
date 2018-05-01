@@ -480,16 +480,16 @@ public class FunctionsImpl {
         FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, functionName);
 
         String inputTopicToWrite;
-        // only if the source is PulsarSource and if the function consumes only one topic
-        if (!functionMetaData.getFunctionDetails().getSource().getClassName().equals(PulsarSource.class.getName())) {
-            return Response.status(Status.BAD_REQUEST).build();
-        }
         if (topic != null) {
             inputTopicToWrite = topic;
         } else if (functionMetaData.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap().size() == 1) {
             inputTopicToWrite =
                     functionMetaData.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap().keySet().iterator().next();
         } else {
+            return Response.status(Status.BAD_REQUEST).build();
+        }
+        if (functionMetaData.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap() == null
+            || !functionMetaData.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap().containsKey(inputTopicToWrite)) {
             return Response.status(Status.BAD_REQUEST).build();
         }
         String outputTopic = functionMetaData.getFunctionDetails().getOutput();
