@@ -117,7 +117,7 @@ A namespace is a logical nomenclature within a tenant. A tenant can create multi
 
 A subscription is a named configuration rule that determines how messages are delivered to {% popover consumers %}. There are three available subscription modes in Pulsar: [exclusive](#exclusive), [shared](#shared), and [failover](#failover). These modes are illustrated in the figure below.
 
-![Subscription Modes](/img/pulsar-subscription-modes.png)
+{% include figure.html src="/img/pulsar-subscription-modes.png" alt="Subscription modes" width="80" %}
 
 #### Exclusive
 
@@ -127,7 +127,7 @@ In the diagram above, only **Consumer-A** is allowed to consume messages.
 
 {% include admonition.html type="info" content="Exclusive mode is the default subscription mode." %}
 
-![Exclusive subscriptions](/img/exclusive-subscriptions.png)
+{% include figure.html src="/img/exclusive-subscriptions.png" alt="Exclusive subscriptions" width="80" %}
 
 #### Shared
 
@@ -137,7 +137,7 @@ In the diagram above, **Consumer-B-1** and **Consumer-B-2** are able to subscrib
 
 {% include message.html id="shared_mode_limitations" %}
 
-![Shared subscriptions](/img/shared-subscriptions.png)
+{% include figure.html src="/img/shared-subscriptions.png" alt="Shared subscriptions" width="80" %}
 
 #### Failover
 
@@ -147,7 +147,7 @@ When the master consumer disconnects, all (non-acked and subsequent) messages wi
 
 In the diagram above, Consumer-C-1 is the master consumer while Consumer-C-2 would be the next in line to receive messages if Consumer-C-2 disconnected.
 
-![Shared subscriptions](/img/failover-subscriptions.png)
+{% include figure.html src="/img/failover-subscriptions.png" alt="Shared subscriptions" width="80" %}
 
 ### Multi-topic subscriptions
 
@@ -252,7 +252,7 @@ In a Pulsar cluster:
 
 The diagram below provides an illustration of a Pulsar cluster:
 
-![Architecture Diagram](/img/pulsar_system_architecture.png)
+{% include figure.html src="/img/pulsar-system-architecture.png" alt="Pulsar architecture diagram" width="90" %}
 
 At the broader {% popover instance %} level, an instance-wide ZooKeeper cluster called the {% popover configuration store %} handles coordination tasks involving multiple clusters, for example [geo-replication](#replication).
 
@@ -288,8 +288,6 @@ Pulsar uses [Apache Zookeeper](https://zookeeper.apache.org/) for metadata stora
 * A {% popover configuration store %} quorum stores configuration for {% popover tenants %}, {% popover namespaces %}, and other entities that need to be globally consistent.
 * Each cluster has its own local ZooKeeper ensemble that stores {% popover cluster %}-specific configuration and coordination such as ownership metadata, broker load reports, BookKeeper {% popover ledger %} metadata, and more.
 
-When creating a [new cluster](../../admin/ClustersBrokers#initialize-cluster-metadata)
-
 ## Persistent storage
 
 Pulsar provides guaranteed message delivery for applications. If a message successfully reaches a Pulsar {% popover broker %}, it will be delivered to its intended target.
@@ -317,7 +315,7 @@ At the moment, Pulsar only supports persistent message storage. This accounts fo
 
 You can see an illustration of how {% popover brokers %} and {% popover bookies %} interact in the diagram below:
 
-![Brokers and bookies](/img/broker-bookie.png)
+{% include figure.html src="/img/broker-bookie.png" alt="Brokers and bookies" width="80" %}
 
 ### Ledgers
 
@@ -364,7 +362,7 @@ Pulsar has two features, however, that enable you to override this default behav
 
 The diagram below illustrates both concepts:
 
-{% img /img/retention-expiry.png 80 %}
+{% include figure.html src="/img/retention-expiry.png" alt="Message retention and expiry" width="80" %}
 
 With message retention, shown at the top, a <span style="color: #89b557;">retention policy</span> applied to all topics in a {% popover namespace %} dicates that some messages are durably stored in Pulsar even though they've already been acknowledged. Acknowledged messages that are not covered by the retention policy are <span style="color: #bb3b3e;">deleted</span>. Without a retention policy, *all* of the <span style="color: #19967d;">acknowledged messages</span> would be deleted.
 
@@ -384,7 +382,7 @@ Message **duplication** occurs when a message is [persisted](#persistent-storage
 
 The following diagram illustrates what happens when message deduplication is disabled vs. enabled:
 
-{% img /img/message-deduplication.png 75 %}
+{% include figure.html src="/img/message-deduplication.png" alt="Pulsar message deduplication" width="75" %}
 
 Message deduplication is disabled in the scenario shown at the top. Here, a producer publishes message 1 on a topic; the message reaches a Pulsar {% popover broker %} and is [persisted](#persistent-storage) to BookKeeper. The producer then sends message 1 again (in this case due to some retry logic), and the message is received by the broker and stored in BookKeeper again, which means that duplication has occurred.
 
@@ -474,7 +472,7 @@ You can use your own service discovery system if you'd like. If you use your own
 
 The diagram below illustrates Pulsar service discovery:
 
-{% img /img/pulsar-service-discovery.png 50 %}
+{% include figure.html src="/img/pulsar-service-discovery.png" width="50" %}
 
 In this diagram, the Pulsar cluster is addressable via a single DNS name: `pulsar-cluster.acme.com`. A [Python client](../../clients/Python), for example, could access this Pulsar cluster like this:
 
@@ -496,7 +494,7 @@ The **reader interface** for Pulsar enables applications to manually manage curs
 
 The reader interface is helpful for use cases like using Pulsar to provide [effectively-once](https://blog.streaml.io/exactly-once/) processing semantics for a stream processing system. For this use case, it's essential that the stream processing system be able to "rewind" topics to a specific message and begin reading there. The reader interface provides Pulsar clients with the low-level abstraction necessary to "manually position" themselves within a topic.
 
-<img src="/img/pulsar-reader-consumer-interfaces.png" alt="The Pulsar consumer and reader interfaces" width="80%">
+{% include figure.html src="/img/pulsar-reader-consumer-interfaces.png" alt="The Pulsar consumer and reader interfaces" width="80" %}
 
 {% include admonition.html type="warning" title="Non-partitioned topics only"
 content="The reader interface for Pulsar cannot currently be used with [partitioned topics](#partitioned-topics)." %}
