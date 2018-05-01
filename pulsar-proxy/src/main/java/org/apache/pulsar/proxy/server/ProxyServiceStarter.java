@@ -53,8 +53,13 @@ public class ProxyServiceStarter {
     @Parameter(names = { "-zk", "--zookeeper-servers" }, description = "Local zookeeper connection string")
     private String zookeeperServers = "";
 
+    @Deprecated
     @Parameter(names = { "-gzk", "--global-zookeeper-servers" }, description = "Global zookeeper connection string")
     private String globalZookeeperServers = "";
+
+    @Parameter(names = { "-cs", "--configuration-store-servers" },
+        description = "Configuration store connection string")
+    private String configurationStoreServers = "";
 
     @Parameter(names = { "-h", "--help" }, description = "Show this help message")
     private boolean help = false;
@@ -90,13 +95,17 @@ public class ProxyServiceStarter {
 
         if (!isBlank(globalZookeeperServers)) {
             // Use globalZookeeperServers from command line
-            config.setGlobalZookeeperServers(globalZookeeperServers);
+            config.setConfigurationStoreServers(globalZookeeperServers);
+        }
+        if (!isBlank(configurationStoreServers)) {
+            // Use configurationStoreServers from command line
+            config.setConfigurationStoreServers(configurationStoreServers);
         }
 
         if ((isBlank(config.getBrokerServiceURL()) && isBlank(config.getBrokerServiceURLTLS()))
                 || config.isAuthorizationEnabled()) {
             checkArgument(!isEmpty(config.getZookeeperServers()), "zookeeperServers must be provided");
-            checkArgument(!isEmpty(config.getGlobalZookeeperServers()), "globalZookeeperServers must be provided");
+            checkArgument(!isEmpty(config.getConfigurationStoreServers()), "configurationStoreServers must be provided");
         }
 
         java.security.Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());

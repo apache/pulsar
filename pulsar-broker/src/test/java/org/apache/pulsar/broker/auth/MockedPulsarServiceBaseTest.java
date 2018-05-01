@@ -100,7 +100,7 @@ public abstract class MockedPulsarServiceBaseTest {
         this.conf.setActiveConsumerFailoverDelayTimeMillis(0);
         this.conf.setDefaultNumberOfNamespaceBundles(1);
         this.conf.setZookeeperServers("localhost:2181");
-        this.conf.setGlobalZookeeperServers("localhost:3181");
+        this.conf.setConfigurationStoreServers("localhost:3181");
     }
 
     protected final void internalSetup() throws Exception {

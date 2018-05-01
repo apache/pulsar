@@ -40,6 +40,11 @@ import org.slf4j.LoggerFactory;
  */
 public class DiscoveryServiceStarter {
 
+    public static void checkConfig(ServiceConfig config) {
+        checkArgument(!isEmpty(config.getZookeeperServers()), "zookeeperServers must be provided");
+        checkArgument(!isEmpty(config.getConfigurationStoreServers()),  "configuration-store Servers must be provided");
+    }
+
     public static void init(String configFile) throws Exception {
         // setup handlers
         removeHandlersForRootLogger();
@@ -50,14 +55,13 @@ public class DiscoveryServiceStarter {
 
         // load config file
         final ServiceConfig config = PulsarConfigurationLoader.create(configFile, ServiceConfig.class);
-        checkArgument(!isEmpty(config.getZookeeperServers()), "zookeeperServers must be provided");
-        checkArgument(!isEmpty(config.getGlobalZookeeperServers()), "global-zookeeperServers must be provided");
-        
+        checkConfig(config);
+
         // create Discovery service
         DiscoveryService discoveryService = new DiscoveryService(config);
         // create a web-service
         final ServerManager server = new ServerManager(config);
-        
+
         Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override
             public void run() {
@@ -69,7 +73,7 @@ public class DiscoveryServiceStarter {
                 }
             }
         });
-        
+
         discoveryService.start();
         startWebService(server, config);
     }
