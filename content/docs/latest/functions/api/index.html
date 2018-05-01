@@ -1070,7 +1070,7 @@
 
 <ul>
   <li>The <a href="https://docs.oracle.com/javase/8/docs/api/java/util/function/Function.html"><code class="highlighter-rouge">java.util.Function</code></a> interface</li>
-  <li>The <a target="_blank" href="/api/client/org/apache/pulsar/functions/api/Function.html"><code class="highlighter-rouge">Function</code></a> interface. This interface works much like the <code class="highlighter-rouge">java.util.Function</code> ihterface, but with the important difference that it provides a <a target="_blank" href="/api/client/org/apache/pulsar/functions/api/Context.html"><code class="highlighter-rouge">Context</code></a> object that you can use in a <a href="#context">variety of ways</a></li>
+  <li>The <a target="_blank" href="/api/client/org/apache/pulsar/functions/api/Function.html"><code class="highlighter-rouge">Function</code></a> interface. This interface works much like the <code class="highlighter-rouge">java.util.Function</code> interface, but with the important difference that it provides a <a target="_blank" href="/api/client/org/apache/pulsar/functions/api/Context.html"><code class="highlighter-rouge">Context</code></a> object that you can use in a <a href="#context">variety of ways</a></li>
 </ul>
 
 <h3 id="getting-started">Getting started</h3>
@@ -1082,9 +1082,9 @@
 <p>How you get started writing Pulsar Functions in Java depends on which API you’re using:</p>
 
 <ul>
-  <li>If you’re writing <a href="#java-native">Java native function</a>, you won’t need any external dependencies.</li>
+  <li>If you’re writing a <a href="#java-native">Java native function</a>, you won’t need any external dependencies.</li>
   <li>
-    <p>If you’re writing a <a href="#java-sdk">Java SDK</a> function, you’ll need to import the <code class="highlighter-rouge">pulsar-functions-api</code> library.</p>
+    <p>If you’re writing a <a href="#java-sdk">Java SDK function</a>, you’ll need to import the <code class="highlighter-rouge">pulsar-functions-api</code> library.</p>
 
     <p>Here’s an example for a Maven <code class="highlighter-rouge">pom.xml</code> configuration file:</p>
 
@@ -1139,7 +1139,7 @@
 
 <h3 id="java-native">Java native functions</h3>
 
-<p>If your function doesn’t require access to its <a href="#context">context</a>, you can create a Pulsar Function by implementing the <a href="https://docs.oracle.com/javase/8/docs/api/java/util/function/Function.html"><code class="highlighter-rouge">java.util.Function</code></a> interface, which has this very simple, single-method signature:</p>
+<p>If your function doesn’t require access to its <a href="#java-context">context</a>, you can create a Pulsar Function by implementing the <a href="https://docs.oracle.com/javase/8/docs/api/java/util/function/Function.html"><code class="highlighter-rouge">java.util.Function</code></a> interface, which has this very simple, single-method signature:</p>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">interface</span> <span class="nc">Function</span><span class="o">&lt;</span><span class="n">I</span><span class="o">,</span> <span class="n">O</span><span class="o">&gt;</span> <span class="o">{</span>
     <span class="n">O</span> <span class="nf">apply</span><span class="o">(</span><span class="n">I</span> <span class="n">input</span><span class="o">);</span>
@@ -1165,7 +1165,7 @@
 <p>There is one example Java native function in <a href="https://github.com/apache/incubator-pulsar/tree/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples">this folder</a>:</p>
 
 <ul>
-  <li><a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/JavaNativeExclmationFunction.java"><code class="highlighter-rouge">ExclamationFunction</code></a></li>
+  <li><a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/JavaNativeExclmationFunction.java"><code class="highlighter-rouge">JavaNativeExclmationFunction</code></a></li>
 </ul>
 
 <h3 id="java-sdk">Java SDK functions</h3>
@@ -1214,14 +1214,42 @@
   <tbody>
     <tr>
       <td style="text-align: left"><a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/ContextFunction.java"><code class="highlighter-rouge">ContextFunction</code></a></td>
-      <td style="text-align: left">Illustrate <a href="#context">context</a>-specific functionality like <a href="#java-logging">logging</a> and <a href="#java-metrics">metrics</a></td>
+      <td style="text-align: left">Illustrates <a href="#context">context</a>-specific functionality like <a href="#java-logging">logging</a> and <a href="#java-metrics">metrics</a></td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/CounterFunction.java"><code class="highlighter-rouge">CounterFunction</code></a></td>
+      <td style="text-align: left">Illustrates usage of Pulsar Function <a href="../overview#counters">counters</a></td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/ExclamationFunction.java"><code class="highlighter-rouge">ExclamationFunction</code></a></td>
+      <td style="text-align: left">A basic string manipulation function for the Java SDK</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/LoggingFunction.java"><code class="highlighter-rouge">LoggingFunction</code></a></td>
+      <td style="text-align: left">A function that shows how <a href="#java-logging">logging</a> works for Java</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/PublishFunction.java"><code class="highlighter-rouge">PublishFunction</code></a></td>
+      <td style="text-align: left">Publishes results to a topic specified in the function’s <a href="#java-user-config">user config</a> (rather than on the function’s output topic)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/UserConfigFunction.java"><code class="highlighter-rouge">UserConfigFunction</code></a></td>
+      <td style="text-align: left">A function that consumes <a href="#java-user-config">user-supplied configuration</a> values</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/UserMetricFunction.java"><code class="highlighter-rouge">UserMetricFunction</code></a></td>
+      <td style="text-align: left">A function that records metrics</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/UserMetricFunction.java"><code class="highlighter-rouge">VoidFunction</code></a></td>
+      <td style="text-align: left">A simple <a href="#void-functions">void function</a></td>
     </tr>
   </tbody>
 </table>
 
 <h3 id="java-context">Java context object</h3>
 
-<p>The <a target="_blank" href="/api/client/org/apache/pulsar/functions/api/Context.html"><code class="highlighter-rouge">Context</code></a> interface provides a number of methods that you can use to access the functions <a href="#context">context</a>. The various method signatures for the <code class="highlighter-rouge">Context</code> interface are listed below:</p>
+<p>The <a target="_blank" href="/api/client/org/apache/pulsar/functions/api/Context.html"><code class="highlighter-rouge">Context</code></a> interface provides a number of methods that you can use to access the function’s <a href="#context">context</a>. The various method signatures for the <code class="highlighter-rouge">Context</code> interface are listed below:</p>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">interface</span> <span class="nc">Context</span> <span class="o">{</span>
     <span class="kt">byte</span><span class="o">[]</span> <span class="nf">getMessageId</span><span class="o">();</span>
@@ -1236,7 +1264,9 @@
     <span class="n">String</span> <span class="nf">getInstanceId</span><span class="o">();</span>
     <span class="n">String</span> <span class="nf">getFunctionVersion</span><span class="o">();</span>
     <span class="n">Logger</span> <span class="nf">getLogger</span><span class="o">();</span>
-    <span class="n">String</span> <span class="nf">getUserConfigValue</span><span class="o">(</span><span class="n">String</span> <span class="n">key</span><span class="o">);</span>
+    <span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="nf">getUserConfigMap</span><span class="o">();</span>
+    <span class="n">Optional</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="nf">getUserConfigValue</span><span class="o">(</span><span class="n">String</span> <span class="n">key</span><span class="o">);</span>
+    <span class="n">String</span> <span class="nf">getUserConfigValueOrDefault</span><span class="o">(</span><span class="n">String</span> <span class="n">key</span><span class="o">,</span> <span class="n">String</span> <span class="k">default</span><span class="o">);</span>
     <span class="kt">void</span> <span class="nf">recordMetric</span><span class="o">(</span><span class="n">String</span> <span class="n">metricName</span><span class="o">,</span> <span class="kt">double</span> <span class="n">value</span><span class="o">);</span>
     <span class="o">&lt;</span><span class="n">O</span><span class="o">&gt;</span> <span class="n">CompletableFuture</span><span class="o">&lt;</span><span class="n">Void</span><span class="o">&gt;</span> <span class="nf">publish</span><span class="o">(</span><span class="n">String</span> <span class="n">topicName</span><span class="o">,</span> <span class="n">O</span> <span class="n">object</span><span class="o">,</span> <span class="n">String</span> <span class="n">serDeClassName</span><span class="o">);</span>
     <span class="o">&lt;</span><span class="n">O</span><span class="o">&gt;</span> <span class="n">CompletableFuture</span><span class="o">&lt;</span><span class="n">Void</span><span class="o">&gt;</span> <span class="nf">publish</span><span class="o">(</span><span class="n">String</span> <span class="n">topicName</span><span class="o">,</span> <span class="n">O</span> <span class="n">object</span><span class="o">);</span>
@@ -1422,7 +1452,7 @@
 
 <h3 id="java-logging">Java logging</h3>
 
-<p>Pulsar Functions that use the <a href="#java-sdk">Java SDK</a> have access to an <a href="https://www.slf4j.org/">SLF4j</a> <a href="https://www.slf4j.org/api/org/apache/log4j/Logger.html"><code class="highlighter-rouge">Logger</code></a> object that can be used to create logs. Here’s a simple example function that logs either a <code class="highlighter-rouge">WARNING</code>- or <code class="highlighter-rouge">INFO</code>-level log based on whether the incoming string contains the word <code class="highlighter-rouge">danger</code>:</p>
+<p>Pulsar Functions that use the <a href="#java-sdk">Java SDK</a> have access to an <a href="https://www.slf4j.org/">SLF4j</a> <a href="https://www.slf4j.org/api/org/apache/log4j/Logger.html"><code class="highlighter-rouge">Logger</code></a> object that can be used to produce logs at the chosen log level. Here’s a simple example function that logs either a <code class="highlighter-rouge">WARNING</code>- or <code class="highlighter-rouge">INFO</code>-level log based on whether the incoming string contains the word <code class="highlighter-rouge">danger</code>:</p>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">org.apache.pulsar.functions.api.Context</span><span class="o">;</span>
 <span class="kn">import</span> <span class="nn">org.apache.pulsar.functions.api.Function</span><span class="o">;</span>
@@ -1490,6 +1520,15 @@
 
 <p>The <code class="highlighter-rouge">UserConfigFunction</code> function will log the string <code class="highlighter-rouge">"The word of the day is verdure"</code> every time the function is invoked (i.e. every time a message arrives). The <code class="highlighter-rouge">word-of-the-day</code> user config will be changed only when the function is updated with a new config value via the command line.</p>
 
+<p>You can also access the entire user config map or set a default value in case no value is present:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Get the whole config map</span>
+<span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="n">allConfigs</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="na">getUserConfigMap</span><span class="o">();</span>
+
+<span class="c1">// Get value or resort to default</span>
+<span class="n">String</span> <span class="n">wotd</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="na">getUserConfigValueOrDefault</span><span class="o">(</span><span class="s">"word-of-the-day"</span><span class="o">,</span> <span class="s">"perspicacious"</span><span class="o">);</span>
+</code></pre></div></div>
+
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -1518,7 +1557,7 @@
   </div>
 </div>
 
-<h2 id="java-metrics">Java metrics</h2>
+<h3 id="java-metrics">Java metrics</h3>
 
 <p>You can record metrics using the <a href="#java-context"><code class="highlighter-rouge">Context</code></a> object on a per-key basis. You can, for example, set a metric for the key <code class="highlighter-rouge">process-count</code> and a different metric for the key <code class="highlighter-rouge">elevens-count</code> every time the function processes a message. Here’s an example:</p>
 
@@ -1530,11 +1569,13 @@
     <span class="kd">public</span> <span class="kt">void</span> <span class="nf">apply</span><span class="o">(</span><span class="n">Integer</span> <span class="n">input</span><span class="o">,</span> <span class="n">Context</span> <span class="n">context</span><span class="o">)</span> <span class="o">{</span>
         <span class="c1">// Records the metric 1 every time a message arrives</span>
         <span class="n">context</span><span class="o">.</span><span class="na">recordMetric</span><span class="o">(</span><span class="s">"hit-count"</span><span class="o">,</span> <span class="mi">1</span><span class="o">);</span>
-        
+
         <span class="c1">// Records the metric only if the arriving number equals 11</span>
         <span class="k">if</span> <span class="o">(</span><span class="n">input</span> <span class="o">==</span> <span class="mi">11</span><span class="o">)</span> <span class="o">{</span>
             <span class="n">context</span><span class="o">.</span><span class="na">recordMetric</span><span class="o">(</span><span class="s">"elevens-count"</span><span class="o">,</span> <span class="mi">1</span><span class="o">);</span>
         <span class="o">}</span>
+
+        <span class="k">return</span> <span class="kc">null</span><span class="o">;</span>
     <span class="o">}</span>
 <span class="o">}</span>
 </code></pre></div></div>
@@ -1569,7 +1610,291 @@
 
 <h2 id="python">Pulsar Functions for Python</h2>
 
-<p>Documentation for the Python SDK for Pulsar Functions is coming soon.</p>
+<p>Writing Pulsar Functions in Python entails implementing one of two things:</p>
+
+<ul>
+  <li>A <code class="highlighter-rouge">process</code> function that takes an input (message data from the function’s input topic(s)), applies some kind of logic to it, and either returns an object (to be published to the function’s output topic) or <code class="highlighter-rouge">pass</code>es and thus doesn’t produce a message</li>
+  <li>A <code class="highlighter-rouge">Function</code> class that has a <code class="highlighter-rouge">process</code> method that provides a message input to process and a <a href="#python-context">context</a> object</li>
+</ul>
+
+<h3 id="getting-started-1">Getting started</h3>
+
+<p>The requirements for writing Pulsar Functions in Python depend on your <a href="../deployment">deployment mode</a>:</p>
+
+<ul>
+  <li>If you’re writing a <a href="#python-native">Python native function</a>, you won’t need to install any external dependencies</li>
+  <li>
+    <p>If you’re writing a <a href="#python-sdk">Python SDK function</a>, you’ll need to install the the <a href="/api/python"><code class="highlighter-rouge">pulsar-client</code></a> Python library.</p>
+
+    <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pip <span class="nb">install </span>pulsar-client<span class="o">==</span>1.22.0
+</code></pre></div>    </div>
+  </li>
+</ul>
+
+<h3 id="packaging">Packaging</h3>
+
+<p>At the moment, the code for Pulsar Functions written in Python must be contained within a single Python file. In the future, Pulsar Functions may support other packaging formats, such as <a href="https://github.com/pantsbuild/pex"><strong>P</strong>ython <strong>EX</strong>ecutables</a> (PEXes).</p>
+
+<h3 id="python-native">Python native functions</h3>
+
+<p>If your function doesn’t require access to its <a href="#context">context</a>, you can create a Pulsar Function by implementing a <code class="highlighter-rouge">process</code> function, which provides a single input object that you can process however you wish. Here’s an example function that takes a string as its input, adds an exclamation point at the end of the string, and then publishes the resulting string:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="nb">input</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s">"{0}!"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">input</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p>In general, you should use native functions when you don’t need access to the function’s <a href="#context">context</a>. If you <em>do</em> need access to the function’s context, then we recommend using the <a href="#python-sdk">Pulsar Functions Python SDK</a>.</p>
+
+<h4 id="python-native-examples">Python native examples</h4>
+
+<p>There is one example Python native function in <a href="https://github.com/apache/incubator-pulsar/tree/master/pulsar-functions/python-examples">this folder</a>:</p>
+
+<ul>
+  <li><a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/python-examples/pure_python_function_exclamation.py"><code class="highlighter-rouge">pure_python_function_exclamation.py</code></a></li>
+</ul>
+
+<h3 id="python-sdk">Python SDK functions</h3>
+
+<p>To get started developing Pulsar Functions using the Python SDK, you’ll need to install the <a href="/api/python"><code class="highlighter-rouge">pulsar-client</code></a> library using the instructions <a href="#getting-started">above</a>.</p>
+
+<h4 id="python-sdk-examples">Python SDK examples</h4>
+
+<p>There are several example Python functions in <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/python-examples">this folder</a>:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Function file</th>
+      <th style="text-align: left">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/python-examples/exclamation.py"><code class="highlighter-rouge">exclamation.py</code></a></td>
+      <td style="text-align: left">Adds an exclamation point at the end of each incoming string</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/python-examples/logfunction.py"><code class="highlighter-rouge">logfunction.py</code></a></td>
+      <td style="text-align: left">Logs each incoming message</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/python-examples/thumbnailer.py"><code class="highlighter-rouge">thumbnailer.py</code></a></td>
+      <td style="text-align: left">Takes image data as input and outputs a 128x128 thumbnail of each image</td>
+    </tr>
+  </tbody>
+</table>
+
+<h4 id="python-context">Python context object</h4>
+
+<p>The <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-client-cpp/python/functions/context.py"><code class="highlighter-rouge">Context</code></a> class provides a number of methods that you can use to access the function’s <a href="#context">context</a>. The various methods for the <code class="highlighter-rouge">Context</code> class are listed below:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Method</th>
+      <th style="text-align: left">What it provides</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">get_message_id</code></td>
+      <td style="text-align: left">The message ID of the message being processed</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">get_topic_name</code></td>
+      <td style="text-align: left">The input topic of the message being processed</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">get_function_name</code></td>
+      <td style="text-align: left">The name of the current Pulsar Function</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">get_function_id</code></td>
+      <td style="text-align: left">The ID of the current Pulsar Function</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">get_instance_id</code></td>
+      <td style="text-align: left">The ID of the current Pulsar Functions instance</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">get_function_version</code></td>
+      <td style="text-align: left">The version of the current Pulsar Function</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">get_logger</code></td>
+      <td style="text-align: left">A logger object that can be used for <a href="#python-logging">logging</a></td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">get_user_config_value</code></td>
+      <td style="text-align: left">Returns the value of a <a href="#python-user-config">user-defined config</a> (or <code class="highlighter-rouge">None</code> if the config doesn’t exist)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">get_user_config_map</code></td>
+      <td style="text-align: left">Returns the entire user-defined config as a dict</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">record_metric</code></td>
+      <td style="text-align: left">Records a per-key <a href="#python-metrics">metric</a></td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">publish</code></td>
+      <td style="text-align: left">Publishes a message to the specified Pulsar topic</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">get_output_serde_class_name</code></td>
+      <td style="text-align: left">The name of the output <a href="#python-serde">SerDe</a> class</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">ack</code></td>
+      <td style="text-align: left"><span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">Acks</span> the message being processed to Pulsar</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="python-serde">Python SerDe</h3>
+
+<p>Pulsar Functions use <a href="#serde">SerDe</a> when publishing data to and consuming data from Pulsar topics (this is true of both <a href="#python-native">native</a> functions and <a href="#python-sdk">SDK</a> functions). You can specify the SerDe when <a href="../deployment#cluster-mode">creating</a> or <a href="../deployment#local-run">running</a> functions. Here’s an example:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions create <span class="se">\</span>
+  <span class="nt">--tenant</span> sample <span class="se">\</span>
+  <span class="nt">--namespace</span> ns1 <span class="se">\</span>
+  <span class="nt">--name</span> my_function <span class="se">\</span>
+  <span class="nt">--py</span> my_function.py <span class="se">\</span>
+  <span class="nt">--className</span> my_function.MyFunction <span class="se">\</span>
+  <span class="nt">--customSerdeInputs</span> <span class="s1">'{"input-topic-1":"Serde1","input-topic-2":"Serde2"}'</span> <span class="se">\</span>
+  <span class="nt">--outputSerdeClassName</span> Serde3 <span class="se">\</span>
+  <span class="nt">--output</span> output-topic-1
+</code></pre></div></div>
+
+<p>In this case, there are two input topics, <code class="highlighter-rouge">input-topic-1</code> and <code class="highlighter-rouge">input-topic-2</code>, each of which is mapped to a different SerDe class (the map must be specified as a JSON string). The output topic, <code class="highlighter-rouge">output-topic-1</code>, uses the <code class="highlighter-rouge">Serde3</code> class for SerDe. At the moment, all Pulsar Function logic, include processing function and SerDe classes, must be contained within a single Python file.</p>
+
+<p>When using Pulsar Functions for Python, you essentially have three SerDe options:</p>
+
+<ol>
+  <li>You can use the <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-client-cpp/python/functions/serde.py#L70"><code class="highlighter-rouge">IdentitySerde</code></a>, which leaves the data unchanged. The <code class="highlighter-rouge">IdentitySerDe</code> is the <strong>default</strong>. Creating or running a function without explicitly specifying SerDe will mean that this option is used.</li>
+  <li>You can use the <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-client-cpp/python/functions/serde.py#L62"><code class="highlighter-rouge">PickeSerDe</code></a>, which uses Python’s <a href="https://docs.python.org/3/library/pickle.html"><code class="highlighter-rouge">pickle</code></a> for SerDe.</li>
+  <li>You can create a custom SerDe class by implementing the baseline <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-client-cpp/python/functions/serde.py#L50"><code class="highlighter-rouge">SerDe</code></a> class, which has just two methods: <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-client-cpp/python/functions/serde.py#L53"><code class="highlighter-rouge">serialize</code></a> for converting the object into bytes, and <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-client-cpp/python/functions/serde.py#L58"><code class="highlighter-rouge">deserialize</code></a> for converting bytes into an object of the required application-specific type.</li>
+</ol>
+
+<p>The table below shows when you should use each SerDe:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">SerDe option</th>
+      <th style="text-align: left">When to use</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">IdentitySerde</code></td>
+      <td style="text-align: left">When you’re working with simple types like strings, Booleans, integers, and the like</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">PickleSerDe</code></td>
+      <td style="text-align: left">When you’re working with complex, application-specific types and are comfortable with <code class="highlighter-rouge">pickle</code>’s “best effort” approach</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">Custom SerDe</td>
+      <td style="text-align: left">When you require explicit control over SerDe, potentially for performance or data compatibility purposes</td>
+    </tr>
+  </tbody>
+</table>
+
+<h4 id="python-serde-example">Python SerDe example</h4>
+
+<p>Imagine that you’re writing Pulsar Functions in Python that are processing tweet objects. Here’s a simple <code class="highlighter-rouge">Tweet</code> class:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">Tweet</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">username</span><span class="p">,</span> <span class="n">tweet_content</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">username</span> <span class="o">=</span> <span class="n">username</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tweet_content</span> <span class="o">=</span> <span class="n">tweet_content</span>
+</code></pre></div></div>
+
+<p>In order to use this class in Pulsar Functions, you’d have two options:</p>
+
+<ol>
+  <li>You could specify <code class="highlighter-rouge">PickleSerDe</code>, which would apply the <a href="https://docs.python.org/3/library/pickle.html"><code class="highlighter-rouge">pickle</code></a> library’s SerDe</li>
+  <li>You could create your own SerDe class. Here’s a simple example:</li>
+</ol>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="kn">from</span> <span class="nn">pulsar</span> <span class="kn">import</span> <span class="n">SerDe</span>
+
+  <span class="k">class</span> <span class="nc">TweetSerDe</span><span class="p">(</span><span class="n">SerDe</span><span class="p">):</span>
+      <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tweet</span><span class="p">):</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">tweet</span> <span class="o">=</span> <span class="n">tweet</span>
+
+      <span class="k">def</span> <span class="nf">serialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">input</span><span class="p">):</span>
+          <span class="k">return</span> <span class="nb">bytes</span><span class="p">(</span><span class="s">"{0}|{1}"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tweet</span><span class="o">.</span><span class="n">username</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tweet</span><span class="o">.</span><span class="n">tweet_content</span><span class="p">))</span>
+
+      <span class="k">def</span> <span class="nf">deserialize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_bytes</span><span class="p">):</span>
+          <span class="n">tweet_components</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">input_bytes</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">'|'</span><span class="p">)</span>
+          <span class="k">return</span> <span class="n">Tweet</span><span class="p">(</span><span class="n">tweet_components</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">tweet_componentsp</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+</code></pre></div></div>
+
+<h3 id="python-logging">Python logging</h3>
+
+<p>Pulsar Functions that use the <a href="#python-sdk">Python SDK</a> have access to a logging object that can be used to produce logs at the chosen log level. Here’s a simple example function that logs either a <code class="highlighter-rouge">WARNING</code>- or <code class="highlighter-rouge">INFO</code>-level log based on whether the incoming string contains the word <code class="highlighter-rouge">danger</code>:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">pulsar</span> <span class="kn">import</span> <span class="n">Function</span>
+
+<span class="k">class</span> <span class="nc">LoggingFunction</span><span class="p">(</span><span class="n">Function</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">input</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">get_logger</span><span class="p">()</span>
+        <span class="n">msg_id</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">get_message_id</span><span class="p">()</span>
+        <span class="k">if</span> <span class="s">'danger'</span> <span class="ow">in</span> <span class="nb">input</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">"A warning was received in message {0}"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">context</span><span class="o">.</span><span class="n">get_message_id</span><span class="p">()))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">"Message {0} received</span><span class="se">\n</span><span class="s">Content: {1}"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">msg_id</span><span class="p">,</span> <span class="nb">input</span><span class="p">))</span>
+</code></pre></div></div>
+
+<p>If you want your function to produce logs on a Pulsar topic, you need to specify a <strong>log topic</strong> when creating or running the function. Here’s an example:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions create <span class="se">\</span>
+  <span class="nt">--py</span> logging_function.py <span class="se">\</span>
+  <span class="nt">--className</span> logging_function.LoggingFunction <span class="se">\</span>
+  <span class="nt">--logTopic</span> logging-function-logs <span class="se">\</span>
+  <span class="c"># Other function configs</span>
+</code></pre></div></div>
+
+<p>Now, all logs produced by the <code class="highlighter-rouge">LoggingFunction</code> above can be accessed via the <code class="highlighter-rouge">logging-function-logs</code> topic.</p>
+
+<h3 id="python-user-config">Python user config</h3>
+
+<p>The Python SDK’s <a href="#python-context"><code class="highlighter-rouge">Context</code></a> object enables you to access key/value pairs provided to the Pulsar Function via the command line (as JSON). Here’s an example function creation command that passes a key/value pair:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions create <span class="se">\</span>
+  <span class="c"># Other function configs \</span>
+  <span class="nt">--userConfig</span> <span class="s1">'{"word-of-the-day":"verdure"}'</span>
+</code></pre></div></div>
+
+<p>To access that value in a Python function:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">pulsar</span> <span class="kn">import</span> <span class="n">Function</span>
+
+<span class="k">class</span> <span class="nc">UserConfigFunction</span><span class="p">(</span><span class="n">Function</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">input</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">get_logger</span><span class="p">()</span>
+        <span class="n">wotd</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">get_user_config_value</span><span class="p">(</span><span class="s">'word-of-the-day'</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">wotd</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">'No word of the day provided'</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">"The word of the day is {0}"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">wotd</span><span class="p">))</span>
+</code></pre></div></div>
+
+<h3 id="python-metrics">Python metrics</h3>
+
+<p>You can record metrics using the <a href="#python-context"><code class="highlighter-rouge">Context</code></a> object on a per-key basis. You can, for example, set a metric for the key <code class="highlighter-rouge">process-count</code> and a different metric for the key <code class="highlighter-rouge">elevens-count</code> every time the function processes a message. Here’s an example:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">pulsar</span> <span class="kn">import</span> <span class="n">Function</span>
+
+<span class="k">class</span> <span class="nc">MetricRecorderFunction</span><span class="p">(</span><span class="n">Function</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">input</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+        <span class="n">context</span><span class="o">.</span><span class="n">record_metric</span><span class="p">(</span><span class="s">'hit-count'</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">input</span> <span class="o">==</span> <span class="mi">11</span><span class="p">:</span>
+            <span class="n">context</span><span class="o">.</span><span class="n">record_metric</span><span class="p">(</span><span class="s">'elevens-count'</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+</code></pre></div></div>
 
       </section>
     </article>

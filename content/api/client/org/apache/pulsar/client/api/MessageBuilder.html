@@ -17,8 +17,8 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":17,"i2":17,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6};
-var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],16:["t5","Default Methods"]};
+var methods = {"i0":38,"i1":49,"i2":49,"i3":38,"i4":38,"i5":38,"i6":38,"i7":38,"i8":38,"i9":38,"i10":38,"i11":38,"i12":38,"i13":38};
+var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],16:["t5","Default Methods"],32:["t6","Deprecated Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
 var tableTab = "tableTab";
@@ -98,8 +98,13 @@ var activeTableTab = "activeTableTab";
 <ul class="blockList">
 <li class="blockList">
 <hr>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;
+<div class="block"><span class="deprecationComment">since 2.0. Use <a href="../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html" title="interface in org.apache.pulsar.client.api"><code>TypedMessageBuilder</code></a> as returned by <a href="../../../../../org/apache/pulsar/client/api/Producer.html#newMessage--"><code>Producer.newMessage()</code></a> to create a new
+             message builder.</span></div>
+</div>
 <br>
-<pre>public interface <span class="typeNameLabel">MessageBuilder&lt;T&gt;</span></pre>
+<pre>@Deprecated
+public interface <span class="typeNameLabel">MessageBuilder&lt;T&gt;</span></pre>
 <div class="block">Message builder factory. Use this class to create messages to be send to the Pulsar producer</div>
 </li>
 </ul>
@@ -114,7 +119,7 @@ var activeTableTab = "activeTableTab";
 </a>
 <h3>Method Summary</h3>
 <table class="memberSummary" border="0" cellpadding="3" cellspacing="0" summary="Method Summary table, listing methods, and an explanation">
-<caption><span id="t0" class="activeTableTab"><span>All Methods</span><span class="tabEnd">&nbsp;</span></span><span id="t1" class="tableTab"><span><a href="javascript:show(1);">Static Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t2" class="tableTab"><span><a href="javascript:show(2);">Instance Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t3" class="tableTab"><span><a href="javascript:show(4);">Abstract Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t5" class="tableTab"><span><a href="javascript:show(16);">Default Methods</a></span><span class="tabEnd">&nbsp;</span></span></caption>
+<caption><span id="t0" class="activeTableTab"><span>All Methods</span><span class="tabEnd">&nbsp;</span></span><span id="t1" class="tableTab"><span><a href="javascript:show(1);">Static Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t2" class="tableTab"><span><a href="javascript:show(2);">Instance Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t3" class="tableTab"><span><a href="javascript:show(4);">Abstract Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t5" class="tableTab"><span><a href="javascript:show(16);">Default Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t6" class="tableTab"><span><a href="javascript:show(32);">Deprecated Methods</a></span><span class="tabEnd">&nbsp;</span></span></caption>
 <tr>
 <th class="colFirst" scope="col">Modifier and Type</th>
 <th class="colLast" scope="col">Method and Description</th>
@@ -122,28 +127,34 @@ var activeTableTab = "activeTableTab";
 <tr id="i0" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="type parameter in MessageBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html#build--">build</a></span>()</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Finalize the immutable message</div>
 </td>
 </tr>
 <tr id="i1" class="rowColor">
 <td class="colFirst"><code>static <a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a>&lt;byte[]&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html#create--">create</a></span>()</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html#create--">create</a></span>()</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
+&nbsp;</td>
 </tr>
 <tr id="i2" class="altColor">
 <td class="colFirst"><code>static &lt;T&gt;&nbsp;<a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a>&lt;T&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html#create-org.apache.pulsar.client.api.Schema-">create</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Schema.html" title="interface in org.apache.pulsar.client.api">Schema</a>&lt;T&gt;&nbsp;schema)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Create a new message builder instance.</div>
 </td>
 </tr>
 <tr id="i3" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="type parameter in MessageBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html#disableReplication--">disableReplication</a></span>()</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Disable replication for this message.</div>
 </td>
 </tr>
 <tr id="i4" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="type parameter in MessageBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html#setContent-byte:A-">setContent</a></span>(byte[]&nbsp;data)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Set the content of the message</div>
 </td>
 </tr>
@@ -152,30 +163,35 @@ var activeTableTab = "activeTableTab";
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html#setContent-byte:A-int-int-">setContent</a></span>(byte[]&nbsp;data,
           int&nbsp;offset,
           int&nbsp;length)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Set the content of the message</div>
 </td>
 </tr>
 <tr id="i6" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="type parameter in MessageBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html#setContent-java.nio.ByteBuffer-">setContent</a></span>(ByteBuffer&nbsp;buf)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Set the content of the message</div>
 </td>
 </tr>
 <tr id="i7" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="type parameter in MessageBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html#setEventTime-long-">setEventTime</a></span>(long&nbsp;timestamp)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Set the event time for a given message.</div>
 </td>
 </tr>
 <tr id="i8" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="type parameter in MessageBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html#setKey-java.lang.String-">setKey</a></span>(String&nbsp;key)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Sets the key of the message for routing policy</div>
 </td>
 </tr>
 <tr id="i9" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="type parameter in MessageBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html#setProperties-java.util.Map-">setProperties</a></span>(Map&lt;String,String&gt;&nbsp;properties)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Add all the properties in the provided map</div>
 </td>
 </tr>
@@ -183,24 +199,28 @@ var activeTableTab = "activeTableTab";
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="type parameter in MessageBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html#setProperty-java.lang.String-java.lang.String-">setProperty</a></span>(String&nbsp;name,
            String&nbsp;value)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Sets a new property on a message.</div>
 </td>
 </tr>
 <tr id="i11" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="type parameter in MessageBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html#setReplicationClusters-java.util.List-">setReplicationClusters</a></span>(List&lt;String&gt;&nbsp;clusters)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Override the replication clusters for this message.</div>
 </td>
 </tr>
 <tr id="i12" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="type parameter in MessageBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html#setSequenceId-long-">setSequenceId</a></span>(long&nbsp;sequenceId)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Specify a custom sequence id for the message being published.</div>
 </td>
 </tr>
 <tr id="i13" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="type parameter in MessageBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html#setValue-T-">setValue</a></span>(<a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="type parameter in MessageBuilder">T</a>&nbsp;value)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Set a domain object on the message</div>
 </td>
 </tr>
@@ -226,6 +246,7 @@ var activeTableTab = "activeTableTab";
 <li class="blockList">
 <h4>create</h4>
 <pre>static&nbsp;&lt;T&gt;&nbsp;<a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a>&lt;T&gt;&nbsp;create(<a href="../../../../../org/apache/pulsar/client/api/Schema.html" title="interface in org.apache.pulsar.client.api">Schema</a>&lt;T&gt;&nbsp;schema)</pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Create a new message builder instance.
  <p>
  A message builder is suitable for creating one single message</div>
@@ -242,6 +263,7 @@ var activeTableTab = "activeTableTab";
 <li class="blockList">
 <h4>create</h4>
 <pre>static&nbsp;<a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a>&lt;byte[]&gt;&nbsp;create()</pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 </li>
 </ul>
 <a name="build--">
@@ -251,6 +273,7 @@ var activeTableTab = "activeTableTab";
 <li class="blockList">
 <h4>build</h4>
 <pre><a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="type parameter in MessageBuilder">T</a>&gt;&nbsp;build()</pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Finalize the immutable message</div>
 <dl>
 <dt><span class="returnLabel">Returns:</span></dt>
@@ -268,6 +291,7 @@ var activeTableTab = "activeTableTab";
 <h4>setValue</h4>
 <pre><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="type parameter in MessageBuilder">T</a>&gt;&nbsp;setValue(<a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="type parameter in MessageBuilder">T</a>&nbsp;value)
                     throws <a href="../../../../../org/apache/pulsar/client/api/SchemaSerializationException.html" title="class in org.apache.pulsar.client.api">SchemaSerializationException</a></pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Set a domain object on the message</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -284,6 +308,7 @@ var activeTableTab = "activeTableTab";
 <li class="blockList">
 <h4>setContent</h4>
 <pre><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="type parameter in MessageBuilder">T</a>&gt;&nbsp;setContent(byte[]&nbsp;data)</pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Set the content of the message</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -300,6 +325,7 @@ var activeTableTab = "activeTableTab";
 <pre><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="type parameter in MessageBuilder">T</a>&gt;&nbsp;setContent(byte[]&nbsp;data,
                              int&nbsp;offset,
                              int&nbsp;length)</pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Set the content of the message</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -316,6 +342,7 @@ var activeTableTab = "activeTableTab";
 <li class="blockList">
 <h4>setContent</h4>
 <pre><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="type parameter in MessageBuilder">T</a>&gt;&nbsp;setContent(ByteBuffer&nbsp;buf)</pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Set the content of the message</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -331,6 +358,7 @@ var activeTableTab = "activeTableTab";
 <h4>setProperty</h4>
 <pre><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="type parameter in MessageBuilder">T</a>&gt;&nbsp;setProperty(String&nbsp;name,
                               String&nbsp;value)</pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Sets a new property on a message.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -346,6 +374,7 @@ var activeTableTab = "activeTableTab";
 <li class="blockList">
 <h4>setProperties</h4>
 <pre><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="type parameter in MessageBuilder">T</a>&gt;&nbsp;setProperties(Map&lt;String,String&gt;&nbsp;properties)</pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Add all the properties in the provided map</div>
 </li>
 </ul>
@@ -356,6 +385,7 @@ var activeTableTab = "activeTableTab";
 <li class="blockList">
 <h4>setKey</h4>
 <pre><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="type parameter in MessageBuilder">T</a>&gt;&nbsp;setKey(String&nbsp;key)</pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Sets the key of the message for routing policy</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -370,12 +400,15 @@ var activeTableTab = "activeTableTab";
 <li class="blockList">
 <h4>setEventTime</h4>
 <pre><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="type parameter in MessageBuilder">T</a>&gt;&nbsp;setEventTime(long&nbsp;timestamp)</pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Set the event time for a given message.
 
- <p>Applications can retrieve the event time by calling <a href="../../../../../org/apache/pulsar/client/api/Message.html#getEventTime--"><code>Message.getEventTime()</code></a>.
+ <p>
+ Applications can retrieve the event time by calling <a href="../../../../../org/apache/pulsar/client/api/Message.html#getEventTime--"><code>Message.getEventTime()</code></a>.
 
- <p>Note: currently pulsar doesn't support event-time based index. so the subscribers can't
- seek the messages by event time.</div>
+ <p>
+ Note: currently pulsar doesn't support event-time based index. so the subscribers can't seek the messages by
+ event time.</div>
 <dl>
 <dt><span class="simpleTagLabel">Since:</span></dt>
 <dd>1.20.0</dd>
@@ -389,6 +422,7 @@ var activeTableTab = "activeTableTab";
 <li class="blockList">
 <h4>setSequenceId</h4>
 <pre><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="type parameter in MessageBuilder">T</a>&gt;&nbsp;setSequenceId(long&nbsp;sequenceId)</pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Specify a custom sequence id for the message being published.
  <p>
  The sequence id can be used for deduplication purposes and it needs to follow these rules:
@@ -414,6 +448,7 @@ var activeTableTab = "activeTableTab";
 <li class="blockList">
 <h4>setReplicationClusters</h4>
 <pre><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="type parameter in MessageBuilder">T</a>&gt;&nbsp;setReplicationClusters(List&lt;String&gt;&nbsp;clusters)</pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Override the replication clusters for this message.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -428,6 +463,7 @@ var activeTableTab = "activeTableTab";
 <li class="blockList">
 <h4>disableReplication</h4>
 <pre><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="type parameter in MessageBuilder">T</a>&gt;&nbsp;disableReplication()</pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Disable replication for this message.</div>
 </li>
 </ul>

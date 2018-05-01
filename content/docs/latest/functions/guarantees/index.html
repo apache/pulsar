@@ -912,7 +912,7 @@
 
 <p>You can set the processing guarantees for a Pulsar Function when you create the Function. This <a href="../../reference/CliTools#pulsar-admin-functions-create"><code class="highlighter-rouge">pulsar-function create</code></a> command, for example, would apply effectively-once guarantees to the Function:</p>
 
-<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-functions <span class="se">\</span>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions create <span class="se">\</span>
   <span class="nt">--processingGuarantees</span> EFFECTIVELY_ONCE <span class="se">\</span>
   <span class="c"># Other function configs</span>
 </code></pre></div></div>
@@ -955,7 +955,12 @@
 
 <h2 id="updating-the-processing-guarantees-of-a-function">Updating the processing guarantees of a function</h2>
 
-<p>You can change the processing guarantees applied to a function once it’s already been created using the <a href="../../reference/CliTools#pulsar-admin-functions-update"><code class="highlighter-rouge">update</code></a> command.</p>
+<p>You can change the processing guarantees applied to a function once it’s already been created using the <a href="../../reference/CliTools#pulsar-admin-functions-update"><code class="highlighter-rouge">update</code></a> command. Here’s an example:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions update <span class="se">\</span>
+  <span class="nt">--processingGuarantees</span> ATMOST_ONCE <span class="se">\</span>
+  <span class="c"># Other function configs</span>
+</code></pre></div></div>
 
       </section>
     </article>

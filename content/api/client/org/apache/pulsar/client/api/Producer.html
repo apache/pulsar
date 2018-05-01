@@ -17,8 +17,8 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6};
-var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":38,"i8":6,"i9":38,"i10":6};
+var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],32:["t6","Deprecated Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
 var tableTab = "tableTab";
@@ -121,7 +121,7 @@ extends Closeable</pre>
 </a>
 <h3>Method Summary</h3>
 <table class="memberSummary" border="0" cellpadding="3" cellspacing="0" summary="Method Summary table, listing methods, and an explanation">
-<caption><span id="t0" class="activeTableTab"><span>All Methods</span><span class="tabEnd">&nbsp;</span></span><span id="t2" class="tableTab"><span><a href="javascript:show(2);">Instance Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t3" class="tableTab"><span><a href="javascript:show(4);">Abstract Methods</a></span><span class="tabEnd">&nbsp;</span></span></caption>
+<caption><span id="t0" class="activeTableTab"><span>All Methods</span><span class="tabEnd">&nbsp;</span></span><span id="t2" class="tableTab"><span><a href="javascript:show(2);">Instance Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t3" class="tableTab"><span><a href="javascript:show(4);">Abstract Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t6" class="tableTab"><span><a href="javascript:show(32);">Deprecated Methods</a></span><span class="tabEnd">&nbsp;</span></span></caption>
 <tr>
 <th class="colFirst" scope="col">Modifier and Type</th>
 <th class="colLast" scope="col">Method and Description</th>
@@ -170,24 +170,38 @@ extends Closeable</pre>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#getTopic--">getTopic</a></span>()</code>&nbsp;</td>
 </tr>
 <tr id="i6" class="altColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a></code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#send-org.apache.pulsar.client.api.Message-">send</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="type parameter in Producer">T</a>&gt;&nbsp;message)</code>
-<div class="block">Send a message</div>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html" title="interface in org.apache.pulsar.client.api">TypedMessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="type parameter in Producer">T</a>&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#newMessage--">newMessage</a></span>()</code>
+<div class="block">Create a new message builder
+
+ This message builder allows to specify additional properties on the message.</div>
 </td>
 </tr>
 <tr id="i7" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a></code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#send-T-">send</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="type parameter in Producer">T</a>&nbsp;message)</code>
-<div class="block">Send a message</div>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#send-org.apache.pulsar.client.api.Message-">send</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="type parameter in Producer">T</a>&gt;&nbsp;message)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;
+<div class="block"><span class="deprecationComment">since 2.0. Use <a href="../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html" title="interface in org.apache.pulsar.client.api"><code>TypedMessageBuilder</code></a> as returned by <a href="../../../../../org/apache/pulsar/client/api/Producer.html#newMessage--"><code>newMessage()</code></a> to create a
+             new message builder.</span></div>
+</div>
 </td>
 </tr>
 <tr id="i8" class="altColor">
-<td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#sendAsync-org.apache.pulsar.client.api.Message-">sendAsync</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="type parameter in Producer">T</a>&gt;&nbsp;message)</code>
-<div class="block">Send a message asynchronously</div>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#send-T-">send</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="type parameter in Producer">T</a>&nbsp;message)</code>
+<div class="block">Sends a message.</div>
 </td>
 </tr>
 <tr id="i9" class="rowColor">
+<td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#sendAsync-org.apache.pulsar.client.api.Message-">sendAsync</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="type parameter in Producer">T</a>&gt;&nbsp;message)</code>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;
+<div class="block"><span class="deprecationComment">since 2.0. Use <a href="../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html" title="interface in org.apache.pulsar.client.api"><code>TypedMessageBuilder</code></a> as returned by <a href="../../../../../org/apache/pulsar/client/api/Producer.html#newMessage--"><code>newMessage()</code></a> to create a
+             new message builder.</span></div>
+</div>
+</td>
+</tr>
+<tr id="i10" class="altColor">
 <td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#sendAsync-T-">sendAsync</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="type parameter in Producer">T</a>&nbsp;message)</code>
 <div class="block">Send a message asynchronously</div>
@@ -244,10 +258,14 @@ extends Closeable</pre>
 <h4>send</h4>
 <pre><a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&nbsp;send(<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="type parameter in Producer">T</a>&nbsp;message)
         throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
-<div class="block">Send a message</div>
+<div class="block">Sends a message.
+ <p>
+ This call will be blocking until is successfully acknowledged by the Pulsar broker.
+ <p>
+ Use <a href="../../../../../org/apache/pulsar/client/api/Producer.html#newMessage--"><code>newMessage()</code></a> to specify more properties than just the value on the message to be sent.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>message</code> - a byte array with the payload of the message</dd>
+<dd><code>message</code> - a message</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>the message id assigned to the published message</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
@@ -268,15 +286,44 @@ extends Closeable</pre>
 <pre>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&gt;&nbsp;sendAsync(<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="type parameter in Producer">T</a>&nbsp;message)</pre>
 <div class="block">Send a message asynchronously
  <p>
- When the producer queue is full, by default this method will complete the future with an exception <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.ProducerQueueIsFullError.html" title="class in org.apache.pulsar.client.api"><code>PulsarClientException.ProducerQueueIsFullError</code></a>
+ When the producer queue is full, by default this method will complete the future with an exception
+ <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.ProducerQueueIsFullError.html" title="class in org.apache.pulsar.client.api"><code>PulsarClientException.ProducerQueueIsFullError</code></a>
  <p>
  See <a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#maxPendingMessages-int-"><code>ProducerBuilder.maxPendingMessages(int)</code></a> to configure the producer queue size and
- <a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#blockIfQueueFull-boolean-"><code>ProducerBuilder.blockIfQueueFull(boolean)</code></a> to change the blocking behavior.</div>
+ <a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#blockIfQueueFull-boolean-"><code>ProducerBuilder.blockIfQueueFull(boolean)</code></a> to change the blocking behavior.
+ <p>
+ Use <a href="../../../../../org/apache/pulsar/client/api/Producer.html#newMessage--"><code>newMessage()</code></a> to specify more properties than just the value on the message to be sent.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>message</code> - a byte array with the payload of the message</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>a future that can be used to track when the message will have been safely persisted</dd>
+</dl>
+</li>
+</ul>
+<a name="newMessage--">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>newMessage</h4>
+<pre><a href="../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html" title="interface in org.apache.pulsar.client.api">TypedMessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="type parameter in Producer">T</a>&gt;&nbsp;newMessage()</pre>
+<div class="block">Create a new message builder
+
+ This message builder allows to specify additional properties on the message. For example:
+
+ <pre>
+ <code>
+ producer.newMessage()
+       .key(messageKey)
+       .value(myValue)
+       .property("user-defined-property", "value")
+       .send();
+ </code>
+ </pre></div>
+<dl>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>a typed message builder that can be used to construct the message to be sent through this producer</dd>
 </dl>
 </li>
 </ul>
@@ -286,8 +333,11 @@ extends Closeable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>send</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&nbsp;send(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="type parameter in Producer">T</a>&gt;&nbsp;message)
-        throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
+<pre>@Deprecated
+<a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&nbsp;send(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="type parameter in Producer">T</a>&gt;&nbsp;message)
+                    throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;<span class="deprecationComment">since 2.0. Use <a href="../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html" title="interface in org.apache.pulsar.client.api"><code>TypedMessageBuilder</code></a> as returned by <a href="../../../../../org/apache/pulsar/client/api/Producer.html#newMessage--"><code>newMessage()</code></a> to create a
+             new message builder.</span></div>
 <div class="block">Send a message</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -306,7 +356,10 @@ extends Closeable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>sendAsync</h4>
-<pre>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&gt;&nbsp;sendAsync(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="type parameter in Producer">T</a>&gt;&nbsp;message)</pre>
+<pre>@Deprecated
+CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&gt;&nbsp;sendAsync(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="type parameter in Producer">T</a>&gt;&nbsp;message)</pre>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;<span class="deprecationComment">since 2.0. Use <a href="../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html" title="interface in org.apache.pulsar.client.api"><code>TypedMessageBuilder</code></a> as returned by <a href="../../../../../org/apache/pulsar/client/api/Producer.html#newMessage--"><code>newMessage()</code></a> to create a
+             new message builder.</span></div>
 <div class="block">Send a message asynchronously
  <p>
  When the returned <code>CompletableFuture</code> is marked as completed successfully, the provided message will
@@ -323,7 +376,8 @@ extends Closeable</pre>
  });</code>
  </pre>
  <p>
- When the producer queue is full, by default this method will complete the future with an exception <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.ProducerQueueIsFullError.html" title="class in org.apache.pulsar.client.api"><code>PulsarClientException.ProducerQueueIsFullError</code></a>
+ When the producer queue is full, by default this method will complete the future with an exception
+ <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.ProducerQueueIsFullError.html" title="class in org.apache.pulsar.client.api"><code>PulsarClientException.ProducerQueueIsFullError</code></a>
  <p>
  See <a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#maxPendingMessages-int-"><code>ProducerBuilder.maxPendingMessages(int)</code></a> to configure the producer queue size and
  <a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#blockIfQueueFull-boolean-"><code>ProducerBuilder.blockIfQueueFull(boolean)</code></a> to change the blocking behavior.</div>

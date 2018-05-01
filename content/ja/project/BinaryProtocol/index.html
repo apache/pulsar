@@ -2550,7 +2550,7 @@
               <td class="wrap">bool</td>
               
               <td>optional</td>
-              <td></td>
+              <td>false</td>
               <td></td>
             </tr>
              <!-- for field in fields -->
@@ -2727,7 +2727,7 @@
               <td class="wrap">int32</td>
               
               <td>optional</td>
-              <td></td>
+              <td>0</td>
               <td></td>
             </tr>
             
@@ -2821,7 +2821,7 @@ will be the auth of the proxy itself</td>
               <td class="wrap">int32</td>
               
               <td>optional</td>
-              <td></td>
+              <td>0</td>
               <td></td>
             </tr>
              <!-- for field in fields -->
@@ -3414,7 +3414,7 @@ of any number previously specified</td>
               <td class="wrap">bool</td>
               
               <td>optional</td>
-              <td></td>
+              <td>false</td>
               <td></td>
             </tr>
             
@@ -3525,7 +3525,7 @@ to the proxy.</td>
               <td class="wrap">bool</td>
               
               <td>optional</td>
-              <td></td>
+              <td>false</td>
               <td></td>
             </tr>
             
@@ -3555,7 +3555,7 @@ to the proxy.</td>
               <td class="wrap">bool</td>
               
               <td>optional</td>
-              <td></td>
+              <td>false</td>
               <td>If it's true, indicates to the client that it must
 always connect through the service url after the
 lookup has been completed.</td>
@@ -3811,7 +3811,7 @@ amount of time, they will send a Ping probe.</p>
         </h5>
         <p class="message-name">pulsar.proto.CommandProducer</p>
         <p class="lead">Create a new Producer on a topic, assigning the given producer_id,
-all messages sent with this producer_id will be persisted on the topic</p>
+/ all messages sent with this producer_id will be persisted on the topic</p>
       </div>
       
       <div class="card">
@@ -3866,7 +3866,7 @@ all messages sent with this producer_id will be persisted on the topic</p>
               <td>optional</td>
               <td></td>
               <td>If a producer name is specified, the name will be used,
-otherwise the broker will generate a unique name</td>
+/ otherwise the broker will generate a unique name</td>
             </tr>
             
             <tr>
@@ -3875,7 +3875,7 @@ otherwise the broker will generate a unique name</td>
               <td class="wrap">bool</td>
               
               <td>optional</td>
-              <td></td>
+              <td>false</td>
               <td></td>
             </tr>
             
@@ -3954,7 +3954,7 @@ otherwise the broker will generate a unique name</td>
               <td class="wrap"><a href="#int64">int64</a></td>
               
               <td>optional</td>
-              <td></td>
+              <td>-1</td>
               <td>The last sequence id that was stored by this producer in the previous session
 This will only be meaningful if deduplication has been enabled.</td>
             </tr>
@@ -4173,7 +4173,7 @@ messages left to consume</p>
               <td class="wrap">int32</td>
               
               <td>optional</td>
-              <td></td>
+              <td>1</td>
               <td></td>
             </tr>
              <!-- for field in fields -->
@@ -4410,7 +4410,7 @@ messages left to consume</p>
               <td class="wrap">bool</td>
               
               <td>optional</td>
-              <td></td>
+              <td>true</td>
               <td>Signal wether the subscription should be backed by a
 durable cursor or not</td>
             </tr>
@@ -4463,7 +4463,7 @@ will send messages from that point</td>
               <td class="wrap"><a href="#pulsar.proto.CommandSubscribe.InitialPosition">InitialPosition</a></td>
               
               <td>optional</td>
-              <td></td>
+              <td>Latest</td>
               <td>Signal wthether the subscription will initialize on latest
 or not -- earliest</td>
             </tr>
@@ -4778,7 +4778,7 @@ or not -- earliest</td>
               <td class="wrap">int32</td>
               
               <td>optional</td>
-              <td></td>
+              <td>-1</td>
               <td></td>
             </tr>
             
@@ -4788,7 +4788,7 @@ or not -- earliest</td>
               <td class="wrap">int32</td>
               
               <td>optional</td>
-              <td></td>
+              <td>-1</td>
               <td></td>
             </tr>
              <!-- for field in fields -->
@@ -4898,7 +4898,7 @@ includes the source cluster name</td>
               <td class="wrap"><a href="#pulsar.proto.CompressionType">CompressionType</a></td>
               
               <td>optional</td>
-              <td></td>
+              <td>NONE</td>
               <td></td>
             </tr>
             
@@ -4908,7 +4908,7 @@ includes the source cluster name</td>
               <td class="wrap">uint32</td>
               
               <td>optional</td>
-              <td></td>
+              <td>0</td>
               <td></td>
             </tr>
             
@@ -4918,7 +4918,7 @@ includes the source cluster name</td>
               <td class="wrap">int32</td>
               
               <td>optional</td>
-              <td></td>
+              <td>1</td>
               <td>Removed below checksum field from Metadata as
 it should be part of send-command which keeps checksum of header + payload
 optional sfixed64 checksum = 10;
@@ -4931,7 +4931,7 @@ differentiate single and batch message metadata</td>
               <td class="wrap">uint64</td>
               
               <td>optional</td>
-              <td></td>
+              <td>0</td>
               <td>the timestamp that this event occurs. it is typically set by applications.
 if this field is omitted, `publish_time` can be used for the purpose of `event_time`.</td>
             </tr>
@@ -5110,7 +5110,7 @@ if this field is omitted, `publish_time` can be used for the purpose of `event_t
               <td class="wrap">bool</td>
               
               <td>optional</td>
-              <td></td>
+              <td>false</td>
               <td></td>
             </tr>
              <!-- for field in fields -->
@@ -5854,29 +5854,22 @@ incrementally added to the protocol</p>
           <tbody>
             
             <tr>
-              <td>Json</td>
+              <td>None</td>
+              <td>0</td>
+              <td>
+</td>
+            </tr>
+            
+            <tr>
+              <td>String</td>
               <td>1</td>
               <td>
 </td>
             </tr>
             
             <tr>
-              <td>Protobuf</td>
+              <td>Json</td>
               <td>2</td>
-              <td>
-</td>
-            </tr>
-            
-            <tr>
-              <td>Thrift</td>
-              <td>3</td>
-              <td>
-</td>
-            </tr>
-            
-            <tr>
-              <td>Avro</td>
-              <td>4</td>
               <td>
 </td>
             </tr>

@@ -901,6 +901,12 @@
 <span class="o">}</span>
 </code></pre></div></div>
 
+<p>Here’s an equivalent function in Python (also using the <a href="../api#python-native">native interface</a>):</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="nb">input</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s">"{0}!"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">input</span><span class="p">)</span>
+</code></pre></div></div>
+
 <p>Functions are executed each time a message is published to the input topic. If a function is listening on the topic <code class="highlighter-rouge">tweet-stream</code>, for example, then the function would be run each time a message is published to that topic.</p>
 
 <h2 id="goals">Goals</h2>
@@ -1129,11 +1135,13 @@
 
 <p>Both Java and Python support writing “native” functions, i.e. Pulsar Functions with no dependencies.</p>
 
-<p>The benefit of native functions is that they don’t have any dependencies beyond what’s already available in Java/Python “out of the box.” The downside is that they don’t provide access to the function’s <a href="#context">context</a></p>
+<p>The benefit of native functions is that they don’t have any dependencies beyond what’s already available in Java/Python “out of the box.” The downside is that they don’t provide access to the function’s <a href="#context">context</a>, which is necessary for a variety of functionality, including <a href="#logging">logging</a>, <a href="#user-config">user configuration</a>, and more.</p>
 
 <h2 id="sdk">The Pulsar Functions SDK</h2>
 
-<p>If you’d like a Pulsar Function to have access to a <a href="#context">context object</a>, you can use the Pulsar Functions SDK, available for both <a href="../api#java-sdk">Java</a> and <a href="../api#python-sdk">Pythnon</a>.</p>
+<p>If you’d like a Pulsar Function to have access to a <a href="#context">context object</a>, you can use the <strong>Pulsar Functions SDK</strong>, available for both <a href="../api#java-sdk">Java</a> and <a href="../api#python-sdk">Pythnon</a>.</p>
+
+<h3 id="java-sdk">Java</h3>
 
 <p>Here’s an example Java function that uses information about its context:</p>
 
@@ -1148,13 +1156,28 @@
         <span class="n">String</span> <span class="n">functionTenant</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="na">getTenant</span><span class="o">();</span>
         <span class="n">String</span> <span class="n">functionNamespace</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="na">getNamespace</span><span class="o">();</span>
         <span class="n">String</span> <span class="n">functionName</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="na">getName</span><span class="o">();</span>
-        <span class="n">LOG</span><span class="o">.</span><span class="na">info</span><span class="o">(</span><span class="s">"{}/{}/{}"</span><span class="o">,</span> <span class="n">functionTenant</span><span class="o">,</span> <span class="n">functionNamespace</span><span class="o">,</span> <span class="n">functionName</span><span class="o">);</span>
+        <span class="n">LOG</span><span class="o">.</span><span class="na">info</span><span class="o">(</span><span class="s">"Function tenant/namespace/name: {}/{}/{}"</span><span class="o">,</span> <span class="n">functionTenant</span><span class="o">,</span> <span class="n">functionNamespace</span><span class="o">,</span> <span class="n">functionName</span><span class="o">);</span>
         <span class="k">return</span> <span class="kc">null</span><span class="o">;</span>
     <span class="o">}</span>
 <span class="o">}</span>
 </code></pre></div></div>
 
-<h2 id="deployment-modes">Deployment modes</h2>
+<h3 id="python-sdk">Python</h3>
+
+<p>Here’s an example Python function that uses information about its context:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">pulsar</span> <span class="kn">import</span> <span class="n">Function</span>
+
+<span class="k">class</span> <span class="nc">ContextAwareFunction</span><span class="p">(</span><span class="n">Function</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">input</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+        <span class="n">log</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">get_logger</span><span class="p">()</span>
+        <span class="n">function_tenant</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">get_function_tenant</span><span class="p">()</span>
+        <span class="n">function_namespace</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">get_function_namespace</span><span class="p">()</span>
+        <span class="n">function_name</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">get_function_name</span><span class="p">()</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">"Function tenant/namespace/name: {0}/{1}/{2}"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">function_tenant</span><span class="p">,</span> <span class="n">function_namespace</span><span class="p">,</span> <span class="n">function_name</span><span class="p">))</span>
+</code></pre></div></div>
+
+<h2 id="deployment">Deployment</h2>
 
 <p>The Pulsar Functions feature was built to support a variety of deployment options. At the moment, there are two ways to run Pulsar Functions:</p>
 

@@ -100,6 +100,7 @@ var activeTableTab = "activeTableTab";
 <hr>
 <br>
 <pre>public interface <span class="typeNameLabel">Schema&lt;T&gt;</span></pre>
+<div class="block">Message schema definition</div>
 </li>
 </ul>
 </div>
@@ -120,7 +121,15 @@ var activeTableTab = "activeTableTab";
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code>static <a href="../../../../../org/apache/pulsar/client/api/Schema.html" title="interface in org.apache.pulsar.client.api">Schema</a>&lt;byte[]&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Schema.html#IDENTITY">IDENTITY</a></span></code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Schema.html#BYTES">BYTES</a></span></code>
+<div class="block">Schema that doesn't perform any encoding on the message payloads.</div>
+</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code>static <a href="../../../../../org/apache/pulsar/client/api/Schema.html" title="interface in org.apache.pulsar.client.api">Schema</a>&lt;String&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Schema.html#STRING">STRING</a></span></code>
+<div class="block">Schema that can be used to encode/decode messages whose values are String.</div>
+</td>
 </tr>
 </table>
 </li>
@@ -139,11 +148,15 @@ var activeTableTab = "activeTableTab";
 </tr>
 <tr id="i0" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Schema.html" title="type parameter in Schema">T</a></code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Schema.html#decode-byte:A-">decode</a></span>(byte[]&nbsp;bytes)</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Schema.html#decode-byte:A-">decode</a></span>(byte[]&nbsp;bytes)</code>
+<div class="block">Decode a byte array into an object using the schema definition and deserializer implementation</div>
+</td>
 </tr>
 <tr id="i1" class="rowColor">
 <td class="colFirst"><code>byte[]</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Schema.html#encode-T-">encode</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Schema.html" title="type parameter in Schema">T</a>&nbsp;message)</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Schema.html#encode-T-">encode</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Schema.html" title="type parameter in Schema">T</a>&nbsp;message)</code>
+<div class="block">Encode an object representing the message content into a byte array.</div>
+</td>
 </tr>
 <tr id="i2" class="altColor">
 <td class="colFirst"><code>SchemaInfo</code></td>
@@ -164,13 +177,24 @@ var activeTableTab = "activeTableTab";
 <!--   -->
 </a>
 <h3>Field Detail</h3>
-<a name="IDENTITY">
+<a name="BYTES">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>BYTES</h4>
+<pre>static final&nbsp;<a href="../../../../../org/apache/pulsar/client/api/Schema.html" title="interface in org.apache.pulsar.client.api">Schema</a>&lt;byte[]&gt; BYTES</pre>
+<div class="block">Schema that doesn't perform any encoding on the message payloads. Accepts a byte array and it passes it through.</div>
+</li>
+</ul>
+<a name="STRING">
 <!--   -->
 </a>
 <ul class="blockListLast">
 <li class="blockList">
-<h4>IDENTITY</h4>
-<pre>static final&nbsp;<a href="../../../../../org/apache/pulsar/client/api/Schema.html" title="interface in org.apache.pulsar.client.api">Schema</a>&lt;byte[]&gt; IDENTITY</pre>
+<h4>STRING</h4>
+<pre>static final&nbsp;<a href="../../../../../org/apache/pulsar/client/api/Schema.html" title="interface in org.apache.pulsar.client.api">Schema</a>&lt;String&gt; STRING</pre>
+<div class="block">Schema that can be used to encode/decode messages whose values are String. The payload is encoded with UTF-8.</div>
 </li>
 </ul>
 </li>
@@ -191,9 +215,14 @@ var activeTableTab = "activeTableTab";
 <h4>encode</h4>
 <pre>byte[]&nbsp;encode(<a href="../../../../../org/apache/pulsar/client/api/Schema.html" title="type parameter in Schema">T</a>&nbsp;message)
        throws <a href="../../../../../org/apache/pulsar/client/api/SchemaSerializationException.html" title="class in org.apache.pulsar.client.api">SchemaSerializationException</a></pre>
+<div class="block">Encode an object representing the message content into a byte array.</div>
 <dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>message</code> - the message object</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>a byte array with the serialized content</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
-<dd><code><a href="../../../../../org/apache/pulsar/client/api/SchemaSerializationException.html" title="class in org.apache.pulsar.client.api">SchemaSerializationException</a></code></dd>
+<dd><code><a href="../../../../../org/apache/pulsar/client/api/SchemaSerializationException.html" title="class in org.apache.pulsar.client.api">SchemaSerializationException</a></code> - if the serialization fails</dd>
 </dl>
 </li>
 </ul>
@@ -204,6 +233,13 @@ var activeTableTab = "activeTableTab";
 <li class="blockList">
 <h4>decode</h4>
 <pre><a href="../../../../../org/apache/pulsar/client/api/Schema.html" title="type parameter in Schema">T</a>&nbsp;decode(byte[]&nbsp;bytes)</pre>
+<div class="block">Decode a byte array into an object using the schema definition and deserializer implementation</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>bytes</code> - the byte array to decode</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>the deserialized object</dd>
+</dl>
 </li>
 </ul>
 <a name="getSchemaInfo--">
@@ -213,6 +249,10 @@ var activeTableTab = "activeTableTab";
 <li class="blockList">
 <h4>getSchemaInfo</h4>
 <pre>SchemaInfo&nbsp;getSchemaInfo()</pre>
+<dl>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>an object that represents the Schema associated metadata</dd>
+</dl>
 </li>
 </ul>
 </li>
