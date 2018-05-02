@@ -9460,9 +9460,10 @@ span.popover-term {
   .rest-api-container article section.content .topic, .rest-api-container article section.content .fqfn, .docs-container article section.content .topic, .docs-container article section.content .fqfn {
     color: #bcc5c5;
     background-color: #232937;
-    font-size: 1rem;
+    font-size: 1.25rem;
     font-family: "Inconsolata", monospace;
-    padding: 10px 0 10px 20px;
+    font-weight: 700;
+    padding: .5rem 0 .5rem 1rem;
     border-radius: 0; }
     .rest-api-container article section.content .topic .property, .rest-api-container article section.content .topic .tenant, .rest-api-container article section.content .fqfn .property, .rest-api-container article section.content .fqfn .tenant, .docs-container article section.content .topic .property, .docs-container article section.content .topic .tenant, .docs-container article section.content .fqfn .property, .docs-container article section.content .fqfn .tenant {
       color: #b1cc00; }
@@ -9472,7 +9473,7 @@ span.popover-term {
       color: #3797db; }
     .rest-api-container article section.content .topic .t, .rest-api-container article section.content .fqfn .t, .docs-container article section.content .topic .t, .docs-container article section.content .fqfn .t {
       color: #d33682; }
-    .rest-api-container article section.content .topic + p, .rest-api-container article section.content .fqfn + p, .docs-container article section.content .topic + p, .docs-container article section.content .fqfn + p {
+    .rest-api-container article section.content .topic ~ p, .rest-api-container article section.content .topic ~ h2, .rest-api-container article section.content .topic ~ h3, .rest-api-container article section.content .topic ~ h4, .rest-api-container article section.content .topic ~ h5, .rest-api-container article section.content .fqfn ~ p, .rest-api-container article section.content .fqfn ~ h2, .rest-api-container article section.content .fqfn ~ h3, .rest-api-container article section.content .fqfn ~ h4, .rest-api-container article section.content .fqfn ~ h5, .docs-container article section.content .topic ~ p, .docs-container article section.content .topic ~ h2, .docs-container article section.content .topic ~ h3, .docs-container article section.content .topic ~ h4, .docs-container article section.content .topic ~ h5, .docs-container article section.content .fqfn ~ p, .docs-container article section.content .fqfn ~ h2, .docs-container article section.content .fqfn ~ h3, .docs-container article section.content .fqfn ~ h4, .docs-container article section.content .fqfn ~ h5 {
       margin-top: 20px; }
   .rest-api-container article section.content .highlighter-rouge, .docs-container article section.content .highlighter-rouge {
     font-family: "Inconsolata", monospace;

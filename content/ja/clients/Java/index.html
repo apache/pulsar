@@ -116,6 +116,8 @@
               <h3 class="dropdown-header">Other releases</h3>
 
               
+                  <a class="dropdown-item" href="/docs/v1.22.0-incubating/getting-started/LocalCluster">1.22.0-incubating</a>
+              
                   <a class="dropdown-item" href="/docs/v1.21.0-incubating/getting-started/LocalCluster">1.21.0-incubating</a>
               
                   <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
@@ -675,8 +677,6 @@
           
           
           
-          
-          
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
           
           
@@ -759,7 +759,15 @@
           
           
           
+          
+          
+          
+          
           <li><a href="/ja/clients/Python/">Pulsar Pythonクライアント</a></li>
+          
+          
+          
+          
           
           
           
@@ -889,8 +897,6 @@
           
           
           
-          
-          
           <li><a href="/ja/admin/Authz/">Pulsarにおける認証と認可</a></li>
           
           
@@ -971,6 +977,10 @@
           
           
           
+          
+          
+          
+          
           <li><a href="/ja/adaptors/PulsarSpark/">Spark Streaming Pulsar Receiver</a></li>
           
           
@@ -978,6 +988,10 @@
           
           
           <li><a href="/ja/adaptors/PulsarStorm/">Apache StormのためのPulsarアダプタ</a></li>
+          
+          
+          
+          
           
           
           
@@ -1224,7 +1238,7 @@
 
 -->
 <section class="topic">
-  persistent://<span class="property">property</span>/<span class="cluster">cluster</span>/<span class="namespace">namespace</span>/<span class="t">topic</span>
+  persistent://<span class="cluster">cluster</span>/<span class="namespace">namespace</span>/<span class="t">topic</span>
 </section>
 
 <p>クラスタ固有のトピックに対してproduceまたはconsumeを行いたい場合、クライアントは<a href="../../deployment/InstanceSetup#クラスタメタデータの初期化">クラスタのメタデータを初期化</a>した際に割り当てたBrokerサービスURLを使う必要があります。</p>
@@ -1252,7 +1266,7 @@
 
 -->
 <section class="topic">
-  persistent://<span class="property">property</span>/<span class="cluster">global</span>/<span class="namespace">namespace</span>/<span class="t">topic</span>
+  persistent://<span class="cluster">global</span>/<span class="namespace">namespace</span>/<span class="t">topic</span>
 </section>
 
 <p>この場合、<span class="popover-term" tabindex="0" title="Pulsarインスタンスとは？" data-placement="top" data-content="単一の単位として動作するPulsarクラスタのグループのことです。" data-toggle="popover" data-trigger="focus">インスタンス</span>内の<em>任意の</em>クラスタに対して上記のBrokerサービスURLを利用することができ、Pulsarの内部サービスディスカバリシステムが残りの部分を処理します。</p>

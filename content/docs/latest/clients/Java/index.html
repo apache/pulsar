@@ -116,6 +116,8 @@
               <h3 class="dropdown-header">Other releases</h3>
 
               
+                  <a class="dropdown-item" href="/docs/v1.22.0-incubating/getting-started/LocalCluster">1.22.0-incubating</a>
+              
                   <a class="dropdown-item" href="/docs/v1.21.0-incubating/getting-started/LocalCluster">1.21.0-incubating</a>
               
                   <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
@@ -280,6 +282,13 @@
 
       <div class="sidebar-group collapse" id="collapse-getting-started" role="tabpanel" aria-labelledby="heading-getting-started">
         <ul>
+          
+          
+          <li>
+            <a href="../../getting-started/pulsar-2.0">
+              Pulsar 2.0
+            </a>
+          </li>
           
           
           <li>
@@ -495,8 +504,8 @@
           
           
           <li>
-            <a href="../../admin/ModularLoadManager">
-              Modular load manager
+            <a href="../../admin/LoadDistribution">
+              Load distribution
             </a>
           </li>
           
@@ -585,8 +594,8 @@
           
           
           <li>
-            <a href="../../admin-api/properties">
-              Properties
+            <a href="../../admin-api/tenants">
+              Tenants
             </a>
           </li>
           
@@ -767,6 +776,13 @@
             </a>
           </li>
           
+          
+          <li>
+            <a href="../../project/ModularLoadManager">
+              Modular load manager
+            </a>
+          </li>
+          
         </ul>
       </div>
     </div>
@@ -867,6 +883,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
           
           
@@ -910,6 +928,10 @@
           
           
           <li><a href="/docs/latest/clients/Java/">The Pulsar Java client</a></li>
+          
+          
+          
+          
           
           
           
@@ -1079,6 +1101,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
           
           
@@ -1128,6 +1152,10 @@
           
           
           <li><a href="/docs/latest/clients/Java/">The Pulsar Java client</a></li>
+          
+          
+          
+          
           
           
           
@@ -1227,8 +1255,6 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/cookbooks/message-queue/">Using Pulsar as a message queue</a></li>
           
           
@@ -1241,9 +1267,11 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/admin-api/overview/">The Pulsar admin interface</a></li>
+          
+          
+          
+          
           
           
           
@@ -1313,17 +1341,17 @@
 
 -->
 <div class="admonition">
-  <div class="danger">
-    <span class="admonition-title"><p>Version 2.0</p>
+  <div class="success">
+    <span class="admonition-title"><p>Pulsar version 2.0</p>
 </span>
     
-<p>The documentation that you’re reading is for the upcoming 2.0 release of Apache Pulsar. If you’re looking for the documentation for version 1.22.0-incubating, click <a href="/docs/v1.22.0-incubating/getting-started/LocalCluster">here</a>.</p>
+<p>The documentation that you’re reading is for the 2.0 release of Apache Pulsar. For more information on Pulsar 2.0, see <a href="../../getting-started/Pulsar-2.0">this guide</a>.</p>
 
   </div>
 </div>
 
 
-        <!-- <hr class="hr"> -->
+        <hr class="hr">
       </section>
 
       <section class="content">
@@ -1348,9 +1376,7 @@
 
 -->
 
-<p>The Pulsar Java client can be used both to create Java <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producers</span> and <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumers</span> of messages but also to perform <a href="../../admin-api/overview">administrative tasks</a>.</p>
-
-<p>The current version of the Java client is <strong>1.22.0-incubating</strong>.</p>
+<p>The Pulsar Java client can be used both to create Java <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producers</span>, <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumers</span>, and <a href="#readers">readers</a> of messages and to perform <a href="../../admin-api/overview">administrative tasks</a>. The current version of the Java client is <strong>1.22.0-incubating</strong>.</p>
 
 <p>Javadoc for the Pulsar client is divided up into two domains, by package:</p>
 
@@ -1448,64 +1474,6 @@
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pulsar+ssl://pulsar.us-west.example.com:6651
 </code></pre></div></div>
 
-<h3 id="global-vs-cluster-specific-topics">Global vs. cluster-specific topics</h3>
-
-<p>Pulsar <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span> can be either cluster specific or global. Cluster-specific topic URLs have this structure:</p>
-
-<!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<section class="topic">
-  persistent://<span class="property">property</span>/<span class="cluster">cluster</span>/<span class="namespace">namespace</span>/<span class="t">topic</span>
-</section>
-
-<p>If the topic that a client needs to publish to or consume from is specific to a cluster, the client will need to use the broker service URL that you assigned to that cluster when <a href="../../deployment/InstanceSetup#cluster-metadata-initialization">initializing its metadata</a>.</p>
-
-<p>If the topic is global, however, the URL for the topic will look like this:</p>
-
-<!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<section class="topic">
-  persistent://<span class="property">property</span>/<span class="cluster">global</span>/<span class="namespace">namespace</span>/<span class="t">topic</span>
-</section>
-
-<p>In that case, your client can use the broker service URL for <em>any</em> cluster in the <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span> and Pulsar’s internal service discovery system will handle the rest.</p>
-
 <h2 id="client-configuration">Client configuration</h2>
 
 <p>You can instantiate a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/PulsarClient.html"><code class="highlighter-rouge">PulsarClient</code></a> object using just a URL for the target Pulsar <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span>, like this:</p>
@@ -1583,20 +1551,36 @@
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://sample/standalone/ns1/my-topic"</span><span class="o">;</span>
 
-<span class="n">Producer</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">newProducer</span><span class="o">()</span>
+<span class="n">Producer</span> <span class="n">producer</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">newProducer</span><span class="o">()</span>
         <span class="o">.</span><span class="na">topic</span><span class="o">(</span><span class="n">topic</span><span class="o">)</span>
         <span class="o">.</span><span class="na">create</span><span class="o">();</span>
 </code></pre></div></div>
 
 <p>You can then send messages to the broker and topic you specified:</p>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Publish 10 messages to the topic</span>
-<span class="k">for</span> <span class="o">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="o">;</span> <span class="n">i</span><span class="o">++)</span> <span class="o">{</span>
-    <span class="n">Message</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="n">msg</span> <span class="o">=</span> <span class="n">MessageBuilder</span><span class="o">.</span><span class="na">create</span><span class="o">()</span>
-            <span class="o">.</span><span class="na">setContent</span><span class="o">(</span><span class="n">String</span><span class="o">.</span><span class="na">format</span><span class="o">(</span><span class="s">"Message number %d"</span><span class="o">,</span> <span class="n">i</span><span class="o">).</span><span class="na">getBytes</span><span class="o">())</span>
-            <span class="o">.</span><span class="na">build</span><span class="o">();</span>
-    <span class="n">producer</span><span class="o">.</span><span class="na">send</span><span class="o">(</span><span class="n">msg</span><span class="o">);</span>
-<span class="o">}</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">org.apache.pulsar.client.api.MessageBuilder</span><span class="o">;</span>
+
+<span class="kn">import</span> <span class="nn">java.util.stream.IntStream</span><span class="o">;</span>
+
+<span class="n">MessageBuilder</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="n">msgBuilder</span> <span class="o">=</span> <span class="n">MessageBuilder</span><span class="o">.</span><span class="na">create</span><span class="o">();</span>
+
+<span class="c1">// Publish 10 messages to the topic</span>
+<span class="n">IntStream</span><span class="o">.</span><span class="na">range</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">11</span><span class="o">).</span><span class="na">forEach</span><span class="o">(</span><span class="n">i</span> <span class="o">-&gt;</span> <span class="o">{</span>
+    <span class="n">msgBuilder</span><span class="o">.</span><span class="na">setContent</span><span class="o">(</span><span class="n">String</span><span class="o">.</span><span class="na">format</span><span class="o">(</span><span class="s">"Message number %d"</span><span class="o">,</span> <span class="n">i</span><span class="o">).</span><span class="na">getBytes</span><span class="o">());</span>
+
+    <span class="k">try</span> <span class="o">{</span>
+        <span class="n">producer</span><span class="o">.</span><span class="na">send</span><span class="o">(</span><span class="n">msgBuilder</span><span class="o">);</span>
+    <span class="o">}</span> <span class="k">catch</span> <span class="o">(</span><span class="n">PulsarClientException</span> <span class="n">e</span><span class="o">)</span> <span class="o">{</span>
+        <span class="n">e</span><span class="o">.</span><span class="na">printStackTrace</span><span class="o">();</span>
+    <span class="o">}</span>
+<span class="o">});</span>
+</code></pre></div></div>
+
+<p>By default, producers produce messages that consist of byte arrays. You can produce different types, however, by specifying a message <a href="#schemas">schema</a>.</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Producer</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">stringProducer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">newProducer</span><span class="o">(</span><span class="k">new</span> <span class="n">StringSchema</span><span class="o">())</span>
+        <span class="o">.</span><span class="na">topic</span><span class="o">(</span><span class="n">topic</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">create</span><span class="o">();</span>
 </code></pre></div></div>
 
 <!--
@@ -1630,11 +1614,9 @@
 <span class="n">client</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
 </code></pre></div></div>
 
-<p>Closer operations can also be asynchronous:</p>
+<p>Close operations can also be asynchronous:</p>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">producer</span><span class="o">.</span><span class="na">asyncClose</span><span class="o">();</span>
-<span class="n">consumer</span><span class="o">.</span><span class="na">asyncClose</span><span class="o">();</span>
-<span class="n">clioent</span><span class="o">.</span><span class="na">asyncClose</span><span class="o">();</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">producer</span><span class="o">.</span><span class="na">closeAsync</span><span class="o">().</span><span class="na">thenRun</span><span class="o">(()</span> <span class="o">-&gt;</span> <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">"Producer closed"</span><span class="o">));</span>
 </code></pre></div></div>
 
   </div>
@@ -1644,7 +1626,7 @@
 
 <p>If you instantiate a <code class="highlighter-rouge">Producer</code> object specifying only a topic name, as in the example above, the producer will use the default configuration. To use a non-default configuration, there’s a variety of configurable parameters that you can set. For a full listing, see the Javadoc for the <a target="_blank" href="/api/client/org/apache/pulsar/client/api/ProducerBuilder.html"><code class="highlighter-rouge">ProducerBuilder</code></a> class. Here’s an example:</p>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Producer</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">newProducer</span><span class="o">()</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Producer</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">newProducer</span><span class="o">()</span>
         <span class="o">.</span><span class="na">topic</span><span class="o">(</span><span class="n">topic</span><span class="o">)</span>
         <span class="o">.</span><span class="na">enableBatching</span><span class="o">(</span><span class="kc">true</span><span class="o">)</span>
         <span class="o">.</span><span class="na">sendTimeout</span><span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="n">TimeUnit</span><span class="o">.</span><span class="na">SECONDS</span><span class="o">)</span>
@@ -1658,14 +1640,17 @@
 
 <h3 id="async-send">Async send</h3>
 
-<p>You can publish messages <a href="../../getting-started/ConceptsAndArchitecture#send-modes">asynchronously</a> using the Java client. With async send, the producer will put the message in a blocking queue and return immediately. The client library will then send the message to the <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> in the background. If the queue is full (max size configurable), the producer could be blocked or fail immediately when calling the API, depending on arguments passed to the producer.</p>
+<p>You can also publish messages <a href="../../getting-started/ConceptsAndArchitecture#send-modes">asynchronously</a> using the Java client. With async send, the producer will put the message in a blocking queue and return immediately. The client library will then send the message to the <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> in the background. If the queue is full (max size configurable), the producer could be blocked or fail immediately when calling the API, depending on arguments passed to the producer.</p>
 
 <p>Here’s an example async send operation:</p>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">CompletableFuture</span><span class="o">&lt;</span><span class="n">MessageId</span><span class="o">&gt;</span> <span class="n">future</span> <span class="o">=</span> <span class="n">producer</span><span class="o">.</span><span class="na">sendAsync</span><span class="o">(</span><span class="s">"my-async-message"</span><span class="o">.</span><span class="na">getBytes</span><span class="o">());</span>
+<span class="n">future</span><span class="o">.</span><span class="na">thenAccept</span><span class="o">(</span><span class="n">msgId</span> <span class="o">-&gt;</span> <span class="o">{</span>
+        <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">printf</span><span class="o">(</span><span class="s">"Message with ID %s successfully sent"</span><span class="o">,</span> <span class="k">new</span> <span class="n">String</span><span class="o">(</span><span class="n">msgId</span><span class="o">.</span><span class="na">toByteArray</span><span class="o">());</span>
+<span class="o">});</span>
 </code></pre></div></div>
 
-<p>Async send operations return a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/MessageId.html"><code class="highlighter-rouge">MessageId</code></a> wrapped in a <a href="http://www.baeldung.com/java-completablefuture"><code class="highlighter-rouge">CompletableFuture</code></a>.</p>
+<p>As you can see from the example above, async send operations return a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/MessageId.html"><code class="highlighter-rouge">MessageId</code></a> wrapped in a <a href="http://www.baeldung.com/java-completablefuture"><code class="highlighter-rouge">CompletableFuture</code></a>.</p>
 
 <h2 id="consumers">Consumers</h2>
 
@@ -1673,16 +1658,15 @@
 
 <p>Once you’ve instantiated a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/PulsarClient.html"><code class="highlighter-rouge">PulsarClient</code></a> object, you can create a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/Consumer.html"><code class="highlighter-rouge">Consumer</code></a> by specifying a <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span> and a <a href="../../getting-started/ConceptsAndArchitecture#subscription-modes">subscription</a>.</p>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://sample/standalone/ns1/my-topic"</span><span class="o">;</span> <span class="c1">// from above</span>
-<span class="n">String</span> <span class="n">subscription</span> <span class="o">=</span> <span class="s">"my-subscription"</span><span class="o">;</span>
-<span class="n">Consumer</span> <span class="n">consumer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">newConsumer</span><span class="o">()</span>
-        <span class="o">.</span><span class="na">subscriptionName</span><span class="o">(</span><span class="s">"my-subscription-1"</span><span class="o">)</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Consumer</span> <span class="n">consumer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">newConsumer</span><span class="o">()</span>
+        <span class="o">.</span><span class="na">topic</span><span class="o">(</span><span class="s">"my-topic"</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">subscriptionName</span><span class="o">(</span><span class="s">"my-subscription"</span><span class="o">)</span>
         <span class="o">.</span><span class="na">subscribe</span><span class="o">();</span>
 </code></pre></div></div>
 
 <p>The <code class="highlighter-rouge">subscribe</code> method will automatically subscribe the consumer to the specified topic and subscription. One way to make the consumer listen on the topic is to set up a <code class="highlighter-rouge">while</code> loop. In this example loop, the consumer listens for messages, prints the contents of any message that’s received, and then <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledges</span> that the message has been processed:</p>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">while</span> <span class="o">(</span><span class="kc">true</span><span class="o">)</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">do</span> <span class="o">{</span>
   <span class="c1">// Wait for a message</span>
   <span class="n">Message</span> <span class="n">msg</span> <span class="o">=</span> <span class="n">consumer</span><span class="o">.</span><span class="na">receive</span><span class="o">();</span>
 
@@ -1690,7 +1674,7 @@
 
   <span class="c1">// Acknowledge the message so that it can be deleted by the message broker</span>
   <span class="n">consumer</span><span class="o">.</span><span class="na">acknowledge</span><span class="o">(</span><span class="n">msg</span><span class="o">);</span>
-<span class="o">}</span>
+<span class="o">}</span> <span class="k">while</span> <span class="o">(</span><span class="kc">true</span><span class="o">);</span>
 </code></pre></div></div>
 
 <h3 id="configuring-consumers">Configuring consumers</h3>
@@ -1700,8 +1684,8 @@
 <p>Here’s an example configuration:</p>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Consumer</span> <span class="n">consumer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">newConsumer</span><span class="o">()</span>
-        <span class="o">.</span><span class="na">topic</span><span class="o">(</span><span class="n">topic</span><span class="o">)</span>
-        <span class="o">.</span><span class="na">subscriptionName</span><span class="o">(</span><span class="n">subscription</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">topic</span><span class="o">(</span><span class="s">"my-topic"</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">subscriptionName</span><span class="o">(</span><span class="s">"my-subscription"</span><span class="o">)</span>
         <span class="o">.</span><span class="na">ackTimeout</span><span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="n">TimeUnit</span><span class="o">.</span><span class="na">SECONDS</span><span class="o">)</span>
         <span class="o">.</span><span class="na">subscriptionType</span><span class="o">(</span><span class="n">SubscriptionType</span><span class="o">.</span><span class="na">Exclusive</span><span class="o">)</span>
         <span class="o">.</span><span class="na">subscribe</span><span class="o">();</span>
@@ -1731,18 +1715,18 @@
 <span class="kn">import</span> <span class="nn">java.util.List</span><span class="o">;</span>
 <span class="kn">import</span> <span class="nn">java.util.regex.Pattern</span><span class="o">;</span>
 
-<span class="n">ConsumerBuilder</span> <span class="n">bldr</span> <span class="o">=</span> <span class="n">pulsarClient</span><span class="o">.</span><span class="na">newConsumer</span><span class="o">()</span>
+<span class="n">ConsumerBuilder</span> <span class="n">consumerBuilder</span> <span class="o">=</span> <span class="n">pulsarClient</span><span class="o">.</span><span class="na">newConsumer</span><span class="o">()</span>
         <span class="o">.</span><span class="na">subscriptionName</span><span class="o">(</span><span class="n">subscription</span><span class="o">);</span>
 
 <span class="c1">// Subscribe to all topics in a namespace</span>
 <span class="n">Pattern</span> <span class="n">allTopicsInNamespace</span> <span class="o">=</span> <span class="n">Pattern</span><span class="o">.</span><span class="na">compile</span><span class="o">(</span><span class="s">"persistent://sample/standalone/ns1/.*"</span><span class="o">);</span>
-<span class="n">Consumer</span> <span class="n">allTopicsConsumer</span> <span class="o">=</span> <span class="n">bldr</span>
+<span class="n">Consumer</span> <span class="n">allTopicsConsumer</span> <span class="o">=</span> <span class="n">consumerBuilder</span>
         <span class="o">.</span><span class="na">topicsPattern</span><span class="o">(</span><span class="n">allTopicsInNamespace</span><span class="o">)</span>
         <span class="o">.</span><span class="na">subscribe</span><span class="o">();</span>
 
 <span class="c1">// Subscribe to a subsets of topics in a namespace, based on regex</span>
 <span class="n">Pattern</span> <span class="n">someTopicsInNamespace</span> <span class="o">=</span> <span class="n">Pattern</span><span class="o">.</span><span class="na">compile</span><span class="o">(</span><span class="s">"persistent://sample/standalone/ns1/foo.*"</span><span class="o">);</span>
-<span class="n">Consumer</span> <span class="n">allTopicsConsumer</span> <span class="o">=</span> <span class="n">bldr</span>
+<span class="n">Consumer</span> <span class="n">allTopicsConsumer</span> <span class="o">=</span> <span class="n">consumerBuilder</span>
         <span class="o">.</span><span class="na">topicsPattern</span><span class="o">(</span><span class="n">someTopicsInNamespace</span><span class="o">)</span>
         <span class="o">.</span><span class="na">subscribe</span><span class="o">();</span>
 </code></pre></div></div>
@@ -1755,12 +1739,12 @@
         <span class="s">"persistent://sample/standalone/ns3/topic-3"</span>
 <span class="o">);</span>
 
-<span class="n">Consumer</span> <span class="n">multiTopicConsumer</span> <span class="o">=</span> <span class="n">bldr</span>
+<span class="n">Consumer</span> <span class="n">multiTopicConsumer</span> <span class="o">=</span> <span class="n">consumerBuilder</span>
         <span class="o">.</span><span class="na">topics</span><span class="o">(</span><span class="n">topics</span><span class="o">)</span>
         <span class="o">.</span><span class="na">subscribe</span><span class="o">();</span>
 
 <span class="c1">// Alternatively:</span>
-<span class="n">Consumer</span> <span class="n">multiTopicConsumer</span> <span class="o">=</span> <span class="n">bldr</span>
+<span class="n">Consumer</span> <span class="n">multiTopicConsumer</span> <span class="o">=</span> <span class="n">consumerBuilder</span>
         <span class="o">.</span><span class="na">topics</span><span class="o">(</span>
             <span class="s">"persistent://sample/standalone/ns1/topic-1"</span><span class="o">,</span>
             <span class="s">"persistent://sample/standalone/ns2/topic-2"</span><span class="o">,</span>
@@ -1772,12 +1756,35 @@
 <p>You can also subscribe to multiple topics asynchronously using the <code class="highlighter-rouge">subscribeAsync</code> method rather than the synchronous <code class="highlighter-rouge">subscribe</code> method. Here’s an example:</p>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Pattern</span> <span class="n">allTopicsInNamespace</span> <span class="o">=</span> <span class="n">Pattern</span><span class="o">.</span><span class="na">compile</span><span class="o">(</span><span class="s">"persistent://sample/standalone/ns1/.*"</span><span class="o">);</span>
-<span class="n">CompletableFuture</span><span class="o">&lt;</span><span class="n">Consumer</span><span class="o">&gt;</span> <span class="n">consumer</span> <span class="o">=</span> <span class="n">bldr</span>
+<span class="n">consumerBuilder</span>
         <span class="o">.</span><span class="na">topics</span><span class="o">(</span><span class="n">topics</span><span class="o">)</span>
-        <span class="o">.</span><span class="na">subscribeAsync</span><span class="o">();</span>
+        <span class="o">.</span><span class="na">subscribeAsync</span><span class="o">()</span>
+        <span class="o">.</span><span class="na">thenAccept</span><span class="o">(</span><span class="n">consumer</span> <span class="o">-&gt;</span> <span class="o">{</span>
+            <span class="k">do</span> <span class="o">{</span>
+                <span class="k">try</span> <span class="o">{</span>
+                    <span class="n">Message</span> <span class="n">msg</span> <span class="o">=</span> <span class="n">consumer</span><span class="o">.</span><span class="na">receive</span><span class="o">();</span>
+                    <span class="c1">// Do something with the received message</span>
+                <span class="o">}</span> <span class="k">catch</span> <span class="o">(</span><span class="n">PulsarClientException</span> <span class="n">e</span><span class="o">)</span> <span class="o">{</span>
+                    <span class="n">e</span><span class="o">.</span><span class="na">printStackTrace</span><span class="o">();</span>
+                <span class="o">}</span>
+            <span class="o">}</span> <span class="k">while</span> <span class="o">(</span><span class="kc">true</span><span class="o">);</span>
+        <span class="o">});</span>
 </code></pre></div></div>
 
-<h2 id="reader-interface">Reader interface</h2>
+<h2 id="schemas">Message schemas</h2>
+
+<p>In Pulsar, all message data consists of byte arrays. Message <strong>schemas</strong> enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a <a href="#producers">producer</a> without specifying a schema, then the producer can only produce messages of type <code class="highlighter-rouge">byte[]</code>. Here’s an example:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Producer</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">newProducer</span><span class="o">()</span>
+        <span class="o">.</span><span class="na">topic</span><span class="o">(</span><span class="n">topic</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">create</span><span class="o">();</span>
+</code></pre></div></div>
+
+<p>The producer above is equivalent to a <code class="highlighter-rouge">Producer&lt;byte[]&gt;</code> (in fact, you should always explicitly specify the type). If you’d like</p>
+
+<p>The same schema-based logic applies to <a href="#consumers">consumers</a> and <a href="#readers">readers</a>.</p>
+
+<h2 id="readers">Reader interface</h2>
 
 <p>With the <a href="../../getting-started/ConceptsAndArchitecture#reader-interface">reader interface</a>, Pulsar clients can “manually position” themselves within a topic, reading all messages from a specified message onward. The Pulsar API for Java enables you to create  <a target="_blank" href="/api/client/org/apache/pulsar/client/api/Reader.html"><code class="highlighter-rouge">Reader</code></a> objects by specifying a <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span>, a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/MessageId.html"><code class="highlighter-rouge">MessageId</code></a>, and <a target="_blank" href="/api/client/org/apache/pulsar/client/api/ReaderConfiguration.html"><code class="highlighter-rouge">ReaderConfiguration</code></a>.</p>
 

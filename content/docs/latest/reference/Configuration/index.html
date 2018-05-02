@@ -116,6 +116,8 @@
               <h3 class="dropdown-header">Other releases</h3>
 
               
+                  <a class="dropdown-item" href="/docs/v1.22.0-incubating/getting-started/LocalCluster">1.22.0-incubating</a>
+              
                   <a class="dropdown-item" href="/docs/v1.21.0-incubating/getting-started/LocalCluster">1.21.0-incubating</a>
               
                   <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
@@ -280,6 +282,13 @@
 
       <div class="sidebar-group collapse" id="collapse-getting-started" role="tabpanel" aria-labelledby="heading-getting-started">
         <ul>
+          
+          
+          <li>
+            <a href="../../getting-started/pulsar-2.0">
+              Pulsar 2.0
+            </a>
+          </li>
           
           
           <li>
@@ -495,8 +504,8 @@
           
           
           <li>
-            <a href="../../admin/ModularLoadManager">
-              Modular load manager
+            <a href="../../admin/LoadDistribution">
+              Load distribution
             </a>
           </li>
           
@@ -585,8 +594,8 @@
           
           
           <li>
-            <a href="../../admin-api/properties">
-              Properties
+            <a href="../../admin-api/tenants">
+              Tenants
             </a>
           </li>
           
@@ -767,6 +776,13 @@
             </a>
           </li>
           
+          
+          <li>
+            <a href="../../project/ModularLoadManager">
+              Modular load manager
+            </a>
+          </li>
+          
         </ul>
       </div>
     </div>
@@ -869,17 +885,17 @@
 
 -->
 <div class="admonition">
-  <div class="danger">
-    <span class="admonition-title"><p>Version 2.0</p>
+  <div class="success">
+    <span class="admonition-title"><p>Pulsar version 2.0</p>
 </span>
     
-<p>The documentation that you’re reading is for the upcoming 2.0 release of Apache Pulsar. If you’re looking for the documentation for version 1.22.0-incubating, click <a href="/docs/v1.22.0-incubating/getting-started/LocalCluster">here</a>.</p>
+<p>The documentation that you’re reading is for the 2.0 release of Apache Pulsar. For more information on Pulsar 2.0, see <a href="../../getting-started/Pulsar-2.0">this guide</a>.</p>
 
   </div>
 </div>
 
 
-        <!-- <hr class="hr"> -->
+        <hr class="hr">
       </section>
 
       <section class="content">
@@ -911,7 +927,7 @@
   <li><a href="#broker">Broker</a></li>
   <li><a href="#client">Client</a></li>
   <li><a href="#service-discovery">Service discovery</a></li>
-  <li><a href="#global-zookeeper">Global ZooKeeper</a></li>
+  <li><a href="#configuration-store">Configuration store</a></li>
   <li><a href="#log4j">Log4j</a></li>
   <li><a href="#log4j-shell">Log4j shell</a></li>
   <li><a href="#standalone">Standalone</a></li>
@@ -2372,7 +2388,7 @@ Ideally, ledger dirs and the journal dir are each in a different device, which r
   </tbody>
 </table>
 
-<h2 id="global-zookeeper">Global ZooKeeper</h2>
+<h2 id="configuration-store">Configuration store</h2>
 
 <!--
 
@@ -2404,62 +2420,6 @@ Ideally, ledger dirs and the journal dir are each in a different device, which r
     </tr>
   </thead>
   <tbody>
-    
-    <tr id="global-zookeeper-tickTime">
-      <td>tickTime</td>
-      <td>The number of milliseconds of each tick
-</td>
-      <td>2000</td>
-    </tr>
-    
-    <tr id="global-zookeeper-initLimit">
-      <td>initLimit</td>
-      <td>The number of ticks that the initial synchronization phase can take
-</td>
-      <td>10</td>
-    </tr>
-    
-    <tr id="global-zookeeper-syncLimit">
-      <td>syncLimit</td>
-      <td>The number of ticks that can pass between sending a request and getting an acknowledgement
-</td>
-      <td>5</td>
-    </tr>
-    
-    <tr id="global-zookeeper-dataDir">
-      <td>dataDir</td>
-      <td>the directory where the snapshot is stored.
-</td>
-      <td>data/global-zookeeper</td>
-    </tr>
-    
-    <tr id="global-zookeeper-clientPort">
-      <td>clientPort</td>
-      <td>the port at which the clients will connect
-</td>
-      <td>2184</td>
-    </tr>
-    
-    <tr id="global-zookeeper-maxClientCnxns">
-      <td>maxClientCnxns</td>
-      <td>the maximum number of client connections. increase this if you need to handle more clients
-</td>
-      <td>60</td>
-    </tr>
-    
-    <tr id="global-zookeeper-autopurge.snapRetainCount">
-      <td>autopurge.snapRetainCount</td>
-      <td>The number of snapshots to retain in dataDir. For more info see <a href="http://zookeeper.apache.org/doc/current/zookeeperAdmin.html#sc_maintenance">here</a>.
-</td>
-      <td>3</td>
-    </tr>
-    
-    <tr id="global-zookeeper-autopurge.purgeInterval">
-      <td>autopurge.purgeInterval</td>
-      <td>Purge task interval in hours. Set to “0” to disable auto purge feature
-</td>
-      <td>1</td>
-    </tr>
     
   </tbody>
 </table>
@@ -3451,7 +3411,7 @@ Ideally, ledger dirs and the journal dir are each in a different device, which r
 
 <h2 id="zookeeper">ZooKeeper</h2>
 
-<p><span class="popover-term" tabindex="0" title="What is ZooKeeper?" data-placement="top" data-content="ZooKeeper is a service that Pulsar uses for coordination-related tasks.&lt;br /&gt;&lt;br /&gt;A Pulsar instance relies on both a local ZooKeeper for cluster-specific tasks and a global ZooKeeper for instance-wide tasks." data-toggle="popover" data-trigger="focus">ZooKeeper</span> handles a broad range of essential configuration- and coordination-related tasks for Pulsar. The default configuration file for ZooKeeper is in the <code class="highlighter-rouge">conf/zookeeper.conf</code> file in your Pulsar installation. The following parameters are available:</p>
+<p><span class="popover-term" tabindex="0" title="What is ZooKeeper?" data-placement="top" data-content="ZooKeeper is a service that Pulsar uses for coordination-related tasks.&lt;br /&gt;&lt;br /&gt;A Pulsar instance relies on both a local ZooKeeper for cluster-specific tasks and a ZooKeeper configuration store for instance-wide tasks." data-toggle="popover" data-trigger="focus">ZooKeeper</span> handles a broad range of essential configuration- and coordination-related tasks for Pulsar. The default configuration file for ZooKeeper is in the <code class="highlighter-rouge">conf/zookeeper.conf</code> file in your Pulsar installation. The following parameters are available:</p>
 
 <!--
 

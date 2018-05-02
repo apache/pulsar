@@ -116,6 +116,8 @@
               <h3 class="dropdown-header">Other releases</h3>
 
               
+                  <a class="dropdown-item" href="/docs/v1.22.0-incubating/getting-started/LocalCluster">1.22.0-incubating</a>
+              
                   <a class="dropdown-item" href="/docs/v1.21.0-incubating/getting-started/LocalCluster">1.21.0-incubating</a>
               
                   <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
@@ -280,6 +282,13 @@
 
       <div class="sidebar-group collapse" id="collapse-getting-started" role="tabpanel" aria-labelledby="heading-getting-started">
         <ul>
+          
+          
+          <li>
+            <a href="../../getting-started/pulsar-2.0">
+              Pulsar 2.0
+            </a>
+          </li>
           
           
           <li>
@@ -495,8 +504,8 @@
           
           
           <li>
-            <a href="../../admin/ModularLoadManager">
-              Modular load manager
+            <a href="../../admin/LoadDistribution">
+              Load distribution
             </a>
           </li>
           
@@ -585,8 +594,8 @@
           
           
           <li>
-            <a href="../../admin-api/properties">
-              Properties
+            <a href="../../admin-api/tenants">
+              Tenants
             </a>
           </li>
           
@@ -767,6 +776,13 @@
             </a>
           </li>
           
+          
+          <li>
+            <a href="../../project/ModularLoadManager">
+              Modular load manager
+            </a>
+          </li>
+          
         </ul>
       </div>
     </div>
@@ -859,6 +875,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
           
           
@@ -870,6 +888,8 @@
           
           
           <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
+          
+          
           
           
           
@@ -957,9 +977,9 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/cookbooks/RetentionExpiry/">Message retention and expiry</a></li>
-          
-          
           
           
           
@@ -1027,9 +1047,11 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/admin-api/overview/">The Pulsar admin interface</a></li>
+          
+          
+          
+          
           
           
           
@@ -1089,7 +1111,13 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
+          
+          
+          
+          
           
           
           
@@ -1303,7 +1331,13 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
+          
+          
+          
+          
           
           
           
@@ -1517,7 +1551,13 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
+          
+          
+          
+          
           
           
           
@@ -1731,7 +1771,13 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
+          
+          
+          
+          
           
           
           
@@ -1945,6 +1991,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
           
           
@@ -1994,6 +2042,10 @@
           
           
           <li><a href="/docs/latest/clients/Java/">The Pulsar Java client</a></li>
+          
+          
+          
+          
           
           
           
@@ -2093,8 +2145,6 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/cookbooks/message-queue/">Using Pulsar as a message queue</a></li>
           
           
@@ -2107,9 +2157,11 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/admin-api/overview/">The Pulsar admin interface</a></li>
+          
+          
+          
+          
           
           
           
@@ -2169,6 +2221,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
           
           
@@ -2202,6 +2256,10 @@
           
           
           <li><a href="/docs/latest/clients/Cpp/">The Pulsar C++ client</a></li>
+          
+          
+          
+          
           
           
           
@@ -2395,17 +2453,17 @@
 
 -->
 <div class="admonition">
-  <div class="danger">
-    <span class="admonition-title"><p>Version 2.0</p>
+  <div class="success">
+    <span class="admonition-title"><p>Pulsar version 2.0</p>
 </span>
     
-<p>The documentation that you’re reading is for the upcoming 2.0 release of Apache Pulsar. If you’re looking for the documentation for version 1.22.0-incubating, click <a href="/docs/v1.22.0-incubating/getting-started/LocalCluster">here</a>.</p>
+<p>The documentation that you’re reading is for the 2.0 release of Apache Pulsar. For more information on Pulsar 2.0, see <a href="../../getting-started/Pulsar-2.0">this guide</a>.</p>
 
   </div>
 </div>
 
 
-        <!-- <hr class="hr"> -->
+        <hr class="hr">
       </section>
 
       <section class="content">
@@ -2808,7 +2866,7 @@
 
 -->
 <section class="topic">
-  persistent://<span class="property">property</span>/<span class="cluster">cluster</span>/<span class="namespace">namespace</span>/<span class="t">topic</span>
+  persistent://<span class="property">tenant</span>/<span class="namespace">namespace</span>/<span class="t">topic</span>
 </section>
 
 <h2 id="managing-permissions">Managing permissions</h2>

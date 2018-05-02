@@ -116,6 +116,8 @@
               <h3 class="dropdown-header">Other releases</h3>
 
               
+                  <a class="dropdown-item" href="/docs/v1.22.0-incubating/getting-started/LocalCluster">1.22.0-incubating</a>
+              
                   <a class="dropdown-item" href="/docs/v1.21.0-incubating/getting-started/LocalCluster">1.21.0-incubating</a>
               
                   <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
@@ -280,6 +282,13 @@
 
       <div class="sidebar-group collapse" id="collapse-getting-started" role="tabpanel" aria-labelledby="heading-getting-started">
         <ul>
+          
+          
+          <li>
+            <a href="../../getting-started/pulsar-2.0">
+              Pulsar 2.0
+            </a>
+          </li>
           
           
           <li>
@@ -495,8 +504,8 @@
           
           
           <li>
-            <a href="../../admin/ModularLoadManager">
-              Modular load manager
+            <a href="../../admin/LoadDistribution">
+              Load distribution
             </a>
           </li>
           
@@ -585,8 +594,8 @@
           
           
           <li>
-            <a href="../../admin-api/properties">
-              Properties
+            <a href="../../admin-api/tenants">
+              Tenants
             </a>
           </li>
           
@@ -767,6 +776,13 @@
             </a>
           </li>
           
+          
+          <li>
+            <a href="../../project/ModularLoadManager">
+              Modular load manager
+            </a>
+          </li>
+          
         </ul>
       </div>
     </div>
@@ -869,17 +885,17 @@
 
 -->
 <div class="admonition">
-  <div class="danger">
-    <span class="admonition-title"><p>Version 2.0</p>
+  <div class="success">
+    <span class="admonition-title"><p>Pulsar version 2.0</p>
 </span>
     
-<p>The documentation that you’re reading is for the upcoming 2.0 release of Apache Pulsar. If you’re looking for the documentation for version 1.22.0-incubating, click <a href="/docs/v1.22.0-incubating/getting-started/LocalCluster">here</a>.</p>
+<p>The documentation that you’re reading is for the 2.0 release of Apache Pulsar. For more information on Pulsar 2.0, see <a href="../../getting-started/Pulsar-2.0">this guide</a>.</p>
 
   </div>
 </div>
 
 
-        <!-- <hr class="hr"> -->
+        <hr class="hr">
       </section>
 
       <section class="content">
@@ -908,7 +924,7 @@
 
 <h2 id="running-the-proxy">Running the proxy</h2>
 
-<p>In order to run the Pulsar proxy, you need to have both a local and global <a href="https://zookeeper.apache.org">ZooKeeper</a> quorum set up for use by your Pulsar cluster. For instructions, see <a href="../../deployment/cluster">this document</a>. Once you have ZooKeeper set up and have connection strings for both ZooKeeper quorums, you can use the <a href="../../reference/CliTools#pulsar-proxy"><code class="highlighter-rouge">proxy</code></a> command of the <a href="../../reference/CliTools#pulsar"><code class="highlighter-rouge">pulsar</code></a> CLI tool to start up the proxy (preferably on its own machine or in its own VM):</p>
+<p>In order to run the Pulsar proxy, you need to have both a local <a href="https://zookeeper.apache.org">ZooKeeper</a> and <span class="popover-term" tabindex="0" title="What is the configuration store?" data-placement="top" data-content="Pulsar's configuration store (previously known as global ZooKeeper) is a ZooKeeper quorum that is used for configuration-specific tasks. A multi-cluster Pulsar installation requires just one configuration store across all clusters." data-toggle="popover" data-trigger="focus">configuration store</span> quorum set up for use by your Pulsar cluster. For instructions, see <a href="../../deployment/cluster">this document</a>. Once you have ZooKeeper set up and have connection strings for both ZooKeeper quorums, you can use the <a href="../../reference/CliTools#pulsar-proxy"><code class="highlighter-rouge">proxy</code></a> command of the <a href="../../reference/CliTools#pulsar"><code class="highlighter-rouge">pulsar</code></a> CLI tool to start up the proxy (preferably on its own machine or in its own VM):</p>
 
 <p>To start the proxy:</p>
 

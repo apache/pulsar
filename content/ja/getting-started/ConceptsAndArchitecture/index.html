@@ -116,6 +116,8 @@
               <h3 class="dropdown-header">Other releases</h3>
 
               
+                  <a class="dropdown-item" href="/docs/v1.22.0-incubating/getting-started/LocalCluster">1.22.0-incubating</a>
+              
                   <a class="dropdown-item" href="/docs/v1.21.0-incubating/getting-started/LocalCluster">1.21.0-incubating</a>
               
                   <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
@@ -689,9 +691,15 @@
           
           
           
-          
-          
           <li><a href="/ja/getting-started/ConceptsAndArchitecture/">Pulsarのコンセプトとアーキテクチャ</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
           
           
           
@@ -1023,7 +1031,7 @@
 
 -->
 <section class="topic">
-  persistent://<span class="property">プロパティ</span>/<span class="cluster">クラスタ</span>/<span class="namespace">ネームスペース</span>/<span class="t">トピック</span>
+  persistent://<span class="cluster">クラスタ</span>/<span class="namespace">ネームスペース</span>/<span class="t">トピック</span>
 </section>
 
 <table>
@@ -1428,7 +1436,7 @@ enableNonPersistentTopics=true
 
 -->
 <section class="topic">
-  persistent://<span class="property">my-property</span>/<span class="cluster">global</span>/<span class="namespace">my-namespace</span>/<span class="t">my-topic</span>
+  persistent://<span class="cluster">global</span>/<span class="namespace">my-namespace</span>/<span class="t">my-topic</span>
 </section>
 
 <h2 id="メタデータストア">メタデータストア</h2>
@@ -1486,7 +1494,7 @@ enableNonPersistentTopics=true
 
 -->
 <section class="topic">
-  persistent://<span class="property">my-property</span>/<span class="cluster">global</span>/<span class="namespace">my-namespace</span>/<span class="t">my-topic</span>
+  persistent://<span class="cluster">global</span>/<span class="namespace">my-namespace</span>/<span class="t">my-topic</span>
 </section>
 
 <p>近い将来、Pulsarは一時的なメッセージストレージをサポートします。</p>
@@ -1558,7 +1566,7 @@ Ledgerは単一のプロセスによってのみ書き込み可能なので、�
 
 -->
 <section class="topic">
-  persistent://<span class="property">property</span>/<span class="cluster">cluster</span>/<span class="namespace">namespace</span>/<span class="t">topic</span>
+  persistent://<span class="cluster">cluster</span>/<span class="namespace">namespace</span>/<span class="t">topic</span>
 </section>
 
 <p>このように、プロパティはトピックの分類の最も基本的な単位です (<span class="popover-term" tabindex="0" title="クラスタとは？" data-placement="top" data-content="Pulsar BrokerとBookKeeperサーバ (Bookie) のセットのことです。それぞれのクラスタは異なる地理的地域に存在することができ、メッセージをクラスタ間で相互に複製することができます。この機能をジオレプリケーションと呼びます。" data-toggle="popover" data-trigger="focus">クラスタ</span>よりもさらに基本的です)。</p>
@@ -1629,7 +1637,7 @@ Ledgerは単一のプロセスによってのみ書き込み可能なので、�
 
 -->
 <section class="topic">
-  persistent://<span class="property">my-property</span>/<span class="cluster">us-w</span>/<span class="namespace">my-app1</span>/<span class="t">my-topic-1</span>
+  persistent://<span class="cluster">us-w</span>/<span class="namespace">my-app1</span>/<span class="t">my-topic-1</span>
 </section>
 
 <!--
@@ -1653,7 +1661,7 @@ Ledgerは単一のプロセスによってのみ書き込み可能なので、�
 
 -->
 <section class="topic">
-  persistent://<span class="property">my-property</span>/<span class="cluster">us-w</span>/<span class="namespace">my-app1</span>/<span class="t">my-topic-2</span>
+  persistent://<span class="cluster">us-w</span>/<span class="namespace">my-app1</span>/<span class="t">my-topic-2</span>
 </section>
 
 <!--
@@ -1677,7 +1685,7 @@ Ledgerは単一のプロセスによってのみ書き込み可能なので、�
 
 -->
 <section class="topic">
-  persistent://<span class="property">my-property</span>/<span class="cluster">us-w</span>/<span class="namespace">my-app1</span>/<span class="t">my-topic-3</span>
+  persistent://<span class="cluster">us-w</span>/<span class="namespace">my-app1</span>/<span class="t">my-topic-3</span>
 </section>
 
 <h2 id="認証と認可">認証と認可</h2>

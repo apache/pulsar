@@ -116,6 +116,8 @@
               <h3 class="dropdown-header">Other releases</h3>
 
               
+                  <a class="dropdown-item" href="/docs/v1.22.0-incubating/getting-started/LocalCluster">1.22.0-incubating</a>
+              
                   <a class="dropdown-item" href="/docs/v1.21.0-incubating/getting-started/LocalCluster">1.21.0-incubating</a>
               
                   <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
@@ -280,6 +282,13 @@
 
       <div class="sidebar-group collapse" id="collapse-getting-started" role="tabpanel" aria-labelledby="heading-getting-started">
         <ul>
+          
+          
+          <li>
+            <a href="../../getting-started/pulsar-2.0">
+              Pulsar 2.0
+            </a>
+          </li>
           
           
           <li>
@@ -495,8 +504,8 @@
           
           
           <li>
-            <a href="../../admin/ModularLoadManager">
-              Modular load manager
+            <a href="../../admin/LoadDistribution">
+              Load distribution
             </a>
           </li>
           
@@ -585,8 +594,8 @@
           
           
           <li>
-            <a href="../../admin-api/properties">
-              Properties
+            <a href="../../admin-api/tenants">
+              Tenants
             </a>
           </li>
           
@@ -767,6 +776,13 @@
             </a>
           </li>
           
+          
+          <li>
+            <a href="../../project/ModularLoadManager">
+              Modular load manager
+            </a>
+          </li>
+          
         </ul>
       </div>
     </div>
@@ -927,7 +943,13 @@
           
           
           
+          
+          
+          
+          
           <li><a href="/docs/latest/cookbooks/PartitionedTopics/">Partitioned topics</a></li>
+          
+          
           
           
           
@@ -1141,7 +1163,13 @@
           
           
           
+          
+          
+          
+          
           <li><a href="/docs/latest/cookbooks/PartitionedTopics/">Partitioned topics</a></li>
+          
+          
           
           
           
@@ -1287,6 +1315,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
           
           
@@ -1298,6 +1328,8 @@
           
           
           <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
+          
+          
           
           
           
@@ -1385,9 +1417,9 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/cookbooks/RetentionExpiry/">Message retention and expiry</a></li>
-          
-          
           
           
           
@@ -1455,9 +1487,11 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/admin-api/overview/">The Pulsar admin interface</a></li>
+          
+          
+          
+          
           
           
           
@@ -1587,6 +1621,10 @@
           
           
           
+          
+          
+          
+          
           <li><a href="/docs/latest/cookbooks/PartitionedTopics/">Partitioned topics</a></li>
           
           
@@ -1594,6 +1632,8 @@
           
           
           
+          
+          <li><a href="/docs/latest/getting-started/Pulsar-2.0/">Pulsar 2.0</a></li>
           
           
           
@@ -1664,6 +1704,8 @@
           
           
           <li><a href="/docs/latest/cookbooks/message-queue/">Using Pulsar as a message queue</a></li>
+          
+          
           
           
           
@@ -1805,6 +1847,10 @@
           
           
           
+          
+          
+          
+          
           <li><a href="/docs/latest/cookbooks/PartitionedTopics/">Partitioned topics</a></li>
           
           
@@ -1831,9 +1877,9 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/cookbooks/RetentionExpiry/">Message retention and expiry</a></li>
-          
-          
           
           
           
@@ -1916,6 +1962,8 @@
           
           
           
+          
+          
         </ul>
       </div>
     </div>
@@ -1967,17 +2015,17 @@
 
 -->
 <div class="admonition">
-  <div class="danger">
-    <span class="admonition-title"><p>Version 2.0</p>
+  <div class="success">
+    <span class="admonition-title"><p>Pulsar version 2.0</p>
 </span>
     
-<p>The documentation that you’re reading is for the upcoming 2.0 release of Apache Pulsar. If you’re looking for the documentation for version 1.22.0-incubating, click <a href="/docs/v1.22.0-incubating/getting-started/LocalCluster">here</a>.</p>
+<p>The documentation that you’re reading is for the 2.0 release of Apache Pulsar. For more information on Pulsar 2.0, see <a href="../../getting-started/Pulsar-2.0">this guide</a>.</p>
 
   </div>
 </div>
 
 
-        <!-- <hr class="hr"> -->
+        <hr class="hr">
       </section>
 
       <section class="content">
@@ -2250,7 +2298,7 @@
 
 -->
 <section class="topic">
-  persistent://<span class="property">property</span>/<span class="cluster">cluster</span>/<span class="namespace">namespace</span>/<span class="t">topic</span>
+  persistent://<span class="property">tenant</span>/<span class="namespace">namespace</span>/<span class="t">topic</span>
 </section>
 
 <h3 id="create">Create</h3>
@@ -2914,13 +2962,13 @@ persistent://property/cluster/namespace/topic
 
 <p>The diagram below illustrates this:</p>
 
-<p><img src="/img/pulsar_partitioned_topic.jpg" alt="Partitioned Topic" /></p>
+<p><img src="/img/partitioning.png" width="70%" /></p>
 
-<p>Here, the topic <strong>T1</strong> has five partitions (<strong>P0</strong> through <strong>P4</strong>) split across three brokers. Because there are more partitions than brokers, two brokers handle two partitions a piece, while the third handles only one (again, Pulsar handles this distribution of partitions automatically).</p>
+<p>Here, the topic <strong>Topic1</strong> has five partitions (<strong>P0</strong> through <strong>P4</strong>) split across three brokers. Because there are more partitions than brokers, two brokers handle two partitions a piece, while the third handles only one (again, Pulsar handles this distribution of partitions automatically).</p>
 
 <p>Messages for this topic are broadcast to two <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumers</span>. The <a href="#routing-modes">routing mode</a> determines both which broker handles each partition, while the <a href="../../getting-started/ConceptsAndArchitecture#subscription-modes">subscription mode</a> determines which messages go to which consumers.</p>
 
-<p>Decisions about routing and subscription modes can be made separately in most cases. Throughput concerns should guide partitioning/routing decisions while subscription decisions should be guided by application semantics.</p>
+<p>Decisions about routing and subscription modes can be made separately in most cases. In general, throughput concerns should guide partitioning/routing decisions while subscription decisions should be guided by application semantics.</p>
 
 <p>There is no difference between partitioned topics and normal topics in terms of how subscription modes work, as partitioning only determines what happens between when a message is published by a <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producer</span> and processed and <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledged</span> by a <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span>.</p>
 

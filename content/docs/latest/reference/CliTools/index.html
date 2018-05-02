@@ -116,6 +116,8 @@
               <h3 class="dropdown-header">Other releases</h3>
 
               
+                  <a class="dropdown-item" href="/docs/v1.22.0-incubating/getting-started/LocalCluster">1.22.0-incubating</a>
+              
                   <a class="dropdown-item" href="/docs/v1.21.0-incubating/getting-started/LocalCluster">1.21.0-incubating</a>
               
                   <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
@@ -280,6 +282,13 @@
 
       <div class="sidebar-group collapse" id="collapse-getting-started" role="tabpanel" aria-labelledby="heading-getting-started">
         <ul>
+          
+          
+          <li>
+            <a href="../../getting-started/pulsar-2.0">
+              Pulsar 2.0
+            </a>
+          </li>
           
           
           <li>
@@ -495,8 +504,8 @@
           
           
           <li>
-            <a href="../../admin/ModularLoadManager">
-              Modular load manager
+            <a href="../../admin/LoadDistribution">
+              Load distribution
             </a>
           </li>
           
@@ -585,8 +594,8 @@
           
           
           <li>
-            <a href="../../admin-api/properties">
-              Properties
+            <a href="../../admin-api/tenants">
+              Tenants
             </a>
           </li>
           
@@ -767,6 +776,13 @@
             </a>
           </li>
           
+          
+          <li>
+            <a href="../../project/ModularLoadManager">
+              Modular load manager
+            </a>
+          </li>
+          
         </ul>
       </div>
     </div>
@@ -859,6 +875,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
           
           
@@ -870,6 +888,8 @@
           
           
           <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
+          
+          
           
           
           
@@ -957,9 +977,9 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/cookbooks/RetentionExpiry/">Message retention and expiry</a></li>
-          
-          
           
           
           
@@ -1027,9 +1047,11 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/admin-api/overview/">The Pulsar admin interface</a></li>
+          
+          
+          
+          
           
           
           
@@ -1097,6 +1119,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
           
           
@@ -1264,6 +1288,10 @@
           
           
           
+          
+          
+          
+          
         </ul>
       </div>
     </div>
@@ -1301,6 +1329,8 @@
       </div>
       <div class="modal-body">
         <ul>
+          
+          
           
           
           
@@ -1356,6 +1386,10 @@
           
           
           <li><a href="/docs/latest/clients/Java/">The Pulsar Java client</a></li>
+          
+          
+          
+          
           
           
           
@@ -1533,7 +1567,13 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
+          
+          
+          
+          
           
           
           
@@ -1747,7 +1787,13 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
+          
+          
+          
+          
           
           
           
@@ -1961,7 +2007,13 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
+          
+          
+          
+          
           
           
           
@@ -2177,17 +2229,17 @@
 
 -->
 <div class="admonition">
-  <div class="danger">
-    <span class="admonition-title"><p>Version 2.0</p>
+  <div class="success">
+    <span class="admonition-title"><p>Pulsar version 2.0</p>
 </span>
     
-<p>The documentation that you’re reading is for the upcoming 2.0 release of Apache Pulsar. If you’re looking for the documentation for version 1.22.0-incubating, click <a href="/docs/v1.22.0-incubating/getting-started/LocalCluster">here</a>.</p>
+<p>The documentation that you’re reading is for the 2.0 release of Apache Pulsar. For more information on Pulsar 2.0, see <a href="../../getting-started/Pulsar-2.0">this guide</a>.</p>
 
   </div>
 </div>
 
 
-        <!-- <hr class="hr"> -->
+        <hr class="hr">
       </section>
 
       <section class="content">
@@ -2319,8 +2371,8 @@
       </li>
       
       <li>
-        <a href="#pulsar-global-zookeeper">
-          <code class="highlighter-rouge">global-zookeeper</code>
+        <a href="#pulsar-configuration-store">
+          <code class="highlighter-rouge">configuration-store</code>
         </a>
       </li>
       
@@ -2414,8 +2466,8 @@
         </tr>
         
         <tr>
-          <td><code class="highlighter-rouge">PULSAR_GLOBAL_ZK_CONF</code></td>
-          <td>Configuration file for global zookeeper</td>
+          <td><code class="highlighter-rouge">PULSAR_CONFIGURATION_STORE_CONF</code></td>
+          <td>Configuration file for the configuration store</td>
           <td><code class="highlighter-rouge">conf/global_zookeeper.conf</code></td>
         </tr>
         
@@ -2707,7 +2759,7 @@
         
         <h5>Example</h5>
         <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> <span>pulsar compact-topic \
-  --topic persistent://sample/standalone/ns1/topic-to-compact
+  --topic topic-to-compact
 </span></code></pre></div>
          <!-- if command.example -->
 
@@ -2769,14 +2821,14 @@
     </div>
     
     <div class="card cli-command">
-      <h3 class="cli-command-title" id="pulsar-global-zookeeper">
-        <code class="highlighter-rouge">global-zookeeper</code>
+      <h3 class="cli-command-title" id="pulsar-configuration-store">
+        <code class="highlighter-rouge">configuration-store</code>
       </h3>
       <div class="card-content">
-        <p>Starts up global ZooKeeper</p>
+        <p>Starts up the Pulsar configuration store</p>
 
         <h5>Usage</h5>
-        <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar global-zookeeper <span class="options">options</span></code></pre></div>
+        <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar configuration-store <span class="options">options</span></code></pre></div>
         
         <h5>Options</h5>
         <table class="options-table">
@@ -2799,7 +2851,7 @@
                   
                    <!-- for flag in option.flags -->
                 </td>
-                <td><p>Configuration file for global ZooKeeper</p>
+                <td><p>Configuration file for the configuration store</p>
 </td>
                 <td>
                   
@@ -2894,14 +2946,11 @@
                 <td nowrap="">
                   
                   
-                  <code class="highlighter-rouge">-gzk</code>
-                  , 
-                  
-                  <code class="highlighter-rouge">--global-zookeeper</code>
+                  <code class="highlighter-rouge">--configuration-store</code>
                   
                    <!-- for flag in option.flags -->
                 </td>
-                <td><p>The global ZooKeeper quorum connection string</p>
+                <td><p>The configuration store quorum connection string</p>
 </td>
                 <td>
                   
@@ -3014,14 +3063,11 @@
                 <td nowrap="">
                   
                   
-                  <code class="highlighter-rouge">-gzk</code>
-                  , 
-                  
-                  <code class="highlighter-rouge">--global-zookeeper-servers</code>
+                  <code class="highlighter-rouge">--configuration-store</code>
                   
                    <!-- for flag in option.flags -->
                 </td>
-                <td><p>Global ZooKeeper connection string</p>
+                <td><p>Configuration store connection string</p>
 </td>
                 <td>
                   
@@ -3054,7 +3100,7 @@
         <h5>Example</h5>
         <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> <span>pulsar proxy \
   --zookeeper-servers zk-0,zk-1,zk2 \
-  --global-zookeeper-servers zk-0,zk-1,zk-2
+  --configuration-store zk-0,zk-1,zk-2
 </span></code></pre></div>
          <!-- if command.example -->
 
@@ -3443,7 +3489,7 @@
     <code class="highlighter-rouge">pulsar-admin</code>
   </h2>
   <div class="card-content">
-    <p>The <code class="highlighter-rouge">pulsar-admin</code> tool enables you to manage Pulsar installations, including clusters, brokers, namespaces, properties, and more.</p>
+    <p>The <code class="highlighter-rouge">pulsar-admin</code> tool enables you to manage Pulsar installations, including clusters, brokers, namespaces, tenants, and more.</p>
 
     <h5>Usage</h5>
     <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin <span class="command">command</span></code></pre></div>
@@ -3488,20 +3534,14 @@
       </li>
       
       <li>
-        <a href="#pulsar-admin-persistent">
-          <code class="highlighter-rouge">persistent</code>
+        <a href="#pulsar-admin-topics">
+          <code class="highlighter-rouge">topics</code>
         </a>
       </li>
       
       <li>
-        <a href="#pulsar-admin-non-persistent">
-          <code class="highlighter-rouge">non-persistent</code>
-        </a>
-      </li>
-      
-      <li>
-        <a href="#pulsar-admin-properties">
-          <code class="highlighter-rouge">properties</code>
+        <a href="#pulsar-admin-tenants">
+          <code class="highlighter-rouge">tenants</code>
         </a>
       </li>
       
@@ -5639,7 +5679,7 @@
         <code class="highlighter-rouge">namespaces</code>
       </h3>
       <div class="card-content">
-        <p>Operations about namespaces</p>
+        <p>Operations for managing namespaces</p>
 
         <h5>Usage</h5>
         <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces <span class="command">subcommand</span></code></pre></div>
@@ -5800,9 +5840,9 @@
         <div class="card cli-subcommand">
           <h4 class="card-header-title" id="pulsar-admin-namespaces-list"><code class="highlighter-rouge">list</code></h4>
           <div class="card-content">
-            <p>Get the namespaces for a property</p>
+            <p>Get the namespaces for a tenant</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces list <span class="command">property-name</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces list <span class="command">tenant-name</span></code></pre></div>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>
@@ -5811,9 +5851,9 @@
         <div class="card cli-subcommand">
           <h4 class="card-header-title" id="pulsar-admin-namespaces-list-cluster"><code class="highlighter-rouge">list-cluster</code></h4>
           <div class="card-content">
-            <p>Get the namespaces for a property in the cluster</p>
+            <p>Get the namespaces for a tenant in the cluster</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces list-cluster <span class="command">property/cluster</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces list-cluster <span class="command">tenant/cluster</span></code></pre></div>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>
@@ -5824,7 +5864,7 @@
           <div class="card-content">
             <p>Get the destinations for a namespace</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces destinations <span class="command">property/cluster/namespace</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces destinations <span class="command">tenant/cluster/namespace</span></code></pre></div>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>
@@ -5835,7 +5875,7 @@
           <div class="card-content">
             <p>Get the policies of a namespace</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces policies <span class="command">property/cluster/namespace</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces policies <span class="command">tenant/cluster/namespace</span></code></pre></div>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>
@@ -5846,7 +5886,7 @@
           <div class="card-content">
             <p>Create a new namespace</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces create <span class="command">property/cluster/namespace</span> <span class="options">options</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces create <span class="command">tenant/cluster/namespace</span> <span class="options">options</span></code></pre></div>
             
             <h5>Options</h5>
             <table class="options-table">
@@ -5890,7 +5930,7 @@
           <div class="card-content">
             <p>Deletes a namespace</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces delete <span class="command">property/cluster/namespace</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces delete <span class="command">tenant/cluster/namespace</span></code></pre></div>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>
@@ -5901,7 +5941,7 @@
           <div class="card-content">
             <p>Enable or disable message deduplication on a namespace</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces set-deduplication <span class="command">property/cluster/namespace</span> <span class="options">options</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces set-deduplication <span class="command">tenant/cluster/namespace</span> <span class="options">options</span></code></pre></div>
             
             <h5>Options</h5>
             <table class="options-table">
@@ -5964,7 +6004,7 @@
           <div class="card-content">
             <p>Get the permissions on a namespace</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces permissions <span class="command">property/cluster/namespace</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces permissions <span class="command">tenant/cluster/namespace</span></code></pre></div>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>
@@ -5975,7 +6015,7 @@
           <div class="card-content">
             <p>Grant permissions on a namespace</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces grant-permission <span class="command">property/cluster/namespace</span> <span class="options">options</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces grant-permission <span class="command">tenant/cluster/namespace</span> <span class="options">options</span></code></pre></div>
             
             <h5>Options</h5>
             <table class="options-table">
@@ -6030,7 +6070,7 @@
           <div class="card-content">
             <p>Revoke permissions on a namespace</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces revoke-permission <span class="command">property/cluster/namespace</span> <span class="options">options</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces revoke-permission <span class="command">tenant/cluster/namespace</span> <span class="options">options</span></code></pre></div>
             
             <h5>Options</h5>
             <table class="options-table">
@@ -6070,7 +6110,7 @@
           <div class="card-content">
             <p>Set replication clusters for a namespace</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces set-clusters <span class="command">property/cluster/namespace</span> <span class="options">options</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces set-clusters <span class="command">tenant/cluster/namespace</span> <span class="options">options</span></code></pre></div>
             
             <h5>Options</h5>
             <table class="options-table">
@@ -6113,7 +6153,7 @@
           <div class="card-content">
             <p>Get replication clusters for a namespace</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces get-clusters <span class="command">property/cluster/namespace</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces get-clusters <span class="command">tenant/cluster/namespace</span></code></pre></div>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>
@@ -6124,7 +6164,7 @@
           <div class="card-content">
             <p>Get the backlog quota policies for a namespace</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces get-backlog-quotas <span class="command">property/cluster/namespace</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces get-backlog-quotas <span class="command">tenant/cluster/namespace</span></code></pre></div>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>
@@ -6135,7 +6175,7 @@
           <div class="card-content">
             <p>Set a backlog quota for a namespace</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces set-backlog-quota <span class="command">property/cluster/namespace</span> <span class="options">options</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces set-backlog-quota <span class="command">tenant/cluster/namespace</span> <span class="options">options</span></code></pre></div>
             
             <h5>Options</h5>
             <table class="options-table">
@@ -6207,7 +6247,7 @@
           <div class="card-content">
             <p>Remove a backlog quota policy from a namespace</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces remove-backlog-quota <span class="command">property/cluster/namespace</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces remove-backlog-quota <span class="command">tenant/cluster/namespace</span></code></pre></div>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>
@@ -6218,7 +6258,7 @@
           <div class="card-content">
             <p>Get the persistence policies for a namespace</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces get-persistence <span class="command">property/cluster/namespace</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces get-persistence <span class="command">tenant/cluster/namespace</span></code></pre></div>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>
@@ -6229,7 +6269,7 @@
           <div class="card-content">
             <p>Set the persistence policies for a namespace</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces set-persistence <span class="command">property/cluster/namespace</span> <span class="options">options</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces set-persistence <span class="command">tenant/cluster/namespace</span> <span class="options">options</span></code></pre></div>
             
             <h5>Options</h5>
             <table class="options-table">
@@ -6329,7 +6369,7 @@
           <div class="card-content">
             <p>Get the message TTL for a namespace</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces get-message-ttl <span class="command">property/cluster/namespace</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces get-message-ttl <span class="command">tenant/cluster/namespace</span></code></pre></div>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>
@@ -6384,7 +6424,7 @@
           <div class="card-content">
             <p>Get the retention policy for a namespace</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces get-retention <span class="command">property/cluster/namespace</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces get-retention <span class="command">tenant/cluster/namespace</span></code></pre></div>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>
@@ -6395,7 +6435,7 @@
           <div class="card-content">
             <p>Set the retention policy for a namespace</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces set-retention <span class="command">property/cluster/namespace</span> <span class="options">options</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces set-retention <span class="command">tenant/cluster/namespace</span> <span class="options">options</span></code></pre></div>
             
             <h5>Options</h5>
             <table class="options-table">
@@ -6456,7 +6496,7 @@
           <div class="card-content">
             <p>Unload a namespace or namespace bundle from the current serving broker.</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces unload <span class="command">property/cluster/namespace</span> <span class="options">options</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces unload <span class="command">tenant/cluster/namespace</span> <span class="options">options</span></code></pre></div>
             
             <h5>Options</h5>
             <table class="options-table">
@@ -6499,7 +6539,7 @@
           <div class="card-content">
             <p>Clear the backlog for a namespace</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces clear-backlog <span class="command">property/cluster/namespace</span> <span class="options">options</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces clear-backlog <span class="command">tenant/cluster/namespace</span> <span class="options">options</span></code></pre></div>
             
             <h5>Options</h5>
             <table class="options-table">
@@ -6579,7 +6619,7 @@
           <div class="card-content">
             <p>Unsubscribe the given subscription on all destinations on a namespace</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces unsubscribe <span class="command">property/cluster/namespace</span> <span class="options">options</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces unsubscribe <span class="command">tenant/cluster/namespace</span> <span class="options">options</span></code></pre></div>
             
             <h5>Options</h5>
             <table class="options-table">
@@ -6825,14 +6865,14 @@
     </div>
     
     <div class="card cli-command">
-      <h3 class="cli-command-title" id="pulsar-admin-persistent">
-        <code class="highlighter-rouge">persistent</code>
+      <h3 class="cli-command-title" id="pulsar-admin-topics">
+        <code class="highlighter-rouge">topics</code>
       </h3>
       <div class="card-content">
-        <p>Operations on persistent topics</p>
+        <p>Operations for managing Pulsar topics (both persistent and non persistent)</p>
 
         <h5>Usage</h5>
-        <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin persistent <span class="command">subcommand</span></code></pre></div>
+        <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin topics <span class="command">subcommand</span></code></pre></div>
          <!-- if command.options -->
          <!-- if command.example -->
 
@@ -6841,139 +6881,163 @@
         <ul>
           
           <li>
-            <a href="#pulsar-admin-persistent-list">
-              <code class="highlighter-rouge">list</code>
+            <a href="#pulsar-admin-topics-compact">
+              <code class="highlighter-rouge">compact</code>
             </a>
           </li>
           
           <li>
-            <a href="#pulsar-admin-persistent-permissions">
-              <code class="highlighter-rouge">permissions</code>
+            <a href="#pulsar-admin-topics-compaction-status">
+              <code class="highlighter-rouge">compaction-status</code>
             </a>
           </li>
           
           <li>
-            <a href="#pulsar-admin-persistent-grant-permission">
-              <code class="highlighter-rouge">grant-permission</code>
-            </a>
-          </li>
-          
-          <li>
-            <a href="#pulsar-admin-persistent-revoke-permission">
-              <code class="highlighter-rouge">revoke-permission</code>
-            </a>
-          </li>
-          
-          <li>
-            <a href="#pulsar-admin-persistent-lookup">
-              <code class="highlighter-rouge">lookup</code>
-            </a>
-          </li>
-          
-          <li>
-            <a href="#pulsar-admin-persistent-bundle-range">
-              <code class="highlighter-rouge">bundle-range</code>
-            </a>
-          </li>
-          
-          <li>
-            <a href="#pulsar-admin-persistent-delete">
-              <code class="highlighter-rouge">delete</code>
-            </a>
-          </li>
-          
-          <li>
-            <a href="#pulsar-admin-persistent-unload">
-              <code class="highlighter-rouge">unload</code>
-            </a>
-          </li>
-          
-          <li>
-            <a href="#pulsar-admin-persistent-subscriptions">
-              <code class="highlighter-rouge">subscriptions</code>
-            </a>
-          </li>
-          
-          <li>
-            <a href="#pulsar-admin-persistent-unsubscribe">
-              <code class="highlighter-rouge">unsubscribe</code>
-            </a>
-          </li>
-          
-          <li>
-            <a href="#pulsar-admin-persistent-stats">
-              <code class="highlighter-rouge">stats</code>
-            </a>
-          </li>
-          
-          <li>
-            <a href="#pulsar-admin-persistent-stats-internal">
-              <code class="highlighter-rouge">stats-internal</code>
-            </a>
-          </li>
-          
-          <li>
-            <a href="#pulsar-admin-persistent-info-internal">
-              <code class="highlighter-rouge">info-internal</code>
-            </a>
-          </li>
-          
-          <li>
-            <a href="#pulsar-admin-persistent-partitioned-stats">
-              <code class="highlighter-rouge">partitioned-stats</code>
-            </a>
-          </li>
-          
-          <li>
-            <a href="#pulsar-admin-persistent-skip">
-              <code class="highlighter-rouge">skip</code>
-            </a>
-          </li>
-          
-          <li>
-            <a href="#pulsar-admin-persistent-skip-all">
-              <code class="highlighter-rouge">skip-all</code>
-            </a>
-          </li>
-          
-          <li>
-            <a href="#pulsar-admin-persistent-expire-messages">
-              <code class="highlighter-rouge">expire-messages</code>
-            </a>
-          </li>
-          
-          <li>
-            <a href="#pulsar-admin-persistent-expire-messages-all-subscriptions">
-              <code class="highlighter-rouge">expire-messages-all-subscriptions</code>
-            </a>
-          </li>
-          
-          <li>
-            <a href="#pulsar-admin-persistent-create-partitioned-topic">
+            <a href="#pulsar-admin-topics-create-partitioned-topic">
               <code class="highlighter-rouge">create-partitioned-topic</code>
             </a>
           </li>
           
           <li>
-            <a href="#pulsar-admin-persistent-get-partitioned-topic-metadata">
-              <code class="highlighter-rouge">get-partitioned-topic-metadata</code>
-            </a>
-          </li>
-          
-          <li>
-            <a href="#pulsar-admin-persistent-delete-partitioned-topic">
+            <a href="#pulsar-admin-topics-delete-partitioned-topic">
               <code class="highlighter-rouge">delete-partitioned-topic</code>
             </a>
           </li>
           
           <li>
-            <a href="#pulsar-admin-persistent-peek-messages">
+            <a href="#pulsar-admin-topics-get-partitioned-topic-metadata">
+              <code class="highlighter-rouge">get-partitioned-topic-metadata</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-topics-list">
+              <code class="highlighter-rouge">list</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-topics-list-in-bundle">
+              <code class="highlighter-rouge">list-in-bundle</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-topics-terminate">
+              <code class="highlighter-rouge">terminate</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-topics-permissions">
+              <code class="highlighter-rouge">permissions</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-topics-grant-permission">
+              <code class="highlighter-rouge">grant-permission</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-topics-revoke-permission">
+              <code class="highlighter-rouge">revoke-permission</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-topics-lookup">
+              <code class="highlighter-rouge">lookup</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-topics-bundle-range">
+              <code class="highlighter-rouge">bundle-range</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-topics-delete">
+              <code class="highlighter-rouge">delete</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-topics-unload">
+              <code class="highlighter-rouge">unload</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-topics-subscriptions">
+              <code class="highlighter-rouge">subscriptions</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-topics-unsubscribe">
+              <code class="highlighter-rouge">unsubscribe</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-topics-stats">
+              <code class="highlighter-rouge">stats</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-topics-stats-internal">
+              <code class="highlighter-rouge">stats-internal</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-topics-info-internal">
+              <code class="highlighter-rouge">info-internal</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-topics-partitioned-stats">
+              <code class="highlighter-rouge">partitioned-stats</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-topics-skip">
+              <code class="highlighter-rouge">skip</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-topics-skip-all">
+              <code class="highlighter-rouge">skip-all</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-topics-expire-messages">
+              <code class="highlighter-rouge">expire-messages</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-topics-expire-messages-all-subscriptions">
+              <code class="highlighter-rouge">expire-messages-all-subscriptions</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-topics-peek-messages">
               <code class="highlighter-rouge">peek-messages</code>
             </a>
           </li>
           
           <li>
-            <a href="#pulsar-admin-persistent-reset-cursor">
+            <a href="#pulsar-admin-topics-reset-cursor">
               <code class="highlighter-rouge">reset-cursor</code>
             </a>
           </li>
@@ -6982,33 +7046,208 @@
 
         
         <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-persistent-list"><code class="highlighter-rouge">list</code></h4>
+          <h4 class="card-header-title" id="pulsar-admin-topics-compact"><code class="highlighter-rouge">compact</code></h4>
+          <div class="card-content">
+            <p>Run compaction on the specified topic (persistent topics only)</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin topics compact <span class="command">persistent://tenant/namespace/topic</span></code></pre></div>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-topics-compaction-status"><code class="highlighter-rouge">compaction-status</code></h4>
+          <div class="card-content">
+            <p>Check the status of a topic compaction (persistent topics only)</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin topics compaction-status <span class="command">persistent://tenant/namespace/topic</span> <span class="options">options</span></code></pre></div>
+            
+            <h5>Options</h5>
+            <table class="options-table">
+              <thead>
+                <tr>
+                  <th>Flag</th>
+                  <th>Description</th>
+                  <th>Default</th>
+                </tr>
+                <tbody>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">-w</code>
+                      , 
+                      
+                      <code class="highlighter-rouge">--wait-complete</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>Wait for compaction to complete</p>
+</td>
+                    <td>
+                      <p>false</p>
+
+                    </td>
+                  </tr>
+                   <!-- for option in options -->
+                </tbody>
+              </thead>
+            </table>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-topics-create-partitioned-topic"><code class="highlighter-rouge">create-partitioned-topic</code></h4>
+          <div class="card-content">
+            <p>Create a partitioned topic. A partitioned topic must be created before producers can publish to it.</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin topics create-partitioned-topic <span class="command">{persistent|non-persistent}://tenant/namespace/topic</span> <span class="options">options</span></code></pre></div>
+            
+            <h5>Options</h5>
+            <table class="options-table">
+              <thead>
+                <tr>
+                  <th>Flag</th>
+                  <th>Description</th>
+                  <th>Default</th>
+                </tr>
+                <tbody>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">-p</code>
+                      , 
+                      
+                      <code class="highlighter-rouge">--partitions</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The number of partitions for the topic</p>
+</td>
+                    <td>
+                      <p>0</p>
+
+                    </td>
+                  </tr>
+                   <!-- for option in options -->
+                </tbody>
+              </thead>
+            </table>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-topics-delete-partitioned-topic"><code class="highlighter-rouge">delete-partitioned-topic</code></h4>
+          <div class="card-content">
+            <p>Delete a partitioned topic. This will also delete all the partitions of the topic if they exist.</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin topics delete-partitioned-topic <span class="command">{persistent|non-persistent}://tenant/namespace/topic</span></code></pre></div>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-topics-get-partitioned-topic-metadata"><code class="highlighter-rouge">get-partitioned-topic-metadata</code></h4>
+          <div class="card-content">
+            <p>Get the partitioned topic metadata. If the topic is not created or is a non-partitioned topic, this will return an empty topic with zero partitions.</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin topics get-partitioned-topic-metadata <span class="command">{persistent|non-persistent}://tenant/namespace/topic</span></code></pre></div>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-topics-list"><code class="highlighter-rouge">list</code></h4>
           <div class="card-content">
             <p>Get the list of topics under a namespace</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin persistent list <span class="command">property/cluster/namespace</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin topics list <span class="command">tenant/cluster/namespace</span></code></pre></div>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>
         </div>
       
         <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-persistent-permissions"><code class="highlighter-rouge">permissions</code></h4>
+          <h4 class="card-header-title" id="pulsar-admin-topics-list-in-bundle"><code class="highlighter-rouge">list-in-bundle</code></h4>
+          <div class="card-content">
+            <p>Get a list of non-persistent topics present under a namespace bundle</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin topics list-in-bundle <span class="command">tenant/namespace</span> <span class="options">options</span></code></pre></div>
+            
+            <h5>Options</h5>
+            <table class="options-table">
+              <thead>
+                <tr>
+                  <th>Flag</th>
+                  <th>Description</th>
+                  <th>Default</th>
+                </tr>
+                <tbody>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">-b</code>
+                      , 
+                      
+                      <code class="highlighter-rouge">--bundle</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The bundle range</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                   <!-- for option in options -->
+                </tbody>
+              </thead>
+            </table>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-topics-terminate"><code class="highlighter-rouge">terminate</code></h4>
+          <div class="card-content">
+            <p>Terminate a topic (disallow further messages from being published on the topic)</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin topics terminate <span class="command">{persistent|non-persistent}://tenant/namespace/topic</span></code></pre></div>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-topics-permissions"><code class="highlighter-rouge">permissions</code></h4>
           <div class="card-content">
             <p>Get the permissions on a topic. Retrieve the effective permissions for a desination. These permissions are defined by the permissions set at the namespace level combined (union) with any eventual specific permissions set on the topic.</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin persistent permissions <span class="command">persistent://property/cluster/namespace/topic</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin topics permissions <span class="command">topic</span></code></pre></div>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>
         </div>
       
         <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-persistent-grant-permission"><code class="highlighter-rouge">grant-permission</code></h4>
+          <h4 class="card-header-title" id="pulsar-admin-topics-grant-permission"><code class="highlighter-rouge">grant-permission</code></h4>
           <div class="card-content">
             <p>Grant a new permission to a client role on a single topic</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin persistent grant-permission <span class="command">persistent://property/cluster/namespace/topic</span> <span class="options">options</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin topics grant-permission <span class="command">{persistent|non-persistent}://tenant/namespace/topic</span> <span class="options">options</span></code></pre></div>
             
             <h5>Options</h5>
             <table class="options-table">
@@ -7059,77 +7298,77 @@
         </div>
       
         <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-persistent-revoke-permission"><code class="highlighter-rouge">revoke-permission</code></h4>
+          <h4 class="card-header-title" id="pulsar-admin-topics-revoke-permission"><code class="highlighter-rouge">revoke-permission</code></h4>
           <div class="card-content">
             <p>Revoke permissions to a client role on a single topic. If the permission was not set at the topic level, but rather at the namespace level, this operation will return an error (HTTP status code 412).</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin persistent revoke-permission <span class="command">persistent://property/cluster/namespace/topic</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin topics revoke-permission <span class="command">topic</span></code></pre></div>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>
         </div>
       
         <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-persistent-lookup"><code class="highlighter-rouge">lookup</code></h4>
+          <h4 class="card-header-title" id="pulsar-admin-topics-lookup"><code class="highlighter-rouge">lookup</code></h4>
           <div class="card-content">
             <p>Look up a topic from the current serving broker</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin persistent lookup <span class="command">persistent://property/cluster/namespace/topic</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin topics lookup <span class="command">topic</span></code></pre></div>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>
         </div>
       
         <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-persistent-bundle-range"><code class="highlighter-rouge">bundle-range</code></h4>
+          <h4 class="card-header-title" id="pulsar-admin-topics-bundle-range"><code class="highlighter-rouge">bundle-range</code></h4>
           <div class="card-content">
             <p>Get the namespace bundle which contains the given topic</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin persistent bundle-range <span class="command">persistent://property/cluster/namespace/topic</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin topics bundle-range <span class="command">topic</span></code></pre></div>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>
         </div>
       
         <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-persistent-delete"><code class="highlighter-rouge">delete</code></h4>
+          <h4 class="card-header-title" id="pulsar-admin-topics-delete"><code class="highlighter-rouge">delete</code></h4>
           <div class="card-content">
             <p>Delete a topic. The topic cannot be deleted if there are any active subscriptions or producers connected to the topic.</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin persistent delete <span class="command">persistent://property/cluster/namespace/topic</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin topics delete <span class="command">topic</span></code></pre></div>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>
         </div>
       
         <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-persistent-unload"><code class="highlighter-rouge">unload</code></h4>
+          <h4 class="card-header-title" id="pulsar-admin-topics-unload"><code class="highlighter-rouge">unload</code></h4>
           <div class="card-content">
             <p>Unload a topic</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin persistent unload <span class="command">persistent://property/cluster/namespace/topic</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin topics unload <span class="command">topic</span></code></pre></div>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>
         </div>
       
         <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-persistent-subscriptions"><code class="highlighter-rouge">subscriptions</code></h4>
+          <h4 class="card-header-title" id="pulsar-admin-topics-subscriptions"><code class="highlighter-rouge">subscriptions</code></h4>
           <div class="card-content">
             <p>Get the list of subscriptions on the topic</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin persistent subscriptions <span class="command">persistent://property/cluster/namespace/topic</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin topics subscriptions <span class="command">topic</span></code></pre></div>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>
         </div>
       
         <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-persistent-unsubscribe"><code class="highlighter-rouge">unsubscribe</code></h4>
+          <h4 class="card-header-title" id="pulsar-admin-topics-unsubscribe"><code class="highlighter-rouge">unsubscribe</code></h4>
           <div class="card-content">
             <p>Delete a durable subscriber from a topic</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin persistent unsubscribe <span class="command">persistent://property/cluster/namespace/topic</span> <span class="options">options</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin topics unsubscribe <span class="command">topic</span> <span class="options">options</span></code></pre></div>
             
             <h5>Options</h5>
             <table class="options-table">
@@ -7168,44 +7407,44 @@
         </div>
       
         <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-persistent-stats"><code class="highlighter-rouge">stats</code></h4>
+          <h4 class="card-header-title" id="pulsar-admin-topics-stats"><code class="highlighter-rouge">stats</code></h4>
           <div class="card-content">
             <p>Get the stats for the topic and its connected producers and consumers. All rates are computed over a 1-minute window and are relative to the last completed 1-minute period.</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin persistent stats <span class="command">persistent://property/cluster/namespace/topic</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin topics stats <span class="command">topic</span></code></pre></div>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>
         </div>
       
         <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-persistent-stats-internal"><code class="highlighter-rouge">stats-internal</code></h4>
+          <h4 class="card-header-title" id="pulsar-admin-topics-stats-internal"><code class="highlighter-rouge">stats-internal</code></h4>
           <div class="card-content">
             <p>Get the internal stats for the topic</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin persistent stats-internal <span class="command">persistent://property/cluster/namespace/topic</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin topics stats-internal <span class="command">topic</span></code></pre></div>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>
         </div>
       
         <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-persistent-info-internal"><code class="highlighter-rouge">info-internal</code></h4>
+          <h4 class="card-header-title" id="pulsar-admin-topics-info-internal"><code class="highlighter-rouge">info-internal</code></h4>
           <div class="card-content">
             <p>Get the internal metadata info for the topic</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin persistent info-internal <span class="command">persistent://property/cluster/namespace/topic</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin topics info-internal <span class="command">topic</span></code></pre></div>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>
         </div>
       
         <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-persistent-partitioned-stats"><code class="highlighter-rouge">partitioned-stats</code></h4>
+          <h4 class="card-header-title" id="pulsar-admin-topics-partitioned-stats"><code class="highlighter-rouge">partitioned-stats</code></h4>
           <div class="card-content">
             <p>Get the stats for the partitioned topic and its connected producers and consumers. All rates are computed over a 1-minute window and are relative to the last completed 1-minute period.</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin persistent partitioned-stats <span class="command">persistent://property/cluster/namespace/topic</span> <span class="options">options</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin topics partitioned-stats <span class="command">topic</span> <span class="options">options</span></code></pre></div>
             
             <h5>Options</h5>
             <table class="options-table">
@@ -7242,11 +7481,11 @@
         </div>
       
         <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-persistent-skip"><code class="highlighter-rouge">skip</code></h4>
+          <h4 class="card-header-title" id="pulsar-admin-topics-skip"><code class="highlighter-rouge">skip</code></h4>
           <div class="card-content">
-            <p>SKip some messages for the subscription</p>
+            <p>Skip some messages for the subscription</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin persistent skip <span class="command">persistent://property/cluster/namespace/topic</span> <span class="options">options</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin topics skip <span class="command">topic</span> <span class="options">options</span></code></pre></div>
             
             <h5>Options</h5>
             <table class="options-table">
@@ -7304,11 +7543,11 @@
         </div>
       
         <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-persistent-skip-all"><code class="highlighter-rouge">skip-all</code></h4>
+          <h4 class="card-header-title" id="pulsar-admin-topics-skip-all"><code class="highlighter-rouge">skip-all</code></h4>
           <div class="card-content">
             <p>Skip all the messages for the subscription</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin persistent skip-all <span class="command">persistent://property/cluster/namespace/topic</span> <span class="options">options</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin topics skip-all <span class="command">topic</span> <span class="options">options</span></code></pre></div>
             
             <h5>Options</h5>
             <table class="options-table">
@@ -7347,11 +7586,11 @@
         </div>
       
         <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-persistent-expire-messages"><code class="highlighter-rouge">expire-messages</code></h4>
+          <h4 class="card-header-title" id="pulsar-admin-topics-expire-messages"><code class="highlighter-rouge">expire-messages</code></h4>
           <div class="card-content">
             <p>Expire messages that are older than the given expiry time (in seconds) for the subscription.</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin persistent expire-messages <span class="command">persistent://property/cluster/namespace/topic</span> <span class="options">options</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin topics expire-messages <span class="command">topic</span> <span class="options">options</span></code></pre></div>
             
             <h5>Options</h5>
             <table class="options-table">
@@ -7409,11 +7648,11 @@
         </div>
       
         <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-persistent-expire-messages-all-subscriptions"><code class="highlighter-rouge">expire-messages-all-subscriptions</code></h4>
+          <h4 class="card-header-title" id="pulsar-admin-topics-expire-messages-all-subscriptions"><code class="highlighter-rouge">expire-messages-all-subscriptions</code></h4>
           <div class="card-content">
             <p>Expire messages older than the given expiry time (in seconds) for all subscriptions</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin persistent expire-messages-all-subscriptions <span class="command">persistent://property/cluster/namespace/topic</span> <span class="options">options</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin topics expire-messages-all-subscriptions <span class="command">topic</span> <span class="options">options</span></code></pre></div>
             
             <h5>Options</h5>
             <table class="options-table">
@@ -7453,77 +7692,11 @@
         </div>
       
         <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-persistent-create-partitioned-topic"><code class="highlighter-rouge">create-partitioned-topic</code></h4>
-          <div class="card-content">
-            <p>Create a partitioned topic</p>
-            <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin persistent create-partitioned-topic <span class="command">persistent://property/cluster/namespace/topic</span> <span class="options">options</span></code></pre></div>
-            
-            <h5>Options</h5>
-            <table class="options-table">
-              <thead>
-                <tr>
-                  <th>Flag</th>
-                  <th>Description</th>
-                  <th>Default</th>
-                </tr>
-                <tbody>
-                  
-                  <tr>
-                    <td nowrap="">
-                      
-                      
-                      <code class="highlighter-rouge">-p</code>
-                      , 
-                      
-                      <code class="highlighter-rouge">--partitions</code>
-                      
-                       <!-- for flag in option.flags -->
-                    </td>
-                    <td><p>The number of partitions for the topic</p>
-</td>
-                    <td>
-                      <p>0</p>
-
-                    </td>
-                  </tr>
-                   <!-- for option in options -->
-                </tbody>
-              </thead>
-            </table>
-             <!-- if subcommand.options -->
-             <!-- if command.example -->
-          </div>
-        </div>
-      
-        <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-persistent-get-partitioned-topic-metadata"><code class="highlighter-rouge">get-partitioned-topic-metadata</code></h4>
-          <div class="card-content">
-            <p>Get the partitioned topic metadata. If the topic is not created or is a non-partitioned topic, this will return an empty topic with zero partitions.</p>
-            <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin persistent get-partitioned-topic-metadata <span class="command">persistent://property/cluster/namespace/topic</span></code></pre></div>
-             <!-- if subcommand.options -->
-             <!-- if command.example -->
-          </div>
-        </div>
-      
-        <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-persistent-delete-partitioned-topic"><code class="highlighter-rouge">delete-partitioned-topic</code></h4>
-          <div class="card-content">
-            <p>Delete a partitioned topic. This will also delete all the partitions of the topic if they exist.</p>
-            <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin persistent delete-partitioned-topic <span class="command">persistent://property/cluster/namespace/topic</span></code></pre></div>
-             <!-- if subcommand.options -->
-             <!-- if command.example -->
-          </div>
-        </div>
-      
-        <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-persistent-peek-messages"><code class="highlighter-rouge">peek-messages</code></h4>
+          <h4 class="card-header-title" id="pulsar-admin-topics-peek-messages"><code class="highlighter-rouge">peek-messages</code></h4>
           <div class="card-content">
             <p>Peek some messages for the subscription.</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin persistent peek-messages <span class="command">persistent://property/cluster/namespace/topic</span> <span class="options">options</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin topics peek-messages <span class="command">topic</span> <span class="options">options</span></code></pre></div>
             
             <h5>Options</h5>
             <table class="options-table">
@@ -7581,11 +7754,11 @@
         </div>
       
         <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-persistent-reset-cursor"><code class="highlighter-rouge">reset-cursor</code></h4>
+          <h4 class="card-header-title" id="pulsar-admin-topics-reset-cursor"><code class="highlighter-rouge">reset-cursor</code></h4>
           <div class="card-content">
             <p>Reset position for subscription to closest to timestamp</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin persistent reset-cursor <span class="command">persistent://property/cluster/namespace/topic</span> <span class="options">options</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin topics reset-cursor <span class="command">topic</span> <span class="options">options</span></code></pre></div>
             
             <h5>Options</h5>
             <table class="options-table">
@@ -7646,14 +7819,14 @@
     </div>
     
     <div class="card cli-command">
-      <h3 class="cli-command-title" id="pulsar-admin-non-persistent">
-        <code class="highlighter-rouge">non-persistent</code>
+      <h3 class="cli-command-title" id="pulsar-admin-tenants">
+        <code class="highlighter-rouge">tenants</code>
       </h3>
       <div class="card-content">
-        <p>Operations on persistent topics</p>
+        <p>Operations for managing tenants</p>
 
         <h5>Usage</h5>
-        <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin non-persistent <span class="command">subcommand</span></code></pre></div>
+        <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin tenants <span class="command">subcommand</span></code></pre></div>
          <!-- if command.options -->
          <!-- if command.example -->
 
@@ -7662,238 +7835,31 @@
         <ul>
           
           <li>
-            <a href="#pulsar-admin-non-persistent-create-partitioned-topic">
-              <code class="highlighter-rouge">create-partitioned-topic</code>
-            </a>
-          </li>
-          
-          <li>
-            <a href="#pulsar-admin-non-persistent-lookup">
-              <code class="highlighter-rouge">lookup</code>
-            </a>
-          </li>
-          
-          <li>
-            <a href="#pulsar-admin-non-persistent-stats">
-              <code class="highlighter-rouge">stats</code>
-            </a>
-          </li>
-          
-          <li>
-            <a href="#pulsar-admin-non-persistent-stats-internal">
-              <code class="highlighter-rouge">stats-internal</code>
-            </a>
-          </li>
-          
-          <li>
-            <a href="#pulsar-admin-non-persistent-get-partitioned-topic-metadata">
-              <code class="highlighter-rouge">get-partitioned-topic-metadata</code>
-            </a>
-          </li>
-          
-          <li>
-            <a href="#pulsar-admin-non-persistent-list">
+            <a href="#pulsar-admin-tenants-list">
               <code class="highlighter-rouge">list</code>
             </a>
           </li>
           
           <li>
-            <a href="#pulsar-admin-non-persistent-list-in-bundle">
-              <code class="highlighter-rouge">list-in-bundle</code>
-            </a>
-          </li>
-           <!-- for subcommand in subcommands -->
-        </ul>
-
-        
-        <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-non-persistent-create-partitioned-topic"><code class="highlighter-rouge">create-partitioned-topic</code></h4>
-          <div class="card-content">
-            <p>Create a partitioned topic. A partitioned non-persistent topic must be created before producers can publish to it.</p>
-            <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin non-persistent create-partitioned-topic <span class="command">non-persistent://property/cluster/namespace/topic</span> <span class="options">options</span></code></pre></div>
-            
-            <h5>Options</h5>
-            <table class="options-table">
-              <thead>
-                <tr>
-                  <th>Flag</th>
-                  <th>Description</th>
-                  <th>Default</th>
-                </tr>
-                <tbody>
-                  
-                  <tr>
-                    <td nowrap="">
-                      
-                      
-                      <code class="highlighter-rouge">-p</code>
-                      , 
-                      
-                      <code class="highlighter-rouge">--partitions</code>
-                      
-                       <!-- for flag in option.flags -->
-                    </td>
-                    <td><p>The number of partitions for the topic</p>
-</td>
-                    <td>
-                      <p>0</p>
-
-                    </td>
-                  </tr>
-                   <!-- for option in options -->
-                </tbody>
-              </thead>
-            </table>
-             <!-- if subcommand.options -->
-             <!-- if command.example -->
-          </div>
-        </div>
-      
-        <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-non-persistent-lookup"><code class="highlighter-rouge">lookup</code></h4>
-          <div class="card-content">
-            <p>Look up a non-persistent topic on the current serving broker</p>
-            <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin non-persistent lookup <span class="command">non-persistent://property/cluster/namespace/topic</span></code></pre></div>
-             <!-- if subcommand.options -->
-             <!-- if command.example -->
-          </div>
-        </div>
-      
-        <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-non-persistent-stats"><code class="highlighter-rouge">stats</code></h4>
-          <div class="card-content">
-            <p>Get the stats for the topic and its connected producers and consumers. All rates are computed over a 1-minute window and are relative to the last completed 1-minute period.</p>
-            <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin non-persistent stats <span class="command">non-persistent://property/cluster/namespace/topic</span></code></pre></div>
-             <!-- if subcommand.options -->
-             <!-- if command.example -->
-          </div>
-        </div>
-      
-        <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-non-persistent-stats-internal"><code class="highlighter-rouge">stats-internal</code></h4>
-          <div class="card-content">
-            <p>Get the internal stats for the topic</p>
-            <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin non-persistent stats-internal <span class="command">non-persistent://property/cluster/namespace/topic</span></code></pre></div>
-             <!-- if subcommand.options -->
-             <!-- if command.example -->
-          </div>
-        </div>
-      
-        <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-non-persistent-get-partitioned-topic-metadata"><code class="highlighter-rouge">get-partitioned-topic-metadata</code></h4>
-          <div class="card-content">
-            <p>Get the partitioned topic metadata. If the topic is not created or is a non-partitioned topic, this will return an empty topic with zero partitions.</p>
-            <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin non-persistent get-partitioned-topic-metadata <span class="command">non-persistent://property/cluster/namespace/topic</span></code></pre></div>
-             <!-- if subcommand.options -->
-             <!-- if command.example -->
-          </div>
-        </div>
-      
-        <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-non-persistent-list"><code class="highlighter-rouge">list</code></h4>
-          <div class="card-content">
-            <p>Get a list of non-persistent topics under a namespace</p>
-            <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin non-persistent list <span class="command">property/cluster/namespace</span></code></pre></div>
-             <!-- if subcommand.options -->
-             <!-- if command.example -->
-          </div>
-        </div>
-      
-        <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-non-persistent-list-in-bundle"><code class="highlighter-rouge">list-in-bundle</code></h4>
-          <div class="card-content">
-            <p>Get a list of non-persistent topics present under a namespace bundle</p>
-            <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin non-persistent list-in-bundle <span class="command">property/cluster/namespace</span> <span class="options">options</span></code></pre></div>
-            
-            <h5>Options</h5>
-            <table class="options-table">
-              <thead>
-                <tr>
-                  <th>Flag</th>
-                  <th>Description</th>
-                  <th>Default</th>
-                </tr>
-                <tbody>
-                  
-                  <tr>
-                    <td nowrap="">
-                      
-                      
-                      <code class="highlighter-rouge">-b</code>
-                      , 
-                      
-                      <code class="highlighter-rouge">--bundle</code>
-                      
-                       <!-- for flag in option.flags -->
-                    </td>
-                    <td><p>The bundle range</p>
-</td>
-                    <td>
-                      
-                    </td>
-                  </tr>
-                   <!-- for option in options -->
-                </tbody>
-              </thead>
-            </table>
-             <!-- if subcommand.options -->
-             <!-- if command.example -->
-          </div>
-        </div>
-       <!-- for subcommand in subcommands -->
-      
-      </div>
-    </div>
-    
-    <div class="card cli-command">
-      <h3 class="cli-command-title" id="pulsar-admin-properties">
-        <code class="highlighter-rouge">properties</code>
-      </h3>
-      <div class="card-content">
-        <p>Operations about properties</p>
-
-        <h5>Usage</h5>
-        <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin properties <span class="command">subcommand</span></code></pre></div>
-         <!-- if command.options -->
-         <!-- if command.example -->
-
-        
-        <h5>Subcommands</h5>
-        <ul>
-          
-          <li>
-            <a href="#pulsar-admin-properties-list">
-              <code class="highlighter-rouge">list</code>
-            </a>
-          </li>
-          
-          <li>
-            <a href="#pulsar-admin-properties-get">
+            <a href="#pulsar-admin-tenants-get">
               <code class="highlighter-rouge">get</code>
             </a>
           </li>
           
           <li>
-            <a href="#pulsar-admin-properties-create">
+            <a href="#pulsar-admin-tenants-create">
               <code class="highlighter-rouge">create</code>
             </a>
           </li>
           
           <li>
-            <a href="#pulsar-admin-properties-update">
+            <a href="#pulsar-admin-tenants-update">
               <code class="highlighter-rouge">update</code>
             </a>
           </li>
           
           <li>
-            <a href="#pulsar-admin-properties-delete">
+            <a href="#pulsar-admin-tenants-delete">
               <code class="highlighter-rouge">delete</code>
             </a>
           </li>
@@ -7902,33 +7868,33 @@
 
         
         <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-properties-list"><code class="highlighter-rouge">list</code></h4>
+          <h4 class="card-header-title" id="pulsar-admin-tenants-list"><code class="highlighter-rouge">list</code></h4>
           <div class="card-content">
-            <p>List the existing properties</p>
+            <p>List the existing tenants</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin properties list</code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin tenants list</code></pre></div>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>
         </div>
       
         <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-properties-get"><code class="highlighter-rouge">get</code></h4>
+          <h4 class="card-header-title" id="pulsar-admin-tenants-get"><code class="highlighter-rouge">get</code></h4>
           <div class="card-content">
-            <p>Gets the configuration of a property</p>
+            <p>Gets the configuration of a tenant</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin properties get <span class="command">property-name</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin tenants get <span class="command">tenant-name</span></code></pre></div>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>
         </div>
       
         <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-properties-create"><code class="highlighter-rouge">create</code></h4>
+          <h4 class="card-header-title" id="pulsar-admin-tenants-create"><code class="highlighter-rouge">create</code></h4>
           <div class="card-content">
-            <p>Creates a new property</p>
+            <p>Creates a new tenant</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin properties create <span class="command">property-name</span> <span class="options">options</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin tenants create <span class="command">tenant-name</span> <span class="options">options</span></code></pre></div>
             
             <h5>Options</h5>
             <table class="options-table">
@@ -7985,11 +7951,11 @@
         </div>
       
         <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-properties-update"><code class="highlighter-rouge">update</code></h4>
+          <h4 class="card-header-title" id="pulsar-admin-tenants-update"><code class="highlighter-rouge">update</code></h4>
           <div class="card-content">
-            <p>Updates a property</p>
+            <p>Updates a tenant</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin properties update <span class="command">property-name</span> <span class="options">options</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin tenants update <span class="command">tenant-name</span> <span class="options">options</span></code></pre></div>
             
             <h5>Options</h5>
             <table class="options-table">
@@ -8046,11 +8012,11 @@
         </div>
       
         <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-properties-delete"><code class="highlighter-rouge">delete</code></h4>
+          <h4 class="card-header-title" id="pulsar-admin-tenants-delete"><code class="highlighter-rouge">delete</code></h4>
           <div class="card-content">
-            <p>Deletes an existing property</p>
+            <p>Deletes an existing tenant</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin properties delete <span class="command">property-name</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin tenants delete <span class="command">tenant-name</span></code></pre></div>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>
@@ -8065,7 +8031,7 @@
         <code class="highlighter-rouge">resource-quotas</code>
       </h3>
       <div class="card-content">
-        <p>Operations about resource quotas</p>
+        <p>Operations for managing resource quotas</p>
 
         <h5>Usage</h5>
         <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin resource-quotas <span class="command">subcommand</span></code></pre></div>
@@ -8318,7 +8284,7 @@
                       
                        <!-- for flag in option.flags -->
                     </td>
-                    <td><p>The namespace as <code class="highlighter-rouge">property/cluster/namespace</code>, for example <code class="highlighter-rouge">my-prop/my-cluster/my-ns</code>. Must be specified together with <code class="highlighter-rouge">-b</code>/<code class="highlighter-rouge">--bundle</code>.</p>
+                    <td><p>The namespace as <code class="highlighter-rouge">tenant/namespace</code>, for example <code class="highlighter-rouge">my-tenant/my-ns</code>. Must be specified together with <code class="highlighter-rouge">-b</code>/<code class="highlighter-rouge">--bundle</code>.</p>
 </td>
                     <td>
                       
@@ -8379,7 +8345,7 @@
                       
                        <!-- for flag in option.flags -->
                     </td>
-                    <td><p>The namespace as <code class="highlighter-rouge">property/cluster/namespace</code>, for example <code class="highlighter-rouge">my-prop/my-cluster/my-ns</code>.</p>
+                    <td><p>The namespace as <code class="highlighter-rouge">tenant/namespace</code>, for example <code class="highlighter-rouge">my-tenant/my-ns</code>.</p>
 </td>
                     <td>
                       
