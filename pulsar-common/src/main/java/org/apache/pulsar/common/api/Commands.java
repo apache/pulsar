@@ -18,21 +18,23 @@
  */
 package org.apache.pulsar.common.api;
 
-import static com.google.protobuf.ByteString.copyFrom;
-import static com.google.protobuf.ByteString.copyFromUtf8;
+import static org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFrom;
+import static org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.resumeChecksum;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.protobuf.ByteString;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.Unpooled;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.AuthMethod;
@@ -82,6 +84,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.schema.SchemaVersion;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
+import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 
 public class Commands {
 

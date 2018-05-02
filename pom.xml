@@ -105,6 +105,8 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-functions</module>
     <!-- connector related modules -->
     <module>pulsar-connect</module>
+
+    <module>protobuf-shaded</module>
   </modules>
 
   <issueManagement>

@@ -52,17 +52,17 @@
 
 package org.apache.pulsar.common.util.protobuf;
 
-import java.io.IOException;
-
-import com.google.protobuf.ByteString;
-import com.google.protobuf.ExtensionRegistryLite;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.WireFormat;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.netty.util.concurrent.FastThreadLocal;
+
+import java.io.IOException;
+
+import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
+import org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite;
+import org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException;
+import org.apache.pulsar.shaded.com.google.protobuf.v241.WireFormat;
 
 public class ByteBufCodedInputStream {
     public static interface ByteBufMessageBuilder {
