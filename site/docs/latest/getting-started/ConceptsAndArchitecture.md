@@ -532,16 +532,17 @@ Reader reader = pulsarClient.createReader(topic, id, new ReaderConfiguration());
 
 ## Schema registry
 
-Type safety is extremely important in any application built around a message bus. Applications typically adopt one of two basic approaches:
+Type safety is extremely important in any application built around a message bus like Pulsar. Producers and consumers need some kind of mechanism for coordinating types at the topic level lest a wide variety of potential problems arise. Applications typically adopt one of two basic approaches to type safety in messaging:
 
-1. A "client-side" approach in which message producers and consumers are responsible for not only serializing and deserializing messages (which consist of raw bytes) but also knowing which types are being transmitted via which topics
-1. A "server-side" approach in which producers and consumers
+1. A "client-side" approach in which message producers and consumers are responsible for not only serializing and deserializing messages (which consist of raw bytes) but also "knowing" which types are being transmitted via which topics. If a producer is sending temperature sensor data on the topic `topic-1`, consumers of that topic will run into trouble if they attempt to parse that data as, say, moisture sensor readings.
+1. A "server-side" approach in which producers and consumers inform the system which type of data is being transmitted on a topic. With this approach, the messaging system enforces type safety and ensures that producers and consumers remain synced.
 
 In Pulsar, both approaches are available.
 
-1. For the "client-side" approach, producers and consumers can send and receive messages consisting of raw byte arrays and leave all type safety enforcement to the application
-1. For the "server-side" approach, Pulsar has a built-in **schema registry** that:
-  * Enables clients to upload schemas
+1. For the "client-side" approach, producers and consumers can send and receive messages consisting of raw byte arrays and leave all type safety enforcement to the application on an "out-of-band" basis.
+1. For the "server-side" approach, Pulsar has a built-in **schema registry** that enables clients to upload data schemas on a per-topic basis. Those schemas dictate which data types are recognized as valid for that topic.
+
+{% include admonition.html type="info" content="The Pulsar schema registry is currently available only for the [Java client](../../clients/Java)." %}
 
 ### How schemas work
 
@@ -549,7 +550,8 @@ Pulsar schemas are applied and enforced *at the topic level*. Schemas *cannot* b
 
 Each Pulsar schema consists of:
 
-* A name. In Pulsar, the name of a schema is always the {% popover topic %} to which the schema applies
+* A name. In Pulsar, the name of a schema is always the {% popover topic %} to which the schema applies.
+* 
 
 ### Schema versions
 
@@ -580,69 +582,9 @@ A schema already exists; the producer connects using a new schema that is compat
 
 The following schema formats are supported by the Pulsar schema registry:
 
+* `String` (used for UTF-8-encoded strings)
 * [JSON](https://www.json.org/)
 
 For usage instructions, see the documentation for your preferred client library:
 
 * [Java](../../clients/Java#schemas)
-
-
-
-
-
-Pulsar also enables you to write your own schemas from scratch.
-
-
-Allows for type safety in messaging (across topics, producers/consumers, etc.)
-Coordination mechanism (rather than "out of band" coordination)
-With a schema registry, there's no way to know "what" messages are and how to process them
-Centralized storage of metadata
-
-System for storing and serving schema data
-Versioned history (all schemas have versioned; version must be specified when fetching)
-Supported schema formats:
-
-Each schema has the following fields:
-
-* ID
-* Version
-* State (active vs. staged)
-* User
-* Type
-* Content (as a byte array)
-* Timestamp
-* Last user to modify
-* User-defined key/value properties
-
-By default, schemas are stored in BookKeeper (though other storage mechanisms are possible). Append-only, ordered list of entries.
-
-Uses Pulsar's [REST API](../../reference/RestApi)
-
-Custom implementation:
-
-`SchemaStorageFactory` + `SchemaStorage`
-
-```java
-public interface SchemaStorageFactory {
-    @NotNull
-    SchemaStorage create(PulsarService pulsar) throws Exception;
-}
-```
-
-```java
-public interface SchemaStorage {
-
-    CompletableFuture<SchemaVersion> put(String key, byte[] value, byte[] hash);
-
-    CompletableFuture<StoredSchema> get(String key, SchemaVersion version);
-
-    CompletableFuture<SchemaVersion> delete(String key);
-
-    SchemaVersion versionFromBytes(byte[] version);
-
-    void start() throws Exception;
-
-    void close() throws Exception;
-
-}
-```
