@@ -125,7 +125,7 @@ public class LookupProxyHandler {
                     requestId).thenAccept(result -> {
                         if (result.redirect) {
                             // Need to try the lookup again on a different broker
-                            performLookup(clientRequestId, topic, result.brokerUrl, authoritative, numberOfRetries - 1);
+                            performLookup(clientRequestId, topic, result.brokerUrl, result.authoritative, numberOfRetries - 1);
                         } else {
                             // We have the result immediately
                             String brokerUrl = connectWithTLS ? result.brokerUrlTls : result.brokerUrl;
