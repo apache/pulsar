@@ -27,7 +27,7 @@ Persistent helps to access topic which is a logical endpoint for publishing and 
 
 In all of the instructions and commands below, the topic name structure is:
 
-{% include topic.html p="property" c="cluster" n="namespace" t="topic" %}
+{% include topic.html ten="tenant" n="namespace" t="topic" %}
 
 ## Persistent topics resources
 

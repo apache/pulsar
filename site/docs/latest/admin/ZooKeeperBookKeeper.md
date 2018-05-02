@@ -176,4 +176,4 @@ This diagram illustrates the role of ZooKeeper and BookKeeper in a Pulsar cluste
 
 ![ZooKeeper and BookKeeper](/img/pulsar_system_architecture.png)
 
-Each Pulsar {% popover cluster %} consists of one or more message {% popover brokers %}. Each broker relies on an ensemble of {% popover bookies %} 
+Each Pulsar {% popover cluster %} consists of one or more message {% popover brokers %}. Each broker relies on an ensemble of {% popover bookies %}.
