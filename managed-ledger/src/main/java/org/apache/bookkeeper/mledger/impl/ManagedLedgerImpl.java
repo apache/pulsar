@@ -1966,7 +1966,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             long firstLedgerRetained = current;
             for (LedgerInfo ls : ledgers.headMap(current).values()) {
                 if (requestOffloadTo.getLedgerId() > ls.getLedgerId()) {
-                    if (!ls.getOffloadContext().getComplete()) {
+                    // don't offload if ledger has already been offloaded, or is empty
+                    if (!ls.getOffloadContext().getComplete() && ls.getSize() > 0) {
                         ledgersToOffload.add(ls);
                     }
                 } else {
