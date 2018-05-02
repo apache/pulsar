@@ -25,4 +25,4 @@ Pulsar also, however, supports **non-persistent topics**, which are topics on wh
 
 Non-persistent topics have names of this form (note the `non-persistent` in the name):
 
-{% include topic.html type="non-persistent" p="property" c="cluster" n="namespace" t="topic" %}
+{% include topic.html type="non-persistent" ten="tenant" n="namespace" t="topic" %}

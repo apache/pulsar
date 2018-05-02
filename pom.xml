@@ -904,6 +904,7 @@ flexible messaging model and an intuitive client API.</description>
             <pulsar-perf>SCRIPT_STYLE</pulsar-perf>
             <pulsar-client>SCRIPT_STYLE</pulsar-client>
             <bookkeeper>SCRIPT_STYLE</bookkeeper>
+            <tfvars>SCRIPT_STYLE</tfvars>
           </mapping>
         </configuration>
       </plugin>
@@ -967,6 +968,9 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/*.htpasswd</exclude>
             <exclude>src/test/resources/athenz.conf.test</exclude>
             <exclude>deployment/terraform-ansible/templates/myid</exclude>
+
+            <!-- Python requirements files -->
+            <exclude>**/requirements.txt</exclude>
           </excludes>
         </configuration>
       </plugin>

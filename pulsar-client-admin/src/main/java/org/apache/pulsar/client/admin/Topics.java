@@ -30,7 +30,6 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.common.compaction.CompactionStatus;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
@@ -283,6 +282,22 @@ public interface Topics {
      *
      * @param topic
      *            Topic name
+     * @param force
+     *            Delete topic forcefully
+     *            
+     * @throws PulsarAdminException
+     */
+    void deletePartitionedTopic(String topic, boolean force) throws PulsarAdminException;
+    
+    /**
+     * Delete a partitioned topic.
+     * <p>
+     * It will also delete all the partitions of the topic if it exists.
+     * <p>
+     *
+     * @param topic
+     *            Topic name
+     *            
      * @throws PulsarAdminException
      */
     void deletePartitionedTopic(String topic) throws PulsarAdminException;
@@ -295,10 +310,36 @@ public interface Topics {
      *
      * @param topic
      *            Topic name
+     * @param force
+     *            Delete topic forcefully
+     *            
      * @return a future that can be used to track when the partitioned topic is deleted
      */
-    CompletableFuture<Void> deletePartitionedTopicAsync(String topic);
+    CompletableFuture<Void> deletePartitionedTopicAsync(String topic, boolean force);
+    
+    /**
+     * Delete a topic.
+     * <p>
+     * Delete a topic. The topic cannot be deleted if force flag is disable and there's any active subscription or producer connected to the it. Force flag deletes topic forcefully by closing all active producers and consumers.
+     * <p>
+     *
+     * @param topic
+     *            Topic name
+     * @param force
+     *            Delete topic forcefully
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic does not exist
+     * @throws PreconditionFailedException
+     *             Topic has active subscriptions or producers
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void delete(String topic, boolean force) throws PulsarAdminException;
 
+    
     /**
      * Delete a topic.
      * <p>
@@ -318,20 +359,23 @@ public interface Topics {
      *             Unexpected error
      */
     void delete(String topic) throws PulsarAdminException;
-
+    
     /**
      * Delete a topic asynchronously.
      * <p>
-     * Delete a topic asynchronously. The topic cannot be deleted if there's any active subscription or producer
-     * connected to the it.
+     * Delete a topic asynchronously. The topic cannot be deleted if force flag is disable and there's any active
+     * subscription or producer connected to the it. Force flag deletes topic forcefully by closing all active producers
+     * and consumers.
      * <p>
      *
      * @param topic
      *            topic name
-     *
+     * @param force
+     *            Delete topic forcefully
+     * 
      * @return a future that can be used to track when the topic is deleted
      */
-    CompletableFuture<Void> deleteAsync(String topic);
+    CompletableFuture<Void> deleteAsync(String topic, boolean force);
 
     /**
      * Unload a topic.
@@ -936,5 +980,21 @@ public interface Topics {
      *
      * @param topic The topic whose compaction status we wish to check
      */
-    CompactionStatus compactionStatus(String topic) throws PulsarAdminException;
+    LongRunningProcessStatus compactionStatus(String topic) throws PulsarAdminException;
+
+    /**
+     * Trigger offloading messages in topic to longterm storage.
+     *
+     * @param topic the topic to offload
+     * @param messageId ID of maximum message which should be offloaded
+     */
+    void triggerOffload(String topic, MessageId messageId) throws PulsarAdminException;
+
+    /**
+     * Check the status of an ongoing offloading operation for a topic.
+     *
+     * @param topic the topic being offloaded
+     * @return the status of the offload operation
+     */
+    OffloadProcessStatus offloadStatus(String topic) throws PulsarAdminException;
 }

@@ -24,9 +24,7 @@ tags: [client, java]
 
 -->
 
-The Pulsar Java client can be used both to create Java {% popover producers %} and {% popover consumers %} of messages but also to perform [administrative tasks](../../admin-api/overview).
-
-The current version of the Java client is **{{ site.current_version }}**.
+The Pulsar Java client can be used both to create Java {% popover producers %}, {% popover consumers %}, and [readers](#readers) of messages and to perform [administrative tasks](../../admin-api/overview). The current version of the Java client is **{{ site.current_version }}**.
 
 Javadoc for the Pulsar client is divided up into two domains, by package:
 
@@ -100,7 +98,7 @@ In Pulsar, {% popover producers %} write {% popover messages %} to {% popover to
 ```java
 String topic = "persistent://sample/standalone/ns1/my-topic";
 
-Producer producer = client.newProducer()
+Producer producer<byte[]> = client.newProducer()
         .topic(topic)
         .create();
 ```
@@ -108,16 +106,33 @@ Producer producer = client.newProducer()
 You can then send messages to the broker and topic you specified:
 
 ```java
+import org.apache.pulsar.client.api.MessageBuilder;
+
+import java.util.stream.IntStream;
+
+MessageBuilder<byte[]> msgBuilder = MessageBuilder.create();
+
 // Publish 10 messages to the topic
-for (int i = 0; i < 10; i++) {
-    Message<byte[]> msg = MessageBuilder.create()
-            .setContent(String.format("Message number %d", i).getBytes())
-            .build();
-    producer.send(msg);
-}
+IntStream.range(1, 11).forEach(i -> {
+    msgBuilder.setContent(String.format("Message number %d", i).getBytes());
+
+    try {
+        producer.send(msgBuilder);
+    } catch (PulsarClientException e) {
+        e.printStackTrace();
+    }
+});
 ```
 
-{% include admonition.html type='warning' content="
+By default, producers produce messages that consist of byte arrays. You can produce different types, however, by specifying a message [schema](#schemas).
+
+```java
+Producer<String> stringProducer = client.newProducer(new StringSchema())
+        .topic(topic)
+        .create();
+```
+
+{% include admonition.html type='warning' content='
 You should always make sure to close your producers, consumers, and clients when they are no longer needed:
 
 ```java
@@ -126,22 +141,19 @@ consumer.close();
 client.close();
 ```
 
-Closer operations can also be asynchronous:
+Close operations can also be asynchronous:
 
 ```java
-producer.asyncClose();
-consumer.asyncClose();
-clioent.asyncClose();
+producer.closeAsync().thenRun(() -> System.out.println("Producer closed"));
 ```
-" %}
-
+' %}
 
 ### Configuring producers
 
 If you instantiate a `Producer` object specifying only a topic name, as in the example above, the producer will use the default configuration. To use a non-default configuration, there's a variety of configurable parameters that you can set. For a full listing, see the Javadoc for the {% javadoc ProducerBuilder client org.apache.pulsar.client.api.ProducerBuilder %} class. Here's an example:
 
 ```java
-Producer producer = client.newProducer()
+Producer<byte[]> producer = client.newProducer()
         .topic(topic)
         .enableBatching(true)
         .sendTimeout(10, TimeUnit.SECONDS)
@@ -155,15 +167,18 @@ When using {% popover partitioned topics %}, you can specify the routing mode wh
 
 ### Async send
 
-You can publish messages [asynchronously](../../getting-started/ConceptsAndArchitecture#send-modes) using the Java client. With async send, the producer will put the message in a blocking queue and return immediately. The client library will then send the message to the {% popover broker %} in the background. If the queue is full (max size configurable), the producer could be blocked or fail immediately when calling the API, depending on arguments passed to the producer.
+You can also publish messages [asynchronously](../../getting-started/ConceptsAndArchitecture#send-modes) using the Java client. With async send, the producer will put the message in a blocking queue and return immediately. The client library will then send the message to the {% popover broker %} in the background. If the queue is full (max size configurable), the producer could be blocked or fail immediately when calling the API, depending on arguments passed to the producer.
 
 Here's an example async send operation:
 
 ```java
 CompletableFuture<MessageId> future = producer.sendAsync("my-async-message".getBytes());
+future.thenAccept(msgId -> {
+        System.out.printf("Message with ID %s successfully sent", new String(msgId.toByteArray());
+});
 ```
 
-Async send operations return a {% javadoc MessageId client org.apache.pulsar.client.api.MessageId %} wrapped in a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture).
+As you can see from the example above, async send operations return a {% javadoc MessageId client org.apache.pulsar.client.api.MessageId %} wrapped in a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture).
 
 ## Consumers
 
@@ -172,17 +187,16 @@ In Pulsar, {% popover consumers %} subscribe to {% popover topics %} and handle 
 Once you've instantiated a {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %} object, you can create a {% javadoc Consumer client org.apache.pulsar.client.api.Consumer %} by specifying a {% popover topic %} and a [subscription](../../getting-started/ConceptsAndArchitecture#subscription-modes).
 
 ```java
-String topic = "persistent://sample/standalone/ns1/my-topic"; // from above
-String subscription = "my-subscription";
 Consumer consumer = client.newConsumer()
-        .subscriptionName("my-subscription-1")
+        .topic("my-topic")
+        .subscriptionName("my-subscription")
         .subscribe();
 ```
 
 The `subscribe` method will automatically subscribe the consumer to the specified topic and subscription. One way to make the consumer listen on the topic is to set up a `while` loop. In this example loop, the consumer listens for messages, prints the contents of any message that's received, and then {% popover acknowledges %} that the message has been processed:
 
 ```java
-while (true) {
+do {
   // Wait for a message
   Message msg = consumer.receive();
 
@@ -190,7 +204,7 @@ while (true) {
 
   // Acknowledge the message so that it can be deleted by the message broker
   consumer.acknowledge(msg);
-}
+} while (true);
 ```
 
 ### Configuring consumers
@@ -201,8 +215,8 @@ Here's an example configuration:
 
 ```java
 Consumer consumer = client.newConsumer()
-        .topic(topic)
-        .subscriptionName(subscription)
+        .topic("my-topic")
+        .subscriptionName("my-subscription")
         .ackTimeout(10, TimeUnit.SECONDS)
         .subscriptionType(SubscriptionType.Exclusive)
         .subscribe();
@@ -234,18 +248,18 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 
-ConsumerBuilder bldr = pulsarClient.newConsumer()
+ConsumerBuilder consumerBuilder = pulsarClient.newConsumer()
         .subscriptionName(subscription);
 
 // Subscribe to all topics in a namespace
 Pattern allTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/.*");
-Consumer allTopicsConsumer = bldr
+Consumer allTopicsConsumer = consumerBuilder
         .topicsPattern(allTopicsInNamespace)
         .subscribe();
 
 // Subscribe to a subsets of topics in a namespace, based on regex
 Pattern someTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/foo.*");
-Consumer allTopicsConsumer = bldr
+Consumer allTopicsConsumer = consumerBuilder
         .topicsPattern(someTopicsInNamespace)
         .subscribe();
 ```
@@ -259,12 +273,12 @@ List<String> topics = Arrays.asList(
         "persistent://sample/standalone/ns3/topic-3"
 );
 
-Consumer multiTopicConsumer = bldr
+Consumer multiTopicConsumer = consumerBuilder
         .topics(topics)
         .subscribe();
 
 // Alternatively:
-Consumer multiTopicConsumer = bldr
+Consumer multiTopicConsumer = consumerBuilder
         .topics(
             "persistent://sample/standalone/ns1/topic-1",
             "persistent://sample/standalone/ns2/topic-2",
@@ -277,12 +291,38 @@ You can also subscribe to multiple topics asynchronously using the `subscribeAsy
 
 ```java
 Pattern allTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/.*");
-CompletableFuture<Consumer> consumer = bldr
+consumerBuilder
         .topics(topics)
-        .subscribeAsync();
+        .subscribeAsync()
+        .thenAccept(consumer -> {
+            do {
+                try {
+                    Message msg = consumer.receive();
+                    // Do something with the received message
+                } catch (PulsarClientException e) {
+                    e.printStackTrace();
+                }
+            } while (true);
+        });
 ```
 
-## Reader interface
+## Message schemas {#schemas}
+
+In Pulsar, all message data consists of byte arrays. Message **schemas** enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a [producer](#producers) without specifying a schema, then the producer can only produce messages of type `byte[]`. Here's an example:
+
+```java
+Producer producer = client.newProducer()
+        .topic(topic)
+        .create();
+```
+
+The producer above is equivalent to a `Producer<byte[]>` (in fact, you should always explicitly specify the type). If you'd like
+
+
+
+The same schema-based logic applies to [consumers](#consumers) and [readers](#readers).
+
+## Reader interface {#readers}
 
 With the [reader interface](../../getting-started/ConceptsAndArchitecture#reader-interface), Pulsar clients can "manually position" themselves within a topic, reading all messages from a specified message onward. The Pulsar API for Java enables you to create  {% javadoc Reader client org.apache.pulsar.client.api.Reader %} objects by specifying a {% popover topic %}, a {% javadoc MessageId client org.apache.pulsar.client.api.MessageId %}, and {% javadoc ReaderConfiguration client org.apache.pulsar.client.api.ReaderConfiguration %}.
 

@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.impl;
 
 import com.google.common.collect.ImmutableSet;
 
+import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -40,6 +41,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -631,6 +633,47 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         Assert.assertEquals(ledger.getLedgersInfoAsList().get(0).getLedgerId(), secondLedger);
 
         assertEventuallyTrue(() -> offloader.deletedOffloads().contains(firstLedger));
+    }
+
+    @Test
+    public void testDontOffloadEmpty() throws Exception {
+        MockLedgerOffloader offloader = new MockLedgerOffloader();
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setLedgerOffloader(offloader);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("my_test_ledger", config);
+
+        int i = 0;
+        for (; i < 35; i++) {
+            String content = "entry-" + i;
+            ledger.addEntry(content.getBytes());
+        }
+        Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 4);
+
+        long firstLedgerId = ledger.getLedgersInfoAsList().get(0).getLedgerId();
+        long secondLedgerId = ledger.getLedgersInfoAsList().get(1).getLedgerId();
+        long thirdLedgerId = ledger.getLedgersInfoAsList().get(2).getLedgerId();
+        long fourthLedgerId = ledger.getLedgersInfoAsList().get(3).getLedgerId();
+
+        // make an ledger empty
+        Field ledgersField = ledger.getClass().getDeclaredField("ledgers");
+        ledgersField.setAccessible(true);
+        Map<Long, LedgerInfo> ledgers = (Map<Long,LedgerInfo>)ledgersField.get(ledger);
+        ledgers.put(secondLedgerId,
+                    ledgers.get(secondLedgerId).toBuilder().setEntries(0).setSize(0).build());
+
+        PositionImpl firstUnoffloaded = (PositionImpl)ledger.offloadPrefix(ledger.getLastConfirmedEntry());
+        Assert.assertEquals(firstUnoffloaded.getLedgerId(), fourthLedgerId);
+        Assert.assertEquals(firstUnoffloaded.getEntryId(), 0);
+
+        Assert.assertEquals(ledger.getLedgersInfoAsList().size(), 4);
+        Assert.assertEquals(ledger.getLedgersInfoAsList().stream()
+                            .filter(e -> e.getOffloadContext().getComplete())
+                            .map(e -> e.getLedgerId()).collect(Collectors.toSet()),
+                            offloader.offloadedLedgers());
+        Assert.assertEquals(offloader.offloadedLedgers(), ImmutableSet.of(firstLedgerId, thirdLedgerId));
     }
 
     static void assertEventuallyTrue(BooleanSupplier predicate) throws Exception {
