@@ -139,7 +139,7 @@ public class PulsarSink<T> implements RuntimeSink<T> {
 
             // currently on PulsarRecord
             Producer producer = outputProducer.getProducer(pulsarRecord.getTopicName(),
-                    Integer.parseInt(pulsarRecord.getPartitionId()));
+                    pulsarRecord.getPartitionId());
 
             org.apache.pulsar.client.api.Message outputMsg = outputMsgBuilder.build();
             producer.sendAsync(outputMsg)
@@ -162,7 +162,7 @@ public class PulsarSink<T> implements RuntimeSink<T> {
             // open a producer for the results computed from this topic partition.
             if (null != outputProducer) {
                 try {
-                    this.outputProducer.getProducer(consumer.getTopic(), partitionId);
+                    this.outputProducer.getProducer(consumer.getTopic(), Integer.toString(partitionId));
                 } catch (PulsarClientException e) {
                     // this can be ignored, because producer can be lazily created when accessing it.
                     log.warn("Fail to create a producer for results computed from messages of topic: {}, partition: {}",
@@ -176,7 +176,7 @@ public class PulsarSink<T> implements RuntimeSink<T> {
             if (null != outputProducer) {
                 // if I lost the ownership of a partition, close its corresponding topic partition.
                 // this is to allow the new active consumer be able to produce to the result topic.
-                this.outputProducer.closeProducer(consumer.getTopic(), partitionId);
+                this.outputProducer.closeProducer(consumer.getTopic(), Integer.toString(partitionId));
             }
         }
     }
