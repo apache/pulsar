@@ -52,6 +52,8 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
+import org.apache.pulsar.client.admin.LongRunningProcessStatus;
+import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.admin.PersistentTopics;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
@@ -66,7 +68,6 @@ import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadata;
-import org.apache.pulsar.common.compaction.CompactionStatus;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -794,12 +795,35 @@ public class TopicsImpl extends BaseResource implements Topics, PersistentTopics
     }
 
     @Override
-    public CompactionStatus compactionStatus(String topic)
+    public LongRunningProcessStatus compactionStatus(String topic)
             throws PulsarAdminException {
         try {
             TopicName tn = validateTopic(topic);
             return request(topicPath(tn, "compaction"))
-                .get(CompactionStatus.class);
+                .get(LongRunningProcessStatus.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void triggerOffload(String topic, MessageId messageId) throws PulsarAdminException {
+        try {
+            TopicName tn = validateTopic(topic);
+            WebTarget path = topicPath(tn, "offload");
+            request(path).put(Entity.entity(messageId, MediaType.APPLICATION_JSON), MessageIdImpl.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public OffloadProcessStatus offloadStatus(String topic)
+            throws PulsarAdminException {
+        try {
+            TopicName tn = validateTopic(topic);
+            return request(topicPath(tn, "offload"))
+                .get(OffloadProcessStatus.class);
         } catch (Exception e) {
             throw getApiException(e);
         }

@@ -16,12 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.compaction;
+package org.apache.pulsar.client.admin;
 
 /**
- * Status of compaction for a topic.
+ * Status of long running process.
  */
-public class CompactionStatus {
+public class LongRunningProcessStatus {
     public enum Status {
         NOT_RUN,
         RUNNING,
@@ -32,21 +32,21 @@ public class CompactionStatus {
     public Status status;
     public String lastError;
 
-    public CompactionStatus() {
+    public LongRunningProcessStatus() {
         this.status = Status.NOT_RUN;
         this.lastError = "";
     }
 
-    private CompactionStatus(Status status, String lastError) {
+    LongRunningProcessStatus(Status status, String lastError) {
         this.status = status;
         this.lastError = lastError;
     }
 
-    public static CompactionStatus forStatus(Status status) {
-        return new CompactionStatus(status, "");
+    public static LongRunningProcessStatus forStatus(Status status) {
+        return new LongRunningProcessStatus(status, "");
     }
 
-    public static CompactionStatus forError(String lastError) {
-        return new CompactionStatus(Status.ERROR, lastError);
+    public static LongRunningProcessStatus forError(String lastError) {
+        return new LongRunningProcessStatus(Status.ERROR, lastError);
     }
 }

@@ -40,6 +40,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.OffloadCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -81,13 +82,14 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.broker.stats.ReplicationMetrics;
+import org.apache.pulsar.client.admin.LongRunningProcessStatus;
+import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.common.compaction.CompactionStatus;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
@@ -172,6 +174,9 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     private static final long COMPACTION_NEVER_RUN = -0xfebecffeL;
     CompletableFuture<Long> currentCompaction = CompletableFuture.completedFuture(COMPACTION_NEVER_RUN);
     final CompactedTopic compactedTopic;
+
+    CompletableFuture<MessageIdImpl> currentOffload = CompletableFuture.completedFuture(
+            (MessageIdImpl)MessageId.earliest);
 
     // Whether messages published must be encrypted or not in this topic
     private volatile boolean isEncryptionRequired = false;
@@ -1683,23 +1688,61 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         }
     }
 
-
-    public synchronized CompactionStatus compactionStatus() {
+    public synchronized LongRunningProcessStatus compactionStatus() {
         final CompletableFuture<Long> current;
         synchronized (this) {
             current = currentCompaction;
         }
         if (!current.isDone()) {
-            return CompactionStatus.forStatus(CompactionStatus.Status.RUNNING);
+            return LongRunningProcessStatus.forStatus(LongRunningProcessStatus.Status.RUNNING);
         } else {
             try {
                 if (current.join() == COMPACTION_NEVER_RUN) {
-                    return CompactionStatus.forStatus(CompactionStatus.Status.NOT_RUN);
+                    return LongRunningProcessStatus.forStatus(LongRunningProcessStatus.Status.NOT_RUN);
                 } else {
-                    return CompactionStatus.forStatus(CompactionStatus.Status.SUCCESS);
+                    return LongRunningProcessStatus.forStatus(LongRunningProcessStatus.Status.SUCCESS);
                 }
             } catch (CancellationException | CompletionException e) {
-                return CompactionStatus.forError(e.getMessage());
+                return LongRunningProcessStatus.forError(e.getMessage());
+            }
+        }
+    }
+
+    public synchronized void triggerOffload(MessageIdImpl messageId) throws AlreadyRunningException {
+        if (currentOffload.isDone()) {
+            CompletableFuture<MessageIdImpl> promise = currentOffload = new CompletableFuture<>();
+            getManagedLedger().asyncOffloadPrefix(
+                    PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId()),
+                    new OffloadCallback() {
+                        @Override
+                        public void offloadComplete(Position pos, Object ctx) {
+                            PositionImpl impl = (PositionImpl)pos;
+
+                            promise.complete(new MessageIdImpl(impl.getLedgerId(), impl.getEntryId(), -1));
+                        }
+
+                        @Override
+                        public void offloadFailed(ManagedLedgerException exception, Object ctx) {
+                            promise.completeExceptionally(exception);
+                        }
+                    }, null);
+        } else {
+            throw new AlreadyRunningException("Offload already in progress");
+        }
+    }
+
+    public synchronized OffloadProcessStatus offloadStatus() {
+        if (!currentOffload.isDone()) {
+            return OffloadProcessStatus.forStatus(LongRunningProcessStatus.Status.RUNNING);
+        } else {
+            try {
+                if (currentOffload.join() == MessageId.earliest) {
+                    return OffloadProcessStatus.forStatus(LongRunningProcessStatus.Status.NOT_RUN);
+                } else {
+                    return OffloadProcessStatus.forSuccess(currentOffload.join());
+                }
+            } catch (CancellationException | CompletionException e) {
+                return OffloadProcessStatus.forError(e.getMessage());
             }
         }
     }
