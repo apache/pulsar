@@ -45,5 +45,5 @@ public interface Sink<T> extends AutoCloseable {
      * @param value output value
      * @return Completable future fo async publish request
      */
-    CompletableFuture<Void> write(T value) throws Exception;
+    CompletableFuture<Void> write(T value);
 }

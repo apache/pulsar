@@ -208,7 +208,7 @@ public class PulsarSink<T> implements RuntimeSink<T> {
     }
 
     @Override
-    public CompletableFuture<Void> write(T value) throws Exception {
+    public CompletableFuture<Void> write(T value) {
         return null;
     }
 

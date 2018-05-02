@@ -57,7 +57,7 @@ public class DefaultRuntimeSink<T> implements RuntimeSink<T> {
      * @return Completable future fo async publish request
      */
     @Override
-    public CompletableFuture<Void> write(T value) throws Exception {
+    public CompletableFuture<Void> write(T value) {
         return sink.write(value);
     }
 
