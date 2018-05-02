@@ -136,6 +136,8 @@ groups:
     endpoint: message-deduplication
   - title: Non-persistent messaging
     endpoint: non-persistent-messaging
+  - title: Schema storage
+    endpoint: schema-storage
   - title: Partitioned topics
     endpoint: PartitionedTopics
   - title: Retention and expiry
