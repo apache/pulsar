@@ -118,16 +118,7 @@ class ProcessRuntime implements Runtime {
         } else {
             args.add("false");
         }
-        if (instanceConfig.getFunctionDetails().getSink().getTopic() != null
-                && !instanceConfig.getFunctionDetails().getSink().getTopic().isEmpty()) {
-            args.add("--output_topic");
-            args.add(instanceConfig.getFunctionDetails().getSink().getTopic());
-        }
-        if (instanceConfig.getFunctionDetails().getSink().getSerDeClassName() != null
-                && !instanceConfig.getFunctionDetails().getSink().getSerDeClassName().isEmpty()) {
-            args.add("--output_serde_classname");
-            args.add(instanceConfig.getFunctionDetails().getSink().getSerDeClassName());
-        }
+
         args.add("--processing_guarantees");
         args.add(String.valueOf(instanceConfig.getFunctionDetails().getProcessingGuarantees()));
         args.add("--pulsar_serviceurl");
@@ -143,6 +134,7 @@ class ProcessRuntime implements Runtime {
         args.add("--port");
         args.add(String.valueOf(instancePort));
 
+        // source related configs
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
             if (!instanceConfig.getFunctionDetails().getSource().getClassName().isEmpty()) {
                 args.add("--source_classname");
@@ -159,6 +151,29 @@ class ProcessRuntime implements Runtime {
 
         args.add("--source_topics_serde_classname");
         args.add(new Gson().toJson(instanceConfig.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap()));
+
+        // sink related configs
+        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
+            if (!instanceConfig.getFunctionDetails().getSink().getClassName().isEmpty()) {
+                args.add("--sink_classname");
+                args.add(instanceConfig.getFunctionDetails().getSink().getClassName());
+            }
+            String sinkConfigs = instanceConfig.getFunctionDetails().getSink().getConfigs();
+            if (sinkConfigs != null && !sinkConfigs.isEmpty()) {
+                args.add("--sink_configs");
+                args.add(sinkConfigs);
+            }
+        }
+        if (instanceConfig.getFunctionDetails().getSink().getTopic() != null
+                && !instanceConfig.getFunctionDetails().getSink().getTopic().isEmpty()) {
+            args.add("--sink_topic");
+            args.add(instanceConfig.getFunctionDetails().getSink().getTopic());
+        }
+        if (instanceConfig.getFunctionDetails().getSink().getSerDeClassName() != null
+                && !instanceConfig.getFunctionDetails().getSink().getSerDeClassName().isEmpty()) {
+            args.add("--sink_serde_classname");
+            args.add(instanceConfig.getFunctionDetails().getSink().getSerDeClassName());
+        }
         return args;
     }
 

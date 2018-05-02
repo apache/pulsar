@@ -20,7 +20,6 @@ package org.apache.pulsar.functions.sink;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.connect.core.RecordContext;
 import org.apache.pulsar.connect.core.Sink;
 
 /**
@@ -58,7 +57,7 @@ public class DefaultRuntimeSink<T> implements RuntimeSink<T> {
      * @return Completable future fo async publish request
      */
     @Override
-    public CompletableFuture<Void> write(T value) {
+    public CompletableFuture<Void> write(T value) throws Exception {
         return sink.write(value);
     }
 

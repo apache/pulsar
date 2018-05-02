@@ -20,19 +20,13 @@ package org.apache.pulsar.functions.instance;
 
 import lombok.Getter;
 import lombok.Setter;
-import net.jodah.typetools.TypeResolver;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.SerDe;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
-import org.testng.annotations.Test;
 
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-
-import static org.testng.AssertJUnit.*;
 
 public class JavaInstanceRunnableTest {
 
@@ -111,79 +105,4 @@ public class JavaInstanceRunnableTest {
             return null;
         }
     }
-
-    /**
-     * Verify that JavaInstance does support functions that output Void type
-     */
-    @Test
-    public void testVoidOutputClasses() {
-        try {
-            JavaInstanceRunnable runnable = createRunnable(false, DefaultSerDe.class.getName());
-            Method method = makeAccessible(runnable);
-            ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
-            VoidOutputHandler pulsarFunction = new VoidOutputHandler();
-            Class<?>[] typeArgs = TypeResolver.resolveRawArguments(Function.class, pulsarFunction.getClass());
-            method.invoke(runnable, typeArgs, clsLoader);
-        } catch (Exception ex) {
-            assertTrue(false);
-        }
-    }
-
-    /**
-     * Verify that Default Serializer works fine.
-     */
-    @Test
-    public void testDefaultSerDe() {
-        try {
-            JavaInstanceRunnable runnable = createRunnable(false, null);
-            Method method = makeAccessible(runnable);
-            ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
-            Function function = (Function<String, String>) (input, context) -> input + "-lambda";
-            Class<?>[] typeArgs = TypeResolver.resolveRawArguments(Function.class, function.getClass());
-            method.invoke(runnable, typeArgs, clsLoader);
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            assertEquals(ex, null);
-            assertTrue(false);
-        }
-    }
-
-    /**
-     * Verify that Explicit setting of Default Serializer works fine.
-     */
-    @Test
-    public void testExplicitDefaultSerDe() {
-        try {
-            JavaInstanceRunnable runnable = createRunnable(false, DefaultSerDe.class.getName());
-            Method method = makeAccessible(runnable);
-            ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
-            Function function = (Function<String, String>) (input, context) -> input + "-lambda";
-            Class<?>[] typeArgs = TypeResolver.resolveRawArguments(Function.class, function.getClass());
-            method.invoke(runnable, typeArgs, clsLoader);
-        } catch (Exception ex) {
-            assertTrue(false);
-        }
-    }
-
-    /**
-     * Verify that function output type should be consistent with output serde type.
-     */
-    @Test
-    public void testInconsistentOutputType() {
-        try {
-            JavaInstanceRunnable runnable = createRunnable(false, IntegerSerDe.class.getName());
-            Method method = makeAccessible(runnable);
-            ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
-            Function function = (Function<String, String>) (input, context) -> input + "-lambda";
-            Class<?>[] typeArgs = TypeResolver.resolveRawArguments(Function.class, function.getClass());
-            method.invoke(runnable, typeArgs, clsLoader);
-            fail("Should fail constructing java instance if function type is inconsistent with serde type");
-        } catch (InvocationTargetException ex) {
-            assertTrue(ex.getCause().getMessage().startsWith("Inconsistent types found between function output type and output serde type:"));
-        } catch (Exception ex) {
-            assertTrue(false);
-        }
-    }
-
-
 }
