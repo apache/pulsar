@@ -19,7 +19,6 @@
 package org.apache.pulsar.s3offload;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
 
@@ -213,17 +212,17 @@ public class BlockAwareSegmentInputStreamTest {
         int expectedEntryCount = (blockSize - DataBlockHeaderImpl.getDataStartOffset()) / (entrySize + 4 + 8);
 
         // verify get methods
-        assertTrue(inputStream.getLedger() == readHandle);
-        assertTrue(inputStream.getStartEntryId() == 0);
-        assertTrue(inputStream.getBlockSize() == blockSize);
+        assertEquals(inputStream.getLedger(), readHandle);
+        assertEquals(inputStream.getStartEntryId(), 0);
+        assertEquals(inputStream.getBlockSize(), blockSize);
 
         // verify read inputStream
         // 1. read header. 128
         byte headerB[] = new byte[DataBlockHeaderImpl.getDataStartOffset()];
         ByteStreams.readFully(inputStream, headerB);
         DataBlockHeader headerRead = DataBlockHeaderImpl.fromStream(new ByteArrayInputStream(headerB));
-        assertTrue(headerRead.getBlockLength() == blockSize);
-        assertTrue(headerRead.getFirstEntryId() == 0);
+        assertEquals(headerRead.getBlockLength(), blockSize);
+        assertEquals(headerRead.getFirstEntryId(), 0);
 
         byte[] entryData = new byte[entrySize];
         IntStream.range(0, entrySize).forEach(i -> {
@@ -262,9 +261,9 @@ public class BlockAwareSegmentInputStreamTest {
         // 4. reach end.
         assertEquals(inputStream.read(), -1);
 
-        assertTrue(inputStream.getBlockEntryCount() == expectedEntryCount);
-        assertTrue(inputStream.getPayloadBytesHave() == entrySize * expectedEntryCount);
-        assertTrue(inputStream.getLastEntryIdWritten() == expectedEntryCount - 1);
+        assertEquals(inputStream.getBlockEntryCount(), expectedEntryCount);
+        assertEquals(inputStream.getBlockEntryBytesCount(), entrySize * expectedEntryCount);
+        assertEquals(inputStream.getEndEntryId(), expectedEntryCount - 1);
 
         inputStream.close();
     }
@@ -282,17 +281,17 @@ public class BlockAwareSegmentInputStreamTest {
         int expectedEntryCount = (blockSize - DataBlockHeaderImpl.getDataStartOffset()) / (entrySize + 4 + 8);
 
         // verify get methods
-        assertTrue(inputStream.getLedger() == readHandle);
-        assertTrue(inputStream.getStartEntryId() == 0);
-        assertTrue(inputStream.getBlockSize() == blockSize);
+        assertEquals(inputStream.getLedger(), readHandle);
+        assertEquals(inputStream.getStartEntryId(), 0);
+        assertEquals(inputStream.getBlockSize(), blockSize);
 
         // verify read inputStream
         // 1. read header. 128
         byte headerB[] = new byte[DataBlockHeaderImpl.getDataStartOffset()];
         ByteStreams.readFully(inputStream, headerB);
         DataBlockHeader headerRead = DataBlockHeaderImpl.fromStream(new ByteArrayInputStream(headerB));
-        assertTrue(headerRead.getBlockLength() == blockSize);
-        assertTrue(headerRead.getFirstEntryId() == 0);
+        assertEquals(headerRead.getBlockLength(), blockSize);
+        assertEquals(headerRead.getFirstEntryId(), 0);
 
         byte[] entryData = new byte[entrySize];
         IntStream.range(0, entrySize).forEach(i -> {
@@ -324,9 +323,9 @@ public class BlockAwareSegmentInputStreamTest {
         // 4. reach end.
         assertEquals(inputStream.read(), -1);
 
-        assertTrue(inputStream.getBlockEntryCount() == expectedEntryCount);
-        assertTrue(inputStream.getPayloadBytesHave() == entrySize * expectedEntryCount);
-        assertTrue(inputStream.getLastEntryIdWritten() == expectedEntryCount - 1);
+        assertEquals(inputStream.getBlockEntryCount(), expectedEntryCount);
+        assertEquals(inputStream.getBlockEntryBytesCount(), entrySize * expectedEntryCount);
+        assertEquals(inputStream.getEndEntryId(), expectedEntryCount - 1);
 
         inputStream.close();
     }
@@ -345,17 +344,17 @@ public class BlockAwareSegmentInputStreamTest {
         int expectedEntryCount = (blockSize - DataBlockHeaderImpl.getDataStartOffset()) / (entrySize + 4 + 8);
 
         // verify get methods
-        assertTrue(inputStream.getLedger() == readHandle);
-        assertTrue(inputStream.getStartEntryId() == 0);
-        assertTrue(inputStream.getBlockSize() == blockSize);
+        assertEquals(inputStream.getLedger(), readHandle);
+        assertEquals(inputStream.getStartEntryId(), 0);
+        assertEquals(inputStream.getBlockSize(), blockSize);
 
         // verify read inputStream
         // 1. read header. 128
         byte headerB[] = new byte[DataBlockHeaderImpl.getDataStartOffset()];
         ByteStreams.readFully(inputStream, headerB);
         DataBlockHeader headerRead = DataBlockHeaderImpl.fromStream(new ByteArrayInputStream(headerB));
-        assertTrue(headerRead.getBlockLength() == blockSize);
-        assertTrue(headerRead.getFirstEntryId() == 0);
+        assertEquals(headerRead.getBlockLength(), blockSize);
+        assertEquals(headerRead.getFirstEntryId(), 0);
 
         byte[] entryData = new byte[entrySize];
         IntStream.range(0, entrySize).forEach(i -> {
@@ -387,9 +386,9 @@ public class BlockAwareSegmentInputStreamTest {
         // 4. reach end.
         assertEquals(inputStream.read(), -1);
 
-        assertTrue(inputStream.getBlockEntryCount() == expectedEntryCount);
-        assertTrue(inputStream.getPayloadBytesHave() == entrySize * expectedEntryCount);
-        assertTrue(inputStream.getLastEntryIdWritten() == expectedEntryCount - 1);
+        assertEquals(inputStream.getBlockEntryCount(), expectedEntryCount);
+        assertEquals(inputStream.getBlockEntryBytesCount(), entrySize * expectedEntryCount);
+        assertEquals(inputStream.getEndEntryId(), expectedEntryCount - 1);
 
         inputStream.close();
     }

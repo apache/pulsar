@@ -46,7 +46,7 @@ import org.slf4j.LoggerFactory;
 public class BlockAwareSegmentInputStream extends InputStream {
     private static final Logger log = LoggerFactory.getLogger(BlockAwareSegmentInputStream.class);
 
-    private static final byte[] blockEndPadding = Ints.toByteArray(0xFEDCDEAD);
+    private static final byte[] BLOCK_END_PADDING = Ints.toByteArray(0xFEDCDEAD);
 
     private final ReadHandle ledger;
     private final long startEntryId;
@@ -54,10 +54,6 @@ public class BlockAwareSegmentInputStream extends InputStream {
 
     // Number of Message entries that read from ledger and been readout from this InputStream.
     private int blockEntryCount;
-    // Number of payload Bytes read from ledger, and has been has been kept in this InputStream.
-    private int payloadBytesHave;
-    // Number of bytes that has been kept in this InputStream.
-    private int blockBytesHave;
 
     // tracking read status for both header and entries.
     // Bytes that already been read from this InputStream
@@ -67,19 +63,17 @@ public class BlockAwareSegmentInputStream extends InputStream {
     private final InputStream dataBlockHeaderStream;
 
     // how many entries want to read from ReadHandle each time.
-    private static final int entriesNumberEachRead = 100;
+    private static final int ENTRIES_PER_READ = 100;
     // buf the entry size and entry id.
-    private static final int entryHeaderSize = 4 /* entry size*/ + 8 /* entry id */;
-    // Keep a list of all entries ByteBuf, each element contains 2 buf: entry header and entry content.
-    private List<CompositeByteBuf> entriesByteBuf = null;
+    private static final int ENTRY_HEADER_SIZE = 4 /* entry size*/ + 8 /* entry id */;
+    // Keep a list of all entries ByteBuf, each ByteBuf contains 2 buf: entry header and entry content.
+    private List<ByteBuf> entriesByteBuf = null;
 
     public BlockAwareSegmentInputStream(ReadHandle ledger, long startEntryId, int blockSize) {
         this.ledger = ledger;
         this.startEntryId = startEntryId;
         this.blockSize = blockSize;
         this.dataBlockHeaderStream = DataBlockHeaderImpl.of(blockSize, startEntryId).toStream();
-        this.blockBytesHave = DataBlockHeaderImpl.getDataStartOffset();
-        this.payloadBytesHave = 0;
         this.blockEntryCount = 0;
         this.dataBlockFullOffset = blockSize;
         this.entriesByteBuf = Lists.newLinkedList();
@@ -90,68 +84,60 @@ public class BlockAwareSegmentInputStream extends InputStream {
         checkState(bytesReadOffset >= DataBlockHeaderImpl.getDataStartOffset());
         checkState(bytesReadOffset < dataBlockFullOffset);
 
-        try {
-            // once reach the end of entry buffer, start a new read.
-            if (entriesByteBuf.isEmpty()) {
-                readNextEntriesFromLedger();
-                log.debug("After readNextEntriesFromLedger: bytesReadOffset: {}, blockBytesHave: {}",
-                        bytesReadOffset, blockBytesHave);
-            }
-
-            // always read from the first ByteBuf in the list, once read all of its content remove it.
-            ByteBuf entryByteBuf = entriesByteBuf.get(0);
-            int ret = entryByteBuf.readByte();
-            bytesReadOffset ++;
-
-            if (entryByteBuf.readableBytes() == 0) {
-                entryByteBuf.release();
-                entriesByteBuf.remove(0);
-            }
-
-            return ret;
-        } catch (InterruptedException | ExecutionException e) {
-            log.error("Exception when get CompletableFuture<LedgerEntries>. ", e);
-            throw new IOException(e);
+        // once reach the end of entry buffer, start a new read.
+        if (entriesByteBuf.isEmpty()) {
+            entriesByteBuf = readNextEntriesFromLedger(startEntryId + blockEntryCount, ENTRIES_PER_READ);
         }
+
+        // always read from the first ByteBuf in the list, once read all of its content remove it.
+        ByteBuf entryByteBuf = entriesByteBuf.get(0);
+        int ret = entryByteBuf.readByte();
+        bytesReadOffset ++;
+
+        if (entryByteBuf.readableBytes() == 0) {
+            entryByteBuf.release();
+            entriesByteBuf.remove(0);
+            blockEntryCount++;
+            if ((!entriesByteBuf.isEmpty()) && bytesReadOffset + entriesByteBuf.get(0).readableBytes() > blockSize) {
+                // not able to place a new Entry.
+                entriesByteBuf.forEach(buf -> buf.release());
+                entriesByteBuf.clear();
+                dataBlockFullOffset = bytesReadOffset;
+            }
+        }
+
+        return ret;
     }
 
-    // read entries from ledger, and pre-handle the returned ledgerEntries.
-    private void readNextEntriesFromLedger() throws InterruptedException, ExecutionException {
-        checkState(bytesReadOffset == blockBytesHave);
-
-        long start = startEntryId + blockEntryCount;
-        long end = Math.min(start + entriesNumberEachRead - 1, ledger.getLastAddConfirmed());
+    private List<ByteBuf> readNextEntriesFromLedger(long start, long maxNumberEntries) throws IOException {
+        long end = Math.min(start + maxNumberEntries - 1, ledger.getLastAddConfirmed());
         try (LedgerEntries ledgerEntriesOnce = ledger.readAsync(start, end).get()) {
             log.debug("read ledger entries. start: {}, end: {}", start, end);
 
+            List<ByteBuf> entries = Lists.newLinkedList();
+
             Iterator<LedgerEntry> iterator = ledgerEntriesOnce.iterator();
-            long entryId = start;
             while (iterator.hasNext()) {
                 LedgerEntry entry = iterator.next();
                 int entryLength = (int) entry.getLength();
-                entryId = entry.getEntryId();
+                long entryId = entry.getEntryId();
 
-                if (blockSize - blockBytesHave >= entryLength + entryHeaderSize) {
-                    // data block has space for this entry, keep this entry
-                    CompositeByteBuf entryBuf = PooledByteBufAllocator.DEFAULT.compositeBuffer();
-                    ByteBuf entryHeaderBuf = PooledByteBufAllocator.DEFAULT.buffer(entryHeaderSize, entryHeaderSize);
+                CompositeByteBuf entryBuf = PooledByteBufAllocator.DEFAULT.compositeBuffer();
+                ByteBuf entryHeaderBuf = PooledByteBufAllocator.DEFAULT.buffer(ENTRY_HEADER_SIZE, ENTRY_HEADER_SIZE);
 
-                    entryHeaderBuf.writeInt(entryLength).writeLong(entryId);
-                    entryBuf.addComponents(entryHeaderBuf, entry.getEntryBuffer().retain());
-                    entryBuf.writerIndex(entryHeaderSize + entryLength);
+                entryHeaderBuf.writeInt(entryLength).writeLong(entryId);
+                entryBuf.addComponents(entryHeaderBuf, entry.getEntryBuffer().retain());
+                entryBuf.writerIndex(ENTRY_HEADER_SIZE + entryLength);
 
-                    entriesByteBuf.add(entryBuf);
-
-                    // set counters
-                    blockEntryCount++;
-                    payloadBytesHave += entryLength;
-                    blockBytesHave += entryLength + entryHeaderSize;
-                } else {
-                    // data block has no space left for a whole message entry
-                    dataBlockFullOffset = blockBytesHave;
-                    break;
-                }
+                entries.add(entryBuf);
             }
+            return entries;
+        } catch (InterruptedException | ExecutionException e) {
+            log.error("Exception when get CompletableFuture<LedgerEntries>. ", e);
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+            throw new IOException(e);
         }
     }
 
@@ -170,7 +156,7 @@ public class BlockAwareSegmentInputStream extends InputStream {
 
         // read padding
         if (bytesReadOffset < blockSize) {
-            return blockEndPadding[(bytesReadOffset++ - dataBlockFullOffset) % 4];
+            return BLOCK_END_PADDING[(bytesReadOffset++ - dataBlockFullOffset) % 4];
         }
 
         // reached end
@@ -203,16 +189,16 @@ public class BlockAwareSegmentInputStream extends InputStream {
         return blockEntryCount;
     }
 
-    public long getLastEntryIdWritten() {
+    public long getEndEntryId() {
         return startEntryId + blockEntryCount - 1;
     }
 
-    public int getPayloadBytesHave() {
-        return payloadBytesHave;
+    public int getBlockEntryBytesCount() {
+        return dataBlockFullOffset - DataBlockHeaderImpl.getDataStartOffset() - ENTRY_HEADER_SIZE * blockEntryCount;
     }
 
     public byte[] getBlockEndPadding() {
-        return blockEndPadding;
+        return BLOCK_END_PADDING;
     }
 
 }
