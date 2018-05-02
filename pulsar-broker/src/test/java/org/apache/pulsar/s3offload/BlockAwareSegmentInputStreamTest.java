@@ -43,7 +43,7 @@ import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.pulsar.broker.s3offload.DataBlockHeader;
-import org.apache.pulsar.broker.s3offload.impl.BlockAwareSegmentInputStream;
+import org.apache.pulsar.broker.s3offload.impl.BlockAwareSegmentInputStreamImpl;
 import org.apache.pulsar.broker.s3offload.impl.DataBlockHeaderImpl;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
@@ -208,7 +208,7 @@ public class BlockAwareSegmentInputStreamTest {
 
         // set block size bigger than to (header + entry) size.
         int blockSize = 3148 + 5;
-        BlockAwareSegmentInputStream inputStream = new BlockAwareSegmentInputStream(readHandle, 0, blockSize);
+        BlockAwareSegmentInputStreamImpl inputStream = new BlockAwareSegmentInputStreamImpl(readHandle, 0, blockSize);
         int expectedEntryCount = (blockSize - DataBlockHeaderImpl.getDataStartOffset()) / (entrySize + 4 + 8);
 
         // verify get methods
@@ -277,7 +277,7 @@ public class BlockAwareSegmentInputStreamTest {
 
         // set block size equals to (header + entry) size.
         int blockSize = 2148;
-        BlockAwareSegmentInputStream inputStream = new BlockAwareSegmentInputStream(readHandle, 0, blockSize);
+        BlockAwareSegmentInputStreamImpl inputStream = new BlockAwareSegmentInputStreamImpl(readHandle, 0, blockSize);
         int expectedEntryCount = (blockSize - DataBlockHeaderImpl.getDataStartOffset()) / (entrySize + 4 + 8);
 
         // verify get methods
@@ -340,7 +340,7 @@ public class BlockAwareSegmentInputStreamTest {
 
         // set block size equals to (header + lac_entry) size.
         int blockSize = DataBlockHeaderImpl.getDataStartOffset() + (1 + lac) * (entrySize + 4 + 8);
-        BlockAwareSegmentInputStream inputStream = new BlockAwareSegmentInputStream(readHandle, 0, blockSize);
+        BlockAwareSegmentInputStreamImpl inputStream = new BlockAwareSegmentInputStreamImpl(readHandle, 0, blockSize);
         int expectedEntryCount = (blockSize - DataBlockHeaderImpl.getDataStartOffset()) / (entrySize + 4 + 8);
 
         // verify get methods
