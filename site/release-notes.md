@@ -26,7 +26,7 @@ layout: content
 
 ## Apache incubator
 
-### 1.22.0-incubating &mdash; 2018-03-06
+### 1.22.0-incubating &mdash; 2018-03-06 <a id="1.22.0-incubating"></a>
 
 This is the fourth of Apache Pulsar since entering the ASF incubator.
 
@@ -71,7 +71,7 @@ https://github.com/apache/incubator-pulsar/milestone/11?closed=1
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.22.0-incubating
 
-### 1.21.0-incubating &mdash; 2017-12-17
+### 1.21.0-incubating &mdash; 2017-12-17 <a id="1.21.0-incubating"></a>
 
 This is the third of Apache Pulsar since entering the ASF incubator.
 
@@ -93,7 +93,7 @@ https://github.com/apache/incubator-pulsar/milestone/10?closed=1
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.21.0-incubating
 
-### 1.20.0-incubating &mdash; 2017-08-08
+### 1.20.0-incubating &mdash; 2017-08-08 <a id="1.20.0-incubating"></a>
 
 This is the second of Apache Pulsar since entering the ASF incubator.
 
@@ -111,7 +111,7 @@ https://github.com/apache/incubator-pulsar/milestone/9?closed=1
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.20.0-incubating
 
-### 1.19.0-incubating &mdash; 2017-08-08
+### 1.19.0-incubating &mdash; 2017-08-08 <a id="1.19.0-incubating"></a>
 
 This is the first of Apache Pulsar since entering the ASF incubator.
 
@@ -131,7 +131,7 @@ https://github.com/apache/incubator-pulsar/releases/tag/v1.19.0-incubating
 
 ## Pre-Apache
 
-### 1.18 &mdash; 2017-06-17
+### 1.18 &mdash; 2017-06-17 <a id="1.18"></a>
 
 Main changes:
  * [#325](https://github.com/apache/incubator-pulsar/pull/325) Add Modular load manager documentation
@@ -172,7 +172,7 @@ Full list of changes: https://github.com/yahoo/pulsar/milestone/7?closed=1
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.18
 
-### 1.17.5 &mdash; 2017-05-02
+### 1.17.5 &mdash; 2017-05-02 <a id="1.17.5"></a>
 
  * [#343](https://github.com/apache/incubator-pulsar/pull/343) Fix ModularLoadManager to select broker from current available-broker list
  * [#384](https://github.com/apache/incubator-pulsar/pull/384) Fix Send replay entries read callback from background thread, to avoid recursive stack calls
@@ -181,7 +181,7 @@ https://github.com/apache/incubator-pulsar/releases/tag/v1.18
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.17.5
 
-### 1.17.4 &mdash; 2017-04-25
+### 1.17.4 &mdash; 2017-04-25 <a id="1.17.4"></a>
 
  * [#362](https://github.com/apache/incubator-pulsar/pull/362) Fix add timeout on blocking ZookeeperCache get call
  * [#375](https://github.com/apache/incubator-pulsar/pull/375) Fix possible deal lock on topic loading if broker fails to get MLConfiguration from zk
@@ -189,13 +189,13 @@ https://github.com/apache/incubator-pulsar/releases/tag/v1.17.5
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.17.4
 
-### 1.17.3 &mdash; 2017-04-20
+### 1.17.3 &mdash; 2017-04-20 <a id="1.17.3"></a>
 
  * [#367](https://github.com/apache/incubator-pulsar/pull/367) Fix dispatcher correctly finds available consumer from list of shared-subscription consumers
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.17.3
 
-### 1.17.2 &mdash; 2017-04-06
+### 1.17.2 &mdash; 2017-04-06 <a id="1.17.2"></a>
 
  * [#327](https://github.com/apache/incubator-pulsar/pull/327) Create znode for dynamic configuration if not present
  * [#336](https://github.com/apache/incubator-pulsar/pull/336) Fix prevent creation of topic when bundle is disable
@@ -203,13 +203,13 @@ https://github.com/apache/incubator-pulsar/releases/tag/v1.17.3
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.17.2
 
-### 1.17.1 &mdash; 2017-03-30
+### 1.17.1 &mdash; 2017-03-30 <a id="1.17.1"></a>
 
  * [#326](https://github.com/apache/incubator-pulsar/pull/326) Fix memory leak while duplicating entry data from existing entry
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.17.1
 
-### 1.17 &mdash; 2017-03-30
+### 1.17 &mdash; 2017-03-30 <a id="1.17"></a>
 
 Main changes:
 
@@ -239,13 +239,13 @@ Full list of changes: https://github.com/apache/incubator-pulsar/milestone/3?clo
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.17
 
-### 1.16.5 &mdash; 2017-03-10
+### 1.16.5 &mdash; 2017-03-10 <a id="1.16.5"></a>
 
  * [#311](https://github.com/apache/incubator-pulsar/pull/311) Exclude netty individual jars from binary distribution. This issue was causing binary distribution to have conflicting netty dependencies.
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.16.5
 
-### 1.16.4 &mdash; 2017-03-10
+### 1.16.4 &mdash; 2017-03-10 <a id="1.16.4"></a>
 
  * [#265](https://github.com/apache/incubator-pulsar/pull/265) Fix client closes http-connection on internal-server error
  * [#283](https://github.com/apache/incubator-pulsar/pull/283) Fix recycle keep alive command-object properly
@@ -253,19 +253,19 @@ https://github.com/apache/incubator-pulsar/releases/tag/v1.16.5
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.16.4
 
-### 1.16.3 &mdash; 2017-03-01
+### 1.16.3 &mdash; 2017-03-01 <a id="1.16.3"></a>
 
  * [#275](https://github.com/apache/incubator-pulsar/pull/275) Fix for Infinite loop in PersistentReplicator.startProducer()
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.16.3
 
-### 1.16.2 &mdash; 2017-02-24
+### 1.16.2 &mdash; 2017-02-24 <a id="1.16.2"></a>
 
  * [#250](https://github.com/apache/incubator-pulsar/pull/250) : Disconnect consumers without closing dispatcher on cursor-reset
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.16.2
 
-### 1.16.1 &mdash; 2017-02-24
+### 1.16.1 &mdash; 2017-02-24 <a id="1.16.1"></a>
 
  * [#221](https://github.com/apache/incubator-pulsar/pull/221) Fixed race condition while creating client connection
  * [#223](https://github.com/apache/incubator-pulsar/pull/223) Fixed broker's direct memory usage count
@@ -274,7 +274,7 @@ https://github.com/apache/incubator-pulsar/releases/tag/v1.16.2
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.16.1
 
-### 1.16 &mdash; 2017-02-02
+### 1.16 &mdash; 2017-02-02 <a id="1.16"></a>
 
 Main changes:
  * [#76](https://github.com/apache/incubator-pulsar/pull/76) Async Zookeeper cache implementation
@@ -296,51 +296,51 @@ Full list of changes: https://github.com/yahoo/pulsar/milestone/2?closed=1
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.16
 
-### 1.15.7 &mdash; 2017-01-25
+### 1.15.7 &mdash; 2017-01-25 <a id="1.15.7"></a>
 
  * [#174](https://github.com/apache/incubator-pulsar/pull/174) Handling bundle unloading failure
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.15.7
 
-### 1.15.6 &mdash; 2017-01-20
+### 1.15.6 &mdash; 2017-01-20 <a id="1.15.6"></a>
 
  * [#171](https://github.com/apache/incubator-pulsar/pull/171) Fix: Consumer redelivery should not wipeout availablePermits
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.15.6
 
-### 1.15.5 &mdash; 2017-01-03
+### 1.15.5 &mdash; 2017-01-03 <a id="1.15.5"></a>
 
  * [#159](https://github.com/apache/incubator-pulsar/pull/159) Fix: Replicator-cleanup while closing replicator at broker.
  * [#160](https://github.com/apache/incubator-pulsar/pull/160) Fix: Http lookup for topic with special character
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.15.5
 
-### 1.15.4 &mdash; 2016-12-14
+### 1.15.4 &mdash; 2016-12-14 <a id="1.15.4"></a>
 
  * [#146](https://github.com/apache/incubator-pulsar/pull/146) Fix: Partitioned consumer can consume messages with receiverQueueSize 1.
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.15.4
 
-### 1.15.3 &mdash; 2016-12-13
+### 1.15.3 &mdash; 2016-12-13 <a id="1.15.3"></a>
 
  * [#145](https://github.com/apache/incubator-pulsar/pull/145) Fixed issue Partitioned-consumer aggregate messages without blocking internal listener thread
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.15.3
 
-### 1.15.2 &mdash; 2016-11-03
+### 1.15.2 &mdash; 2016-11-03 <a id="1.15.2"></a>
 
  * [#102](https://github.com/apache/incubator-pulsar/pull/102) Fixed issue with message dispatching while message-replay at broker
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.15.2
 
-### 1.15.1 &mdash; 2016-10-27
+### 1.15.1 &mdash; 2016-10-27 <a id="1.15.1"></a>
 
  * [#89](https://github.com/apache/incubator-pulsar/pull/89) Fixed issue with replication in a mixed
    environment with 1.14 and 1.15 brokers
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.15.1
 
-### 1.15 &mdash; 2016-10-18
+### 1.15 &mdash; 2016-10-18 <a id="1.15"></a>
 
 - [#39](https://github.com/apache/incubator-pulsar/pull/39) Updated BookKeeper version to 4.3.1.41-yahoo to include bookie storage improvements
 - [#17](https://github.com/apache/incubator-pulsar/pull/17) Fixed memory leak in stats generation buffer rollover
@@ -356,7 +356,7 @@ Full list of changes: https://github.com/apache/incubator-pulsar/milestone/1?clo
 
 https://github.com/apache/incubator-pulsar/releases/tag/v1.15
 
-### 1.14 &mdash; 2016-08-31
+### 1.14 &mdash; 2016-08-31 <a id="1.14"></a>
 
 First public release of Pulsar
 
