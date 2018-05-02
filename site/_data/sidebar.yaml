@@ -82,8 +82,8 @@ groups:
     endpoint: Dashboard
   - title: Pulsar statistics
     endpoint: Stats
-  - title: Modular load manager
-    endpoint: ModularLoadManager
+  - Load distribution
+    endpoint: LoadDistribution
   - title: Pulsar proxy
     endpoint: Proxy
 
@@ -156,6 +156,8 @@ groups:
     endpoint: BinaryProtocol
   - title: Codebase
     endpoint: Codebase
+  - title: Modular load manager
+    endpoint: ModularLoadManager
 
 - title: Reference
   dir: reference
