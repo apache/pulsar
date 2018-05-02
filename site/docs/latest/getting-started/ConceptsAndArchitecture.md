@@ -546,12 +546,13 @@ In Pulsar, both approaches are available.
 
 ### How schemas work
 
-Pulsar schemas are applied and enforced *at the topic level*. Schemas *cannot* be applied at the {% popover namespace %} or {% popover tenant %} level.
+Pulsar schemas are applied and enforced *at the topic level* (schemas cannot be applied at the {% popover namespace %} or {% popover tenant %} level). Producers and consumers upload schemas to Pulsar {% popover brokers %}.
 
-Each Pulsar schema consists of:
+Pulsar schemas are fairly simple data structures that consist of:
 
-* A name. In Pulsar, the name of a schema is always the {% popover topic %} to which the schema applies.
-* 
+* A **name** (in Pulsar, a schema's name is the {% popover topic %} to which the schema is applied)
+* A **payload**, which is a binary representation of the schema
+* A schema [**type**](#schema-types)
 
 ### Schema versions
 
@@ -578,7 +579,7 @@ A schema already exists; the producer connects using a new schema that is compat
 
 {% include admonition.html type="info" content="Schemas are versioned in succession. Schema storage happens in the broker that handles the associated topic so that version assignments can be made. Once a version is assigned/fetched to/for a schema, all subsequent messages produced by that producer are tagged with the appropriate version." %}
 
-### Supported schema formats
+### Supported schema formats {#schema-types}
 
 The following formats are supported by the Pulsar schema registry:
 
