@@ -63,13 +63,13 @@ public class DefaultRuntimeSinkTest {
     }
 
     @Test
-    public void testWrite() {
+    public void testWrite() throws Exception {
         this.runtimeSink.write("test-record");
         verify(mockSink, times(1)).write(eq("test-record"));
     }
 
     @Test
-    public void testWriteAck() {
+    public void testWriteAck() throws Exception {
         RecordContext context = mock(RecordContext.class);
 
         CompletableFuture<Void> writeFuture = new CompletableFuture<>();
@@ -82,7 +82,7 @@ public class DefaultRuntimeSinkTest {
     }
 
     @Test
-    public void testWriteFail() {
+    public void testWriteFail() throws Exception {
         RecordContext context = mock(RecordContext.class);
 
         CompletableFuture<Void> writeFuture = new CompletableFuture<>();
