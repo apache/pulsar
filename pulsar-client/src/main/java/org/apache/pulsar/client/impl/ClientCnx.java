@@ -37,7 +37,6 @@ import java.nio.channels.ClosedChannelException;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -131,11 +130,12 @@ public class ClientCnx extends PulsarHandler {
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
-
         if (proxyToTargetBrokerAddress == null) {
-            log.info("Jai - {} Connected to broker", ctx.channel());
+            if (log.isDebugEnabled()) {
+                log.debug("{} Connected to broker", ctx.channel());
+            }
         } else {
-            log.info("Jai - {} Connected through proxy to target broker at {}", ctx.channel(), proxyToTargetBrokerAddress);
+            log.info("{} Connected through proxy to target broker at {}", ctx.channel(), proxyToTargetBrokerAddress);
         }
         // Send CONNECT command
         ctx.writeAndFlush(newConnectCommand())

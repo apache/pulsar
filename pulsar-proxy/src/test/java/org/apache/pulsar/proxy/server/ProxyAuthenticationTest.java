@@ -155,9 +155,6 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 			JsonObject element = parser.parse(commandData).getAsJsonObject();
 			long expiryTimeInMillis = Long.parseLong(element.get("expiryTime").getAsString());
 			long currentTimeInMillis = System.currentTimeMillis();
-			System.out.println("Jai - currentTimeInMillis = " + currentTimeInMillis);
-			System.out.println("Jai - expiryTimeInMillis = " + expiryTimeInMillis);
-			System.out.println("Jai - commandData = " + commandData);
 			if (expiryTimeInMillis < currentTimeInMillis) {
 				throw new AuthenticationException("Authentication data has been expired");
 			}
@@ -247,13 +244,10 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 
 		// Step 3: Pass correct client params
 		PulsarClient proxyClient = createPulsarClient(proxyServiceUrl, clientAuthParams, 1);
-		System.out.println("Jai - creating first producer");
 		proxyClient.newProducer().topic(topicName).create();
 		// Sleep for 4 seconds - wait for proxy auth params to expire
-		System.out.println("Jai - sleeping for 4 seconds");
 		Thread.sleep(4 * 1000);
 		proxyClient.newProducer().topic(topicName).create();
-		System.out.println("Jai - sleeping for 3 seconds");
 		// Sleep for 3 seconds - wait for client auth parans to expire
 		Thread.sleep(3 * 1000);
 		proxyClient.newProducer().topic(topicName).create();

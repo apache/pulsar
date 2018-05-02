@@ -151,14 +151,14 @@ public class ConnectionPool implements Closeable {
     private CompletableFuture<ClientCnx> createConnection(InetSocketAddress logicalAddress,
             InetSocketAddress physicalAddress, int connectionKey) {
         if (log.isDebugEnabled()) {
-            log.debug("Jai - Connection for {} not found in cache", logicalAddress);
+            log.debug("Connection for {} not found in cache", logicalAddress);
         }
 
         final CompletableFuture<ClientCnx> cnxFuture = new CompletableFuture<ClientCnx>();
 
         // Trigger async connect to broker
         createConnection(physicalAddress).thenAccept(channel -> {
-            log.info("Jai - [{}] ConnectionPool Connected to server", channel);
+            log.info("[{}] ConnectionPool Connected to server", channel);
 
             channel.closeFuture().addListener(v -> {
                 // Remove connection from pool when it gets closed
