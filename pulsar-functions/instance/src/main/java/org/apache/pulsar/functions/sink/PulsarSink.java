@@ -235,6 +235,7 @@ public class PulsarSink<T> implements RuntimeSink<T> {
 
     @Override
     public void close() throws Exception {
+        this.pulsarSinkProcessor.close();
 
     }
 
