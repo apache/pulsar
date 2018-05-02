@@ -20,7 +20,6 @@ package org.apache.pulsar.functions.sink;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.connect.core.RecordContext;
 import org.apache.pulsar.connect.core.Sink;
 
 /**

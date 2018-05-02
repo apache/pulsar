@@ -18,5 +18,250 @@
  */
 package org.apache.pulsar.functions.sink;
 
-public class PulsarSink {
+import com.google.common.annotations.VisibleForTesting;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+import net.jodah.typetools.TypeResolver;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerEventListener;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageBuilder;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.connect.core.RecordContext;
+import org.apache.pulsar.functions.api.SerDe;
+import org.apache.pulsar.functions.api.utils.DefaultSerDe;
+import org.apache.pulsar.functions.instance.InstanceUtils;
+import org.apache.pulsar.functions.instance.producers.AbstractOneOuputTopicProducers;
+import org.apache.pulsar.functions.instance.producers.MultiConsumersOneOuputTopicProducers;
+import org.apache.pulsar.functions.instance.producers.Producers;
+import org.apache.pulsar.functions.source.PulsarRecord;
+import org.apache.pulsar.functions.utils.FunctionConfig;
+
+import java.util.Base64;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+
+@Slf4j
+public class PulsarSink<T> implements RuntimeSink<T> {
+
+    private PulsarClient client;
+    private PulsarSinkConfig pulsarSinkConfig;
+    private SerDe<T> outputSerDe;
+
+    private PulsarSinkProcessor pulsarSinkProcessor;
+
+    private interface PulsarSinkProcessor {
+        void initializeOutputProducer(String outputTopic) throws Exception;
+
+        void sendOutputMessage(MessageBuilder outputMsgBuilder,
+                               PulsarRecord pulsarRecord) throws Exception;
+
+        void close() throws Exception;
+    }
+
+    private class PulsarSinkAtMostOnceProcessor implements PulsarSinkProcessor {
+        private Producer<byte[]> producer;
+
+        @Override
+        public void initializeOutputProducer(String outputTopic) throws Exception {
+            this.producer = AbstractOneOuputTopicProducers.createProducer(
+                    client, pulsarSinkConfig.getTopic());
+        }
+
+        @Override
+        public void sendOutputMessage(MessageBuilder outputMsgBuilder,
+                                      PulsarRecord pulsarRecord) throws Exception {
+            Message<byte[]> outputMsg = outputMsgBuilder.build();
+            this.producer.sendAsync(outputMsg);
+        }
+
+        @Override
+        public void close() throws Exception {
+            if (null != producer) {
+                try {
+                    producer.close();
+                } catch (PulsarClientException e) {
+                    log.warn("Fail to close producer for processor {}", pulsarSinkConfig.getTopic(), e);
+                }
+            }
+        }
+    }
+
+    private class PulsarSinkAtLeastOnceProcessor implements PulsarSinkProcessor {
+        private Producer<byte[]> producer;
+
+        @Override
+        public void initializeOutputProducer(String outputTopic) throws Exception {
+            this.producer = AbstractOneOuputTopicProducers.createProducer(
+                    client, pulsarSinkConfig.getTopic());
+        }
+
+        @Override
+        public void sendOutputMessage(MessageBuilder outputMsgBuilder,
+                                      PulsarRecord pulsarRecord) throws Exception {
+            Message<byte[]> outputMsg = outputMsgBuilder.build();
+            this.producer.sendAsync(outputMsg).thenAccept(messageId -> pulsarRecord.ack());
+        }
+
+        @Override
+        public void close() throws Exception {
+            if (null != producer) {
+                try {
+                    producer.close();
+                } catch (PulsarClientException e) {
+                    log.warn("Fail to close producer for processor {}", pulsarSinkConfig.getTopic(), e);
+                }
+            }
+        }
+    }
+
+    private class PulsarSinkEffectivelyOnceProcessor implements PulsarSinkProcessor, ConsumerEventListener {
+
+        @Getter(AccessLevel.PACKAGE)
+        protected Producers outputProducer;
+
+        @Override
+        public void initializeOutputProducer(String outputTopic) throws Exception {
+            outputProducer = new MultiConsumersOneOuputTopicProducers(client, outputTopic);
+            outputProducer.initialize();
+        }
+
+        @Override
+        public void sendOutputMessage(MessageBuilder outputMsgBuilder, PulsarRecord pulsarRecord)
+                throws Exception {
+
+            // assign sequence id to output message for idempotent producing
+            outputMsgBuilder = outputMsgBuilder
+                    .setSequenceId(pulsarRecord.getRecordSequence());
+
+            // currently on PulsarRecord
+            Producer producer = outputProducer.getProducer(pulsarRecord.getTopicName(),
+                    pulsarRecord.getPartitionId());
+
+            org.apache.pulsar.client.api.Message outputMsg = outputMsgBuilder.build();
+            producer.sendAsync(outputMsg)
+                    .thenAccept(messageId -> pulsarRecord.ack())
+                    .join();
+        }
+
+        @Override
+        public void close() throws Exception {
+            // kill the result producer
+            if (null != outputProducer) {
+                outputProducer.close();
+                outputProducer = null;
+            }
+        }
+
+        @Override
+        public void becameActive(Consumer<?> consumer, int partitionId) {
+            // if the instance becomes active for a given topic partition,
+            // open a producer for the results computed from this topic partition.
+            if (null != outputProducer) {
+                try {
+                    this.outputProducer.getProducer(consumer.getTopic(), Integer.toString(partitionId));
+                } catch (PulsarClientException e) {
+                    // this can be ignored, because producer can be lazily created when accessing it.
+                    log.warn("Fail to create a producer for results computed from messages of topic: {}, partition: {}",
+                            consumer.getTopic(), partitionId);
+                }
+            }
+        }
+
+        @Override
+        public void becameInactive(Consumer<?> consumer, int partitionId) {
+            if (null != outputProducer) {
+                // if I lost the ownership of a partition, close its corresponding topic partition.
+                // this is to allow the new active consumer be able to produce to the result topic.
+                this.outputProducer.closeProducer(consumer.getTopic(), Integer.toString(partitionId));
+            }
+        }
+    }
+
+    public PulsarSink(PulsarClient client, PulsarSinkConfig pulsarSinkConfig) {
+        this.client = client;
+        this.pulsarSinkConfig = pulsarSinkConfig;
+    }
+
+    @Override
+    public void open(Map<String, Object> config) throws Exception {
+
+        // Setup Serialization/Deserialization
+        setupSerDe();
+
+        FunctionConfig.ProcessingGuarantees processingGuarantees = this.pulsarSinkConfig.getProcessingGuarantees();
+        switch (processingGuarantees) {
+            case ATMOST_ONCE:
+                this.pulsarSinkProcessor = new PulsarSinkAtMostOnceProcessor();
+                break;
+            case ATLEAST_ONCE:
+                this.pulsarSinkProcessor = new PulsarSinkAtLeastOnceProcessor();
+                break;
+            case EFFECTIVELY_ONCE:
+                this.pulsarSinkProcessor = new PulsarSinkEffectivelyOnceProcessor();
+                break;
+        }
+        this.pulsarSinkProcessor.initializeOutputProducer(this.pulsarSinkConfig.getTopic());
+    }
+
+    @Override
+    public CompletableFuture<Void> write(T value) {
+        return null;
+    }
+
+    @Override
+    public void write(RecordContext recordContext, T value) throws Exception {
+
+        PulsarRecord pulsarRecord = (PulsarRecord) recordContext;
+
+        byte[] output;
+        try {
+            output = this.outputSerDe.serialize(value);
+        } catch (Exception e) {
+            //TODO Add serialization exception stats
+            throw new RuntimeException("Error occured when attempting to serialize output:", e);
+        }
+        MessageBuilder msgBuilder = MessageBuilder.create();
+        msgBuilder
+                .setContent(output)
+                .setProperty("__pfn_input_topic__", pulsarRecord.getTopicName())
+                .setProperty("__pfn_input_msg_id__", new String(
+                        Base64.getEncoder().encode(pulsarRecord.getMessageId().toByteArray())));
+        this.pulsarSinkProcessor.sendOutputMessage(msgBuilder, pulsarRecord);
+    }
+
+    @Override
+    public void close() throws Exception {
+        this.pulsarSinkProcessor.close();
+
+    }
+
+    @VisibleForTesting
+    void setupSerDe() throws ClassNotFoundException {
+        Class<?> typeArg = Thread.currentThread().getContextClassLoader().loadClass(
+                this.pulsarSinkConfig.getTypeClassName());
+
+        if (!Void.class.equals(typeArg)) { // return type is not `Void.class`
+            if (this.pulsarSinkConfig.getSerDeClassName() == null
+                    || this.pulsarSinkConfig.getSerDeClassName().isEmpty()
+                    || this.pulsarSinkConfig.getSerDeClassName().equals(DefaultSerDe.class.getName())) {
+                this.outputSerDe = InstanceUtils.initializeDefaultSerDe(typeArg);
+            } else {
+                this.outputSerDe = InstanceUtils.initializeSerDe(this.pulsarSinkConfig.getSerDeClassName(),
+                        Thread.currentThread().getContextClassLoader(), typeArg);
+            }
+            Class<?>[] outputSerdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, outputSerDe.getClass());
+            if (outputSerDe.getClass().getName().equals(DefaultSerDe.class.getName())) {
+                if (!DefaultSerDe.IsSupportedType(typeArg)) {
+                    throw new RuntimeException("Default Serde does not support type " + typeArg);
+                }
+            } else if (!outputSerdeTypeArgs[0].isAssignableFrom(typeArg)) {
+                throw new RuntimeException("Inconsistent types found between function output type and output serde type: "
+                        + " function type = " + typeArg + "should be assignable from " + outputSerdeTypeArgs[0]);
+            }
+        }
+    }
 }
