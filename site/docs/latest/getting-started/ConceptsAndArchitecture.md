@@ -536,17 +536,24 @@ Reader reader = pulsarClient.createReader(topic, id, new ReaderConfiguration());
 
 ## Schema registry
 
-Type safety is extremely important in any application built around a message bus like Pulsar. Producers and consumers need some kind of mechanism for coordinating types at the topic level lest a wide variety of potential problems arise. Applications typically adopt one of two basic approaches to type safety in messaging:
+Type safety is extremely important in any application built around a message bus like Pulsar. {% popover Producers %} and {% popover consumers %} need some kind of mechanism for coordinating types at the {% popover topic %} level lest a wide variety of potential problems arise (for example serialization and deserialization issues). Applications typically adopt one of two basic approaches to type safety in messaging:
 
 1. A "client-side" approach in which message producers and consumers are responsible for not only serializing and deserializing messages (which consist of raw bytes) but also "knowing" which types are being transmitted via which topics. If a producer is sending temperature sensor data on the topic `topic-1`, consumers of that topic will run into trouble if they attempt to parse that data as, say, moisture sensor readings.
-1. A "server-side" approach in which producers and consumers inform the system which type of data is being transmitted on a topic. With this approach, the messaging system enforces type safety and ensures that producers and consumers remain synced.
+1. A "server-side" approach in which producers and consumers inform the system which data types can be transmitted via the topic. With this approach, the messaging system enforces type safety and ensures that producers and consumers remain synced.
 
-In Pulsar, both approaches are available.
+Both approaches are available in Pulsar, and you're free to adopt one or the other or to mix and match on a per-topic basis.
 
 1. For the "client-side" approach, producers and consumers can send and receive messages consisting of raw byte arrays and leave all type safety enforcement to the application on an "out-of-band" basis.
 1. For the "server-side" approach, Pulsar has a built-in **schema registry** that enables clients to upload data schemas on a per-topic basis. Those schemas dictate which data types are recognized as valid for that topic.
 
 {% include admonition.html type="info" content="The Pulsar schema registry is currently available only for the [Java client](../../clients/Java)." %}
+
+### Basic architecture
+
+In Pulsar, schemas are uploaded to, fetched from, and update via Pulsar's [REST API](../../reference/RestApi).
+
+{% include admonition.html type="success" title="Other schema registry backends"
+  content="Out of the box, Pulsar uses the [Apache BookKeeper](#persistent-storage) log storage system for schema storage. You can, however, use different backends if you wish. Documentation for custom schema storage logic is coming soon." %}
 
 ### How schemas work
 

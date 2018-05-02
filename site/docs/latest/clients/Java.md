@@ -306,22 +306,6 @@ consumerBuilder
         });
 ```
 
-## Message schemas {#schemas}
-
-In Pulsar, all message data consists of byte arrays. Message **schemas** enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a [producer](#producers) without specifying a schema, then the producer can only produce messages of type `byte[]`. Here's an example:
-
-```java
-Producer producer = client.newProducer()
-        .topic(topic)
-        .create();
-```
-
-The producer above is equivalent to a `Producer<byte[]>` (in fact, you should always explicitly specify the type). If you'd like
-
-
-
-The same schema-based logic applies to [consumers](#consumers) and [readers](#readers).
-
 ## Reader interface {#readers}
 
 With the [reader interface](../../getting-started/ConceptsAndArchitecture#reader-interface), Pulsar clients can "manually position" themselves within a topic, reading all messages from a specified message onward. The Pulsar API for Java enables you to create  {% javadoc Reader client org.apache.pulsar.client.api.Reader %} objects by specifying a {% popover topic %}, a {% javadoc MessageId client org.apache.pulsar.client.api.MessageId %}, and {% javadoc ReaderConfiguration client org.apache.pulsar.client.api.ReaderConfiguration %}.
@@ -349,9 +333,67 @@ The code sample above shows pointing the `Reader` object to a specific message (
 
 ## Schemas
 
-The Pulsar Java client can be used with Pulsar's [schema registry](../../getting-started/ConceptsAndArchitecture#schema-registry)
+In Pulsar, all message data consists of byte arrays "under the hood." [Message schemas](../../getting-started/ConceptsAndArchitecture#schema-registry) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a [producer](#producers) without specifying a schema, then the producer can only produce messages of type `byte[]`. Here's an example:
 
-The following schema types are currently available for Java:
+```java
+Producer producer = client.newProducer()
+        .topic(topic)
+        .create();
+```
+
+The producer above is equivalent to a `Producer<byte[]>` (in fact, you should *always* explicitly specify the type). If you'd like to use a producer for a different type of data, you'll need to specify a **schema** that informs Pulsar which data type will be transmitted over the {% popover topic %}.
+
+### Schema example
+
+Let's say that you have a `SensorReading` class that you'd like to transmit over a Pulsar topic:
+
+```java
+public class SensorReading {
+    public float temperature;
+
+    public SensorReading(float temperature) {
+        this.temperature = temperature;
+    }
+
+    // A no-arg constructor is required
+    public SensorReading() {
+    }
+
+    public float getTemperature() {
+        return temperature;
+    }
+
+    public void setTemperature(float temperature) {
+        this.temperature = temperature;
+    }
+}
+```
+
+You could then create a `Producer<SensorReading>` (or `Consumer<SensorReading>`) like so:
+
+```java
+Producer<SensorReading> producer = client.newProducer(JSONSchema.of(SensorReading.class))
+        .topic("sensor-readings")
+        .create();
+```
+
+The following schema formats are currently available for Java:
+
+* No schema or the byte array schema (which can be applied using `Schema.BYTES`):
+
+  ```java
+  Producer<byte[]> bytesProducer = client.newProducer(Schema.BYTES)
+        .topic("some-raw-bytes-topic")
+        .create();
+  ```
+
+  Or, equivalently:
+
+  ```java
+  Producer<byte[]> bytesProducer = client.newProducer()
+        .topic("some-raw-bytes-topic")
+        .create();
+  ```
 
 * `String` for normal UTF-8-encoded string data. This schema can be applied using `Schema.STRING`:
 
@@ -368,10 +410,6 @@ The following schema types are currently available for Java:
         .topic("some-pojo-topic")
         .create();
   ```
-
-### JSON schemas
-
-You can use JSON schemas with any [POJO](https://en.wikipedia.org/wiki/Plain_old_Java_object)
 
 ## Authentication
 
