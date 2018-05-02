@@ -29,7 +29,7 @@ tags: [admin, deployment, instance, bare metal]
 
 A Pulsar *instance* consists of multiple Pulsar {% popover clusters %} working in unison. Clusters can be distributed across data centers or geographical regions and can replicate amongst themselves using [geo-replication](../../admin/GeoReplication). Deploying a multi-cluster Pulsar instance involves the following basic steps:
 
-* Deploying two separate [ZooKeeper](#deploying-zookeeper) quorums: a [local](#deploying-local-zookeeper) quorum for each cluster in the instance and a [global](#deploying-global-zookeeper) quorum for instance-wide tasks
+* Deploying two separate [ZooKeeper](#deploying-zookeeper) quorums: a [local](#deploying-local-zookeeper) quorum for each cluster in the instance and a [configuration store](#configuration-store) quorum for instance-wide tasks
 * Initializing [cluster metadata](#cluster-metadata-initialization) for each cluster
 * Deploying a [BookKeeper cluster](#deploying-bookkeeper) of {% popover bookies %} in each Pulsar cluster
 * Deploying [brokers](#deploying-brokers) in each Pulsar cluster
@@ -48,7 +48,7 @@ This guide shows you how to deploy Pulsar in production in a non-Kubernetes. If 
 
 ## Cluster metadata initialization
 
-Once you've set up local and global ZooKeeper for your instance, there is some metadata that needs to be written to ZooKeeper for each cluster in your instance. It only needs to be written once.
+Once you've set up the cluster-specific ZooKeeper and {% popover configuration store %} quorums for your instance, there is some metadata that needs to be written to ZooKeeper for each cluster in your instance. **It only needs to be written once**.
 
 You can initialize this metadata using the [`initialize-cluster-metadata`](../../reference/CliTools#pulsar-initialize-cluster-metadata) command of the [`pulsar`](../../reference/CliTools#pulsar) CLI tool. Here's an example:
 
@@ -56,7 +56,7 @@ You can initialize this metadata using the [`initialize-cluster-metadata`](../..
 $ bin/pulsar initialize-cluster-metadata \
   --cluster us-west \
   --zookeeper zk1.us-west.example.com:2181 \
-  --global-zookeeper zk1.us-west.example.com:2184 \
+  --configuration-store zk1.us-west.example.com:2184 \
   --web-service-url http://pulsar.us-west.example.com:8080/ \
   --web-service-url-tls https://pulsar.us-west.example.com:8443/ \
   --broker-service-url pulsar://pulsar.us-west.example.com:6650/ \
@@ -67,13 +67,9 @@ As you can see from the example above, the following needs to be specified:
 
 * The name of the cluster
 * The local ZooKeeper connection string for the cluster
-* The global ZooKeeper connection string for the entire instance
+* The {% popover configuration store %} connection string for the entire instance
 * The web service URL for the cluster
 * A broker service URL enabling interaction with the {% popover brokers %} in the cluster
-
-{% include admonition.html type="info" title="Global cluster" content='
-In each Pulsar instance, there is a `global` cluster that you can administer just like other clusters. The `global` cluster enables you to do things like create global topics.
-' %}
 
 If you're using [TLS](../../admin/Authz#tls-client-auth), you'll also need to specify a TLS web service URL for the cluster as well as a TLS broker service URL for the brokers in the cluster.
 
@@ -91,7 +87,7 @@ Once you've set up ZooKeeper, initialized cluster metadata, and spun up BookKeep
 
 Brokers can be configured using the [`conf/broker.conf`](../../reference/Configuration#broker) configuration file.
 
-The most important element of broker configuration is ensuring that each broker is aware of its local ZooKeeper quorum as well as the global ZooKeeper quorum. Make sure that you set the [`zookeeperServers`](../../reference/Configuration#broker-zookeeperServers) parameter to reflect the local quorum and the [`globalZookeeperServers`](../../reference/Configuration#broker-globalZookeeperServers) parameter to reflect the global quorum (although you'll need to specify only those global ZooKeeper servers located in the same cluster).
+The most important element of broker configuration is ensuring that each broker is aware of its local ZooKeeper quorum as well as the global ZooKeeper quorum. Make sure that you set the [`zookeeperServers`](../../reference/Configuration#broker-zookeeperServers) parameter to reflect the local quorum and the [`configurationStoreServers`](../../reference/Configuration#broker-configurationStoreServers) parameter to reflect the configuration store quorum (although you'll need to specify only those ZooKeeper servers located in the same cluster).
 
 You also need to specify the name of the {% popover cluster %} to which the broker belongs using the [`clusterName`](../../reference/Configuration#broker-clusterName) parameter.
 
@@ -101,8 +97,8 @@ Here's an example configuration:
 # Local ZooKeeper servers
 zookeeperServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
 
-# Global Zookeeper quorum connection string.
-globalZookeeperServers=zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184
+# Configuration store quorum connection string.
+configurationStoreServers=zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184
 
 clusterName=us-west
 ```
@@ -141,26 +137,24 @@ serviceUrl=http://pulsar.us-west.example.com:8080/
 
 ## Provisioning new tenants
 
-Pulsar was built as a fundamentally {% popover multi-tenant %} system. New tenants can be provisioned as Pulsar {% popover properties %}. Properties can be
+Pulsar was built as a fundamentally {% popover multi-tenant %} system.
 
-To allow a new tenant to use the system, we need to create a new {% popover property %}. You can create a new property using the [`pulsar-admin`](../../reference/CliTools#pulsar-admin-properties-create) CLI tool:
+To allow a new {% popover tenant %} to use the system, we need to create a new one. You can create a new tenant using the [`pulsar-admin`](../../reference/CliTools#pulsar-admin-tenants-create) CLI tool:
 
 ```shell
-$ bin/pulsar-admin properties create test-prop \
+$ bin/pulsar-admin tenants create test-tentant \
   --allowed-clusters us-west \
   --admin-roles test-admin-role
 ```
 
-This will allow users who identify with role `test-admin-role` to administer the configuration for the property `test` which will only be allowed to use the cluster `us-west`. From now on, this tenant will be able to self-manage its resources.
+This will allow users who identify with role `test-admin-role` to administer the configuration for the tenant `test` which will only be allowed to use the cluster `us-west`. From now on, this tenant will be able to self-manage its resources.
 
-Once a tenant has been created, you will need to create {% popover namespaces %} for topics within that property.
+Once a tenant has been created, you will need to create {% popover namespaces %} for topics within that tenant.
 
-The first step is to create a namespace. A namespace is an administrative unit
-that can contain many topic. Common practice is to create a namespace for each
-different use case from a single tenant.
+The first step is to create a namespace. A namespace is an administrative unit that can contain many topics. A common practice is to create a namespace for each different use case from a single tenant.
 
 ```shell
-$ bin/pulsar-admin namespaces create test-prop/us-west/ns1
+$ bin/pulsar-admin namespaces create test-tenant/ns1
 ```
 
 ##### Testing producer and consumer
@@ -173,24 +167,24 @@ created the first time a producer or a consumer tries to use them.
 
 The topic name in this case could be:
 
-{% include topic.html p="test-prop" c="us-west" n="ns1" t="my-topic" %}
+{% include topic.html ten="test-tenant" n="ns1" t="my-topic" %}
 
 Start a consumer that will create a subscription on the topic and will wait
 for messages:
 
 ```shell
-$ bin/pulsar-perf consume persistent://test-prop/us-west/ns1/my-topic
+$ bin/pulsar-perf consume persistent://test-tenant/us-west/ns1/my-topic
 ```
 
 Start a producer that publishes messages at a fixed rate and report stats every
 10 seconds:
 
 ```shell
-$ bin/pulsar-perf produce persistent://test-prop/us-west/ns1/my-topic
+$ bin/pulsar-perf produce persistent://test-tenant/us-west/ns1/my-topic
 ```
 
 To report the topic stats:
 
 ```shell
-$ bin/pulsar-admin persistent stats persistent://test-prop/us-west/ns1/my-topic
+$ bin/pulsar-admin persistent stats persistent://test-tenant/us-west/ns1/my-topic
 ```

@@ -410,10 +410,20 @@ public class NonPersistentTopic implements Topic {
 
     @Override
     public CompletableFuture<Void> delete() {
-        return delete(false);
+        return delete(false, false);
     }
 
-    private CompletableFuture<Void> delete(boolean failIfHasSubscriptions) {
+    /**
+     * Forcefully close all producers/consumers/replicators and deletes the topic.
+     * 
+     * @return
+     */
+    @Override
+    public CompletableFuture<Void> deleteForcefully() {
+        return delete(false, true);
+    }
+    
+    private CompletableFuture<Void> delete(boolean failIfHasSubscriptions, boolean closeIfClientsConnected) {
         CompletableFuture<Void> deleteFuture = new CompletableFuture<>();
 
         lock.writeLock().lock();
@@ -423,36 +433,62 @@ public class NonPersistentTopic implements Topic {
                 deleteFuture.completeExceptionally(new TopicFencedException("Topic is already fenced"));
                 return deleteFuture;
             }
-            if (USAGE_COUNT_UPDATER.get(this) == 0) {
-                isFenced = true;
 
+            CompletableFuture<Void> closeClientFuture = new CompletableFuture<>();
+            if (closeIfClientsConnected) {
                 List<CompletableFuture<Void>> futures = Lists.newArrayList();
-
-                if (failIfHasSubscriptions) {
-                    if (!subscriptions.isEmpty()) {
-                        isFenced = false;
-                        deleteFuture.completeExceptionally(new TopicBusyException("Topic has subscriptions"));
-                        return deleteFuture;
-                    }
-                } else {
-                    subscriptions.forEach((s, sub) -> futures.add(sub.delete()));
-                }
-
-                FutureUtil.waitForAll(futures).whenComplete((v, ex) -> {
-                    if (ex != null) {
-                        log.error("[{}] Error deleting topic", topic, ex);
-                        isFenced = false;
-                        deleteFuture.completeExceptionally(ex);
-                    } else {
-                        brokerService.removeTopicFromCache(topic);
-                        log.info("[{}] Topic deleted", topic);
-                        deleteFuture.complete(null);
-                    }
+                replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
+                producers.forEach(producer -> futures.add(producer.disconnect()));
+                subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
+                FutureUtil.waitForAll(futures).thenRun(() -> {
+                    closeClientFuture.complete(null);
+                }).exceptionally(ex -> {
+                    log.error("[{}] Error closing clients", topic, ex);
+                    isFenced = false;
+                    closeClientFuture.completeExceptionally(ex);
+                    return null;
                 });
             } else {
-                deleteFuture.completeExceptionally(new TopicBusyException(
-                        "Topic has " + USAGE_COUNT_UPDATER.get(this) + " connected producers/consumers"));
+                closeClientFuture.complete(null);
             }
+
+            closeClientFuture.thenAccept(delete -> {
+
+                if (USAGE_COUNT_UPDATER.get(this) == 0) {
+                    isFenced = true;
+
+                    List<CompletableFuture<Void>> futures = Lists.newArrayList();
+
+                    if (failIfHasSubscriptions) {
+                        if (!subscriptions.isEmpty()) {
+                            isFenced = false;
+                            deleteFuture.completeExceptionally(new TopicBusyException("Topic has subscriptions"));
+                            return;
+                        }
+                    } else {
+                        subscriptions.forEach((s, sub) -> futures.add(sub.delete()));
+                    }
+
+                    FutureUtil.waitForAll(futures).whenComplete((v, ex) -> {
+                        if (ex != null) {
+                            log.error("[{}] Error deleting topic", topic, ex);
+                            isFenced = false;
+                            deleteFuture.completeExceptionally(ex);
+                        } else {
+                            brokerService.removeTopicFromCache(topic);
+                            log.info("[{}] Topic deleted", topic);
+                            deleteFuture.complete(null);
+                        }
+                    });
+                } else {
+                    deleteFuture.completeExceptionally(new TopicBusyException(
+                            "Topic has " + USAGE_COUNT_UPDATER.get(this) + " connected producers/consumers"));
+                }
+            }).exceptionally(ex -> {
+                deleteFuture.completeExceptionally(
+                        new TopicBusyException("Failed to close clients before deleting topic."));
+                return null;
+            });
         } finally {
             lock.writeLock().unlock();
         }
@@ -890,7 +926,7 @@ public class NonPersistentTopic implements Topic {
                                 gcIntervalInSeconds);
                     }
 
-                    stopReplProducers().thenCompose(v -> delete(true))
+                    stopReplProducers().thenCompose(v -> delete(true, false))
                             .thenRun(() -> log.info("[{}] Topic deleted successfully due to inactivity", topic))
                             .exceptionally(e -> {
                                 if (e.getCause() instanceof TopicBusyException) {
@@ -910,6 +946,11 @@ public class NonPersistentTopic implements Topic {
                 }
             }
         }
+    }
+
+    @Override
+    public void checkInactiveSubscriptions() {
+        // no-op
     }
 
     @Override

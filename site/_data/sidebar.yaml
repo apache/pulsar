@@ -21,6 +21,8 @@ groups:
 - title: Getting started
   dir: getting-started
   docs:
+  - title: Pulsar 2.0
+    endpoint: pulsar-2.0
   - title: Run Pulsar locally
     endpoint: LocalCluster
   - title: Pulsar in Docker
@@ -104,8 +106,8 @@ groups:
     endpoint: overview
   - title: Clusters
     endpoint: clusters
-  - title: Properties
-    endpoint: properties
+  - title: Tenants
+    endpoint: tenants
   - title: Brokers
     endpoint: brokers
   - title: Namespaces

@@ -137,8 +137,9 @@ public class FunctionApiV2Resource extends FunctionApiResource {
                                     final @PathParam("namespace") String namespace,
                                     final @PathParam("name") String functionName,
                                     final @FormDataParam("data") String input,
-                                    final @FormDataParam("dataStream") InputStream uploadedInputStream) {
-        return functions.triggerFunction(tenant, namespace, functionName, input, uploadedInputStream);
+                                    final @FormDataParam("dataStream") InputStream uploadedInputStream,
+                                    final @FormDataParam("topic") String topic) {
+        return functions.triggerFunction(tenant, namespace, functionName, input, uploadedInputStream, topic);
     }
 
     @POST

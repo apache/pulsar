@@ -54,6 +54,7 @@ import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
+import org.apache.pulsar.functions.source.PulsarSource;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.MembershipManager;
@@ -81,6 +82,17 @@ public class FunctionsImpl {
         }
     }
 
+    private boolean isWorkerServiceAvailable() {
+        WorkerService workerService = workerServiceSupplier.get();
+        if (workerService == null) {
+            return false;
+        }
+        if (!workerService.isInitialized()) {
+            return false;
+        }
+        return true;
+    }
+
     @POST
     @Path("/{tenant}/{namespace}/{functionName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
@@ -90,6 +102,11 @@ public class FunctionsImpl {
                                      final @FormDataParam("data") InputStream uploadedInputStream,
                                      final @FormDataParam("data") FormDataContentDisposition fileDetail,
                                      final @FormDataParam("functionDetails") String functionDetailsJson) {
+
+        if (!isWorkerServiceAvailable()) {
+            return getUnavailableResponse();
+        }
+
         FunctionDetails functionDetails;
         // validate parameters
         try {
@@ -140,6 +157,10 @@ public class FunctionsImpl {
                                    final @FormDataParam("data") FormDataContentDisposition fileDetail,
                                    final @FormDataParam("functionDetails") String functionDetailsJson) {
 
+        if (!isWorkerServiceAvailable()) {
+            return getUnavailableResponse();
+        }
+
         FunctionDetails functionDetails;
         // validate parameters
         try {
@@ -185,6 +206,10 @@ public class FunctionsImpl {
     public Response deregisterFunction(final @PathParam("tenant") String tenant,
                                        final @PathParam("namespace") String namespace,
                                        final @PathParam("functionName") String functionName) {
+
+        if (!isWorkerServiceAvailable()) {
+            return getUnavailableResponse();
+        }
 
         // validate parameters
         try {
@@ -243,6 +268,10 @@ public class FunctionsImpl {
                                     final @PathParam("functionName") String functionName)
             throws IOException {
 
+        if (!isWorkerServiceAvailable()) {
+            return getUnavailableResponse();
+        }
+
         // validate parameters
         try {
             validateGetFunctionRequestParams(tenant, namespace, functionName);
@@ -274,6 +303,10 @@ public class FunctionsImpl {
                                               final @PathParam("namespace") String namespace,
                                               final @PathParam("functionName") String functionName,
                                               final @PathParam("instanceId") String instanceId) throws IOException {
+
+        if (!isWorkerServiceAvailable()) {
+            return getUnavailableResponse();
+        }
 
         // validate parameters
         try {
@@ -318,6 +351,10 @@ public class FunctionsImpl {
                                       final @PathParam("namespace") String namespace,
                                       final @PathParam("functionName") String functionName) throws IOException {
 
+        if (!isWorkerServiceAvailable()) {
+            return getUnavailableResponse();
+        }
+
         // validate parameters
         try {
             validateGetFunctionRequestParams(tenant, namespace, functionName);
@@ -358,6 +395,10 @@ public class FunctionsImpl {
     @Path("/{tenant}/{namespace}")
     public Response listFunctions(final @PathParam("tenant") String tenant,
                                   final @PathParam("namespace") String namespace) {
+
+        if (!isWorkerServiceAvailable()) {
+            return getUnavailableResponse();
+        }
 
         // validate parameters
         try {
@@ -428,6 +469,11 @@ public class FunctionsImpl {
     @GET
     @Path("/cluster")
     public Response getCluster() {
+
+        if (!isWorkerServiceAvailable()) {
+            return getUnavailableResponse();
+        }
+
         MembershipManager membershipManager = worker().getMembershipManager();
         List<MembershipManager.WorkerInfo> members = membershipManager.getCurrentMembership();
         return Response.status(Status.OK).entity(new Gson().toJson(members)).build();
@@ -436,6 +482,11 @@ public class FunctionsImpl {
     @GET
     @Path("/assignments")
     public Response getAssignments() {
+
+        if (!isWorkerServiceAvailable()) {
+            return getUnavailableResponse();
+        }
+
         FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
         Map<String, Map<String, Function.Assignment>> assignments = functionRuntimeManager.getCurrentAssignments();
         Map<String, Collection<String>> ret = new HashMap<>();
@@ -453,11 +504,17 @@ public class FunctionsImpl {
                                     final @PathParam("namespace") String namespace,
                                     final @PathParam("name") String functionName,
                                     final @FormDataParam("data") String input,
-                                    final @FormDataParam("dataStream") InputStream uploadedInputStream) {
+                                    final @FormDataParam("dataStream") InputStream uploadedInputStream,
+                                    final @FormDataParam("topic") String topic) {
+
+        if (!isWorkerServiceAvailable()) {
+            return getUnavailableResponse();
+        }
+
         FunctionDetails functionDetails;
         // validate parameters
         try {
-            validateTriggerRequestParams(tenant, namespace, functionName, input, uploadedInputStream);
+            validateTriggerRequestParams(tenant, namespace, functionName, topic, input, uploadedInputStream);
         } catch (IllegalArgumentException e) {
             log.error("Invalid trigger function request @ /{}/{}/{}",
                     tenant, namespace, functionName, e);
@@ -476,13 +533,21 @@ public class FunctionsImpl {
         }
 
         FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, functionName);
+
         String inputTopicToWrite;
-        if (functionMetaData.getFunctionDetails().getInputsList().size() > 0) {
-            inputTopicToWrite = functionMetaData.getFunctionDetails().getInputsList().get(0);
+        if (topic != null) {
+            inputTopicToWrite = topic;
+        } else if (functionMetaData.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap().size() == 1) {
+            inputTopicToWrite =
+                    functionMetaData.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap().keySet().iterator().next();
         } else {
-            inputTopicToWrite = functionMetaData.getFunctionDetails().getCustomSerdeInputs().entrySet().iterator().next().getKey();
+            return Response.status(Status.BAD_REQUEST).build();
         }
-        String outputTopic = functionMetaData.getFunctionDetails().getOutput();
+        if (functionMetaData.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap() == null
+            || !functionMetaData.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap().containsKey(inputTopicToWrite)) {
+            return Response.status(Status.BAD_REQUEST).build();
+        }
+        String outputTopic = functionMetaData.getFunctionDetails().getSink().getTopic();
         Reader reader = null;
         Producer producer = null;
         try {
@@ -667,8 +732,11 @@ public class FunctionsImpl {
             if (functionDetails.getClassName() == null || functionDetails.getClassName().isEmpty()) {
                 missingFields.add("ClassName");
             }
-            if (functionDetails.getInputsCount() == 0 && functionDetails.getCustomSerdeInputsCount() == 0) {
-                missingFields.add("Input");
+            if (!functionDetails.getSource().isInitialized()) {
+                missingFields.add("Source");
+            }
+            else if (functionDetails.getSource().getTopicsToSerDeClassNameMap().isEmpty()) {
+                missingFields.add("Source Topics Serde Map");
             }
             if (!missingFields.isEmpty()) {
                 String errorMessage = StringUtils.join(missingFields, ",");
@@ -688,6 +756,7 @@ public class FunctionsImpl {
     private void validateTriggerRequestParams(String tenant,
                                               String namespace,
                                               String functionName,
+                                              String topic,
                                               String input,
                                               InputStream uploadedInputStream) {
         if (tenant == null) {
@@ -702,6 +771,14 @@ public class FunctionsImpl {
         if (uploadedInputStream == null && input == null) {
             throw new IllegalArgumentException("Trigger Data is not provided");
         }
+    }
+
+    private Response getUnavailableResponse() {
+        return Response.status(Status.SERVICE_UNAVAILABLE)
+                .type(MediaType.APPLICATION_JSON)
+                .entity(new ErrorData("Function worker service is not done initializing. "
+                        + "Please try again in a little while."))
+                .build();
     }
 
 }

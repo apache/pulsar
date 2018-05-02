@@ -208,7 +208,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     void internalConfiguration() throws Exception {
         InternalConfigurationData expectedData = new InternalConfigurationData(
             pulsar.getConfiguration().getZookeeperServers(),
-            pulsar.getConfiguration().getGlobalZookeeperServers(),
+            pulsar.getConfiguration().getConfigurationStoreServers(),
             new ClientConfiguration().getZkLedgersRootPath());
 
         assertEquals(brokers.getInternalConfigurationData(), expectedData);

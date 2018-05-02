@@ -177,21 +177,18 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName.toString())
                 .subscriptionName("my-partitioned-subscriber").subscribe();
 
-        Message<byte[]> msg = null;
         for (int i = 0; i < 5; i++) {
             String message = "my-message-" + i;
-            msg = MessageBuilder.create().setContent(message.getBytes()).setKey(dummyKey1).build();
-            producer.send(msg);
+            producer.newMessage().key(dummyKey1).value(message.getBytes()).send();
         }
         for (int i = 5; i < 10; i++) {
             String message = "my-message-" + i;
-            msg = MessageBuilder.create().setContent(message.getBytes()).setKey(dummyKey2).build();
-            producer.send(msg);
+            producer.newMessage().key(dummyKey2).value(message.getBytes()).send();
         }
 
         Set<String> messageSet = Sets.newHashSet();
         for (int i = 0; i < 10; i++) {
-            msg = consumer.receive(5, TimeUnit.SECONDS);
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertNotNull(msg, "Message should not be null");
             consumer.acknowledge(msg);
             String receivedMessage = new String(msg.getData());

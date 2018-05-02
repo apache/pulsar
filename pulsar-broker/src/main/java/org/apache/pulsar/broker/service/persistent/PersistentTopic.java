@@ -673,7 +673,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
      * 
      * @return
      */
-    private CompletableFuture<Void> deleteForcefully() {
+    @Override
+    public CompletableFuture<Void> deleteForcefully() {
         return delete(false, true);
     }
     
@@ -1460,6 +1461,19 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                     });
 
         }
+    }
+
+    @Override
+    public void checkInactiveSubscriptions() {
+        final long expirationTime = TimeUnit.MINUTES.toMillis(brokerService.pulsar().getConfiguration().getSubscriptionExpirationTimeMinutes());
+        if (expirationTime <= 0) return;
+        subscriptions.forEach((subName, sub) -> {
+            if (sub.dispatcher != null && sub.dispatcher.isConsumerConnected()) return;
+            if (System.currentTimeMillis() - sub.cursor.getLastActive() > expirationTime) {
+                sub.delete().thenAccept(
+                        v -> log.info("[{}][{}] The subscription was deleted due to expiration", topic, subName));
+            }
+        });
     }
 
     /**

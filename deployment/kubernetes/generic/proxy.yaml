@@ -25,7 +25,7 @@ metadata:
 data:
     PULSAR_MEM: "\" -Xms4g -Xmx4g -XX:MaxDirectMemorySize=4g\""
     zookeeperServers: zk-0.zookeeper,zk-1.zookeeper,zk-2.zookeeper
-    globalZookeeperServers: zk-0.zookeeper,zk-1.zookeeper,zk-2.zookeeper
+    configurationStoreServers: zk-0.zookeeper,zk-1.zookeeper,zk-2.zookeeper
     clusterName: us-central
 ---
 ##

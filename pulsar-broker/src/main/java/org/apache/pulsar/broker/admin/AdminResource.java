@@ -40,6 +40,7 @@ import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
@@ -334,7 +335,11 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected Set<String> clusters() {
         try {
-            return pulsar().getConfigurationCache().clustersListCache().get();
+            Set<String> clusters = pulsar().getConfigurationCache().clustersListCache().get();
+
+            // Remove "global" cluster from returned list
+            clusters.remove(Constants.GLOBAL_CLUSTER);
+            return clusters;
         } catch (Exception e) {
             throw new RestException(e);
         }

@@ -246,10 +246,14 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://property/namespace/topic\n", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-f",
+                "--force" }, description = "Close all producer/consumer/replicator and delete topic forcefully")
+        private boolean force = false;
+
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            topics.deletePartitionedTopic(topic);
+            topics.deletePartitionedTopic(topic, force);
         }
     }
 
@@ -259,10 +263,14 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://property/namespace/topic\n", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-f",
+                "--force" }, description = "Close all producer/consumer/replicator and delete topic forcefully")
+        private boolean force = false;
+
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            topics.delete(topic);
+            topics.delete(topic, force);
         }
     }
 

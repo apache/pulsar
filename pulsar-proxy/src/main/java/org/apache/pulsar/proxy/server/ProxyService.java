@@ -94,7 +94,7 @@ public class ProxyService implements Closeable {
         ServiceConfiguration serviceConfiguration = PulsarConfigurationLoader.convertFrom(proxyConfig);
         authenticationService = new AuthenticationService(serviceConfiguration);
 
-        if (!isBlank(proxyConfig.getZookeeperServers()) && !isBlank(proxyConfig.getGlobalZookeeperServers())) {
+        if (!isBlank(proxyConfig.getZookeeperServers()) && !isBlank(proxyConfig.getConfigurationStoreServers())) {
             discoveryProvider = new BrokerDiscoveryProvider(this.proxyConfig, getZooKeeperClientFactory());
             this.configurationCacheService = new ConfigurationCacheService(discoveryProvider.globalZkCache);
             authorizationService = new AuthorizationService(serviceConfiguration, configurationCacheService);
