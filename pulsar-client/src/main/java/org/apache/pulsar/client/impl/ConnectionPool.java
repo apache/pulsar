@@ -158,7 +158,7 @@ public class ConnectionPool implements Closeable {
 
         // Trigger async connect to broker
         createConnection(physicalAddress).thenAccept(channel -> {
-            log.info("[{}] ConnectionPool Connected to server", channel);
+            log.info("[{}] Connected to server", channel);
 
             channel.closeFuture().addListener(v -> {
                 // Remove connection from pool when it gets closed
