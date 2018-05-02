@@ -309,6 +309,30 @@ The code sample above shows pointing the `Reader` object to a specific message (
 
 ## Schemas
 
+The Pulsar Java client can be used with Pulsar's [schema registry](../../getting-started/ConceptsAndArchitecture#schema-registry)
+
+The following schema types are currently available for Java:
+
+* `String` for normal UTF-8-encoded string data. This schema can be applied using `Schema.STRING`:
+
+  ```java
+  Producer<String> stringProducer = client.newProducer(Schema.STRING)
+        .topic("some-string-topic")
+        .create();
+  ```
+* JSON schemas can be created for POJOs using the `JSONSchema` class. Here's an example:
+
+  ```java
+  Schema<MyPojo> pojoSchema = JSONSchema.of(MyPojo.class);
+  Producer<MyPojo> pojoProducer = client.newProducer(pojoSchema)
+        .topic("some-pojo-topic")
+        .create();
+  ```
+
+### JSON schemas
+
+You can use JSON schemas with any [POJO](https://en.wikipedia.org/wiki/Plain_old_Java_object)
+
 ## Authentication
 
 Pulsar currently supports two authentication schemes: [TLS](../../admin/Authz#tls-client-auth) and [Athenz](../../admin/Authz#athenz). The Pulsar Java client can be used with both.

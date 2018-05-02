@@ -578,13 +578,16 @@ A schema already exists; the producer connects using a new schema that is compat
 
 {% include admonition.html type="info" content="Schemas are versioned in succession. Schema storage happens in the broker that handles the associated topic so that version assignments can be made. Once a version is assigned/fetched to/for a schema, all subsequent messages produced by that producer are tagged with the appropriate version." %}
 
-### Supported schema types
+### Supported schema formats
 
-The following schema formats are supported by the Pulsar schema registry:
+The following formats are supported by the Pulsar schema registry:
 
+* None. If no schema is specified for a topic, producers and consumers will handle raw bytes.
 * `String` (used for UTF-8-encoded strings)
 * [JSON](https://www.json.org/)
 
 For usage instructions, see the documentation for your preferred client library:
 
 * [Java](../../clients/Java#schemas)
+
+{% include admonition.html type="success" content="Support for other schema formats will be added in future releases of Pulsar." %}
