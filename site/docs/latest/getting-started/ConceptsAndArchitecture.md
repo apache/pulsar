@@ -554,10 +554,10 @@ Pulsar schemas are applied and enforced *at the topic level* (schemas cannot be 
 
 Pulsar schemas are fairly simple data structures that consist of:
 
-* A **name** (in Pulsar, a schema's name is the {% popover topic %} to which the schema is applied)
+* A **name**. In Pulsar, a schema's name is the {% popover topic %} to which the schema is applied.
 * A **payload**, which is a binary representation of the schema
 * A schema [**type**](#schema-types)
-* User-defined **properties** as a string/string map. Usage of properties is wholly application specific
+* User-defined **properties** as a string/string map. Usage of properties is wholly application specific. Possible properties might be the Git hash associated with a schema, an environment like `dev` or `prod`, etc.
 
 ### Schema versions
 
