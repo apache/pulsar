@@ -63,7 +63,7 @@ travis_build: javadoc
 travis_publish:
 	scripts/publish-website.sh
 
-build: api_docs
+build: api_docs swagger_docs_update
 	scripts/build-all-versions.sh
 
 serve: clean_local
@@ -96,4 +96,4 @@ protobuf_setup:
 
 api_docs: javadoc python_doc_gen cpp_doc_gen
 
-publish: deep_clean setup swagger_docs_update build
+publish: deep_clean setup build
