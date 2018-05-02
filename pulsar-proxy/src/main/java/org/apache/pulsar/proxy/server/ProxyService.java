@@ -51,129 +51,129 @@ import io.netty.util.concurrent.DefaultThreadFactory;
  */
 public class ProxyService implements Closeable {
 
-	private final ProxyConfiguration proxyConfig;
-	private final String serviceUrl;
-	private final String serviceUrlTls;
-	private ConfigurationCacheService configurationCacheService;
-	private AuthenticationService authenticationService;
-	private AuthorizationService authorizationService;
-	private ZooKeeperClientFactory zkClientFactory = null;
+    private final ProxyConfiguration proxyConfig;
+    private final String serviceUrl;
+    private final String serviceUrlTls;
+    private ConfigurationCacheService configurationCacheService;
+    private AuthenticationService authenticationService;
+    private AuthorizationService authorizationService;
+    private ZooKeeperClientFactory zkClientFactory = null;
 
-	private final EventLoopGroup acceptorGroup;
-	final EventLoopGroup workerGroup;
-	private final DefaultThreadFactory acceptorThreadFactory = new DefaultThreadFactory("pulsar-discovery-acceptor");
-	private final DefaultThreadFactory workersThreadFactory = new DefaultThreadFactory("pulsar-discovery-io");
+    private final EventLoopGroup acceptorGroup;
+    final EventLoopGroup workerGroup;
+    private final DefaultThreadFactory acceptorThreadFactory = new DefaultThreadFactory("pulsar-discovery-acceptor");
+    private final DefaultThreadFactory workersThreadFactory = new DefaultThreadFactory("pulsar-discovery-io");
 
-	private BrokerDiscoveryProvider discoveryProvider;
+    private BrokerDiscoveryProvider discoveryProvider;
 
-	protected final AtomicReference<Semaphore> lookupRequestSemaphore;
+    protected final AtomicReference<Semaphore> lookupRequestSemaphore;
 
-	private static final int numThreads = Runtime.getRuntime().availableProcessors();
+    private static final int numThreads = Runtime.getRuntime().availableProcessors();
 
-	public ProxyService(ProxyConfiguration proxyConfig) throws IOException {
-		checkNotNull(proxyConfig);
-		this.proxyConfig = proxyConfig;
+    public ProxyService(ProxyConfiguration proxyConfig) throws IOException {
+        checkNotNull(proxyConfig);
+        this.proxyConfig = proxyConfig;
 
-		this.lookupRequestSemaphore = new AtomicReference<Semaphore>(
-				new Semaphore(proxyConfig.getMaxConcurrentLookupRequests(), false));
+        this.lookupRequestSemaphore = new AtomicReference<Semaphore>(
+                new Semaphore(proxyConfig.getMaxConcurrentLookupRequests(), false));
 
-		String hostname;
-		try {
-			hostname = InetAddress.getLocalHost().getHostName();
-		} catch (UnknownHostException e) {
-			throw new RuntimeException(e);
-		}
-		this.serviceUrl = String.format("pulsar://%s:%d/", hostname, proxyConfig.getServicePort());
-		this.serviceUrlTls = String.format("pulsar://%s:%d/", hostname, proxyConfig.getServicePortTls());
+        String hostname;
+        try {
+            hostname = InetAddress.getLocalHost().getHostName();
+        } catch (UnknownHostException e) {
+            throw new RuntimeException(e);
+        }
+        this.serviceUrl = String.format("pulsar://%s:%d/", hostname, proxyConfig.getServicePort());
+        this.serviceUrlTls = String.format("pulsar://%s:%d/", hostname, proxyConfig.getServicePortTls());
 
-		this.acceptorGroup = EventLoopUtil.newEventLoopGroup(1, acceptorThreadFactory);
-		this.workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, workersThreadFactory);
-	}
+        this.acceptorGroup = EventLoopUtil.newEventLoopGroup(1, acceptorThreadFactory);
+        this.workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, workersThreadFactory);
+    }
 
-	public void start() throws Exception {
-		ServiceConfiguration serviceConfiguration = PulsarConfigurationLoader.convertFrom(proxyConfig);
-		authenticationService = new AuthenticationService(serviceConfiguration);
+    public void start() throws Exception {
+        ServiceConfiguration serviceConfiguration = PulsarConfigurationLoader.convertFrom(proxyConfig);
+        authenticationService = new AuthenticationService(serviceConfiguration);
 
-		if (!isBlank(proxyConfig.getZookeeperServers()) && !isBlank(proxyConfig.getGlobalZookeeperServers())) {
-			discoveryProvider = new BrokerDiscoveryProvider(this.proxyConfig, getZooKeeperClientFactory());
-			this.configurationCacheService = new ConfigurationCacheService(discoveryProvider.globalZkCache);
-			authorizationService = new AuthorizationService(serviceConfiguration, configurationCacheService);
-		}
+        if (!isBlank(proxyConfig.getZookeeperServers()) && !isBlank(proxyConfig.getGlobalZookeeperServers())) {
+            discoveryProvider = new BrokerDiscoveryProvider(this.proxyConfig, getZooKeeperClientFactory());
+            this.configurationCacheService = new ConfigurationCacheService(discoveryProvider.globalZkCache);
+            authorizationService = new AuthorizationService(serviceConfiguration, configurationCacheService);
+        }
 
-		ServerBootstrap bootstrap = new ServerBootstrap();
-		bootstrap.childOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
-		bootstrap.group(acceptorGroup, workerGroup);
-		bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
-		bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
-				new AdaptiveRecvByteBufAllocator(1024, 16 * 1024, 1 * 1024 * 1024));
+        ServerBootstrap bootstrap = new ServerBootstrap();
+        bootstrap.childOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
+        bootstrap.group(acceptorGroup, workerGroup);
+        bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
+        bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
+                new AdaptiveRecvByteBufAllocator(1024, 16 * 1024, 1 * 1024 * 1024));
 
-		bootstrap.channel(EventLoopUtil.getServerSocketChannelClass(workerGroup));
-		EventLoopUtil.enableTriggeredMode(bootstrap);
+        bootstrap.channel(EventLoopUtil.getServerSocketChannelClass(workerGroup));
+        EventLoopUtil.enableTriggeredMode(bootstrap);
 
-		bootstrap.childHandler(new ServiceChannelInitializer(this, proxyConfig, false));
-		// Bind and start to accept incoming connections.
-		bootstrap.bind(proxyConfig.getServicePort()).sync();
-		LOG.info("Started Pulsar Proxy at {}", serviceUrl);
+        bootstrap.childHandler(new ServiceChannelInitializer(this, proxyConfig, false));
+        // Bind and start to accept incoming connections.
+        bootstrap.bind(proxyConfig.getServicePort()).sync();
+        LOG.info("Started Pulsar Proxy at {}", serviceUrl);
 
-		if (proxyConfig.isTlsEnabledInProxy()) {
-			ServerBootstrap tlsBootstrap = bootstrap.clone();
-			tlsBootstrap.childHandler(new ServiceChannelInitializer(this, proxyConfig, true));
-			tlsBootstrap.bind(proxyConfig.getServicePortTls()).sync();
-			LOG.info("Started Pulsar TLS Proxy on port {}", proxyConfig.getServicePortTls());
-		}
-	}
+        if (proxyConfig.isTlsEnabledInProxy()) {
+            ServerBootstrap tlsBootstrap = bootstrap.clone();
+            tlsBootstrap.childHandler(new ServiceChannelInitializer(this, proxyConfig, true));
+            tlsBootstrap.bind(proxyConfig.getServicePortTls()).sync();
+            LOG.info("Started Pulsar TLS Proxy on port {}", proxyConfig.getServicePortTls());
+        }
+    }
 
-	public ZooKeeperClientFactory getZooKeeperClientFactory() {
-		if (zkClientFactory == null) {
-			zkClientFactory = new ZookeeperClientFactoryImpl();
-		}
-		// Return default factory
-		return zkClientFactory;
-	}
+    public ZooKeeperClientFactory getZooKeeperClientFactory() {
+        if (zkClientFactory == null) {
+            zkClientFactory = new ZookeeperClientFactoryImpl();
+        }
+        // Return default factory
+        return zkClientFactory;
+    }
 
-	public BrokerDiscoveryProvider getDiscoveryProvider() {
-		return discoveryProvider;
-	}
+    public BrokerDiscoveryProvider getDiscoveryProvider() {
+        return discoveryProvider;
+    }
 
-	public void close() throws IOException {
-		if (discoveryProvider != null) {
-			discoveryProvider.close();
-		}
-		acceptorGroup.shutdownGracefully();
-		workerGroup.shutdownGracefully();
-	}
+    public void close() throws IOException {
+        if (discoveryProvider != null) {
+            discoveryProvider.close();
+        }
+        acceptorGroup.shutdownGracefully();
+        workerGroup.shutdownGracefully();
+    }
 
-	public String getServiceUrl() {
-		return serviceUrl;
-	}
+    public String getServiceUrl() {
+        return serviceUrl;
+    }
 
-	public String getServiceUrlTls() {
-		return serviceUrlTls;
-	}
+    public String getServiceUrlTls() {
+        return serviceUrlTls;
+    }
 
-	public ProxyConfiguration getConfiguration() {
-		return proxyConfig;
-	}
+    public ProxyConfiguration getConfiguration() {
+        return proxyConfig;
+    }
 
-	public AuthenticationService getAuthenticationService() {
-		return authenticationService;
-	}
+    public AuthenticationService getAuthenticationService() {
+        return authenticationService;
+    }
 
-	public AuthorizationService getAuthorizationService() {
-		return authorizationService;
-	}
+    public AuthorizationService getAuthorizationService() {
+        return authorizationService;
+    }
 
-	public ConfigurationCacheService getConfigurationCacheService() {
-		return configurationCacheService;
-	}
+    public ConfigurationCacheService getConfigurationCacheService() {
+        return configurationCacheService;
+    }
 
-	public void setConfigurationCacheService(ConfigurationCacheService configurationCacheService) {
-		this.configurationCacheService = configurationCacheService;
-	}
+    public void setConfigurationCacheService(ConfigurationCacheService configurationCacheService) {
+        this.configurationCacheService = configurationCacheService;
+    }
 
-	public Semaphore getLookupRequestSemaphore() {
-		return lookupRequestSemaphore.get();
-	}
+    public Semaphore getLookupRequestSemaphore() {
+        return lookupRequestSemaphore.get();
+    }
 
-	private static final Logger LOG = LoggerFactory.getLogger(ProxyService.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ProxyService.class);
 }
