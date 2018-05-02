@@ -82,7 +82,7 @@ groups:
     endpoint: Dashboard
   - title: Pulsar statistics
     endpoint: Stats
-  - Load distribution
+  - title: Load distribution
     endpoint: LoadDistribution
   - title: Pulsar proxy
     endpoint: Proxy
