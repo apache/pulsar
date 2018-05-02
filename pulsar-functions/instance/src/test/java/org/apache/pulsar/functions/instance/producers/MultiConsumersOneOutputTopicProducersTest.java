@@ -213,7 +213,7 @@ public class MultiConsumersOneOutputTopicProducersTest {
     @Test
     public void testGetCloseProducer() throws Exception {
         String srcTopic = "test-src-topic";
-        int ptnIdx = 1234;
+        String ptnIdx = "1234";
         Producer<byte[]> producer = producers.getProducer(srcTopic, ptnIdx);
 
         String producerName = makeProducerName(srcTopic, ptnIdx);

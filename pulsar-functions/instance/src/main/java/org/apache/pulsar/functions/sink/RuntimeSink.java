@@ -29,7 +29,7 @@ import org.apache.pulsar.connect.core.Sink;
  * <p>There is a default implementation provided for wrapping up the user provided {@link Sink}. Pulsar sink
  * should be implemented using this interface to ensure supporting effective-once.
  */
-public interface RuntimeSink<T> extends Sink<T> {
+public interface RuntimeSink<T> extends Sink<T>{
 
     /**
      * Write the <tt>value</tt>value.
@@ -40,7 +40,7 @@ public interface RuntimeSink<T> extends Sink<T> {
      * @param inputRecordContext input record context
      * @param value output value computed from the runtime.
      */
-    default void write(RecordContext inputRecordContext, T value) {
+    default void write(RecordContext inputRecordContext, T value) throws Exception {
         write(value)
             .thenAccept(ignored -> inputRecordContext.ack())
             .exceptionally(cause -> {
@@ -48,5 +48,4 @@ public interface RuntimeSink<T> extends Sink<T> {
                 return null;
             });
     }
-
 }
