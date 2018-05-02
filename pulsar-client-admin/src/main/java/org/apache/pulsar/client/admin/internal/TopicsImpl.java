@@ -52,6 +52,8 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
+import org.apache.pulsar.client.admin.LongRunningProcessStatus;
+import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.admin.PersistentTopics;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
@@ -66,7 +68,6 @@ import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadata;
-import org.apache.pulsar.common.compaction.CompactionStatus;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -75,6 +76,8 @@ import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.PersistentTopicStats;
+import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -270,8 +273,13 @@ public class TopicsImpl extends BaseResource implements Topics, PersistentTopics
 
     @Override
     public void deletePartitionedTopic(String topic) throws PulsarAdminException {
+        deletePartitionedTopic(topic, false);
+    }
+
+    @Override
+    public void deletePartitionedTopic(String topic, boolean force) throws PulsarAdminException {
         try {
-            deletePartitionedTopicAsync(topic).get();
+            deletePartitionedTopicAsync(topic, force).get();
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -281,16 +289,22 @@ public class TopicsImpl extends BaseResource implements Topics, PersistentTopics
     }
 
     @Override
-    public CompletableFuture<Void> deletePartitionedTopicAsync(String topic) {
+    public CompletableFuture<Void> deletePartitionedTopicAsync(String topic, boolean force) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "partitions");
+        path = path.queryParam("force", force);
         return asyncDeleteRequest(path);
     }
 
     @Override
     public void delete(String topic) throws PulsarAdminException {
+        delete(topic, false);
+    }
+
+    @Override
+    public void delete(String topic, boolean force) throws PulsarAdminException {
         try {
-            deleteAsync(topic).get();
+            deleteAsync(topic, force).get();
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -300,9 +314,10 @@ public class TopicsImpl extends BaseResource implements Topics, PersistentTopics
     }
 
     @Override
-    public CompletableFuture<Void> deleteAsync(String topic) {
+    public CompletableFuture<Void> deleteAsync(String topic, boolean force) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn);
+        path = path.queryParam("force", Boolean.toString(force));
         return asyncDeleteRequest(path);
     }
 
@@ -780,12 +795,35 @@ public class TopicsImpl extends BaseResource implements Topics, PersistentTopics
     }
 
     @Override
-    public CompactionStatus compactionStatus(String topic)
+    public LongRunningProcessStatus compactionStatus(String topic)
             throws PulsarAdminException {
         try {
             TopicName tn = validateTopic(topic);
             return request(topicPath(tn, "compaction"))
-                .get(CompactionStatus.class);
+                .get(LongRunningProcessStatus.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void triggerOffload(String topic, MessageId messageId) throws PulsarAdminException {
+        try {
+            TopicName tn = validateTopic(topic);
+            WebTarget path = topicPath(tn, "offload");
+            request(path).put(Entity.entity(messageId, MediaType.APPLICATION_JSON), MessageIdImpl.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public OffloadProcessStatus offloadStatus(String topic)
+            throws PulsarAdminException {
+        try {
+            TopicName tn = validateTopic(topic);
+            return request(topicPath(tn, "offload"))
+                .get(OffloadProcessStatus.class);
         } catch (Exception e) {
             throw getApiException(e);
         }

@@ -101,6 +101,8 @@ public interface Topic {
 
     void checkGC(int gcInterval);
 
+    void checkInactiveSubscriptions();
+
     void checkMessageExpiry();
 
     void checkMessageDeduplicationInfo();
@@ -132,4 +134,6 @@ public interface Topic {
     CompletableFuture<SchemaVersion> addSchema(SchemaData schema);
 
     CompletableFuture<Boolean> isSchemaCompatible(SchemaData schema);
+
+    CompletableFuture<Void> deleteForcefully();
 }

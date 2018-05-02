@@ -153,7 +153,7 @@ public abstract class BaseResource {
             if (e.getCause() instanceof java.net.ConnectException) {
                 return new ConnectException(e.getCause());
             } else {
-                return new HttpErrorException(e);
+                return new PulsarAdminException((ServerErrorException) e);
             }
         } else if (e instanceof WebApplicationException) {
             // Handle 5xx exceptions

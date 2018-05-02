@@ -46,7 +46,7 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
 
         proxyConfig.setServicePort(PortManager.nextFreePort());
         proxyConfig.setZookeeperServers(DUMMY_VALUE);
-        proxyConfig.setGlobalZookeeperServers(DUMMY_VALUE);
+        proxyConfig.setConfigurationStoreServers(DUMMY_VALUE);
         proxyConfig.setMaxConcurrentLookupRequests(NUM_CONCURRENT_LOOKUP);
         proxyConfig.setMaxConcurrentInboundConnections(NUM_CONCURRENT_INBOUND_CONNECTION);
         proxyService = Mockito.spy(new ProxyService(proxyConfig));

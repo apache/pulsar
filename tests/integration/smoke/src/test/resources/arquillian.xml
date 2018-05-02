@@ -25,6 +25,7 @@
                                 http://jboss.org/schema/arquillian/arquillian_1_0.xsd">
 
   <extension qualifier="docker">
+    <property name="serverUri">unix:///var/run/docker.sock</property>
     <property name="definitionFormat">CUBE</property>
     <property name="dockerContainersResource">cube-definitions/single-cluster-3-bookie-2-broker-unstarted.yaml</property>
   </extension>

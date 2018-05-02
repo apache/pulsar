@@ -16,15 +16,37 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.zookeeper;
+package org.apache.pulsar.client.admin;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+/**
+ * Status of long running process.
+ */
+public class LongRunningProcessStatus {
+    public enum Status {
+        NOT_RUN,
+        RUNNING,
+        SUCCESS,
+        ERROR
+    };
 
-public class GlobalZooKeeperStarter extends ZooKeeperStarter {
-    public static void main(String[] args) throws Exception {
-        start(args, "8001");
+    public Status status;
+    public String lastError;
+
+    public LongRunningProcessStatus() {
+        this.status = Status.NOT_RUN;
+        this.lastError = "";
     }
 
-    private static final Logger log = LoggerFactory.getLogger(GlobalZooKeeperStarter.class);
+    LongRunningProcessStatus(Status status, String lastError) {
+        this.status = status;
+        this.lastError = lastError;
+    }
+
+    public static LongRunningProcessStatus forStatus(Status status) {
+        return new LongRunningProcessStatus(status, "");
+    }
+
+    public static LongRunningProcessStatus forError(String lastError) {
+        return new LongRunningProcessStatus(Status.ERROR, lastError);
+    }
 }

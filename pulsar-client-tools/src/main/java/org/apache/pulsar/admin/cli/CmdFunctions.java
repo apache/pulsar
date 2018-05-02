@@ -52,6 +52,7 @@ import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.functions.api.Function;
+import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.source.PulsarSource;
 import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.api.SerDe;
@@ -556,6 +557,9 @@ public class CmdFunctions extends CmdBase {
 
             // Setup sink
             SinkSpec.Builder sinkSpecBuilder = SinkSpec.newBuilder();
+            if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
+                sinkSpecBuilder.setClassName(PulsarSink.class.getName());
+            }
             if (functionConfig.getOutput() != null) {
                 sinkSpecBuilder.setTopic(functionConfig.getOutput());
             }

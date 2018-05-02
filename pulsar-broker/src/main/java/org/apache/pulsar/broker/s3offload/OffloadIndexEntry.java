@@ -16,37 +16,35 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.compaction;
+package org.apache.pulsar.broker.s3offload;
+
+import org.apache.bookkeeper.common.annotation.InterfaceAudience.LimitedPrivate;
+import org.apache.bookkeeper.common.annotation.InterfaceStability.Unstable;
 
 /**
- * Status of compaction for a topic.
+ *
+ * The Index Entry in OffloadIndexBlock.
+ * It consists of the message entry id, the code storage block part id for this message entry,
+ * and the offset in code storage block for this message id.
+ *
  */
-public class CompactionStatus {
-    public enum Status {
-        NOT_RUN,
-        RUNNING,
-        SUCCESS,
-        ERROR
-    };
+@Unstable
+@LimitedPrivate
+public interface OffloadIndexEntry {
 
-    public Status status;
-    public String lastError;
+    /**
+     * Get the entryId that this entry contains.
+     */
+    long getEntryId();
 
-    public CompactionStatus() {
-        this.status = Status.NOT_RUN;
-        this.lastError = "";
-    }
+    /**
+     * Get the block part id of code storage.
+     */
+    int getPartId();
 
-    private CompactionStatus(Status status, String lastError) {
-        this.status = status;
-        this.lastError = lastError;
-    }
-
-    public static CompactionStatus forStatus(Status status) {
-        return new CompactionStatus(status, "");
-    }
-
-    public static CompactionStatus forError(String lastError) {
-        return new CompactionStatus(Status.ERROR, lastError);
-    }
+    /**
+     * Get the offset of this message entry in code storage.
+     */
+    long getOffset();
 }
+
