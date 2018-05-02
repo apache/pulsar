@@ -25,13 +25,13 @@ Behind the scenes, a partitioned topic is actually implemented as N internal top
 
 The diagram below illustrates this:
 
-![Partitioned Topic](/img/pulsar_partitioned_topic.jpg)
+{% img /img/partitioning.png 70 %}
 
-Here, the topic **T1** has five partitions (**P0** through **P4**) split across three brokers. Because there are more partitions than brokers, two brokers handle two partitions a piece, while the third handles only one (again, Pulsar handles this distribution of partitions automatically).
+Here, the topic **Topic1** has five partitions (**P0** through **P4**) split across three brokers. Because there are more partitions than brokers, two brokers handle two partitions a piece, while the third handles only one (again, Pulsar handles this distribution of partitions automatically).
 
 Messages for this topic are broadcast to two {% popover consumers %}. The [routing mode](#routing-modes) determines both which broker handles each partition, while the [subscription mode](../../getting-started/ConceptsAndArchitecture#subscription-modes) determines which messages go to which consumers.
 
-Decisions about routing and subscription modes can be made separately in most cases. Throughput concerns should guide partitioning/routing decisions while subscription decisions should be guided by application semantics.
+Decisions about routing and subscription modes can be made separately in most cases. In general, throughput concerns should guide partitioning/routing decisions while subscription decisions should be guided by application semantics.
 
 There is no difference between partitioned topics and normal topics in terms of how subscription modes work, as partitioning only determines what happens between when a message is published by a {% popover producer %} and processed and {% popover acknowledged %} by a {% popover consumer %}.
 
