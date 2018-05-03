@@ -86,15 +86,15 @@ public class BlockAwareSegmentInputStreamImpl extends InputStream implements Blo
         // once reach the end of entry buffer, start a new read.
         if (bytesReadOffset < dataBlockFullOffset && entriesByteBuf.isEmpty()) {
             entriesByteBuf = readNextEntriesFromLedger(startEntryId + blockEntryCount, ENTRIES_PER_READ);
-            if ((!entriesByteBuf.isEmpty()) && bytesReadOffset + entriesByteBuf.get(0).readableBytes() > blockSize) {
-                // not able to place a new Entry.
-                entriesByteBuf.forEach(buf -> buf.release());
-                entriesByteBuf.clear();
-                dataBlockFullOffset = bytesReadOffset;
-            }
         }
 
-        if (bytesReadOffset < dataBlockFullOffset) {
+        if ((!entriesByteBuf.isEmpty()) && bytesReadOffset + entriesByteBuf.get(0).readableBytes() > blockSize) {
+            // no space for a new entry, set data block full, return end padding
+            if (dataBlockFullOffset == blockSize) {
+                dataBlockFullOffset = bytesReadOffset;
+            }
+            return BLOCK_END_PADDING[(bytesReadOffset++ - dataBlockFullOffset) % BLOCK_END_PADDING.length];
+        } else  {
             // always read from the first ByteBuf in the list, once read all of its content remove it.
             ByteBuf entryByteBuf = entriesByteBuf.get(0);
             int ret = entryByteBuf.readByte();
@@ -104,20 +104,10 @@ public class BlockAwareSegmentInputStreamImpl extends InputStream implements Blo
                 entryByteBuf.release();
                 entriesByteBuf.remove(0);
                 blockEntryCount++;
-                if ((!entriesByteBuf.isEmpty()) && bytesReadOffset + entriesByteBuf.get(0).readableBytes() > blockSize) {
-                    // not able to place a new Entry.
-                    entriesByteBuf.forEach(buf -> buf.release());
-                    entriesByteBuf.clear();
-                    dataBlockFullOffset = bytesReadOffset;
-                }
             }
 
             return ret;
-        } else {
-            // read padding
-            return BLOCK_END_PADDING[(bytesReadOffset++ - dataBlockFullOffset) % 4];
         }
-
     }
 
     private List<ByteBuf> readNextEntriesFromLedger(long start, long maxNumberEntries) throws IOException {
@@ -138,7 +128,6 @@ public class BlockAwareSegmentInputStreamImpl extends InputStream implements Blo
 
                 entryHeaderBuf.writeInt(entryLength).writeLong(entryId);
                 entryBuf.addComponents(true, entryHeaderBuf, entry.getEntryBuffer().retain());
-                //entryBuf.writerIndex(ENTRY_HEADER_SIZE + entryLength);
 
                 entries.add(entryBuf);
             }
@@ -201,6 +190,10 @@ public class BlockAwareSegmentInputStreamImpl extends InputStream implements Blo
 
     @Override
     public long getEndEntryId() {
+        // return -1 when no entry contained
+        if (blockEntryCount == 0) {
+            return -1;
+        }
         return startEntryId + blockEntryCount - 1;
     }
 

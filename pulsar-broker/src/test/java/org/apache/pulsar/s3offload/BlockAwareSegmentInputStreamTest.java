@@ -30,6 +30,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.ByteArrayInputStream;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -142,8 +143,7 @@ public class BlockAwareSegmentInputStreamTest {
                 (int)(lastEntry - firstEntry + 1),
                 entrySize);
 
-            Executors.newCachedThreadPool(new DefaultThreadFactory("test"))
-                .submit(() -> future.complete(entries));
+            future.complete(entries);
             return future;
         }
 
@@ -200,7 +200,7 @@ public class BlockAwareSegmentInputStreamTest {
     }
 
     @Test
-    public void blockAwareSegmentInputStreamTestHaveEndPadding() throws Exception {
+    public void testHaveEndPadding() throws Exception {
         int ledgerId = 1;
         int entrySize = 8;
         int lac = 160;
@@ -225,9 +225,7 @@ public class BlockAwareSegmentInputStreamTest {
         assertEquals(headerRead.getFirstEntryId(), 0);
 
         byte[] entryData = new byte[entrySize];
-        IntStream.range(0, entrySize).forEach(i -> {
-            entryData[i] = 0xB; // MockLedgerEntry.blockPadding
-        });
+        Arrays.fill(entryData, (byte)0xB); // 0xB is MockLedgerEntry.blockPadding
 
         // 2. read Ledger entries. 201 * 20
         IntStream.range(0, expectedEntryCount).forEach(i -> {
@@ -269,7 +267,7 @@ public class BlockAwareSegmentInputStreamTest {
     }
 
     @Test
-    public void blockAwareSegmentInputStreamTestNoEndPadding() throws Exception {
+    public void testNoEndPadding() throws Exception {
         int ledgerId = 1;
         int entrySize = 8;
         int lac = 120;
@@ -294,9 +292,7 @@ public class BlockAwareSegmentInputStreamTest {
         assertEquals(headerRead.getFirstEntryId(), 0);
 
         byte[] entryData = new byte[entrySize];
-        IntStream.range(0, entrySize).forEach(i -> {
-            entryData[i] = 0xB; // MockLedgerEntry.blockPadding
-        });
+        Arrays.fill(entryData, (byte)0xB); // 0xB is MockLedgerEntry.blockPadding
 
         // 2. read Ledger entries. 201 * 20
         IntStream.range(0, expectedEntryCount).forEach(i -> {
@@ -331,8 +327,8 @@ public class BlockAwareSegmentInputStreamTest {
     }
 
     @Test
-    // simulate last data block read.
-    public void blockAwareSegmentInputStreamTestReadLac() throws Exception {
+    public void testReadTillLac() throws Exception {
+        // simulate last data block read.
         int ledgerId = 1;
         int entrySize = 8;
         int lac = 89;
@@ -357,9 +353,7 @@ public class BlockAwareSegmentInputStreamTest {
         assertEquals(headerRead.getFirstEntryId(), 0);
 
         byte[] entryData = new byte[entrySize];
-        IntStream.range(0, entrySize).forEach(i -> {
-            entryData[i] = 0xB; // MockLedgerEntry.blockPadding
-        });
+        Arrays.fill(entryData, (byte)0xB); // 0xB is MockLedgerEntry.blockPadding
 
         // 2. read Ledger entries. 96 * 20
         IntStream.range(0, expectedEntryCount).forEach(i -> {
@@ -389,6 +383,53 @@ public class BlockAwareSegmentInputStreamTest {
         assertEquals(inputStream.getBlockEntryCount(), expectedEntryCount);
         assertEquals(inputStream.getBlockEntryBytesCount(), entrySize * expectedEntryCount);
         assertEquals(inputStream.getEndEntryId(), expectedEntryCount - 1);
+
+        inputStream.close();
+    }
+
+    @Test
+    public void testNoEntryPutIn() throws Exception {
+        // simulate first entry size over the block size budget, it shouldn't be added.
+        // 2 entries, each with bigger size than block size, so there should no entry added into block.
+        int ledgerId = 1;
+        int entrySize = 1000;
+        int lac = 1;
+        ReadHandle readHandle = new MockReadHandle(ledgerId, entrySize, lac);
+
+        // set block size not able to hold one entry
+        int blockSize = DataBlockHeaderImpl.getDataStartOffset() + entrySize;
+        BlockAwareSegmentInputStreamImpl inputStream = new BlockAwareSegmentInputStreamImpl(readHandle, 0, blockSize);
+        int expectedEntryCount = 0;
+
+        // verify get methods
+        assertEquals(inputStream.getLedger(), readHandle);
+        assertEquals(inputStream.getStartEntryId(), 0);
+        assertEquals(inputStream.getBlockSize(), blockSize);
+
+        // verify read inputStream
+        // 1. read header. 128
+        byte headerB[] = new byte[DataBlockHeaderImpl.getDataStartOffset()];
+        ByteStreams.readFully(inputStream, headerB);
+        DataBlockHeader headerRead = DataBlockHeaderImpl.fromStream(new ByteArrayInputStream(headerB));
+        assertEquals(headerRead.getBlockLength(), blockSize);
+        assertEquals(headerRead.getFirstEntryId(), 0);
+
+
+        // 2. since no entry put in, it should only get padding after header.
+        byte padding[] = new byte[blockSize - DataBlockHeaderImpl.getDataStartOffset()];
+        inputStream.read(padding);
+        ByteBuf paddingBuf = Unpooled.wrappedBuffer(padding);
+        IntStream.range(0, paddingBuf.capacity()/4).forEach(i ->
+            assertEquals(Integer.toHexString(paddingBuf.readInt()),
+                Integer.toHexString(Ints.fromByteArray(inputStream.getBlockEndPadding())))
+        );
+
+        // 3. reach end.
+        assertEquals(inputStream.read(), -1);
+
+        assertEquals(inputStream.getBlockEntryCount(), 0);
+        assertEquals(inputStream.getBlockEntryBytesCount(), 0);
+        assertEquals(inputStream.getEndEntryId(), -1);
 
         inputStream.close();
     }
