@@ -84,6 +84,7 @@ public class ProcessRuntimeTest {
         functionDetailsBuilder.setSink(Function.SinkSpec.newBuilder()
                 .setTopic(TEST_NAME + "-output")
                 .setSerDeClassName("org.apache.pulsar.functions.runtime.serde.Utf8Serializer")
+                .setClassName("org.pulsar.pulsar.TestSink")
                 .build());
         functionDetailsBuilder.setLogTopic(TEST_NAME + "-log");
         functionDetailsBuilder.setSource(Function.SourceSpec.newBuilder()
@@ -111,7 +112,7 @@ public class ProcessRuntimeTest {
 
         ProcessRuntime container = factory.createContainer(config, userJarFile);
         List<String> args = container.getProcessArgs();
-        assertEquals(args.size(), 45);
+        assertEquals(args.size(), 47);
         String expectedArgs = "java -cp " + javaInstanceJarFile + " -Dlog4j.configurationFile=java_instance_log4j2.yml "
                 + "-Dpulsar.log.dir=" + logDirectory + "/functions" + " -Dpulsar.log.file=" + config.getFunctionDetails().getName()
                 + " org.apache.pulsar.functions.runtime.JavaInstanceMain"
@@ -123,14 +124,15 @@ public class ProcessRuntimeTest {
                 + " --function_classname " + config.getFunctionDetails().getClassName()
                 + " --log_topic " + config.getFunctionDetails().getLogTopic()
                 + " --auto_ack false"
-                + " --output_topic " + config.getFunctionDetails().getSink().getTopic()
-                + " --output_serde_classname " + config.getFunctionDetails().getSink().getSerDeClassName()
                 + " --processing_guarantees ATLEAST_ONCE"
                 + " --pulsar_serviceurl " + pulsarServiceUrl
-                + " --max_buffered_tuples 1024 --port " + args.get(38)
+                + " --max_buffered_tuples 1024 --port " + args.get(34)
                 + " --source_classname " + config.getFunctionDetails().getSource().getClassName()
                 + " --source_subscription_type " + config.getFunctionDetails().getSource().getSubscriptionType().name()
-                + " --source_topics_serde_classname " + new Gson().toJson(topicsToSerDeClassName);
+                + " --source_topics_serde_classname " + new Gson().toJson(topicsToSerDeClassName)
+                + " --sink_classname " + config.getFunctionDetails().getSink().getClassName()
+                + " --sink_topic " + config.getFunctionDetails().getSink().getTopic()
+                + " --sink_serde_classname " + config.getFunctionDetails().getSink().getSerDeClassName();
         assertEquals(expectedArgs, String.join(" ", args));
     }
 
@@ -151,13 +153,13 @@ public class ProcessRuntimeTest {
                 + " --function_classname " + config.getFunctionDetails().getClassName()
                 + " --log_topic " + config.getFunctionDetails().getLogTopic()
                 + " --auto_ack false"
-                + " --output_topic " + config.getFunctionDetails().getSink().getTopic()
-                + " --output_serde_classname " + config.getFunctionDetails().getSink().getSerDeClassName()
                 + " --processing_guarantees ATLEAST_ONCE"
                 + " --pulsar_serviceurl " + pulsarServiceUrl
-                + " --max_buffered_tuples 1024 --port " + args.get(37)
+                + " --max_buffered_tuples 1024 --port " + args.get(33)
                 + " --source_subscription_type " + config.getFunctionDetails().getSource().getSubscriptionType().name()
-                + " --source_topics_serde_classname " + new Gson().toJson(topicsToSerDeClassName);
+                + " --source_topics_serde_classname " + new Gson().toJson(topicsToSerDeClassName)
+                + " --sink_topic " + config.getFunctionDetails().getSink().getTopic()
+                + " --sink_serde_classname " + config.getFunctionDetails().getSink().getSerDeClassName();
         assertEquals(expectedArgs, String.join(" ", args));
     }
 

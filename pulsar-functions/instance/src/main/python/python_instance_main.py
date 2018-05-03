@@ -58,14 +58,10 @@ def main():
   parser.add_argument('--name', required=True, help='Function Name')
   parser.add_argument('--tenant', required=True, help='Tenant Name')
   parser.add_argument('--namespace', required=True, help='Namespace name')
-  parser.add_argument('--source_topics_serde_classname', required=True, help='A mapping of Input topics to SerDe')
-  parser.add_argument('--output_topic', required=False, help='Output Topic')
-  parser.add_argument('--output_serde_classname', required=False, help='Output Serde Classnames')
   parser.add_argument('--instance_id', required=True, help='Instance Id')
   parser.add_argument('--function_id', required=True, help='Function Id')
   parser.add_argument('--function_version', required=True, help='Function Version')
   parser.add_argument('--processing_guarantees', required=True, help='Processing Guarantees')
-  parser.add_argument('--source_subscription_type', required=True, help='Subscription Type')
   parser.add_argument('--pulsar_serviceurl', required=True, help='Pulsar Service Url')
   parser.add_argument('--port', required=True, help='Instance Port', type=int)
   parser.add_argument('--max_buffered_tuples', required=True, help='Maximum number of Buffered tuples')
@@ -74,6 +70,10 @@ def main():
   parser.add_argument('--logging_file', required=True, help='Log file name')
   parser.add_argument('--auto_ack', required=True, help='Enable Autoacking?')
   parser.add_argument('--log_topic', required=False, help='Topic to send Log Messages')
+  parser.add_argument('--source_subscription_type', required=True, help='Subscription Type')
+  parser.add_argument('--source_topics_serde_classname', required=True, help='A mapping of Input topics to SerDe')
+  parser.add_argument('--sink_topic', required=False, help='Sink Topic')
+  parser.add_argument('--sink_serde_classname', required=False, help='Sink SerDe classname')
 
   args = parser.parse_args()
   log_file = os.path.join(args.logging_directory,
@@ -104,10 +104,10 @@ def main():
   function_details.source.MergeFrom(sourceSpec)
 
   sinkSpec = Function_pb2.SinkSpec()
-  if args.output_topic != None and len(args.output_topic) != 0:
-    sinkSpec.topic = args.output_topic
-  if args.output_serde_classname != None and len(args.output_serde_classname) != 0:
-    sinkSpec.serDeClassName = args.output_serde_classname
+  if args.sink_topic != None and len(args.sink_topic) != 0:
+    sinkSpec.topic = args.sink_topic
+  if args.sink_serde_classname != None and len(args.sink_serde_classname) != 0:
+    sinkSpec.serDeClassName = args.sink_serde_classname
   function_details.sink.MergeFrom(sinkSpec)
 
   function_details.processingGuarantees = Function_pb2.ProcessingGuarantees.Value(args.processing_guarantees)

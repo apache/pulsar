@@ -60,13 +60,6 @@ public class JavaInstanceMain {
     protected String tenant;
     @Parameter(names = "--namespace", description = "Namespace Name\n", required = true)
     protected String namespace;
-
-    @Parameter(names = "--output_topic", description = "Output Topic Name\n")
-    protected String outputTopicName;
-
-    @Parameter(names = "--output_serde_classname", description = "Output SerDe\n")
-    protected String outputSerdeClassName;
-
     @Parameter(names = "--log_topic", description = "Log Topic")
     protected String logTopic;
 
@@ -112,6 +105,17 @@ public class JavaInstanceMain {
     @Parameter(names = "--source_topics_serde_classname", description = "A map of topics to SerDe for the source", required = true)
     protected String sourceTopicsSerdeClassName;
 
+    @Parameter(names = "--sink_configs", description = "The sink configs\n")
+    protected String sinkConfigs;
+
+    @Parameter(names = "--sink_classname", description = "The sink classname\n", required = true)
+    protected String sinkClassname;
+
+    @Parameter(names = "--sink_topic", description = "The sink Topic Name\n", required = true)
+    protected String sinkTopic;
+
+    @Parameter(names = "--sink_serde_classname", description = "Sink SerDe\n")
+    protected String sinkSerdeClassName;
 
     private Server server;
 
@@ -130,15 +134,6 @@ public class JavaInstanceMain {
         functionDetailsBuilder.setName(functionName);
         functionDetailsBuilder.setClassName(className);
 
-        SinkSpec.Builder sinkSpecBuilder = SinkSpec.newBuilder();
-        if (outputSerdeClassName != null) {
-            sinkSpecBuilder.setSerDeClassName(outputSerdeClassName);
-        }
-        if (outputTopicName != null) {
-            sinkSpecBuilder.setTopic(outputTopicName);
-        }
-        functionDetailsBuilder.setSink(sinkSpecBuilder);
-
         if (logTopic != null) {
             functionDetailsBuilder.setLogTopic(logTopic);
         }
@@ -154,6 +149,7 @@ public class JavaInstanceMain {
             functionDetailsBuilder.putAllUserConfig(userConfigMap);
         }
 
+        // Setup source
         SourceSpec.Builder sourceDetailsBuilder = SourceSpec.newBuilder();
         sourceDetailsBuilder.setClassName(sourceClassname);
         if (sourceConfigs != null && !sourceConfigs.isEmpty()) {;
@@ -164,6 +160,18 @@ public class JavaInstanceMain {
         sourceDetailsBuilder.putAllTopicsToSerDeClassName(new Gson().fromJson(sourceTopicsSerdeClassName, Map.class));
 
         functionDetailsBuilder.setSource(sourceDetailsBuilder);
+
+        // Setup sink
+        SinkSpec.Builder sinkSpecBuilder = SinkSpec.newBuilder();
+        sinkSpecBuilder.setClassName(sinkClassname);
+        if (sinkConfigs != null) {
+            sinkSpecBuilder.setConfigs(sinkConfigs);
+        }
+        if (sinkSerdeClassName != null) {
+            sinkSpecBuilder.setSerDeClassName(sinkSerdeClassName);
+        }
+        sinkSpecBuilder.setTopic(sinkTopic);
+        functionDetailsBuilder.setSink(sinkSpecBuilder);
 
         FunctionDetails functionDetails = functionDetailsBuilder.build();
         instanceConfig.setFunctionDetails(functionDetails);

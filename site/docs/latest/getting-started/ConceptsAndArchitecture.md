@@ -147,7 +147,7 @@ When the master consumer disconnects, all (non-acked and subsequent) messages wi
 
 In the diagram above, Consumer-C-1 is the master consumer while Consumer-C-2 would be the next in line to receive messages if Consumer-C-2 disconnected.
 
-{% include figure.html src="/img/failover-subscriptions.png" alt="Shared subscriptions" width="80" %}
+{% include figure.html src="/img/failover-subscriptions.png" alt="Failover subscriptions" width="80" %}
 
 ### Multi-topic subscriptions
 

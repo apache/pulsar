@@ -119,7 +119,7 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
             proxyService.start();
             proxyClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
             Assert.fail("Shouldn't be able to subscribe, auth required");
-        } catch (PulsarClientException.AuthorizationException e) {
+        } catch (Exception e) {
             // expected behaviour
         }
 

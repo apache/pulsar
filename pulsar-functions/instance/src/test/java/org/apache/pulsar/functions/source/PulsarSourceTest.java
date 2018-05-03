@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.functions.source;
 
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -82,8 +84,8 @@ public class PulsarSourceTest {
         return pulsarClient;
     }
 
-    private static PulsarConfig getPulsarConfigs() {
-        PulsarConfig pulsarConfig = new PulsarConfig();
+    private static PulsarSourceConfig getPulsarConfigs() {
+        PulsarSourceConfig pulsarConfig = new PulsarSourceConfig();
         pulsarConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         pulsarConfig.setSubscriptionType(FunctionConfig.SubscriptionType.FAILOVER);
         pulsarConfig.setTopicSerdeClassNameMap(topicSerdeClassNameMap);
@@ -91,9 +93,29 @@ public class PulsarSourceTest {
         return pulsarConfig;
     }
 
+    @Getter
+    @Setter
+    public static class ComplexUserDefinedType {
+        private String name;
+        private Integer age;
+    }
+
+    public static class ComplexSerDe implements SerDe<ComplexUserDefinedType> {
+        @Override
+        public ComplexUserDefinedType deserialize(byte[] input) {
+            return null;
+        }
+
+        @Override
+        public byte[] serialize(ComplexUserDefinedType input) {
+            return new byte[0];
+        }
+    }
+
+
     @Test
     public void testVoidInputClasses() throws IOException {
-        PulsarConfig pulsarConfig = getPulsarConfigs();
+        PulsarSourceConfig pulsarConfig = getPulsarConfigs();
         // set type to void
         pulsarConfig.setTypeClassName(Void.class.getName());
         PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig);
@@ -115,7 +137,7 @@ public class PulsarSourceTest {
      */
     @Test
     public void testInconsistentInputType() throws IOException {
-        PulsarConfig pulsarConfig = getPulsarConfigs();
+        PulsarSourceConfig pulsarConfig = getPulsarConfigs();
         // set type to be inconsistent to that of SerDe
         pulsarConfig.setTypeClassName(Integer.class.getName());
         Map<String, String> topicSerdeClassNameMap = new HashMap<>();
@@ -131,6 +153,66 @@ public class PulsarSourceTest {
         } catch (Exception ex) {
             log.error("Exception: {}", ex, ex);
             assertTrue(false);
+        }
+    }
+
+    /**
+     * Verify that Default Serializer works fine.
+     */
+    @Test
+    public void testDefaultSerDe() throws PulsarClientException {
+
+        PulsarSourceConfig pulsarConfig = getPulsarConfigs();
+        // set type to void
+        pulsarConfig.setTypeClassName(String.class.getName());
+        topicSerdeClassNameMap.put("persistent://sample/standalone/ns1/test_result", null);
+        pulsarConfig.setTopicSerdeClassNameMap(topicSerdeClassNameMap);
+        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig);
+
+        try {
+            pulsarSource.open(new HashMap<>());
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            assertEquals(ex, null);
+            assertTrue(false);
+        }
+    }
+
+    /**
+     * Verify that Explicit setting of Default Serializer works fine.
+     */
+    @Test
+    public void testExplicitDefaultSerDe() throws PulsarClientException {
+        PulsarSourceConfig pulsarConfig = getPulsarConfigs();
+        // set type to void
+        pulsarConfig.setTypeClassName(String.class.getName());
+        topicSerdeClassNameMap.put("persistent://sample/standalone/ns1/test_result", DefaultSerDe.class.getName());
+        pulsarConfig.setTopicSerdeClassNameMap(topicSerdeClassNameMap);
+        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig);
+
+        try {
+            pulsarSource.open(new HashMap<>());
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            assertEquals(ex, null);
+            assertTrue(false);
+        }
+    }
+
+    @Test
+    public void testComplexOuputType() throws PulsarClientException {
+        PulsarSourceConfig pulsarConfig = getPulsarConfigs();
+        // set type to void
+        pulsarConfig.setTypeClassName(ComplexUserDefinedType.class.getName());
+        topicSerdeClassNameMap.put("persistent://sample/standalone/ns1/test_result",ComplexSerDe.class.getName());
+        pulsarConfig.setTopicSerdeClassNameMap(topicSerdeClassNameMap);
+        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig);
+
+        try {
+            pulsarSource.setupSerDe();
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            fail();
         }
     }
 }
