@@ -532,7 +532,7 @@ Reader reader = pulsarClient.createReader(topic, id, new ReaderConfiguration());
 
 ## Compaction
 
-[cookbook](../../cookbookes/compaction)
+[cookbook](../../cookbooks/compaction)
 
 * Large message logs can take a long time to retrieve (a long history may be needed to construct an "image" of the log); that may include reading a lot of useless messages
 * Compaction is the process of going through a topic's backlog and removing messages that would be obscured by a later message (useless here means a message with the same key)

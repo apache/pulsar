@@ -3,14 +3,22 @@ title: Topic compaction
 tags: [admin, clients, compaction]
 ---
 
+Pulsar's [topic compaction](../../getting-started/ConceptsAndArchitecture#compaction) feature enables you to
+
 To use compaction:
 
-* You must manually [trigger](#trigger) compaction using the Pulsar administrative API
-* Your {% popover consumers %} must be [configured](#config) to read compacted topics
+* You must manually [trigger](#trigger) compaction using the Pulsar administrative API. This will both run a compaction operation *and* mark the topic as a compacted topic.
+* Your {% popover consumers %} must be [configured](#config) to read from compacted topics (or else the messages won't be read/processed/acknowledged)
 
 ## When should I use compacted topics?
 
-The classic example of a topic that could benefit from compaction would be a stock ticker topic. In such a topic, you only care about the most recent value.
+The classic example of a topic that could benefit from compaction would be a stock ticker topic. In such a topic, you only care about the most recent value of each stock; historical values don't matter. Compacting a stock ticker topic would mean that only the most recent value for each key---in this case each stock symbol, e.g. `GOOG` or `AAPL`---is readable by clients.
+
+{% include admonition.html type="warning" content="Compaction only works on topics where each message has a key (as in the stock ticker example, where the stock symbol serves as the key). Keys can be thought of as the axis along which compaction is applied." %}
+
+## When should I trigger compaction?
+
+How often you trigger compaction will vary widely based on the use case. If you want a compacted topic to be extremely speedy on read, then you should run compaction fairly frequently.
 
 ## Which messages get compacted?
 
@@ -23,26 +31,30 @@ If a message with a key
 
 ## Triggering compaction {#trigger}
 
-[`pulsar-admin topics compact`](../../CliTools#pulsar-admin-topics-compact)
+In order to run compaction on a topic, you need to use the [`topics compact`](../../CliTools#pulsar-admin-topics-compact) command for the [`pulsar-admin`](../../CliTools#pulsar-admin) CLI tool. Here's an example:
 
 ```bash
 $ bin/pulsar-admin topics compact \
   persistent://my-tenant/my-namespace/my-topic
 ```
 
-To run compaction locally, i.e. *not* through the Pulsar [REST API](../../reference/RestApi), you can use the [`pulsar compact-topic`](../../CliTools#pulsar-compact-topic) command. Here's an example:
+The `pulsar-admin` tool runs compaction via the Pulsar [REST API](../../reference/RestApi). To run compaction locally, i.e. *not* through the REST API, you can use the [`pulsar compact-topic`](../../CliTools#pulsar-compact-topic) command. Here's an example:
 
 ```bash
 $ bin/pulsar compact-topic \
   --topic persistent://my-tenant-namespace/my-topic
 ```
 
-This command communicates with ZooKeeper directly. In order to establish communication with ZooKeeper, though, the `pulsar` CLI tool will need to have a valid [broker configuration](../../Configuration#broker). You can either supply a proper configuration in `conf/broker.conf` or specify a non-default location for the configuration:
+The `pulsar compact-topic` command communicates with [ZooKeeper](https://zookeeper.apache.org) directly. In order to establish communication with ZooKeeper, though, the `pulsar` CLI tool will need to have a valid [broker configuration](../../Configuration#broker). You can either supply a proper configuration in `conf/broker.conf` or specify a non-default location for the configuration:
 
 ```bash
 $ bin/pulsar compact-topic \
   --broker-conf /path/to/broker.conf \
-  --topic persistent://my-tenant-namespace/my-topic
+  --topic persistent://my-tenant/my-namespace/my-topic
+
+# If the configuration is in conf/broker.conf
+$ bin/pulsar compact-topic \
+  --topic persistent://my-tenant/my-namespace/my-topic
 ```
 
 ## Consumer configuration {#config}
@@ -83,8 +95,9 @@ Message<byte[]> msg = MessageBuilder.create()
         .build();
 ```
 
-```java
+In order to read from a compacted topic using a Java consumer, the `readCompacted` parameter must be set to `true`. Here's an example consumer for a compacted topic:
 
+```java
 Consumer<byte[]> compactedTopicConsumer = client.newConsumer()
         .topic("some-compacted-topic")
         .readCompacted(true)
