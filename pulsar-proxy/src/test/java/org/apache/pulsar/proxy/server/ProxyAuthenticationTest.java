@@ -64,7 +64,9 @@ import com.google.gson.JsonParser;
 
 public class ProxyAuthenticationTest extends ProducerConsumerBase {
 	private static final Logger log = LoggerFactory.getLogger(ProxyAuthenticationTest.class);
-
+    private int webServicePort;
+    private int servicePort;
+    
 	public static class BasicAuthenticationData implements AuthenticationDataProvider {
 		private String authParam;
 
@@ -162,9 +164,6 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 		}
 	}
 
-	private int webServicePort;
-	private int servicePort;
-
 	@BeforeMethod
 	@Override
 	protected void setup() throws Exception {
@@ -193,7 +192,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
         conf.setAuthenticateOriginalAuthData(true);
 		super.init();
 
-		createAdminClient();
+		updateAdminClient();
 		producerBaseSetup();
 	}
 
@@ -208,7 +207,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 		log.info("-- Starting {} test --", methodName);
 
 		// Step 1: Create Admin Client
-		createAdminClient();
+		updateAdminClient();
 		final String proxyServiceUrl = "pulsar://localhost:" + servicePort;
 		// create a client which connects to proxy and pass authData
 		String namespaceName = "my-property/my-ns";
@@ -255,7 +254,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 		proxyService.close();
 	}
 
-	private void createAdminClient() throws PulsarClientException {
+	private void updateAdminClient() throws PulsarClientException {
 		// Expires after an hour
 		String adminAuthParams = "entityType:admin,expiryTime:" + (System.currentTimeMillis() + 3600 * 1000);
 		admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())

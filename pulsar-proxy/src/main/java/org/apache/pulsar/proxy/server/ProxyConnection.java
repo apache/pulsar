@@ -248,7 +248,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
         try {
             client.close();
         } catch (PulsarClientException e) {
-            LOG.error("Unable to clode pulsar client - {}", client);
+            LOG.error("Unable to close pulsar client - {}. Error - {}", client, e.getMessage());
         }
     }
 
@@ -299,7 +299,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
                 this.clientAuthData = authData;
                 this.clientAuthMethod = authMethod;
             }
-            createClient(clientConf, this.clientAuthData, this.clientAuthMethod);
+            this.client = createClient(clientConf, this.clientAuthData, this.clientAuthMethod);
 
             return true;
         } catch (Exception e) {
@@ -308,9 +308,9 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
         }
     }
 
-    private void createClient(final ClientConfigurationData clientConf, final String clientAuthData,
+    private PulsarClientImpl createClient(final ClientConfigurationData clientConf, final String clientAuthData,
             final String clientAuthMethod) throws PulsarClientException {
-        this.client = new PulsarClientImpl(clientConf, service.workerGroup,
+        return new PulsarClientImpl(clientConf, service.workerGroup,
                 new ConnectionPool(clientConf, service.workerGroup, () -> new ProxyClientCnx(clientConf,
                         service.workerGroup, clientAuthRole, clientAuthData, clientAuthMethod)));
     }

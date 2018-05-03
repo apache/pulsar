@@ -47,11 +47,11 @@ public class ProxyClientCnx extends ClientCnx {
 	@Override
 	protected ByteBuf newConnectCommand() throws PulsarClientException {
 	    if (log.isDebugEnabled()) {
-            log.info(
+            log.debug(
                     "New Connection opened via ProxyClientCnx with params clientAuthRole = {}, clientAuthData = {}, clientAuthMethod = {}",
                     clientAuthRole, clientAuthData, clientAuthMethod);
 	    }
-	    String authData = "";
+	    String authData = null;
         if (authentication.getAuthData().hasDataFromCommand()) {
             authData = authentication.getAuthData().getCommandData();
         }

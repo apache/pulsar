@@ -60,7 +60,7 @@ public class ProxyService implements Closeable {
     private ZooKeeperClientFactory zkClientFactory = null;
 
     private final EventLoopGroup acceptorGroup;
-    final EventLoopGroup workerGroup;
+    private final EventLoopGroup workerGroup;
     private final DefaultThreadFactory acceptorThreadFactory = new DefaultThreadFactory("pulsar-discovery-acceptor");
     private final DefaultThreadFactory workersThreadFactory = new DefaultThreadFactory("pulsar-discovery-io");
 
