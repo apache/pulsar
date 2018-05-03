@@ -62,6 +62,7 @@ import org.apache.pulsar.broker.loadbalance.LoadResourceQuotaUpdaterTask;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.s3offload.S3ManagedLedgerOffloader;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
@@ -136,6 +137,8 @@ public class PulsarService implements AutoCloseable {
             .build();
     private final ScheduledExecutorService loadManagerExecutor;
     private ScheduledExecutorService compactorExecutor;
+    private ScheduledExecutorService offloaderScheduler;
+    private LedgerOffloader offloader;
     private ScheduledFuture<?> loadReportTask = null;
     private ScheduledFuture<?> loadSheddingTask = null;
     private ScheduledFuture<?> loadResourceQuotaTask = null;
@@ -259,6 +262,10 @@ public class PulsarService implements AutoCloseable {
                 compactorExecutor.shutdown();
             }
 
+            if (offloaderScheduler != null) {
+                offloaderScheduler.shutdown();
+            }
+
             // executor is not initialized in mocks even when real close method is called
             // guard against null executors
             if (executor != null) {
@@ -326,6 +333,8 @@ public class PulsarService implements AutoCloseable {
 
             // needs load management service
             this.startNamespaceService();
+
+            this.offloader = createManagedLedgerOffloader(this.getConfiguration());
 
             LOG.info("Starting Pulsar Broker service; version: '{}'", ( brokerVersion != null ? brokerVersion : "unknown" )  );
             brokerService.start();
@@ -638,7 +647,16 @@ public class PulsarService implements AutoCloseable {
     }
 
     public LedgerOffloader getManagedLedgerOffloader() {
-        return NullLedgerOffloader.INSTANCE;
+        return offloader;
+    }
+
+    public synchronized LedgerOffloader createManagedLedgerOffloader(ServiceConfiguration conf)
+            throws PulsarServerException {
+        if (conf.getManagedLedgerOffloadDriver().equalsIgnoreCase(S3ManagedLedgerOffloader.DRIVER_NAME)) {
+            return new S3ManagedLedgerOffloader(conf, getOffloaderScheduler(conf));
+        } else {
+            return NullLedgerOffloader.INSTANCE;
+        }
     }
 
     public ZooKeeperCache getLocalZkCache() {
@@ -699,6 +717,15 @@ public class PulsarService implements AutoCloseable {
             }
         }
         return this.compactor;
+    }
+
+    protected synchronized ScheduledExecutorService getOffloaderScheduler(ServiceConfiguration conf) {
+        if (this.offloaderScheduler == null) {
+            this.offloaderScheduler = Executors.newScheduledThreadPool(
+                    conf.getManagedLedgerOffloadMaxThreads(),
+                    new DefaultThreadFactory("offloader-"));
+        }
+        return this.offloaderScheduler;
     }
 
     public synchronized PulsarClient getClient() throws PulsarServerException {
