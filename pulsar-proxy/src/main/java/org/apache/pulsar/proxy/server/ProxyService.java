@@ -61,6 +61,7 @@ public class ProxyService implements Closeable {
 
     private final EventLoopGroup acceptorGroup;
     private final EventLoopGroup workerGroup;
+
     private final DefaultThreadFactory acceptorThreadFactory = new DefaultThreadFactory("pulsar-discovery-acceptor");
     private final DefaultThreadFactory workersThreadFactory = new DefaultThreadFactory("pulsar-discovery-io");
 
@@ -173,6 +174,10 @@ public class ProxyService implements Closeable {
 
     public Semaphore getLookupRequestSemaphore() {
         return lookupRequestSemaphore.get();
+    }
+    
+    public EventLoopGroup getWorkerGroup() {
+        return workerGroup;
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(ProxyService.class);
