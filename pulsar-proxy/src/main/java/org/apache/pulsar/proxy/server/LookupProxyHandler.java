@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.proxy.server;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.URI;
@@ -35,7 +37,6 @@ import org.slf4j.LoggerFactory;
 
 import io.netty.buffer.ByteBuf;
 import io.prometheus.client.Counter;
-import static org.apache.commons.lang3.StringUtils.isBlank;
 
 public class LookupProxyHandler {
     private final String throttlingErrorMessage = "Too many concurrent lookup and partitionsMetadata requests";
@@ -131,26 +132,24 @@ public class LookupProxyHandler {
             log.debug("Getting connections to '{}' for Looking up topic '{}' with clientReq Id '{}'", addr, topic,
                     clientRequestId);
         }
-        service.getConnectionPool().getConnection(addr).thenAccept(clientCnx -> {
+        proxyConnection.getConnectionPool().getConnection(addr).thenAccept(clientCnx -> {
             // Connected to backend broker
-            long requestId = service.newRequestId();
+            long requestId = proxyConnection.newRequestId();
             ByteBuf command;
-            if (service.getConfiguration().isAuthenticationEnabled()) {
-                command = Commands.newLookup(topic, authoritative, proxyConnection.clientAuthRole,
-                        proxyConnection.clientAuthData, proxyConnection.clientAuthMethod, requestId);
-            } else {
-                command = Commands.newLookup(topic, authoritative, requestId);
-            }
+            command = Commands.newLookup(topic, authoritative, requestId);
             clientCnx.newLookup(command, requestId).thenAccept(result -> {
                 String brokerUrl = connectWithTLS ? result.brokerUrlTls : result.brokerUrl;
                 if (result.redirect) {
                     // Need to try the lookup again on a different broker
                     performLookup(clientRequestId, topic, brokerUrl, result.authoritative, numberOfRetries - 1);
                 } else {
-                    // Reply the same address for both TLS non-TLS. The reason is that whether we use TLS
-                    // and broker is independent of whether the client itself uses TLS, but we need to force the
+                    // Reply the same address for both TLS non-TLS. The reason
+                    // is that whether we use TLS
+                    // and broker is independent of whether the client itself
+                    // uses TLS, but we need to force the
                     // client
-                    // to use the appropriate target broker (and port) when it will connect back.
+                    // to use the appropriate target broker (and port) when it
+                    // will connect back.
                     proxyConnection.ctx().writeAndFlush(Commands.newLookupResponse(brokerUrl, brokerUrl, true,
                             LookupType.Connect, clientRequestId, true /* this is coming from proxy */));
                 }
@@ -223,17 +222,11 @@ public class LookupProxyHandler {
                         topicName.getPartitionedTopicName(), clientRequestId);
             }
 
-            service.getConnectionPool().getConnection(addr).thenAccept(clientCnx -> {
+            proxyConnection.getConnectionPool().getConnection(addr).thenAccept(clientCnx -> {
                 // Connected to backend broker
-                long requestId = service.newRequestId();
+                long requestId = proxyConnection.newRequestId();
                 ByteBuf command;
-                if (service.getConfiguration().isAuthenticationEnabled()) {
-                    command = Commands.newPartitionMetadataRequest(topicName.toString(), requestId,
-                            proxyConnection.clientAuthRole, proxyConnection.clientAuthData,
-                            proxyConnection.clientAuthMethod);
-                } else {
-                    command = Commands.newPartitionMetadataRequest(topicName.toString(), requestId);
-                }
+                command = Commands.newPartitionMetadataRequest(topicName.toString(), requestId);
                 clientCnx.newLookup(command, requestId).thenAccept(lookupDataResult -> {
                     proxyConnection.ctx().writeAndFlush(
                             Commands.newPartitionMetadataResponse(lookupDataResult.partitions, clientRequestId));
