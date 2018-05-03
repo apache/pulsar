@@ -1,6 +1,6 @@
 ---
 title: The Pulsar Java client
-tags: [client, java]
+tags: [client, java, schema, schema registry]
 ---
 
 <!--
