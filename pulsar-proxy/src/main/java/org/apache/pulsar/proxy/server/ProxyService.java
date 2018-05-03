@@ -21,13 +21,6 @@ package org.apache.pulsar.proxy.server;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
-import io.netty.bootstrap.ServerBootstrap;
-import io.netty.buffer.PooledByteBufAllocator;
-import io.netty.channel.AdaptiveRecvByteBufAllocator;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.EventLoopGroup;
-import io.netty.util.concurrent.DefaultThreadFactory;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetAddress;
@@ -39,17 +32,19 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
-import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.AuthenticationFactory;
-import org.apache.pulsar.client.impl.ConnectionPool;
-import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.netty.bootstrap.ServerBootstrap;
+import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.channel.AdaptiveRecvByteBufAllocator;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.EventLoopGroup;
+import io.netty.util.concurrent.DefaultThreadFactory;
 
 /**
  * Pulsar proxy service
@@ -66,13 +61,9 @@ public class ProxyService implements Closeable {
 
     private final EventLoopGroup acceptorGroup;
     private final EventLoopGroup workerGroup;
+
     private final DefaultThreadFactory acceptorThreadFactory = new DefaultThreadFactory("pulsar-discovery-acceptor");
     private final DefaultThreadFactory workersThreadFactory = new DefaultThreadFactory("pulsar-discovery-io");
-
-    // ConnectionPool is used by the proxy to issue lookup requests
-    private final PulsarClientImpl client;
-
-    private final Authentication clientAuthentication;
 
     private BrokerDiscoveryProvider discoveryProvider;
 
@@ -98,21 +89,6 @@ public class ProxyService implements Closeable {
 
         this.acceptorGroup = EventLoopUtil.newEventLoopGroup(1, acceptorThreadFactory);
         this.workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, workersThreadFactory);
-
-        ClientConfigurationData clientConf = new ClientConfigurationData();
-        clientConf.setServiceUrl(serviceUrl);
-        if (proxyConfig.getBrokerClientAuthenticationPlugin() != null) {
-            clientConf.setAuthentication(AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
-                    proxyConfig.getBrokerClientAuthenticationParameters()));
-        }
-        if (proxyConfig.isTlsEnabledWithBroker()) {
-            clientConf.setUseTls(true);
-            clientConf.setTlsTrustCertsFilePath(proxyConfig.getBrokerClientTrustCertsFilePath());
-            clientConf.setTlsAllowInsecureConnection(proxyConfig.isTlsAllowInsecureConnection());
-        }
-
-        this.client = new PulsarClientImpl(clientConf, workerGroup);
-        this.clientAuthentication = clientConf.getAuthentication();
     }
 
     public void start() throws Exception {
@@ -148,14 +124,6 @@ public class ProxyService implements Closeable {
         }
     }
 
-    long newRequestId() {
-        return client.newRequestId();
-    }
-
-    ConnectionPool getConnectionPool() {
-        return client.getCnxPool();
-    }
-
     public ZooKeeperClientFactory getZooKeeperClientFactory() {
         if (zkClientFactory == null) {
             zkClientFactory = new ZookeeperClientFactoryImpl();
@@ -174,7 +142,6 @@ public class ProxyService implements Closeable {
         }
         acceptorGroup.shutdownGracefully();
         workerGroup.shutdownGracefully();
-        client.close();
     }
 
     public String getServiceUrl() {
@@ -197,10 +164,6 @@ public class ProxyService implements Closeable {
         return authorizationService;
     }
 
-    public Authentication getClientAuthentication() {
-        return clientAuthentication;
-    }
-
     public ConfigurationCacheService getConfigurationCacheService() {
         return configurationCacheService;
     }
@@ -211,6 +174,10 @@ public class ProxyService implements Closeable {
 
     public Semaphore getLookupRequestSemaphore() {
         return lookupRequestSemaphore.get();
+    }
+    
+    public EventLoopGroup getWorkerGroup() {
+        return workerGroup;
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(ProxyService.class);

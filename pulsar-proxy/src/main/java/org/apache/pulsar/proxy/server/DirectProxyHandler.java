@@ -63,7 +63,7 @@ public class DirectProxyHandler {
     private final Authentication authentication;
 
     public DirectProxyHandler(ProxyService service, ProxyConnection proxyConnection, String targetBrokerUrl) {
-        this.authentication = service.getClientAuthentication();
+        this.authentication = proxyConnection.getClientAuthentication();
         this.inboundChannel = proxyConnection.ctx().channel();
         this.originalPrincipal = proxyConnection.clientAuthRole;
         this.clientAuthData = proxyConnection.clientAuthData;
@@ -72,7 +72,8 @@ public class DirectProxyHandler {
 
         // Start the connection attempt.
         Bootstrap b = new Bootstrap();
-        // Tie the backend connection on the same thread to avoid context switches when passing data between the 2
+        // Tie the backend connection on the same thread to avoid context
+        // switches when passing data between the 2
         // connections
         b.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
         b.group(inboundChannel.eventLoop()).channel(inboundChannel.getClass()).option(ChannelOption.AUTO_READ, false);
@@ -85,8 +86,8 @@ public class DirectProxyHandler {
                     AuthenticationDataProvider authData = authentication.getAuthData();
                     if (authData.hasDataForTls()) {
                         sslCtx = SecurityUtility.createNettySslContextForClient(config.isTlsAllowInsecureConnection(),
-                                config.getBrokerClientTrustCertsFilePath(), (X509Certificate[]) authData.getTlsCertificates(),
-                                authData.getTlsPrivateKey());
+                                config.getBrokerClientTrustCertsFilePath(),
+                                (X509Certificate[]) authData.getTlsCertificates(), authData.getTlsPrivateKey());
                     } else {
                         sslCtx = SecurityUtility.createNettySslContextForClient(config.isTlsAllowInsecureConnection(),
                                 config.getBrokerClientTrustCertsFilePath());
@@ -101,7 +102,8 @@ public class DirectProxyHandler {
 
         URI targetBroker;
         try {
-            // targetBrokerUrl is coming in the "hostname:6650" form, so we need to extract host and port
+            // targetBrokerUrl is coming in the "hostname:6650" form, so we need
+            // to extract host and port
             targetBroker = new URI("pulsar://" + targetBrokerUrl);
         } catch (URISyntaxException e) {
             log.warn("[{}] Failed to parse broker url '{}'", inboundChannel, targetBrokerUrl, e);
@@ -117,7 +119,8 @@ public class DirectProxyHandler {
                 inboundChannel.close();
                 return;
             }
-            final ProxyBackendHandler cnx = (ProxyBackendHandler) outboundChannel.pipeline().get("proxyOutboundHandler");
+            final ProxyBackendHandler cnx = (ProxyBackendHandler) outboundChannel.pipeline()
+                    .get("proxyOutboundHandler");
             cnx.setRemoteHostName(targetBroker.getHost());
         });
     }
@@ -132,7 +135,7 @@ public class DirectProxyHandler {
         private String remoteHostName;
         protected ChannelHandlerContext ctx;
         private ProxyConfiguration config;
-        
+
         public ProxyBackendHandler(ProxyConfiguration config) {
             this.config = config;
         }
@@ -177,7 +180,8 @@ public class DirectProxyHandler {
 
         @Override
         public void operationComplete(Future<Void> future) throws Exception {
-            // This is invoked when the write operation on the paired connection is completed
+            // This is invoked when the write operation on the paired connection
+            // is completed
             if (future.isSuccess()) {
                 outboundChannel.read();
             } else {
@@ -197,15 +201,16 @@ public class DirectProxyHandler {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Received Connected from broker", inboundChannel, outboundChannel);
             }
-            
+
             if (config.isTlsHostnameVerificationEnabled() && remoteHostName != null
                     && !verifyTlsHostName(remoteHostName, ctx)) {
-                // close the connection if host-verification failed with the broker
+                // close the connection if host-verification failed with the
+                // broker
                 log.warn("[{}] Failed to verify hostname of {}", ctx.channel(), remoteHostName);
                 ctx.close();
                 return;
             }
-            
+
             state = BackendState.HandshakeCompleted;
 
             inboundChannel.writeAndFlush(Commands.newConnected(connected.getProtocolVersion())).addListener(future -> {
@@ -231,7 +236,7 @@ public class DirectProxyHandler {
             log.warn("[{}] [{}] Caught exception: {}", inboundChannel, outboundChannel, cause.getMessage(), cause);
             ctx.close();
         }
-        
+
         public void setRemoteHostName(String remoteHostName) {
             this.remoteHostName = remoteHostName;
         }
