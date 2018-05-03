@@ -30,7 +30,7 @@ public interface SchemaStorage {
     // Startup behavior for the schema storage client
     void start() throws Exception;
 
-    // 
+    // Shutdown behavior for the schema storage client
     void close() throws Exception;
 }
 ```
