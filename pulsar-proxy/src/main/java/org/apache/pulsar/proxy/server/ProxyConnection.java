@@ -312,7 +312,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             final String clientAuthMethod) throws PulsarClientException {
         return new PulsarClientImpl(clientConf, service.getWorkerGroup(),
                 new ConnectionPool(clientConf, service.getWorkerGroup(), () -> new ProxyClientCnx(clientConf,
-                        service.workerGroup, clientAuthRole, clientAuthData, clientAuthMethod)));
+                        service.getWorkerGroup(), clientAuthRole, clientAuthData, clientAuthMethod)));
     }
 
     long newRequestId() {
