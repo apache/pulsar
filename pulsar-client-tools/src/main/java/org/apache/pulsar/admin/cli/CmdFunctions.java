@@ -995,15 +995,6 @@ public class CmdFunctions extends CmdBase {
         throw new IllegalArgumentException("Unrecognized processing guarantee: " + processingGuarantees.name());
     }
 
-    private static FunctionDetails.Runtime convertRuntime(FunctionConfig.Runtime runtime) {
-        for (FunctionDetails.Runtime type : FunctionDetails.Runtime.values()) {
-            if (type.name().equals(runtime.name())) {
-                return type;
-            }
-        }
-        throw new IllegalArgumentException("Unrecognized runtime: " + runtime.name());
-    }
-
     private void parseFullyQualifiedFunctionName(String fqfn, FunctionConfig functionConfig) {
         String[] args = fqfn.split("/");
         if (args.length != 3) {
