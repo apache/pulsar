@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.client.impl.HttpClient.getPulsarClientVersion;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Queues;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
@@ -36,7 +37,6 @@ import java.nio.channels.ClosedChannelException;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -73,7 +73,7 @@ import org.slf4j.LoggerFactory;
 
 public class ClientCnx extends PulsarHandler {
 
-    private final Authentication authentication;
+    protected final Authentication authentication;
     private State state;
 
     private final ConcurrentLongHashMap<CompletableFuture<ProducerResponse>> pendingRequests =
@@ -102,7 +102,7 @@ public class ClientCnx extends PulsarHandler {
     private final int rejectedRequestResetTimeSec = 60;
     private final long operationTimeoutMs;
 
-    private String proxyToTargetBrokerAddress = null;
+    protected String proxyToTargetBrokerAddress = null;
     // Remote hostName with which client is connected
     private String remoteHostName = null;
     private boolean isTlsHostnameVerificationEnable;
@@ -130,7 +130,6 @@ public class ClientCnx extends PulsarHandler {
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
-
         if (proxyToTargetBrokerAddress == null) {
             if (log.isDebugEnabled()) {
                 log.debug("{} Connected to broker", ctx.channel());
@@ -138,13 +137,8 @@ public class ClientCnx extends PulsarHandler {
         } else {
             log.info("{} Connected through proxy to target broker at {}", ctx.channel(), proxyToTargetBrokerAddress);
         }
-        String authData = "";
-        if (authentication.getAuthData().hasDataFromCommand()) {
-            authData = authentication.getAuthData().getCommandData();
-        }
         // Send CONNECT command
-        ctx.writeAndFlush(Commands.newConnect(authentication.getAuthMethodName(), authData,
-                getPulsarClientVersion(), proxyToTargetBrokerAddress))
+        ctx.writeAndFlush(newConnectCommand())
                 .addListener(future -> {
                     if (future.isSuccess()) {
                         if (log.isDebugEnabled()) {
@@ -156,6 +150,15 @@ public class ClientCnx extends PulsarHandler {
                         ctx.close();
                     }
                 });
+    }
+    
+    protected ByteBuf newConnectCommand() throws PulsarClientException {
+        String authData = "";
+        if (authentication.getAuthData().hasDataFromCommand()) {
+            authData = authentication.getAuthData().getCommandData();
+        }
+        return Commands.newConnect(authentication.getAuthMethodName(), authData,
+                getPulsarClientVersion(), proxyToTargetBrokerAddress);
     }
 
     @Override
@@ -756,6 +759,13 @@ public class ClientCnx extends PulsarHandler {
         default:
             return new PulsarClientException(errorMsg);
         }
+    }
+    
+    @VisibleForTesting
+    public void close() {
+       if (ctx != null) {
+           ctx.close();
+       }
     }
 
     private static final Logger log = LoggerFactory.getLogger(ClientCnx.class);

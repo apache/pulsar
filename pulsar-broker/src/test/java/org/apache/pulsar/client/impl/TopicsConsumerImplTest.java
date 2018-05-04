@@ -77,8 +77,8 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3);
 
         admin.tenants().createTenant("prop", new TenantInfo());
-        admin.persistentTopics().createPartitionedTopic(topicName2, 2);
-        admin.persistentTopics().createPartitionedTopic(topicName3, 3);
+        admin.topics().createPartitionedTopic(topicName2, 2);
+        admin.topics().createPartitionedTopic(topicName3, 3);
 
         // 2. Create consumer
         try {
@@ -105,8 +105,8 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         List<String> topicNames = Lists.newArrayList(topicName1, topicName2);
 
         admin.tenants().createTenant("prop", new TenantInfo());
-        admin.persistentTopics().createPartitionedTopic(topicName2, 2);
-        admin.persistentTopics().createPartitionedTopic(topicName3, 3);
+        admin.topics().createPartitionedTopic(topicName2, 2);
+        admin.topics().createPartitionedTopic(topicName3, 3);
 
         // 2. Create consumer
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
@@ -147,8 +147,8 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3);
 
         admin.tenants().createTenant("prop", new TenantInfo());
-        admin.persistentTopics().createPartitionedTopic(topicName2, 2);
-        admin.persistentTopics().createPartitionedTopic(topicName3, 3);
+        admin.topics().createPartitionedTopic(topicName2, 2);
+        admin.topics().createPartitionedTopic(topicName3, 3);
 
         // 1. producer connect
         Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1)
@@ -212,8 +212,8 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3);
 
         admin.tenants().createTenant("prop", new TenantInfo());
-        admin.persistentTopics().createPartitionedTopic(topicName2, 2);
-        admin.persistentTopics().createPartitionedTopic(topicName3, 3);
+        admin.topics().createPartitionedTopic(topicName2, 2);
+        admin.topics().createPartitionedTopic(topicName3, 3);
 
         // 1. producer connect
         Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1)
@@ -295,8 +295,8 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3);
 
         admin.tenants().createTenant("prop", new TenantInfo());
-        admin.persistentTopics().createPartitionedTopic(topicName2, 2);
-        admin.persistentTopics().createPartitionedTopic(topicName3, 3);
+        admin.topics().createPartitionedTopic(topicName2, 2);
+        admin.topics().createPartitionedTopic(topicName3, 3);
 
         // 1. producer connect
         Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1)
@@ -439,8 +439,8 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3);
 
         admin.tenants().createTenant("prop", new TenantInfo());
-        admin.persistentTopics().createPartitionedTopic(topicName2, 2);
-        admin.persistentTopics().createPartitionedTopic(topicName3, 3);
+        admin.topics().createPartitionedTopic(topicName2, 2);
+        admin.topics().createPartitionedTopic(topicName3, 3);
 
         // 1. producer connect
         Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1)
@@ -563,8 +563,8 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         final String topicName3 = "persistent://prop/use/ns-abc/topic-3-" + key;
 
         admin.tenants().createTenant("prop", new TenantInfo());
-        admin.persistentTopics().createPartitionedTopic(topicName2, 2);
-        admin.persistentTopics().createPartitionedTopic(topicName3, 3);
+        admin.topics().createPartitionedTopic(topicName2, 2);
+        admin.topics().createPartitionedTopic(topicName3, 3);
 
         // test failing builder with empty topics
         try {

@@ -21,6 +21,8 @@ groups:
 - title: Getting started
   dir: getting-started
   docs:
+  - title: Pulsar 2.0
+    endpoint: pulsar-2.0
   - title: Run Pulsar locally
     endpoint: LocalCluster
   - title: Pulsar in Docker
@@ -80,8 +82,8 @@ groups:
     endpoint: Dashboard
   - title: Pulsar statistics
     endpoint: Stats
-  - title: Modular load manager
-    endpoint: ModularLoadManager
+  - title: Load distribution
+    endpoint: LoadDistribution
   - title: Pulsar proxy
     endpoint: Proxy
 
@@ -104,8 +106,8 @@ groups:
     endpoint: overview
   - title: Clusters
     endpoint: clusters
-  - title: Properties
-    endpoint: properties
+  - title: Tenants
+    endpoint: tenants
   - title: Brokers
     endpoint: brokers
   - title: Namespaces
@@ -142,6 +144,8 @@ groups:
     endpoint: RetentionExpiry
   - title: Encryption
     endpoint: Encryption
+  - title: Using Pulsar as a message queue
+    endpoint: message-queue
 
 - title: Developing Pulsar
   dir: project
@@ -152,6 +156,8 @@ groups:
     endpoint: BinaryProtocol
   - title: Codebase
     endpoint: Codebase
+  - title: Modular load manager
+    endpoint: ModularLoadManager
 
 - title: Reference
   dir: reference

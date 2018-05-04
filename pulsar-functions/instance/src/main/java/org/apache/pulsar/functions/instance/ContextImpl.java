@@ -122,7 +122,7 @@ class ContextImpl implements Context {
     }
 
     @Override
-    public String getTopicName() {
+    public String getCurrentMessageTopicName() {
         return currentTopicName;
     }
 
@@ -137,12 +137,12 @@ class ContextImpl implements Context {
 
     @Override
     public String getOutputTopic() {
-        return config.getFunctionDetails().getOutput();
+        return config.getFunctionDetails().getSink().getTopic();
     }
 
     @Override
     public String getOutputSerdeClassName() {
-        return config.getFunctionDetails().getOutputSerdeClassName();
+        return config.getFunctionDetails().getSink().getSerDeClassName();
     }
 
     @Override
@@ -249,7 +249,7 @@ class ContextImpl implements Context {
 
     //TODO remove topic argument
     @Override
-    public CompletableFuture<Void> ack(byte[] messageId, String topic) {
+    public CompletableFuture<Void> ack(byte[] messageId) {
         MessageId actualMessageId = null;
         try {
             actualMessageId = MessageId.fromByteArray(messageId);

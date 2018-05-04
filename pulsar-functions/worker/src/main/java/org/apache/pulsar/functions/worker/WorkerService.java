@@ -45,6 +45,7 @@ public class WorkerService {
     private Namespace dlogNamespace;
     private MembershipManager membershipManager;
     private SchedulerManager schedulerManager;
+    private boolean isInitialized = false;
 
     public WorkerService(WorkerConfig workerConfig) {
         this.workerConfig = workerConfig;
@@ -76,7 +77,7 @@ public class WorkerService {
         // initialize the function metadata manager
         try {
 
-            this.client = PulsarClient.create(this.workerConfig.getPulsarServiceUrl());
+            this.client = PulsarClient.builder().serviceUrl(this.workerConfig.getPulsarServiceUrl()).build();
             log.info("Created Pulsar client");
 
             //create scheduler manager
@@ -116,6 +117,9 @@ public class WorkerService {
 
             // Start function runtime manager
             this.functionRuntimeManager.start();
+
+            // indicate function worker service is done intializing
+            this.isInitialized = true;
 
         } catch (Exception e) {
             log.error("Error Starting up in worker", e);

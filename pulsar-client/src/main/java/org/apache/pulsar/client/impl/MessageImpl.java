@@ -31,6 +31,7 @@ import java.util.stream.Collectors;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
@@ -43,10 +44,9 @@ import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 
-public class MessageImpl<T> implements Message<T> {
+public class MessageImpl<T> extends MessageRecordImpl<T, MessageId> {
 
     private MessageMetadata.Builder msgMetadataBuilder;
-    private MessageId messageId;
     private ClientCnx cnx;
     private ByteBuf payload;
     private Schema<T> schema;
@@ -74,7 +74,7 @@ public class MessageImpl<T> implements Message<T> {
         msg.cnx = null;
         msg.payload = Unpooled.wrappedBuffer(payload);
         msg.properties = null;
-        msg.schema = Schema.IDENTITY;
+        msg.schema = Schema.BYTES;
         return msg;
     }
 

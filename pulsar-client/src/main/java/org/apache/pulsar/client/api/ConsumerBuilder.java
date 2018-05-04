@@ -211,7 +211,7 @@ public interface ConsumerBuilder<T> extends Serializable, Cloneable {
      * @param unit
      *            the time unit for the delay
      */
-    ConsumerBuilder<T> acknowledmentGroupTime(long delay, TimeUnit unit);
+    ConsumerBuilder<T> acknowledgmentGroupTime(long delay, TimeUnit unit);
 
     /**
      * Set the max total receiver queue size across partitons.

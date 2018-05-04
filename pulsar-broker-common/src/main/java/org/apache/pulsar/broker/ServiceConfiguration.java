@@ -41,8 +41,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(required = true)
     private String zookeeperServers;
     // Global Zookeeper quorum connection string
+    @Deprecated
     @FieldContext(required = false)
     private String globalZookeeperServers;
+    // Configuration Store connection string
+    @FieldContext(required = false)
+    private String configurationStoreServers;
     private int brokerServicePort = 6650;
     private int brokerServicePortTls = 6651;
     // Port to use to server HTTP request
@@ -89,6 +93,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int messageExpiryCheckIntervalInMinutes = 5;
     // How long to delay rewinding cursor and dispatching messages when active consumer is changed
     private int activeConsumerFailoverDelayTimeMillis = 1000;
+    // How long to delete inactive subscriptions from last consuming
+    // When it is 0, inactive subscriptions are not deleted automatically
+    private long subscriptionExpirationTimeMinutes = 0;
+    // How frequently to proactively check and purge expired subscription
+    private long subscriptionExpiryCheckIntervalInMinutes = 5;
 
     // Set the default behavior for message deduplication in the broker
     // This can be overridden per-namespace. If enabled, broker will reject
@@ -438,6 +447,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean preferLaterVersions = false;
 
     private String schemaRegistryStorageClassName = "org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory";
+    private Set<String> schemaRegistryCompatibilityCheckers = Sets.newHashSet(
+        "org.apache.pulsar.broker.service.schema.JsonSchemaCompatibilityCheck"
+    );
 
     /**** --- WebSocket --- ****/
     // Number of IO threads in Pulsar Client used in WebSocket proxy
@@ -452,6 +464,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     /**** --- Functions --- ****/
     private boolean functionsWorkerEnabled = false;
 
+    /**** --- Broker Web Stats --- ****/
+    // If true, export publisher stats when returning topics stats from the admin rest api
+    private boolean exposePublisherStats = true;
+
     public String getZookeeperServers() {
         return zookeeperServers;
     }
@@ -460,6 +476,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
         this.zookeeperServers = zookeeperServers;
     }
 
+    /**
+     * @deprecated See {@link #getConfigurationStoreServers}
+     */
+    @Deprecated
     public String getGlobalZookeeperServers() {
         if (this.globalZookeeperServers == null || this.globalZookeeperServers.isEmpty()) {
             // If the configuration is not set, assuming that the globalZK is not enabled and all data is in the same
@@ -469,8 +489,24 @@ public class ServiceConfiguration implements PulsarConfiguration {
         return globalZookeeperServers;
     }
 
+    /**
+     * @deprecated See {@link #setConfigurationStoreServers(String)}
+     */
+    @Deprecated
     public void setGlobalZookeeperServers(String globalZookeeperServers) {
         this.globalZookeeperServers = globalZookeeperServers;
+    }
+
+    public String getConfigurationStoreServers() {
+        if (this.configurationStoreServers == null || this.configurationStoreServers.isEmpty()) {
+            // If the configuration is not set, assuming that all data is in the same as globalZK cluster
+            return this.getGlobalZookeeperServers();
+        }
+        return configurationStoreServers;
+    }
+
+    public void setConfigurationStoreServers(String configurationStoreServers) {
+        this.configurationStoreServers = configurationStoreServers;
     }
 
     public int getBrokerServicePort() {
@@ -648,6 +684,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setActiveConsumerFailoverDelayTimeMillis(int activeConsumerFailoverDelayTimeMillis) {
         this.activeConsumerFailoverDelayTimeMillis = activeConsumerFailoverDelayTimeMillis;
+    }
+
+    public long getSubscriptionExpirationTimeMinutes() {
+        return subscriptionExpirationTimeMinutes;
+    }
+
+    public void setSubscriptionExpirationTimeMinutes(long subscriptionExpirationTimeMinutes) {
+        this.subscriptionExpirationTimeMinutes = subscriptionExpirationTimeMinutes;
+    }
+
+    public long getSubscriptionExpiryCheckIntervalInMinutes() {
+        return subscriptionExpiryCheckIntervalInMinutes;
+    }
+
+    public void setSubscriptionExpiryCheckIntervalInMinutes(long subscriptionExpiryCheckIntervalInMinutes) {
+        this.subscriptionExpiryCheckIntervalInMinutes = subscriptionExpiryCheckIntervalInMinutes;
     }
 
     public boolean isClientLibraryVersionCheckEnabled() {
@@ -1506,6 +1558,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
         schemaRegistryStorageClassName = className;
     }
 
+    public Set<String> getSchemaRegistryCompatibilityCheckers() {
+        return schemaRegistryCompatibilityCheckers;
+    }
+
+    public void setSchemaRegistryCompatibilityCheckers(Set<String> schemaRegistryCompatibilityCheckers) {
+        this.schemaRegistryCompatibilityCheckers = schemaRegistryCompatibilityCheckers;
+    }
+
     public boolean authenticateOriginalAuthData() {
         return authenticateOriginalAuthData;
     }
@@ -1545,6 +1605,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public boolean isFunctionsWorkerEnabled() {
         return functionsWorkerEnabled;
+    }
+
+
+    /**** --- Broker Web Stats ---- ****/
+
+    public void setExposePublisherStats(boolean expose) {
+        this.exposePublisherStats = expose;
+    }
+
+    public boolean exposePublisherStats() {
+        return exposePublisherStats;
     }
 
     public boolean isRunningStandalone() {

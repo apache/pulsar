@@ -256,7 +256,7 @@ public class ResendRequestTest extends BrokerTestBase {
         // 2. Create consumer
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName(subscriptionName).receiverQueueSize(10).subscriptionType(SubscriptionType.Failover)
-                .acknowledmentGroupTime(0, TimeUnit.SECONDS);
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS);
         Consumer<byte[]> consumer1 = consumerBuilder.clone().consumerName("consumer-1").subscribe();
         Consumer<byte[]> consumer2 = consumerBuilder.clone().consumerName("consumer-2").subscribe();
 
@@ -421,7 +421,7 @@ public class ResendRequestTest extends BrokerTestBase {
         final int totalMessages = 10;
         final int numberOfPartitions = 4;
         admin.tenants().createTenant("prop", new TenantInfo());
-        admin.persistentTopics().createPartitionedTopic(topicName, numberOfPartitions);
+        admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
         // Special step to create partitioned topic
 
         // 1. producer connect
@@ -476,7 +476,7 @@ public class ResendRequestTest extends BrokerTestBase {
         final int totalMessages = 10;
         final int numberOfPartitions = 3;
         admin.tenants().createTenant("prop", new TenantInfo());
-        admin.persistentTopics().createPartitionedTopic(topicName, numberOfPartitions);
+        admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
         Random rn = new Random();
         // Special step to create partitioned topic
 
@@ -573,7 +573,7 @@ public class ResendRequestTest extends BrokerTestBase {
         final int totalMessages = 10;
         final int numberOfPartitions = 3;
         admin.tenants().createTenant("prop", new TenantInfo());
-        admin.persistentTopics().createPartitionedTopic(topicName, numberOfPartitions);
+        admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
         Random rn = new Random();
         // Special step to create partitioned topic
 

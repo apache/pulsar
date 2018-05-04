@@ -17,7 +17,7 @@ Delivery semantics | Description
 You can set the processing guarantees for a Pulsar Function when you create the Function. This [`pulsar-function create`](../../reference/CliTools#pulsar-admin-functions-create) command, for example, would apply effectively-once guarantees to the Function:
 
 ```bash
-$ bin/pulsar-functions \
+$ bin/pulsar-admin functions create \
   --processingGuarantees EFFECTIVELY_ONCE \
   # Other function configs
 ```
@@ -32,4 +32,10 @@ The available options are:
 
 ## Updating the processing guarantees of a function
 
-You can change the processing guarantees applied to a function once it's already been created using the [`update`](../../reference/CliTools#pulsar-admin-functions-update) command.
+You can change the processing guarantees applied to a function once it's already been created using the [`update`](../../reference/CliTools#pulsar-admin-functions-update) command. Here's an example:
+
+```bash
+$ bin/pulsar-admin functions update \
+  --processingGuarantees ATMOST_ONCE \
+  # Other function configs
+```

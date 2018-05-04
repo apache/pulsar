@@ -20,6 +20,8 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.base.Preconditions;
+
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
@@ -29,8 +31,6 @@ import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-
-import com.google.common.base.Preconditions;
 
 public class MessageBuilderImpl<T> implements MessageBuilder<T> {
     private static final ByteBuffer EMPTY_CONTENT = ByteBuffer.allocate(0);

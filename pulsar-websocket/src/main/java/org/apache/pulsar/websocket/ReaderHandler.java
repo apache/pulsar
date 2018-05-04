@@ -94,7 +94,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
 
             this.reader = builder.create();
 
-            this.subscription = ((ReaderImpl)this.reader).getConsumer().getSubscription();
+            this.subscription = ((ReaderImpl<?>) this.reader).getConsumer().getSubscription();
             if (!this.service.addReader(this)) {
                 log.warn("[{}:{}] Failed to add reader handler for topic {}", request.getRemoteAddr(),
                         request.getRemotePort(), topic);
@@ -214,8 +214,8 @@ public class ReaderHandler extends AbstractWebSocketHandler {
         }
     }
 
-    public Consumer getConsumer() {
-        return reader != null ? ((ReaderImpl)reader).getConsumer() : null;
+    public Consumer<?> getConsumer() {
+        return reader != null ? ((ReaderImpl<?>) reader).getConsumer() : null;
     }
 
     public String getSubscription() {
@@ -235,7 +235,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
     }
 
     public long getMsgDeliveredCounter() {
-        return MSG_DELIVERED_COUNTER_UPDATER.get(this);
+        return msgDeliveredCounter;
     }
 
     protected void updateDeliverMsgStat(long msgSize) {

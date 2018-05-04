@@ -22,12 +22,10 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * A starter to start function worker.
  */
-@Slf4j
 public class FunctionWorkerStarter {
 
     private static class WorkerArguments {

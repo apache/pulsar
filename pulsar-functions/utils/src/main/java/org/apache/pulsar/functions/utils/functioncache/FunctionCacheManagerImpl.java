@@ -19,15 +19,14 @@
 
 package org.apache.pulsar.functions.utils.functioncache;
 
+import org.apache.pulsar.functions.utils.Exceptions;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import org.apache.pulsar.functions.utils.Exceptions;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * An implementation of {@link FunctionCacheManager}.
@@ -38,7 +37,7 @@ public class FunctionCacheManagerImpl implements FunctionCacheManager {
     private final Map<String, FunctionCacheEntry> cacheFunctions;
 
     public FunctionCacheManagerImpl() {
-        this.cacheFunctions = Collections.synchronizedMap(new HashMap<>());
+        this.cacheFunctions = new ConcurrentHashMap<>();
     }
 
     Map<String, FunctionCacheEntry> getCacheFunctions() {

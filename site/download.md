@@ -46,9 +46,9 @@ Pulsar's Release Managers. We also provide `MD5` and `SHA-512` checksums for eve
 After you download the file, you should calculate a checksum for your download, and make sure it is
 the same as ours.
 
-### Release notes for the {{ site.current_version }} release
+### Release notes
 
-[https://github.com/apache/incubator-pulsar/releases/tag/v{{site.current_version}}](https://github.com/apache/incubator-pulsar/releases/tag/v{{site.current_version}})
+[Release notes](../release-notes) for all Pulsar's versions
 
 ### Getting started
 

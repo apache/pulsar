@@ -361,7 +361,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         final int totalMessages = 15;
         final int numberOfPartitions = 3;
         admin.tenants().createTenant("prop", new TenantInfo());
-        admin.persistentTopics().createPartitionedTopic(topicName, numberOfPartitions);
+        admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
 
         // 1. producer connect
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)

@@ -46,7 +46,9 @@ import java.util.function.Supplier;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.conf.ClientConfiguration;
+import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -421,7 +423,7 @@ public class PulsarService implements AutoCloseable {
             state = State.Started;
 
             acquireSLANamespace();
-            
+
             // start function worker service if necessary
             this.startWorkerService();
 
@@ -491,7 +493,7 @@ public class PulsarService implements AutoCloseable {
 
         this.localZkCache = new LocalZooKeeperCache(getZkClient(), getOrderedExecutor());
         this.globalZkCache = new GlobalZooKeeperCache(getZooKeeperClientFactory(),
-                (int) config.getZooKeeperSessionTimeoutMillis(), config.getGlobalZookeeperServers(),
+                (int) config.getZooKeeperSessionTimeoutMillis(), config.getConfigurationStoreServers(),
                 getOrderedExecutor(), this.cacheExecutor);
         try {
             this.globalZkCache.start();
@@ -633,6 +635,10 @@ public class PulsarService implements AutoCloseable {
 
     public ManagedLedgerFactory getManagedLedgerFactory() {
         return managedLedgerClientFactory.getManagedLedgerFactory();
+    }
+
+    public LedgerOffloader getManagedLedgerOffloader() {
+        return NullLedgerOffloader.INSTANCE;
     }
 
     public ZooKeeperCache getLocalZkCache() {
@@ -889,7 +895,7 @@ public class PulsarService implements AutoCloseable {
 
             InternalConfigurationData internalConf = new InternalConfigurationData(
                     this.getConfiguration().getZookeeperServers(),
-                    this.getConfiguration().getGlobalZookeeperServers(),
+                    this.getConfiguration().getConfigurationStoreServers(),
                     new ClientConfiguration().getZkLedgersRootPath());
 
             URI dlogURI;

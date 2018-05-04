@@ -38,6 +38,7 @@ import com.google.common.collect.TreeRangeSet;
 import com.google.common.util.concurrent.RateLimiter;
 import com.google.protobuf.InvalidProtocolBufferException;
 
+import java.time.Clock;
 import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.List;
@@ -155,6 +156,10 @@ public class ManagedCursorImpl implements ManagedCursor {
     @SuppressWarnings("unused")
     private volatile int pendingMarkDeletedSubmittedCount = 0;
     private long lastLedgerSwitchTimestamp;
+    private final Clock clock;
+
+    // The last active time (Unix time, milliseconds) of the cursor
+    private long lastActive;
 
     enum State {
         Uninitialized, // Cursor is being initialized
@@ -186,7 +191,9 @@ public class ManagedCursorImpl implements ManagedCursor {
         PENDING_READ_OPS_UPDATER.set(this, 0);
         RESET_CURSOR_IN_PROGRESS_UPDATER.set(this, FALSE);
         WAITING_READ_OP_UPDATER.set(this, null);
-        this.lastLedgerSwitchTimestamp = System.currentTimeMillis();
+        this.clock = config.getClock();
+        this.lastActive = this.clock.millis();
+        this.lastLedgerSwitchTimestamp = this.clock.millis();
 
         if (config.getThrottleMarkDelete() > 0.0) {
             markDeleteLimiter = RateLimiter.create(config.getThrottleMarkDelete());
@@ -213,6 +220,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             public void operationComplete(ManagedCursorInfo info, Stat stat) {
 
                 cursorLedgerStat = stat;
+                lastActive = info.getLastActive() != 0 ? info.getLastActive() : lastActive;
 
                 if (info.getCursorsLedgerId() == -1L) {
                     // There is no cursor ledger to read the last position from. It means the cursor has been properly
@@ -1277,7 +1285,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         // markDelete-position and clear out deletedMsgSet
         markDeletePosition = PositionImpl.get(newMarkDeletePosition);
         individualDeletedMessages.remove(Range.atMost(markDeletePosition));
-        
+
         if (readPosition.compareTo(newMarkDeletePosition) <= 0) {
             // If the position that is mark-deleted is past the read position, it
             // means that the client has skipped some entries. We need to move
@@ -1304,7 +1312,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             final MarkDeleteCallback callback, final Object ctx) {
         checkNotNull(position);
         checkArgument(position instanceof PositionImpl);
-        
+
         if (STATE_UPDATER.get(this) == State.Closed) {
             callback.markDeleteFailed(new ManagedLedgerException("Cursor was already closed"), ctx);
             return;
@@ -1325,7 +1333,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             log.debug("[{}] Mark delete cursor {} up to position: {}", ledger.getName(), name, position);
         }
         PositionImpl newPosition = (PositionImpl) position;
-        
+
         if (((PositionImpl) ledger.getLastConfirmedEntry()).compareTo(newPosition) < 0) {
             if (log.isDebugEnabled()) {
                 log.debug(
@@ -1538,7 +1546,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
             for (Position pos : positions) {
                 PositionImpl position  = (PositionImpl) checkNotNull(pos);
-                
+
                 if (((PositionImpl) ledger.getLastConfirmedEntry()).compareTo(position) < 0) {
                     if (log.isDebugEnabled()) {
                         log.debug(
@@ -1690,6 +1698,16 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     @Override
+    public long getLastActive() {
+        return lastActive;
+    }
+
+    @Override
+    public void updateLastActive() {
+        lastActive = System.currentTimeMillis();
+    }
+
+    @Override
     public boolean isDurable() {
         return true;
     }
@@ -1834,7 +1852,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         ManagedCursorInfo.Builder info = ManagedCursorInfo.newBuilder() //
                 .setCursorsLedgerId(cursorsLedgerId) //
                 .setMarkDeleteLedgerId(position.getLedgerId()) //
-                .setMarkDeleteEntryId(position.getEntryId()); //
+                .setMarkDeleteEntryId(position.getEntryId()) //
+                .setLastActive(lastActive); //
 
         info.addAllProperties(buildPropertiesMap(properties));
         if (persistIndividualDeletedMessageRanges) {
@@ -2110,7 +2129,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     boolean shouldCloseLedger(LedgerHandle lh) {
-        long now = System.currentTimeMillis();
+        long now = clock.millis();
         if ((lh.getLastAddConfirmed() >= config.getMetadataMaxEntriesPerLedger()
                 || lastLedgerSwitchTimestamp < (now - config.getLedgerRolloverTimeout() * 1000))
                 && STATE_UPDATER.get(this) != State.Closed) {

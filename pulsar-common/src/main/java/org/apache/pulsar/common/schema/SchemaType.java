@@ -18,6 +18,22 @@
  */
 package org.apache.pulsar.common.schema;
 
+/**
+ * Types of supported schema for Pulsar messages
+ */
 public enum SchemaType {
-    AVRO, PROTOBUF, THRIFT, JSON, NONE
+    /**
+     * No schema defined
+     */
+    NONE,
+
+    /**
+     * Simple String encoding with UTF-8
+     */
+    STRING,
+
+    /**
+     * JSON object encoding and validation
+     */
+    JSON
 }
