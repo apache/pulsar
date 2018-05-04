@@ -638,6 +638,7 @@ public class CmdFunctions extends CmdBase {
                     instanceConfig.setFunctionId(UUID.randomUUID().toString());
                     instanceConfig.setInstanceId(Integer.toString(i));
                     instanceConfig.setMaxBufferedTuples(1024);
+                    instanceConfig.setPort(Utils.findAvailablePort());
                     RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
                             instanceConfig,
                             userCodeFile,
