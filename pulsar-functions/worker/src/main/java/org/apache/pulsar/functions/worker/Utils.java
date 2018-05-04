@@ -39,6 +39,7 @@ import org.apache.distributedlog.impl.metadata.BKDLConfig;
 import org.apache.distributedlog.metadata.DLMetadata;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.worker.dlog.DLInputStream;
 import org.apache.pulsar.functions.worker.dlog.DLOutputStream;
@@ -99,18 +100,19 @@ public final class Utils {
                                          String destPkgPath)
             throws IOException {
 
+        String encodedDestPkgPath = Codec.encode(destPkgPath);
         // if the dest directory does not exist, create it.
-        if (dlogNamespace.logExists(destPkgPath)) {
+        if (dlogNamespace.logExists(encodedDestPkgPath)) {
             // if the destination file exists, write a log message
             log.info(String.format("Target function file already exists at '%s'. Overwriting it now",
-                    destPkgPath));
-            dlogNamespace.deleteLog(destPkgPath);
+                    encodedDestPkgPath));
+            dlogNamespace.deleteLog(encodedDestPkgPath);
         }
         // copy the topology package to target working directory
         log.info(String.format("Uploading function package to '%s'",
                 destPkgPath));
 
-        try (DistributedLogManager dlm = dlogNamespace.openLog(destPkgPath)) {
+        try (DistributedLogManager dlm = dlogNamespace.openLog(encodedDestPkgPath)) {
             try (AppendOnlyStreamWriter writer = dlm.getAppendOnlyStreamWriter()){
 
                 try (OutputStream out = new DLOutputStream(dlm, writer)) {
@@ -128,7 +130,8 @@ public final class Utils {
     public static void downloadFromBookkeeper(Namespace namespace,
                                                  OutputStream outputStream,
                                                  String packagePath) throws IOException {
-        DistributedLogManager dlm = namespace.openLog(packagePath);
+        String decodedDestPkgPath = Codec.decode(packagePath);
+        DistributedLogManager dlm = namespace.openLog(decodedDestPkgPath);
         try (InputStream in = new DLInputStream(dlm)) {
             int read = 0;
             byte[] bytes = new byte[1024];
