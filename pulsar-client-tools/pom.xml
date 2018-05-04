@@ -76,7 +76,7 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-functions-utils</artifactId>
+      <artifactId>pulsar-functions-worker</artifactId>
       <version>${project.version}</version>
     </dependency>
 
