@@ -28,9 +28,11 @@ import com.google.gson.reflect.TypeToken;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.connect.core.Sink;
 import org.apache.pulsar.connect.core.Source;
+import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.shaded.proto.Function;
 import org.apache.pulsar.functions.shaded.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.shaded.proto.Function.SinkSpec;
@@ -42,6 +44,7 @@ import org.apache.pulsar.functions.utils.SourceConfig;
 import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.source.PulsarSource;
 import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.functions.utils.Utils;
 
 import java.io.File;
 import java.io.IOException;
@@ -63,15 +66,22 @@ public class CmdConnectors extends CmdBase {
     private final CreateSource createSource;
     private final CreateSink createSink;
     private final DeleteConnector deleteConnector;
+    private final LocalSourceRunner localSourceRunner;
+    private final LocalSinkRunner localSinkRunner;
 
     public CmdConnectors(PulsarAdmin admin) {
         super("connectors", admin);
         createSource = new CreateSource();
         createSink = new CreateSink();
         deleteConnector = new DeleteConnector();
+        localSourceRunner = new LocalSourceRunner();
+        localSinkRunner = new LocalSinkRunner();
+
         jcommander.addCommand("create-source", createSource);
         jcommander.addCommand("create-sink", createSink);
         jcommander.addCommand("delete", deleteConnector);
+        jcommander.addCommand("localrun-source", localSourceRunner);
+        jcommander.addCommand("localrun-sink", localSinkRunner);
     }
 
     /**
@@ -89,6 +99,32 @@ public class CmdConnectors extends CmdBase {
         }
 
         abstract void runCmd() throws Exception;
+    }
+
+    @Parameters(commandDescription = "Run the Pulsar Function locally (rather than deploying it to the Pulsar cluster)")
+
+    class LocalSourceRunner extends CreateSource {
+
+        @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker")
+        protected String brokerServiceUrl;
+
+        @Override
+        void runCmd() throws Exception {
+            CmdFunctions.startLocalRun(createSourceConfigProto2(sourceConfig),
+                    sourceConfig.getParallelism(), brokerServiceUrl, jarFile, admin);
+        }
+    }
+
+    class LocalSinkRunner extends CreateSink {
+
+        @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker")
+        protected String brokerServiceUrl;
+
+        @Override
+        void runCmd() throws Exception {
+            CmdFunctions.startLocalRun(createSinkConfigProto2(sinkConfig),
+                    sinkConfig.getParallelism(), brokerServiceUrl, jarFile, admin);
+        }
     }
 
     @Parameters(commandDescription = "Create Pulsar source connectors")
@@ -181,7 +217,7 @@ public class CmdConnectors extends CmdBase {
             if (!areAllRequiredFieldsPresentForSource(sourceConfig)) {
                 throw new RuntimeException("Missing arguments");
             }
-            admin.functions().createSource(createSourceConfig(sourceConfig), jarFile);
+            admin.functions().createFunction(createSourceConfig(sourceConfig), jarFile);
             print("Created successfully");
         }
 
@@ -206,7 +242,15 @@ public class CmdConnectors extends CmdBase {
             return typeArg;
         }
 
-        private FunctionDetails createSourceConfig(SourceConfig sourceConfig) {
+        protected org.apache.pulsar.functions.proto.Function.FunctionDetails createSourceConfigProto2(SourceConfig sourceConfig)
+                throws IOException {
+            org.apache.pulsar.functions.proto.Function.FunctionDetails.Builder functionDetailsBuilder
+                    = org.apache.pulsar.functions.proto.Function.FunctionDetails.newBuilder();
+            Utils.mergeJson(FunctionsImpl.printJson(createSourceConfig(sourceConfig)), functionDetailsBuilder);
+            return functionDetailsBuilder.build();
+        }
+
+        protected FunctionDetails createSourceConfig(SourceConfig sourceConfig) {
 
             File file = new File(jarFile);
             try {
@@ -228,6 +272,7 @@ public class CmdConnectors extends CmdBase {
             }
             functionDetailsBuilder.setRuntime(FunctionDetails.Runtime.JAVA);
             functionDetailsBuilder.setParallelism(sourceConfig.getParallelism());
+            functionDetailsBuilder.setClassName(IdentityFunction.class.getName());
             if (sourceConfig.getProcessingGuarantees() != null) {
                 functionDetailsBuilder.setProcessingGuarantees(
                         convertProcessingGuarantee(sourceConfig.getProcessingGuarantees()));
@@ -361,7 +406,7 @@ public class CmdConnectors extends CmdBase {
             if (!areAllRequiredFieldsPresentForSink(sinkConfig)) {
                 throw new RuntimeException("Missing arguments");
             }
-            admin.functions().createSink(createSinkConfig(sinkConfig), jarFile);
+            admin.functions().createFunction(createSinkConfig(sinkConfig), jarFile);
             print("Created successfully");
         }
 
@@ -386,7 +431,15 @@ public class CmdConnectors extends CmdBase {
             return typeArg;
         }
 
-        private FunctionDetails createSinkConfig(SinkConfig sinkConfig) {
+        protected org.apache.pulsar.functions.proto.Function.FunctionDetails createSinkConfigProto2(SinkConfig sinkConfig)
+                throws IOException {
+            org.apache.pulsar.functions.proto.Function.FunctionDetails.Builder functionDetailsBuilder
+                    = org.apache.pulsar.functions.proto.Function.FunctionDetails.newBuilder();
+            Utils.mergeJson(FunctionsImpl.printJson(createSinkConfig(sinkConfig)), functionDetailsBuilder);
+            return functionDetailsBuilder.build();
+        }
+
+        protected FunctionDetails createSinkConfig(SinkConfig sinkConfig) {
 
             File file = new File(jarFile);
             try {
@@ -408,6 +461,7 @@ public class CmdConnectors extends CmdBase {
             }
             functionDetailsBuilder.setRuntime(FunctionDetails.Runtime.JAVA);
             functionDetailsBuilder.setParallelism(sinkConfig.getParallelism());
+            functionDetailsBuilder.setClassName(IdentityFunction.class.getName());
             if (sinkConfig.getProcessingGuarantees() != null) {
                 functionDetailsBuilder.setProcessingGuarantees(
                         convertProcessingGuarantee(sinkConfig.getProcessingGuarantees()));
@@ -479,7 +533,7 @@ public class CmdConnectors extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            admin.functions().deleteConnector(tenant, namespace, name);
+            admin.functions().deleteFunction(tenant, namespace, name);
             print("Deleted successfully");
         }
     }
