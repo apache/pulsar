@@ -45,10 +45,6 @@ public class DefaultSerDe implements SerDe<Object> {
     private final Class type;
 
     public DefaultSerDe(Class type) {
-        if (type.equals(Object.class)) {
-
-        }
-
         this.type = type;
     }
 
