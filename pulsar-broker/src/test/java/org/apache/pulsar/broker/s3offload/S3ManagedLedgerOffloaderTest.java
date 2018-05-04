@@ -121,22 +121,6 @@ class S3ManagedLedgerOffloaderTest {
     }
 
     @Test
-    public void testCannotConnectToS3() throws Exception {
-        ServiceConfiguration conf = new ServiceConfiguration();
-        conf.setManagedLedgerOffloadDriver(S3ManagedLedgerOffloader.DRIVER_NAME);
-        conf.setS3ManagedLedgerOffloadBucket(BUCKET);
-        conf.setS3ManagedLedgerOffloadRegion(REGION);
-        LedgerOffloader offloader = new S3ManagedLedgerOffloader(conf, scheduler);
-
-        try {
-            offloader.offload(buildReadHandle(), UUID.randomUUID(), new HashMap<>()).get();
-            Assert.fail("Shouldn't be able to add to bucket");
-        } catch (ExecutionException e) {
-            Assert.assertTrue(e.getMessage().contains("PermanentRedirect"));
-        }
-    }
-
-    @Test
     public void testNoRegionConfigured() throws Exception {
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setManagedLedgerOffloadDriver(S3ManagedLedgerOffloader.DRIVER_NAME);
