@@ -960,6 +960,95 @@
 
 <p>If you’re running a non-<span class="popover-term" tabindex="0" title="What is a standalone Pulsar broker?" data-placement="top" data-content="A lightweight Pulsar broker in which all components run in a single Java Virtual Machine (JVM) process. Standalone clusters can be run on a single machine and are useful for development purposes." data-toggle="popover" data-trigger="focus">standalone</span> cluster, you’ll need to obtain the service URL for the cluster. How you obtain the service URL will depend on how you deployed your Pulsar cluster.</p>
 
+<h2 id="cli">Command-line interface</h2>
+
+<p>Pulsar Functions are deployed and managed using the <a href="../../reference/CliTools#pulsar-admin-functions"><code class="highlighter-rouge">pulsar-admin functions</code></a> interface, which contains commands such as <a href="../../reference/CliTools#pulsar-admin-functions-create"><code class="highlighter-rouge">create</code></a> for deploying functions in <a href="#cluster-mode">cluster mode</a>, <a href="../../reference/CliTools#pulsar-admin-functions-trigger"><code class="highlighter-rouge">trigger</code></a> for <a href="#triggering">triggering</a> functions, <a href="../../reference/CliTools#pulsar-admin-functions-list"><code class="highlighter-rouge">list</code></a> for listing deployed functions, and several others.</p>
+
+<h3 id="fqfn">Fully Qualified Function Name (FQFN)</h3>
+
+<p>Each Pulsar Function has a <strong>Fully Qualified Function Name</strong> (FQFN) that consists of three elements: the function’s <span class="popover-term" tabindex="0" title="What is a tenant?" data-placement="top" data-content="An administrative unit for allocating capacity and enforcing an authentication/authorization scheme. Tenants in Pulsar are managed at the property level." data-toggle="popover" data-trigger="focus">tenant</span>, <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span>, and function name. FQFN’s look like this:</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<section class="fqfn">
+  <span class="tenant">tenant</span>/<span class="namespace">namespace</span>/<span class="name">name</span>
+</section>
+
+<p>FQFNs enable you to, for example, create multiple functions with the same name provided that they’re in different namespaces.</p>
+
+<h3 id="default-arguments">Default arguments</h3>
+
+<p>When managing Pulsar Functions, you’ll need to specify a variety of information about those functions, including <span class="popover-term" tabindex="0" title="What is a tenant?" data-placement="top" data-content="An administrative unit for allocating capacity and enforcing an authentication/authorization scheme. Tenants in Pulsar are managed at the property level." data-toggle="popover" data-trigger="focus">tenant</span>, <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span>, input and output topics, etc. There are some parameters, however, that have default values that will be supplied if omitted. The table below lists the defaults:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Parameter</th>
+      <th style="text-align: left">Default</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">Function name</td>
+      <td style="text-align: left">Whichever value is specified for the class name. For example, <code class="highlighter-rouge">--className org.example.MyFunction</code> would give the function a name of <code class="highlighter-rouge">MyFunction</code></td>
+    </tr>
+    <tr>
+      <td style="text-align: left">Tenant</td>
+      <td style="text-align: left">Derived from the input topics’ names. If the input topics are under the <code class="highlighter-rouge">marketing</code> tenant—i.e. the topic names have the form <code class="highlighter-rouge">persistent://marketing/{namespace}/{topicName}</code>—then the tenant will be <code class="highlighter-rouge">marketing</code>.</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">Namespace</td>
+      <td style="text-align: left">Derived from the input topics’ names. If the input topics are under the <code class="highlighter-rouge">asia</code> namespace under the <code class="highlighter-rouge">marketing</code> tenant—i.e. the topic names have the form <code class="highlighter-rouge">persistent://marketing/asia/{topicName}</code>, then the namespace will be <code class="highlighter-rouge">asia</code>.</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">Output topic</td>
+      <td style="text-align: left"><code class="highlighter-rouge">{input topic}-{function name}-output</code>. A function with an input topic name of <code class="highlighter-rouge">incoming</code> and a function name of <code class="highlighter-rouge">exclamation</code>, for example, would have an output topic of <code class="highlighter-rouge">incoming-exclamation-output</code>.</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">Subscription type</td>
+      <td style="text-align: left">For at-least-once and at-most-once <a href="../guarantees">processing guarantees</a>, the <a href="../../getting-started/ConceptsAndArchitecture#shared"><code class="highlighter-rouge">SHARED</code></a> is applied by default; for effectively-once guarantees, <a href="../../getting-started/ConceptsAndArchitecture#failover"><code class="highlighter-rouge">FAILOVER</code></a> is applied</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">Processing guarantees</td>
+      <td style="text-align: left"><a href="../guarantees"><code class="highlighter-rouge">ATLEAST_ONCE</code></a></td>
+    </tr>
+    <tr>
+      <td style="text-align: left">Pulsar service URL</td>
+      <td style="text-align: left"><code class="highlighter-rouge">pulsar://localhost:6650</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<h4 id="example-use-of-defaults">Example use of defaults</h4>
+
+<p>Take this <code class="highlighter-rouge">create</code> command:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions create <span class="se">\</span>
+  <span class="nt">--jar</span> my-pulsar-functions.jar <span class="se">\</span>
+  <span class="nt">--className</span> org.example.MyFunction <span class="se">\</span>
+  <span class="nt">--inputs</span> my-function-input-topic1,my-function-input-topic2
+</code></pre></div></div>
+
+<p>The created function would have default values supplied for the function name (<code class="highlighter-rouge">MyFunction</code>), tenant (<code class="highlighter-rouge">public</code>), namespace (<code class="highlighter-rouge">default</code>), subscription type (<code class="highlighter-rouge">SHARED</code>), processing guarantees (<code class="highlighter-rouge">ATLEAST_ONCE</code>), and Pulsar service URL (<code class="highlighter-rouge">pulsar://localhost:6650</code>).</p>
+
 <h2 id="local-run">Local run mode</h2>
 
 <p>If you run a Pulsar Function in <strong>local run</strong> mode, it will run on the machine from which the command is run (this could be your laptop, an <a href="https://aws.amazon.com/ec2/">AWS EC2</a> instance, etc.). Here’s an example <a href="../../CliTools#pulsar-admin-functions-localrun"><code class="highlighter-rouge">localrun</code></a> command:</p>

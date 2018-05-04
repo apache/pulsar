@@ -974,10 +974,14 @@
 <p>Deploying Pulsar Functions is handled by the <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> CLI tool, in particular the <a href="../../reference/CliTools#pulsar-admin-functions"><code class="highlighter-rouge">functions</code></a> command. Here’s an example command that would run our <a href="#example-function">sanitizer</a> function from above in <a href="../deployment#local-run">local run</a> mode:</p>
 
 <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions localrun <span class="se">\</span>
-  <span class="nt">--py</span> sanitizer.py <span class="se">\</span>
-  <span class="nt">--className</span> sanitizer <span class="se">\</span>
-  <span class="nt">--tenant</span> sample <span class="se">\</span>
-  <span class="nt">--namespace</span> ns1
+  <span class="nt">--py</span> sanitizer.py <span class="se">\ </span>         <span class="c"># The Python file with the function's code</span>
+  <span class="nt">--className</span> sanitizer <span class="se">\ </span>     <span class="c"># The class or function holding the processing logic</span>
+  <span class="nt">--tenant</span> sample <span class="se">\ </span>           <span class="c"># The function's tenant (derived from the topic name by default)</span>
+  <span class="nt">--namespace</span> ns1 <span class="se">\ </span>           <span class="c"># The function's namespace (derived from the topic name by default)</span>
+  <span class="nt">--name</span> sanitizer-function <span class="se">\ </span> <span class="c"># The name of the function (the class name by default)</span>
+  <span class="nt">--inputs</span> dirty-strings-in <span class="se">\ </span> <span class="c"># The input topic(s) for the function</span>
+  <span class="nt">--output</span> clean-strings-out <span class="se">\ </span><span class="c"># The output topic for the function</span>
+  <span class="nt">--logTopic</span> sanitizer-logs    <span class="c"># The topic to which all functions logs are published</span>
 </code></pre></div></div>
 
 <p>For instructions on running functions in your Pulsar cluster, see the <a href="../deployment">Deploying Pulsar Functions</a> guide.</p>
