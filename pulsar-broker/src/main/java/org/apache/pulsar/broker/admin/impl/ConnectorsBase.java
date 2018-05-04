@@ -53,9 +53,9 @@ public class ConnectorsBase extends AdminResource implements Supplier<WorkerServ
     @ApiOperation(value = "Creates a new Pulsar Source in cluster mode")
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 400, message = "Invalid request (function already exists, etc.)"),
+            @ApiResponse(code = 400, message = "Invalid request (connector already exists, etc.)"),
             @ApiResponse(code = 408, message = "Request timeout"),
-            @ApiResponse(code = 200, message = "Pulsar Function successfully created")
+            @ApiResponse(code = 200, message = "Pulsar Connector successfully created")
     })
     @Path("/source/{tenant}/{namespace}/{functionName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
@@ -74,9 +74,9 @@ public class ConnectorsBase extends AdminResource implements Supplier<WorkerServ
     @ApiOperation(value = "Creates a new Pulsar Sink in cluster mode")
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 400, message = "Invalid request (function already exists, etc.)"),
+            @ApiResponse(code = 400, message = "Invalid request (connector already exists, etc.)"),
             @ApiResponse(code = 408, message = "Request timeout"),
-            @ApiResponse(code = 200, message = "Pulsar Function successfully created")
+            @ApiResponse(code = 200, message = "Pulsar Coneector successfully created")
     })
     @Path("/sink/{tenant}/{namespace}/{functionName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
@@ -95,9 +95,10 @@ public class ConnectorsBase extends AdminResource implements Supplier<WorkerServ
     @ApiOperation(value = "Stops a new Pulsar Sink or Source in cluster mode")
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 400, message = "Invalid request (function already exists, etc.)"),
+            @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 404, message = "The connector doesn't exist"),
             @ApiResponse(code = 408, message = "Request timeout"),
-            @ApiResponse(code = 200, message = "Pulsar Function successfully created")
+            @ApiResponse(code = 200, message = "The connector was successfully deleted")
     })
     @Path("/{tenant}/{namespace}/{functionName}")
     public Response deregisterConnector(final @PathParam("tenant") String tenant,
