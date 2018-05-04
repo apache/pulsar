@@ -93,6 +93,229 @@ public class FunctionsImpl {
         return true;
     }
 
+    public Response registerSource(final @PathParam("tenant") String tenant,
+                                   final @PathParam("namespace") String namespace,
+                                   final @PathParam("functionName") String functionName,
+                                   final @FormDataParam("data") InputStream uploadedInputStream,
+                                   final @FormDataParam("data") FormDataContentDisposition fileDetail,
+                                   final @FormDataParam("functionDetails") String functionDetailsJson) {
+        if (!isWorkerServiceAvailable()) {
+            return getUnavailableResponse();
+        }
+        FunctionDetails functionDetails;
+        // validate parameters
+        try {
+            functionDetails = validateUpdateSourceRequestParams(tenant, namespace, functionName,
+                    uploadedInputStream, fileDetail, functionDetailsJson);
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid register connector request @ /{}/{}/{}",
+                    tenant, namespace, functionName, e);
+            return Response.status(Status.BAD_REQUEST)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(e.getMessage())).build();
+        }
+
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
+
+        if (functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
+            log.error("Function {}/{}/{} already exists", tenant, namespace, functionName);
+            return Response.status(Status.BAD_REQUEST)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(String.format("Function %s already exists", functionName))).build();
+        }
+
+        // function state
+        FunctionMetaData.Builder functionMetaDataBuilder = FunctionMetaData.newBuilder()
+                .setFunctionDetails(functionDetails)
+                .setCreateTime(System.currentTimeMillis())
+                .setVersion(0);
+
+        PackageLocationMetaData.Builder packageLocationMetaDataBuilder = PackageLocationMetaData.newBuilder()
+                .setPackagePath(String.format(
+                        "%s/%s/%s/%s",
+                        tenant,
+                        namespace,
+                        functionName,
+                        Utils.getUniquePackageName(fileDetail.getFileName())));
+        functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
+
+        return updateRequest(functionMetaDataBuilder.build(), uploadedInputStream);
+    }
+
+    public Response registerSink(final @PathParam("tenant") String tenant,
+                                   final @PathParam("namespace") String namespace,
+                                   final @PathParam("functionName") String functionName,
+                                   final @FormDataParam("data") InputStream uploadedInputStream,
+                                   final @FormDataParam("data") FormDataContentDisposition fileDetail,
+                                   final @FormDataParam("functionDetails") String functionDetailsJson) {
+        if (!isWorkerServiceAvailable()) {
+            return getUnavailableResponse();
+        }
+        FunctionDetails functionDetails;
+        // validate parameters
+        try {
+            functionDetails = validateUpdateSinkRequestParams(tenant, namespace, functionName,
+                    uploadedInputStream, fileDetail, functionDetailsJson);
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid register connector request @ /{}/{}/{}",
+                    tenant, namespace, functionName, e);
+            return Response.status(Status.BAD_REQUEST)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(e.getMessage())).build();
+        }
+
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
+
+        if (functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
+            log.error("Function {}/{}/{} already exists", tenant, namespace, functionName);
+            return Response.status(Status.BAD_REQUEST)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(String.format("Function %s already exists", functionName))).build();
+        }
+
+        // function state
+        FunctionMetaData.Builder functionMetaDataBuilder = FunctionMetaData.newBuilder()
+                .setFunctionDetails(functionDetails)
+                .setCreateTime(System.currentTimeMillis())
+                .setVersion(0);
+
+        PackageLocationMetaData.Builder packageLocationMetaDataBuilder = PackageLocationMetaData.newBuilder()
+                .setPackagePath(String.format(
+                        "%s/%s/%s/%s",
+                        tenant,
+                        namespace,
+                        functionName,
+                        Utils.getUniquePackageName(fileDetail.getFileName())));
+        functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
+
+        return updateRequest(functionMetaDataBuilder.build(), uploadedInputStream);
+    }
+
+    private FunctionDetails validateUpdateSinkRequestParams(String tenant, String namespace, String functionName,
+                                                                 InputStream uploadedInputStream, FormDataContentDisposition
+                                                                         fileDetail, String functionDetailsJson) {
+        if (tenant == null) {
+            throw new IllegalArgumentException("Tenant is not provided");
+        }
+        if (namespace == null) {
+            throw new IllegalArgumentException("Namespace is not provided");
+        }
+        if (functionName == null) {
+            throw new IllegalArgumentException("Function Name is not provided");
+        }
+        if (uploadedInputStream == null || fileDetail == null) {
+            throw new IllegalArgumentException("Function Package is not provided");
+        }
+        if (functionDetailsJson == null) {
+            throw new IllegalArgumentException("FunctionDetails is not provided");
+        }
+        try {
+            FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
+            org.apache.pulsar.functions.utils.Utils.mergeJson(functionDetailsJson, functionDetailsBuilder);
+            FunctionDetails functionDetails = functionDetailsBuilder.build();
+
+            List<String> missingFields = new LinkedList<>();
+            if (functionDetails.getTenant() == null || functionDetails.getTenant().isEmpty()) {
+                missingFields.add("Tenant");
+            }
+            if (functionDetails.getNamespace() == null || functionDetails.getNamespace().isEmpty()) {
+                missingFields.add("Namespace");
+            }
+            if (functionDetails.getName() == null || functionDetails.getName().isEmpty()) {
+                missingFields.add("Name");
+            }
+            if (!functionDetails.getSource().isInitialized()) {
+                missingFields.add("Source");
+            }
+            else if (functionDetails.getSource().getClassName().isEmpty()) {
+                missingFields.add("Source ClassName");
+            } else if (functionDetails.getSource().getTopicsToSerDeClassNameMap().isEmpty()) {
+                missingFields.add("Source Topics Serde Map ");
+            }
+
+            if (!functionDetails.getSink().isInitialized()) {
+                missingFields.add("Sink");
+            } else if (functionDetails.getSink().getClassName() == null || functionDetails.getSink().getClassName().isEmpty()) {
+                missingFields.add("Sink ClassName");
+            }
+
+            if (!missingFields.isEmpty()) {
+                String errorMessage = StringUtils.join(missingFields, ",");
+                throw new IllegalArgumentException(errorMessage + " is not provided");
+            }
+            if (functionDetails.getParallelism() <= 0) {
+                throw new IllegalArgumentException("Parallelism needs to be set to a positive number");
+            }
+            return functionDetails;
+        } catch (IllegalArgumentException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Invalid FunctionDetails");
+        }
+    }
+    private FunctionDetails validateUpdateSourceRequestParams(String tenant, String namespace, String functionName,
+                                                      InputStream uploadedInputStream, FormDataContentDisposition
+                                                              fileDetail, String functionDetailsJson) {
+
+        if (tenant == null) {
+            throw new IllegalArgumentException("Tenant is not provided");
+        }
+        if (namespace == null) {
+            throw new IllegalArgumentException("Namespace is not provided");
+        }
+        if (functionName == null) {
+            throw new IllegalArgumentException("Function Name is not provided");
+        }
+        if (uploadedInputStream == null || fileDetail == null) {
+            throw new IllegalArgumentException("Function Package is not provided");
+        }
+        if (functionDetailsJson == null) {
+            throw new IllegalArgumentException("FunctionDetails is not provided");
+        }
+        try {
+            FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
+            org.apache.pulsar.functions.utils.Utils.mergeJson(functionDetailsJson, functionDetailsBuilder);
+            FunctionDetails functionDetails = functionDetailsBuilder.build();
+
+            List<String> missingFields = new LinkedList<>();
+            if (functionDetails.getTenant() == null || functionDetails.getTenant().isEmpty()) {
+                missingFields.add("Tenant");
+            }
+            if (functionDetails.getNamespace() == null || functionDetails.getNamespace().isEmpty()) {
+                missingFields.add("Namespace");
+            }
+            if (functionDetails.getName() == null || functionDetails.getName().isEmpty()) {
+                missingFields.add("Name");
+            }
+            if (!functionDetails.getSource().isInitialized()) {
+                missingFields.add("Source");
+            }
+            else if (functionDetails.getSource().getClassName().isEmpty()) {
+                missingFields.add("Source ClassName");
+            }
+            if (!functionDetails.getSink().isInitialized()) {
+                missingFields.add("Sink");
+            } else if (functionDetails.getSink().getClassName() == null || functionDetails.getSink().getClassName().isEmpty()) {
+                missingFields.add("Sink ClassName");
+            } else if (functionDetails.getSink().getTopic() == null || functionDetails.getSink().getTopic().isEmpty()) {
+                missingFields.add("Sink Topic");
+            }
+
+            if (!missingFields.isEmpty()) {
+                String errorMessage = StringUtils.join(missingFields, ",");
+                throw new IllegalArgumentException(errorMessage + " is not provided");
+            }
+            if (functionDetails.getParallelism() <= 0) {
+                throw new IllegalArgumentException("Parallelism needs to be set to a positive number");
+            }
+            return functionDetails;
+        } catch (IllegalArgumentException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Invalid FunctionDetails");
+        }
+    }
+
     @POST
     @Path("/{tenant}/{namespace}/{functionName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)

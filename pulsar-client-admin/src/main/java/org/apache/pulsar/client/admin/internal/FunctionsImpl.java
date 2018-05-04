@@ -49,10 +49,12 @@ import java.util.List;
 public class FunctionsImpl extends BaseResource implements Functions {
 
     private final WebTarget functions;
+    private final WebTarget connectors;
 
     public FunctionsImpl(WebTarget web, Authentication auth) {
         super(auth);
         this.functions = web.path("/admin/functions");
+        this.connectors = web.path("/admin/connectors");
     }
 
     @Override
@@ -195,6 +197,52 @@ public class FunctionsImpl extends BaseResource implements Functions {
                         targetFile.toPath(),
                         StandardCopyOption.REPLACE_EXISTING);
             }
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void createSource(FunctionDetails functionDetails, String fileName) throws PulsarAdminException {
+        try {
+            final FormDataMultiPart mp = new FormDataMultiPart();
+            if (fileName != null) {
+                mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
+            }
+            mp.bodyPart(new FormDataBodyPart("functionDetails",
+                    printJson(functionDetails),
+                    MediaType.APPLICATION_JSON_TYPE));
+            request(connectors.path("/source").path(functionDetails.getTenant())
+                    .path(functionDetails.getNamespace()).path(functionDetails.getName()))
+                    .post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void createSink(FunctionDetails functionDetails, String fileName) throws PulsarAdminException {
+        try {
+            final FormDataMultiPart mp = new FormDataMultiPart();
+            if (fileName != null) {
+                mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
+            }
+            mp.bodyPart(new FormDataBodyPart("functionDetails",
+                    printJson(functionDetails),
+                    MediaType.APPLICATION_JSON_TYPE));
+            request(connectors.path("/sink").path(functionDetails.getTenant())
+                    .path(functionDetails.getNamespace()).path(functionDetails.getName()))
+                    .post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void deleteConnector(String cluster, String namespace, String function) throws PulsarAdminException {
+        try {
+            request(connectors.path(cluster).path(namespace).path(function))
+                    .delete(ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }

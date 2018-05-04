@@ -57,20 +57,22 @@ message SourceSpec {
     string className = 1;
     // map in json format
     string configs = 2;
+    string typeClassName = 3;
 
     // configs used only when source feeds into functions
-    SubscriptionType subscriptionType = 3;
-    map<string,string> topicsToSerDeClassName = 4;
+    SubscriptionType subscriptionType = 4;
+    map<string,string> topicsToSerDeClassName = 5;
 }
 
 message SinkSpec {
     string className = 1;
     // map in json format
     string configs = 2;
+    string typeClassName = 3;
 
     // configs used only when functions output to sink
-    string topic = 3;
-    string serDeClassName = 4;
+    string topic = 4;
+    string serDeClassName = 5;
 }
 
 message PackageLocationMetaData {

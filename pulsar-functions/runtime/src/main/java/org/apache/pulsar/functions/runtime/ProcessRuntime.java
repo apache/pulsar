@@ -145,10 +145,14 @@ class ProcessRuntime implements Runtime {
                 args.add("--source_configs");
                 args.add(sourceConfigs);
             }
+            if (instanceConfig.getFunctionDetails().getSource().getTypeClassName() != null
+                && !instanceConfig.getFunctionDetails().getSource().getTypeClassName().isEmpty()) {
+                args.add("--source_type_classname");
+                args.add(instanceConfig.getFunctionDetails().getSource().getTypeClassName());
+            }
         }
         args.add("--source_subscription_type");
         args.add(instanceConfig.getFunctionDetails().getSource().getSubscriptionType().toString());
-
         args.add("--source_topics_serde_classname");
         args.add(new Gson().toJson(instanceConfig.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap()));
 
@@ -162,6 +166,11 @@ class ProcessRuntime implements Runtime {
             if (sinkConfigs != null && !sinkConfigs.isEmpty()) {
                 args.add("--sink_configs");
                 args.add(sinkConfigs);
+            }
+            if (instanceConfig.getFunctionDetails().getSink().getTypeClassName() != null
+                    && !instanceConfig.getFunctionDetails().getSink().getTypeClassName().isEmpty()) {
+                args.add("--sink_type_classname");
+                args.add(instanceConfig.getFunctionDetails().getSink().getTypeClassName());
             }
         }
         if (instanceConfig.getFunctionDetails().getSink().getTopic() != null

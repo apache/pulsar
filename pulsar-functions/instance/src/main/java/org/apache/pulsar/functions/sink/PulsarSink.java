@@ -57,7 +57,7 @@ public class PulsarSink<T> implements RuntimeSink<T> {
         void initializeOutputProducer(String outputTopic) throws Exception;
 
         void sendOutputMessage(MessageBuilder outputMsgBuilder,
-                               PulsarRecord pulsarRecord) throws Exception;
+                               RecordContext recordContext) throws Exception;
 
         void close() throws Exception;
     }
@@ -73,7 +73,7 @@ public class PulsarSink<T> implements RuntimeSink<T> {
 
         @Override
         public void sendOutputMessage(MessageBuilder outputMsgBuilder,
-                                      PulsarRecord pulsarRecord) throws Exception {
+                                      RecordContext recordContext) throws Exception {
             Message<byte[]> outputMsg = outputMsgBuilder.build();
             this.producer.sendAsync(outputMsg);
         }
@@ -101,9 +101,9 @@ public class PulsarSink<T> implements RuntimeSink<T> {
 
         @Override
         public void sendOutputMessage(MessageBuilder outputMsgBuilder,
-                                      PulsarRecord pulsarRecord) throws Exception {
+                                      RecordContext recordContext) throws Exception {
             Message<byte[]> outputMsg = outputMsgBuilder.build();
-            this.producer.sendAsync(outputMsg).thenAccept(messageId -> pulsarRecord.ack());
+            this.producer.sendAsync(outputMsg).thenAccept(messageId -> recordContext.ack());
         }
 
         @Override
@@ -130,20 +130,19 @@ public class PulsarSink<T> implements RuntimeSink<T> {
         }
 
         @Override
-        public void sendOutputMessage(MessageBuilder outputMsgBuilder, PulsarRecord pulsarRecord)
+        public void sendOutputMessage(MessageBuilder outputMsgBuilder, RecordContext recordContext)
                 throws Exception {
 
             // assign sequence id to output message for idempotent producing
             outputMsgBuilder = outputMsgBuilder
-                    .setSequenceId(pulsarRecord.getRecordSequence());
+                    .setSequenceId(recordContext.getRecordSequence());
 
             // currently on PulsarRecord
-            Producer producer = outputProducer.getProducer(pulsarRecord.getTopicName(),
-                    pulsarRecord.getPartitionId());
+            Producer producer = outputProducer.getProducer(recordContext.getPartitionId());
 
             org.apache.pulsar.client.api.Message outputMsg = outputMsgBuilder.build();
             producer.sendAsync(outputMsg)
-                    .thenAccept(messageId -> pulsarRecord.ack())
+                    .thenAccept(messageId -> recordContext.ack())
                     .join();
         }
 
@@ -162,7 +161,7 @@ public class PulsarSink<T> implements RuntimeSink<T> {
             // open a producer for the results computed from this topic partition.
             if (null != outputProducer) {
                 try {
-                    this.outputProducer.getProducer(consumer.getTopic(), Integer.toString(partitionId));
+                    this.outputProducer.getProducer(String.format("%s-%d", consumer.getTopic(), partitionId));
                 } catch (PulsarClientException e) {
                     // this can be ignored, because producer can be lazily created when accessing it.
                     log.warn("Fail to create a producer for results computed from messages of topic: {}, partition: {}",
@@ -176,7 +175,7 @@ public class PulsarSink<T> implements RuntimeSink<T> {
             if (null != outputProducer) {
                 // if I lost the ownership of a partition, close its corresponding topic partition.
                 // this is to allow the new active consumer be able to produce to the result topic.
-                this.outputProducer.closeProducer(consumer.getTopic(), Integer.toString(partitionId));
+                this.outputProducer.closeProducer(String.format("%s-%d", consumer.getTopic(), partitionId));
             }
         }
     }
@@ -215,8 +214,6 @@ public class PulsarSink<T> implements RuntimeSink<T> {
     @Override
     public void write(RecordContext recordContext, T value) throws Exception {
 
-        PulsarRecord pulsarRecord = (PulsarRecord) recordContext;
-
         byte[] output;
         try {
             output = this.outputSerDe.serialize(value);
@@ -225,12 +222,16 @@ public class PulsarSink<T> implements RuntimeSink<T> {
             throw new RuntimeException("Error occured when attempting to serialize output:", e);
         }
         MessageBuilder msgBuilder = MessageBuilder.create();
-        msgBuilder
-                .setContent(output)
-                .setProperty("__pfn_input_topic__", pulsarRecord.getTopicName())
-                .setProperty("__pfn_input_msg_id__", new String(
-                        Base64.getEncoder().encode(pulsarRecord.getMessageId().toByteArray())));
-        this.pulsarSinkProcessor.sendOutputMessage(msgBuilder, pulsarRecord);
+        msgBuilder.setContent(output);
+        if (recordContext instanceof PulsarRecord) {
+            PulsarRecord pulsarRecord = (PulsarRecord) recordContext;
+            msgBuilder
+                    .setProperty("__pfn_input_topic__", pulsarRecord.getTopicName())
+                    .setProperty("__pfn_input_msg_id__", new String(
+                            Base64.getEncoder().encode(pulsarRecord.getMessageId().toByteArray())));
+        }
+
+        this.pulsarSinkProcessor.sendOutputMessage(msgBuilder, recordContext);
     }
 
     @Override

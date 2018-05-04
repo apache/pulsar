@@ -185,5 +185,9 @@ public interface Functions {
      */
     void downloadFunction(String destinationFile, String path) throws PulsarAdminException;
 
+    void createSource(FunctionDetails functionDetails, String fileName) throws PulsarAdminException;
 
+    void createSink(FunctionDetails functionDetails, String fileName) throws PulsarAdminException;
+
+    void deleteConnector(String cluster, String namespace, String function) throws PulsarAdminException;
 }
