@@ -100,19 +100,18 @@ public final class Utils {
                                          String destPkgPath)
             throws IOException {
 
-        String encodedDestPkgPath = Codec.encode(destPkgPath);
         // if the dest directory does not exist, create it.
-        if (dlogNamespace.logExists(encodedDestPkgPath)) {
+        if (dlogNamespace.logExists(destPkgPath)) {
             // if the destination file exists, write a log message
             log.info(String.format("Target function file already exists at '%s'. Overwriting it now",
-                    encodedDestPkgPath));
-            dlogNamespace.deleteLog(encodedDestPkgPath);
+                    destPkgPath));
+            dlogNamespace.deleteLog(destPkgPath);
         }
         // copy the topology package to target working directory
         log.info(String.format("Uploading function package to '%s'",
                 destPkgPath));
 
-        try (DistributedLogManager dlm = dlogNamespace.openLog(encodedDestPkgPath)) {
+        try (DistributedLogManager dlm = dlogNamespace.openLog(destPkgPath)) {
             try (AppendOnlyStreamWriter writer = dlm.getAppendOnlyStreamWriter()){
 
                 try (OutputStream out = new DLOutputStream(dlm, writer)) {
@@ -130,8 +129,7 @@ public final class Utils {
     public static void downloadFromBookkeeper(Namespace namespace,
                                                  OutputStream outputStream,
                                                  String packagePath) throws IOException {
-        String decodedDestPkgPath = Codec.decode(packagePath);
-        DistributedLogManager dlm = namespace.openLog(decodedDestPkgPath);
+        DistributedLogManager dlm = namespace.openLog(packagePath);
         try (InputStream in = new DLInputStream(dlm)) {
             int read = 0;
             byte[] bytes = new byte[1024];
