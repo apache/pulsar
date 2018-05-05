@@ -113,8 +113,9 @@ public class FunctionApiV2ResourceTest {
     public void setup() {
         this.mockedManager = mock(FunctionMetaDataManager.class);
         this.mockedInputStream = mock(InputStream.class);
-        this.mockedFormData = mock(FormDataContentDisposition.class);
         this.mockedNamespace = mock(Namespace.class);
+        this.mockedFormData = mock(FormDataContentDisposition.class);
+        when(mockedFormData.getFileName()).thenReturn("test");
 
         this.mockedWorkerService = mock(WorkerService.class);
         when(mockedWorkerService.getFunctionMetaDataManager()).thenReturn(mockedManager);
