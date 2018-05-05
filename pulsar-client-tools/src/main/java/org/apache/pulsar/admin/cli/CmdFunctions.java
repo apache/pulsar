@@ -673,6 +673,11 @@ public class CmdFunctions extends CmdBase {
                         }
                     }
                 }, 30000, 30000);
+                Runtime.getRuntime().addShutdownHook(new Thread() {
+                    public void run() {
+                        statusCheckTimer.cancel();
+                    }
+                });
                 for (RuntimeSpawner spawner : spawners) {
                     spawner.join();
                     log.info("RuntimeSpawner quit because of {}", spawner.getRuntime().getDeathException());
