@@ -141,10 +141,10 @@ public class CmdConnectors extends CmdBase {
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
         @Parameter(names = "--className", description = "The function's class name")
         protected String className;
-        @Parameter(names = "--topicName", description = "Pulsar topic to ingress data to")
-        protected String topicName;
-        @Parameter(names = "--serdeClassName", description = "")
-        protected String serdeClassName;
+        @Parameter(names = "--destinationTopicName", description = "Pulsar topic to ingress data to")
+        protected String destinationTopicName;
+        @Parameter(names = "--deserializationClassName", description = "")
+        protected String deserializationClassName;
         @Parameter(names = "--parallelism", description = "")
         protected String parallelism;
         @Parameter(
@@ -185,11 +185,11 @@ public class CmdConnectors extends CmdBase {
             if (null != className) {
                 this.sourceConfig.setClassName(className);
             }
-            if (null != topicName) {
-                sourceConfig.setTopicName(topicName);
+            if (null != destinationTopicName) {
+                sourceConfig.setTopicName(destinationTopicName);
             }
-            if (null != serdeClassName) {
-                sourceConfig.setSerdeClassName(serdeClassName);
+            if (null != deserializationClassName) {
+                sourceConfig.setSerdeClassName(deserializationClassName);
             }
             if (null != processingGuarantees) {
                 sourceConfig.setProcessingGuarantees(processingGuarantees);

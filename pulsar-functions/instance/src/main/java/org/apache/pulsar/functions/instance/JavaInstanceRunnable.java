@@ -149,14 +149,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         if (!(object instanceof Function) && !(object instanceof java.util.function.Function)) {
             throw new RuntimeException("User class must either be Function or java.util.Function");
         }
-        Class<?>[] typeArgs;
-        if (object instanceof Function) {
-            Function function = (Function) object;
-            typeArgs = TypeResolver.resolveRawArguments(Function.class, function.getClass());
-        } else {
-            java.util.function.Function function = (java.util.function.Function) object;
-            typeArgs = TypeResolver.resolveRawArguments(java.util.function.Function.class, function.getClass());
-        }
 
         // start the state table
         setupStateTable();
