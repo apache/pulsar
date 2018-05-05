@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.s3offload;
+package org.apache.pulsar.broker.s3offload.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
@@ -27,7 +27,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.s3offload.DataBlockHeader;
-import org.apache.pulsar.broker.s3offload.impl.DataBlockHeaderImpl;
 import org.testng.annotations.Test;
 
 @Slf4j
