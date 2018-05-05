@@ -60,7 +60,6 @@ import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.shaded.io.netty.buffer.ByteBuf;
 import org.apache.pulsar.functions.shaded.io.netty.buffer.ByteBufUtil;
 import org.apache.pulsar.functions.shaded.io.netty.buffer.Unpooled;
-import org.apache.pulsar.functions.shaded.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.shaded.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.shaded.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.shaded.proto.Function.FunctionDetails;
@@ -657,15 +656,15 @@ public class CmdFunctions extends CmdBase {
                 statusCheckTimer.scheduleAtFixedRate(new TimerTask() {
                     @Override
                     public void run() {
-                        CompletableFuture<FunctionStatus>[] futures = new CompletableFuture[spawners.size()];
+                        CompletableFuture<String>[] futures = new CompletableFuture[spawners.size()];
                         int index = 0;
                         for (RuntimeSpawner spawner : spawners) {
-                            futures[index++] = spawner.getFunctionStatus();
+                            futures[index++] = spawner.getFunctionStatusAsJson();
                         }
                         try {
                             CompletableFuture.allOf(futures).get(5, TimeUnit.SECONDS);
                             for (index = 0; index < futures.length; ++index) {
-                                String json = Utils.printJson(futures[index].get());
+                                String json = futures[index].get();
                                 Gson gson = new GsonBuilder().setPrettyPrinting().create();
                                 log.info(gson.toJson(new JsonParser().parse(json)));
                             }
