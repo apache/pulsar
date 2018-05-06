@@ -129,8 +129,6 @@ public class CmdConnectors extends CmdBase {
 
     @Parameters(commandDescription = "Create Pulsar source connectors")
     class CreateSource extends BaseCommand {
-        @Parameter(names = "--fqfn", description = "The Fully Qualified Function Name (FQFN) for the function")
-        protected String fqfn;
         @Parameter(names = "--tenant", description = "The function's tenant")
         protected String tenant;
         @Parameter(names = "--namespace", description = "The function's namespace")
@@ -153,9 +151,9 @@ public class CmdConnectors extends CmdBase {
                 listConverter = StringConverter.class)
         protected String jarFile;
 
-        @Parameter(names = "--functionConfigFile", description = "The path to a YAML config file specifying the "
-                + "function's configuration")
-        protected String fnConfigFile;
+        @Parameter(names = "--sourceConfigFile", description = "The path to a YAML config file specifying the "
+                + "source's configuration")
+        protected String sourceConfigFile;
 
         protected SourceConfig sourceConfig;
 
@@ -163,25 +161,22 @@ public class CmdConnectors extends CmdBase {
         void processArguments() throws Exception {
             super.processArguments();
 
-            if (null != fnConfigFile) {
-                this.sourceConfig = loadSourceConfig(fnConfigFile);
+            if (null != sourceConfigFile) {
+                this.sourceConfig = loadSourceConfig(sourceConfigFile);
             } else {
                 this.sourceConfig = new SourceConfig();
             }
 
-            if (null != fqfn) {
-                parseFullyQualifiedFunctionName(fqfn, sourceConfig);
-            } else {
-                if (null != tenant) {
-                    sourceConfig.setTenant(tenant);
-                }
-                if (null != namespace) {
-                    sourceConfig.setNamespace(namespace);
-                }
-                if (null != name) {
-                    sourceConfig.setName(name);
-                }
+            if (null != tenant) {
+                sourceConfig.setTenant(tenant);
             }
+            if (null != namespace) {
+                sourceConfig.setNamespace(namespace);
+            }
+            if (null != name) {
+                sourceConfig.setName(name);
+            }
+
             if (null != className) {
                 this.sourceConfig.setClassName(className);
             }
@@ -301,9 +296,6 @@ public class CmdConnectors extends CmdBase {
 
     @Parameters(commandDescription = "Create Pulsar sink connectors")
     class CreateSink extends BaseCommand {
-
-        @Parameter(names = "--fqfn", description = "The Fully Qualified Function Name (FQFN) for the function")
-        protected String fqfn;
         @Parameter(names = "--tenant", description = "The function's tenant")
         protected String tenant;
         @Parameter(names = "--namespace", description = "The function's namespace")
@@ -326,9 +318,9 @@ public class CmdConnectors extends CmdBase {
                 listConverter = StringConverter.class)
         protected String jarFile;
 
-        @Parameter(names = "--functionConfigFile", description = "The path to a YAML config file specifying the "
-                + "function's configuration")
-        protected String fnConfigFile;
+        @Parameter(names = "--sinkConfigFile", description = "The path to a YAML config file specifying the "
+                + "sink's configuration")
+        protected String sinkConfigFile;
 
         protected SinkConfig sinkConfig;
 
@@ -336,25 +328,22 @@ public class CmdConnectors extends CmdBase {
         void processArguments() throws Exception {
             super.processArguments();
 
-            if (null != fnConfigFile) {
-                this.sinkConfig = loadSinkConfig(fnConfigFile);
+            if (null != sinkConfigFile) {
+                this.sinkConfig = loadSinkConfig(sinkConfigFile);
             } else {
                 this.sinkConfig = new SinkConfig();
             }
 
-            if (null != fqfn) {
-                parseFullyQualifiedFunctionName(fqfn, sinkConfig);
-            } else {
-                if (null != tenant) {
-                    sinkConfig.setTenant(tenant);
-                }
-                if (null != namespace) {
-                    sinkConfig.setNamespace(namespace);
-                }
-                if (null != name) {
-                    sinkConfig.setName(name);
-                }
+            if (null != tenant) {
+                sinkConfig.setTenant(tenant);
             }
+            if (null != namespace) {
+                sinkConfig.setNamespace(namespace);
+            }
+            if (null != name) {
+                sinkConfig.setName(name);
+            }
+
             if (null != className) {
                 sinkConfig.setClassName(className);
             }
