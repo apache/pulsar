@@ -38,8 +38,7 @@ public class StringSchema implements Schema<String> {
     }
 
     public ByteBuffer encode(String message) {
-        byte[] bytes = message.getBytes(charset);
-        return ByteBuffer.allocateDirect(bytes.length).put(bytes);
+        return ByteBuffer.wrap(message.getBytes(charset));
     }
 
     public String decode(ByteBuffer buf) {
