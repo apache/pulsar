@@ -18,11 +18,14 @@
  */
 package org.apache.pulsar.client.api;
 
-import static org.testng.Assert.assertEquals;
-
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import java.nio.ByteBuffer;
+import java.util.stream.IntStream;
+
+import static org.testng.Assert.assertEquals;
 
 public class SimpleSchemaTest extends ProducerConsumerBase {
 
@@ -57,6 +60,27 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
             Message<String> msg = consumer.receive();
             assertEquals(msg.getValue(), "my-message-" + i);
 
+            consumer.acknowledge(msg);
+        }
+    }
+
+    @Test
+    public void testByteBuffer() throws Exception {
+        Consumer<ByteBuffer> consumer = pulsarClient.newConsumer(Schema.BYTE_BUFFER)
+                .topic("persistent://my-property/my-ns/my-topic1").subscriptionName("my-subscriber-name").subscribe();
+        Producer<ByteBuffer> producer = pulsarClient.newProducer(Schema.BYTE_BUFFER)
+                .topic("persistent://my-property/my-ns/my-topic1").create();
+
+        int N = 10;
+
+        for (int i = 0; i < N; i++) {
+            byte[] data = String.format("my-message-%d", i).getBytes();
+            producer.send(ByteBuffer.wrap(data));
+        }
+
+        for (int i = 0; i < N; i++) {
+            Message<ByteBuffer> msg = consumer.receive();
+            assertEquals(msg.getValue().array(), String.format("my-message-%d", i).getBytes());
             consumer.acknowledge(msg);
         }
     }

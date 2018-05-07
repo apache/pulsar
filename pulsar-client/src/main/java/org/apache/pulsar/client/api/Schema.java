@@ -18,9 +18,12 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.client.impl.schema.ByteBufferSchema;
 import org.apache.pulsar.client.impl.schema.BytesSchema;
 import org.apache.pulsar.client.impl.schema.StringSchema;
 import org.apache.pulsar.common.schema.SchemaInfo;
+
+import java.nio.ByteBuffer;
 
 /**
  * Message schema definition
@@ -61,4 +64,9 @@ public interface Schema<T> {
      * Schema that can be used to encode/decode messages whose values are String. The payload is encoded with UTF-8.
      */
     Schema<String> STRING = new StringSchema();
+
+    /**
+     * Schema that uses Java's ByteBuffer class rather than raw byte arrays.
+     */
+    Schema<ByteBuffer> BYTE_BUFFER = new ByteBufferSchema();
 }
