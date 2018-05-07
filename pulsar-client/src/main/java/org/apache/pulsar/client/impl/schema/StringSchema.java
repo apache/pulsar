@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl.schema;
 
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.util.ByteUtils;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 import java.nio.ByteBuffer;
@@ -42,7 +43,7 @@ public class StringSchema implements Schema<String> {
     }
 
     public String decode(ByteBuffer buf) {
-        return new String(buf.array(), charset);
+        return new String(ByteUtils.bufferToBytes(buf), charset);
     }
 
     public SchemaInfo getSchemaInfo() {
