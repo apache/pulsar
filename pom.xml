@@ -145,9 +145,11 @@ flexible messaging model and an intuitive client API.</description>
     <aerospike-client.version>4.1.5</aerospike-client.version>
     <kafka-client.version>0.10.2.1</kafka-client.version>
     <rabbitmq-client.version>5.1.1</rabbitmq-client.version>
+    <aws-sdk.version>1.11.297</aws-sdk.version>
 
     <!-- test dependencies -->
     <disruptor.version>3.4.0</disruptor.version>
+    <s3mock.version>0.2.5</s3mock.version>
   </properties>
 
   <dependencyManagement>
@@ -383,6 +385,12 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.slf4j</groupId>
         <artifactId>jul-to-slf4j</artifactId>
+        <version>${slf4j.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>jcl-over-slf4j</artifactId>
         <version>${slf4j.version}</version>
       </dependency>
 
@@ -699,6 +707,14 @@ flexible messaging model and an intuitive client API.</description>
         <version>${sketches.version}</version>
       </dependency>
 
+      <dependency>
+        <groupId>com.amazonaws</groupId>
+        <artifactId>aws-java-sdk-bom</artifactId>
+        <version>${aws-sdk.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+
       <!-- use shaded dependency util pulsar bump zookeeper version to 3.5 -->
       <dependency>
         <groupId>org.apache.distributedlog</groupId>
@@ -713,6 +729,12 @@ flexible messaging model and an intuitive client API.</description>
         <version>${disruptor.version}</version>
       </dependency>
 
+      <dependency>
+        <groupId>io.findify</groupId>
+        <artifactId>s3mock_2.12</artifactId>
+        <version>${s3mock.version}</version>
+        <scope>test</scope>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 

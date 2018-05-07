@@ -64,6 +64,7 @@ class ProcessRuntime implements Runtime {
                    String logDirectory,
                    String codeFile,
                    String pulsarServiceUrl) {
+        this.instancePort = instanceConfig.getPort();
         this.processArgs = composeArgs(instanceConfig, instanceFile, logDirectory, codeFile, pulsarServiceUrl);
     }
 
@@ -130,9 +131,8 @@ class ProcessRuntime implements Runtime {
             args.add("--user_config");
             args.add(new Gson().toJson(userConfig));
         }
-        instancePort = findAvailablePort();
         args.add("--port");
-        args.add(String.valueOf(instancePort));
+        args.add(String.valueOf(instanceConfig.getPort()));
 
         // source related configs
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
@@ -254,20 +254,6 @@ class ProcessRuntime implements Runtime {
             }
         });
         return retval;
-    }
-
-    private int findAvailablePort() {
-        // The logic here is a little flaky. There is no guarantee that this
-        // port returned will be available later on when the instance starts
-        // TODO(sanjeev):- Fix this
-        try {
-            ServerSocket socket = new ServerSocket(0);
-            int port = socket.getLocalPort();
-            socket.close();
-            return port;
-        } catch (IOException ex){
-            throw new RuntimeException("No free port found", ex);
-        }
     }
 
     private void startProcess() {

@@ -873,6 +873,9 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     @Test
     public void clustersList() throws PulsarAdminException {
         final String cluster = pulsar.getConfiguration().getClusterName();
+        admin.clusters().createCluster("global", new ClusterData("http://localhost:6650"));
+
+        // Global cluster, if there, should be omitted from the results
         assertEquals(admin.clusters().getClusters(), Lists.newArrayList(cluster));
     }
 }

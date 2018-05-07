@@ -42,7 +42,7 @@ import org.slf4j.LoggerFactory;
  * It gets data from ledger, and will be read out the content for a data block.
  * DataBlockHeader + entries(each with format[[entry_size -- int][entry_id -- long][entry_data]]) + padding
  */
-public class BlockAwareSegmentInputStreamImpl extends InputStream implements BlockAwareSegmentInputStream {
+public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStream {
     private static final Logger log = LoggerFactory.getLogger(BlockAwareSegmentInputStreamImpl.class);
 
     private static final byte[] BLOCK_END_PADDING = Ints.toByteArray(0xFEDCDEAD);
