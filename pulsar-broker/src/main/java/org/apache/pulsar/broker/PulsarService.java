@@ -30,10 +30,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -907,8 +904,7 @@ public class PulsarService implements AutoCloseable {
             try {
                 Policies policies = new Policies();
                 policies.retention_policies = new RetentionPolicies(-1, -1);
-                policies.replication_clusters = new HashSet<>();
-                policies.replication_clusters.add(functionWorkerService.get().getWorkerConfig().getPulsarFunctionsCluster());
+                policies.replication_clusters = Collections.singleton(functionWorkerService.get().getWorkerConfig().getPulsarFunctionsCluster());
                 int defaultNumberOfBundles = this.getConfiguration().getDefaultNumberOfNamespaceBundles();
                 policies.bundles = getBundles(defaultNumberOfBundles);
 
