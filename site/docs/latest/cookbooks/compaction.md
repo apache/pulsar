@@ -22,7 +22,7 @@ The classic example of a topic that could benefit from compaction would be a sto
 
 How often you trigger compaction will vary widely based on the use case. If you want a compacted topic to be extremely speedy on read, then you should run compaction fairly frequently.
 
-{% include admonition.html type="warning" title="No automatic compaction" content="All topic compaction in Pulsar is manual." %}
+{% include admonition.html type="warning" title="No automatic compaction" content="Currently, all topic compaction in Pulsar must be initialized manually." %}
 
 ## Which messages get compacted?
 
