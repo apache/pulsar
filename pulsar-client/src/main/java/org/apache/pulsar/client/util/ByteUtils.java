@@ -26,7 +26,7 @@ public class ByteUtils {
             return buf.array();
         } else {
             byte[] bytes = new byte[buf.remaining()];
-            buf.get(bytes);
+            buf.get(bytes, 0, bytes.length);
             return buf.array();
         }
     }
