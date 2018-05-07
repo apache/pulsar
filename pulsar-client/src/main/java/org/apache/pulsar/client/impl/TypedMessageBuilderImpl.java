@@ -67,7 +67,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     @Override
     public TypedMessageBuilder<T> value(T value) {
-        this.content = ByteBuffer.wrap(schema.encode(value));
+        this.content = schema.encode(value);
         return this;
     }
 
