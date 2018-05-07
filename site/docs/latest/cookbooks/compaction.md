@@ -1,5 +1,5 @@
 ---
-title: Topic compaction
+title: Topic compaction cookbook
 tags: [admin, clients, compaction]
 ---
 

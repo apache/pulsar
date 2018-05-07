@@ -536,7 +536,10 @@ Reader reader = pulsarClient.createReader(topic, id, new ReaderConfiguration());
 
 ## Compaction
 
-[cookbook](../../cookbooks/compaction)
+Pulsar was built with highly scalable [persistent storage](#persistent-storage) of message data in mind. Pulsar {% popover topics %} enable you to persistently store as many unacknowledged messages as you need while preserving message ordering. Many messaging use cases, however, don't require
+
+
+{% include admonition.html type="success" content="For a more practical guide to topic compaction, see the [Topic compaction cookbook](../../cookbooks/compaction)." %}
 
 * Large message logs can take a long time to retrieve (a long history may be needed to construct an "image" of the log); that may include reading a lot of useless messages
 * Compaction is the process of going through a topic's backlog and removing messages that would be obscured by a later message (useless here means a message with the same key)
