@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.s3offload;
 
 import java.io.IOException;
+import java.io.InputStream;
 import org.apache.bookkeeper.client.api.ReadHandle;
 
 /**
@@ -27,44 +28,44 @@ import org.apache.bookkeeper.client.api.ReadHandle;
  * It gets data from ledger, and will be read out the content for a data block.
  * DataBlockHeader + entries(each with format[[entry_size -- int][entry_id -- long][entry_data]]) + padding
  */
-public interface BlockAwareSegmentInputStream {
+public abstract class BlockAwareSegmentInputStream extends InputStream {
     /**
      * Get the ledger, from which this InputStream read data.
      */
-    ReadHandle getLedger();
+    public abstract ReadHandle getLedger();
 
     /**
      * Get start entry id contained in this InputStream.
      *
      * @return the start entry id
      */
-    long getStartEntryId();
+    public abstract long getStartEntryId();
 
     /**
      * Get block size that could read out from this InputStream.
      *
      * @return the block size
      */
-    int getBlockSize();
+    public abstract int getBlockSize();
 
     /**
      * Get entry count that read out from this InputStream
      *
      * @return the block entry count
      */
-    int getBlockEntryCount();
+    public abstract int getBlockEntryCount();
 
     /**
      * Get end entry id contained in this InputStream.
      *
      * @return the end entry id
      */
-    long getEndEntryId();
+    public abstract long getEndEntryId();
 
     /**
      * Get sum of entries data size read from the this InputStream
      *
      * @return the block entry bytes count
      */
-    int getBlockEntryBytesCount();
+    public abstract int getBlockEntryBytesCount();
 }
