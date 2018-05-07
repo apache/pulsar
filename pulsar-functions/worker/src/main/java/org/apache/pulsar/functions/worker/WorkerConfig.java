@@ -51,6 +51,7 @@ public class WorkerConfig implements Serializable {
     private String clusterCoordinationTopicName;
     private String functionMetadataSnapshotsTopicPath;
     private String pulsarFunctionsNamespace;
+    private String pulsarFunctionsCluster;
     private int numFunctionPackageReplicas;
     private String downloadDirectory;
     private long snapshotFreqMs;
