@@ -16,29 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.instance;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+#pragma once
 
-/**
- * This is the config passed to the Java Instance. Contains all the information
- * passed to run functions
- */
-@Data
-@Getter
-@Setter
-@EqualsAndHashCode
-@ToString
-public class InstanceConfig {
-    private String instanceId;
-    private String functionId;
-    private String functionVersion;
-    private FunctionDetails functionDetails;
-    private int maxBufferedTuples;
-    private int port;
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef struct _pulsar_authentication pulsar_authentication_t;
+
+pulsar_authentication_t *pulsar_authentication_create(const char *dynamicLibPath,
+                                                      const char *authParamsString);
+
+void pulsar_authentication_free(pulsar_authentication_t *authentication);
+
+#ifdef __cplusplus
 }
+#endif

@@ -16,29 +16,38 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.instance;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+#pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include <stddef.h>
+#include <stdint.h>
+
+typedef struct _pulsar_message_id pulsar_message_id_t;
 
 /**
- * This is the config passed to the Java Instance. Contains all the information
- * passed to run functions
+ * MessageId representing the "earliest" or "oldest available" message stored in the topic
  */
-@Data
-@Getter
-@Setter
-@EqualsAndHashCode
-@ToString
-public class InstanceConfig {
-    private String instanceId;
-    private String functionId;
-    private String functionVersion;
-    private FunctionDetails functionDetails;
-    private int maxBufferedTuples;
-    private int port;
+const pulsar_message_id_t *pulsar_message_id_earliest();
+
+/**
+ * MessageId representing the "latest" or "last published" message in the topic
+ */
+const pulsar_message_id_t *pulsar_message_id_latest();
+
+/**
+ * Serialize the message id into a binary string for storing
+ */
+const void *pulsar_message_id_serialize(int *len);
+
+/**
+ * Deserialize a message id from a binary string
+ */
+pulsar_message_id_t *pulsar_message_id_deserialize(const void *buffer, uint32_t len);
+
+#ifdef __cplusplus
 }
+#endif
