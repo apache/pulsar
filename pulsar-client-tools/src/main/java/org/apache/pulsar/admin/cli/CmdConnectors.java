@@ -101,7 +101,7 @@ public class CmdConnectors extends CmdBase {
         abstract void runCmd() throws Exception;
     }
 
-    @Parameters(commandDescription = "Run the Pulsar Function locally (rather than deploying it to the Pulsar cluster)")
+    @Parameters(commandDescription = "Run the Pulsar source or sink locally (rather than deploying it to the Pulsar cluster)")
 
     class LocalSourceRunner extends CreateSource {
 
@@ -129,25 +129,25 @@ public class CmdConnectors extends CmdBase {
 
     @Parameters(commandDescription = "Create Pulsar source connectors")
     class CreateSource extends BaseCommand {
-        @Parameter(names = "--tenant", description = "The function's tenant")
+        @Parameter(names = "--tenant", description = "The source's tenant")
         protected String tenant;
-        @Parameter(names = "--namespace", description = "The function's namespace")
+        @Parameter(names = "--namespace", description = "The source's namespace")
         protected String namespace;
-        @Parameter(names = "--name", description = "The function's name")
+        @Parameter(names = "--name", description = "The source's name")
         protected String name;
         @Parameter(names = "--processingGuarantees", description = "The processing guarantees (aka delivery semantics) applied to the Source")
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
-        @Parameter(names = "--className", description = "The function's class name")
+        @Parameter(names = "--className", description = "The source's class name")
         protected String className;
         @Parameter(names = "--destinationTopicName", description = "Pulsar topic to ingress data to")
         protected String destinationTopicName;
-        @Parameter(names = "--deserializationClassName", description = "")
+        @Parameter(names = "--deserializationClassName", description = "The classname for SerDe class for the source")
         protected String deserializationClassName;
-        @Parameter(names = "--parallelism", description = "")
+        @Parameter(names = "--parallelism", description = "Number of instances of the source")
         protected String parallelism;
         @Parameter(
                 names = "--jar",
-                description = "Path to the jar file for the function (if the function is written in Java)",
+                description = "Path to the jar file for the Source",
                 listConverter = StringConverter.class)
         protected String jarFile;
 
@@ -218,10 +218,10 @@ public class CmdConnectors extends CmdBase {
 
         private Class<?> getSourceType(File file) {
             if (!Reflections.classExistsInJar(file, sourceConfig.getClassName())) {
-                throw new IllegalArgumentException(String.format("Pulsar function class %s does not exist in jar %s",
+                throw new IllegalArgumentException(String.format("Pulsar Source class %s does not exist in jar %s",
                         sourceConfig.getClassName(), jarFile));
             } else if (!Reflections.classInJarImplementsIface(file, sourceConfig.getClassName(), Source.class)) {
-                throw new IllegalArgumentException(String.format("The Pulsar function class %s in jar %s implements neither org.apache.pulsar.functions.api.Function nor java.util.function.Function",
+                throw new IllegalArgumentException(String.format("The Pulsar source class %s in jar %s implements does not implement " + Source.class.getName(),
                         sourceConfig.getClassName(), jarFile));
             }
 
@@ -229,7 +229,7 @@ public class CmdConnectors extends CmdBase {
             Class<?> typeArg;
             Source source = (Source) userClass;
             if (source == null) {
-                throw new IllegalArgumentException(String.format("The Pulsar function class %s could not be instantiated from jar %s",
+                throw new IllegalArgumentException(String.format("The Pulsar source class %s could not be instantiated from jar %s",
                         sourceConfig.getClassName(), jarFile));
             }
             typeArg = TypeResolver.resolveRawArgument(Source.class, source.getClass());
@@ -296,15 +296,15 @@ public class CmdConnectors extends CmdBase {
 
     @Parameters(commandDescription = "Create Pulsar sink connectors")
     class CreateSink extends BaseCommand {
-        @Parameter(names = "--tenant", description = "The function's tenant")
+        @Parameter(names = "--tenant", description = "The sink's tenant")
         protected String tenant;
-        @Parameter(names = "--namespace", description = "The function's namespace")
+        @Parameter(names = "--namespace", description = "The sink's namespace")
         protected String namespace;
-        @Parameter(names = "--name", description = "The function's name")
+        @Parameter(names = "--name", description = "The sink's name")
         protected String name;
-        @Parameter(names = "--className", description = "The function's class name")
+        @Parameter(names = "--className", description = "The sink's class name")
         protected String className;
-        @Parameter(names = "--inputs", description = "The function's input topic or topics (multiple topics can be specified as a comma-separated list)")
+        @Parameter(names = "--inputs", description = "The sink's input topic or topics (multiple topics can be specified as a comma-separated list)")
         protected String inputs;
         @Parameter(names = "--customSerdeInputs", description = "The map of input topics to SerDe class names (as a JSON string)")
         protected String customSerdeInputString;
@@ -314,7 +314,7 @@ public class CmdConnectors extends CmdBase {
         protected String parallelism;
         @Parameter(
                 names = "--jar",
-                description = "Path to the jar file for the function (if the function is written in Java)",
+                description = "Path to the jar file for the sink",
                 listConverter = StringConverter.class)
         protected String jarFile;
 
@@ -401,10 +401,10 @@ public class CmdConnectors extends CmdBase {
 
         private Class<?> getSinkType(File file) {
             if (!Reflections.classExistsInJar(file, sinkConfig.getClassName())) {
-                throw new IllegalArgumentException(String.format("Pulsar function class %s does not exist in jar %s",
+                throw new IllegalArgumentException(String.format("Pulsar sink class %s does not exist in jar %s",
                         sinkConfig.getClassName(), jarFile));
             } else if (!Reflections.classInJarImplementsIface(file, sinkConfig.getClassName(), Sink.class)) {
-                throw new IllegalArgumentException(String.format("The Pulsar function class %s in jar %s implements neither org.apache.pulsar.functions.api.Function nor java.util.function.Function",
+                throw new IllegalArgumentException(String.format("The Pulsar sink class %s in jar %s implements " + Sink.class.getName(),
                         sinkConfig.getClassName(), jarFile));
             }
 
@@ -412,7 +412,7 @@ public class CmdConnectors extends CmdBase {
             Class<?> typeArg;
             Sink sink = (Sink) userClass;
             if (sink == null) {
-                throw new IllegalArgumentException(String.format("The Pulsar function class %s could not be instantiated from jar %s",
+                throw new IllegalArgumentException(String.format("The Pulsar sink class %s could not be instantiated from jar %s",
                         sinkConfig.getClassName(), jarFile));
             }
             typeArg = TypeResolver.resolveRawArgument(Sink.class, sink.getClass());
@@ -474,49 +474,24 @@ public class CmdConnectors extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Stops a Pulsar connector")
+    @Parameters(commandDescription = "Stops a Pulsar sink or source")
     class DeleteConnector extends BaseCommand {
 
-        @Parameter(names = "--fqfn", description = "The Fully Qualified Function Name (FQFN) for the function")
-        protected String fqfn;
-
-        @Parameter(names = "--tenant", description = "The function's tenant")
+        @Parameter(names = "--tenant", description = "The tenant of a sink or source")
         protected String tenant;
 
-        @Parameter(names = "--namespace", description = "The function's namespace")
+        @Parameter(names = "--namespace", description = "The namespace of a sink or source")
         protected String namespace;
 
-        @Parameter(names = "--name", description = "The function's name")
+        @Parameter(names = "--name", description = "The name of a sink or source")
         protected String name;
 
         @Override
         void processArguments() throws Exception {
             super.processArguments();
-
-            boolean usesSetters = (null != tenant || null != namespace || null != name);
-            boolean usesFqfn = (null != fqfn);
-
-            // Throw an exception if --fqfn is set alongside any combination of --tenant, --namespace, and --name
-            if (usesFqfn && usesSetters) {
+            if (null == tenant || null == namespace || null == name) {
                 throw new RuntimeException(
-                        "You must specify either a Fully Qualified Function Name (FQFN) or tenant, namespace, and " +
-                                "function name");
-            } else if (usesFqfn) {
-                // If the --fqfn flag is used, parse tenant, namespace, and name using that flag
-                String[] fqfnParts = fqfn.split("/");
-                if (fqfnParts.length != 3) {
-                    throw new RuntimeException(
-                            "Fully qualified function names (FQFNs) must be of the form tenant/namespace/name");
-                }
-                tenant = fqfnParts[0];
-                namespace = fqfnParts[1];
-                name = fqfnParts[2];
-            } else {
-                if (null == tenant || null == namespace || null == name) {
-                    throw new RuntimeException(
-                            "You must specify a tenant, namespace, and name for the function or a Fully Qualified " +
-                                    "Function Name (FQFN)");
-                }
+                        "You must specify a tenant, namespace, and name for the sink or source");
             }
         }
 
@@ -538,30 +513,6 @@ public class CmdConnectors extends CmdBase {
     private static Object loadConfig(String file, Class<?> clazz) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         return mapper.readValue(new File(file), clazz);
-    }
-
-    private void parseFullyQualifiedFunctionName(String fqfn, SourceConfig sourceConfig) {
-        String[] args = fqfn.split("/");
-        if (args.length != 3) {
-            throw new RuntimeException("Fully qualified function names (FQFNs) must be of the form "
-                    + "tenant/namespace/name");
-        } else {
-            sourceConfig.setTenant(args[0]);
-            sourceConfig.setNamespace(args[1]);
-            sourceConfig.setName(args[2]);
-        }
-    }
-
-    private void parseFullyQualifiedFunctionName(String fqfn, SinkConfig SinkConfig) {
-        String[] args = fqfn.split("/");
-        if (args.length != 3) {
-            throw new RuntimeException("Fully qualified function names (FQFNs) must be of the form "
-                    + "tenant/namespace/name");
-        } else {
-            SinkConfig.setTenant(args[0]);
-            SinkConfig.setNamespace(args[1]);
-            SinkConfig.setName(args[2]);
-        }
     }
 
     public static boolean areAllRequiredFieldsPresentForSource(SourceConfig sourceConfig) {
