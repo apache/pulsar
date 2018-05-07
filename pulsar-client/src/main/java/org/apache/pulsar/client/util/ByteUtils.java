@@ -16,27 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl.schema;
-
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.util.ByteUtils;
-import org.apache.pulsar.common.schema.SchemaInfo;
+package org.apache.pulsar.client.util;
 
 import java.nio.ByteBuffer;
 
-public class BytesSchema implements Schema<byte[]> {
-    @Override
-    public ByteBuffer encode(byte[] message) {
-        return ByteBuffer.wrap(message);
-    }
-
-    @Override
-    public byte[] decode(ByteBuffer buf) {
-        return ByteUtils.bufferToBytes(buf);
-    }
-
-    @Override
-    public SchemaInfo getSchemaInfo() {
-        return null;
+public class ByteUtils {
+    public static byte[] bufferToBytes(ByteBuffer buf) {
+        if (buf.hasArray()) {
+            return buf.array();
+        } else {
+            byte[] bytes = new byte[buf.remaining()];
+            return buf.get(bytes).array();
+        }
     }
 }

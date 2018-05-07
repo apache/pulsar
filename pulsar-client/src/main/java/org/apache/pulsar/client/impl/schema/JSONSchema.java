@@ -28,6 +28,7 @@ import java.util.Collections;
 import java.util.Map;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
+import org.apache.pulsar.client.util.ByteUtils;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -46,17 +47,16 @@ public class JSONSchema<T> implements Schema<T> {
     @Override
     public ByteBuffer encode(T message) throws SchemaSerializationException {
         try {
-            byte[] bytes = objectMapper.writeValueAsBytes(message);
-            return ByteBuffer.allocateDirect(bytes.length).put(bytes);
+            return ByteBuffer.wrap(objectMapper.writeValueAsBytes(message));
         } catch (JsonProcessingException e) {
             throw new SchemaSerializationException(e);
         }
     }
 
     @Override
-    public T decode(ByteBuffer bytes) {
+    public T decode(ByteBuffer buf) {
         try {
-            return objectMapper.readValue(bytes.array(), pojo);
+            return objectMapper.readValue(ByteUtils.bufferToBytes(buf), pojo);
         } catch (IOException e) {
             throw new RuntimeException(new SchemaSerializationException(e));
         }
