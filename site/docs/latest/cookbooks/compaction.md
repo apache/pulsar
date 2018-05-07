@@ -3,16 +3,18 @@ title: Topic compaction
 tags: [admin, clients, compaction]
 ---
 
-Pulsar's [topic compaction](../../getting-started/ConceptsAndArchitecture#compaction) feature enables you to
+Pulsar's [topic compaction](../../getting-started/ConceptsAndArchitecture#compaction) feature enables you to create **compacted** topics in which older, "obscured" entries are pruned from the topic, allowing for faster reads through the topic's history (which messages are deemed obscured/outdated/irrelevant will depend on your use case).
 
 To use compaction:
 
 * You must manually [trigger](#trigger) compaction using the Pulsar administrative API. This will both run a compaction operation *and* mark the topic as a compacted topic.
-* Your {% popover consumers %} must be [configured](#config) to read from compacted topics (or else the messages won't be read/processed/acknowledged)
+* Your {% popover consumers %} must be [configured](#config) to read from compacted topics (or else the messages won't be properly read/processed/acknowledged).
 
 ## When should I use compacted topics?
 
-The classic example of a topic that could benefit from compaction would be a stock ticker topic. In such a topic, you only care about the most recent value of each stock; historical values don't matter. Compacting a stock ticker topic would mean that only the most recent value for each key---in this case each stock symbol, e.g. `GOOG` or `AAPL`---is readable by clients.
+The classic example of a topic that could benefit from compaction would be a stock ticker topic. In such a topic, you only care about the most recent value of each stock; "historical values" don't matter, so there's no need to read through outdated data when processing a topic's messages.
+
+In Pulsar, topic compaction takes place on a *per-key basis*, meaning that messages are compacted based on their key. For the stock ticker use case, the stock symbol---e.g. `AAPL` or `GOOG`---could serve as the key.
 
 {% include admonition.html type="warning" content="Compaction only works on topics where each message has a key (as in the stock ticker example, where the stock symbol serves as the key). Keys can be thought of as the axis along which compaction is applied." %}
 
