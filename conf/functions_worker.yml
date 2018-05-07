@@ -23,7 +23,8 @@ workerPort: 6750
 functionMetadataTopicName: metadata
 functionMetadataSnapshotsTopicPath: snapshots
 clusterCoordinationTopicName: coordinate
-pulsarFunctionsNamespace: sample/standalone/functions
+pulsarFunctionsNamespace: public/functions
+pulsarFunctionsCluster: standalone
 pulsarServiceUrl: pulsar://localhost:6650
 pulsarWebServiceUrl: http://localhost:8080
 numFunctionPackageReplicas: 1

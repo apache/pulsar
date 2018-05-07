@@ -99,11 +99,17 @@ public class JavaInstanceMain {
     @Parameter(names = "--source_configs", description = "The source configs")
     protected String sourceConfigs;
 
+    @Parameter(names = "--source_type_classname", description = "The return type of the source", required = true)
+    protected String sourceTypeClassName;
+
     @Parameter(names = "--source_subscription_type", description = "The source subscription type", required = true)
     protected String sourceSubscriptionType;
 
-    @Parameter(names = "--source_topics_serde_classname", description = "A map of topics to SerDe for the source", required = true)
+    @Parameter(names = "--source_topics_serde_classname", description = "A map of topics to SerDe for the source")
     protected String sourceTopicsSerdeClassName;
+
+    @Parameter(names = "--sink_type_classname", description = "The injest type of the sink", required = true)
+    protected String sinkTypeClassName;
 
     @Parameter(names = "--sink_configs", description = "The sink configs\n")
     protected String sinkConfigs;
@@ -111,7 +117,7 @@ public class JavaInstanceMain {
     @Parameter(names = "--sink_classname", description = "The sink classname\n", required = true)
     protected String sinkClassname;
 
-    @Parameter(names = "--sink_topic", description = "The sink Topic Name\n", required = true)
+    @Parameter(names = "--sink_topic", description = "The sink Topic Name\n")
     protected String sinkTopic;
 
     @Parameter(names = "--sink_serde_classname", description = "Sink SerDe\n")
@@ -156,9 +162,8 @@ public class JavaInstanceMain {
             sourceDetailsBuilder.setConfigs(sourceConfigs);
         }
         sourceDetailsBuilder.setSubscriptionType(Function.SubscriptionType.valueOf(sourceSubscriptionType));
-
         sourceDetailsBuilder.putAllTopicsToSerDeClassName(new Gson().fromJson(sourceTopicsSerdeClassName, Map.class));
-
+        sourceDetailsBuilder.setTypeClassName(sourceTypeClassName);
         functionDetailsBuilder.setSource(sourceDetailsBuilder);
 
         // Setup sink
@@ -170,7 +175,10 @@ public class JavaInstanceMain {
         if (sinkSerdeClassName != null) {
             sinkSpecBuilder.setSerDeClassName(sinkSerdeClassName);
         }
-        sinkSpecBuilder.setTopic(sinkTopic);
+        sinkSpecBuilder.setTypeClassName(sinkTypeClassName);
+        if (sinkTopic != null && !sinkTopic.isEmpty()) {
+            sinkSpecBuilder.setTopic(sinkTopic);
+        }
         functionDetailsBuilder.setSink(sinkSpecBuilder);
 
         FunctionDetails functionDetails = functionDetailsBuilder.build();

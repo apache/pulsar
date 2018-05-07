@@ -67,7 +67,9 @@ public class JavaInstance implements AutoCloseable {
     }
 
     public JavaExecutionResult handleMessage(MessageId messageId, String topicName, Object input) {
-        context.setCurrentMessageContext(messageId, topicName);
+        if (context != null) {
+            context.setCurrentMessageContext(messageId, topicName);
+        }
         JavaExecutionResult executionResult = new JavaExecutionResult();
         try {
             Object output;
