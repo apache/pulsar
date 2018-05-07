@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.s3offload;
+package org.apache.pulsar.broker.s3offload.impl;
 
 import static com.google.common.base.Charsets.UTF_8;
 import static org.testng.Assert.assertEquals;
@@ -39,8 +39,6 @@ import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.pulsar.broker.s3offload.OffloadIndexBlock;
 import org.apache.pulsar.broker.s3offload.OffloadIndexBlockBuilder;
 import org.apache.pulsar.broker.s3offload.OffloadIndexEntry;
-import org.apache.pulsar.broker.s3offload.impl.OffloadIndexBlockImpl;
-import org.apache.pulsar.broker.s3offload.impl.OffloadIndexEntryImpl;
 import org.testng.annotations.Test;
 
 @Slf4j

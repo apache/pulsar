@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.s3offload;
+package org.apache.pulsar.broker.s3offload.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
@@ -44,8 +44,6 @@ import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.pulsar.broker.s3offload.DataBlockHeader;
-import org.apache.pulsar.broker.s3offload.impl.BlockAwareSegmentInputStreamImpl;
-import org.apache.pulsar.broker.s3offload.impl.DataBlockHeaderImpl;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
 
