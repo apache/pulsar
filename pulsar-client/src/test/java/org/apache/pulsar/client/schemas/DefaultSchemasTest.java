@@ -26,6 +26,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.impl.schema.StringSchema;
+import org.apache.pulsar.client.util.ByteUtils;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -86,7 +87,7 @@ public class DefaultSchemasTest {
         Message<String> msg2 = MessageBuilder.create(stringSchema)
                 .setValue(testString)
                 .build();
-        assertEquals(stringSchema.encode(testString).array(), msg2.getData());
+        assertEquals(ByteUtils.bufferToBytes(stringSchema.encode(testString)), msg2.getData());
 
         ByteBuffer testBuf2 = ByteBuffer.wrap(testString.getBytes(StandardCharsets.UTF_16));
 
