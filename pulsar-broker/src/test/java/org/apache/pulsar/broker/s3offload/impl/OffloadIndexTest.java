@@ -110,7 +110,7 @@ public class OffloadIndexTest {
 
         blockBuilder.withMetadata(metadata);
 
-        blockBuilder.addBlock(0, 2, 0);
+        blockBuilder.addBlock(0, 2, 64 * 1024 * 1024);
         blockBuilder.addBlock(1000, 3, 64 * 1024 * 1024);
         blockBuilder.addBlock(2000, 4, 64 * 1024 * 1024);
         OffloadIndexBlock indexBlock = blockBuilder.build();
