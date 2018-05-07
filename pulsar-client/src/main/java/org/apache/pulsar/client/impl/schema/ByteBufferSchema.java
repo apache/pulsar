@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl.schema;
 
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 
 import java.nio.ByteBuffer;
 
@@ -36,6 +37,10 @@ public class ByteBufferSchema implements Schema<ByteBuffer> {
 
     @Override
     public SchemaInfo getSchemaInfo() {
-        return null;
+        SchemaInfo info = new SchemaInfo();
+        info.setName("ByteBuffer");
+        info.setType(SchemaType.NONE);
+        info.setSchema(new byte[0]);
+        return info;
     }
 }
