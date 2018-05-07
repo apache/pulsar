@@ -73,25 +73,26 @@ public class DefaultSchemasTest {
     @Test
     public void testStringSchema() throws Exception {
         String testString = "hello world";
-        byte[] testBytes = testString.getBytes(StandardCharsets.UTF_8);
+        ByteBuffer testBuf = ByteBuffer.wrap(testString.getBytes(StandardCharsets.UTF_8));
         StringSchema stringSchema = new StringSchema();
-        assertTrue(stringSchema.decode(testBytes).equals(testString));
-        assertEquals(stringSchema.encode(testString), testBytes);
+        assertTrue(stringSchema.decode(testBuf).equals(testString));
+        assertEquals(stringSchema.encode(testString), testBuf);
 
         Message<String> msg1 = MessageBuilder.create(stringSchema)
-                .setContent(testBytes)
+                .setContent(testBuf)
                 .build();
-        assertEquals(stringSchema.decode(msg1.getData()), testString);
+        assertEquals(stringSchema.decode(ByteBuffer.wrap(msg1.getData())), testString);
 
         Message<String> msg2 = MessageBuilder.create(stringSchema)
                 .setValue(testString)
                 .build();
-        assertEquals(stringSchema.encode(testString), msg2.getData());
+        assertEquals(stringSchema.encode(testString).array(), msg2.getData());
 
-        byte[] bytes2 = testString.getBytes(StandardCharsets.UTF_16);
+        ByteBuffer testBuf2 = ByteBuffer.wrap(testString.getBytes(StandardCharsets.UTF_16));
+
         StringSchema stringSchemaUtf16 = new StringSchema(StandardCharsets.UTF_16);
-        assertTrue(stringSchemaUtf16.decode(bytes2).equals(testString));
-        assertEquals(stringSchemaUtf16.encode(testString), bytes2);
+        assertTrue(stringSchemaUtf16.decode(testBuf2).equals(testString));
+        assertEquals(stringSchemaUtf16.encode(testString), testBuf2);
     }
 
     @AfterClass
