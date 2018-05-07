@@ -184,6 +184,4 @@ public interface Functions {
      *             Unexpected error
      */
     void downloadFunction(String destinationFile, String path) throws PulsarAdminException;
-
-
 }
