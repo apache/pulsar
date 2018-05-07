@@ -104,7 +104,7 @@ public class PulsarSource<T> implements Source<T> {
         PulsarRecord<T> pulsarMessage = (PulsarRecord<T>) PulsarRecord.builder()
                 .value(input)
                 .messageId(message.getMessageId())
-                .partitionId(partitionId)
+                .partitionId(String.format("%s-%s", topicName, partitionId))
                 .sequenceId(message.getSequenceId())
                 .topicName(topicName)
                 .ackFunction(() -> {
