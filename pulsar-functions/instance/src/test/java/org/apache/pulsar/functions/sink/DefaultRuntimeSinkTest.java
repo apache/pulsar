@@ -29,8 +29,8 @@ import static org.mockito.Mockito.when;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.connect.core.RecordContext;
-import org.apache.pulsar.connect.core.Sink;
+import org.apache.pulsar.io.core.RecordContext;
+import org.apache.pulsar.io.core.Sink;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 

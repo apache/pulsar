@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.connect.core;
+package org.apache.pulsar.io.core;
 
 /**
  * A source context that can be used by the runtime to interact with source.

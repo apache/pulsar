@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.connect.core;
+package org.apache.pulsar.io.core;
 
 /**
  * Pulsar Connect's Record interface. Record encapsulates the
