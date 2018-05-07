@@ -30,6 +30,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -81,6 +82,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -852,7 +854,7 @@ public class PulsarService implements AutoCloseable {
                     .getWorkerConfig().getPulsarFunctionsNamespace();
             String[] a = functionWorkerService.get().getWorkerConfig().getPulsarFunctionsNamespace().split("/");
             String property = a[0];
-            String cluster = a[1];
+            String cluster = functionWorkerService.get().getWorkerConfig().getPulsarFunctionsCluster();
 
                 /*
                 multiple brokers may be trying to create the property, cluster, and namespace
@@ -904,6 +906,9 @@ public class PulsarService implements AutoCloseable {
             // create namespace for function worker service
             try {
                 Policies policies = new Policies();
+                policies.retention_policies = new RetentionPolicies(-1, -1);
+                policies.replication_clusters = new HashSet<>();
+                policies.replication_clusters.add(functionWorkerService.get().getWorkerConfig().getPulsarFunctionsCluster());
                 int defaultNumberOfBundles = this.getConfiguration().getDefaultNumberOfNamespaceBundles();
                 policies.bundles = getBundles(defaultNumberOfBundles);
 
