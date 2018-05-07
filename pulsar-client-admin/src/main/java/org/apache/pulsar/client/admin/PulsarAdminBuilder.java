@@ -159,4 +159,14 @@ public interface PulsarAdminBuilder {
      */
     PulsarAdminBuilder allowTlsInsecureConnection(boolean allowTlsInsecureConnection);
 
+    /**
+     * It allows to validate hostname verification when client connects to broker over TLS. It validates incoming x509
+     * certificate and matches provided hostname(CN/SAN) with expected broker's host name. It follows RFC 2818, 3.1.
+     * Server Identity hostname verification.
+     *
+     * @see <a href="https://tools.ietf.org/html/rfc2818">rfc2818</a>
+     *
+     * @param enableTlsHostnameVerification
+     */
+    PulsarAdminBuilder enableTlsHostnameVerification(boolean enableTlsHostnameVerification);
 }

@@ -63,7 +63,7 @@ travis_build: javadoc
 travis_publish:
 	scripts/publish-website.sh
 
-build: api_docs
+build: api_docs swagger_docs_build
 	scripts/build-all-versions.sh
 
 serve: clean_local
@@ -79,20 +79,21 @@ javadoc:
 python_doc_gen:
 	scripts/python-doc-gen.sh
 
+swagger_definition_gen:
+	scripts/swagger-definition-gen.sh
+
 swagger_definition_copy:
 	(cd $(shell git rev-parse --show-toplevel) && \
 		cp pulsar-broker/target/docs/swagger.json site/_data/admin-rest-api-swagger.json)
+
+swagger_docs_build: swagger_definition_gen swagger_definition_copy
 
 protobuf_doc_gen:
 	scripts/protobuf-doc-gen.sh
 
 protobuf_setup:
-	rm -rf protoc-gen-doc scripts/protoc-gen-doc
-	git clone https://github.com/pseudomuto/protoc-gen-doc
-	rm -rf protoc-gen-doc/.git
-	mv protoc-gen-doc scripts
-	(cd scripts/protoc-gen-doc && PROTOBUF_PREFIX=$(shell brew --prefix protobuf) qmake && make)
+	go get -u github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
 
 api_docs: javadoc python_doc_gen cpp_doc_gen
 
-publish: deep_clean setup swagger_definition_copy build
+publish: deep_clean setup build

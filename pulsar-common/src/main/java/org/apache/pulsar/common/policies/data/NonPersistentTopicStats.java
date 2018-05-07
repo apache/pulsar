@@ -28,7 +28,7 @@ import com.google.common.collect.Maps;
 
 /**
  */
-public class NonPersistentTopicStats extends PersistentTopicStats {
+public class NonPersistentTopicStats extends TopicStats {
 
     /**
      * for non-persistent topic: broker drops msg if publisher publishes messages more than configured max inflight

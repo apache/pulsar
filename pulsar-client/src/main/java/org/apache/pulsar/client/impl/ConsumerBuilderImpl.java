@@ -183,7 +183,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
-    public ConsumerBuilder<T> acknowledmentGroupTime(long delay, TimeUnit unit) {
+    public ConsumerBuilder<T> acknowledgmentGroupTime(long delay, TimeUnit unit) {
         checkArgument(delay >= 0);
         conf.setAcknowledgementsGroupTimeMicros(unit.toMicros(delay));
         return this;
@@ -235,5 +235,9 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 	public ConsumerBuilder<T> subscriptionInitialPosition(SubscriptionInitialPosition subscriptionInitialPosition) {
         conf.setSubscriptionInitialPosition(subscriptionInitialPosition);
 		return this;
+	}
+
+	public ConsumerConfigurationData<T> getConf() {
+	    return conf;
 	}
 }

@@ -18,9 +18,8 @@
  */
 package org.apache.pulsar.functions.instance.producers;
 
-import io.netty.util.collection.IntObjectHashMap;
-import io.netty.util.collection.IntObjectMap;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -37,7 +36,8 @@ import org.apache.pulsar.client.api.PulsarClientException;
 public class MultiConsumersOneOuputTopicProducers extends AbstractOneOuputTopicProducers {
 
     @Getter(AccessLevel.PACKAGE)
-    private final Map<String, IntObjectMap<Producer>> producers;
+    private final Map<String, Map<String, Producer<byte[]>>> producers;
+
 
     public MultiConsumersOneOuputTopicProducers(PulsarClient client,
                                                 String outputTopic)
@@ -51,19 +51,19 @@ public class MultiConsumersOneOuputTopicProducers extends AbstractOneOuputTopicP
         // no-op
     }
 
-    static String makeProducerName(String srcTopicName, int srcTopicPartition) {
+    static String makeProducerName(String srcTopicName, String srcTopicPartition) {
         return String.format("%s-%s", srcTopicName, srcTopicPartition);
     }
 
     @Override
-    public synchronized Producer getProducer(String srcTopicName, int srcTopicPartition) throws PulsarClientException {
-        IntObjectMap<Producer> producerMap = producers.get(srcTopicName);
+    public synchronized Producer<byte[]> getProducer(String srcTopicName, String srcTopicPartition) throws PulsarClientException {
+        Map<String, Producer<byte[]>> producerMap = producers.get(srcTopicName);
         if (null == producerMap) {
-            producerMap = new IntObjectHashMap<>();
+            producerMap = new HashMap<>();
             producers.put(srcTopicName, producerMap);
         }
 
-        Producer producer = producerMap.get(srcTopicPartition);
+        Producer<byte[]> producer = producerMap.get(srcTopicPartition);
         if (null == producer) {
             producer = createProducer(outputTopic, makeProducerName(srcTopicName, srcTopicPartition));
             producerMap.put(srcTopicPartition, producer);
@@ -72,11 +72,11 @@ public class MultiConsumersOneOuputTopicProducers extends AbstractOneOuputTopicP
     }
 
     @Override
-    public synchronized void closeProducer(String srcTopicName, int srcTopicPartition) {
-        IntObjectMap<Producer> producerMap = producers.get(srcTopicName);
+    public synchronized void closeProducer(String srcTopicName, String srcTopicPartition) {
+        Map<String, Producer<byte[]>> producerMap = producers.get(srcTopicName);
 
         if (null != producerMap) {
-            Producer producer = producerMap.remove(srcTopicPartition);
+            Producer<byte[]> producer = producerMap.remove(srcTopicPartition);
             if (null != producer) {
                 producer.closeAsync();
             }
@@ -89,8 +89,8 @@ public class MultiConsumersOneOuputTopicProducers extends AbstractOneOuputTopicP
     @Override
     public synchronized void close() {
         List<CompletableFuture<Void>> closeFutures = new ArrayList<>(producers.size());
-        for (IntObjectMap<Producer> producerMap: producers.values()) {
-            for (Producer producer : producerMap.values()) {
+        for (Map<String, Producer<byte[]>> producerMap: producers.values()) {
+            for (Producer<byte[]> producer : producerMap.values()) {
                 closeFutures.add(producer.closeAsync());
             }
         }

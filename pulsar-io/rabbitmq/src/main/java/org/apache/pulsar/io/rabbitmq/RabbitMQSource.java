@@ -42,18 +42,18 @@ public class RabbitMQSource implements PushSource<byte[]> {
 
     private static Logger logger = LoggerFactory.getLogger(RabbitMQSource.class);
 
-    private Function<Message<byte[]>, CompletableFuture<Void>> consumer;
+    private Function<Record<byte[]>, CompletableFuture<Void>> consumer;
     private Connection rabbitMQConnection;
     private Channel rabbitMQChannel;
     private RabbitMQConfig rabbitMQConfig;
 
     @Override
-    public void setConsumer(Function<Message<byte[]>, CompletableFuture<Void>> consumeFunction) {
+    public void setConsumer(Function<Record<byte[]>, CompletableFuture<Void>> consumeFunction) {
         this.consumer = consumeFunction;
     }
 
     @Override
-    public void open(Map<String, String> config) throws Exception {
+    public void open(Map<String, Object> config) throws Exception {
         rabbitMQConfig = RabbitMQConfig.load(config);
         if (rabbitMQConfig.getAmqUri() == null
                 || rabbitMQConfig.getQueueName() == null) {
@@ -80,28 +80,28 @@ public class RabbitMQSource implements PushSource<byte[]> {
     }
 
     private class RabbitMQConsumer extends DefaultConsumer {
-        private Function<Message<byte[]>, CompletableFuture<Void>> consumeFunction;
+        private Function<Record<byte[]>, CompletableFuture<Void>> consumeFunction;
 
-        public RabbitMQConsumer(Function<Message<byte[]>, CompletableFuture<Void>> consumeFunction, Channel channel) {
+        public RabbitMQConsumer(Function<Record<byte[]>, CompletableFuture<Void>> consumeFunction, Channel channel) {
             super(channel);
             this.consumeFunction = consumeFunction;
         }
 
         @Override
         public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
-            consumeFunction.apply(new RabbitMQMessage(body));
+            consumeFunction.apply(new RabbitMQRecord(body));
         }
     }
 
-    static private class RabbitMQMessage implements Message<byte[]> {
-        private byte[] data;
+    static private class RabbitMQRecord implements Record<byte[]> {
+        private final byte[] data;
 
-        public RabbitMQMessage(byte[] data) {
+        public RabbitMQRecord(byte[] data) {
             this.data = data;
         }
 
         @Override
-        public byte[] getData() {
+        public byte[] getValue() {
             return data;
         }
     }

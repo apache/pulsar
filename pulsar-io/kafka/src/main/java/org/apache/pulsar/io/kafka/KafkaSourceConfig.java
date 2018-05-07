@@ -54,7 +54,7 @@ public class KafkaSourceConfig implements Serializable {
         return mapper.readValue(new File(yamlFile), KafkaSourceConfig.class);
     }
 
-    public static KafkaSourceConfig load(Map<String, String> map) throws IOException {
+    public static KafkaSourceConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
         return mapper.readValue(new ObjectMapper().writeValueAsString(map), KafkaSourceConfig.class);
     }

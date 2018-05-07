@@ -25,6 +25,7 @@ import static java.lang.String.format;
 import static org.apache.pulsar.common.api.Commands.hasChecksum;
 import static org.apache.pulsar.common.api.Commands.readChecksum;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 
 import io.netty.buffer.ByteBuf;
@@ -1349,8 +1350,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     void connectionClosed(ClientCnx cnx) {
         this.connectionHandler.connectionClosed(cnx);
     }
-
-    ClientCnx getClientCnx() {
+    
+    @VisibleForTesting
+    public ClientCnx getClientCnx() {
         return this.connectionHandler.getClientCnx();
     }
 

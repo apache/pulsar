@@ -51,10 +51,10 @@ public class TwitterFireHose implements PushSource<String> {
 
     // ----- Runtime fields
     private Object waitObject;
-    private Function<Message<String>, CompletableFuture<Void>> consumeFunction;
+    private Function<Record<String>, CompletableFuture<Void>> consumeFunction;
 
     @Override
-    public void open(Map<String, String> config) throws IOException {
+    public void open(Map<String, Object> config) throws IOException {
         TwitterFireHoseConfig hoseConfig = TwitterFireHoseConfig.load(config);
         if (hoseConfig.getConsumerKey() == null
                 || hoseConfig.getConsumerSecret() == null
@@ -67,7 +67,7 @@ public class TwitterFireHose implements PushSource<String> {
     }
 
     @Override
-    public void setConsumer(Function<Message<String>, CompletableFuture<Void>> consumeFunction) {
+    public void setConsumer(Function<Record<String>, CompletableFuture<Void>> consumeFunction) {
         this.consumeFunction = consumeFunction;
     }
 
@@ -126,7 +126,7 @@ public class TwitterFireHose implements PushSource<String> {
                             // We don't really care if the future succeeds or not.
                             // However might be in the future to count failures
                             // TODO:- Figure out the metrics story for connectors
-                            consumeFunction.apply(new TwitterMessage(line));
+                            consumeFunction.apply(new TwitterRecord(line));
                         } catch (Exception e) {
                             LOG.error("Exception thrown");
                         }
@@ -164,15 +164,15 @@ public class TwitterFireHose implements PushSource<String> {
         }
     }
 
-    static private class TwitterMessage implements Message<String> {
+    static private class TwitterRecord implements Record<String> {
         private String tweet;
 
-        public TwitterMessage(String tweet) {
+        public TwitterRecord(String tweet) {
             this.tweet = tweet;
         }
 
         @Override
-        public String getData() {
+        public String getValue() {
             return tweet;
         }
     }

@@ -50,9 +50,18 @@ class Context(object):
     pass
 
   @abstractmethod
-  def get_topic_name(self):
+  def get_current_message_topic_name(self):
     """Returns the topic name of the message that we are processing"""
     pass
+  
+  @abstractmethod
+  def get_function_tenant(self):
+    """Returns the tenant of the message that's being processed"""
+    pass
+
+  @abstractmethod
+  def get_function_namespace(self):
+    """Returns the namespace of the message that's being processed"""
 
   @abstractmethod
   def get_function_name(self):
@@ -106,15 +115,15 @@ class Context(object):
 
   @abstractmethod
   def get_output_topic(self):
-    '''Returns the output topic of function'''
+    """Returns the output topic of function"""
     pass
 
   @abstractmethod
   def get_output_serde_class_name(self):
-    '''return output Serde class'''
+    """return output Serde class"""
     pass
 
   @abstractmethod
   def ack(self, msgid, topic):
-    '''ack this message id'''
+    """ack this message id"""
     pass

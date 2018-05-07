@@ -146,5 +146,4 @@ OPTS="$OPTS -Dpulsar.functions.python.instance.file=${PY_INSTANCE_FILE}"
 
 #Change to PULSAR_HOME to support relative paths
 cd "$PULSAR_HOME"
-    
 exec $JAVA $OPTS org.apache.pulsar.admin.cli.PulsarAdminTool $PULSAR_CLIENT_CONF "$@"

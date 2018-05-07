@@ -18,8 +18,18 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import dlshade.org.apache.zookeeper.KeeperException.Code;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.OutputStream;
+import java.net.URI;
+import java.util.UUID;
+
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.distributedlog.AppendOnlyStreamWriter;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.DistributedLogManager;
@@ -29,21 +39,12 @@ import org.apache.distributedlog.impl.metadata.BKDLConfig;
 import org.apache.distributedlog.metadata.DLMetadata;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.worker.dlog.DLInputStream;
 import org.apache.pulsar.functions.worker.dlog.DLOutputStream;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.OutputStream;
-import java.net.MalformedURLException;
-import java.net.URI;
-import java.net.URL;
-import java.util.UUID;
+import dlshade.org.apache.zookeeper.KeeperException.Code;
 
 @Slf4j
 public final class Utils {
@@ -129,13 +130,14 @@ public final class Utils {
                                                  OutputStream outputStream,
                                                  String packagePath) throws IOException {
         DistributedLogManager dlm = namespace.openLog(packagePath);
-        InputStream in = new DLInputStream(dlm);
-        int read = 0;
-        byte[] bytes = new byte[1024];
-        while ((read = in.read(bytes)) != -1) {
-            outputStream.write(bytes, 0, read);
+        try (InputStream in = new DLInputStream(dlm)) {
+            int read = 0;
+            byte[] bytes = new byte[1024];
+            while ((read = in.read(bytes)) != -1) {
+                outputStream.write(bytes, 0, read);
+            }
+            outputStream.flush();
         }
-        outputStream.flush();
     }
 
     public static DistributedLogConfiguration getDlogConf(WorkerConfig workerConfig) {

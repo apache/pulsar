@@ -87,4 +87,10 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
         conf.setTlsAllowInsecureConnection(allowTlsInsecureConnection);
         return this;
     }
+
+    @Override
+    public PulsarAdminBuilder enableTlsHostnameVerification(boolean enableTlsHostnameVerification) {
+        conf.setTlsHostnameVerificationEnable(enableTlsHostnameVerification);
+        return this;
+    }
 }

@@ -207,6 +207,7 @@ Key | Type | Required? | Explanation
 :---|:-----|:----------|:-----------
 `readerName` | string | no | Reader name
 `receiverQueueSize` | int | no | Size of the consumer receive queue (default: 1000)
+`messageId` | int or enum | no | Message ID to start from, `earliest` or `latest` (default: `latest`)
 
 ##### Receiving messages
 

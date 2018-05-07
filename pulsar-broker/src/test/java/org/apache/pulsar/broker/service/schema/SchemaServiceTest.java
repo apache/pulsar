@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.schema;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
 
+import com.google.common.collect.Maps;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -43,7 +44,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
 
     private SchemaData schema1 = SchemaData.builder()
         .user(userId)
-        .type(SchemaType.PROTOBUF)
+        .type(SchemaType.JSON)
         .timestamp(MockClock.millis())
         .isDeleted(false)
         .data("message { required int64 a = 1};".getBytes())
@@ -51,7 +52,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
 
     private SchemaData schema2 = SchemaData.builder()
         .user(userId)
-        .type(SchemaType.PROTOBUF)
+        .type(SchemaType.JSON)
         .timestamp(MockClock.millis())
         .isDeleted(false)
         .data("message { required int64 b = 1};".getBytes())
@@ -59,7 +60,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
 
     private SchemaData schema3 = SchemaData.builder()
         .user(userId)
-        .type(SchemaType.PROTOBUF)
+        .type(SchemaType.JSON)
         .timestamp(MockClock.millis())
         .isDeleted(false)
         .data("message { required int64 c = 1};".getBytes())
@@ -74,7 +75,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         BookkeeperSchemaStorage storage = new BookkeeperSchemaStorage(pulsar);
         storage.init();
         storage.start();
-        schemaRegistryService = new SchemaRegistryServiceImpl(storage, MockClock);
+        schemaRegistryService = new SchemaRegistryServiceImpl(storage, Maps.newHashMap(), MockClock);
     }
 
     @AfterMethod
@@ -242,7 +243,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         UUID randomString = UUID.randomUUID();
         return SchemaData.builder()
             .user(userId)
-            .type(SchemaType.PROTOBUF)
+            .type(SchemaType.JSON)
             .timestamp(MockClock.millis())
             .isDeleted(false)
             .data(randomString.toString().getBytes())

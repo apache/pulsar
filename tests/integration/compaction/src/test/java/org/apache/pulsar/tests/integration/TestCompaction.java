@@ -51,14 +51,14 @@ public class TestCompaction extends Arquillian {
     @Test
     public void testPublishCompactAndConsumeCLI() throws Exception {
         PulsarClusterUtils.runOnAnyBroker(docker, clusterName,
-                                          "/pulsar/bin/pulsar-admin", "tenants",
+                                          PulsarClusterUtils.PULSAR_ADMIN, "tenants",
                                           "create", "compaction-test-cli", "--allowed-clusters", clusterName,
                                           "--admin-roles", "admin");
         PulsarClusterUtils.runOnAnyBroker(docker, clusterName,
-                "/pulsar/bin/pulsar-admin", "namespaces",
+                PulsarClusterUtils.PULSAR_ADMIN, "namespaces",
                 "create", "compaction-test-cli/ns1");
         PulsarClusterUtils.runOnAnyBroker(docker, clusterName,
-                "/pulsar/bin/pulsar-admin", "namespaces",
+                PulsarClusterUtils.PULSAR_ADMIN, "namespaces",
                 "set-clusters", "--clusters", "test", "compaction-test-cli/ns1");
 
         String brokerIp = DockerUtils.getContainerIP(
@@ -86,7 +86,7 @@ public class TestCompaction extends Arquillian {
             }
 
             PulsarClusterUtils.runOnAnyBroker(docker, clusterName,
-                                              "/pulsar/bin/pulsar", "compact-topic",
+                                              PulsarClusterUtils.PULSAR, "compact-topic",
                                               "-t", topic);
 
             try (Consumer<byte[]> consumer = client.newConsumer().topic(topic)
@@ -101,14 +101,14 @@ public class TestCompaction extends Arquillian {
     @Test
     public void testPublishCompactAndConsumeRest() throws Exception {
         PulsarClusterUtils.runOnAnyBroker(docker, clusterName,
-                                          "/pulsar/bin/pulsar-admin", "tenants",
+                                          PulsarClusterUtils.PULSAR_ADMIN, "tenants",
                                           "create", "compaction-test-rest", "--allowed-clusters", clusterName,
                                           "--admin-roles", "admin");
         PulsarClusterUtils.runOnAnyBroker(docker, clusterName,
-                "/pulsar/bin/pulsar-admin", "namespaces",
+                PulsarClusterUtils.PULSAR_ADMIN, "namespaces",
                 "create", "compaction-test-rest/ns1");
         PulsarClusterUtils.runOnAnyBroker(docker, clusterName,
-                "/pulsar/bin/pulsar-admin", "namespaces",
+                PulsarClusterUtils.PULSAR_ADMIN, "namespaces",
                 "set-clusters", "--clusters", "test", "compaction-test-rest/ns1");
 
         String brokerIp = DockerUtils.getContainerIP(
@@ -135,7 +135,7 @@ public class TestCompaction extends Arquillian {
                 Assert.assertEquals(m.getData(), "content1".getBytes());
             }
             PulsarClusterUtils.runOnAnyBroker(docker, clusterName,
-                    "/pulsar/bin/pulsar-admin", "persistent", "compact", topic);
+                    PulsarClusterUtils.PULSAR_ADMIN, "persistent", "compact", topic);
 
             PulsarClusterUtils.runOnAnyBroker(docker, clusterName,
                                               "/pulsar/bin/pulsar-admin", "persistent", "compaction-status",

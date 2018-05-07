@@ -52,7 +52,7 @@ public class KafkaSinkConfig implements Serializable {
         return mapper.readValue(new File(yamlFile), KafkaSinkConfig.class);
     }
 
-    public static KafkaSinkConfig load(Map<String, String> map) throws IOException {
+    public static KafkaSinkConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
         return mapper.readValue(new ObjectMapper().writeValueAsString(map), KafkaSinkConfig.class);
     }
