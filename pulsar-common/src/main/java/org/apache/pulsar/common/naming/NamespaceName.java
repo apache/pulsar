@@ -33,7 +33,7 @@ public class NamespaceName implements ServiceUnitId {
 
     private final String namespace;
 
-    private final String property;
+    private final String tenant;
     private final String cluster;
     private final String localName;
 
@@ -45,14 +45,14 @@ public class NamespaceName implements ServiceUnitId {
                 }
             });
 
-    public static NamespaceName get(String property, String namespace) {
-        validateNamespaceName(property, namespace);
-        return get(property + '/' + namespace);
+    public static NamespaceName get(String tenant, String namespace) {
+        validateNamespaceName(tenant, namespace);
+        return get(tenant + '/' + namespace);
     }
 
-    public static NamespaceName get(String property, String cluster, String namespace) {
-        validateNamespaceName(property, cluster, namespace);
-        return get(property + '/' + cluster + '/' + namespace);
+    public static NamespaceName get(String tenant, String cluster, String namespace) {
+        validateNamespaceName(tenant, cluster, namespace);
+        return get(tenant + '/' + cluster + '/' + namespace);
     }
 
     public static NamespaceName get(String namespace) {
@@ -76,24 +76,24 @@ public class NamespaceName implements ServiceUnitId {
         }
 
         // Verify it's a proper namespace
-        // The namespace name is composed of <property>/<namespace>
+        // The namespace name is composed of <tenant>/<namespace>
         // or in the legacy format with the cluster name:
-        // <property>/<cluster>/<namespace>
+        // <tenant>/<cluster>/<namespace>
         try {
 
             String[] parts = namespace.split("/");
             if (parts.length == 2) {
-                // New style namespace : <property>/<namespace>
+                // New style namespace : <tenant>/<namespace>
                 validateNamespaceName(parts[0], parts[1]);
 
-                property = parts[0];
+                tenant = parts[0];
                 cluster = null;
                 localName = parts[1];
             } else if (parts.length == 3) {
-                // Old style namespace: <property>/<cluster>/<namespace>
+                // Old style namespace: <tenant>/<cluster>/<namespace>
                 validateNamespaceName(parts[0], parts[1], parts[2]);
 
-                property = parts[0];
+                tenant = parts[0];
                 cluster = parts[1];
                 localName = parts[2];
             } else {
@@ -105,8 +105,8 @@ public class NamespaceName implements ServiceUnitId {
         this.namespace = namespace;
     }
 
-    public String getProperty() {
-        return property;
+    public String getTenant() {
+        return tenant;
     }
 
     @Deprecated
@@ -163,37 +163,37 @@ public class NamespaceName implements ServiceUnitId {
         return namespace.hashCode();
     }
 
-    public static void validateNamespaceName(String property, String namespace) {
+    public static void validateNamespaceName(String tenant, String namespace) {
         try {
-            checkNotNull(property);
+            checkNotNull(tenant);
             checkNotNull(namespace);
-            if (property.isEmpty() || namespace.isEmpty()) {
+            if (tenant.isEmpty() || namespace.isEmpty()) {
                 throw new IllegalArgumentException(
-                        String.format("Invalid namespace format. namespace: %s/%s", property, namespace));
+                        String.format("Invalid namespace format. namespace: %s/%s", tenant, namespace));
             }
-            NamedEntity.checkName(property);
+            NamedEntity.checkName(tenant);
             NamedEntity.checkName(namespace);
         } catch (NullPointerException e) {
             throw new IllegalArgumentException(
-                    String.format("Invalid namespace format. namespace: %s/%s/%s", property, namespace), e);
+                    String.format("Invalid namespace format. namespace: %s/%s/%s", tenant, namespace), e);
         }
     }
 
-    public static void validateNamespaceName(String property, String cluster, String namespace) {
+    public static void validateNamespaceName(String tenant, String cluster, String namespace) {
         try {
-            checkNotNull(property);
+            checkNotNull(tenant);
             checkNotNull(cluster);
             checkNotNull(namespace);
-            if (property.isEmpty() || cluster.isEmpty() || namespace.isEmpty()) {
+            if (tenant.isEmpty() || cluster.isEmpty() || namespace.isEmpty()) {
                 throw new IllegalArgumentException(
-                        String.format("Invalid namespace format. namespace: %s/%s/%s", property, cluster, namespace));
+                        String.format("Invalid namespace format. namespace: %s/%s/%s", tenant, cluster, namespace));
             }
-            NamedEntity.checkName(property);
+            NamedEntity.checkName(tenant);
             NamedEntity.checkName(cluster);
             NamedEntity.checkName(namespace);
         } catch (NullPointerException e) {
             throw new IllegalArgumentException(
-                    String.format("Invalid namespace format. namespace: %s/%s/%s", property, cluster, namespace), e);
+                    String.format("Invalid namespace format. namespace: %s/%s/%s", tenant, cluster, namespace), e);
         }
     }
 

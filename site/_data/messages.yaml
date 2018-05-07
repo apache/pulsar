@@ -52,8 +52,6 @@ shared_mode_limitations:
 
     1. Message ordering is not guaranteed.
     2. You cannot use [cumulative acknowledgment](#acknowledgement) with shared mode.
-global_cluster: |
-  If you're running a multi-cluster Pulsar instance, you can manage instance-level
 superuser:
   type: warning
   content: Please note that this operation requires [superuser](../../admin/Authz#superusers) privileges.

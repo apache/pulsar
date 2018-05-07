@@ -28,9 +28,7 @@ next: ../ConceptsAndArchitecture
 
 -->
 
-For the purposes of local development and testing, you can run Pulsar in {% popover standalone %} mode on your own machine.
-
-Standalone mode includes a Pulsar {% popover broker %} as well as the necessary {% popover ZooKeeper %} and {% popover BookKeeper %} components running inside of a single Java Virtual Machine (JVM) process.
+For the purposes of local development and testing, you can run Pulsar in {% popover standalone %} mode on your own machine. Standalone mode includes a Pulsar {% popover broker %} as well as the necessary {% popover ZooKeeper %} and {% popover BookKeeper %} components running inside of a single Java Virtual Machine (JVM) process.
 
 {% include admonition.html type="info" title='Pulsar in production?' content="
 If you're looking to run a full production Pulsar installation, see the [Deploying a Pulsar instance](../../deployment/InstanceSetup) guide." %}
@@ -61,15 +59,14 @@ When you start a local standalone cluster, Pulsar will automatically create a `s
 Pulsar provides a CLI tool called [`pulsar-client`](../../reference/CliTools#pulsar-client) that enables you to do things like send messages to a Pulsar {% popover topic %} in a running cluster. This command will send a simple message saying `hello-pulsar` to the `persistent://sample/standalone/ns1/my-topic` topic:
 
 ```bash
-$ bin/pulsar-client produce \
-  persistent://sample/standalone/ns1/my-topic \
-  -m 'hello-pulsar'
+$ bin/pulsar-client produce my-topic \
+  --messages "hello-pulsar"
 ```
 
 If the message has been successfully published to the topic, you should see a confirmation like this in the `pulsar-client` logs:
 
 ```
-2017-06-01 18:18:57,094 - INFO  - [main:CmdProduce@189] - 1 messages successfully produced
+13:09:39.356 [main] INFO  org.apache.pulsar.client.cli.PulsarClientTool - 1 messages successfully produced
 ```
 
 {% include admonition.html type="success" title="No need to explicitly create new topics"
@@ -86,11 +83,9 @@ Here's an example producer for a Pulsar {% popover topic %} using the [Java](../
 
 ```java
 String localClusterUrl = "pulsar://localhost:6650";
-String namespace = "sample/standalone/ns1"; // This namespace is created automatically
-String topic = String.format("persistent://%s/my-topic", namespace);
 
 PulsarClient client = PulsarClient.create(localClusterUrl);
-Producer producer = client.createProducer(topic);
+Producer producer = client.createProducer("my-topic");
 ```
 
 Here's an example [Python](../../clients/Python) producer:
@@ -98,10 +93,8 @@ Here's an example [Python](../../clients/Python) producer:
 ```python
 import pulsar
 
-TOPIC = 'persistent://sample/standalone/ns/my-topic'
-
 client = pulsar.Client('pulsar://localhost:6650')
-producer = client.create_producer(TOPIC)
+producer = client.create_producer('my-topic')
 ```
 
 Finally, here's an example [C++](../../clients/Cpp) producer:
@@ -109,7 +102,7 @@ Finally, here's an example [C++](../../clients/Cpp) producer:
 ```cpp
 Client client("pulsar://localhost:6650");
 Producer producer;
-Result result = client.createProducer("persistent://sample/standalone/ns1/my-topic", producer);
+Result result = client.createProducer("my-topic", producer);
 if (result != ResultOk) {
     LOG_ERROR("Error creating producer: " << result);
     return -1;

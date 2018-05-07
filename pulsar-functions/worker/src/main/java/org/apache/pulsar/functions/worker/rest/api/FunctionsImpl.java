@@ -23,7 +23,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.gson.Gson;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Array;
+import java.io.OutputStream;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -36,9 +36,11 @@ import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import javax.ws.rs.core.StreamingOutput;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Message;
@@ -46,12 +48,14 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.common.policies.data.ErrorData;
+import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.FunctionConfig;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
+import org.apache.pulsar.functions.source.PulsarSource;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.MembershipManager;
@@ -79,6 +83,17 @@ public class FunctionsImpl {
         }
     }
 
+    private boolean isWorkerServiceAvailable() {
+        WorkerService workerService = workerServiceSupplier.get();
+        if (workerService == null) {
+            return false;
+        }
+        if (!workerService.isInitialized()) {
+            return false;
+        }
+        return true;
+    }
+
     @POST
     @Path("/{tenant}/{namespace}/{functionName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
@@ -87,12 +102,17 @@ public class FunctionsImpl {
                                      final @PathParam("functionName") String functionName,
                                      final @FormDataParam("data") InputStream uploadedInputStream,
                                      final @FormDataParam("data") FormDataContentDisposition fileDetail,
-                                     final @FormDataParam("functionConfig") String functionConfigJson) {
-        FunctionConfig functionConfig;
+                                     final @FormDataParam("functionDetails") String functionDetailsJson) {
+
+        if (!isWorkerServiceAvailable()) {
+            return getUnavailableResponse();
+        }
+
+        FunctionDetails functionDetails;
         // validate parameters
         try {
-            functionConfig = validateUpdateRequestParams(tenant, namespace, functionName,
-                    uploadedInputStream, fileDetail, functionConfigJson);
+            functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
+                    uploadedInputStream, fileDetail, functionDetailsJson);
         } catch (IllegalArgumentException e) {
             log.error("Invalid register function request @ /{}/{}/{}",
                 tenant, namespace, functionName, e);
@@ -112,17 +132,12 @@ public class FunctionsImpl {
 
         // function state
         FunctionMetaData.Builder functionMetaDataBuilder = FunctionMetaData.newBuilder()
-                .setFunctionConfig(functionConfig)
+                .setFunctionDetails(functionDetails)
                 .setCreateTime(System.currentTimeMillis())
                 .setVersion(0);
 
         PackageLocationMetaData.Builder packageLocationMetaDataBuilder = PackageLocationMetaData.newBuilder()
-                .setPackagePath(String.format(
-            "%s/%s/%s/%s",
-            tenant,
-            namespace,
-            functionName,
-            Utils.getUniquePackageName(fileDetail.getFileName())));
+                .setPackagePath(createPackagePath(tenant, namespace, functionName, fileDetail.getFileName()));
         functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
 
         return updateRequest(functionMetaDataBuilder.build(), uploadedInputStream);
@@ -136,13 +151,17 @@ public class FunctionsImpl {
                                    final @PathParam("functionName") String functionName,
                                    final @FormDataParam("data") InputStream uploadedInputStream,
                                    final @FormDataParam("data") FormDataContentDisposition fileDetail,
-                                   final @FormDataParam("functionConfig") String functionConfigJson) {
+                                   final @FormDataParam("functionDetails") String functionDetailsJson) {
 
-        FunctionConfig functionConfig;
+        if (!isWorkerServiceAvailable()) {
+            return getUnavailableResponse();
+        }
+
+        FunctionDetails functionDetails;
         // validate parameters
         try {
-            functionConfig = validateUpdateRequestParams(tenant, namespace, functionName,
-                    uploadedInputStream, fileDetail, functionConfigJson);
+            functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
+                    uploadedInputStream, fileDetail, functionDetailsJson);
         } catch (IllegalArgumentException e) {
             log.error("Invalid update function request @ /{}/{}/{}",
                     tenant, namespace, functionName, e);
@@ -161,17 +180,12 @@ public class FunctionsImpl {
 
         // function state
         FunctionMetaData.Builder functionMetaDataBuilder = FunctionMetaData.newBuilder()
-                .setFunctionConfig(functionConfig)
+                .setFunctionDetails(functionDetails)
                 .setCreateTime(System.currentTimeMillis())
                 .setVersion(0);
 
         PackageLocationMetaData.Builder packageLocationMetaDataBuilder = PackageLocationMetaData.newBuilder()
-                .setPackagePath(String.format(
-                        "%s/%s/%s/%s",
-                        tenant,
-                        namespace,
-                        functionName,
-                        Utils.getUniquePackageName(fileDetail.getFileName())));
+                .setPackagePath(createPackagePath(tenant, namespace, functionName, fileDetail.getFileName()));
         functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
 
         return updateRequest(functionMetaDataBuilder.build(), uploadedInputStream);
@@ -183,6 +197,10 @@ public class FunctionsImpl {
     public Response deregisterFunction(final @PathParam("tenant") String tenant,
                                        final @PathParam("namespace") String namespace,
                                        final @PathParam("functionName") String functionName) {
+
+        if (!isWorkerServiceAvailable()) {
+            return getUnavailableResponse();
+        }
 
         // validate parameters
         try {
@@ -241,6 +259,10 @@ public class FunctionsImpl {
                                     final @PathParam("functionName") String functionName)
             throws IOException {
 
+        if (!isWorkerServiceAvailable()) {
+            return getUnavailableResponse();
+        }
+
         // validate parameters
         try {
             validateGetFunctionRequestParams(tenant, namespace, functionName);
@@ -262,8 +284,8 @@ public class FunctionsImpl {
         }
 
         FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, functionName);
-        String functionConfigJson = org.apache.pulsar.functions.utils.Utils.printJson(functionMetaData.getFunctionConfig());
-        return Response.status(Status.OK).entity(functionConfigJson).build();
+        String functionDetailsJson = org.apache.pulsar.functions.utils.Utils.printJson(functionMetaData.getFunctionDetails());
+        return Response.status(Status.OK).entity(functionDetailsJson).build();
     }
 
     @GET
@@ -272,6 +294,10 @@ public class FunctionsImpl {
                                               final @PathParam("namespace") String namespace,
                                               final @PathParam("functionName") String functionName,
                                               final @PathParam("instanceId") String instanceId) throws IOException {
+
+        if (!isWorkerServiceAvailable()) {
+            return getUnavailableResponse();
+        }
 
         // validate parameters
         try {
@@ -302,8 +328,8 @@ public class FunctionsImpl {
             log.error("Got Exception Getting Status", e);
             FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
             functionStatusBuilder.setRunning(false);
-            String functionConfigJson = org.apache.pulsar.functions.utils.Utils.printJson(functionStatusBuilder.build());
-            return Response.status(Status.OK).entity(functionConfigJson).build();
+            String functionDetailsJson = org.apache.pulsar.functions.utils.Utils.printJson(functionStatusBuilder.build());
+            return Response.status(Status.OK).entity(functionDetailsJson).build();
         }
 
         String jsonResponse = org.apache.pulsar.functions.utils.Utils.printJson(functionStatus);
@@ -315,6 +341,10 @@ public class FunctionsImpl {
     public Response getFunctionStatus(final @PathParam("tenant") String tenant,
                                       final @PathParam("namespace") String namespace,
                                       final @PathParam("functionName") String functionName) throws IOException {
+
+        if (!isWorkerServiceAvailable()) {
+            return getUnavailableResponse();
+        }
 
         // validate parameters
         try {
@@ -344,8 +374,8 @@ public class FunctionsImpl {
             log.error("Got Exception Getting Status", e);
             FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
             functionStatusBuilder.setRunning(false);
-            String functionConfigJson = org.apache.pulsar.functions.utils.Utils.printJson(functionStatusBuilder.build());
-            return Response.status(Status.OK).entity(functionConfigJson).build();
+            String functionDetailsJson = org.apache.pulsar.functions.utils.Utils.printJson(functionStatusBuilder.build());
+            return Response.status(Status.OK).entity(functionDetailsJson).build();
         }
 
         String jsonResponse = org.apache.pulsar.functions.utils.Utils.printJson(functionStatusList);
@@ -356,6 +386,10 @@ public class FunctionsImpl {
     @Path("/{tenant}/{namespace}")
     public Response listFunctions(final @PathParam("tenant") String tenant,
                                   final @PathParam("namespace") String namespace) {
+
+        if (!isWorkerServiceAvailable()) {
+            return getUnavailableResponse();
+        }
 
         // validate parameters
         try {
@@ -426,6 +460,11 @@ public class FunctionsImpl {
     @GET
     @Path("/cluster")
     public Response getCluster() {
+
+        if (!isWorkerServiceAvailable()) {
+            return getUnavailableResponse();
+        }
+
         MembershipManager membershipManager = worker().getMembershipManager();
         List<MembershipManager.WorkerInfo> members = membershipManager.getCurrentMembership();
         return Response.status(Status.OK).entity(new Gson().toJson(members)).build();
@@ -434,6 +473,11 @@ public class FunctionsImpl {
     @GET
     @Path("/assignments")
     public Response getAssignments() {
+
+        if (!isWorkerServiceAvailable()) {
+            return getUnavailableResponse();
+        }
+
         FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
         Map<String, Map<String, Function.Assignment>> assignments = functionRuntimeManager.getCurrentAssignments();
         Map<String, Collection<String>> ret = new HashMap<>();
@@ -451,11 +495,17 @@ public class FunctionsImpl {
                                     final @PathParam("namespace") String namespace,
                                     final @PathParam("name") String functionName,
                                     final @FormDataParam("data") String input,
-                                    final @FormDataParam("dataStream") InputStream uploadedInputStream) {
-        FunctionConfig functionConfig;
+                                    final @FormDataParam("dataStream") InputStream uploadedInputStream,
+                                    final @FormDataParam("topic") String topic) {
+
+        if (!isWorkerServiceAvailable()) {
+            return getUnavailableResponse();
+        }
+
+        FunctionDetails functionDetails;
         // validate parameters
         try {
-            validateTriggerRequestParams(tenant, namespace, functionName, input, uploadedInputStream);
+            validateTriggerRequestParams(tenant, namespace, functionName, topic, input, uploadedInputStream);
         } catch (IllegalArgumentException e) {
             log.error("Invalid trigger function request @ /{}/{}/{}",
                     tenant, namespace, functionName, e);
@@ -474,13 +524,21 @@ public class FunctionsImpl {
         }
 
         FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, functionName);
+
         String inputTopicToWrite;
-        if (functionMetaData.getFunctionConfig().getInputsList().size() > 0) {
-            inputTopicToWrite = functionMetaData.getFunctionConfig().getInputsList().get(0);
+        if (topic != null) {
+            inputTopicToWrite = topic;
+        } else if (functionMetaData.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap().size() == 1) {
+            inputTopicToWrite =
+                    functionMetaData.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap().keySet().iterator().next();
         } else {
-            inputTopicToWrite = functionMetaData.getFunctionConfig().getCustomSerdeInputs().entrySet().iterator().next().getKey();
+            return Response.status(Status.BAD_REQUEST).build();
         }
-        String outputTopic = functionMetaData.getFunctionConfig().getOutput();
+        if (functionMetaData.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap() == null
+            || !functionMetaData.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap().containsKey(inputTopicToWrite)) {
+            return Response.status(Status.BAD_REQUEST).build();
+        }
+        String outputTopic = functionMetaData.getFunctionDetails().getSink().getTopic();
         Reader reader = null;
         Producer producer = null;
         try {
@@ -524,6 +582,55 @@ public class FunctionsImpl {
                 producer.closeAsync();
             }
         }
+    }
+
+    @POST
+    @Path("/upload")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    public Response uploadFunction(final @FormDataParam("data") InputStream uploadedInputStream,
+                                   final @FormDataParam("path") String path) {
+        // validate parameters
+        try {
+            if (uploadedInputStream == null || path == null) {
+                throw new IllegalArgumentException("Function Package is not provided " + path);
+            }
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid upload function request @ /{}", path, e);
+            return Response.status(Status.BAD_REQUEST)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(e.getMessage())).build();
+        }
+
+        // Upload to bookkeeper
+        try {
+            log.info("Uploading function package to {}", path);
+
+            Utils.uploadToBookeeper(
+                    worker().getDlogNamespace(),
+                    uploadedInputStream,
+                    Codec.encode(path));
+        } catch (IOException e) {
+            log.error("Error uploading file {}", path, e);
+            return Response.serverError()
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(e.getMessage()))
+                    .build();
+        }
+
+        return Response.status(Status.OK).build();
+    }
+
+    @GET
+    @Path("/download")
+    public Response downloadFunction(final @QueryParam("path") String path) {
+        return Response.status(Status.OK).entity(
+                new StreamingOutput() {
+                    @Override
+                    public void write(final OutputStream output) throws IOException {
+                        Utils.downloadFromBookkeeper(worker().getDlogNamespace(),
+                                output, Codec.decode(path));
+                    }
+                }).build();
     }
 
     private void validateListFunctionRequestParams(String tenant, String namespace) throws IllegalArgumentException {
@@ -577,12 +684,12 @@ public class FunctionsImpl {
         }
     }
 
-    private FunctionConfig validateUpdateRequestParams(String tenant,
+    private FunctionDetails validateUpdateRequestParams(String tenant,
                                              String namespace,
                                              String functionName,
                                              InputStream uploadedInputStream,
                                              FormDataContentDisposition fileDetail,
-                                             String functionConfigJson) throws IllegalArgumentException {
+                                             String functionDetailsJson) throws IllegalArgumentException {
         if (tenant == null) {
             throw new IllegalArgumentException("Tenant is not provided");
         }
@@ -595,48 +702,52 @@ public class FunctionsImpl {
         if (uploadedInputStream == null || fileDetail == null) {
             throw new IllegalArgumentException("Function Package is not provided");
         }
-        if (functionConfigJson == null) {
-            throw new IllegalArgumentException("FunctionConfig is not provided");
+        if (functionDetailsJson == null) {
+            throw new IllegalArgumentException("FunctionDetails is not provided");
         }
         try {
-            FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
-            org.apache.pulsar.functions.utils.Utils.mergeJson(functionConfigJson, functionConfigBuilder);
-            FunctionConfig functionConfig = functionConfigBuilder.build();
+            FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
+            org.apache.pulsar.functions.utils.Utils.mergeJson(functionDetailsJson, functionDetailsBuilder);
+            FunctionDetails functionDetails = functionDetailsBuilder.build();
 
             List<String> missingFields = new LinkedList<>();
-            if (functionConfig.getTenant() == null || functionConfig.getTenant().isEmpty()) {
+            if (functionDetails.getTenant() == null || functionDetails.getTenant().isEmpty()) {
                 missingFields.add("Tenant");
             }
-            if (functionConfig.getNamespace() == null || functionConfig.getNamespace().isEmpty()) {
+            if (functionDetails.getNamespace() == null || functionDetails.getNamespace().isEmpty()) {
                 missingFields.add("Namespace");
             }
-            if (functionConfig.getName() == null || functionConfig.getName().isEmpty()) {
+            if (functionDetails.getName() == null || functionDetails.getName().isEmpty()) {
                 missingFields.add("Name");
             }
-            if (functionConfig.getClassName() == null || functionConfig.getClassName().isEmpty()) {
+            if (functionDetails.getClassName() == null || functionDetails.getClassName().isEmpty()) {
                 missingFields.add("ClassName");
             }
-            if (functionConfig.getInputsCount() == 0 && functionConfig.getCustomSerdeInputsCount() == 0) {
-                missingFields.add("Input");
+            if (!functionDetails.getSource().isInitialized()) {
+                missingFields.add("Source");
+            }
+            else if (functionDetails.getSource().getTopicsToSerDeClassNameMap().isEmpty()) {
+                missingFields.add("Source Topics Serde Map");
             }
             if (!missingFields.isEmpty()) {
                 String errorMessage = StringUtils.join(missingFields, ",");
                 throw new IllegalArgumentException(errorMessage + " is not provided");
             }
-            if (functionConfig.getParallelism() <= 0) {
+            if (functionDetails.getParallelism() <= 0) {
                 throw new IllegalArgumentException("Parallelism needs to be set to a positive number");
             }
-            return functionConfig;
+            return functionDetails;
         } catch (IllegalArgumentException ex) {
             throw ex;
         } catch (Exception ex) {
-            throw new IllegalArgumentException("Invalid FunctionConfig");
+            throw new IllegalArgumentException("Invalid FunctionDetails");
         }
     }
 
     private void validateTriggerRequestParams(String tenant,
                                               String namespace,
                                               String functionName,
+                                              String topic,
                                               String input,
                                               InputStream uploadedInputStream) {
         if (tenant == null) {
@@ -653,4 +764,16 @@ public class FunctionsImpl {
         }
     }
 
+    private Response getUnavailableResponse() {
+        return Response.status(Status.SERVICE_UNAVAILABLE)
+                .type(MediaType.APPLICATION_JSON)
+                .entity(new ErrorData("Function worker service is not done initializing. "
+                        + "Please try again in a little while."))
+                .build();
+    }
+
+    public static String createPackagePath(String tenant, String namespace, String functionName, String fileName) {
+        return String.format("%s/%s/%s/%s", tenant, namespace, Codec.encode(functionName),
+                Utils.getUniquePackageName(Codec.encode(fileName)));
+    }
 }

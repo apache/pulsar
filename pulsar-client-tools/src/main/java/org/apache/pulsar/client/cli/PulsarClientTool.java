@@ -53,6 +53,7 @@ public class PulsarClientTool {
 
     boolean useTls = false;
     boolean tlsAllowInsecureConnection = false;
+    boolean tlsEnableHostnameVerification = false;
     String tlsTrustCertsFilePath = null;
 
     JCommander commandParser;
@@ -69,7 +70,10 @@ public class PulsarClientTool {
         this.authPluginClassName = properties.getProperty("authPlugin");
         this.authParams = properties.getProperty("authParams");
         this.useTls = Boolean.parseBoolean(properties.getProperty("useTls"));
-        this.tlsAllowInsecureConnection = Boolean.parseBoolean(properties.getProperty("tlsAllowInsecureConnection"));
+        this.tlsAllowInsecureConnection = Boolean
+                .parseBoolean(properties.getProperty("tlsAllowInsecureConnection", "false"));
+        this.tlsEnableHostnameVerification = Boolean
+                .parseBoolean(properties.getProperty("tlsEnableHostnameVerification", "false"));
         this.tlsTrustCertsFilePath = properties.getProperty("tlsTrustCertsFilePath");
 
         produceCommand = new CmdProduce();

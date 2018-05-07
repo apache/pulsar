@@ -68,7 +68,7 @@ public class TestSmoke extends Arquillian {
 
         // create property and namespace
         PulsarClusterUtils.runOnAnyBroker(docker, clusterName,
-                "/pulsar/bin/pulsar-admin", "properties",
+                "/pulsar/bin/pulsar-admin", "tenants",
                 "create", "smoke-test", "--allowed-clusters", clusterName,
                 "--admin-roles", "smoke-admin");
         PulsarClusterUtils.runOnAnyBroker(docker, clusterName,

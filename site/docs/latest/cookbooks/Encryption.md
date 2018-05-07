@@ -5,6 +5,7 @@ tags:
 - crypto
 - encryption
 - clients
+- cookbook
 ---
 
 <!--

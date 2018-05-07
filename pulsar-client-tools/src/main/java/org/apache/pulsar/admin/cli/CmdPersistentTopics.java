@@ -23,6 +23,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PersistentTopics;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -30,6 +31,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
@@ -43,7 +45,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 
-@Parameters(commandDescription = "Operations on persistent topics")
+@SuppressWarnings("deprecation")
+@Parameters(commandDescription = "Operations on persistent topics", hidden = true)
 public class CmdPersistentTopics extends CmdBase {
     private final PersistentTopics persistentTopics;
 
@@ -78,6 +81,8 @@ public class CmdPersistentTopics extends CmdBase {
         jcommander.addCommand("peek-messages", new PeekMessages());
         jcommander.addCommand("reset-cursor", new ResetCursor());
         jcommander.addCommand("terminate", new Terminate());
+        jcommander.addCommand("compact", new Compact());
+        jcommander.addCommand("compaction-status", new CompactionStatusCmd());
     }
 
     @Parameters(commandDescription = "Get the list of topics under a namespace.")
@@ -235,11 +240,14 @@ public class CmdPersistentTopics extends CmdBase {
 
         @Parameter(description = "persistent://property/cluster/namespace/topic\n", required = true)
         private java.util.List<String> params;
+        
+        @Parameter(names = "--force", description = "Close all producer/consumer/replicator and delete topic forcefully")
+        private boolean force = false;
 
         @Override
         void run() throws Exception {
             String persistentTopic = validatePersistentTopic(params);
-            persistentTopics.deletePartitionedTopic(persistentTopic);
+            persistentTopics.deletePartitionedTopic(persistentTopic, force);
         }
     }
 
@@ -249,10 +257,13 @@ public class CmdPersistentTopics extends CmdBase {
         @Parameter(description = "persistent://property/cluster/namespace/topic\n", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = "--force", description = "Close all producer/consumer/replicator and delete topic forcefully")
+        private boolean force = false;
+        
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            persistentTopics.delete(persistentTopic);
+            persistentTopics.delete(persistentTopic, force);
         }
     }
 
@@ -531,11 +542,66 @@ public class CmdPersistentTopics extends CmdBase {
                     System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
                 }
                 if (msg.getProperties().size() > 0) {
-                    System.out.println("Properties:");
+                    System.out.println("Tenants:");
                     print(msg.getProperties());
                 }
                 ByteBuf data = Unpooled.wrappedBuffer(msg.getData());
                 System.out.println(ByteBufUtil.prettyHexDump(data));
+            }
+        }
+    }
+
+    @Parameters(commandDescription = "Compact a topic")
+    private class Compact extends CliCommand {
+        @Parameter(description = "persistent://property/cluster/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+
+            persistentTopics.triggerCompaction(persistentTopic);
+            System.out.println("Topic compaction requested for " + persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Status of compaction on a topic")
+    private class CompactionStatusCmd extends CliCommand {
+        @Parameter(description = "persistent://property/cluster/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-w", "--wait-complete" },
+                   description = "Wait for compaction to complete", required = false)
+        private boolean wait = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+
+            try {
+                LongRunningProcessStatus status = persistentTopics.compactionStatus(persistentTopic);
+                while (wait && status.status == LongRunningProcessStatus.Status.RUNNING) {
+                    Thread.sleep(1000);
+                    status = persistentTopics.compactionStatus(persistentTopic);
+                }
+
+                switch (status.status) {
+                case NOT_RUN:
+                    System.out.println("Compaction has not been run for " + persistentTopic
+                                       + " since broker startup");
+                    break;
+                case RUNNING:
+                    System.out.println("Compaction is currently running");
+                    break;
+                case SUCCESS:
+                    System.out.println("Compaction was a success");
+                    break;
+                case ERROR:
+                    System.out.println("Error in compaction");
+                    throw new PulsarAdminException("Error compacting: " + status.lastError);
+                }
+            } catch (InterruptedException e) {
+                throw new PulsarAdminException(e);
             }
         }
     }

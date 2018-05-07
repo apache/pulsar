@@ -22,8 +22,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.fail;
 
-import org.apache.pulsar.common.naming.TopicDomain;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.Codec;
 import org.testng.annotations.Test;
 
@@ -33,93 +31,93 @@ public class TopicNameTest {
     @Test
     void topic() {
         try {
-            assertEquals(TopicName.get("property.namespace:topic").getNamespace(), "property.namespace");
+            TopicName.get("://tenant.namespace:topic").getNamespace();
             fail("Should have thrown exception");
         } catch (IllegalArgumentException e) {
             // Expected
         }
 
-        assertEquals(TopicName.get("persistent://property/cluster/namespace/topic").getNamespace(),
-                "property/cluster/namespace");
-        assertEquals(TopicName.get("persistent://property/cluster/namespace/topic").getNamespace(),
-                "property/cluster/namespace");
+        assertEquals(TopicName.get("persistent://tenant/cluster/namespace/topic").getNamespace(),
+                "tenant/cluster/namespace");
+        assertEquals(TopicName.get("persistent://tenant/cluster/namespace/topic").getNamespace(),
+                "tenant/cluster/namespace");
 
-        assertEquals(TopicName.get("persistent://property/cluster/namespace/topic"),
-                TopicName.get("persistent", "property", "cluster", "namespace", "topic"));
+        assertEquals(TopicName.get("persistent://tenant/cluster/namespace/topic"),
+                TopicName.get("persistent", "tenant", "cluster", "namespace", "topic"));
 
-        assertEquals(TopicName.get("persistent://property/cluster/namespace/topic").hashCode(),
-                TopicName.get("persistent", "property", "cluster", "namespace", "topic").hashCode());
+        assertEquals(TopicName.get("persistent://tenant/cluster/namespace/topic").hashCode(),
+                TopicName.get("persistent", "tenant", "cluster", "namespace", "topic").hashCode());
 
-        assertEquals(TopicName.get("persistent://property/cluster/namespace/topic").toString(),
-                "persistent://property/cluster/namespace/topic");
+        assertEquals(TopicName.get("persistent://tenant/cluster/namespace/topic").toString(),
+                "persistent://tenant/cluster/namespace/topic");
 
-        assertFalse(TopicName.get("persistent://property/cluster/namespace/topic")
-                .equals("persistent://property/cluster/namespace/topic"));
+        assertFalse(TopicName.get("persistent://tenant/cluster/namespace/topic")
+                .equals("persistent://tenant/cluster/namespace/topic"));
 
-        assertEquals(TopicName.get("persistent://property/cluster/namespace/topic").getDomain(),
+        assertEquals(TopicName.get("persistent://tenant/cluster/namespace/topic").getDomain(),
                 TopicDomain.persistent);
-        assertEquals(TopicName.get("persistent://property/cluster/namespace/topic").getProperty(),
-                "property");
-        assertEquals(TopicName.get("persistent://property/cluster/namespace/topic").getCluster(),
+        assertEquals(TopicName.get("persistent://tenant/cluster/namespace/topic").getTenant(),
+                "tenant");
+        assertEquals(TopicName.get("persistent://tenant/cluster/namespace/topic").getCluster(),
                 "cluster");
-        assertEquals(TopicName.get("persistent://property/cluster/namespace/topic").getNamespacePortion(),
+        assertEquals(TopicName.get("persistent://tenant/cluster/namespace/topic").getNamespacePortion(),
                 "namespace");
-        assertEquals(TopicName.get("persistent://property/cluster/namespace/topic").getNamespace(),
-                "property/cluster/namespace");
-        assertEquals(TopicName.get("persistent://property/cluster/namespace/topic").getLocalName(),
+        assertEquals(TopicName.get("persistent://tenant/cluster/namespace/topic").getNamespace(),
+                "tenant/cluster/namespace");
+        assertEquals(TopicName.get("persistent://tenant/cluster/namespace/topic").getLocalName(),
                 "topic");
 
         try {
-            TopicName.get("property.namespace:my-topic").getDomain();
+            TopicName.get("://tenant.namespace:my-topic").getDomain();
             fail("Should have raised exception");
         } catch (IllegalArgumentException e) {
             // Ok
         }
 
         try {
-            TopicName.get("property.namespace:my-topic").getProperty();
+            TopicName.get("://tenant.namespace:my-topic").getTenant();
             fail("Should have raised exception");
         } catch (IllegalArgumentException e) {
             // Ok
         }
 
         try {
-            TopicName.get("property.namespace:my-topic").getCluster();
+            TopicName.get("://tenant.namespace:my-topic").getCluster();
             fail("Should have raised exception");
         } catch (IllegalArgumentException e) {
             // Ok
         }
 
         try {
-            TopicName.get("property.namespace:my-topic").getNamespacePortion();
+            TopicName.get("://tenant.namespace:my-topic").getNamespacePortion();
             fail("Should have raised exception");
         } catch (IllegalArgumentException e) {
             // Ok
         }
 
         try {
-            TopicName.get("property.namespace:my-topic").getLocalName();
+            TopicName.get("://tenant.namespace:my-topic").getLocalName();
             fail("Should have raised exception");
         } catch (IllegalArgumentException e) {
             // Ok
         }
 
         try {
-            TopicName.get("property.namespace");
+            TopicName.get("://tenant.namespace");
             fail("Should have raised exception");
         } catch (IllegalArgumentException e) {
             // Ok
         }
 
         try {
-            TopicName.get("invalid://property/cluster/namespace/topic");
+            TopicName.get("invalid://tenant/cluster/namespace/topic");
             fail("Should have raied exception");
         } catch (IllegalArgumentException e) {
             // Ok
         }
 
         try {
-            TopicName.get("property/cluster/namespace/topic");
+            TopicName.get("tenant/cluster/namespace/topic");
             fail("Should have raised exception");
         } catch (IllegalArgumentException e) {
             // Ok
@@ -160,36 +158,36 @@ public class TopicNameTest {
             // Ok
         }
 
-        assertEquals(TopicName.get("persistent://property/cluster/namespace/topic")
-                .getPersistenceNamingEncoding(), "property/cluster/namespace/persistent/topic");
+        assertEquals(TopicName.get("persistent://tenant/cluster/namespace/topic")
+                .getPersistenceNamingEncoding(), "tenant/cluster/namespace/persistent/topic");
 
         try {
-            TopicName.get("property.namespace");
+            TopicName.get("://tenant.namespace");
             fail("Should have raied exception");
         } catch (IllegalArgumentException e) {
             // Ok
         }
 
         try {
-            TopicName.get("property/cluster/namespace");
+            TopicName.get("://tenant/cluster/namespace");
             fail("Should have raied exception");
         } catch (IllegalArgumentException e) {
             // Ok
         }
 
-        TopicName nameWithSlash = TopicName.get("persistent://property/cluster/namespace/ns-abc/table/1");
+        TopicName nameWithSlash = TopicName.get("persistent://tenant/cluster/namespace/ns-abc/table/1");
         assertEquals(nameWithSlash.getEncodedLocalName(), Codec.encode("ns-abc/table/1"));
 
         TopicName nameEndingInSlash = TopicName
-                .get("persistent://property/cluster/namespace/ns-abc/table/1/");
+                .get("persistent://tenant/cluster/namespace/ns-abc/table/1/");
         assertEquals(nameEndingInSlash.getEncodedLocalName(), Codec.encode("ns-abc/table/1/"));
 
         TopicName nameWithTwoSlashes = TopicName
-                .get("persistent://property/cluster/namespace//ns-abc//table//1//");
+                .get("persistent://tenant/cluster/namespace//ns-abc//table//1//");
         assertEquals(nameWithTwoSlashes.getEncodedLocalName(), Codec.encode("/ns-abc//table//1//"));
 
         TopicName nameWithRandomCharacters = TopicName
-                .get("persistent://property/cluster/namespace/$#3rpa/table/1");
+                .get("persistent://tenant/cluster/namespace/$#3rpa/table/1");
         assertEquals(nameWithRandomCharacters.getEncodedLocalName(), Codec.encode("$#3rpa/table/1"));
 
         TopicName topicName = TopicName.get("persistent://myprop/mycolo/myns/mytopic");
@@ -219,25 +217,54 @@ public class TopicNameTest {
 
     @Test
     public void testTopicNameWithoutCluster() throws Exception {
-        TopicName topicName = TopicName.get("persistent://property/namespace/topic");
+        TopicName topicName = TopicName.get("persistent://tenant/namespace/topic");
 
-        assertEquals(topicName.getNamespace(), "property/namespace");
+        assertEquals(topicName.getNamespace(), "tenant/namespace");
 
-        assertEquals(topicName, TopicName.get("persistent", "property", "namespace", "topic"));
+        assertEquals(topicName, TopicName.get("persistent", "tenant", "namespace", "topic"));
 
         assertEquals(topicName.hashCode(),
-                TopicName.get("persistent", "property", "namespace", "topic").hashCode());
+                TopicName.get("persistent", "tenant", "namespace", "topic").hashCode());
 
-        assertEquals(topicName.toString(), "persistent://property/namespace/topic");
+        assertEquals(topicName.toString(), "persistent://tenant/namespace/topic");
         assertEquals(topicName.getDomain(), TopicDomain.persistent);
-        assertEquals(topicName.getProperty(), "property");
+        assertEquals(topicName.getTenant(), "tenant");
         assertEquals(topicName.getCluster(), null);
         assertEquals(topicName.getNamespacePortion(), "namespace");
-        assertEquals(topicName.getNamespace(), "property/namespace");
+        assertEquals(topicName.getNamespace(), "tenant/namespace");
         assertEquals(topicName.getLocalName(), "topic");
 
         assertEquals(topicName.getEncodedLocalName(), "topic");
-        assertEquals(topicName.getPartitionedTopicName(), "persistent://property/namespace/topic");
-        assertEquals(topicName.getPersistenceNamingEncoding(), "property/namespace/persistent/topic");
+        assertEquals(topicName.getPartitionedTopicName(), "persistent://tenant/namespace/topic");
+        assertEquals(topicName.getPersistenceNamingEncoding(), "tenant/namespace/persistent/topic");
+    }
+
+    @Test
+    public void testShortTopicName() throws Exception {
+        TopicName tn = TopicName.get("short-topic");
+        assertEquals(TopicDomain.persistent, tn.getDomain());
+        assertEquals(TopicName.PUBLIC_TENANT, tn.getTenant());
+        assertEquals(TopicName.DEFAULT_NAMESPACE, tn.getNamespacePortion());
+        assertEquals("short-topic", tn.getLocalName());
+
+        tn = TopicName.get("test-tenant/test-namespace/test-short-topic");
+        assertEquals(TopicDomain.persistent, tn.getDomain());
+        assertEquals("test-tenant", tn.getTenant());
+        assertEquals("test-namespace", tn.getNamespacePortion());
+        assertEquals("test-short-topic", tn.getLocalName());
+
+        try {
+            TopicName.get("pulsar/cluster/namespace/test");
+            fail("Should have raised exception");
+        } catch (IllegalArgumentException e) {
+            // Ok
+        }
+
+        try {
+            TopicName.get("pulsar/cluster");
+            fail("Should have raised exception");
+        } catch (IllegalArgumentException e) {
+            // Ok
+        }
     }
 }

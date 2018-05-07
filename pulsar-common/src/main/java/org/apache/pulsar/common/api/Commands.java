@@ -336,14 +336,19 @@ public class Commands {
         }
         subscribeBuilder.addAllMetadata(CommandUtils.toKeyValueList(metadata));
 
-        if (null != schemaInfo) {
-            subscribeBuilder.setSchema(getSchema(schemaInfo));
+        PulsarApi.Schema schema = null;
+        if (schemaInfo != null) {
+            schema = getSchema(schemaInfo);
+            subscribeBuilder.setSchema(schema);
         }
 
         CommandSubscribe subscribe = subscribeBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.SUBSCRIBE).setSubscribe(subscribe));
         subscribeBuilder.recycle();
         subscribe.recycle();
+        if (null != schema) {
+            schema.recycle();
+        }
         return res;
     }
 
@@ -426,6 +431,7 @@ public class Commands {
         return res;
     }
 
+    @VisibleForTesting
     public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
                 Map<String, String> metadata) {
         return newProducer(topic, producerId, requestId, producerName, false, metadata);
@@ -438,21 +444,19 @@ public class Commands {
 
     private static PulsarApi.Schema.Type getSchemaType(SchemaType type) {
         switch (type) {
-            case PROTOBUF:
-                return PulsarApi.Schema.Type.Protobuf;
-            case THRIFT:
-                return PulsarApi.Schema.Type.Thrift;
-            case AVRO:
-                return PulsarApi.Schema.Type.Avro;
+            case NONE:
+                return PulsarApi.Schema.Type.None;
+            case STRING:
+                return PulsarApi.Schema.Type.String;
             case JSON:
                 return PulsarApi.Schema.Type.Json;
             default:
-                return null;
+                return PulsarApi.Schema.Type.None;
         }
     }
 
     private static PulsarApi.Schema getSchema(SchemaInfo schemaInfo) {
-        return PulsarApi.Schema.newBuilder()
+        PulsarApi.Schema.Builder builder = PulsarApi.Schema.newBuilder()
             .setName(schemaInfo.getName())
             .setSchemaData(copyFrom(schemaInfo.getSchema()))
             .setType(getSchemaType(schemaInfo.getType()))
@@ -463,7 +467,10 @@ public class Commands {
                         .setValue(entry.getValue())
                         .build()
                 ).collect(Collectors.toList())
-            ).build();
+            );
+        PulsarApi.Schema schema = builder.build();
+        builder.recycle();
+        return schema;
     }
 
     public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
@@ -509,7 +516,15 @@ public class Commands {
     }
 
     public static ByteBuf newPartitionMetadataRequest(String topic, long requestId) {
-        return Commands.newPartitionMetadataRequest(topic, requestId, null, null, null);
+        CommandPartitionedTopicMetadata.Builder partitionMetadataBuilder = CommandPartitionedTopicMetadata.newBuilder();
+        partitionMetadataBuilder.setTopic(topic);
+        partitionMetadataBuilder.setRequestId(requestId);
+        CommandPartitionedTopicMetadata partitionMetadata = partitionMetadataBuilder.build();
+        ByteBuf res = serializeWithSize(
+                BaseCommand.newBuilder().setType(Type.PARTITIONED_METADATA).setPartitionMetadata(partitionMetadata));
+        partitionMetadataBuilder.recycle();
+        partitionMetadata.recycle();
+        return res;
     }
 
     public static ByteBuf newPartitionMetadataResponse(int partitions, long requestId) {
@@ -528,7 +543,15 @@ public class Commands {
     }
 
     public static ByteBuf newLookup(String topic, boolean authoritative, long requestId) {
-        return Commands.newLookup(topic, authoritative, null, null, null, requestId);
+        CommandLookupTopic.Builder lookupTopicBuilder = CommandLookupTopic.newBuilder();
+        lookupTopicBuilder.setTopic(topic);
+        lookupTopicBuilder.setRequestId(requestId);
+        lookupTopicBuilder.setAuthoritative(authoritative);
+        CommandLookupTopic lookupBroker = lookupTopicBuilder.build();
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.LOOKUP).setLookupTopic(lookupBroker));
+        lookupTopicBuilder.recycle();
+        lookupBroker.recycle();
+        return res;
     }
 
     public static ByteBuf newLookupResponse(String brokerServiceUrl, String brokerServiceUrlTls, boolean authoritative,
@@ -1024,52 +1047,6 @@ public class Commands {
     public static enum ChecksumType {
         Crc32c,
         None;
-    }
-
-    public static ByteBuf newPartitionMetadataRequest(String topic, long requestId, String originalAuthRole,
-            String originalAuthData, String originalAuthMethod) {
-        CommandPartitionedTopicMetadata.Builder partitionMetadataBuilder = CommandPartitionedTopicMetadata.newBuilder();
-        partitionMetadataBuilder.setTopic(topic);
-        partitionMetadataBuilder.setRequestId(requestId);
-        if (originalAuthRole != null) {
-            partitionMetadataBuilder.setOriginalPrincipal(originalAuthRole);
-        }
-        if (originalAuthData != null) {
-            partitionMetadataBuilder.setOriginalAuthData(originalAuthData);
-        }
-
-        if (originalAuthMethod != null) {
-            partitionMetadataBuilder.setOriginalAuthMethod(originalAuthMethod);
-        }
-        CommandPartitionedTopicMetadata partitionMetadata = partitionMetadataBuilder.build();
-        ByteBuf res = serializeWithSize(
-                BaseCommand.newBuilder().setType(Type.PARTITIONED_METADATA).setPartitionMetadata(partitionMetadata));
-        partitionMetadataBuilder.recycle();
-        partitionMetadata.recycle();
-        return res;
-    }
-
-    public static ByteBuf newLookup(String topic, boolean authoritative, String originalAuthRole,
-            String originalAuthData, String originalAuthMethod, long requestId) {
-        CommandLookupTopic.Builder lookupTopicBuilder = CommandLookupTopic.newBuilder();
-        lookupTopicBuilder.setTopic(topic);
-        lookupTopicBuilder.setRequestId(requestId);
-        lookupTopicBuilder.setAuthoritative(authoritative);
-        if (originalAuthRole != null) {
-            lookupTopicBuilder.setOriginalPrincipal(originalAuthRole);
-        }
-        if (originalAuthData != null) {
-            lookupTopicBuilder.setOriginalAuthData(originalAuthData);
-        }
-
-        if (originalAuthMethod != null) {
-            lookupTopicBuilder.setOriginalAuthMethod(originalAuthMethod);
-        }
-        CommandLookupTopic lookupBroker = lookupTopicBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.LOOKUP).setLookupTopic(lookupBroker));
-        lookupTopicBuilder.recycle();
-        lookupBroker.recycle();
-        return res;
     }
 
     public static boolean peerSupportsGetLastMessageId(int peerVersion) {

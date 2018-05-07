@@ -73,7 +73,7 @@ import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.stats.AllocatorStats;
 import org.apache.pulsar.common.stats.Metrics;
@@ -130,7 +130,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         properties.setServletContext(new MockServletContext());
         properties.setPulsar(pulsar);
         doReturn(mockZookKeeper).when(properties).globalZk();
-        doReturn(configurationCache.propertiesCache()).when(properties).propertiesCache();
+        doReturn(configurationCache.propertiesCache()).when(properties).tenantsCache();
         doReturn("test").when(properties).clientAppId();
         doNothing().when(properties).validateSuperUserAccess();
 
@@ -139,13 +139,13 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         namespaces.setPulsar(pulsar);
         doReturn(mockZookKeeper).when(namespaces).globalZk();
         doReturn(mockZookKeeper).when(namespaces).localZk();
-        doReturn(configurationCache.propertiesCache()).when(namespaces).propertiesCache();
+        doReturn(configurationCache.propertiesCache()).when(namespaces).tenantsCache();
         doReturn(configurationCache.policiesCache()).when(namespaces).policiesCache();
         doReturn("test").when(namespaces).clientAppId();
         doReturn(Sets.newTreeSet(Lists.newArrayList("use", "usw", "usc", "global"))).when(namespaces).clusters();
-        doNothing().when(namespaces).validateAdminAccessOnProperty("my-property");
-        doNothing().when(namespaces).validateAdminAccessOnProperty("other-property");
-        doNothing().when(namespaces).validateAdminAccessOnProperty("new-property");
+        doNothing().when(namespaces).validateAdminAccessForTenant("my-tenant");
+        doNothing().when(namespaces).validateAdminAccessForTenant("other-tenant");
+        doNothing().when(namespaces).validateAdminAccessForTenant("new-property");
 
         brokers = spy(new Brokers());
         brokers.setServletContext(new MockServletContext());
@@ -164,21 +164,21 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         persistentTopics.setPulsar(pulsar);
         doReturn(mockZookKeeper).when(persistentTopics).globalZk();
         doReturn(mockZookKeeper).when(persistentTopics).localZk();
-        doReturn(configurationCache.propertiesCache()).when(persistentTopics).propertiesCache();
+        doReturn(configurationCache.propertiesCache()).when(persistentTopics).tenantsCache();
         doReturn(configurationCache.policiesCache()).when(persistentTopics).policiesCache();
         doReturn("test").when(persistentTopics).clientAppId();
         doReturn("persistent").when(persistentTopics).domain();
         doReturn(Sets.newTreeSet(Lists.newArrayList("use", "usw", "usc"))).when(persistentTopics).clusters();
-        doNothing().when(persistentTopics).validateAdminAccessOnProperty("my-property");
-        doNothing().when(persistentTopics).validateAdminAccessOnProperty("other-property");
-        doNothing().when(persistentTopics).validateAdminAccessOnProperty("prop-xyz");
+        doNothing().when(persistentTopics).validateAdminAccessForTenant("my-tenant");
+        doNothing().when(persistentTopics).validateAdminAccessForTenant("other-tenant");
+        doNothing().when(persistentTopics).validateAdminAccessForTenant("prop-xyz");
 
         resourceQuotas = spy(new ResourceQuotas());
         resourceQuotas.setServletContext(new MockServletContext());
         resourceQuotas.setPulsar(pulsar);
         doReturn(mockZookKeeper).when(resourceQuotas).globalZk();
         doReturn(mockZookKeeper).when(resourceQuotas).localZk();
-        doReturn(configurationCache.propertiesCache()).when(resourceQuotas).propertiesCache();
+        doReturn(configurationCache.propertiesCache()).when(resourceQuotas).tenantsCache();
         doReturn(configurationCache.policiesCache()).when(resourceQuotas).policiesCache();
 
         brokerStats = spy(new BrokerStats());
@@ -186,7 +186,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         brokerStats.setPulsar(pulsar);
         doReturn(mockZookKeeper).when(brokerStats).globalZk();
         doReturn(mockZookKeeper).when(brokerStats).localZk();
-        doReturn(configurationCache.propertiesCache()).when(brokerStats).propertiesCache();
+        doReturn(configurationCache.propertiesCache()).when(brokerStats).tenantsCache();
         doReturn(configurationCache.policiesCache()).when(brokerStats).policiesCache();
 
         schemasResource = spy(new SchemasResource(mockClock));
@@ -194,7 +194,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         schemasResource.setPulsar(pulsar);
         doReturn(mockZookKeeper).when(schemasResource).globalZk();
         doReturn(mockZookKeeper).when(schemasResource).localZk();
-        doReturn(configurationCache.propertiesCache()).when(schemasResource).propertiesCache();
+        doReturn(configurationCache.propertiesCache()).when(schemasResource).tenantsCache();
         doReturn(configurationCache.policiesCache()).when(schemasResource).policiesCache();
     }
 
@@ -208,7 +208,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     void internalConfiguration() throws Exception {
         InternalConfigurationData expectedData = new InternalConfigurationData(
             pulsar.getConfiguration().getZookeeperServers(),
-            pulsar.getConfiguration().getGlobalZookeeperServers(),
+            pulsar.getConfiguration().getConfigurationStoreServers(),
             new ClientConfiguration().getZkLedgersRootPath());
 
         assertEquals(brokers.getInternalConfigurationData(), expectedData);
@@ -366,34 +366,34 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
     @Test
     void properties() throws Exception {
-        assertEquals(properties.getProperties(), Lists.newArrayList());
+        assertEquals(properties.getTenants(), Lists.newArrayList());
         verify(properties, times(1)).validateSuperUserAccess();
 
         Set<String> allowedClusters = Sets.newHashSet();
-        PropertyAdmin propertyAdmin = new PropertyAdmin(Sets.newHashSet("role1", "role2"), allowedClusters);
-        properties.createProperty("test-property", propertyAdmin);
+        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), allowedClusters);
+        properties.createTenant("test-property", tenantInfo);
         verify(properties, times(2)).validateSuperUserAccess();
 
-        assertEquals(properties.getProperties(), Lists.newArrayList("test-property"));
+        assertEquals(properties.getTenants(), Lists.newArrayList("test-property"));
         verify(properties, times(3)).validateSuperUserAccess();
 
-        assertEquals(properties.getPropertyAdmin("test-property"), propertyAdmin);
+        assertEquals(properties.getTenantAdmin("test-property"), tenantInfo);
         verify(properties, times(4)).validateSuperUserAccess();
 
-        PropertyAdmin newPropertyAdmin = new PropertyAdmin(Sets.newHashSet("role1", "other-role"), allowedClusters);
-        properties.updateProperty("test-property", newPropertyAdmin);
+        TenantInfo newPropertyAdmin = new TenantInfo(Sets.newHashSet("role1", "other-role"), allowedClusters);
+        properties.updateTenant("test-property", newPropertyAdmin);
         verify(properties, times(5)).validateSuperUserAccess();
 
-        // Wait for updateProperty to take effect
+        // Wait for updateTenant to take effect
         Thread.sleep(100);
 
-        assertEquals(properties.getPropertyAdmin("test-property"), newPropertyAdmin);
-        assertNotSame(properties.getPropertyAdmin("test-property"), propertyAdmin);
+        assertEquals(properties.getTenantAdmin("test-property"), newPropertyAdmin);
+        assertNotSame(properties.getTenantAdmin("test-property"), tenantInfo);
         verify(properties, times(7)).validateSuperUserAccess();
 
         // Check creating existing property
         try {
-            properties.createProperty("test-property", propertyAdmin);
+            properties.createTenant("test-property", tenantInfo);
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.CONFLICT.getStatusCode());
@@ -401,14 +401,14 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         // Check non-existing property
         try {
-            properties.getPropertyAdmin("non-existing");
+            properties.getTenantAdmin("non-existing");
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
         }
 
         try {
-            properties.updateProperty("xxx-non-existing", newPropertyAdmin);
+            properties.updateTenant("xxx-non-existing", newPropertyAdmin);
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
@@ -416,7 +416,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         // Check deleting non-existing property
         try {
-            properties.deleteProperty("non-existing");
+            properties.deleteTenant("non-existing");
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
@@ -425,7 +425,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         // Test zk failures
         mockZookKeeper.failNow(Code.SESSIONEXPIRED);
         try {
-            properties.getProperties();
+            properties.getTenants();
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());
@@ -433,7 +433,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         mockZookKeeper.failNow(Code.SESSIONEXPIRED);
         try {
-            properties.getPropertyAdmin("my-property");
+            properties.getTenantAdmin("my-tenant");
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());
@@ -441,7 +441,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         mockZookKeeper.failNow(Code.SESSIONEXPIRED);
         try {
-            properties.updateProperty("my-property", newPropertyAdmin);
+            properties.updateTenant("my-tenant", newPropertyAdmin);
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());
@@ -449,7 +449,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         mockZookKeeper.failNow(Code.SESSIONEXPIRED);
         try {
-            properties.createProperty("test", propertyAdmin);
+            properties.createTenant("test", tenantInfo);
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());
@@ -457,34 +457,34 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         mockZookKeeper.failNow(Code.SESSIONEXPIRED);
         try {
-            properties.deleteProperty("my-property");
+            properties.deleteTenant("my-tenant");
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());
         }
 
-        properties.createProperty("error-property", propertyAdmin);
+        properties.createTenant("error-property", tenantInfo);
         mockZookKeeper.failAfter(2, Code.SESSIONEXPIRED);
         try {
-            properties.deleteProperty("error-property");
+            properties.deleteTenant("error-property");
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());
         }
 
-        properties.deleteProperty("test-property");
-        properties.deleteProperty("error-property");
-        assertEquals(properties.getProperties(), Lists.newArrayList());
+        properties.deleteTenant("test-property");
+        properties.deleteTenant("error-property");
+        assertEquals(properties.getTenants(), Lists.newArrayList());
 
         // Create a namespace to test deleting a non-empty property
         clusters.createCluster("use", new ClusterData());
-        newPropertyAdmin = new PropertyAdmin(Sets.newHashSet("role1", "other-role"), Sets.newHashSet("use"));
-        properties.createProperty("my-property", newPropertyAdmin);
+        newPropertyAdmin = new TenantInfo(Sets.newHashSet("role1", "other-role"), Sets.newHashSet("use"));
+        properties.createTenant("my-tenant", newPropertyAdmin);
 
-        namespaces.createNamespace("my-property", "use", "my-namespace", new BundlesData());
+        namespaces.createNamespace("my-tenant", "use", "my-namespace", new BundlesData());
 
         try {
-            properties.deleteProperty("my-property");
+            properties.deleteTenant("my-tenant");
             fail("should have failed");
         } catch (RestException e) {
             // Ok
@@ -492,14 +492,14 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         // Check name validation
         try {
-            properties.createProperty("test&", propertyAdmin);
+            properties.createTenant("test&", tenantInfo);
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         }
 
-        namespaces.deleteNamespace("my-property", "use", "my-namespace", false);
-        properties.deleteProperty("my-property");
+        namespaces.deleteNamespace("my-tenant", "use", "my-namespace", false);
+        properties.deleteTenant("my-tenant");
     }
 
     @Test
@@ -558,7 +558,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         }
 
         // create policies
-        PropertyAdmin admin = new PropertyAdmin();
+        TenantInfo admin = new TenantInfo();
         admin.getAllowedClusters().add(cluster);
         mockZookKeeper.create(PulsarWebResource.path(POLICIES, property),
                 ObjectMapperFactory.getThreadLocal().writeValueAsBytes(admin), Ids.OPEN_ACL_UNSAFE,
@@ -617,7 +617,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         doReturn(policies).when(resourceQuotas).getNamespacePolicies(NamespaceName.get(property, cluster, namespace));
         doReturn("client-id").when(resourceQuotas).clientAppId();
         // create policies
-        PropertyAdmin admin = new PropertyAdmin();
+        TenantInfo admin = new TenantInfo();
         admin.getAllowedClusters().add(cluster);
         ZkUtils.createFullPathOptimistic(mockZookKeeper, PulsarWebResource.path(POLICIES, property, cluster, namespace),
                 ObjectMapperFactory.getThreadLocal().writeValueAsBytes(new Policies()), ZooDefs.Ids.OPEN_ACL_UNSAFE,

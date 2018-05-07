@@ -56,7 +56,7 @@ import io.swagger.annotations.ApiResponses;
 public class BrokersBase extends AdminResource {
     private static final Logger LOG = LoggerFactory.getLogger(BrokersBase.class);
     private int serviceConfigZkVersion = -1;
-    
+
     @GET
     @Path("/{cluster}")
     @ApiOperation(value = "Get the list of active brokers (web service addresses) in the cluster.", response = String.class, responseContainer = "Set")
@@ -95,7 +95,7 @@ public class BrokersBase extends AdminResource {
             throw new RestException(e);
         }
     }
-    
+
     @POST
     @Path("/configuration/{configName}/{configValue}")
     @ApiOperation(value = "Update dynamic serviceconfiguration into zk only. This operation requires Pulsar super-user privileges.")
@@ -135,11 +135,11 @@ public class BrokersBase extends AdminResource {
     public List<String> getDynamicConfigurationName() {
         return BrokerService.getDynamicConfiguration();
     }
-    
+
     /**
      * if {@link ServiceConfiguration}-field is allowed to be modified dynamically, update configuration-map into zk, so
      * all other brokers get the watch and can see the change and take appropriate action on the change.
-     * 
+     *
      * @param configName
      *            : configuration key
      * @param configValue
@@ -192,7 +192,7 @@ public class BrokersBase extends AdminResource {
         ClientConfiguration conf = new ClientConfiguration();
         return new InternalConfigurationData(
             pulsar().getConfiguration().getZookeeperServers(),
-            pulsar().getConfiguration().getGlobalZookeeperServers(),
+            pulsar().getConfiguration().getConfigurationStoreServers(),
             conf.getZkLedgersRootPath());
     }
 

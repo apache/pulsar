@@ -47,7 +47,7 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
 
         proxyConfig.setServicePort(PortManager.nextFreePort());
         proxyConfig.setZookeeperServers(DUMMY_VALUE);
-        proxyConfig.setGlobalZookeeperServers(DUMMY_VALUE);
+        proxyConfig.setConfigurationStoreServers(DUMMY_VALUE);
         proxyConfig.setMaxConcurrentLookupRequests(NUM_CONCURRENT_LOOKUP);
         proxyConfig.setMaxConcurrentInboundConnections(NUM_CONCURRENT_INBOUND_CONNECTION);
         proxyService = Mockito.spy(new ProxyService(proxyConfig));
@@ -69,7 +69,7 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
         PulsarClient client1 = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort())
                 .build();
         Producer<byte[]> producer1 = client1.newProducer().topic("persistent://sample/test/local/producer-topic-1").create();
-        
+
         LOG.info("Creating producer 2");
         PulsarClient client2 = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort())
                 .build();
@@ -84,6 +84,6 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
         }
         Assert.assertEquals(ProxyConnection.rejectedConnections.get(), 1.0d);
     }
-    
+
     private static final Logger LOG = LoggerFactory.getLogger(ProxyConnectionThrottlingTest.class);
 }

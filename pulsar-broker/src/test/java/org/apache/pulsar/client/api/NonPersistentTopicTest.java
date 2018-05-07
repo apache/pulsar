@@ -26,6 +26,8 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import com.google.common.collect.Sets;
+
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.Set;
@@ -51,14 +53,14 @@ import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
 import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.slf4j.Logger;
@@ -67,9 +69,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 
 public class NonPersistentTopicTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(NonPersistentTopicTest.class);
@@ -103,7 +102,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     public void testNonPersistentTopic(SubscriptionType type) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String topic = "non-persistent://my-property/use/my-ns/unacked-topic";
+        final String topic = "non-persistent://my-property/my-ns/unacked-topic";
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("subscriber-1").subscriptionType(type).subscribe();
 
@@ -142,12 +141,15 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     public void testPartitionedNonPersistentTopic(SubscriptionType type) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String topic = "non-persistent://my-property/use/my-ns/partitioned-topic";
-        admin.nonPersistentTopics().createPartitionedTopic(topic, 5);
+        final String topic = "non-persistent://my-property/my-ns/partitioned-topic";
+        admin.topics().createPartitionedTopic(topic, 5);
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("subscriber-1")
                 .subscriptionType(type).subscribe();
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
 
         int totalProduceMsg = 500;
         for (int i = 0; i < totalProduceMsg; i++) {
@@ -183,15 +185,18 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         final int numPartitions = 5;
-        final String topic = "non-persistent://my-property/use/my-ns/partitioned-topic";
-        admin.nonPersistentTopics().createPartitionedTopic(topic, numPartitions);
+        final String topic = "non-persistent://my-property/my-ns/partitioned-topic";
+        admin.topics().createPartitionedTopic(topic, numPartitions);
 
         PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:" + BROKER_PORT)
                 .statsInterval(0, TimeUnit.SECONDS).build();
         Consumer<byte[]> consumer = client.newConsumer().topic(topic).subscriptionName("subscriber-1")
                 .subscriptionType(type).subscribe();
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
 
         // Ensure all partitions exist
         for (int i = 0; i < numPartitions; i++) {
@@ -235,7 +240,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     public void testConsumerInternalQueueMaxOut(SubscriptionType type) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String topic = "non-persistent://my-property/use/my-ns/unacked-topic";
+        final String topic = "non-persistent://my-property/my-ns/unacked-topic";
         final int queueSize = 10;
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic)
                 .receiverQueueSize(queueSize).subscriptionName("subscriber-1").subscriptionType(type).subscribe();
@@ -278,7 +283,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     public void testProducerRateLimit() throws Exception {
         int defaultNonPersistentMessageRate = conf.getMaxConcurrentNonPersistentMessagePerConnection();
         try {
-            final String topic = "non-persistent://my-property/use/my-ns/unacked-topic";
+            final String topic = "non-persistent://my-property/my-ns/unacked-topic";
             // restart broker with lower publish rate limit
             conf.setMaxConcurrentNonPersistentMessagePerConnection(1);
             stopBroker();
@@ -337,7 +342,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     public void testMultipleSubscription() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String topic = "non-persistent://my-property/use/my-ns/unacked-topic";
+        final String topic = "non-persistent://my-property/my-ns/unacked-topic";
         ConsumerImpl<byte[]> consumer1Shared = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("subscriber-shared").subscriptionType(SubscriptionType.Shared).subscribe();
 
@@ -415,7 +420,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     @Test
     public void testTopicStats() throws Exception {
 
-        final String topicName = "non-persistent://my-property/use/my-ns/unacked-topic";
+        final String topicName = "non-persistent://my-property/my-ns/unacked-topic";
         final String subName = "non-persistent";
         final int timeWaitToSync = 100;
 
@@ -493,7 +498,10 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             ConsumerImpl<byte[]> repl3Consumer = (ConsumerImpl<byte[]>) client3.newConsumer().topic(globalTopicName)
                     .subscriptionName("subscriber-1").subscribe();
 
-            Producer<byte[]> producer = client1.newProducer().topic(globalTopicName).create();
+            Producer<byte[]> producer = client1.newProducer().topic(globalTopicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
 
             Thread.sleep(timeWaitToSync);
 
@@ -620,7 +628,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     @Test(dataProvider = "loadManager")
     public void testLoadManagerAssignmentForNonPersistentTestAssignment(String loadManagerName) throws Exception {
 
-        final String namespace = "my-property/use/my-ns";
+        final String namespace = "my-property/my-ns";
         final String topicName = "non-persistent://" + namespace + "/loadManager";
         final String defaultLoadManagerName = conf.getLoadManagerClassName();
         final boolean defaultENableNonPersistentTopic = conf.isEnableNonPersistentTopics();
@@ -675,7 +683,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     @Test
     public void testNonPersistentTopicUnderPersistentNamespace() throws Exception {
 
-        final String namespace = "my-property/use/my-ns";
+        final String namespace = "my-property/my-ns";
         final String topicName = "non-persistent://" + namespace + "/persitentNamespace";
 
         final boolean defaultENableNonPersistentTopic = conf.isEnableNonPersistentTopics();
@@ -707,7 +715,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     @Test(dataProvider = "loadManager")
     public void testNonPersistentBrokerModeRejectPersistentTopic(String loadManagerName) throws Exception {
 
-        final String namespace = "my-property/use/my-ns";
+        final String namespace = "my-property/my-ns";
         final String topicName = "persistent://" + namespace + "/loadManager";
         final String defaultLoadManagerName = conf.getLoadManagerClassName();
         final boolean defaultEnablePersistentTopic = conf.isEnablePersistentTopics();
@@ -767,7 +775,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
         int defaultNonPersistentMessageRate = conf.getMaxConcurrentNonPersistentMessagePerConnection();
         try {
-            final String topicName = "non-persistent://my-property/use/my-ns/stats-topic";
+            final String topicName = "non-persistent://my-property/my-ns/stats-topic";
             // restart broker with lower publish rate limit
             conf.setMaxConcurrentNonPersistentMessagePerConnection(1);
             stopBroker();
@@ -778,7 +786,10 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             Consumer<byte[]> consumer2 = pulsarClient.newConsumer().topic(topicName).subscriptionName("subscriber-2")
                     .receiverQueueSize(1).subscriptionType(SubscriptionType.Shared).subscribe();
 
-            ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName).create();
+            ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
             String firstTimeConnected = producer.getConnectedSince();
             ExecutorService executor = Executors.newFixedThreadPool(5);
             byte[] msgData = "testData".getBytes();
@@ -875,7 +886,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             config1.setAdvertisedAddress("localhost");
             config1.setWebServicePort(webServicePort1);
             config1.setZookeeperServers("127.0.0.1:" + zkPort1);
-            config1.setGlobalZookeeperServers("127.0.0.1:" + globalZKPort + "/foo");
+            config1.setConfigurationStoreServers("127.0.0.1:" + globalZKPort + "/foo");
             config1.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
             config1.setBrokerServicePurgeInactiveFrequencyInSeconds(
                     inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
@@ -901,7 +912,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             config2.setWebServicePort(webServicePort2);
             config2.setAdvertisedAddress("localhost");
             config2.setZookeeperServers("127.0.0.1:" + zkPort2);
-            config2.setGlobalZookeeperServers("127.0.0.1:" + globalZKPort + "/foo");
+            config2.setConfigurationStoreServers("127.0.0.1:" + globalZKPort + "/foo");
             config2.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
             config2.setBrokerServicePurgeInactiveFrequencyInSeconds(
                     inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
@@ -927,7 +938,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             config3.setWebServicePort(webServicePort3);
             config3.setAdvertisedAddress("localhost");
             config3.setZookeeperServers("127.0.0.1:" + zkPort3);
-            config3.setGlobalZookeeperServers("127.0.0.1:" + globalZKPort + "/foo");
+            config3.setConfigurationStoreServers("127.0.0.1:" + globalZKPort + "/foo");
             config3.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
             config3.setBrokerServicePurgeInactiveFrequencyInSeconds(
                     inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
@@ -948,7 +959,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
                     pulsar1.getBrokerServiceUrlTls()));
 
             admin1.clusters().createCluster("global", new ClusterData("http://global:8080"));
-            admin1.properties().createProperty("pulsar", new PropertyAdmin(
+            admin1.tenants().createTenant("pulsar", new TenantInfo(
                     Sets.newHashSet("appid1", "appid2", "appid3"), Sets.newHashSet("r1", "r2", "r3")));
             admin1.namespaces().createNamespace("pulsar/global/ns");
             admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns",

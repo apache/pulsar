@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.loadbalance;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -107,6 +108,14 @@ public interface LoadManager {
      * @throws Exception
      */
     public void disableBroker() throws Exception;
+    
+    /**
+     * Get list of available brokers in cluster
+     * 
+     * @return
+     * @throws Exception 
+     */
+    Set<String> getAvailableBrokers() throws Exception;
 
     public void stop() throws PulsarServerException;
 
@@ -139,4 +148,5 @@ public interface LoadManager {
         // If we failed to create a load manager, default to SimpleLoadManagerImpl.
         return new SimpleLoadManagerImpl(pulsar);
     }
+
 }

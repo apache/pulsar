@@ -31,7 +31,7 @@ public class SampleConsumerListener {
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("http://localhost:8080").build();
 
         pulsarClient.newConsumer() //
-                .topic("persistent://my-property/use/my-ns/my-topic") //
+                .topic("persistent://my-tenant/my-ns/my-topic") //
                 .subscriptionName("my-subscription-name") //
                 .messageListener((consumer, msg) -> {
                     log.info("Received message: {}", msg);

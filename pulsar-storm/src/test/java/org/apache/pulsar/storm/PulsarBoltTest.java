@@ -30,7 +30,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
-import org.apache.pulsar.common.policies.data.PersistentTopicStats;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.testng.Assert;
 import static org.testng.Assert.fail;
 import org.testng.annotations.AfterMethod;
@@ -48,7 +48,7 @@ public class PulsarBoltTest extends ProducerConsumerBase {
     private static final int NO_OF_RETRIES = 10;
 
     public final String serviceUrl = "http://127.0.0.1:" + BROKER_WEBSERVICE_PORT;
-    public final String topic = "persistent://my-property/use/my-ns/my-topic1";
+    public final String topic = "persistent://my-property/my-ns/my-topic1";
     public final String subscriptionName = "my-subscriber-name";
 
     protected PulsarBoltConfiguration pulsarBoltConf;
@@ -188,7 +188,7 @@ public class PulsarBoltTest extends ProducerConsumerBase {
 
     @Test
     public void testSharedProducer() throws Exception {
-        PersistentTopicStats topicStats = admin.persistentTopics().getStats(topic);
+        TopicStats topicStats = admin.topics().getStats(topic);
         Assert.assertEquals(topicStats.publishers.size(), 1);
         PulsarBolt otherBolt = new PulsarBolt(pulsarBoltConf, new ClientConfiguration());
         MockOutputCollector otherMockCollector = new MockOutputCollector();
@@ -198,12 +198,12 @@ public class PulsarBoltTest extends ProducerConsumerBase {
         when(context.getThisTaskId()).thenReturn(1);
         otherBolt.prepare(Maps.newHashMap(), context, collector);
 
-        topicStats = admin.persistentTopics().getStats(topic);
+        topicStats = admin.topics().getStats(topic);
         Assert.assertEquals(topicStats.publishers.size(), 1);
 
         otherBolt.close();
 
-        topicStats = admin.persistentTopics().getStats(topic);
+        topicStats = admin.topics().getStats(topic);
         Assert.assertEquals(topicStats.publishers.size(), 1);
     }
 
@@ -213,7 +213,7 @@ public class PulsarBoltTest extends ProducerConsumerBase {
         PulsarBolt boltWithNoAuth = new PulsarBolt(pulsarBoltConf, new ClientConfiguration());
         TestUtil.testSerializability(boltWithNoAuth);
     }
-    
+
     @Test
     public void testFailedProducer() {
         PulsarBoltConfiguration pulsarBoltConf = new PulsarBoltConfiguration();

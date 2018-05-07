@@ -18,21 +18,6 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.CompressionType;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
-import org.apache.pulsar.functions.proto.Function.Assignment;
-import org.apache.pulsar.functions.proto.Request;
-import org.apache.pulsar.functions.utils.Reflections;
-import org.apache.pulsar.functions.worker.scheduler.IScheduler;
-
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -46,6 +31,21 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.Function.Assignment;
+import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
+import org.apache.pulsar.functions.proto.Request;
+import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.functions.worker.scheduler.IScheduler;
 
 @Slf4j
 public class SchedulerManager implements AutoCloseable {
@@ -63,7 +63,7 @@ public class SchedulerManager implements AutoCloseable {
 
     private final IScheduler scheduler;
 
-    private final Producer producer;
+    private final Producer<byte[]> producer;
 
     private final ExecutorService executorService;
 
@@ -72,14 +72,10 @@ public class SchedulerManager implements AutoCloseable {
         this.scheduler = Reflections.createInstance(workerConfig.getSchedulerClassName(), IScheduler.class,
                 Thread.currentThread().getContextClassLoader());
 
-        ProducerConfiguration producerConf = new ProducerConfiguration()
-            .setBatchingEnabled(true)
-            .setBlockIfQueueFull(true)
-            .setCompressionType(CompressionType.LZ4)
-            // retry until succeed
-            .setSendTimeout(0, TimeUnit.MILLISECONDS);
         try {
-            this.producer = pulsarClient.createProducer(this.workerConfig.getFunctionAssignmentTopic(), producerConf);
+            this.producer = pulsarClient.newProducer().topic(this.workerConfig.getFunctionAssignmentTopic())
+                    .enableBatching(true).blockIfQueueFull(true).compressionType(CompressionType.LZ4).
+                    sendTimeout(0, TimeUnit.MILLISECONDS).create();
         } catch (PulsarClientException e) {
             log.error("Failed to create producer to function assignment topic "
                     + this.workerConfig.getFunctionAssignmentTopic(), e);
@@ -192,7 +188,7 @@ public class SchedulerManager implements AutoCloseable {
 
     public static List<Function.Instance> computeInstances(FunctionMetaData functionMetaData) {
         List<Function.Instance> functionInstances = new LinkedList<>();
-        int instances = functionMetaData.getFunctionConfig().getParallelism();
+        int instances = functionMetaData.getFunctionDetails().getParallelism();
         for (int i = 0; i < instances; i++) {
             functionInstances.add(Function.Instance.newBuilder()
                     .setFunctionMetaData(functionMetaData)

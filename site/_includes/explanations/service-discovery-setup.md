@@ -31,14 +31,14 @@ Many large-scale deployment systems, such as [Kubernetes](../../deployment/Kuber
 
 The service discovery mechanism included with Pulsar maintains a list of active brokers, stored in {% popover ZooKeeper %}, and supports lookup using HTTP and also Pulsar's [binary protocol](../../project/BinaryProtocol).
 
-To get started setting up Pulsar's built-in service discovery, you need to change a few parameters in the [`conf/discovery.conf`](../../reference/Configuration#service-discovery) configuration file. Set the [`zookeeperServers`](../../reference/Configuration#service-discovery-zookeeperServers) parameter to the global ZooKeeper quorum connection string and the [`globalZookeeperServers`](../../reference/Configuration#service-discovery-globalZookeeperServers)
+To get started setting up Pulsar's built-in service discovery, you need to change a few parameters in the [`conf/discovery.conf`](../../reference/Configuration#service-discovery) configuration file. Set the [`zookeeperServers`](../../reference/Configuration#service-discovery-zookeeperServers) parameter to the cluster's ZooKeeper quorum connection string and the [`configurationStoreServers`](../../reference/Configuration#service-discovery-configurationStoreServers) setting to the {% popover configuration store %} quorum connection string.
 
 ```properties
 # Zookeeper quorum connection string
 zookeeperServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
 
-# Global zookeeper quorum connection string
-globalZookeeperServers=zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184
+# Global configuration store connection string
+configurationStoreServers=zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184
 ```
 
 To start the discovery service:

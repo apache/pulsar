@@ -271,7 +271,7 @@ A client that successfully identified itself as having the role `my-admin-role` 
 
 The structure of topic names in Pulsar reflects the hierarchy between properties, clusters, and [namespaces](#managing-namespaces):
 
-{% include topic.html p="property" c="cluster" n="namespace" t="topic" %}
+{% include topic.html ten="tenant" n="namespace" t="topic" %}
 
 ## Managing permissions
 

@@ -19,5 +19,5 @@
 
 -->
 <section class="topic">
-  persistent://<span class="property">{{ include.p }}</span>/<span class="cluster">{{ include.c }}</span>/<span class="namespace">{{ include.n }}</span>/<span class="t">{{ include.t }}</span>
+  {% if include.type %}{{ include.type }}{% else %}persistent{% endif %}://{% if include.ten %}<span class="property">{{ include.ten }}</span>/{% endif %}{% if include.c %}<span class="cluster">{{ include.c }}</span>/{% endif %}{% if include.n %}<span class="namespace">{{ include.n }}</span>/{% endif %}{% if include.t %}<span class="t">{{ include.t }}</span>{% endif %}
 </section>

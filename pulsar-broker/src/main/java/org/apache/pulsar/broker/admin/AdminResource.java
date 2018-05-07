@@ -40,6 +40,7 @@ import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
@@ -50,7 +51,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -123,8 +124,8 @@ public abstract class AdminResource extends PulsarWebResource {
 
     // This is a stub method for Mockito
     @Override
-    protected void validateAdminAccessOnProperty(String property) {
-        super.validateAdminAccessOnProperty(property);
+    protected void validateAdminAccessForTenant(String property) {
+        super.validateAdminAccessForTenant(property);
     }
 
     // This is a stub method for Mockito
@@ -312,7 +313,7 @@ public abstract class AdminResource extends PulsarWebResource {
         return ObjectMapperFactory.getThreadLocal();
     }
 
-    public ZooKeeperDataCache<PropertyAdmin> propertiesCache() {
+    public ZooKeeperDataCache<TenantInfo> tenantsCache() {
         return pulsar().getConfigurationCache().propertiesCache();
     }
 
@@ -334,7 +335,11 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected Set<String> clusters() {
         try {
-            return pulsar().getConfigurationCache().clustersListCache().get();
+            Set<String> clusters = pulsar().getConfigurationCache().clustersListCache().get();
+
+            // Remove "global" cluster from returned list
+            clusters.remove(Constants.GLOBAL_CLUSTER);
+            return clusters;
         } catch (Exception e) {
             throw new RestException(e);
         }
@@ -371,7 +376,7 @@ public abstract class AdminResource extends PulsarWebResource {
         try {
             checkConnect(topicName);
         } catch (WebApplicationException e) {
-            validateAdminAccessOnProperty(topicName.getProperty());
+            validateAdminAccessForTenant(topicName.getTenant());
         } catch (Exception e) {
             // unknown error marked as internal server error
             log.warn("Unexpected error while authorizing lookup. topic={}, role={}. Error: {}", topicName,
