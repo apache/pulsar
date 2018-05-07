@@ -60,7 +60,7 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setTlsCertificateFilePath(TLS_PROXY_CERT_FILE_PATH);
         proxyConfig.setTlsKeyFilePath(TLS_PROXY_KEY_FILE_PATH);
         proxyConfig.setZookeeperServers(DUMMY_VALUE);
-        proxyConfig.setGlobalZookeeperServers(DUMMY_VALUE);
+        proxyConfig.setConfigurationStoreServers(DUMMY_VALUE);
 
         proxyService = Mockito.spy(new ProxyService(proxyConfig));
         doReturn(mockZooKeeperClientFactory).when(proxyService).getZooKeeperClientFactory();
@@ -96,7 +96,7 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
                 .serviceUrl("pulsar+ssl://localhost:" + proxyConfig.getServicePortTls()).enableTls(true)
                 .allowTlsInsecureConnection(false).tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).build();
         admin.tenants().createTenant("sample", new TenantInfo());
-        admin.persistentTopics().createPartitionedTopic("persistent://sample/test/local/partitioned-topic", 2);
+        admin.topics().createPartitionedTopic("persistent://sample/test/local/partitioned-topic", 2);
 
         Producer<byte[]> producer = client.newProducer().topic("persistent://sample/test/local/partitioned-topic")
                 .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();

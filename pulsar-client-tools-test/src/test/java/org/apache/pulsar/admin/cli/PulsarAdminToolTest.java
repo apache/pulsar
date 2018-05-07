@@ -23,6 +23,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+
 import java.util.EnumSet;
 
 import org.apache.pulsar.client.admin.BrokerStats;
@@ -35,6 +38,7 @@ import org.apache.pulsar.client.admin.PersistentTopics;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.ResourceQuotas;
 import org.apache.pulsar.client.admin.Tenants;
+import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -51,9 +55,6 @@ import org.mockito.ArgumentMatcher;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 
 @Test
 public class PulsarAdminToolTest {
@@ -496,6 +497,89 @@ public class PulsarAdminToolTest {
     }
 
     @Test
+    void topics() throws Exception {
+        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
+        Topics mockTopics = mock(Topics.class);
+        when(admin.topics()).thenReturn(mockTopics);
+
+        CmdTopics cmdTopics = new CmdTopics(admin);
+
+        cmdTopics.run(split("delete persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).delete("persistent://myprop/clust/ns1/ds1", false);
+
+        cmdTopics.run(split("unload persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).unload("persistent://myprop/clust/ns1/ds1");
+
+        cmdTopics.run(split("list myprop/clust/ns1"));
+        verify(mockTopics).getList("myprop/clust/ns1");
+
+        cmdTopics.run(split("subscriptions persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getSubscriptions("persistent://myprop/clust/ns1/ds1");
+
+        cmdTopics.run(split("unsubscribe persistent://myprop/clust/ns1/ds1 -s sub1"));
+        verify(mockTopics).deleteSubscription("persistent://myprop/clust/ns1/ds1", "sub1");
+
+        cmdTopics.run(split("stats persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getStats("persistent://myprop/clust/ns1/ds1");
+
+        cmdTopics.run(split("stats-internal persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getInternalStats("persistent://myprop/clust/ns1/ds1");
+
+        cmdTopics.run(split("info-internal persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getInternalInfo("persistent://myprop/clust/ns1/ds1");
+
+        cmdTopics.run(split("partitioned-stats persistent://myprop/clust/ns1/ds1 --per-partition"));
+        verify(mockTopics).getPartitionedStats("persistent://myprop/clust/ns1/ds1", true);
+
+        cmdTopics.run(split("clear-backlog persistent://myprop/clust/ns1/ds1 -s sub1"));
+        verify(mockTopics).skipAllMessages("persistent://myprop/clust/ns1/ds1", "sub1");
+
+        cmdTopics.run(split("skip persistent://myprop/clust/ns1/ds1 -s sub1 -n 100"));
+        verify(mockTopics).skipMessages("persistent://myprop/clust/ns1/ds1", "sub1", 100);
+
+        cmdTopics.run(split("expire-messages persistent://myprop/clust/ns1/ds1 -s sub1 -t 100"));
+        verify(mockTopics).expireMessages("persistent://myprop/clust/ns1/ds1", "sub1", 100);
+
+        cmdTopics.run(split("expire-messages-all-subscriptions persistent://myprop/clust/ns1/ds1 -t 100"));
+        verify(mockTopics).expireMessagesForAllSubscriptions("persistent://myprop/clust/ns1/ds1", 100);
+
+        cmdTopics.run(split("create-subscription persistent://myprop/clust/ns1/ds1 -s sub1 --messageId earliest"));
+        verify(mockTopics).createSubscription("persistent://myprop/clust/ns1/ds1", "sub1", MessageId.earliest);
+
+        cmdTopics.run(split("create-partitioned-topic persistent://myprop/clust/ns1/ds1 --partitions 32"));
+        verify(mockTopics).createPartitionedTopic("persistent://myprop/clust/ns1/ds1", 32);
+
+        cmdTopics.run(split("list-partitioned-topics myprop/clust/ns1"));
+        verify(mockTopics).getPartitionedTopicList("myprop/clust/ns1");
+
+        cmdTopics.run(split("get-partitioned-topic-metadata persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getPartitionedTopicMetadata("persistent://myprop/clust/ns1/ds1");
+
+        cmdTopics.run(split("delete-partitioned-topic persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).deletePartitionedTopic("persistent://myprop/clust/ns1/ds1", false);
+
+        cmdTopics.run(split("peek-messages persistent://myprop/clust/ns1/ds1 -s sub1 -n 3"));
+        verify(mockTopics).peekMessages("persistent://myprop/clust/ns1/ds1", "sub1", 3);
+
+        // argument matcher for the timestamp in reset cursor. Since we can't verify exact timestamp, we check for a
+        // range of +/- 1 second of the expected timestamp
+        class TimestampMatcher extends ArgumentMatcher<Long> {
+            @Override
+            public boolean matches(Object argument) {
+                long timestamp = (Long) argument;
+                long expectedTimestamp = System.currentTimeMillis() - (1 * 60 * 1000);
+                if (timestamp < (expectedTimestamp + 1000) && timestamp > (expectedTimestamp - 1000)) {
+                    return true;
+                }
+                return false;
+            }
+        }
+        cmdTopics.run(split("reset-cursor persistent://myprop/clust/ns1/ds1 -s sub1 -t 1m"));
+        verify(mockTopics).resetCursor(Matchers.eq("persistent://myprop/clust/ns1/ds1"), Matchers.eq("sub1"),
+                Matchers.longThat(new TimestampMatcher()));
+    }
+
+    @Test
     void persistentTopics() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         PersistentTopics mockTopics = mock(PersistentTopics.class);
@@ -504,7 +588,7 @@ public class PulsarAdminToolTest {
         CmdPersistentTopics topics = new CmdPersistentTopics(admin);
 
         topics.run(split("delete persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).delete("persistent://myprop/clust/ns1/ds1");
+        verify(mockTopics).delete("persistent://myprop/clust/ns1/ds1", false);
 
         topics.run(split("unload persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).unload("persistent://myprop/clust/ns1/ds1");
@@ -555,7 +639,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).getPartitionedTopicMetadata("persistent://myprop/clust/ns1/ds1");
 
         topics.run(split("delete-partitioned-topic persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).deletePartitionedTopic("persistent://myprop/clust/ns1/ds1");
+        verify(mockTopics).deletePartitionedTopic("persistent://myprop/clust/ns1/ds1", false);
 
         topics.run(split("peek-messages persistent://myprop/clust/ns1/ds1 -s sub1 -n 3"));
         verify(mockTopics).peekMessages("persistent://myprop/clust/ns1/ds1", "sub1", 3);

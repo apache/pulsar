@@ -25,9 +25,7 @@ How often you trigger compaction will vary widely based on the use case. If you 
 When you [trigger](#trigger) compaction on a topic, all messages with the following
 
 {% include admonition.html type="warning" title="Message keys are required"
-content="Messages that don't have keys are *never* compacted." %}
-
-If a message with a key
+content="Messages that don't have keys are *never* compacted. In order to use compaction, you'll need to come up with some kind of key-based scheme for messages on the topic." %}
 
 ## Triggering compaction {#trigger}
 

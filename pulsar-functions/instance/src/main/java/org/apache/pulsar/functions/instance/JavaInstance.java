@@ -27,8 +27,7 @@ import org.apache.pulsar.connect.core.Source;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 
-import java.util.Map;
-
+import org.apache.pulsar.functions.source.PulsarSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

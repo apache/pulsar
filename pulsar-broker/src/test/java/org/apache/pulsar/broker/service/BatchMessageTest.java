@@ -92,8 +92,7 @@ public class BatchMessageTest extends BrokerTestBase {
         List<CompletableFuture<MessageId>> sendFutureList = Lists.newArrayList();
         for (int i = 0; i < numMsgs; i++) {
             byte[] message = ("my-message-" + i).getBytes();
-            Message<byte[]> msg = MessageBuilder.create().setContent(message).build();
-            sendFutureList.add(producer.sendAsync(msg));
+            sendFutureList.add(producer.sendAsync(message));
         }
         FutureUtil.waitForAll(sendFutureList).get();
 
@@ -137,8 +136,7 @@ public class BatchMessageTest extends BrokerTestBase {
             // put a random sleep from 0 to 3 ms
             Thread.sleep(random.nextInt(4));
             byte[] message = ("msg-" + i).getBytes();
-            Message<byte[]> msg = MessageBuilder.create().setContent(message).build();
-            sendFutureList.add(producer.sendAsync(msg));
+            sendFutureList.add(producer.sendAsync(message));
         }
         FutureUtil.waitForAll(sendFutureList).get();
 
@@ -173,8 +171,7 @@ public class BatchMessageTest extends BrokerTestBase {
             // put a random sleep from 0 to 3 ms
             Thread.sleep(random.nextInt(4));
             byte[] message = ("msg-" + i).getBytes();
-            Message<byte[]> msg = MessageBuilder.create().setContent(message).build();
-            sendFutureList.add(producer.sendAsync(msg));
+            sendFutureList.add(producer.sendAsync(message));
         }
         FutureUtil.waitForAll(sendFutureList).get();
 
@@ -209,16 +206,13 @@ public class BatchMessageTest extends BrokerTestBase {
             if (i == 25) {
                 // send a large message
                 byte[] largeMessage = new byte[128 * 1024 + 4];
-                Message<byte[]> msg = MessageBuilder.create().setContent(largeMessage).build();
-                sendFutureList.add(producer.sendAsync(msg));
+                sendFutureList.add(producer.sendAsync(largeMessage));
             } else {
                 byte[] message = ("msg-" + i).getBytes();
-                Message<byte[]> msg = MessageBuilder.create().setContent(message).build();
-                sendFutureList.add(producer.sendAsync(msg));
+                sendFutureList.add(producer.sendAsync(message));
             }
         }
-        byte[] message = ("msg-" + "last").getBytes();
-        Message<byte[]> lastMsg = MessageBuilder.create().setContent(message).build();
+        byte[] lastMsg = ("msg-" + "last").getBytes();
         sendFutureList.add(producer.sendAsync(lastMsg));
 
         FutureUtil.waitForAll(sendFutureList).get();
@@ -262,8 +256,7 @@ public class BatchMessageTest extends BrokerTestBase {
         List<CompletableFuture<MessageId>> sendFutureList = Lists.newArrayList();
         for (int i = 0; i < numMsgs; i++) {
             byte[] message = ("msg-" + i).getBytes();
-            Message<byte[]> msg = MessageBuilder.create().setContent(message).build();
-            sendFutureList.add(producer.sendAsync(msg));
+            sendFutureList.add(producer.sendAsync(message));
         }
         FutureUtil.waitForAll(sendFutureList).get();
 
@@ -310,8 +303,7 @@ public class BatchMessageTest extends BrokerTestBase {
 
         for (int i = 0; i < numMsgs; i++) {
             byte[] message = ("my-message-" + i).getBytes();
-            Message<byte[]> msg = MessageBuilder.create().setContent(message).build();
-            producer.send(msg);
+            producer.send(message);
         }
 
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
@@ -354,8 +346,7 @@ public class BatchMessageTest extends BrokerTestBase {
         List<CompletableFuture<MessageId>> sendFutureList = Lists.newArrayList();
         for (int i = 0; i < numMsgs; i++) {
             byte[] message = ("msg-" + i).getBytes();
-            Message<byte[]> msg = MessageBuilder.create().setContent(message).build();
-            sendFutureList.add(producer.sendAsync(msg));
+            sendFutureList.add(producer.sendAsync(message));
         }
         FutureUtil.waitForAll(sendFutureList).get();
         int sendError = 0;
@@ -417,8 +408,7 @@ public class BatchMessageTest extends BrokerTestBase {
         List<CompletableFuture<MessageId>> sendFutureList = Lists.newArrayList();
         for (int i = 0; i < numMsgs; i++) {
             byte[] message = ("msg-" + i).getBytes();
-            Message<byte[]> msg = MessageBuilder.create().setContent(message).build();
-            sendFutureList.add(producer.sendAsync(msg));
+            sendFutureList.add(producer.sendAsync(message));
         }
         FutureUtil.waitForAll(sendFutureList).get();
 
@@ -485,15 +475,13 @@ public class BatchMessageTest extends BrokerTestBase {
         List<CompletableFuture<MessageId>> sendFutureList = Lists.newArrayList();
         for (int i = 0; i < numMsgs; i++) {
             byte[] message = ("msg-" + i).getBytes();
-            Message<byte[]> msg = MessageBuilder.create().setContent(message).build();
-            sendFutureList.add(producer.sendAsync(msg));
+            sendFutureList.add(producer.sendAsync(message));
 
         }
         FutureUtil.waitForAll(sendFutureList).get();
         sendFutureList.clear();
         byte[] nobatchmsg = ("nobatch").getBytes();
-        Message<byte[]> nmsg = MessageBuilder.create().setContent(nobatchmsg).build();
-        noBatchProducer.sendAsync(nmsg).get();
+        noBatchProducer.sendAsync(nobatchmsg).get();
 
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
 
@@ -545,11 +533,9 @@ public class BatchMessageTest extends BrokerTestBase {
         List<CompletableFuture<MessageId>> sendFutureList = Lists.newArrayList();
         for (int i = 0; i < numMsgs / 2; i++) {
             byte[] message = ("msg-" + i).getBytes();
-            Message<byte[]> msg = MessageBuilder.create().setContent(message).build();
-            sendFutureList.add(producer.sendAsync(msg));
+            sendFutureList.add(producer.sendAsync(message));
             byte[] nobatchmsg = ("nobatch-" + i).getBytes();
-            msg = MessageBuilder.create().setContent(nobatchmsg).build();
-            sendFutureList.add(noBatchProducer.sendAsync(msg));
+            sendFutureList.add(noBatchProducer.sendAsync(nobatchmsg));
         }
         FutureUtil.waitForAll(sendFutureList).get();
 
@@ -606,8 +592,7 @@ public class BatchMessageTest extends BrokerTestBase {
         List<CompletableFuture<MessageId>> sendFutureList = Lists.newArrayList();
         for (int i = 0; i < numMsgs; i++) {
             byte[] message = ("my-message-" + i).getBytes();
-            Message<byte[]> msg = MessageBuilder.create().setContent(message).build();
-            sendFutureList.add(producer.sendAsync(msg));
+            sendFutureList.add(producer.sendAsync(message));
         }
         FutureUtil.waitForAll(sendFutureList).get();
 

@@ -86,7 +86,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
         config.setWebServicePort(port);
         config.setClusterName("test");
-        config.setGlobalZookeeperServers("dummy-zk-servers");
+        config.setConfigurationStoreServers("dummy-zk-servers");
         service = spy(new WebSocketService(config));
         doReturn(mockZooKeeperClientFactory).when(service).getZooKeeperClientFactory();
         proxyServer = new ProxyServer(config);
@@ -339,8 +339,8 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
                     HttpServletResponse.SC_SERVICE_UNAVAILABLE);
         } finally {
             stopWebSocketClient(produceClient2);
-            admin.persistentTopics().skipAllMessages("persistent://" + topic, subscription);
-            admin.persistentTopics().delete("persistent://" + topic);
+            admin.topics().skipAllMessages("persistent://" + topic, subscription);
+            admin.topics().delete("persistent://" + topic);
             admin.namespaces().removeBacklogQuota(namespace);
             admin.namespaces().deleteNamespace(namespace);
         }

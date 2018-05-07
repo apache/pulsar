@@ -40,10 +40,10 @@ public interface Context {
     byte[] getMessageId();
 
     /**
-     * The topic that this message belongs to
-     * @return The topic name
+     * The input topic that the message currently being processed belongs to
+     * @return The input topic name
      */
-    String getTopicName();
+    String getCurrentMessageTopicName();
 
     /**
      * Get a list of all input topics
@@ -162,8 +162,7 @@ public interface Context {
      * By default acknowledgement management is done transparently by Pulsar Functions framework.
      * However users can disable that and do ack management by themselves by using this API.
      * @param messageId The messageId that needs to be acknowledged
-     * @param topic The topic name that the message belongs to that  needs to be acknowledged
      * @return A future that completes when the framework is done acking the message
      */
-    CompletableFuture<Void> ack(byte[] messageId, String topic);
+    CompletableFuture<Void> ack(byte[] messageId);
 }

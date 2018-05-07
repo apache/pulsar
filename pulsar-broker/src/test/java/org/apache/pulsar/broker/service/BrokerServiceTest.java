@@ -65,7 +65,7 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
-import org.apache.pulsar.common.policies.data.PersistentTopicStats;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -138,7 +138,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         final String topicName = "persistent://prop/ns-abc/successTopic";
         final String subName = "successSub";
 
-        PersistentTopicStats stats;
+        TopicStats stats;
         SubscriptionStats subStats;
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
@@ -215,7 +215,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         final String topicName = "persistent://prop/ns-abc/successSharedTopic";
         final String subName = "successSharedSub";
 
-        PersistentTopicStats stats;
+        TopicStats stats;
         SubscriptionStats subStats;
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
@@ -395,7 +395,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         for (String ns : nsList) {
             List<String> topics = admin.namespaces().getTopics(ns);
             for (String dest : topics) {
-                admin.persistentTopics().delete(dest);
+                admin.topics().delete(dest);
             }
             admin.namespaces().deleteNamespace(ns);
         }

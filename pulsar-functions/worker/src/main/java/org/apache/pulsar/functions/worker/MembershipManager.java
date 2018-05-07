@@ -46,7 +46,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
-import org.apache.pulsar.common.policies.data.PersistentTopicStats;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 
@@ -118,18 +118,17 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
     public List<WorkerInfo> getCurrentMembership() {
 
         List<WorkerInfo> workerIds = new LinkedList<>();
-        PersistentTopicStats persistentTopicStats = null;
+        TopicStats topicStats = null;
         PulsarAdmin pulsarAdmin = this.getPulsarAdminClient();
         try {
-            persistentTopicStats = pulsarAdmin.persistentTopics().getStats(
-                    this.workerConfig.getClusterCoordinationTopic());
+            topicStats = pulsarAdmin.topics().getStats(this.workerConfig.getClusterCoordinationTopic());
         } catch (PulsarAdminException e) {
             log.error("Failed to get status of coordinate topic {}",
                     this.workerConfig.getClusterCoordinationTopic(), e);
             throw new RuntimeException(e);
         }
 
-        for (ConsumerStats consumerStats : persistentTopicStats.subscriptions
+        for (ConsumerStats consumerStats : topicStats.subscriptions
                 .get(COORDINATION_TOPIC_SUBSCRIPTION).consumers) {
             WorkerInfo workerInfo = WorkerInfo.parseFrom(consumerStats.metadata.get(WORKER_IDENTIFIER));
             workerIds.add(workerInfo);

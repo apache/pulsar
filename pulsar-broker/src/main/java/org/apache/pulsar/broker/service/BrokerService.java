@@ -109,9 +109,9 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
-import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FieldParser;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -324,10 +324,18 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
 
         // Deduplication info checker
-        long intervalInSeconds = TimeUnit.MINUTES
+        long duplicationCheckerIntervalInSeconds = TimeUnit.MINUTES
                 .toSeconds(pulsar().getConfiguration().getBrokerDeduplicationProducerInactivityTimeoutMinutes()) / 3;
-        inactivityMonitor.scheduleAtFixedRate(safeRun(this::checkMessageDeduplicationInfo), intervalInSeconds,
-                intervalInSeconds, TimeUnit.SECONDS);
+        inactivityMonitor.scheduleAtFixedRate(safeRun(this::checkMessageDeduplicationInfo), duplicationCheckerIntervalInSeconds,
+                duplicationCheckerIntervalInSeconds, TimeUnit.SECONDS);
+
+        // Inactive subscriber checker
+        if (pulsar().getConfiguration().getSubscriptionExpirationTimeMinutes() > 0) {
+            long subscriptionExpiryCheckIntervalInSeconds =
+                    TimeUnit.MINUTES.toSeconds(pulsar().getConfiguration().getSubscriptionExpiryCheckIntervalInMinutes());
+            inactivityMonitor.scheduleAtFixedRate(safeRun(this::checkInactiveSubscriptions),
+                    subscriptionExpiryCheckIntervalInSeconds, subscriptionExpiryCheckIntervalInSeconds, TimeUnit.SECONDS);
+        }
     }
 
     void startMessageExpiryMonitor() {
@@ -714,6 +722,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             managedLedgerConfig.setRetentionTime(retentionPolicies.getRetentionTimeInMinutes(), TimeUnit.MINUTES);
             managedLedgerConfig.setRetentionSizeInMB(retentionPolicies.getRetentionSizeInMB());
 
+            managedLedgerConfig.setLedgerOffloader(pulsar.getManagedLedgerOffloader());
+
             future.complete(managedLedgerConfig);
         }, (exception) -> future.completeExceptionally(exception)));
 
@@ -813,28 +823,29 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     public void checkGC(int gcIntervalInSeconds) {
-        topics.forEach((n, t) -> {
-            Optional<Topic> topic = extractTopic(t);
-            if (topic.isPresent()) {
-                topic.get().checkGC(gcIntervalInSeconds);
-            }
-        });
+        forEachTopic(topic -> topic.checkGC(gcIntervalInSeconds));
     }
 
     public void checkMessageExpiry() {
-        topics.forEach((n, t) -> {
-            Optional<Topic> topic = extractTopic(t);
-            if (topic.isPresent()) {
-                topic.get().checkMessageExpiry();
-            }
-        });
+        forEachTopic(Topic::checkMessageExpiry);
     }
 
     public void checkMessageDeduplicationInfo() {
+        forEachTopic(Topic::checkMessageDeduplicationInfo);
+    }
+
+    public void checkInactiveSubscriptions() {
+        forEachTopic(Topic::checkInactiveSubscriptions);
+    }
+
+    /**
+     * Iterates over all loaded topics in the broker
+     */
+    public void forEachTopic(Consumer<Topic> consumer) {
         topics.forEach((n, t) -> {
             Optional<Topic> topic = extractTopic(t);
             if (topic.isPresent()) {
-                topic.get().checkMessageDeduplicationInfo();
+                consumer.accept(topic.get());
             }
         });
     }
@@ -866,28 +877,18 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     public void monitorBacklogQuota() {
-        topics.forEach((n, t) -> {
-            try {
-                Optional<Topic> optionalTopic = extractTopic(t);
-                if (optionalTopic.isPresent() && optionalTopic.get() instanceof PersistentTopic) {
-                    PersistentTopic topic = (PersistentTopic) optionalTopic.get();
-                    if (isBacklogExceeded(topic)) {
-                        getBacklogQuotaManager().handleExceededBacklogQuota(topic);
-                    } else if (topic == null) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("topic is null ");
-                        }
-                    } else {
-                        if (log.isDebugEnabled()) {
-                            log.debug("quota not exceeded for [{}]", topic.getName());
-                        }
+        forEachTopic(topic -> {
+            if (topic instanceof PersistentTopic) {
+                PersistentTopic persistentTopic = (PersistentTopic) topic;
+                if (isBacklogExceeded(persistentTopic)) {
+                    getBacklogQuotaManager().handleExceededBacklogQuota(persistentTopic);
+                } else {
+                    if (log.isDebugEnabled()) {
+                        log.debug("quota not exceeded for [{}]", topic.getName());
                     }
                 }
-            } catch (Exception xle) {
-                log.warn("Backlog quota monitoring encountered :" + xle.getLocalizedMessage());
             }
         });
-
     }
 
     void checkTopicNsOwnership(final String topic) throws RuntimeException {
@@ -1033,14 +1034,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return producerNameGenerator.getNextId();
     }
 
-    public Map<String, PersistentTopicStats> getTopicStats() {
-        HashMap<String, PersistentTopicStats> stats = new HashMap<>();
-        topics.forEach((name, topicFuture) -> {
-            Optional<Topic> topic = extractTopic(topicFuture);
-            if (topic.isPresent()) {
-                stats.put(name, topic.get().getStats());
-            }
-        });
+    public Map<String, TopicStats> getTopicStats() {
+        HashMap<String, TopicStats> stats = new HashMap<>();
+
+        forEachTopic(topic -> stats.put(topic.getName(), topic.getStats()));
+
         return stats;
     }
 
@@ -1130,11 +1128,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private void updateTopicMessageDispatchRate() {
         this.pulsar().getExecutor().execute(() -> {
             // update message-rate for each topic
-            topics.forEach((name, topicFuture) -> {
-                Optional<Topic> topic = extractTopic(topicFuture);
-
-                if (topic.isPresent() && topic.get() instanceof PersistentTopic) {
-                    PersistentTopic persistentTopic = (PersistentTopic) topic.get();
+            forEachTopic(topic -> {
+                if (topic instanceof PersistentTopic) {
+                    PersistentTopic persistentTopic = (PersistentTopic) topic;
                     // it first checks namespace-policy rate and if not present then applies broker-config
                     persistentTopic.getDispatchRateLimiter().updateDispatchRate();
                 }
@@ -1145,21 +1141,17 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private void updateSubscriptionMessageDispatchRate() {
         this.pulsar().getExecutor().submit(() -> {
             // update message-rate for each topic subscription
-            topics.forEach((name, topicFuture) -> {
-                Optional<Topic> topic = extractTopic(topicFuture);
-
-                if (topic.isPresent()) {
-                    topic.get().getSubscriptions().forEach((subName, persistentSubscription) -> {
-                        if (persistentSubscription.getDispatcher() instanceof PersistentDispatcherMultipleConsumers) {
-                            ((PersistentDispatcherMultipleConsumers) persistentSubscription.getDispatcher())
-                                    .getDispatchRateLimiter().updateDispatchRate();
-                        } else if (persistentSubscription
-                                .getDispatcher() instanceof PersistentDispatcherSingleActiveConsumer) {
-                            ((PersistentDispatcherSingleActiveConsumer) persistentSubscription.getDispatcher())
-                                    .getDispatchRateLimiter().updateDispatchRate();
-                        }
-                    });
-                }
+            forEachTopic(topic -> {
+                topic.getSubscriptions().forEach((subName, persistentSubscription) -> {
+                    if (persistentSubscription.getDispatcher() instanceof PersistentDispatcherMultipleConsumers) {
+                        ((PersistentDispatcherMultipleConsumers) persistentSubscription.getDispatcher())
+                                .getDispatchRateLimiter().updateDispatchRate();
+                    } else if (persistentSubscription
+                            .getDispatcher() instanceof PersistentDispatcherSingleActiveConsumer) {
+                        ((PersistentDispatcherSingleActiveConsumer) persistentSubscription.getDispatcher())
+                                .getDispatchRateLimiter().updateDispatchRate();
+                    }
+                });
             });
         });
     }
@@ -1167,22 +1159,17 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private void updateManagedLedgerConfig() {
         this.pulsar().getExecutor().execute(() -> {
             // update managed-ledger config of each topic
-            topics.forEach((name, topicFuture) -> {
-                if (topicFuture.isDone()) {
-                    String topicName = null;
-                    try {
-                        Optional<Topic> topic = extractTopic(topicFuture);
 
-                        if (topic.isPresent() && topic.get() instanceof PersistentTopic) {
-                            PersistentTopic persistentTopic = (PersistentTopic) topic.get();
-                            topicName = persistentTopic.getName();
-                            // update skipNonRecoverableLedger configuration
-                            persistentTopic.getManagedLedger().getConfig().setAutoSkipNonRecoverableData(
-                                    pulsar.getConfiguration().isAutoSkipNonRecoverableData());
-                        }
-                    } catch (Exception e) {
-                        log.warn("[{}] failed to update managed-ledger config", topicName, e);
+            forEachTopic(topic -> {
+                try {
+                    if (topic instanceof PersistentTopic) {
+                        PersistentTopic persistentTopic = (PersistentTopic) topic;
+                        // update skipNonRecoverableLedger configuration
+                        persistentTopic.getManagedLedger().getConfig().setAutoSkipNonRecoverableData(
+                                pulsar.getConfiguration().isAutoSkipNonRecoverableData());
                     }
+                } catch (Exception e) {
+                    log.warn("[{}] failed to update managed-ledger config", topic.getName(), e);
                 }
             });
         });
@@ -1437,23 +1424,20 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private void blockDispatchersWithLargeUnAckMessages() {
         lock.readLock().lock();
         try {
-            topics.forEach((name, topicFuture) -> {
-                Optional<Topic> topic = extractTopic(topicFuture);
-                if (topic.isPresent()) {
-                    topic.get().getSubscriptions().forEach((subName, persistentSubscription) -> {
-                        if (persistentSubscription.getDispatcher() instanceof PersistentDispatcherMultipleConsumers) {
-                            PersistentDispatcherMultipleConsumers dispatcher = (PersistentDispatcherMultipleConsumers) persistentSubscription
-                                    .getDispatcher();
-                            int dispatcherUnAckMsgs = dispatcher.getTotalUnackedMessages();
-                            if (dispatcherUnAckMsgs > maxUnackedMsgsPerDispatcher) {
-                                log.info("[{}] Blocking dispatcher due to reached max broker limit {}",
-                                        dispatcher.getName(), dispatcher.getTotalUnackedMessages());
-                                dispatcher.blockDispatcherOnUnackedMsgs();
-                                blockedDispatchers.add(dispatcher);
-                            }
+            forEachTopic(topic -> {
+                topic.getSubscriptions().forEach((subName, persistentSubscription) -> {
+                    if (persistentSubscription.getDispatcher() instanceof PersistentDispatcherMultipleConsumers) {
+                        PersistentDispatcherMultipleConsumers dispatcher = (PersistentDispatcherMultipleConsumers) persistentSubscription
+                                .getDispatcher();
+                        int dispatcherUnAckMsgs = dispatcher.getTotalUnackedMessages();
+                        if (dispatcherUnAckMsgs > maxUnackedMsgsPerDispatcher) {
+                            log.info("[{}] Blocking dispatcher due to reached max broker limit {}",
+                                    dispatcher.getName(), dispatcher.getTotalUnackedMessages());
+                            dispatcher.blockDispatcherOnUnackedMsgs();
+                            blockedDispatchers.add(dispatcher);
                         }
-                    });
-                }
+                    }
+                });
             });
         } finally {
             lock.readLock().unlock();

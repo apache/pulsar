@@ -37,17 +37,17 @@ zookeeper*:
         strategy: org.apache.pulsar.tests.PulsarLogsToTargetDirStopAction
   networkMode: pulsarnet*
 
-global-zookeeper*:
+configuration-store*:
   image: apachepulsar/pulsar-test-latest-version:latest
   await:
     strategy: org.apache.pulsar.tests.NoopAwaitStrategy
-  env: [ZOOKEEPER_SERVERS=zookeeper]
+  env: [ZOOKEEPER_SERVERS=configuration-store]
   labels:
     cluster: test
-    service: global-zookeeper
+    service: configuration-store
   entryPoint: [bin/run-global-zk.sh]
   aliases:
-    - global-zookeeper
+    - configuration-store
   beforeStop:
     - customBeforeStopAction:
         strategy: org.apache.pulsar.tests.PulsarLogsToTargetDirStopAction
@@ -60,7 +60,7 @@ init*:
   env:
     - cluster=test
     - zkServers=zookeeper
-    - globalZkServers=global-zookeeper:2184
+    - configurationStore=configuration-store:2184
     - pulsarNode=pulsar-broker1
   labels:
     cluster: test
@@ -127,7 +127,7 @@ pulsar-broker1*:
     - pulsar-broker1
   env:
     - zookeeperServers=zookeeper
-    - globalZookeeperServers=global-zookeeper:2184
+    - configurationStoreServers=configuration-store:2184
     - clusterName=test
   labels:
     cluster: test
@@ -146,7 +146,7 @@ pulsar-broker2*:
     - pulsar-broker2
   env:
     - zookeeperServers=zookeeper
-    - globalZookeeperServers=global-zookeeper:2184
+    - configurationStoreServers=configuration-store:2184
     - clusterName=test
   labels:
     cluster: test
@@ -165,7 +165,7 @@ pulsar-proxy*:
     - pulsar-broker2
   env:
     - zookeeperServers=zookeeper
-    - globalZookeeperServers=global-zookeeper:2184
+    - configurationStoreServers=configuration-store:2184
     - clusterName=test
   labels:
     cluster: test

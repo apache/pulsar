@@ -25,6 +25,8 @@ message OffloadContext {
     optional int64 uidMsb = 1;
     optional int64 uidLsb = 2;
     optional bool complete = 3;
+    optional bool bookkeeperDeleted = 4;
+    optional int64 timestamp = 5;
 }
 
 message ManagedLedgerInfo {
@@ -84,4 +86,6 @@ message ManagedCursorInfo {
 	// Additional custom properties associated with
 	// the current cursor position
 	repeated LongProperty properties = 5;
+
+  optional int64 lastActive = 6;
 }

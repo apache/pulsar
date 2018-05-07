@@ -59,7 +59,7 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
         WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
         Set<String> superUser = Sets.newHashSet("");
         config.setAuthorizationEnabled(true);
-        config.setGlobalZookeeperServers("dummy-zk-servers");
+        config.setConfigurationStoreServers("dummy-zk-servers");
         config.setSuperUserRoles(superUser);
         config.setClusterName("c1");
         config.setWebServicePort(TEST_PORT);
@@ -95,7 +95,7 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
         assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null), true);
         assertEquals(auth.canProduce(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null), true);
 
-        admin.persistentTopics().grantPermission("persistent://p1/c1/ns1/ds2", "other-role",
+        admin.topics().grantPermission("persistent://p1/c1/ns1/ds2", "other-role",
                 EnumSet.of(AuthAction.consume));
         waitForChange();
 

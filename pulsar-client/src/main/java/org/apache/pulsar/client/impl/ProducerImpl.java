@@ -200,7 +200,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     @Override
-    public CompletableFuture<MessageId> sendAsync(Message<T> message) {
+    CompletableFuture<MessageId> internalSendAsync(Message<T> message) {
         CompletableFuture<MessageId> future = new CompletableFuture<>();
 
         sendAsync(message, new SendCallback() {
@@ -847,7 +847,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         long requestId = client.newRequestId();
 
         cnx.sendRequestWithId(
-                Commands.newProducer(topic, producerId, requestId, producerName, conf.isEncryptionEnabled(), metadata),
+                Commands.newProducer(topic, producerId, requestId, producerName, conf.isEncryptionEnabled(), metadata,
+                    schema == null ? null : schema.getSchemaInfo()),
                 requestId).thenAccept(response -> {
                     String producerName = response.getProducerName();
                     long lastSequenceId = response.getLastSequenceId();
@@ -1185,31 +1186,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     };
 
     @Override
-    public MessageId send(Message<T> message) throws PulsarClientException {
-        try {
-            // enqueue the message to the buffer
-            CompletableFuture<MessageId> sendFuture = sendAsync(message);
-
-            if (!sendFuture.isDone()) {
-                // the send request wasn't completed yet (e.g. not failing at enqueuing), then attempt to flush it out
-                flush();
-            }
-
-            return sendFuture.get();
-        } catch (ExecutionException e) {
-            Throwable t = e.getCause();
-            if (t instanceof PulsarClientException) {
-                throw (PulsarClientException) t;
-            } else {
-                throw new PulsarClientException(t);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException(e);
-        }
-    }
-
-    private void flush() {
+    protected void flush() {
         if (isBatchMessagingEnabled()) {
             synchronized (ProducerImpl.this) {
                 batchMessageAndSend();

@@ -18,25 +18,23 @@
  */
 package org.apache.pulsar.client.cli;
 
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
+import com.beust.jcommander.Parameters;
+import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.RateLimiter;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.pulsar.client.api.ClientBuilder;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
-import com.beust.jcommander.Parameters;
-import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.RateLimiter;
 
 /**
  * pulsar-client produce command implementation.
@@ -114,31 +112,6 @@ public class CmdProduce {
         return messageBodies;
     }
 
-    /*
-     * Generates a list of messages that can be produced
-     *
-     * @param stringMessages List of strings to send as messages
-     *
-     * @param messageFileNames List of file names to read and send as messages
-     *
-     * @return list of messages to send
-     */
-    private List<Message<byte[]>> generateMessages(List<byte[]> messageBodies) {
-        List<Message<byte[]>> messagesToSend = new ArrayList<>();
-
-        try {
-            for (byte[] msgBody : messageBodies) {
-                MessageBuilder<byte[]> msgBuilder = MessageBuilder.create();
-                msgBuilder.setContent(msgBody);
-                messagesToSend.add(msgBuilder.build());
-            }
-        } catch (Exception e) {
-            LOG.error(e.getMessage(), e);
-        }
-
-        return messagesToSend;
-    }
-
     /**
      * Run the producer.
      *
@@ -171,12 +144,12 @@ public class CmdProduce {
             List<byte[]> messageBodies = generateMessageBodies(this.messages, this.messageFileNames);
             RateLimiter limiter = (this.publishRate > 0) ? RateLimiter.create(this.publishRate) : null;
             for (int i = 0; i < this.numTimesProduce; i++) {
-                List<Message<byte[]>> messages = generateMessages(messageBodies);
-                for (Message<byte[]> msg : messages) {
-                    if (limiter != null)
+                for (byte[] content : messageBodies) {
+                    if (limiter != null) {
                         limiter.acquire();
+                    }
 
-                    producer.send(msg);
+                    producer.send(content);
                     numMessagesSent++;
                 }
             }

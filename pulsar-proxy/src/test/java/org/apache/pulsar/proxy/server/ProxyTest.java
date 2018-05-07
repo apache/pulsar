@@ -51,7 +51,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
 
         proxyConfig.setServicePort(PortManager.nextFreePort());
         proxyConfig.setZookeeperServers(DUMMY_VALUE);
-        proxyConfig.setGlobalZookeeperServers(DUMMY_VALUE);
+        proxyConfig.setConfigurationStoreServers(DUMMY_VALUE);
 
         proxyService = Mockito.spy(new ProxyService(proxyConfig));
         doReturn(mockZooKeeperClientFactory).when(proxyService).getZooKeeperClientFactory();
@@ -117,7 +117,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant("sample", new TenantInfo());
         PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort())
                 .build();
-        admin.persistentTopics().createPartitionedTopic("persistent://sample/test/local/partitioned-topic", 2);
+        admin.topics().createPartitionedTopic("persistent://sample/test/local/partitioned-topic", 2);
 
         Producer<byte[]> producer = client.newProducer()
             .topic("persistent://sample/test/local/partitioned-topic")

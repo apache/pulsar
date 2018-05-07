@@ -46,7 +46,9 @@ import java.util.function.Supplier;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.conf.ClientConfiguration;
+import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -60,6 +62,7 @@ import org.apache.pulsar.broker.loadbalance.LoadResourceQuotaUpdaterTask;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.s3offload.S3ManagedLedgerOffloader;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
@@ -134,6 +137,8 @@ public class PulsarService implements AutoCloseable {
             .build();
     private final ScheduledExecutorService loadManagerExecutor;
     private ScheduledExecutorService compactorExecutor;
+    private ScheduledExecutorService offloaderScheduler;
+    private LedgerOffloader offloader;
     private ScheduledFuture<?> loadReportTask = null;
     private ScheduledFuture<?> loadSheddingTask = null;
     private ScheduledFuture<?> loadResourceQuotaTask = null;
@@ -257,6 +262,10 @@ public class PulsarService implements AutoCloseable {
                 compactorExecutor.shutdown();
             }
 
+            if (offloaderScheduler != null) {
+                offloaderScheduler.shutdown();
+            }
+
             // executor is not initialized in mocks even when real close method is called
             // guard against null executors
             if (executor != null) {
@@ -324,6 +333,8 @@ public class PulsarService implements AutoCloseable {
 
             // needs load management service
             this.startNamespaceService();
+
+            this.offloader = createManagedLedgerOffloader(this.getConfiguration());
 
             LOG.info("Starting Pulsar Broker service; version: '{}'", ( brokerVersion != null ? brokerVersion : "unknown" )  );
             brokerService.start();
@@ -421,7 +432,7 @@ public class PulsarService implements AutoCloseable {
             state = State.Started;
 
             acquireSLANamespace();
-            
+
             // start function worker service if necessary
             this.startWorkerService();
 
@@ -491,7 +502,7 @@ public class PulsarService implements AutoCloseable {
 
         this.localZkCache = new LocalZooKeeperCache(getZkClient(), getOrderedExecutor());
         this.globalZkCache = new GlobalZooKeeperCache(getZooKeeperClientFactory(),
-                (int) config.getZooKeeperSessionTimeoutMillis(), config.getGlobalZookeeperServers(),
+                (int) config.getZooKeeperSessionTimeoutMillis(), config.getConfigurationStoreServers(),
                 getOrderedExecutor(), this.cacheExecutor);
         try {
             this.globalZkCache.start();
@@ -635,6 +646,20 @@ public class PulsarService implements AutoCloseable {
         return managedLedgerClientFactory.getManagedLedgerFactory();
     }
 
+    public LedgerOffloader getManagedLedgerOffloader() {
+        return offloader;
+    }
+
+    public synchronized LedgerOffloader createManagedLedgerOffloader(ServiceConfiguration conf)
+            throws PulsarServerException {
+        if (conf.getManagedLedgerOffloadDriver() != null
+            && conf.getManagedLedgerOffloadDriver().equalsIgnoreCase(S3ManagedLedgerOffloader.DRIVER_NAME)) {
+            return new S3ManagedLedgerOffloader(conf, getOffloaderScheduler(conf));
+        } else {
+            return NullLedgerOffloader.INSTANCE;
+        }
+    }
+
     public ZooKeeperCache getLocalZkCache() {
         return localZkCache;
     }
@@ -693,6 +718,15 @@ public class PulsarService implements AutoCloseable {
             }
         }
         return this.compactor;
+    }
+
+    protected synchronized ScheduledExecutorService getOffloaderScheduler(ServiceConfiguration conf) {
+        if (this.offloaderScheduler == null) {
+            this.offloaderScheduler = Executors.newScheduledThreadPool(
+                    conf.getManagedLedgerOffloadMaxThreads(),
+                    new DefaultThreadFactory("offloader-"));
+        }
+        return this.offloaderScheduler;
     }
 
     public synchronized PulsarClient getClient() throws PulsarServerException {
@@ -889,7 +923,7 @@ public class PulsarService implements AutoCloseable {
 
             InternalConfigurationData internalConf = new InternalConfigurationData(
                     this.getConfiguration().getZookeeperServers(),
-                    this.getConfiguration().getGlobalZookeeperServers(),
+                    this.getConfiguration().getConfigurationStoreServers(),
                     new ClientConfiguration().getZkLedgersRootPath());
 
             URI dlogURI;

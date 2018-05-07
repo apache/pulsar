@@ -118,7 +118,7 @@ public class V1_ReplicatorTestBase {
         config1.setWebServicePort(webServicePort1);
         config1.setWebServicePortTls(webServicePortTls1);
         config1.setZookeeperServers("127.0.0.1:" + zkPort1);
-        config1.setGlobalZookeeperServers("127.0.0.1:" + globalZKPort + "/foo");
+        config1.setConfigurationStoreServers("127.0.0.1:" + globalZKPort + "/foo");
         config1.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
         config1.setBrokerServicePurgeInactiveFrequencyInSeconds(
                 inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
@@ -152,7 +152,7 @@ public class V1_ReplicatorTestBase {
         config2.setWebServicePort(webServicePort2);
         config2.setWebServicePortTls(webServicePortTls2);
         config2.setZookeeperServers("127.0.0.1:" + zkPort2);
-        config2.setGlobalZookeeperServers("127.0.0.1:" + globalZKPort + "/foo");
+        config2.setConfigurationStoreServers("127.0.0.1:" + globalZKPort + "/foo");
         config2.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
         config2.setBrokerServicePurgeInactiveFrequencyInSeconds(
                 inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
@@ -186,7 +186,7 @@ public class V1_ReplicatorTestBase {
         config3.setWebServicePort(webServicePort3);
         config3.setWebServicePortTls(webServicePortTls3);
         config3.setZookeeperServers("127.0.0.1:" + zkPort3);
-        config3.setGlobalZookeeperServers("127.0.0.1:" + globalZKPort + "/foo");
+        config3.setConfigurationStoreServers("127.0.0.1:" + globalZKPort + "/foo");
         config3.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
         config3.setBrokerServicePurgeInactiveFrequencyInSeconds(
                 inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
