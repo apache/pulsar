@@ -10,11 +10,11 @@ To use compaction:
 * You must manually [trigger](#trigger) compaction using the Pulsar administrative API. This will both run a compaction operation *and* mark the topic as a compacted topic.
 * Your {% popover consumers %} must be [configured](#config) to read from compacted topics (or else the messages won't be properly read/processed/acknowledged).
 
+In Pulsar, topic compaction takes place on a *per-key basis*, meaning that messages are compacted based on their key. For the stock ticker use case, the stock symbol---e.g. `AAPL` or `GOOG`---could serve as the key.
+
 ## When should I use compacted topics?
 
-The classic example of a topic that could benefit from compaction would be a stock ticker topic. In such a topic, you only care about the most recent value of each stock; "historical values" don't matter, so there's no need to read through outdated data when processing a topic's messages.
-
-In Pulsar, topic compaction takes place on a *per-key basis*, meaning that messages are compacted based on their key. For the stock ticker use case, the stock symbol---e.g. `AAPL` or `GOOG`---could serve as the key.
+The classic example of a topic that could benefit from compaction would be a stock ticker topic through which {% popover consumers %} can access up-to-date values for specific stocks. On a stock ticker topic you only care about the most recent value of each stock; "historical values" don't matter, so there's no need to read through outdated data when processing a topic's messages. For topics where older values are important, for example when you need to process long series of messages in order, compaction is unnecessary and possibly even harmful.
 
 {% include admonition.html type="warning" content="Compaction only works on topics where each message has a key (as in the stock ticker example, where the stock symbol serves as the key). Keys can be thought of as the axis along which compaction is applied." %}
 
@@ -22,12 +22,14 @@ In Pulsar, topic compaction takes place on a *per-key basis*, meaning that messa
 
 How often you trigger compaction will vary widely based on the use case. If you want a compacted topic to be extremely speedy on read, then you should run compaction fairly frequently.
 
+{% include admonition.html type="warning" title="No automatic compaction" content="All topic compaction in Pulsar is manual." %}
+
 ## Which messages get compacted?
 
 When you [trigger](#trigger) compaction on a topic, all messages with the following
 
 {% include admonition.html type="warning" title="Message keys are required"
-content="Messages that don't have keys are *never* compacted. In order to use compaction, you'll need to come up with some kind of key-based scheme for messages on the topic." %}
+content="Messages that don't have keys are simply left alone and *never* compacted. In order to use compaction, you'll need to come up with some kind of key-based scheme for messages on the topic." %}
 
 ## Triggering compaction {#trigger}
 
@@ -59,11 +61,22 @@ $ bin/pulsar compact-topic \
 
 ## Consumer configuration {#config}
 
+Pulsar consumers need to be properly configured to read from compacted topics. The sections below show you how to enable compacted topic reads for Pulsar's language clients.
+
 {% include admonition.html type="warning" title="Java only" content="Currently, only [Java](#java) clients can consume messages from compacted topics." %}
 
 ### Java
 
-[Java client](../../clients/Java)
+In order to read from a compacted topic using a Java consumer, the `readCompacted` parameter must be set to `true`. Here's an example consumer for a compacted topic:
+
+```java
+Consumer<byte[]> compactedTopicConsumer = client.newConsumer()
+        .topic("some-compacted-topic")
+        .readCompacted(true)
+        .subscribe();
+```
+
+As mentioned above, topic compaction in Pulsar works on a per-key basis. That means that messages that you produce on compacted topics need to have keys (the content of the key will depend on the use case). Here's an example Pulsar message with a key:
 
 ```java
 import org.apache.pulsar.client.api.Message;
@@ -74,6 +87,8 @@ Message<byte[]> msg = MessageBuilder.create()
         .setKey("some-key")
         .build();
 ```
+
+The example below shows a message with a key being produced on a compacted Pulsar topic:
 
 ```java
 import org.apache.pulsar.client.api.Message;
@@ -93,36 +108,6 @@ Message<byte[]> msg = MessageBuilder.create()
         .setContent(someByteArray)
         .setKey("some-key")
         .build();
-```
 
-In order to read from a compacted topic using a Java consumer, the `readCompacted` parameter must be set to `true`. Here's an example consumer for a compacted topic:
-
-```java
-Consumer<byte[]> compactedTopicConsumer = client.newConsumer()
-        .topic("some-compacted-topic")
-        .readCompacted(true)
-        .subscribe();
-```
-
-#### Stock ticker example
-
-Below is a "stock ticker" example for Java;
-
-```java
-Arrays.asList("GOOG", "FB", "AAPL").forEach(stockSymbol -> {
-        Message<byte[]> msg = MessageBuilder.create()
-                .setContent(someByteArray)
-                .setKey(stockSymbol)
-                .build();
-        producer.send(msg);
-});
-```
-
-If you send this no-payload message, all messages earlier than this message with the key `GOOG` will be removed from the compacted topic:
-
-```java
-Message<byte[]> noPayload = MessageBuilder.create()
-        .setContent(new byte[0])
-        .setKey("GOOG")
-        .build();
+compactedTopicProducer.send(msg);
 ```
