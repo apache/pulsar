@@ -25,13 +25,13 @@ import java.nio.ByteBuffer;
 
 public class ByteBufferSchema implements Schema<ByteBuffer> {
     @Override
-    public byte[] encode(ByteBuffer message) {
-        return message.array();
+    public ByteBuffer encode(ByteBuffer message) {
+        return message;
     }
 
     @Override
-    public ByteBuffer decode(byte[] bytes) {
-        return ByteBuffer.wrap(bytes);
+    public ByteBuffer decode(ByteBuffer buf) {
+        return buf;
     }
 
     @Override

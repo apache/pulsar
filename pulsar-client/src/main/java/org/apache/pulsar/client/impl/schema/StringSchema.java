@@ -20,8 +20,8 @@ package org.apache.pulsar.client.impl.schema;
 
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaInfo;
-import org.apache.pulsar.common.schema.SchemaType;
 
+import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
@@ -37,19 +37,16 @@ public class StringSchema implements Schema<String> {
         this.charset = charset;
     }
 
-    public byte[] encode(String message) {
-        return message.getBytes(charset);
+    public ByteBuffer encode(String message) {
+        byte[] bytes = message.getBytes(charset);
+        return ByteBuffer.allocateDirect(bytes.length).put(bytes);
     }
 
-    public String decode(byte[] bytes) {
-        return new String(bytes, charset);
+    public String decode(ByteBuffer buf) {
+        return new String(buf.array(), charset);
     }
 
     public SchemaInfo getSchemaInfo() {
-        SchemaInfo schemaInfo = new SchemaInfo();
-        schemaInfo.setName("String");
-        schemaInfo.setType(SchemaType.STRING);
-        schemaInfo.setSchema(new byte[0]);
-        return schemaInfo;
+        return null;
     }
 }

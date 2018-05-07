@@ -31,24 +31,24 @@ import java.nio.ByteBuffer;
 public interface Schema<T> {
 
     /**
-     * Encode an object representing the message content into a byte array.
+     * Encode an object representing the message content into a ByteBuffer.
      *
      * @param message
      *            the message object
-     * @return a byte array with the serialized content
+     * @return a ByteBuffer with the serialized content
      * @throws SchemaSerializationException
      *             if the serialization fails
      */
-    byte[] encode(T message);
+    ByteBuffer encode(T message);
 
     /**
-     * Decode a byte array into an object using the schema definition and deserializer implementation
+     * Decode a ByteBuffer into an object using the schema definition and deserializer implementation
      *
-     * @param bytes
-     *            the byte array to decode
+     * @param buf
+     *            the ByteBuffer to decode
      * @return the deserialized object
      */
-    T decode(byte[] bytes);
+    T decode(ByteBuffer buf);
 
     /**
      * @return an object that represents the Schema associated metadata

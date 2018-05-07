@@ -21,15 +21,17 @@ package org.apache.pulsar.client.impl.schema;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
+import java.nio.ByteBuffer;
+
 public class BytesSchema implements Schema<byte[]> {
     @Override
-    public byte[] encode(byte[] message) {
-        return message;
+    public ByteBuffer encode(byte[] message) {
+        return ByteBuffer.allocateDirect(message.length).put(message);
     }
 
     @Override
-    public byte[] decode(byte[] bytes) {
-        return bytes;
+    public byte[] decode(ByteBuffer buf) {
+        return buf.array();
     }
 
     @Override
