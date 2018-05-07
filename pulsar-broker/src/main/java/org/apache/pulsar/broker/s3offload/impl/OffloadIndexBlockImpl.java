@@ -96,7 +96,7 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
 
     @Override
     public OffloadIndexEntry getIndexEntryForEntry(long messageEntryId) throws IOException {
-        if(messageEntryId > segmentMetadata.getLastEntryId()) {
+        if (messageEntryId > segmentMetadata.getLastEntryId()) {
             log.warn("Try to get entry: {}, which beyond lastEntryId {}, return null",
                 messageEntryId, segmentMetadata.getLastEntryId());
             throw new IndexOutOfBoundsException("Entry index: " + messageEntryId +
@@ -302,7 +302,8 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         DataInputStream dis = new DataInputStream(stream);
         int magic = dis.readInt();
         if (magic != this.INDEX_MAGIC_WORD) {
-            throw new IOException("Invalid MagicWord. read: " + magic + " expected: " + INDEX_MAGIC_WORD);
+            throw new IOException("Invalid MagicWord. read: " + Integer.toHexString(magic)
+                + " expected: 0x" + Integer.toHexString(INDEX_MAGIC_WORD));
         }
         int indexBlockLength = dis.readInt();
         int segmentMetadataLength = dis.readInt();
