@@ -533,3 +533,18 @@ byte[] msgIdBytes = // Some byte array
 MessageId id = MessageId.fromByteArray(msgIdBytes);
 Reader reader = pulsarClient.createReader(topic, id, new ReaderConfiguration());
 ```
+
+## Pulsar IO
+
+[`pulsar-admin`](../../reference/CliTools#pulsar-admin)
+
+
+{% include figure.html src="/img/pulsar-io.png" alt="Pulsar IO diagram" width="80" %}
+
+### Sources
+
+[`source`](../../reference/CliTools#pulsar-admin-source)
+
+### Sinks
+
+[`sink`](../../reference/CliTools#pulsar-admin-sink)
