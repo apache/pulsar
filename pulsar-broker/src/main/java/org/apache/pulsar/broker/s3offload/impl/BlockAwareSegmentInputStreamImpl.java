@@ -64,7 +64,7 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
     // how many entries want to read from ReadHandle each time.
     private static final int ENTRIES_PER_READ = 100;
     // buf the entry size and entry id.
-    static final int ENTRY_HEADER_SIZE = 4 /* entry size*/ + 8 /* entry id */;
+    static final int ENTRY_HEADER_SIZE = 4 /* entry size */ + 8 /* entry id */;
     // Keep a list of all entries ByteBuf, each ByteBuf contains 2 buf: entry header and entry content.
     private List<ByteBuf> entriesByteBuf = null;
 
@@ -204,5 +204,15 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
     public int getBlockEntryBytesCount() {
         return dataBlockFullOffset - DataBlockHeaderImpl.getDataStartOffset() - ENTRY_HEADER_SIZE * blockEntryCount;
     }
+
+    // Get the block size after uploaded `bytesUploaded` bytes
+    public static int getBlockSize(ReadHandle readHandle, int maxBlockSize, long startEntryId, long bytesUploaded) {
+        return (int)Math.min(
+            maxBlockSize,
+            (readHandle.getLastAddConfirmed() - startEntryId + 1) * ENTRY_HEADER_SIZE
+                + (readHandle.getLength() - bytesUploaded)
+                + DataBlockHeaderImpl.getDataStartOffset());
+    }
+
 }
 

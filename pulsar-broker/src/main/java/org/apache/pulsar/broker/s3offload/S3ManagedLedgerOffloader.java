@@ -21,24 +21,36 @@ package org.apache.pulsar.broker.s3offload;
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-
+import com.amazonaws.services.s3.model.CompleteMultipartUploadRequest;
+import com.amazonaws.services.s3.model.InitiateMultipartUploadRequest;
+import com.amazonaws.services.s3.model.InitiateMultipartUploadResult;
+import com.amazonaws.services.s3.model.PartETag;
+import com.amazonaws.services.s3.model.UploadPartRequest;
+import com.amazonaws.services.s3.model.UploadPartResult;
 import com.google.common.base.Strings;
-
+import java.io.InputStream;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
-
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.s3offload.impl.BlockAwareSegmentInputStreamImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class S3ManagedLedgerOffloader implements LedgerOffloader {
+    private static final Logger log = LoggerFactory.getLogger(S3ManagedLedgerOffloader.class);
+
     public static final String DRIVER_NAME = "S3";
     private final ScheduledExecutorService scheduler;
     private final AmazonS3 s3client;
     private final String bucket;
+    private int maxBlockSize;
 
     public static S3ManagedLedgerOffloader create(ServiceConfiguration conf,
                                                   ScheduledExecutorService scheduler)
@@ -60,7 +72,9 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
         } else {
             builder.setRegion(region);
         }
-        return new S3ManagedLedgerOffloader(builder.build(), bucket, scheduler);
+        S3ManagedLedgerOffloader offloader = new S3ManagedLedgerOffloader(builder.build(), bucket, scheduler);
+        offloader.maxBlockSize = conf.getS3ManagedLedgerOffloadMaxBlockSizeInBytes();
+        return offloader;
     }
 
     S3ManagedLedgerOffloader(AmazonS3 s3client, String bucket, ScheduledExecutorService scheduler) {
@@ -69,19 +83,78 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
         this.scheduler = scheduler;
     }
 
+    static String offloadKey(ReadHandle readHandle, UUID uuid) {
+        return String.format("ledger-%d-%s", readHandle.getId(), uuid.toString());
+    }
+
     @Override
-    public CompletableFuture<Void> offload(ReadHandle ledger,
-                                           UUID uid,
+    public CompletableFuture<Void> offload(ReadHandle readHandle,
+                                           UUID uuid,
                                            Map<String, String> extraMetadata) {
         CompletableFuture<Void> promise = new CompletableFuture<>();
         scheduler.submit(() -> {
-                try {
-                    s3client.putObject(bucket, uid.toString(), uid.toString());
-                    promise.complete(null);
-                } catch (Throwable t) {
-                    promise.completeExceptionally(t);
+            try {
+                String key = offloadKey(readHandle, uuid);
+                InitiateMultipartUploadResult initRes = s3client.initiateMultipartUpload(
+                    new InitiateMultipartUploadRequest(this.bucket, key));
+                OffloadIndexBlockBuilder indexBuilder = OffloadIndexBlockBuilder.create()
+                    .withMetadata(readHandle.getLedgerMetadata());
+
+                long startEntry = 0;
+                int partId = 1;
+                long bytesUploaded = 0;
+                List<PartETag> etags = new LinkedList<>();
+                while (startEntry <= readHandle.getLastAddConfirmed()) {
+                    int blockSize = BlockAwareSegmentInputStreamImpl
+                        .getBlockSize(readHandle, maxBlockSize, startEntry, bytesUploaded);
+
+                    BlockAwareSegmentInputStreamImpl blockStream = new BlockAwareSegmentInputStreamImpl(
+                        readHandle, startEntry, blockSize);
+
+                    UploadPartResult uploadRes = s3client.uploadPart(
+                        new UploadPartRequest()
+                            .withBucketName(bucket)
+                            .withKey(key)
+                            .withUploadId(initRes.getUploadId())
+                            .withInputStream(blockStream)
+                            .withPartSize(blockSize)
+                            .withPartNumber(partId));
+                    etags.add(uploadRes.getPartETag());
+
+                    indexBuilder.addBlock(startEntry, partId, blockSize);
+
+                    bytesUploaded += blockStream.getBlockEntryBytesCount();
+                    startEntry = blockStream.getEndEntryId() + 1;
+                    partId++;
+                    blockStream.close();
                 }
-            });
+
+                try (OffloadIndexBlock index = indexBuilder.build()) {
+                    InputStream indexStream = index.toStream();
+                    // write the index
+                    UploadPartResult uploadRes = s3client.uploadPart(
+                        new UploadPartRequest()
+                            .withBucketName(bucket)
+                            .withKey(key)
+                            .withUploadId(initRes.getUploadId())
+                            .withInputStream(indexStream)
+                            .withPartSize(indexStream.available())
+                            .withPartNumber(1));
+                    etags.add(uploadRes.getPartETag());
+                    indexStream.close();
+                }
+
+                s3client.completeMultipartUpload(new CompleteMultipartUploadRequest()
+                    .withBucketName(bucket).withKey(key)
+                    .withUploadId(initRes.getUploadId())
+                    .withPartETags(etags));
+
+                //s3client.putObject(bucket, uid.toString(), uid.toString());
+                promise.complete(null);
+            } catch (Throwable t) {
+                promise.completeExceptionally(t);
+            }
+        });
         return promise;
     }
 
