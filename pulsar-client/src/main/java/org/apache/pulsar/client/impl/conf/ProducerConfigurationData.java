@@ -50,7 +50,7 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     private boolean blockIfQueueFull = false;
     private int maxPendingMessages = 1000;
     private int maxPendingMessagesAcrossPartitions = 50000;
-    private MessageRoutingMode messageRoutingMode = MessageRoutingMode.SinglePartition;
+    private MessageRoutingMode messageRoutingMode = MessageRoutingMode.RoundRobinPartition;
     private HashingScheme hashingScheme = HashingScheme.JavaStringHash;
 
     private ProducerCryptoFailureAction cryptoFailureAction = ProducerCryptoFailureAction.FAIL;
@@ -58,9 +58,9 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     @JsonIgnore
     private MessageRouter customMessageRouter = null;
 
-    private long batchingMaxPublishDelayMicros = TimeUnit.MILLISECONDS.toMicros(10);
+    private long batchingMaxPublishDelayMicros = TimeUnit.MILLISECONDS.toMicros(1);
     private int batchingMaxMessages = 1000;
-    private boolean batchingEnabled = false; // disabled by default
+    private boolean batchingEnabled = true; // enabled by default
 
     @JsonIgnore
     private CryptoKeyReader cryptoKeyReader;

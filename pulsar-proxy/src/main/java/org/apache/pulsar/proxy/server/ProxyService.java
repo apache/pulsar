@@ -32,16 +32,9 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
-import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.AuthenticationFactory;
-import org.apache.pulsar.client.impl.ConnectionPool;
-import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
-import org.apache.pulsar.zookeeper.LocalZooKeeperConnectionService;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
-import org.apache.pulsar.zookeeper.ZooKeeperSessionWatcher.ShutdownService;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,17 +61,11 @@ public class ProxyService implements Closeable {
 
     private final EventLoopGroup acceptorGroup;
     private final EventLoopGroup workerGroup;
+
     private final DefaultThreadFactory acceptorThreadFactory = new DefaultThreadFactory("pulsar-discovery-acceptor");
     private final DefaultThreadFactory workersThreadFactory = new DefaultThreadFactory("pulsar-discovery-io");
 
-    // ConnectionPool is used by the proxy to issue lookup requests
-    private final PulsarClientImpl client;
-
-    private final Authentication clientAuthentication;
-
     private BrokerDiscoveryProvider discoveryProvider;
-
-    private LocalZooKeeperConnectionService localZooKeeperConnectionService;
 
     protected final AtomicReference<Semaphore> lookupRequestSemaphore;
 
@@ -102,37 +89,13 @@ public class ProxyService implements Closeable {
 
         this.acceptorGroup = EventLoopUtil.newEventLoopGroup(1, acceptorThreadFactory);
         this.workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, workersThreadFactory);
-
-        ClientConfigurationData clientConf = new ClientConfigurationData();
-        clientConf.setServiceUrl(serviceUrl);
-        if (proxyConfig.getBrokerClientAuthenticationPlugin() != null) {
-            clientConf.setAuthentication(AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
-                    proxyConfig.getBrokerClientAuthenticationParameters()));
-        }
-        if (proxyConfig.isTlsEnabledWithBroker()) {
-            clientConf.setUseTls(true);
-            clientConf.setTlsTrustCertsFilePath(proxyConfig.getBrokerClientTrustCertsFilePath());
-            clientConf.setTlsAllowInsecureConnection(proxyConfig.isTlsAllowInsecureConnection());
-        }
-
-        this.client = new PulsarClientImpl(clientConf, workerGroup);
-        this.clientAuthentication = clientConf.getAuthentication();
     }
 
     public void start() throws Exception {
         ServiceConfiguration serviceConfiguration = PulsarConfigurationLoader.convertFrom(proxyConfig);
         authenticationService = new AuthenticationService(serviceConfiguration);
 
-        if (!isBlank(proxyConfig.getZookeeperServers()) && !isBlank(proxyConfig.getGlobalZookeeperServers())) {
-            localZooKeeperConnectionService = new LocalZooKeeperConnectionService(getZooKeeperClientFactory(),
-                    proxyConfig.getZookeeperServers(), proxyConfig.getZookeeperSessionTimeoutMs());
-            localZooKeeperConnectionService.start(new ShutdownService() {
-                @Override
-                public void shutdown(int exitCode) {
-                    LOG.error("Lost local ZK session. Shutting down the proxy");
-                    Runtime.getRuntime().halt(-1);
-                }
-            });
+        if (!isBlank(proxyConfig.getZookeeperServers()) && !isBlank(proxyConfig.getConfigurationStoreServers())) {
             discoveryProvider = new BrokerDiscoveryProvider(this.proxyConfig, getZooKeeperClientFactory());
             this.configurationCacheService = new ConfigurationCacheService(discoveryProvider.globalZkCache);
             authorizationService = new AuthorizationService(serviceConfiguration, configurationCacheService);
@@ -161,14 +124,6 @@ public class ProxyService implements Closeable {
         }
     }
 
-    long newRequestId() {
-        return client.newRequestId();
-    }
-
-    ConnectionPool getConnectionPool() {
-        return client.getCnxPool();
-    }
-
     public ZooKeeperClientFactory getZooKeeperClientFactory() {
         if (zkClientFactory == null) {
             zkClientFactory = new ZookeeperClientFactoryImpl();
@@ -182,15 +137,11 @@ public class ProxyService implements Closeable {
     }
 
     public void close() throws IOException {
-        if (localZooKeeperConnectionService != null) {
-            localZooKeeperConnectionService.close();
-        }
         if (discoveryProvider != null) {
             discoveryProvider.close();
         }
         acceptorGroup.shutdownGracefully();
         workerGroup.shutdownGracefully();
-        client.close();
     }
 
     public String getServiceUrl() {
@@ -213,10 +164,6 @@ public class ProxyService implements Closeable {
         return authorizationService;
     }
 
-    public Authentication getClientAuthentication() {
-        return clientAuthentication;
-    }
-
     public ConfigurationCacheService getConfigurationCacheService() {
         return configurationCacheService;
     }
@@ -227,6 +174,10 @@ public class ProxyService implements Closeable {
 
     public Semaphore getLookupRequestSemaphore() {
         return lookupRequestSemaphore.get();
+    }
+    
+    public EventLoopGroup getWorkerGroup() {
+        return workerGroup;
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(ProxyService.class);

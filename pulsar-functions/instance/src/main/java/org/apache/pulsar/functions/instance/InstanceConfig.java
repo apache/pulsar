@@ -40,4 +40,5 @@ public class InstanceConfig {
     private String functionVersion;
     private FunctionDetails functionDetails;
     private int maxBufferedTuples;
+    private int port;
 }

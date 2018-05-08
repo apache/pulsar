@@ -46,7 +46,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleC
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.common.policies.data.PersistentTopicStats;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.slf4j.Logger;
@@ -101,7 +101,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             final int unackMsgAllowed = 100;
             final int receiverQueueSize = 10;
             final int totalProducedMsgs = 200;
-            final String topicName = "persistent://my-property/use/my-ns/unacked-topic";
+            final String topicName = "persistent://my-property/my-ns/unacked-topic";
             final String subscriberName = "subscriber-1";
 
             pulsar.getConfiguration().setMaxUnackedMessagesPerSubscription(unackMsgAllowed);
@@ -114,7 +114,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             List<Consumer<?>> consumers = Lists.newArrayList(consumer1, consumer2, consumer3);
 
             Producer<byte[]> producer = pulsarClient.newProducer()
-                    .topic("persistent://my-property/use/my-ns/unacked-topic").create();
+                    .topic("persistent://my-property/my-ns/unacked-topic").create();
 
             // (1) Produced Messages
             for (int i = 0; i < totalProducedMsgs; i++) {
@@ -207,7 +207,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             final int unackMsgAllowed = 100;
             final int totalProducedMsgs = 200;
             final int receiverQueueSize = 10;
-            final String topicName = "persistent://my-property/use/my-ns/unacked-topic";
+            final String topicName = "persistent://my-property/my-ns/unacked-topic";
             final String subscriberName = "subscriber-1";
 
             pulsar.getConfiguration().setMaxUnackedMessagesPerSubscription(unackMsgAllowed);
@@ -220,7 +220,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             List<ConsumerImpl<byte[]>> consumers = Lists.newArrayList(consumer1, consumer2, consumer3);
 
             Producer<byte[]> producer = pulsarClient.newProducer()
-                    .topic("persistent://my-property/use/my-ns/unacked-topic").create();
+                    .topic("persistent://my-property/my-ns/unacked-topic").create();
 
             // (1) Produced Messages
             for (int i = 0; i < totalProducedMsgs; i++) {
@@ -307,7 +307,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             final int unackMsgAllowed = 100;
             final int receiverQueueSize = 10;
             final int totalProducedMsgs = 200;
-            final String topicName = "persistent://my-property/use/my-ns/unacked-topic";
+            final String topicName = "persistent://my-property/my-ns/unacked-topic";
             final String subscriberName = "subscriber-1";
 
             pulsar.getConfiguration().setMaxUnackedMessagesPerSubscription(unackMsgAllowed);
@@ -315,7 +315,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
                     .receiverQueueSize(receiverQueueSize).subscriptionType(SubscriptionType.Shared).subscribe();
 
             Producer<byte[]> producer = pulsarClient.newProducer()
-                    .topic("persistent://my-property/use/my-ns/unacked-topic").create();
+                    .topic("persistent://my-property/my-ns/unacked-topic").create();
 
             // (1) Produced Messages
             for (int i = 0; i < totalProducedMsgs; i++) {
@@ -393,7 +393,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             final int unackMsgAllowed = 100;
             final int receiverQueueSize = 10;
             final int totalProducedMsgs = 200;
-            final String topicName = "persistent://my-property/use/my-ns/unacked-topic";
+            final String topicName = "persistent://my-property/my-ns/unacked-topic";
             final String subscriberName = "subscriber-1";
 
             pulsar.getConfiguration().setMaxUnackedMessagesPerSubscription(unackMsgAllowed);
@@ -406,7 +406,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             List<ConsumerImpl<?>> consumers = Lists.newArrayList(consumer1, consumer2, consumer3);
 
             Producer<byte[]> producer = pulsarClient.newProducer()
-                    .topic("persistent://my-property/use/my-ns/unacked-topic").create();
+                    .topic("persistent://my-property/my-ns/unacked-topic").create();
 
             // (1) Produced Messages
             for (int i = 0; i < totalProducedMsgs; i++) {
@@ -523,7 +523,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             final String subName = "blockDispatch";
             final int timeWaitToSync = 100;
 
-            PersistentTopicStats stats;
+            TopicStats stats;
             SubscriptionStats subStats;
 
             // configure maxUnackMessagePerDispatcher then restart broker to get this change
@@ -592,15 +592,17 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
     public void testBrokerSubscriptionRecovery(boolean unloadBundleGracefully) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String topicName = "persistent://my-property/use/my-ns/unacked-topic";
+        final String topicName = "persistent://my-property/my-ns/unacked-topic";
         final String subscriberName = "subscriber-1";
         final int totalProducedMsgs = 500;
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriberName)
-                .subscriptionType(SubscriptionType.Shared).acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+                .subscriptionType(SubscriptionType.Shared).acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/unacked-topic")
-                .create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/unacked-topic")
+            .enableBatching(false)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .create();
 
         CountDownLatch latch = new CountDownLatch(totalProducedMsgs);
         // (1) Produced Messages
@@ -694,26 +696,26 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
 
             final int receiverQueueSize = 10;
             final int totalProducedMsgs = maxUnAckPerBroker * 3;
-            final String topicName = "persistent://my-property/use/my-ns/unacked-topic";
+            final String topicName = "persistent://my-property/my-ns/unacked-topic";
             final String subscriberName1 = "subscriber-1";
             final String subscriberName2 = "subscriber-2";
             final String subscriberName3 = "subscriber-3";
 
             ConsumerImpl<byte[]> consumer1Sub1 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                     .subscriptionName(subscriberName1).receiverQueueSize(receiverQueueSize)
-                    .subscriptionType(SubscriptionType.Shared).acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+                    .subscriptionType(SubscriptionType.Shared).acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
             // create subscription-2 and 3
             ConsumerImpl<byte[]> consumer1Sub2 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                     .subscriptionName(subscriberName2).receiverQueueSize(receiverQueueSize)
-                    .subscriptionType(SubscriptionType.Shared).acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+                    .subscriptionType(SubscriptionType.Shared).acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
             consumer1Sub2.close();
             ConsumerImpl<byte[]> consumer1Sub3 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                     .subscriptionName(subscriberName3).receiverQueueSize(receiverQueueSize)
-                    .subscriptionType(SubscriptionType.Shared).acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+                    .subscriptionType(SubscriptionType.Shared).acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
             consumer1Sub3.close();
 
             Producer<byte[]> producer = pulsarClient.newProducer()
-                    .topic("persistent://my-property/use/my-ns/unacked-topic").create();
+                    .topic("persistent://my-property/my-ns/unacked-topic").create();
 
             // continuously checks unack-message dispatching
             ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
@@ -749,7 +751,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             // (1.b) consumer2 with same sub should not receive any more messages as subscription is blocked
             ConsumerImpl<byte[]> consumer2Sub1 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                     .subscriptionName(subscriberName1).receiverQueueSize(receiverQueueSize)
-                    .subscriptionType(SubscriptionType.Shared).acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+                    .subscriptionType(SubscriptionType.Shared).acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
             int consumer2Msgs = 0;
             for (int j = 0; j < totalProducedMsgs; j++) {
                 msg = consumer2Sub1.receive(100, TimeUnit.MILLISECONDS);
@@ -774,7 +776,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
              **/
             ConsumerImpl<byte[]> consumerSub2 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                     .subscriptionName(subscriberName2).receiverQueueSize(receiverQueueSize)
-                    .subscriptionType(SubscriptionType.Shared).acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+                    .subscriptionType(SubscriptionType.Shared).acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
             Set<MessageId> messages2 = Sets.newHashSet();
             for (int j = 0; j < totalProducedMsgs; j++) {
                 msg = consumerSub2.receive(100, TimeUnit.MILLISECONDS);
@@ -791,7 +793,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             /** (3) if Subscription3 is acking then it shouldn't be blocked **/
             consumer1Sub3 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                     .subscriptionName(subscriberName3).receiverQueueSize(receiverQueueSize)
-                    .subscriptionType(SubscriptionType.Shared).acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+                    .subscriptionType(SubscriptionType.Shared).acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
             int consumedMsgsSub3 = 0;
             for (int j = 0; j < totalProducedMsgs; j++) {
                 msg = consumer1Sub3.receive(100, TimeUnit.MILLISECONDS);
@@ -894,7 +896,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
 
             final int receiverQueueSize = 10;
             final int totalProducedMsgs = maxUnAckPerBroker * 3;
-            final String topicName = "persistent://my-property/use/my-ns/unacked-topic";
+            final String topicName = "persistent://my-property/my-ns/unacked-topic";
             final String subscriberName1 = "subscriber-1";
             final String subscriberName2 = "subscriber-2";
 
@@ -913,7 +915,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
                     TimeUnit.MILLISECONDS);
 
             Producer<byte[]> producer = pulsarClient.newProducer()
-                    .topic("persistent://my-property/use/my-ns/unacked-topic").create();
+                    .topic("persistent://my-property/my-ns/unacked-topic").create();
 
             // Produced Messages
             for (int i = 0; i < totalProducedMsgs; i++) {

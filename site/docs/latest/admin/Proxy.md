@@ -27,7 +27,7 @@ The [Pulsar proxy](../../getting-started/ConceptsAndArchitecture#pulsar-proxy) i
 
 ## Running the proxy
 
-In order to run the Pulsar proxy, you need to have both a local and global [ZooKeeper](https://zookeeper.apache.org) quorum set up for use by your Pulsar cluster. For instructions, see [this document](../../deployment/cluster). Once you have ZooKeeper set up and have connection strings for both ZooKeeper quorums, you can use the [`proxy`](../../reference/CliTools#pulsar-proxy) command of the [`pulsar`](../../reference/CliTools#pulsar) CLI tool to start up the proxy (preferably on its own machine or in its own VM):
+In order to run the Pulsar proxy, you need to have both a local [ZooKeeper](https://zookeeper.apache.org) and {% popover configuration store %} quorum set up for use by your Pulsar cluster. For instructions, see [this document](../../deployment/cluster). Once you have ZooKeeper set up and have connection strings for both ZooKeeper quorums, you can use the [`proxy`](../../reference/CliTools#pulsar-proxy) command of the [`pulsar`](../../reference/CliTools#pulsar) CLI tool to start up the proxy (preferably on its own machine or in its own VM):
 
 To start the proxy:
 

@@ -44,7 +44,6 @@ class ThreadRuntime implements Runtime {
     @Getter
     private InstanceConfig instanceConfig;
     private JavaInstanceRunnable javaInstanceRunnable;
-    private Exception startupException;
     private ThreadGroup threadGroup;
 
     ThreadRuntime(InstanceConfig instanceConfig,
@@ -72,15 +71,8 @@ class ThreadRuntime implements Runtime {
     @Override
     public void start() {
         log.info("ThreadContainer starting function with instance config {}", instanceConfig);
-        startupException = null;
         this.fnThread = new Thread(threadGroup, javaInstanceRunnable,
                 FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
-        this.fnThread.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
-            @Override
-            public void uncaughtException(Thread t, Throwable e) {
-                startupException = new Exception(e);
-            }
-        });
         this.fnThread.start();
     }
 
@@ -96,7 +88,6 @@ class ThreadRuntime implements Runtime {
         if (fnThread != null) {
             // interrupt the instance thread
             fnThread.interrupt();
-            javaInstanceRunnable.close();
             try {
                 fnThread.join();
             } catch (InterruptedException e) {
@@ -107,13 +98,14 @@ class ThreadRuntime implements Runtime {
 
     @Override
     public CompletableFuture<FunctionStatus> getFunctionStatus() {
-        FunctionStatus.Builder functionStatusBuilder = javaInstanceRunnable.getFunctionStatus();
-        if (javaInstanceRunnable.getFailureException() != null) {
+        if (!isAlive()) {
+            FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
             functionStatusBuilder.setRunning(false);
-            functionStatusBuilder.setFailureException(javaInstanceRunnable.getFailureException().getMessage());
-        } else {
-            functionStatusBuilder.setRunning(true);
+            functionStatusBuilder.setFailureException(getDeathException().getMessage());
+            return CompletableFuture.completedFuture(functionStatusBuilder.build());
         }
+        FunctionStatus.Builder functionStatusBuilder = javaInstanceRunnable.getFunctionStatus();
+        functionStatusBuilder.setRunning(true);
         return CompletableFuture.completedFuture(functionStatusBuilder.build());
     }
 
@@ -135,10 +127,8 @@ class ThreadRuntime implements Runtime {
     public Exception getDeathException() {
         if (isAlive()) {
             return null;
-        } else if (null != startupException) {
-            return startupException;
-        } else if (null != javaInstanceRunnable){
-            return javaInstanceRunnable.getFailureException();
+        } else if (null != javaInstanceRunnable) {
+            return javaInstanceRunnable.getDeathException();
         } else {
             return null;
         }

@@ -41,7 +41,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.policies.data.PersistentTopicStats;
+import org.apache.pulsar.common.policies.data.TopicStats;
 
 import org.apache.storm.spout.SpoutOutputCollector;
 import org.apache.storm.task.TopologyContext;
@@ -51,7 +51,7 @@ import org.apache.storm.tuple.Values;
 public class PulsarSpoutTest extends ProducerConsumerBase {
 
     public final String serviceUrl = "http://127.0.0.1:" + BROKER_WEBSERVICE_PORT;
-    public final String topic = "persistent://my-property/use/my-ns/my-topic1";
+    public final String topic = "persistent://my-property/my-ns/my-topic1";
     public final String subscriptionName = "my-subscriber-name";
 
     protected PulsarSpoutConfiguration pulsarSpoutConf;
@@ -276,7 +276,7 @@ public class PulsarSpoutTest extends ProducerConsumerBase {
 
     @Test
     public void testSharedConsumer() throws Exception {
-        PersistentTopicStats topicStats = admin.persistentTopics().getStats(topic);
+        TopicStats topicStats = admin.topics().getStats(topic);
         Assert.assertEquals(topicStats.subscriptions.get(subscriptionName).consumers.size(), 1);
         PulsarSpout otherSpout = new PulsarSpout(pulsarSpoutConf, new ClientConfiguration(), consumerConf);
         MockSpoutOutputCollector otherMockCollector = new MockSpoutOutputCollector();
@@ -286,18 +286,18 @@ public class PulsarSpoutTest extends ProducerConsumerBase {
         when(context.getThisTaskId()).thenReturn(1);
         otherSpout.open(Maps.newHashMap(), context, collector);
 
-        topicStats = admin.persistentTopics().getStats(topic);
+        topicStats = admin.topics().getStats(topic);
         Assert.assertEquals(topicStats.subscriptions.get(subscriptionName).consumers.size(), 1);
 
         otherSpout.close();
 
-        topicStats = admin.persistentTopics().getStats(topic);
+        topicStats = admin.topics().getStats(topic);
         Assert.assertEquals(topicStats.subscriptions.get(subscriptionName).consumers.size(), 1);
     }
 
     @Test
     public void testNoSharedConsumer() throws Exception {
-        PersistentTopicStats topicStats = admin.persistentTopics().getStats(topic);
+        TopicStats topicStats = admin.topics().getStats(topic);
         Assert.assertEquals(topicStats.subscriptions.get(subscriptionName).consumers.size(), 1);
         pulsarSpoutConf.setSharedConsumerEnabled(false);
         PulsarSpout otherSpout = new PulsarSpout(pulsarSpoutConf, new ClientConfiguration(), consumerConf);
@@ -308,12 +308,12 @@ public class PulsarSpoutTest extends ProducerConsumerBase {
         when(context.getThisTaskId()).thenReturn(1);
         otherSpout.open(Maps.newHashMap(), context, collector);
 
-        topicStats = admin.persistentTopics().getStats(topic);
+        topicStats = admin.topics().getStats(topic);
         Assert.assertEquals(topicStats.subscriptions.get(subscriptionName).consumers.size(), 2);
 
         otherSpout.close();
 
-        topicStats = admin.persistentTopics().getStats(topic);
+        topicStats = admin.topics().getStats(topic);
         Assert.assertEquals(topicStats.subscriptions.get(subscriptionName).consumers.size(), 1);
     }
 
@@ -323,7 +323,7 @@ public class PulsarSpoutTest extends ProducerConsumerBase {
         PulsarSpout spoutWithNoAuth = new PulsarSpout(pulsarSpoutConf, new ClientConfiguration());
         TestUtil.testSerializability(spoutWithNoAuth);
     }
-    
+
     @Test
     public void testFailedConsumer() throws Exception {
         PulsarSpoutConfiguration pulsarSpoutConf = new PulsarSpoutConfiguration();

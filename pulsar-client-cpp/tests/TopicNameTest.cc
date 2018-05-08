@@ -42,6 +42,42 @@ TEST(TopicNameTest, testTopicName) {
     ASSERT_TRUE(*topicName1 == *topicName2);
 }
 
+TEST(TopicNameTest, testShortTopicName) {
+    // "short-topic"
+    boost::shared_ptr<TopicName> tn1 = TopicName::get("short-topic");
+    ASSERT_EQ("public", tn1->getProperty());
+    ASSERT_EQ("", tn1->getCluster());
+    ASSERT_EQ("default", tn1->getNamespacePortion());
+    ASSERT_EQ("persistent", tn1->getDomain());
+    ASSERT_EQ(TopicName::getEncodedName("short-topic"), tn1->getLocalName());
+
+    // tenant/namespace/topic
+    boost::shared_ptr<TopicName> tn2 = TopicName::get("tenant/namespace/short-topic");
+    ASSERT_EQ("tenant", tn2->getProperty());
+    ASSERT_EQ("", tn2->getCluster());
+    ASSERT_EQ("namespace", tn2->getNamespacePortion());
+    ASSERT_EQ("persistent", tn2->getDomain());
+    ASSERT_EQ(TopicName::getEncodedName("short-topic"), tn2->getLocalName());
+
+    // tenant/cluster/namespace/topic
+    boost::shared_ptr<TopicName> tn3 = TopicName::get("tenant/cluster/namespace/short-topic");
+    ASSERT_FALSE(tn3);
+
+    // tenant/cluster
+    boost::shared_ptr<TopicName> tn4 = TopicName::get("tenant/cluster");
+    ASSERT_FALSE(tn4);
+}
+
+TEST(TopicNameTest, testTopicNameV2) {
+    // v2 topic names doesn't have "cluster"
+    boost::shared_ptr<TopicName> tn1 = TopicName::get("persistent://tenant/namespace/short-topic");
+    ASSERT_EQ("tenant", tn1->getProperty());
+    ASSERT_EQ("", tn1->getCluster());
+    ASSERT_EQ("namespace", tn1->getNamespacePortion());
+    ASSERT_EQ("persistent", tn1->getDomain());
+    ASSERT_EQ(TopicName::getEncodedName("short-topic"), tn1->getLocalName());
+}
+
 TEST(TopicNameTest, testTopicNameWithSlashes) {
     // Compare getters and setters
     boost::shared_ptr<TopicName> topicName =

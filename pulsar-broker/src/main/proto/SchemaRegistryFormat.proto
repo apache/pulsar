@@ -25,10 +25,8 @@ option optimize_for = LITE_RUNTIME;
 message SchemaInfo {
     enum SchemaType {
         NONE = 1;
-        THRIFT = 2;
-        AVRO = 3;
-        JSON = 4;
-        PROTO = 5;
+        STRING = 2;
+        JSON = 3;
     }
     message KeyValuePair {
         required string key = 1;

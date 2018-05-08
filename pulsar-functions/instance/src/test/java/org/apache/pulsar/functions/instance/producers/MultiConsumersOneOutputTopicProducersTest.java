@@ -19,9 +19,6 @@
 package org.apache.pulsar.functions.instance.producers;
 
 import static org.apache.pulsar.functions.instance.producers.MultiConsumersOneOuputTopicProducers.makeProducerName;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -33,10 +30,19 @@ import static org.testng.Assert.assertTrue;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.CryptoKeyReader;
+import org.apache.pulsar.client.api.HashingScheme;
+import org.apache.pulsar.client.api.MessageRouter;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
+import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -48,34 +54,152 @@ public class MultiConsumersOneOutputTopicProducersTest {
     private static final String TEST_OUTPUT_TOPIC = "test-output-topic";
 
     private PulsarClient mockClient;
-    private final Map<String, Producer> mockProducers = new HashMap<>();
+    private final Map<String, Producer<byte[]>> mockProducers = new HashMap<>();
     private MultiConsumersOneOuputTopicProducers producers;
+
+    private class MockProducerBuilder implements ProducerBuilder<byte[]> {
+
+        String producerName = "";
+
+        @Override
+        public Producer<byte[]> create() throws PulsarClientException {
+            Producer<byte[]> producer;
+            synchronized (mockProducers) {
+                producer = mockProducers.get(producerName);
+                if (null == producer) {
+                    producer = createMockProducer(producerName);
+                    mockProducers.put(producerName, producer);
+                }
+            }
+            return producer;
+        }
+
+        @Override
+        public CompletableFuture<Producer<byte[]>> createAsync() {
+            try {
+                return CompletableFuture.completedFuture(create());
+            } catch (PulsarClientException e) {
+                CompletableFuture<Producer<byte[]>> future = new CompletableFuture<>();
+                future.completeExceptionally(e);
+                return future;
+            }
+        }
+
+        @Override
+        public ProducerBuilder<byte[]> clone() {
+            return this;
+        }
+
+        @Override
+        public ProducerBuilder<byte[]> topic(String topicName) {
+            return this;
+        }
+
+        @Override
+        public ProducerBuilder<byte[]> producerName(String producerName) {
+            this.producerName = producerName;
+            return this;
+        }
+
+        @Override
+        public ProducerBuilder<byte[]> sendTimeout(int sendTimeout, TimeUnit unit) {
+            return this;
+        }
+
+        @Override
+        public ProducerBuilder<byte[]> maxPendingMessages(int maxPendingMessages) {
+            return this;
+        }
+
+        @Override
+        public ProducerBuilder<byte[]> maxPendingMessagesAcrossPartitions(int maxPendingMessagesAcrossPartitions) {
+            return this;
+        }
+
+        @Override
+        public ProducerBuilder<byte[]> blockIfQueueFull(boolean blockIfQueueFull) {
+            return this;
+        }
+
+        @Override
+        public ProducerBuilder<byte[]> messageRoutingMode(MessageRoutingMode messageRoutingMode) {
+            return this;
+        }
+
+        @Override
+        public ProducerBuilder<byte[]> hashingScheme(HashingScheme hashingScheme) {
+            return this;
+        }
+
+        @Override
+        public ProducerBuilder<byte[]> compressionType(CompressionType compressionType) {
+            return this;
+        }
+
+        @Override
+        public ProducerBuilder<byte[]> messageRouter(MessageRouter messageRouter) {
+            return this;
+        }
+
+        @Override
+        public ProducerBuilder<byte[]> enableBatching(boolean enableBatching) {
+            return this;
+        }
+
+        @Override
+        public ProducerBuilder<byte[]> cryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
+            return this;
+        }
+
+        @Override
+        public ProducerBuilder<byte[]> addEncryptionKey(String key) {
+            return this;
+        }
+
+        @Override
+        public ProducerBuilder<byte[]> cryptoFailureAction(ProducerCryptoFailureAction action) {
+            return this;
+        }
+
+        @Override
+        public ProducerBuilder<byte[]> batchingMaxPublishDelay(long batchDelay, TimeUnit timeUnit) {
+            return this;
+        }
+
+        @Override
+        public ProducerBuilder<byte[]> batchingMaxMessages(int batchMessagesMaxMessagesPerBatch) {
+            return this;
+        }
+
+        @Override
+        public ProducerBuilder<byte[]> initialSequenceId(long initialSequenceId) {
+            return this;
+        }
+
+        @Override
+        public ProducerBuilder<byte[]> property(String key, String value) {
+            return this;
+        }
+
+        @Override
+        public ProducerBuilder<byte[]> properties(Map<String, String> properties) {
+            return this;
+        }
+    }
 
     @BeforeMethod
     public void setup() throws Exception {
         this.mockClient = mock(PulsarClient.class);
 
-        when(mockClient.createProducer(anyString(), any(ProducerConfiguration.class)))
-            .thenAnswer(invocationOnMock -> {
-                ProducerConfiguration conf = invocationOnMock.getArgumentAt(1, ProducerConfiguration.class);
-                String producerName = conf.getProducerName();
-
-                synchronized (mockProducers) {
-                    Producer producer = mockProducers.get(producerName);
-                    if (null == producer) {
-                        producer = createMockProducer(producerName);
-                        mockProducers.put(producerName, producer);
-                    }
-                    return producer;
-                }
-            });
+        when(mockClient.newProducer())
+            .thenReturn(new MockProducerBuilder());
 
         producers = new MultiConsumersOneOuputTopicProducers(mockClient, TEST_OUTPUT_TOPIC);
         producers.initialize();
     }
 
-    private Producer createMockProducer(String topic) {
-        Producer producer = mock(Producer.class);
+    private Producer<byte[]> createMockProducer(String topic) {
+        Producer<byte[]> producer = mock(Producer.class);
         when(producer.closeAsync())
             .thenAnswer(invocationOnMock -> {
                 synchronized (mockProducers) {
@@ -89,34 +213,23 @@ public class MultiConsumersOneOutputTopicProducersTest {
     @Test
     public void testGetCloseProducer() throws Exception {
         String srcTopic = "test-src-topic";
-        int ptnIdx = 1234;
-        Producer producer = producers.getProducer(srcTopic, ptnIdx);
-
-        String producerName = makeProducerName(srcTopic, ptnIdx);
+        String ptnIdx = "1234";
+        String producerName = String.format("%s-%s", srcTopic, ptnIdx);
+        Producer<byte[]> producer = producers.getProducer(producerName);
 
         assertSame(mockProducers.get(producerName), producer);
         verify(mockClient, times(1))
-            .createProducer(
-                eq(TEST_OUTPUT_TOPIC),
-                any(ProducerConfiguration.class)
-            );
-        assertTrue(producers.getProducers().containsKey(srcTopic));
-        assertEquals(1, producers.getProducers().get(srcTopic).size());
-        assertTrue(producers.getProducers().get(srcTopic).containsKey(ptnIdx));
+            .newProducer();
+        assertTrue(producers.getProducers().containsKey(producerName));
 
         // second get will not create a new producer
         assertSame(mockProducers.get(producerName), producer);
         verify(mockClient, times(1))
-            .createProducer(
-                eq(TEST_OUTPUT_TOPIC),
-                any(ProducerConfiguration.class)
-            );
-        assertTrue(producers.getProducers().containsKey(srcTopic));
-        assertEquals(1, producers.getProducers().get(srcTopic).size());
-        assertTrue(producers.getProducers().get(srcTopic).containsKey(ptnIdx));
+            .newProducer();
+        assertTrue(producers.getProducers().containsKey(producerName));
 
         // close
-        producers.closeProducer(srcTopic, ptnIdx);
+        producers.closeProducer(producerName);
         verify(producer, times(1)).closeAsync();
         assertFalse(producers.getProducers().containsKey(srcTopic));
     }

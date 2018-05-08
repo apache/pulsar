@@ -75,7 +75,7 @@ public class SampleCryptoConsumer {
 
         // Create pulsar client
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("http://127.0.0.1:8080").build();
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic")
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-tenant/my-ns/my-topic")
                 .subscriptionName("my-subscription-name")
                 .cryptoKeyReader(new RawFileKeyReader("test_ecdsa_pubkey.pem", "test_ecdsa_privkey.pem")).subscribe();
 

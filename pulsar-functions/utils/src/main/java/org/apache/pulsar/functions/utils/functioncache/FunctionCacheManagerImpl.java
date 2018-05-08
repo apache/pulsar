@@ -19,47 +19,42 @@
 
 package org.apache.pulsar.functions.utils.functioncache;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
+import org.apache.pulsar.functions.utils.Exceptions;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Maps;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.pulsar.functions.utils.Exceptions;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * An implementation of {@link FunctionCacheManager}.
  */
-@Slf4j
 public class FunctionCacheManagerImpl implements FunctionCacheManager {
 
     /** Registered Functions **/
     private final Map<String, FunctionCacheEntry> cacheFunctions;
 
     public FunctionCacheManagerImpl() {
-        this.cacheFunctions = Collections.synchronizedMap(Maps.newHashMap());
+        this.cacheFunctions = new ConcurrentHashMap<>();
     }
 
-    @VisibleForTesting
     Map<String, FunctionCacheEntry> getCacheFunctions() {
         return cacheFunctions;
     }
 
     @Override
     public ClassLoader getClassLoader(String fid) {
-        checkNotNull(fid, "FunctionID not set");
+        if (fid == null) {
+            throw new NullPointerException("FunctionID not set");
+        }
 
         synchronized (cacheFunctions) {
             FunctionCacheEntry entry = cacheFunctions.get(fid);
-            checkState(entry != null,
-                "No dependencies are registered for function " + fid);
+            if (entry == null) {
+                throw new IllegalStateException("No dependencies are registered for function " + fid);
+            }
             return entry.getClassLoader();
         }
     }
@@ -70,7 +65,9 @@ public class FunctionCacheManagerImpl implements FunctionCacheManager {
                                          List<String> requiredJarFiles,
                                          List<URL> requiredClasspaths)
             throws IOException {
-        checkNotNull(fid, "FunctionID not set");
+        if (fid == null) {
+            throw new NullPointerException("FunctionID not set");
+        }
 
         synchronized (cacheFunctions) {
             FunctionCacheEntry entry = cacheFunctions.get(fid);

@@ -43,6 +43,8 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
     private CryptoKeyReader cryptoKeyReader = null;
     private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
 
+    private boolean readCompacted = false;
+
     @SuppressWarnings("unchecked")
     public ReaderConfigurationData<T> clone() {
         try {

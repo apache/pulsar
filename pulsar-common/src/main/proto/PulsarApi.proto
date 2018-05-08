@@ -24,17 +24,16 @@ option optimize_for = LITE_RUNTIME;
 
 message Schema {
 	enum Type {
-		Json = 1;
-		Protobuf = 2;
-		Thrift = 3;
-		Avro = 4;
+		None = 0;
+		String = 1;
+		Json = 2;
 	}
 
     required string name = 1;
     required bytes schema_data = 3;
 	required Type type = 4;
     repeated KeyValue properties = 5;
-	
+
 }
 
 message MessageIdData {
@@ -228,6 +227,7 @@ message CommandSubscribe {
 message CommandPartitionedTopicMetadata {
 	required string topic            = 1;
 	required uint64 request_id       = 2;
+	// TODO - Remove original_principal, original_auth_data, original_auth_method 
 	// Original principal that was verified by
 	// a Pulsar proxy.
 	optional string original_principal = 3;
@@ -255,6 +255,7 @@ message CommandLookupTopic {
 	required uint64 request_id       = 2;
 	optional bool authoritative      = 3 [default = false];
 
+	// TODO - Remove original_principal, original_auth_data, original_auth_method 
 	// Original principal that was verified by
 	// a Pulsar proxy.
 	optional string original_principal = 4;

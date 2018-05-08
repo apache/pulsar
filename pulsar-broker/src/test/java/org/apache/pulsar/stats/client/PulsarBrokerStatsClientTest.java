@@ -102,10 +102,10 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
     public void testTopicInternalStats() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        final String topicName = "persistent://my-property/use/my-ns/my-topic1";
+        final String topicName = "persistent://my-property/my-ns/my-topic1";
         final String subscriptionName = "my-subscriber-name";
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
-                .acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         final int numberOfMsgs = 1000;
         for (int i = 0; i < numberOfMsgs; i++) {

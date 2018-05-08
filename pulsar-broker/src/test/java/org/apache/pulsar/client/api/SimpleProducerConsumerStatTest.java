@@ -130,10 +130,13 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer = consumerBuilder.subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
-                .topic("persistent://my-property/tp1/my-ns/my-topic2");
+                .topic("persistent://my-property/tp1/my-ns/my-topic2")
+                .messageRoutingMode(MessageRoutingMode.SinglePartition);
         if (batchMessageDelayMs != 0) {
             producerBuilder.enableBatching(true).batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
                     .batchingMaxMessages(5);
+        } else {
+            producerBuilder.enableBatching(false);
         }
 
         Producer<byte[]> producer = producerBuilder.create();
@@ -185,10 +188,13 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer = consumerBuilder.subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
-                .topic("persistent://my-property/tp1/my-ns/my-topic2");
+                .topic("persistent://my-property/tp1/my-ns/my-topic2")
+                .messageRoutingMode(MessageRoutingMode.SinglePartition);
         if (batchMessageDelayMs != 0) {
             producerBuilder.enableBatching(true).batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
                     .batchingMaxMessages(5);
+        } else {
+            producerBuilder.enableBatching(false);
         }
 
         Producer<byte[]> producer = producerBuilder.create();
@@ -346,7 +352,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         Thread.sleep(2000); // Two seconds sleep
         runTest.set(false);
         pulsar.getBrokerService().updateRates();
-        double actualRate = admin.persistentTopics().getStats(topicName).msgRateOut;
+        double actualRate = admin.topics().getStats(topicName).msgRateOut;
         assertTrue(actualRate > (produceRate / batchSize));
         consumer.unsubscribe();
         log.info("-- Exiting {} test --", methodName);

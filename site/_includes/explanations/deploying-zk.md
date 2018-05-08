@@ -59,19 +59,17 @@ Once each server has been added to the `zookeeper.conf` configuration and has th
 $ bin/pulsar-daemon start zookeeper
 ```
 
-### Deploying global ZooKeeper
+### Deploying the configuration store {#configuration-store}
 
-The ZooKeeper cluster configured and started up in the section above is a *local* ZooKeeper cluster used to manage a single Pulsar {% popover cluster %}. In addition to a local cluster, however, a full Pulsar {% popover instance %} also requires a *global* ZooKeeper quorum for handling some instance-level configuration and coordination tasks.
+The ZooKeeper cluster configured and started up in the section above is a *local* ZooKeeper cluster used to manage a single Pulsar {% popover cluster %}. In addition to a local cluster, however, a full Pulsar {% popover instance %} also requires a {% popover configuration store %} for handling some instance-level configuration and coordination tasks.
 
-If you're deploying a [single-cluster](#single-cluster-pulsar-instance) instance, then you will not need a separate cluster for global ZooKeeper. If, however, you're deploying a [multi-cluster](#multi-cluster-pulsar-instance) instance, then you should stand up a separate ZooKeeper cluster for instance-level tasks.
-
-{% include message.html id="global_cluster" %}
+If you're deploying a [single-cluster](#single-cluster-pulsar-instance) instance, then you will not need a separate cluster for the configuration store. If, however, you're deploying a [multi-cluster](#multi-cluster-pulsar-instance) instance, then you should stand up a separate ZooKeeper cluster for configuration tasks.
 
 #### Single-cluster Pulsar instance
 
-If your Pulsar {% popover instance %} will consist of just one cluster, then you can deploy {% popover global ZooKeeper %} on the same machines as the local ZooKeeper quorum but running on different TCP ports.
+If your Pulsar {% popover instance %} will consist of just one cluster, then you can deploy a {% popover configuration store %} on the same machines as the local ZooKeeper quorum but running on different TCP ports.
 
-To deploy global ZooKeeper in a single-cluster instance, add the same ZooKeeper servers used by the local quorom to the configuration file in [`conf/global_zookeeper.conf`](../../reference/Configuration#global-zookeeper) using the same method for [local ZooKeeper](#local-zookeeper), but make sure to use a different port (2181 is the default for ZooKeeper). Here's an example that uses port 2184 for a three-node ZooKeeper cluster:
+To deploy a ZooKeeper configuration store in a single-cluster instance, add the same ZooKeeper servers used by the local quorom to the configuration file in [`conf/global_zookeeper.conf`](../../reference/Configuration#configuration-store) using the same method for [local ZooKeeper](#local-zookeeper), but make sure to use a different port (2181 is the default for ZooKeeper). Here's an example that uses port 2184 for a three-node ZooKeeper cluster:
 
 ```properties
 clientPort=2184

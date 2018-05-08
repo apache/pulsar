@@ -108,7 +108,7 @@ public class FunctionActioner implements AutoCloseable {
                 functionMetaData.getFunctionDetails().getName(), instance.getInstanceId());
         File pkgDir = new File(
                 workerConfig.getDownloadDirectory(),
-                getDownloadPackagePath(functionMetaData));
+                getDownloadPackagePath(functionMetaData, instance.getInstanceId()));
         pkgDir.mkdirs();
 
         int instanceId = functionRuntimeInfo.getFunctionInstance().getInstanceId();
@@ -117,41 +117,44 @@ public class FunctionActioner implements AutoCloseable {
             pkgDir,
             new File(FunctionDetailsUtils.getDownloadFileName(functionMetaData.getFunctionDetails())).getName());
 
-        if (!pkgFile.exists()) {
-            // download only when the package file doesn't exist
-            File tempPkgFile;
-            while (true) {
-                tempPkgFile = new File(
+        if (pkgFile.exists()) {
+            log.warn("Function package exists already {} deleting it",
+                    pkgFile);
+            pkgFile.delete();
+        }
+
+        File tempPkgFile;
+        while (true) {
+            tempPkgFile = new File(
                     pkgDir,
                     pkgFile.getName() + "." + instanceId + "." + UUID.randomUUID().toString());
-                if (!tempPkgFile.exists() && tempPkgFile.createNewFile()) {
-                    break;
-                }
+            if (!tempPkgFile.exists() && tempPkgFile.createNewFile()) {
+                break;
             }
-            try {
-                log.info("Function package file {} will be downloaded from {}",
+        }
+        try {
+            log.info("Function package file {} will be downloaded from {}",
                     tempPkgFile, functionMetaData.getPackageLocation());
-                Utils.downloadFromBookkeeper(
+            Utils.downloadFromBookkeeper(
                     dlogNamespace,
                     new FileOutputStream(tempPkgFile),
                     functionMetaData.getPackageLocation().getPackagePath());
 
-                // create a hardlink, if there are two concurrent createLink operations, one will fail.
-                // this ensures one instance will successfully download the package.
-                try {
-                    Files.createLink(
+            // create a hardlink, if there are two concurrent createLink operations, one will fail.
+            // this ensures one instance will successfully download the package.
+            try {
+                Files.createLink(
                         Paths.get(pkgFile.toURI()),
                         Paths.get(tempPkgFile.toURI()));
-                    log.info("Function package file is linked from {} to {}",
+                log.info("Function package file is linked from {} to {}",
                         tempPkgFile, pkgFile);
-                } catch (FileAlreadyExistsException faee) {
-                    // file already exists
-                    log.warn("Function package has been downloaded from {} and saved at {}",
+            } catch (FileAlreadyExistsException faee) {
+                // file already exists
+                log.warn("Function package has been downloaded from {} and saved at {}",
                         functionMetaData.getPackageLocation(), pkgFile);
-                }
-            } finally {
-                tempPkgFile.delete();
             }
+        } finally {
+            tempPkgFile.delete();
         }
 
         InstanceConfig instanceConfig = new InstanceConfig();
@@ -161,6 +164,7 @@ public class FunctionActioner implements AutoCloseable {
         instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
         instanceConfig.setInstanceId(String.valueOf(instanceId));
         instanceConfig.setMaxBufferedTuples(1024);
+        instanceConfig.setPort(org.apache.pulsar.functions.utils.Utils.findAvailablePort());
         RuntimeSpawner runtimeSpawner = new RuntimeSpawner(instanceConfig, pkgFile.getAbsolutePath(),
                 runtimeFactory, workerConfig.getInstanceLivenessCheckFreqMs());
 
@@ -181,7 +185,7 @@ public class FunctionActioner implements AutoCloseable {
         // clean up function package
         File pkgDir = new File(
                 workerConfig.getDownloadDirectory(),
-                getDownloadPackagePath(functionMetaData));
+                getDownloadPackagePath(functionMetaData, instance.getInstanceId()));
 
         if (pkgDir.exists()) {
             try {
@@ -193,12 +197,13 @@ public class FunctionActioner implements AutoCloseable {
         }
     }
 
-    private String getDownloadPackagePath(FunctionMetaData functionMetaData) {
+    private String getDownloadPackagePath(FunctionMetaData functionMetaData, int instanceId) {
         return StringUtils.join(
                 new String[]{
                         functionMetaData.getFunctionDetails().getTenant(),
                         functionMetaData.getFunctionDetails().getNamespace(),
                         functionMetaData.getFunctionDetails().getName(),
+                        Integer.toString(instanceId),
                 },
                 File.separatorChar);
     }

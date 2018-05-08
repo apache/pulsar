@@ -34,7 +34,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationProviderBasic;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -91,7 +91,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
         System.setProperty("pulsar.auth.basic.conf", BASIC_CONF_FILE_PATH);
         conf.setAuthenticationProviders(providers);
 
-        conf.setClusterName("use");
+        conf.setClusterName("test");
 
         super.init();
 
@@ -116,9 +116,9 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
                 .authentication(authTls).enableTls(true).enableTlsHostnameVerification(hostnameVerificationEnabled)
                 .build();
 
-        admin.properties().createProperty("my-property",
-                new PropertyAdmin(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
-        admin.namespaces().createNamespace("my-property/use/my-ns");
+        admin.tenants().createTenant("my-property",
+                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
     }
 
     @AfterMethod
@@ -161,7 +161,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
         setup();
 
         try {
-            pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic")
+            pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic")
                     .subscriptionName("my-subscriber-name").subscribe();
             if (hostnameVerificationEnabled) {
                 Assert.fail("Connection should be failed due to hostnameVerification enabled");
@@ -197,10 +197,10 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
 
         setup();
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic")
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic")
                 .subscriptionName("my-subscriber-name").subscribe();
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic")
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic")
                 .create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;

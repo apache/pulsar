@@ -41,7 +41,7 @@ public class TopicName implements ServiceUnitId {
 
     private static final Logger log = LoggerFactory.getLogger(TopicName.class);
 
-    public static final String PUBLIC_PROPERTY = "public";
+    public static final String PUBLIC_TENANT = "public";
     public static final String DEFAULT_NAMESPACE = "default";
 
     private static final String PARTITIONED_TOPIC_SUFFIX = "-partition-";
@@ -49,7 +49,7 @@ public class TopicName implements ServiceUnitId {
     private final String completeTopicName;
 
     private final TopicDomain domain;
-    private final String property;
+    private final String tenant;
     private final String cluster;
     private final String namespacePortion;
     private final String localName;
@@ -71,14 +71,14 @@ public class TopicName implements ServiceUnitId {
         return TopicName.get(name);
     }
 
-    public static TopicName get(String domain, String property, String namespace, String topic) {
-        String name = domain + "://" + property + '/' + namespace + '/' + topic;
+    public static TopicName get(String domain, String tenant, String namespace, String topic) {
+        String name = domain + "://" + tenant + '/' + namespace + '/' + topic;
         return TopicName.get(name);
     }
 
-    public static TopicName get(String domain, String property, String cluster, String namespace,
+    public static TopicName get(String domain, String tenant, String cluster, String namespace,
             String topic) {
-        String name = domain + "://" + property + '/' + cluster + '/' + namespace + '/' + topic;
+        String name = domain + "://" + tenant + '/' + cluster + '/' + namespace + '/' + topic;
         return TopicName.get(name);
     }
 
@@ -113,7 +113,7 @@ public class TopicName implements ServiceUnitId {
                 if (parts.length == 3) {
                     completeTopicName = TopicDomain.persistent.name() + "://" + completeTopicName;
                 } else if (parts.length == 1) {
-                    completeTopicName = TopicDomain.persistent.name() + "://" + PUBLIC_PROPERTY + "/" + DEFAULT_NAMESPACE + "/" + parts[0];
+                    completeTopicName = TopicDomain.persistent.name() + "://" + PUBLIC_TENANT + "/" + DEFAULT_NAMESPACE + "/" + parts[0];
                 } else {
                     throw new IllegalArgumentException(
                         "Invalid short topic name '" + completeTopicName + "', it should be in the format of "
@@ -123,8 +123,8 @@ public class TopicName implements ServiceUnitId {
             this.completeTopicName = completeTopicName;
 
             // The fully qualified topic name can be in two different forms:
-            // new:    persistent://property/namespace/topic
-            // legacy: persistent://property/cluster/namespace/topic
+            // new:    persistent://tenant/namespace/topic
+            // legacy: persistent://tenant/cluster/namespace/topic
 
             List<String> parts = Splitter.on("://").limit(2).splitToList(completeTopicName);
             this.domain = TopicDomain.getEnum(parts.get(0));
@@ -132,8 +132,8 @@ public class TopicName implements ServiceUnitId {
             String rest = parts.get(1);
 
             // The rest of the name can be in different forms:
-            // new:    property/namespace/<localName>
-            // legacy: property/cluster/namespace/<localName>
+            // new:    tenant/namespace/<localName>
+            // legacy: tenant/cluster/namespace/<localName>
             // Examples of localName:
             // 1. some/name/xyz//
             // 2. /xyz-123/feeder-2
@@ -142,20 +142,20 @@ public class TopicName implements ServiceUnitId {
             parts = Splitter.on("/").limit(4).splitToList(rest);
             if (parts.size() == 3) {
                 // New topic name without cluster name
-                this.property = parts.get(0);
+                this.tenant = parts.get(0);
                 this.cluster = null;
                 this.namespacePortion = parts.get(1);
                 this.localName = parts.get(2);
                 this.partitionIndex = getPartitionIndex(completeTopicName);
-                this.namespaceName = NamespaceName.get(property, namespacePortion);
+                this.namespaceName = NamespaceName.get(tenant, namespacePortion);
             } else if (parts.size() == 4) {
                 // Legacy topic name that includes cluster name
-                this.property = parts.get(0);
+                this.tenant = parts.get(0);
                 this.cluster = parts.get(1);
                 this.namespacePortion = parts.get(2);
                 this.localName = parts.get(3);
                 this.partitionIndex = getPartitionIndex(completeTopicName);
-                this.namespaceName = NamespaceName.get(property, cluster, namespacePortion);
+                this.namespaceName = NamespaceName.get(tenant, cluster, namespacePortion);
             } else {
                 throw new IllegalArgumentException("Invalid topic name: " + completeTopicName);
             }
@@ -195,8 +195,8 @@ public class TopicName implements ServiceUnitId {
         return domain;
     }
 
-    public String getProperty() {
-        return property;
+    public String getTenant() {
+        return tenant;
     }
 
     @Deprecated
@@ -269,14 +269,18 @@ public class TopicName implements ServiceUnitId {
 
     /**
      * Returns the http rest path for use in the admin web service
+     * Eg:
+     *
+     *   * "persistent/my-tenant/my-namespace/my-topic"
+     *   * "non-persistent/my-tenant/my-namespace/my-topic"
      *
      * @return topic rest path
      */
     public String getRestPath() {
         if (isV2()) {
-            return String.format("%s/%s/%s", property, namespacePortion, getEncodedLocalName());
+            return String.format("%s/%s/%s/%s", domain, tenant, namespacePortion, getEncodedLocalName());
         } else {
-            return String.format("%s/%s/%s/%s", property, cluster, namespacePortion, getEncodedLocalName());
+            return String.format("%s/%s/%s/%s/%s", domain, tenant, cluster, namespacePortion, getEncodedLocalName());
         }
     }
 
@@ -286,15 +290,15 @@ public class TopicName implements ServiceUnitId {
      * @return the relative path to be used in persistence
      */
     public String getPersistenceNamingEncoding() {
-        // The convention is: domain://property/namespace/topic
-        // We want to persist in the order: property/namespace/domain/topic
+        // The convention is: domain://tenant/namespace/topic
+        // We want to persist in the order: tenant/namespace/domain/topic
 
-        // For legacy naming scheme, the convention is: domain://property/cluster/namespace/topic
-        // We want to persist in the order: property/cluster/namespace/domain/topic
+        // For legacy naming scheme, the convention is: domain://tenant/cluster/namespace/topic
+        // We want to persist in the order: tenant/cluster/namespace/domain/topic
         if (isV2()) {
-            return String.format("%s/%s/%s/%s", property, namespacePortion, domain, getEncodedLocalName());
+            return String.format("%s/%s/%s/%s", tenant, namespacePortion, domain, getEncodedLocalName());
         } else {
-            return String.format("%s/%s/%s/%s/%s", property, cluster, namespacePortion, domain, getEncodedLocalName());
+            return String.format("%s/%s/%s/%s/%s", tenant, cluster, namespacePortion, domain, getEncodedLocalName());
         }
     }
 
@@ -303,15 +307,15 @@ public class TopicName implements ServiceUnitId {
      * <p>
      * Example:
      * <p>
-     * persistent://property/cluster/namespace/completeTopicName -> persistent/property/cluster/namespace/completeTopicName
+     * persistent://tenant/cluster/namespace/completeTopicName -> persistent/tenant/cluster/namespace/completeTopicName
      *
      * @return
      */
     public String getLookupName() {
         if (isV2()) {
-            return String.format("%s/%s/%s/%s", domain, property, namespacePortion, getEncodedLocalName());
+            return String.format("%s/%s/%s/%s", domain, tenant, namespacePortion, getEncodedLocalName());
         } else {
-            return String.format("%s/%s/%s/%s/%s", domain, property, cluster, namespacePortion, getEncodedLocalName());
+            return String.format("%s/%s/%s/%s/%s", domain, tenant, cluster, namespacePortion, getEncodedLocalName());
         }
     }
 
@@ -320,7 +324,7 @@ public class TopicName implements ServiceUnitId {
     }
 
     public String getSchemaName() {
-        return getProperty()
+        return getTenant()
             + "/" + getNamespacePortion()
             + "/" + getLocalName();
     }

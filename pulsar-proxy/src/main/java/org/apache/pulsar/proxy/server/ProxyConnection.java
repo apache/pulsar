@@ -23,11 +23,18 @@ import static com.google.common.base.Preconditions.checkArgument;
 import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
 
-import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
+import org.apache.pulsar.client.impl.ClientCnx;
+import org.apache.pulsar.client.impl.ConnectionPool;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarHandler;
 import org.apache.pulsar.common.api.proto.PulsarApi;
@@ -51,16 +58,18 @@ import io.prometheus.client.Gauge;
  *
  */
 public class ProxyConnection extends PulsarHandler implements FutureListener<Void> {
-
+    // ConnectionPool is used by the proxy to issue lookup requests
+    private PulsarClientImpl client;
     private ProxyService service;
-    String clientAuthRole = null;
-    String clientAuthData = null;
-    String clientAuthMethod = null;
+    private Authentication clientAuthentication;
     AuthenticationDataSource authenticationData;
     private State state;
 
     private LookupProxyHandler lookupProxyHandler = null;
     private DirectProxyHandler directProxyHandler = null;
+    String clientAuthRole;
+    String clientAuthData;
+    String clientAuthMethod;
 
     enum State {
         Init,
@@ -77,6 +86,10 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
         Closed,
     }
 
+    ConnectionPool getConnectionPool() {
+        return client.getCnxPool();
+    }
+
     private static final Gauge activeConnections = Gauge
             .build("pulsar_proxy_active_connections", "Number of connections currently active in the proxy").create()
             .register();
@@ -88,7 +101,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
     static final Counter rejectedConnections = Counter
             .build("pulsar_proxy_rejected_connections", "Counter for connections rejected due to throttling").create()
             .register();
-    
+
     public ProxyConnection(ProxyService proxyService) {
         super(30, TimeUnit.SECONDS);
         this.service = proxyService;
@@ -111,7 +124,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
         super.channelUnregistered(ctx);
         activeConnections.dec();
     }
-    
+
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
@@ -126,6 +139,16 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
         if (directProxyHandler != null && directProxyHandler.outboundChannel != null) {
             directProxyHandler.outboundChannel.close();
         }
+
+        LOG.info("[{}] Connection closed", remoteAddress);
+    }
+
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        super.exceptionCaught(ctx, cause);
+        LOG.warn("[{}] Got exception {} : {}", remoteAddress, cause.getClass().getSimpleName(), cause.getMessage(),
+                ClientCnx.isKnownException(cause) ? null : cause);
+        ctx.close();
     }
 
     @Override
@@ -138,7 +161,8 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             break;
 
         case ProxyConnectionToBroker:
-            // Pass the buffer to the outbound connection and schedule next read only
+            // Pass the buffer to the outbound connection and schedule next read
+            // only
             // if we can write on the connection
             directProxyHandler.outboundChannel.writeAndFlush(msg).addListener(this);
             break;
@@ -150,7 +174,8 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
 
     @Override
     public void operationComplete(Future<Void> future) throws Exception {
-        // This is invoked when the write operation on the paired connection is completed
+        // This is invoked when the write operation on the paired connection is
+        // completed
         if (future.isSuccess()) {
             ctx.read();
         } else {
@@ -178,20 +203,22 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             return;
         }
 
-        if (!verifyAuthenticationIfNeeded(connect)) {
+        if (!authenticateAndCreateClient(connect)) {
             ctx.writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, "Failed to authenticate"));
             close();
             return;
         }
 
         if (connect.hasProxyToBrokerUrl()) {
-            // Client already knows which broker to connect. Let's open a connection
+            // Client already knows which broker to connect. Let's open a
+            // connection
             // there and just pass bytes in both directions
             state = State.ProxyConnectionToBroker;
             directProxyHandler = new DirectProxyHandler(service, this, connect.getProxyToBrokerUrl());
             cancelKeepAliveTask();
         } else {
-            // Client is doing a lookup, we can consider the handshake complete and we'll take care of just topics and
+            // Client is doing a lookup, we can consider the handshake complete
+            // and we'll take care of just topics and
             // partitions metadata lookups
             state = State.ProxyLookupRequests;
             lookupProxyHandler = new LookupProxyHandler(service, this);
@@ -218,14 +245,39 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
     private void close() {
         state = State.Closed;
         ctx.close();
+        try {
+            client.close();
+        } catch (PulsarClientException e) {
+            LOG.error("Unable to close pulsar client - {}. Error - {}", client, e.getMessage());
+        }
     }
 
-    private boolean verifyAuthenticationIfNeeded(CommandConnect connect) {
-        if (!service.getConfiguration().isAuthenticationEnabled()) {
-            return true;
+    ClientConfigurationData createClientConfiguration() throws UnsupportedAuthenticationException {
+        ClientConfigurationData clientConf = new ClientConfigurationData();
+        clientConf.setServiceUrl(service.getServiceUrl());
+        ProxyConfiguration proxyConfig = service.getConfiguration();
+        if (proxyConfig.getBrokerClientAuthenticationPlugin() != null) {
+            clientConf.setAuthentication(AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                    proxyConfig.getBrokerClientAuthenticationParameters()));
         }
+        if (proxyConfig.isTlsEnabledWithBroker()) {
+            clientConf.setUseTls(true);
+            clientConf.setTlsTrustCertsFilePath(proxyConfig.getBrokerClientTrustCertsFilePath());
+            clientConf.setTlsAllowInsecureConnection(proxyConfig.isTlsAllowInsecureConnection());
+        }
+        return clientConf;
+    }
 
+    private boolean authenticateAndCreateClient(CommandConnect connect) {
         try {
+            ClientConfigurationData clientConf = createClientConfiguration();
+            this.clientAuthentication = clientConf.getAuthentication();
+
+            if (!service.getConfiguration().isAuthenticationEnabled()) {
+                this.client = new PulsarClientImpl(clientConf, service.getWorkerGroup());
+                return true;
+            }
+            
             String authMethod = "none";
             if (connect.hasAuthMethodName()) {
                 authMethod = connect.getAuthMethodName();
@@ -234,11 +286,6 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
                 authMethod = connect.getAuthMethod().name().substring(10).toLowerCase();
             }
             String authData = connect.getAuthData().toStringUtf8();
-
-            if (service.getConfiguration().forwardAuthorizationCredentials()) {
-                clientAuthData = authData;
-                clientAuthMethod = authMethod;
-            }
             ChannelHandler sslHandler = ctx.channel().pipeline().get("tls");
             SSLSession sslSession = null;
             if (sslHandler != null) {
@@ -248,11 +295,32 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             clientAuthRole = service.getAuthenticationService().authenticate(authenticationData, authMethod);
             LOG.info("[{}] Client successfully authenticated with {} role {}", remoteAddress, authMethod,
                     clientAuthRole);
+            if (service.getConfiguration().forwardAuthorizationCredentials()) {
+                this.clientAuthData = authData;
+                this.clientAuthMethod = authMethod;
+            }
+            this.client = createClient(clientConf, this.clientAuthData, this.clientAuthMethod);
+
             return true;
-        } catch (AuthenticationException e) {
+        } catch (Exception e) {
             LOG.warn("[{}] Unable to authenticate: {}", remoteAddress, e.getMessage());
             return false;
         }
+    }
+
+    private PulsarClientImpl createClient(final ClientConfigurationData clientConf, final String clientAuthData,
+            final String clientAuthMethod) throws PulsarClientException {
+        return new PulsarClientImpl(clientConf, service.getWorkerGroup(),
+                new ConnectionPool(clientConf, service.getWorkerGroup(), () -> new ProxyClientCnx(clientConf,
+                        service.getWorkerGroup(), clientAuthRole, clientAuthData, clientAuthMethod)));
+    }
+
+    long newRequestId() {
+        return client.newRequestId();
+    }
+
+    public Authentication getClientAuthentication() {
+        return clientAuthentication;
     }
 
     @Override
