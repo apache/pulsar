@@ -29,13 +29,10 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -1014,6 +1011,32 @@ public class CmdFunctions extends CmdBase {
                     }
                 }
             });
+            Timer statusCheckTimer = new Timer();
+            statusCheckTimer.scheduleAtFixedRate(new TimerTask() {
+                    @Override
+                    public void run() {
+                        CompletableFuture<String>[] futures = new CompletableFuture[spawners.size()];
+                        int index = 0;
+                        for (RuntimeSpawner spawner : spawners) {
+                            futures[index++] = spawner.getFunctionStatusAsJson();
+                        }
+                        try {
+                            CompletableFuture.allOf(futures).get(5, TimeUnit.SECONDS);
+                            for (index = 0; index < futures.length; ++index) {
+                                String json = futures[index].get();
+                                Gson gson = new GsonBuilder().setPrettyPrinting().create();
+                                log.info(gson.toJson(new JsonParser().parse(json)));
+                            }
+                        } catch (Exception ex) {
+                            log.error("Could not get status from all local instances");
+                        }
+                    }
+                }, 30000, 30000);
+            Runtime.getRuntime().addShutdownHook(new Thread() {
+                    public void run() {
+                        statusCheckTimer.cancel();
+                    }
+                });
             for (RuntimeSpawner spawner : spawners) {
                 spawner.join();
                 log.info("RuntimeSpawner quit because of {}", spawner.getRuntime().getDeathException());
