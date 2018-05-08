@@ -164,7 +164,7 @@ This product contains a forked and modified version of Tomcat Native
     * ASL2
   * HOMEPAGE:
     * http://tomcat.apache.org/native-doc/
-* https://svn.apache.org/repos/asf/tomcat/native/
+    * https://svn.apache.org/repos/asf/tomcat/native/
 
 ----------------------------------------------------------------------------------------------------
 
