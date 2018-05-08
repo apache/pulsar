@@ -26,6 +26,7 @@ import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.DefaultConsumer;
 import com.rabbitmq.client.Envelope;
 import org.apache.pulsar.io.core.PushSource;
+import org.apache.pulsar.io.core.Record;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
