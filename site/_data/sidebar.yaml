@@ -156,6 +156,8 @@ groups:
     endpoint: BinaryProtocol
   - title: Codebase
     endpoint: Codebase
+  - title: Custom schema storage
+    endpoint: schema-storage
   - title: Modular load manager
     endpoint: ModularLoadManager
 

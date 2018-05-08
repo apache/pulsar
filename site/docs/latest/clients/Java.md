@@ -1,6 +1,6 @@
 ---
 title: The Pulsar Java client
-tags: [client, java]
+tags: [client, java, schema, schema registry]
 ---
 
 <!--
@@ -306,22 +306,6 @@ consumerBuilder
         });
 ```
 
-## Message schemas {#schemas}
-
-In Pulsar, all message data consists of byte arrays. Message **schemas** enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a [producer](#producers) without specifying a schema, then the producer can only produce messages of type `byte[]`. Here's an example:
-
-```java
-Producer producer = client.newProducer()
-        .topic(topic)
-        .create();
-```
-
-The producer above is equivalent to a `Producer<byte[]>` (in fact, you should always explicitly specify the type). If you'd like
-
-
-
-The same schema-based logic applies to [consumers](#consumers) and [readers](#readers).
-
 ## Reader interface {#readers}
 
 With the [reader interface](../../getting-started/ConceptsAndArchitecture#reader-interface), Pulsar clients can "manually position" themselves within a topic, reading all messages from a specified message onward. The Pulsar API for Java enables you to create  {% javadoc Reader client org.apache.pulsar.client.api.Reader %} objects by specifying a {% popover topic %}, a {% javadoc MessageId client org.apache.pulsar.client.api.MessageId %}, and {% javadoc ReaderConfiguration client org.apache.pulsar.client.api.ReaderConfiguration %}.
@@ -346,6 +330,86 @@ while (true) {
 In the example above, a `Reader` object is instantiated for a specific topic and message (by ID); the reader then iterates over each message in the topic after the message identified by `msgIdBytes` (how that value is obtained depends on the application).
 
 The code sample above shows pointing the `Reader` object to a specific message (by ID), but you can also use `MessageId.earliest` to point to the earliest available message on the topic of `MessageId.latest` to point to the most recent available message.
+
+## Schemas
+
+In Pulsar, all message data consists of byte arrays "under the hood." [Message schemas](../../getting-started/ConceptsAndArchitecture#schema-registry) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a [producer](#producers) without specifying a schema, then the producer can only produce messages of type `byte[]`. Here's an example:
+
+```java
+Producer producer = client.newProducer()
+        .topic(topic)
+        .create();
+```
+
+The producer above is equivalent to a `Producer<byte[]>` (in fact, you should *always* explicitly specify the type). If you'd like to use a producer for a different type of data, you'll need to specify a **schema** that informs Pulsar which data type will be transmitted over the {% popover topic %}.
+
+### Schema example
+
+Let's say that you have a `SensorReading` class that you'd like to transmit over a Pulsar topic:
+
+```java
+public class SensorReading {
+    public float temperature;
+
+    public SensorReading(float temperature) {
+        this.temperature = temperature;
+    }
+
+    // A no-arg constructor is required
+    public SensorReading() {
+    }
+
+    public float getTemperature() {
+        return temperature;
+    }
+
+    public void setTemperature(float temperature) {
+        this.temperature = temperature;
+    }
+}
+```
+
+You could then create a `Producer<SensorReading>` (or `Consumer<SensorReading>`) like so:
+
+```java
+Producer<SensorReading> producer = client.newProducer(JSONSchema.of(SensorReading.class))
+        .topic("sensor-readings")
+        .create();
+```
+
+The following schema formats are currently available for Java:
+
+* No schema or the byte array schema (which can be applied using `Schema.BYTES`):
+
+  ```java
+  Producer<byte[]> bytesProducer = client.newProducer(Schema.BYTES)
+        .topic("some-raw-bytes-topic")
+        .create();
+  ```
+
+  Or, equivalently:
+
+  ```java
+  Producer<byte[]> bytesProducer = client.newProducer()
+        .topic("some-raw-bytes-topic")
+        .create();
+  ```
+
+* `String` for normal UTF-8-encoded string data. This schema can be applied using `Schema.STRING`:
+
+  ```java
+  Producer<String> stringProducer = client.newProducer(Schema.STRING)
+        .topic("some-string-topic")
+        .create();
+  ```
+* JSON schemas can be created for POJOs using the `JSONSchema` class. Here's an example:
+
+  ```java
+  Schema<MyPojo> pojoSchema = JSONSchema.of(MyPojo.class);
+  Producer<MyPojo> pojoProducer = client.newProducer(pojoSchema)
+        .topic("some-pojo-topic")
+        .create();
+  ```
 
 ## Authentication
 
