@@ -39,7 +39,7 @@ public class ByteBufferSchema implements Schema<ByteBuffer> {
     public SchemaInfo getSchemaInfo() {
         SchemaInfo info = new SchemaInfo();
         info.setName("ByteBuffer");
-        info.setType(SchemaType.NONE);
+        info.setType(SchemaType.BYTE_BUFFER);
         info.setSchema(new byte[0]);
         return info;
     }

@@ -35,5 +35,10 @@ public enum SchemaType {
     /**
      * JSON object encoding and validation
      */
-    JSON
+    JSON,
+
+    /**
+     * Byte buffer schema
+     */
+    BYTE_BUFFER
 }
