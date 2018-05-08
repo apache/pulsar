@@ -20,7 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.connect.core.Record;
+import org.apache.pulsar.io.core.Record;
 
 /**
  * Abstract class that implements message api and connect record api.
