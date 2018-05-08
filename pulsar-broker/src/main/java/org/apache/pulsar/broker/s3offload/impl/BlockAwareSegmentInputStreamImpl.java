@@ -64,7 +64,7 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
     // how many entries want to read from ReadHandle each time.
     private static final int ENTRIES_PER_READ = 100;
     // buf the entry size and entry id.
-    private static final int ENTRY_HEADER_SIZE = 4 /* entry size*/ + 8 /* entry id */;
+    static final int ENTRY_HEADER_SIZE = 4 /* entry size*/ + 8 /* entry id */;
     // Keep a list of all entries ByteBuf, each ByteBuf contains 2 buf: entry header and entry content.
     private List<ByteBuf> entriesByteBuf = null;
 
@@ -83,18 +83,14 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
         checkState(bytesReadOffset >= DataBlockHeaderImpl.getDataStartOffset());
         checkState(bytesReadOffset < blockSize);
 
-        // once reach the end of entry buffer, start a new read.
-        if (bytesReadOffset < dataBlockFullOffset && entriesByteBuf.isEmpty()) {
+        // once reach the end of entry buffer, read more, if there is more
+        if (bytesReadOffset < dataBlockFullOffset
+            && entriesByteBuf.isEmpty()
+            && startEntryId + blockEntryCount <= ledger.getLastAddConfirmed()) {
             entriesByteBuf = readNextEntriesFromLedger(startEntryId + blockEntryCount, ENTRIES_PER_READ);
         }
 
-        if ((!entriesByteBuf.isEmpty()) && bytesReadOffset + entriesByteBuf.get(0).readableBytes() > blockSize) {
-            // no space for a new entry, set data block full, return end padding
-            if (dataBlockFullOffset == blockSize) {
-                dataBlockFullOffset = bytesReadOffset;
-            }
-            return BLOCK_END_PADDING[(bytesReadOffset++ - dataBlockFullOffset) % BLOCK_END_PADDING.length];
-        } else  {
+        if (!entriesByteBuf.isEmpty() && bytesReadOffset + entriesByteBuf.get(0).readableBytes() <= blockSize) {
             // always read from the first ByteBuf in the list, once read all of its content remove it.
             ByteBuf entryByteBuf = entriesByteBuf.get(0);
             int ret = entryByteBuf.readByte();
@@ -107,6 +103,13 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
             }
 
             return ret;
+        } else {
+            // no space for a new entry or there are no more entries
+            // set data block full, return end padding
+            if (dataBlockFullOffset == blockSize) {
+                dataBlockFullOffset = bytesReadOffset;
+            }
+            return BLOCK_END_PADDING[(bytesReadOffset++ - dataBlockFullOffset) % BLOCK_END_PADDING.length];
         }
     }
 
