@@ -42,6 +42,7 @@ import org.apache.pulsar.functions.source.PulsarSource;
 import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.SourceConfig;
+import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.Source;
 
