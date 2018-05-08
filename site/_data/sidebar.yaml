@@ -134,6 +134,8 @@ groups:
 - title: Cookbooks
   dir: cookbooks
   docs:
+  - title: Pulsar IO
+    endpoint: pulsar-io
   - title: Message deduplication
     endpoint: message-deduplication
   - title: Non-persistent messaging
