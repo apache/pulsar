@@ -536,10 +536,14 @@ Reader reader = pulsarClient.createReader(topic, id, new ReaderConfiguration());
 
 ## Pulsar IO
 
-Messaging systems are most useful when they can interact with external systems like databases and other messaging systems. **Pulsar IO** is a feature of Pulsar that enables you to easily create, deploy, and manage Pulsar **connectors**. Connectors are of two types:
+Messaging systems are most useful when they can interact with external systems like databases and other messaging systems. **Pulsar IO** is a feature of Pulsar that enables you to easily create, deploy, and manage Pulsar **connectors** that interact with external systems, such as [Apache Cassandra](https://cassandra.apache.org), [Aerospike](https://www.aerospike.com), and many others.
 
-* Data is fed into Pulsar by **sources**
-* Data is fed into **sinks**
+### Sources and sinks
+
+Pulsar IO connectors are of two types:
+
+* Data is fed into Pulsar by **sources**. Common sources include other messaging systems and "firehose"-style data pipeline APIs.
+* Data is fed into **sinks**. Common sinks include SQL and NoSQL databases.
 
 This diagram illustrates the relationship between
 
@@ -555,17 +559,3 @@ Pulsar IO connectors can be managed via the [`pulsar-admin`](../../reference/Cli
 The following sources and sinks are currently available:
 
 {% include connectors.html %}
-
-
-
-
-
-
-
-
-### Sources
-
-
-
-### Sinks
-
