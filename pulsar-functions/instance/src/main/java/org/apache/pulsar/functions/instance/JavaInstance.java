@@ -23,9 +23,9 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.connect.core.Source;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.apache.pulsar.io.core.Source;
 
 import org.apache.pulsar.functions.source.PulsarSource;
 import org.slf4j.Logger;

@@ -24,7 +24,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.connect.core.Record;
+import org.apache.pulsar.io.core.Record;
 
 @Data
 @Builder
