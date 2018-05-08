@@ -536,6 +536,12 @@ Reader reader = pulsarClient.createReader(topic, id, new ReaderConfiguration());
 
 ## Pulsar IO
 
+**Pulsar IO** is a
+
+Currently available connectors:
+
+{% include connectors.html %}
+
 [`pulsar-admin`](../../reference/CliTools#pulsar-admin)
 
 
