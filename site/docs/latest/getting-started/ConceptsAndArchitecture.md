@@ -536,21 +536,36 @@ Reader reader = pulsarClient.createReader(topic, id, new ReaderConfiguration());
 
 ## Pulsar IO
 
-**Pulsar IO** is a
+Messaging systems are most useful when they can interact with external systems like databases and other messaging systems. **Pulsar IO** is a feature of Pulsar that enables you to easily create, deploy, and manage Pulsar **connectors**. Connectors are of two types:
 
-Currently available connectors:
+* Data is fed into Pulsar by **sources**
+* Data is fed into **sinks**
+
+This diagram illustrates the relationship between
+
+
+{% include figure.html src="/img/pulsar-io.png" alt="Pulsar IO diagram" caption="Pulsar IO connectors (sources and sinks)" width="80" %}
+
+### Working with connectors
+
+Pulsar IO connectors can be managed via the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) CLI tool, in particular the [`source`](../../reference/CliTools#pulsar-admin-source) and [`sink`](../../reference/CliTools#pulsar-admin-sink) commands.
+
+{% include admonition.html type="info" content="For a guide to managing connectors, see the [Pulsar IO cookbook](../../cookbooks/pulsar-io#managing-connectors)." %}
+
+The following sources and sinks are currently available:
 
 {% include connectors.html %}
 
-[`pulsar-admin`](../../reference/CliTools#pulsar-admin)
 
 
-{% include figure.html src="/img/pulsar-io.png" alt="Pulsar IO diagram" width="80" %}
+
+
+
+
 
 ### Sources
 
-[`source`](../../reference/CliTools#pulsar-admin-source)
+
 
 ### Sinks
 
-[`sink`](../../reference/CliTools#pulsar-admin-sink)
