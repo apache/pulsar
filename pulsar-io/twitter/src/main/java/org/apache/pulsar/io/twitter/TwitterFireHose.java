@@ -29,6 +29,7 @@ import com.twitter.hbc.httpclient.BasicClient;
 import com.twitter.hbc.httpclient.auth.Authentication;
 import com.twitter.hbc.httpclient.auth.OAuth1;
 import org.apache.pulsar.io.core.PushSource;
+import org.apache.pulsar.io.core.Record;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
