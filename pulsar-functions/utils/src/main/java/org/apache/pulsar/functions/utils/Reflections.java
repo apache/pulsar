@@ -154,6 +154,7 @@ public class Reflections {
         try {
             return createInstance(userClassName, loadJar(jar));
         } catch (Exception ex) {
+            ex.printStackTrace();
             return null;
         }
     }
