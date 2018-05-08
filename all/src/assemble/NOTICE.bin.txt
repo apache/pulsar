@@ -173,3 +173,10 @@ Copyright 1995-2016 Mort Bay Consulting Pty Ltd.
 
 The Jetty Web Container is Copyright Mort Bay Consulting Pty Ltd
 unless otherwise noted.
+
+The UnixCrypt.java code implements the one way cryptography used by
+Unix systems for simple password protection.  Copyright 1996 Aki Yoshida,
+modified April 2001  by Iris Van den Broeke, Daniel Deville.
+Permission to use, copy, modify and distribute UnixCrypt
+for non-commercial or commercial purposes and without fee is
+granted provided that the copyright notice appears in all copies.
