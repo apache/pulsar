@@ -24,7 +24,6 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.pulsar.io.core.Message;
 import org.apache.pulsar.io.core.PushSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
