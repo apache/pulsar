@@ -40,6 +40,7 @@ import org.apache.pulsar.functions.shaded.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.source.PulsarSource;
 import org.apache.pulsar.functions.utils.FunctionConfig;
+import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.SourceConfig;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.Source;
