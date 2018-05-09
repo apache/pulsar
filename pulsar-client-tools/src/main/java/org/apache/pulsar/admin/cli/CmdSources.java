@@ -134,7 +134,7 @@ public class CmdSources extends CmdBase {
         @Parameter(names = "--sourceConfigFile", description = "The path to a YAML config file specifying the "
                 + "source's configuration")
         protected String sourceConfigFile;
-        @Parameter(names = "--cpu", description = "The cpu that need to be allocated per function instance(applicable only to docker runtime)")
+        @Parameter(names = "--cpu", description = "The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)")
         protected Double cpu;
         @Parameter(names = "--ram", description = "The ram in bytes that need to be allocated per function instance(applicable only to process/docker runtime)")
         protected Long ram;

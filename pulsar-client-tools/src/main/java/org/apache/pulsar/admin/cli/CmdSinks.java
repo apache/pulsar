@@ -134,7 +134,7 @@ public class CmdSinks extends CmdBase {
         @Parameter(names = "--sinkConfigFile", description = "The path to a YAML config file specifying the "
                 + "sink's configuration")
         protected String sinkConfigFile;
-        @Parameter(names = "--cpu", description = "The cpu that need to be allocated per function instance(applicable only to docker runtime)")
+        @Parameter(names = "--cpu", description = "The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)")
         protected Double cpu;
         @Parameter(names = "--ram", description = "The ram in bytes that need to be allocated per function instance(applicable only to process/docker runtime)")
         protected Long ram;

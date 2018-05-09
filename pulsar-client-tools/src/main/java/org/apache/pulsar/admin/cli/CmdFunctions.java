@@ -220,7 +220,7 @@ public class CmdFunctions extends CmdBase {
         protected String userConfigString;
         @Parameter(names = "--parallelism", description = "The function's parallelism factor (i.e. the number of function instances to run)")
         protected String parallelism;
-        @Parameter(names = "--cpu", description = "The cpu that need to be allocated per function instance(applicable only to docker runtime)")
+        @Parameter(names = "--cpu", description = "The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)")
         protected Double cpu;
         @Parameter(names = "--ram", description = "The ram in bytes that need to be allocated per function instance(applicable only to process/docker runtime)")
         protected Long ram;
