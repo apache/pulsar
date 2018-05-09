@@ -484,6 +484,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         } catch (Exception e) {
             log.info("Error occurred executing open for source: {}",
                     sourceSpec.getClassName(), e);
+            throw e;
         }
     }
 
@@ -523,6 +524,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         } catch (Exception e) {
             log.info("Error occurred executing open for sink: {}",
                     sinkSpec.getClassName(), e);
+            throw e;
         }
     }
 }
