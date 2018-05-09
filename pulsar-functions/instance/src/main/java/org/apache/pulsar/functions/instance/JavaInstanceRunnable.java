@@ -479,12 +479,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
         this.source = (Source) object;
 
-        try {
-            this.source.open(new Gson().fromJson(sourceSpec.getConfigs(), Map.class));
-        } catch (Exception e) {
-            log.info("Error occurred executing open for source: {}",
-                    sourceSpec.getClassName(), e);
-        }
+        this.source.open(new Gson().fromJson(sourceSpec.getConfigs(), Map.class));
     }
 
     public void setupOutput() throws Exception {
@@ -518,11 +513,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         } else {
             throw new RuntimeException("Sink does not implement correct interface");
         }
-        try {
-            this.sink.open(new Gson().fromJson(sinkSpec.getConfigs(), Map.class));
-        } catch (Exception e) {
-            log.info("Error occurred executing open for sink: {}",
-                    sinkSpec.getClassName(), e);
-        }
+        this.sink.open(new Gson().fromJson(sinkSpec.getConfigs(), Map.class));
     }
 }
