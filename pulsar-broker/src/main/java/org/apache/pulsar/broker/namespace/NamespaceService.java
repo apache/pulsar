@@ -42,6 +42,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import org.apache.bookkeeper.util.SafeRunnable;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -632,12 +633,16 @@ public class NamespaceService {
 
         // If success updateNamespaceBundles, then do invalidateBundleCache and unload.
         // Else retry splitAndOwnBundleOnceAndRetry.
-        updateFuture.whenCompleteAsync((r, t)-> {
+        updateFuture.whenComplete((r, t)-> {
             if (t != null) {
                 // retry several times on BadVersion
                 if ((t instanceof ServerMetadataException) && (counter.decrementAndGet() >= 0)) {
-                    pulsar.getOrderedExecutor().submit(
-                        () -> splitAndOwnBundleOnceAndRetry(bundle, unload, counter, unloadFuture));
+                    pulsar.getOrderedExecutor().submit(new SafeRunnable() {
+                        @Override
+                        public void safeRun() {
+                            splitAndOwnBundleOnceAndRetry(bundle, unload, counter, unloadFuture);
+                        }
+                    });
                 } else {
                     // Retry enough, or meet other exception
                     String msg2 = format(" %s not success update nsBundles, counter %d, reason %s",
@@ -678,7 +683,7 @@ public class NamespaceService {
                 unloadFuture.completeExceptionally(new ServiceUnitNotReadyException(msg1));
             }
             return;
-        }, pulsar.getOrderedExecutor());
+        });
     }
 
     /**
