@@ -133,6 +133,8 @@ public class CmdSinks extends CmdBase {
         @Parameter(names = "--sinkConfigFile", description = "The path to a YAML config file specifying the "
                 + "sink's configuration")
         protected String sinkConfigFile;
+        @Parameter(names = "--sinkConfig", description = "Sink config key/values")
+        protected String sinkConfigString;
 
         protected SinkConfig sinkConfig;
 
@@ -198,6 +200,12 @@ public class CmdSinks extends CmdBase {
 
             if (null == jarFile) {
                 throw new IllegalArgumentException("Connector JAR not specfied");
+            }
+
+            if (null != sinkConfigString) {
+                Type type = new TypeToken<Map<String, String>>(){}.getType();
+                Map<String, Object> sinkConfigMap = new Gson().fromJson(sinkConfigString, type);
+                sinkConfig.setConfigs(sinkConfigMap);
             }
         }
 

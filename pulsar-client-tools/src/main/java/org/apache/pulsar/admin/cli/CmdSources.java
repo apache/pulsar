@@ -133,6 +133,8 @@ public class CmdSources extends CmdBase {
         @Parameter(names = "--sourceConfigFile", description = "The path to a YAML config file specifying the "
                 + "source's configuration")
         protected String sourceConfigFile;
+        @Parameter(names = "--sourceConfig", description = "Source config key/values")
+        protected String sourceConfigString;
 
         protected SourceConfig sourceConfig;
 
@@ -183,6 +185,12 @@ public class CmdSources extends CmdBase {
 
             if (null == jarFile) {
                 throw new IllegalArgumentException("Connector JAR not specfied");
+            }
+
+            if (null != sourceConfigString) {
+                Type type = new TypeToken<Map<String, String>>(){}.getType();
+                Map<String, Object> sourceConfigMap = new Gson().fromJson(sourceConfigString, type);
+                sourceConfig.setConfigs(sourceConfigMap);
             }
         }
 
