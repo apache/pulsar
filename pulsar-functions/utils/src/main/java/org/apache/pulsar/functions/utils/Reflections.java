@@ -153,9 +153,9 @@ public class Reflections {
     public static Object createInstance(String userClassName, java.io.File jar) {
         try {
             return createInstance(userClassName, loadJar(jar));
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            return null;
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+            throw new RuntimeException(e);
         }
     }
 
