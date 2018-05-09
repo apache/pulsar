@@ -43,7 +43,7 @@
     under the License.
 
 -->
-<title>Using Pulsar as a message queue</title>
+<title>Custom schema storage</title>
 
 <meta charset="utf-8">
 
@@ -841,15 +841,15 @@
     <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
       <section class="docs-header">
         <h1 class="docs-title">
-          Using Pulsar as a message queue
+          Custom schema storage
           
           
         </h1>
-        <span class="docs-lead">Although Pulsar is typically known as a real-time messaging system, it's also an excellent choice for a queuing system</span><br />
+        
         <section class="tags">
           
-          <!-- <span class="badge badge-pill badge-primary">clients</span> -->
-          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-clients">clients</button>
+          <!-- <span class="badge badge-pill badge-primary">schema</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-schema">schema</button>
           <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -870,247 +870,17 @@
     under the License.
 
 -->
-<div class="modal fade" id="modal-clients">
+<div class="modal fade" id="modal-schema">
   <div class="modal-dialog" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Pages with the <strong>clients</strong> tag</h5>
+        <h5 class="modal-title">Pages with the <strong>schema</strong> tag</h5>
       </div>
       <div class="modal-body">
         <ul>
           
           
           
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/cookbooks/Encryption/">Pulsar Encryption</a></li>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/cookbooks/PartitionedTopics/">Partitioned topics</a></li>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/getting-started/Pulsar-2.0/">Pulsar 2.0</a></li>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/cookbooks/message-queue/">Using Pulsar as a message queue</a></li>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-        </ul>
-      </div>
-    </div>
-  </div>
-</div>
-
-          
-          <!-- <span class="badge badge-pill badge-primary">java</span> -->
-          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-java">java</button>
-          <!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<div class="modal fade" id="modal-java">
-  <div class="modal-dialog" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Pages with the <strong>java</strong> tag</h5>
-      </div>
-      <div class="modal-body">
-        <ul>
-          
-          
-          
-          
-          <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
           
           
           
@@ -1194,13 +964,11 @@
           
           
           
-          <li><a href="/docs/latest/adaptors/PulsarSpark/">Spark Streaming Pulsar receiver</a></li>
           
           
           
           
           
-          <li><a href="/docs/latest/adaptors/PulsarStorm/">Pulsar adaptor for Apache Storm</a></li>
           
           
           
@@ -1264,7 +1032,6 @@
           
           
           
-          <li><a href="/docs/latest/cookbooks/message-queue/">Using Pulsar as a message queue</a></li>
           
           
           
@@ -1276,7 +1043,6 @@
           
           
           
-          <li><a href="/docs/latest/admin-api/overview/">The Pulsar admin interface</a></li>
           
           
           
@@ -1290,9 +1056,7 @@
           
           
           
-          
-          
-          
+          <li><a href="/docs/latest/project/schema-storage/">Custom schema storage</a></li>
           
           
           
@@ -1308,8 +1072,8 @@
 </div>
 
           
-          <!-- <span class="badge badge-pill badge-primary">python</span> -->
-          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-python">python</button>
+          <!-- <span class="badge badge-pill badge-primary">schema registry</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-schema-registry">schema registry</button>
           <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -1330,11 +1094,11 @@
     under the License.
 
 -->
-<div class="modal fade" id="modal-python">
+<div class="modal fade" id="modal-schema-registry">
   <div class="modal-dialog" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Pages with the <strong>python</strong> tag</h5>
+        <h5 class="modal-title">Pages with the <strong>schema registry</strong> tag</h5>
       </div>
       <div class="modal-body">
         <ul>
@@ -1388,6 +1152,7 @@
           
           
           
+          <li><a href="/docs/latest/clients/Java/">The Pulsar Java client</a></li>
           
           
           
@@ -1430,7 +1195,6 @@
           
           
           
-          <li><a href="/docs/latest/clients/Python/">The Pulsar Python client</a></li>
           
           
           
@@ -1452,7 +1216,6 @@
           
           
           
-          <li><a href="/docs/latest/clients/WebSocket/">Pulsar's WebSocket API</a></li>
           
           
           
@@ -1492,7 +1255,6 @@
           
           
           
-          <li><a href="/docs/latest/cookbooks/message-queue/">Using Pulsar as a message queue</a></li>
           
           
           
@@ -1518,459 +1280,7 @@
           
           
           
-          
-          
-          
-          
-          
-          
-          
-          
-          
-        </ul>
-      </div>
-    </div>
-  </div>
-</div>
-
-          
-          <!-- <span class="badge badge-pill badge-primary">message queue</span> -->
-          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-message-queue">message queue</button>
-          <!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<div class="modal fade" id="modal-message-queue">
-  <div class="modal-dialog" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Pages with the <strong>message queue</strong> tag</h5>
-      </div>
-      <div class="modal-body">
-        <ul>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/cookbooks/message-queue/">Using Pulsar as a message queue</a></li>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-        </ul>
-      </div>
-    </div>
-  </div>
-</div>
-
-          
-          <!-- <span class="badge badge-pill badge-primary">cookbook</span> -->
-          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-cookbook">cookbook</button>
-          <!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<div class="modal fade" id="modal-cookbook">
-  <div class="modal-dialog" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Pages with the <strong>cookbook</strong> tag</h5>
-      </div>
-      <div class="modal-body">
-        <ul>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/cookbooks/Encryption/">Pulsar Encryption</a></li>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/cookbooks/PartitionedTopics/">Partitioned topics</a></li>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/cookbooks/RetentionExpiry/">Message retention and expiry</a></li>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/cookbooks/message-deduplication/">Message deduplication</a></li>
-          
-          
-          
-          <li><a href="/docs/latest/cookbooks/message-queue/">Using Pulsar as a message queue</a></li>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
+          <li><a href="/docs/latest/project/schema-storage/">Custom schema storage</a></li>
           
           
           
@@ -2044,35 +1354,36 @@
       </section>
 
       <section class="content">
-        <!--
+        <p>By default, Pulsar stores data type <a href="../../getting-started/ConceptsAndArchitecture#schema-registry">schemas</a> in <a href="https://bookkeeper.apache.org">Apache BookKeeper</a> (which is deployed alongside Pulsar). You can, however, use another storage system if you wish. This doc walks you through creating your own schema storage implementation.</p>
 
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
+<h2 id="interface">Interface</h2>
 
-      http://www.apache.org/licenses/LICENSE-2.0
+<p>In order to use a non-default (i.e. non-BookKeeper) storage system for Pulsar schemas, you need to implement two Java interfaces: <a href="#schema-storage"><code class="highlighter-rouge">SchemaStorage</code></a> and <a href="#schema-storage-factory"><code class="highlighter-rouge">SchemaStorageFactory</code></a>.</p>
 
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
+<h3 id="schema-storage">The <code class="highlighter-rouge">SchemaStorage</code> interface</h3>
 
--->
+<p>The <code class="highlighter-rouge">SchemaStorage</code> interface has the following methods:</p>
 
-<p>Message queues are essential components of many large-scale data architectures. If every single work object that passes through your system absolutely <em>must</em> be processed in spite of the slowness or downright failure of this or that system component, there’s a good chance that you’ll need a message queue to step in and ensure that unprocessed data is retained—with correct ordering—until the required actions are taken.</p>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">interface</span> <span class="nc">SchemaStorage</span> <span class="o">{</span>
+    <span class="c1">// How schemas are updated</span>
+    <span class="n">CompletableFuture</span><span class="o">&lt;</span><span class="n">SchemaVersion</span><span class="o">&gt;</span> <span class="nf">put</span><span class="o">(</span><span class="n">String</span> <span class="n">key</span><span class="o">,</span> <span class="kt">byte</span><span class="o">[]</span> <span class="n">value</span><span class="o">,</span> <span class="kt">byte</span><span class="o">[]</span> <span class="n">hash</span><span class="o">);</span>
 
-<p>Pulsar is a great choice for a message queue because:</p>
+    <span class="c1">// How schemas are fetched from storage</span>
+    <span class="n">CompletableFuture</span><span class="o">&lt;</span><span class="n">StoredSchema</span><span class="o">&gt;</span> <span class="nf">get</span><span class="o">(</span><span class="n">String</span> <span class="n">key</span><span class="o">,</span> <span class="n">SchemaVersion</span> <span class="n">version</span><span class="o">);</span>
 
-<ul>
-  <li>it was built with <a href="../../getting-started/ConceptsAndArchitecture#persistent-storage">persistent message storage</a> in mind</li>
-  <li>it offers automatic load balancing across <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumers</span> for messages on a topic (or custom load balancing if you wish)</li>
-</ul>
+    <span class="c1">// How schemas are deleted</span>
+    <span class="n">CompletableFuture</span><span class="o">&lt;</span><span class="n">SchemaVersion</span><span class="o">&gt;</span> <span class="nf">delete</span><span class="o">(</span><span class="n">String</span> <span class="n">key</span><span class="o">);</span>
+
+    <span class="c1">// Utility method for converting a schema version byte array to a SchemaVersion object</span>
+    <span class="n">SchemaVersion</span> <span class="nf">versionFromBytes</span><span class="o">(</span><span class="kt">byte</span><span class="o">[]</span> <span class="n">version</span><span class="o">);</span>
+
+    <span class="c1">// Startup behavior for the schema storage client</span>
+    <span class="kt">void</span> <span class="nf">start</span><span class="o">()</span> <span class="kd">throws</span> <span class="n">Exception</span><span class="o">;</span>
+
+    <span class="c1">// Shutdown behavior for the schema storage client</span>
+    <span class="kt">void</span> <span class="nf">close</span><span class="o">()</span> <span class="kd">throws</span> <span class="n">Exception</span><span class="o">;</span>
+<span class="o">}</span>
+</code></pre></div></div>
 
 <!--
 
@@ -2095,91 +1406,61 @@
 
 -->
 <div class="admonition">
-  <div class="success">
-    
-    <p>You can use the same Pulsar installation to act as a real-time message bus and as a message queue if you wish (or just one or the other). You can set aside some topics for real-time purposes and other topics for message queue purposes (or use specific namespaces for either purpose if you wish).</p>
+  <div class="info">
+    <span class="admonition-title"><p>Example implementation</p>
+</span>
+    <p>For a full-fledged example schema storage implementation, see the <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/service/schema/BookkeeperSchemaStorage.java"><code class="highlighter-rouge">BookKeeperSchemaStorage</code></a> class.</p>
 
   </div>
 </div>
 
-<h2 id="client-configuration-changes">Client configuration changes</h2>
+<h3 id="schema-storage-factory">The <code class="highlighter-rouge">SchemaStorageFactory</code> interface</h3>
 
-<p>To use a Pulsar <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span> as a message queue, you should distribute the receiver load on that topic across several <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumers</span> (the optimal number of consumers will depend on the load). Each consumer must:</p>
-
-<ul>
-  <li>Establish a <a href="../../getting-started/ConceptsAndArchitecture#shared">shared subscription</a> and use the same subscription name as the other consumers (otherwise the subscription is not shared and the consumers can’t act as a processing ensemble)</li>
-  <li>
-    <p>If you’d like to have tight control over message dispatching across consumers, set the consumers’ <strong>receiver queue</strong> size very low (potentially even to 0 if necessary). Each Pulsar <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span> has a receiver queue that determines how many messages the consumer will attempt to fetch at a time. A receiver queue of 1000 (the default), for example, means that the consumer will attempt to process 1000 messages from the topic’s backlog upon connection. Setting the receiver queue to zero essentially means ensuring that each consumer is only doing one thing at a time.</p>
-
-    <p>The downside to restricting the receiver queue size of consumers is that that limits the potential throughput of those consumers and cannot be used with <span class="popover-term" tabindex="0" title="What is a partitioned topic?" data-placement="top" data-content="A topic that is served by multiple Pulsar brokers, which enables higher throughput." data-toggle="popover" data-trigger="focus">partitioned topics</span>. Whether the performance/control trade-off is worthwhile will depend on your use case.</p>
-  </li>
-</ul>
-
-<h3 id="java">Java clients</h3>
-
-<p>Here’s an example Java consumer configuration that uses a shared subscription:</p>
-
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">org.apache.pulsar.client.api.Consumer</span><span class="o">;</span>
-<span class="kn">import</span> <span class="nn">org.apache.pulsar.client.api.PulsarClient</span><span class="o">;</span>
-<span class="kn">import</span> <span class="nn">org.apache.pulsar.client.api.SubscriptionType</span><span class="o">;</span>
-
-<span class="n">String</span> <span class="n">SERVICE_URL</span> <span class="o">=</span> <span class="s">"pulsar://localhost:6650"</span><span class="o">;</span>
-<span class="n">String</span> <span class="n">TOPIC</span> <span class="o">=</span> <span class="s">"persistent://sample/standalone/ns1/mq-topic-1"</span><span class="o">;</span>
-<span class="n">String</span> <span class="n">subscription</span> <span class="o">=</span> <span class="s">"sub-1"</span><span class="o">;</span>
-
-<span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">builder</span><span class="o">()</span>
-        <span class="o">.</span><span class="na">serviceUrl</span><span class="o">(</span><span class="n">SERVICE_URL</span><span class="o">)</span>
-        <span class="o">.</span><span class="na">build</span><span class="o">();</span>
-
-<span class="n">Consumer</span> <span class="n">consumer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">newConsumer</span><span class="o">()</span>
-        <span class="o">.</span><span class="na">topic</span><span class="o">(</span><span class="n">TOPIC</span><span class="o">)</span>
-        <span class="o">.</span><span class="na">subscriptionName</span><span class="o">(</span><span class="n">subscription</span><span class="o">)</span>
-        <span class="o">.</span><span class="na">subscriptionType</span><span class="o">(</span><span class="n">SubscriptionType</span><span class="o">.</span><span class="na">Shared</span><span class="o">)</span>
-        <span class="c1">// If you'd like to restrict the receiver queue size</span>
-        <span class="o">.</span><span class="na">receiverQueueSize</span><span class="o">(</span><span class="mi">10</span><span class="o">)</span>
-        <span class="o">.</span><span class="na">subscribe</span><span class="o">();</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">interface</span> <span class="nc">SchemaStorageFactory</span> <span class="o">{</span>
+    <span class="nd">@NotNull</span>
+    <span class="n">SchemaStorage</span> <span class="nf">create</span><span class="o">(</span><span class="n">PulsarService</span> <span class="n">pulsar</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">Exception</span><span class="o">;</span>
+<span class="o">}</span>
 </code></pre></div></div>
 
-<h3 id="python">Python clients</h3>
+<!--
 
-<p>Here’s an example Python consumer configuration that uses a shared subscription:</p>
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
 
-<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">pulsar</span> <span class="kn">import</span> <span class="n">Client</span><span class="p">,</span> <span class="n">ConsumerType</span>
+      http://www.apache.org/licenses/LICENSE-2.0
 
-<span class="n">SERVICE_URL</span> <span class="o">=</span> <span class="s">"pulsar://localhost:6650"</span>
-<span class="n">TOPIC</span> <span class="o">=</span> <span class="s">"persistent://sample/standalone/ns1/mq-topic-1"</span>
-<span class="n">SUBSCRIPTION</span> <span class="o">=</span> <span class="s">"sub-1"</span>
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
 
-<span class="n">client</span> <span class="o">=</span> <span class="n">Client</span><span class="p">(</span><span class="n">SERVICE_URL</span><span class="p">)</span>
-<span class="n">consumer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span>
-    <span class="n">TOPIC</span><span class="p">,</span>
-    <span class="n">SUBSCRIPTION</span><span class="p">,</span>
-    <span class="c"># If you'd like to restrict the receiver queue size</span>
-    <span class="n">receiver_queue_size</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
-    <span class="n">consumer_type</span><span class="o">=</span><span class="n">ConsumerType</span><span class="o">.</span><span class="n">Shared</span><span class="p">)</span>
-</code></pre></div></div>
-
-<h3 id="cpp">C++ clients</h3>
-
-<p>Here’s an example C++ consumer configuration that uses a shared subscription:</p>
-
-<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">#include &lt;pulsar/Client.h&gt;
+-->
+<div class="admonition">
+  <div class="info">
+    <span class="admonition-title"><p>Example implementation</p>
 </span>
-<span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">serviceUrl</span> <span class="o">=</span> <span class="s">"pulsar://localhost:6650"</span><span class="p">;</span>
-<span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://sample/standalone/ns1/mq-topic-1"</span><span class="p">;</span>
-<span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">subscription</span> <span class="o">=</span> <span class="s">"sub-1"</span><span class="p">;</span>
+    <p>For a full-fledged example schema storage factory implementation, see the <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/service/schema/BookkeeperSchemaStorageFactory.java"><code class="highlighter-rouge">BookKeeperSchemaStorageFactory</code></a> class.</p>
 
-<span class="n">Client</span> <span class="n">client</span><span class="p">(</span><span class="n">serviceUrl</span><span class="p">);</span>
+  </div>
+</div>
 
-<span class="n">ConsumerConfiguration</span> <span class="n">consumerConfig</span><span class="p">;</span>
-<span class="n">consumerConfig</span><span class="p">.</span><span class="n">setConsumerType</span><span class="p">(</span><span class="n">ConsumerType</span><span class="p">.</span><span class="n">ConsumerShared</span><span class="p">);</span>
-<span class="c1">// If you'd like to restrict the receiver queue size</span>
-<span class="n">consumerConfig</span><span class="p">.</span><span class="n">setReceiverQueueSize</span><span class="p">(</span><span class="mi">10</span><span class="p">);</span>
+<h2 id="deployment">Deployment</h2>
 
-<span class="n">Consumer</span> <span class="n">consumer</span><span class="p">;</span>
+<p>In order to use your custom schema storage implementation, you’ll need to:</p>
 
-<span class="n">Result</span> <span class="n">result</span> <span class="o">=</span> <span class="n">client</span><span class="p">.</span><span class="n">subscribe</span><span class="p">(</span><span class="s">"persistent://sample/standalone/ns1/my-topic"</span><span class="p">,</span> <span class="n">subscription</span><span class="p">,</span> <span class="n">consumerConfig</span><span class="p">,</span> <span class="n">consumer</span><span class="p">);</span>
-</code></pre></div></div>
+<ol>
+  <li>Package the implementation in a <a href="https://docs.oracle.com/javase/tutorial/deployment/jar/basicsindex.html">JAR</a> file.</li>
+  <li>Add that jar to the <code class="highlighter-rouge">lib</code> folder in your Pulsar <a href="../../getting-started/LocalCluster#installing-pulsar">binary or source distribution</a>.</li>
+  <li>Change the <code class="highlighter-rouge">schemaRegistryStorageClassName</code> configuration in <a href="../../reference/Configuration#broker"><code class="highlighter-rouge">broker.conf</code></a> to your custom factory class (i.e. the <code class="highlighter-rouge">SchemaStorageFactory</code> implementation, not the <code class="highlighter-rouge">SchemaStorage</code> implementation).</li>
+  <li>Start up Pulsar.</li>
+</ol>
 
       </section>
     </article>
@@ -2187,7 +1468,7 @@
     <nav class="toc-bar hidden-md-down col-lg-2">
       
       <div id="toc">
-        <h4>Using Pulsar as a message queue</h4>
+        <h4>Custom schema storage</h4>
       </div>
       
     </nav>

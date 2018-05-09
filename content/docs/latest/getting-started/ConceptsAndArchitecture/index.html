@@ -778,6 +778,13 @@
           
           
           <li>
+            <a href="../../project/schema-storage">
+              Custom schema storage
+            </a>
+          </li>
+          
+          
+          <li>
             <a href="../../project/ModularLoadManager">
               Modular load manager
             </a>
@@ -897,9 +904,11 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/getting-started/ConceptsAndArchitecture/">Pulsar concepts and architecture</a></li>
+          
+          
+          
+          
           
           
           
@@ -1117,8 +1126,6 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/getting-started/ConceptsAndArchitecture/">Pulsar concepts and architecture</a></li>
           
           
@@ -1241,7 +1248,11 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/cookbooks/message-deduplication/">Message deduplication</a></li>
+          
+          
           
           
           
@@ -2912,6 +2923,207 @@ enableNonPersistentTopics=true
 <span class="n">MessageId</span> <span class="n">id</span> <span class="o">=</span> <span class="n">MessageId</span><span class="o">.</span><span class="na">fromByteArray</span><span class="o">(</span><span class="n">msgIdBytes</span><span class="o">);</span>
 <span class="n">Reader</span> <span class="n">reader</span> <span class="o">=</span> <span class="n">pulsarClient</span><span class="o">.</span><span class="na">createReader</span><span class="o">(</span><span class="n">topic</span><span class="o">,</span> <span class="n">id</span><span class="o">,</span> <span class="k">new</span> <span class="n">ReaderConfiguration</span><span class="o">());</span>
 </code></pre></div></div>
+
+<h2 id="schema-registry">Schema registry</h2>
+
+<p>Type safety is extremely important in any application built around a message bus like Pulsar. <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">Producers</span> and <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumers</span> need some kind of mechanism for coordinating types at the <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span> level lest a wide variety of potential problems arise (for example serialization and deserialization issues). Applications typically adopt one of two basic approaches to type safety in messaging:</p>
+
+<ol>
+  <li>A “client-side” approach in which message producers and consumers are responsible for not only serializing and deserializing messages (which consist of raw bytes) but also “knowing” which types are being transmitted via which topics. If a producer is sending temperature sensor data on the topic <code class="highlighter-rouge">topic-1</code>, consumers of that topic will run into trouble if they attempt to parse that data as, say, moisture sensor readings.</li>
+  <li>A “server-side” approach in which producers and consumers inform the system which data types can be transmitted via the topic. With this approach, the messaging system enforces type safety and ensures that producers and consumers remain synced.</li>
+</ol>
+
+<p>Both approaches are available in Pulsar, and you’re free to adopt one or the other or to mix and match on a per-topic basis.</p>
+
+<ol>
+  <li>For the “client-side” approach, producers and consumers can send and receive messages consisting of raw byte arrays and leave all type safety enforcement to the application on an “out-of-band” basis.</li>
+  <li>For the “server-side” approach, Pulsar has a built-in <strong>schema registry</strong> that enables clients to upload data schemas on a per-topic basis. Those schemas dictate which data types are recognized as valid for that topic.</li>
+</ol>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    
+    <p>The Pulsar schema registry is currently available only for the <a href="../../clients/Java">Java client</a>.</p>
+
+  </div>
+</div>
+
+<h3 id="basic-architecture">Basic architecture</h3>
+
+<p>In Pulsar, schemas are uploaded to, fetched from, and update via Pulsar’s <a href="../../reference/RestApi">REST API</a>.</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="success">
+    <span class="admonition-title"><p>Other schema registry backends</p>
+</span>
+    <p>Out of the box, Pulsar uses the <a href="#persistent-storage">Apache BookKeeper</a> log storage system for schema storage. You can, however, use different backends if you wish. Documentation for custom schema storage logic is coming soon.</p>
+
+  </div>
+</div>
+
+<h3 id="how-schemas-work">How schemas work</h3>
+
+<p>Pulsar schemas are applied and enforced <em>at the topic level</em> (schemas cannot be applied at the <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span> or <span class="popover-term" tabindex="0" title="What is a tenant?" data-placement="top" data-content="An administrative unit for allocating capacity and enforcing an authentication/authorization scheme. Tenants in Pulsar are managed at the property level." data-toggle="popover" data-trigger="focus">tenant</span> level). Producers and consumers upload schemas to Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span>.</p>
+
+<p>Pulsar schemas are fairly simple data structures that consist of:</p>
+
+<ul>
+  <li>A <strong>name</strong>. In Pulsar, a schema’s name is the <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span> to which the schema is applied.</li>
+  <li>A <strong>payload</strong>, which is a binary representation of the schema</li>
+  <li>A schema <a href="#schema-types"><strong>type</strong></a></li>
+  <li>User-defined <strong>properties</strong> as a string/string map. Usage of properties is wholly application specific. Possible properties might be the Git hash associated with a schema, an environment like <code class="highlighter-rouge">dev</code> or <code class="highlighter-rouge">prod</code>, etc.</li>
+</ul>
+
+<h3 id="schema-versions">Schema versions</h3>
+
+<p>In order to illustrate how schema versioning works, let’s walk through an example. Imagine that the Pulsar <a href="../../clients/Java">Java client</a> created using the code below attempts to connect to Pulsar and begin sending messages:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">builder</span><span class="o">()</span>
+        <span class="o">.</span><span class="na">serviceUrl</span><span class="o">(</span><span class="s">"pulsar://localhost:6650"</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">build</span><span class="o">();</span>
+
+<span class="n">Producer</span><span class="o">&lt;</span><span class="n">SensorReading</span><span class="o">&gt;</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">newProducer</span><span class="o">(</span><span class="n">JSONSchema</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">SensorReading</span><span class="o">.</span><span class="na">class</span><span class="o">))</span>
+        <span class="o">.</span><span class="na">topic</span><span class="o">(</span><span class="s">"sensor-data"</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">sendTimeout</span><span class="o">(</span><span class="mi">3</span><span class="o">,</span> <span class="n">TimeUnit</span><span class="o">.</span><span class="na">SECONDS</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">create</span><span class="o">();</span>
+</code></pre></div></div>
+
+<p>The table below lists the possible scenarios when this connection attempt occurs and what will happen in light of each scenario:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Scenario</th>
+      <th style="text-align: left">What happens</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">No schema exists for the topic</td>
+      <td style="text-align: left">The <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producer</span> is created using the given schema. The schema is transmitted to the <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> and stored (since no existing schema is “compatible” with the <code class="highlighter-rouge">SensorReading</code> schema). Any <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span> created using the same schema/topic can consume messages from the <code class="highlighter-rouge">sensor-data</code> topic.</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">A schema already exists; the producer connects using the same schema that’s already stored</td>
+      <td style="text-align: left">The schema is transmitted to the Pulsar broker. The broker determines that the schema is compatible. The broker attempts to store the schema in <a href="#persistent-storage">BookKeeper</a> but then determines that it’s already stored, so it’s then used to tag produced messages.</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">A schema already exists; the producer connects using a new schema that is compatible</td>
+      <td style="text-align: left">The producer transmits the schema to the broker. The broker determines that the schema is compatible and stores the new schema as the current version (with a new version number).</td>
+    </tr>
+  </tbody>
+</table>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    
+    <p>Schemas are versioned in succession. Schema storage happens in the broker that handles the associated topic so that version assignments can be made. Once a version is assigned/fetched to/for a schema, all subsequent messages produced by that producer are tagged with the appropriate version.</p>
+
+  </div>
+</div>
+
+<h3 id="schema-types">Supported schema formats</h3>
+
+<p>The following formats are supported by the Pulsar schema registry:</p>
+
+<ul>
+  <li>None. If no schema is specified for a topic, producers and consumers will handle raw bytes.</li>
+  <li><code class="highlighter-rouge">String</code> (used for UTF-8-encoded strings)</li>
+  <li><a href="https://www.json.org/">JSON</a></li>
+</ul>
+
+<p>For usage instructions, see the documentation for your preferred client library:</p>
+
+<ul>
+  <li><a href="../../clients/Java#schemas">Java</a></li>
+</ul>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="success">
+    
+    <p>Support for other schema formats will be added in future releases of Pulsar.</p>
+
+  </div>
+</div>
 
       </section>
     </article>
