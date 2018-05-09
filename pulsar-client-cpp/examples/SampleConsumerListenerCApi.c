@@ -20,7 +20,7 @@
 #include <stdio.h>
 #include <pulsar/c/client.h>
 
-static void listener_callback(pulsar_consumer_t* consumer, pulsar_message_t* message) {
+static void listener_callback(pulsar_consumer_t* consumer, pulsar_message_t* message, void* ctx) {
     printf("Received message with payload: '%.*s'\n", pulsar_message_get_length(message),
            pulsar_message_get_data(message));
 
@@ -34,7 +34,7 @@ int main() {
 
     pulsar_consumer_configuration_t *consumer_conf = pulsar_consumer_configuration_create();
     pulsar_consumer_configuration_set_consumer_type(consumer_conf, pulsar_ConsumerShared);
-    pulsar_consumer_configuration_set_message_listener(consumer_conf, listener_callback);
+    pulsar_consumer_configuration_set_message_listener(consumer_conf, listener_callback, NULL);
 
     pulsar_consumer_t *consumer;
     pulsar_result res = pulsar_client_subscribe(client, "my-topic", "my-subscrition", consumer_conf, &consumer);
