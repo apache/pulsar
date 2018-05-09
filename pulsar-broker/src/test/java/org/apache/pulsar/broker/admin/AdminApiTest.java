@@ -924,7 +924,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         // Force to create a topic
         final String namespace = "prop-xyz/use/ns1";
         final String topicName = (new StringBuilder("persistent://")).append(namespace).append("/ds2").toString();
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        Producer producer = pulsarClient.createProducer(topicName);
         producer.send("message".getBytes());
         publishMessagesOnPersistentTopic(topicName, 0);
         assertEquals(admin.persistentTopics().getList(namespace), Lists.newArrayList(topicName));

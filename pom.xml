@@ -592,6 +592,13 @@ flexible messaging model and an intuitive client API.</description>
       <artifactId>powermock-module-testng</artifactId>
       <scope>test</scope>
     </dependency>
+
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <version>1.16.20</version>
+      <scope>provided</scope>
+    </dependency>
   </dependencies>
 
   <build>

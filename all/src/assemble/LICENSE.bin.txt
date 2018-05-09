@@ -348,6 +348,7 @@ BSD License
 MIT License
  * Java SemVer -- com.github.zafarkhaja-java-semver-*.jar -- licenses/LICENSE-SemVer.txt
  * SLF4J -- org.slf4j.*.jar -- licenses/LICENSE-SLF4J.txt
+ * Lombok -- org.projectlombok-*.jar  -- licenses/LICENSE-Lombok.txt
 
 Protocol Buffers License
  * Protocol Buffers -- com.google.protobuf-*.jar -- licenses/LICENSE-protobuf.txt
