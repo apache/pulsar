@@ -79,5 +79,6 @@ public class FunctionConfig {
     private Runtime runtime;
     private boolean autoAck;
     private int parallelism;
+    private Resources resources;
     private String fqfn;
 }

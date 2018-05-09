@@ -34,6 +34,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.shaded.proto.Function;
 import org.apache.pulsar.functions.shaded.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.shaded.proto.Function.Resources;
 import org.apache.pulsar.functions.shaded.proto.Function.ProcessingGuarantees;
 import org.apache.pulsar.functions.shaded.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.shaded.proto.Function.SourceSpec;
@@ -133,6 +134,12 @@ public class CmdSources extends CmdBase {
         @Parameter(names = "--sourceConfigFile", description = "The path to a YAML config file specifying the "
                 + "source's configuration")
         protected String sourceConfigFile;
+        @Parameter(names = "--cpu", description = "The cpu that need to be allocated per function instance(applicable only to docker runtime)")
+        protected Double cpu;
+        @Parameter(names = "--ram", description = "The ram in bytes that need to be allocated per function instance(applicable only to process/docker runtime)")
+        protected Long ram;
+        @Parameter(names = "--disk", description = "The disk in bytes that need to be allocated per function instance(applicable only to docker runtime)")
+        protected Long disk;
 
         protected SourceConfig sourceConfig;
 
@@ -184,6 +191,23 @@ public class CmdSources extends CmdBase {
             if (null == jarFile) {
                 throw new IllegalArgumentException("Connector JAR not specfied");
             }
+
+            if (cpu != null) {
+                if (cpu <= 0) {
+                    throw new IllegalArgumentException("The cpu allocation for the source must be positive");
+                }
+            }
+            if (ram != null) {
+                if (ram <= 0) {
+                    throw new IllegalArgumentException("The ram allocation for the source must be positive");
+                }
+            }
+            if (disk != null) {
+                if (disk <= 0) {
+                    throw new IllegalArgumentException("The disk allocation for the source must be positive");
+                }
+            }
+            sourceConfig.setResources(new org.apache.pulsar.functions.utils.Resources(cpu, ram, disk));
         }
 
         @Override
@@ -269,6 +293,21 @@ public class CmdSources extends CmdBase {
             sinkSpecBuilder.setTypeClassName(typeArg.getName());
 
             functionDetailsBuilder.setSink(sinkSpecBuilder);
+
+            if (sourceConfig.getResources() != null) {
+                Resources.Builder bldr = Resources.newBuilder();
+                if (sourceConfig.getResources().getCpu() != null) {
+                    bldr.setCpu(sourceConfig.getResources().getCpu());
+                }
+                if (sourceConfig.getResources().getRam() != null) {
+                    bldr.setRam(sourceConfig.getResources().getRam());
+                }
+                if (sourceConfig.getResources().getDisk() != null) {
+                    bldr.setDisk(sourceConfig.getResources().getDisk());
+                }
+                functionDetailsBuilder.setResources(bldr.build());
+            }
+
             return functionDetailsBuilder.build();
         }
     }

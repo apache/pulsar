@@ -41,4 +41,5 @@ public class SinkConfig {
     private Map<String, String> configs = new HashMap<>();
     private int parallelism = 1;
     private FunctionConfig.ProcessingGuarantees processingGuarantees;
+    private Resources resources;
 }
