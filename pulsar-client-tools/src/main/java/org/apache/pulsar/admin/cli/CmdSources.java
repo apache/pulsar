@@ -140,6 +140,8 @@ public class CmdSources extends CmdBase {
         protected Long ram;
         @Parameter(names = "--disk", description = "The disk in bytes that need to be allocated per function instance(applicable only to docker runtime)")
         protected Long disk;
+        @Parameter(names = "--sourceConfig", description = "Source config key/values")
+        protected String sourceConfigString;
 
         protected SourceConfig sourceConfig;
 
@@ -208,6 +210,12 @@ public class CmdSources extends CmdBase {
                 }
             }
             sourceConfig.setResources(new org.apache.pulsar.functions.utils.Resources(cpu, ram, disk));
+
+            if (null != sourceConfigString) {
+                Type type = new TypeToken<Map<String, String>>(){}.getType();
+                Map<String, Object> sourceConfigMap = new Gson().fromJson(sourceConfigString, type);
+                sourceConfig.setConfigs(sourceConfigMap);
+            }
         }
 
         @Override

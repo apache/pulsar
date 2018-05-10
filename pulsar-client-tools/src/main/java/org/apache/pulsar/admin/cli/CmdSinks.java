@@ -140,6 +140,8 @@ public class CmdSinks extends CmdBase {
         protected Long ram;
         @Parameter(names = "--disk", description = "The disk in bytes that need to be allocated per function instance(applicable only to docker runtime)")
         protected Long disk;
+        @Parameter(names = "--sinkConfig", description = "Sink config key/values")
+        protected String sinkConfigString;
 
         protected SinkConfig sinkConfig;
 
@@ -223,6 +225,12 @@ public class CmdSinks extends CmdBase {
                 }
             }
             sinkConfig.setResources(new org.apache.pulsar.functions.utils.Resources(cpu, ram, disk));
+
+            if (null != sinkConfigString) {
+                Type type = new TypeToken<Map<String, String>>(){}.getType();
+                Map<String, Object> sinkConfigMap = new Gson().fromJson(sinkConfigString, type);
+                sinkConfig.setConfigs(sinkConfigMap);
+            }
         }
 
         @Override
