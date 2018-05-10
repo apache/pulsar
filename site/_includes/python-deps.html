@@ -1,0 +1,9 @@
+<ul>
+  {% for dep in site.data.deps %}
+  <li>
+    <a href="https://pypi.org/project/{{ dep }}">
+      <code>{{ dep }}</code>
+    </a>
+  </li>
+  {% endfor %}
+</ul>

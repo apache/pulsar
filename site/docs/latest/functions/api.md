@@ -506,10 +506,14 @@ Writing Pulsar Functions in Python entails implementing one of two things:
 
 ### Getting started
 
-Regardless of which [deployment mode](../deployment) you're using, you'll need to install the [`grpc`](https://pypi.org/project/grpc/) and [`protobuf`](https://pypi.org/project/protobuf/) libraries on any machine that's running Pulsar Functions written in Python. That could be your local machine for [local run mode](../deployment#local-run) or a machine running a Pulsar {% popover broker %} for [cluster mode](../deployment#cluster-mode). To install those libraries using pip:
+Regardless of which [deployment mode](../deployment) you're using, you'll need to install the following Python libraries on any machine that's running Pulsar Functions written in Python:
+
+{% include python-deps.html %}
+
+That could be your local machine for [local run mode](../deployment#local-run) or a machine running a Pulsar {% popover broker %} for [cluster mode](../deployment#cluster-mode). To install those libraries using pip:
 
 ```bash
-$ pip install grpc protobuf
+$ pip install {% for dep in site.data.deps %}{{ dep }}{% if not forloop.last %} {% endif %}{% endfor %}
 ```
 
 With those base libraries installed, the requirements for running Pulsar Functions in Python will depend on your [deployment mode](../deployment):
