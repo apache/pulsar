@@ -194,21 +194,9 @@ public class CmdSources extends CmdBase {
                 throw new IllegalArgumentException("Connector JAR not specfied");
             }
 
-            if (cpu != null) {
-                if (cpu <= 0) {
-                    throw new IllegalArgumentException("The cpu allocation for the source must be positive");
-                }
-            }
-            if (ram != null) {
-                if (ram <= 0) {
-                    throw new IllegalArgumentException("The ram allocation for the source must be positive");
-                }
-            }
-            if (disk != null) {
-                if (disk <= 0) {
-                    throw new IllegalArgumentException("The disk allocation for the source must be positive");
-                }
-            }
+            com.google.common.base.Preconditions.checkArgument(cpu == null || cpu > 0, "The cpu allocation for the source must be positive");
+            com.google.common.base.Preconditions.checkArgument(ram == null || ram > 0, "The ram allocation for the source must be positive");
+            com.google.common.base.Preconditions.checkArgument(disk == null || disk > 0, "The disk allocation for the source must be positive");
             sourceConfig.setResources(new org.apache.pulsar.functions.utils.Resources(cpu, ram, disk));
 
             if (null != sourceConfigString) {
