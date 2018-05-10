@@ -45,7 +45,7 @@ import org.slf4j.LoggerFactory;
 public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStream {
     private static final Logger log = LoggerFactory.getLogger(BlockAwareSegmentInputStreamImpl.class);
 
-    private static final byte[] BLOCK_END_PADDING = Ints.toByteArray(0xFEDCDEAD);
+    private static final int[] BLOCK_END_PADDING = new int[] { 0xFE, 0xDC, 0xDE, 0xAD };
 
     private final ReadHandle ledger;
     private final long startEntryId;
@@ -93,7 +93,7 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
         if (!entriesByteBuf.isEmpty() && bytesReadOffset + entriesByteBuf.get(0).readableBytes() <= blockSize) {
             // always read from the first ByteBuf in the list, once read all of its content remove it.
             ByteBuf entryByteBuf = entriesByteBuf.get(0);
-            int ret = entryByteBuf.readByte();
+            int ret = entryByteBuf.readUnsignedByte();
             bytesReadOffset++;
 
             if (entryByteBuf.readableBytes() == 0) {
@@ -204,10 +204,5 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
     public int getBlockEntryBytesCount() {
         return dataBlockFullOffset - DataBlockHeaderImpl.getDataStartOffset() - ENTRY_HEADER_SIZE * blockEntryCount;
     }
-
-    public static byte[] getBlockEndPadding() {
-        return BLOCK_END_PADDING;
-    }
-
 }
 
