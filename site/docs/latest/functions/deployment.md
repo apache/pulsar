@@ -40,7 +40,7 @@ When managing Pulsar Functions, you'll need to specify a variety of information 
 
 Parameter | Default
 :---------|:-------
-Function name | Whichever value is specified for the class name. For example, `--className org.example.MyFunction` would give the function a name of `MyFunction`
+Function name | Whichever value is specified for the class name (minus org, library, etc.). The flag `--className org.example.MyFunction`, for example, would give the function a name of `MyFunction`.
 Tenant | Derived from the input topics' names. If the input topics are under the `marketing` tenant---i.e. the topic names have the form `persistent://marketing/{namespace}/{topicName}`---then the tenant will be `marketing`.
 Namespace | Derived from the input topics' names. If the input topics are under the `asia` namespace under the `marketing` tenant---i.e. the topic names have the form `persistent://marketing/asia/{topicName}`, then the namespace will be `asia`.
 Output topic | `{input topic}-{function name}-output`. A function with an input topic name of `incoming` and a function name of `exclamation`, for example, would have an output topic of `incoming-exclamation-output`.
@@ -142,6 +142,10 @@ And here's the corresponding update command:
 $ bin/pulsar-admin functions update \
   --functionConfigFile function-config.yaml
 ```
+
+### Function instance resources {#resources}
+
+TODO
 
 ## Triggering Pulsar Functions {#triggering}
 

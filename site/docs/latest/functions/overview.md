@@ -318,7 +318,7 @@ $ bin/pulsar-admin functions create \
   --parallelism 5
 ```
 
-### Function resources
+### Function instance resources {#resources}
 
 When you run Pulsar Functions in [cluster run](#cluster-run) mode, you can specify the resources that are assigned to each function [instance](#parallelism):
 
