@@ -348,6 +348,16 @@ A future version of BookKeeper will support *non-persistent messaging* and thus 
 
 ## Tiered storage
 
+By default, Pulsar uses [Apache BookKeeper](https://bookkeeper.apache.org) for all [persistent message storage](#persistent-storage). BookKeeper is an ideal system to be used for this purpose, but BookKeeper storage can get expensive over time. Fortunately, Pulsar also offers a **tiered storage** capability that enables you to offload some message data to an external
+
+The following tiered storage offload targets are currently supported:
+
+Offload target | Usage documentation
+:--------------|:-------------------
+[Amazon's Simple Storage Service (S3)](https://aws.amazon.com/s3) | TODO
+
+### Why tiered storage?
+
 BookKeeper storage can get expensive over time. Access patterns to BookKeeper ledgers:
 
 * Writes (low latency)
@@ -358,6 +368,8 @@ By default, BookKeeper provides all three forms of storage. Tiered storage enabl
 
 * Sealed ledger --> entries are immutable. When a ledger has been sealed it no longer needs to be stored on SSDs and can be transferred to an object storage system like Amazon S3 or Google Cloud Storage
 * Each topic is stored on a single [managed ledger](#managed-ledgers) (list of log segments in a fixed order, oldest first; all segments except the most recent are sealed; the most recent still accepts writes)
+
+### How tiered storage works
 
 Implementation:
 

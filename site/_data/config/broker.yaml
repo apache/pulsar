@@ -314,3 +314,15 @@ configs:
 - name: loadManagerClassName
   default: org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl
   description: Name of load manager to use
+- name: managedLedgerOffloadDriver
+  description: |
+    The name of the driver used for tiered storage offload. Current options: `S3`.
+- name: managedLedgerOffloadMaxThreads
+  description: The number of threads used for tiered storage offloading
+  default: 2
+- name: s3ManagedLedgerOffloadRegion
+  description: The AWS region used for tiered storage ledger offload (if `managedLedgerOffloadDriver` is set to `S3`)
+- name: s3ManagedLedgerOffloadBucket
+  description: The AWS bucket used for tiered storage ledger offload (if `managedLedgerOffloadDriver` is set to `S3`)
+- name: s3ManagedLedgerOffloadServiceEndpoint
+  description: The alternative service endpoint used for Amazon S3 tiered storage offload, which can be useful for testing (if `managedLedgerOffloadDriver` is set to `S3`)
