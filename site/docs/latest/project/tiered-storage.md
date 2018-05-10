@@ -27,6 +27,12 @@ interface LedgerOffloader {
 }
 ```
 
+## Example implementation
+
+The following implementations are currently available for your perusal:
+
+* [`S3ManagedLedgerOffloader`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/s3offload/S3ManagedLedgerOffloader.java) (for Amazon S3)
+
 ## Deployment
 
 Once you've created a `LedgerOffloader` implementation, you need to:
