@@ -33,8 +33,10 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
+import java.util.function.Supplier;
 import java.util.stream.IntStream;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -49,23 +51,25 @@ import org.testng.collections.Lists;
 
 @Slf4j
 public class BlockAwareSegmentInputStreamTest {
+    private static final byte DEFAULT_ENTRY_BYTE = 0xB;
+
     @Data
     class MockLedgerEntry implements LedgerEntry {
-        public byte blockPadding = 0xB;
         long ledgerId;
         long entryId;
         long length;
         byte entryBytes[];
         ByteBuf entryBuffer;
 
-        MockLedgerEntry(long ledgerId, long entryId, long length) {
+        MockLedgerEntry(long ledgerId, long entryId, long length,
+                        Supplier<Byte> dataSupplier) {
             this.ledgerId = ledgerId;
             this.entryId = entryId;
             this.length = length;
             this.entryBytes = new byte[(int)length];
             entryBuffer = Unpooled.wrappedBuffer(entryBytes);
             entryBuffer.writerIndex(0);
-            IntStream.range(0, (int)length).forEach(i -> entryBuffer.writeByte(blockPadding));
+            IntStream.range(0, (int)length).forEach(i -> entryBuffer.writeByte(dataSupplier.get()));
         }
 
         @Override
@@ -92,7 +96,7 @@ public class BlockAwareSegmentInputStreamTest {
         int entrySize;
         List<LedgerEntry> entries;
 
-        MockLedgerEntries(int ledgerId, int startEntryId, int count, int entrySize) {
+        MockLedgerEntries(int ledgerId, int startEntryId, int count, int entrySize, Supplier<Byte> dataSupplier) {
             this.ledgerId = ledgerId;
             this.startEntryId = startEntryId;
             this.count = count;
@@ -100,7 +104,7 @@ public class BlockAwareSegmentInputStreamTest {
             this.entries = Lists.newArrayList(count);
 
             IntStream.range(startEntryId, startEntryId + count).forEach(i ->
-                entries.add(new MockLedgerEntry(ledgerId, i, entrySize)));
+                    entries.add(new MockLedgerEntry(ledgerId, i, entrySize, dataSupplier)));
         }
 
         @Override
@@ -127,10 +131,17 @@ public class BlockAwareSegmentInputStreamTest {
         int ledgerId;
         int entrySize;
         int lac;
-        MockReadHandle(int ledgerId, int entrySize, int lac) {
+        Supplier<Byte> dataSupplier;
+
+        MockReadHandle(int ledgerId, int entrySize, int lac, Supplier<Byte> dataSupplier) {
             this.ledgerId = ledgerId;
             this.entrySize = entrySize;
             this.lac = lac;
+            this.dataSupplier = dataSupplier;
+        }
+
+        MockReadHandle(int ledgerId, int entrySize, int lac) {
+            this(ledgerId, entrySize, lac, () -> DEFAULT_ENTRY_BYTE);
         }
 
         @Override
@@ -139,7 +150,7 @@ public class BlockAwareSegmentInputStreamTest {
             LedgerEntries entries = new MockLedgerEntries(ledgerId,
                 (int)firstEntry,
                 (int)(lastEntry - firstEntry + 1),
-                entrySize);
+                    entrySize, dataSupplier);
 
             future.complete(entries);
             return future;
@@ -251,8 +262,7 @@ public class BlockAwareSegmentInputStreamTest {
         ByteBuf paddingBuf = Unpooled.wrappedBuffer(padding);
         IntStream.range(0, paddingBuf.capacity()/4).forEach(i ->
             assertEquals(Integer.toHexString(paddingBuf.readInt()),
-                Integer.toHexString(Ints.fromByteArray(inputStream.getBlockEndPadding())))
-        );
+                         Integer.toHexString(0xFEDCDEAD)));
 
         // 4. reach end.
         assertEquals(inputStream.read(), -1);
@@ -420,8 +430,7 @@ public class BlockAwareSegmentInputStreamTest {
         ByteBuf paddingBuf = Unpooled.wrappedBuffer(padding);
         IntStream.range(0, paddingBuf.capacity()/4).forEach(i ->
             assertEquals(Integer.toHexString(paddingBuf.readInt()),
-                Integer.toHexString(Ints.fromByteArray(inputStream.getBlockEndPadding())))
-        );
+                         Integer.toHexString(0xFEDCDEAD)));
 
         // 3. reach end.
         assertEquals(inputStream.read(), -1);
@@ -486,9 +495,8 @@ public class BlockAwareSegmentInputStreamTest {
         inputStream.read(padding);
         ByteBuf paddingBuf = Unpooled.wrappedBuffer(padding);
         IntStream.range(0, paddingBuf.capacity()/4).forEach(i ->
-            assertEquals(Integer.toHexString(paddingBuf.readInt()),
-                Integer.toHexString(Ints.fromByteArray(inputStream.getBlockEndPadding())))
-        );
+                assertEquals(Integer.toHexString(paddingBuf.readInt()),
+                             Integer.toHexString(0xFEDCDEAD)));
 
         // 3. reach end.
         assertEquals(inputStream.read(), -1);
@@ -498,6 +506,30 @@ public class BlockAwareSegmentInputStreamTest {
         assertEquals(inputStream.getEndEntryId(), 0);
 
         inputStream.close();
+    }
+
+    @Test
+    public void testOnlyNegativeOnEOF() throws Exception {
+        int ledgerId = 1;
+        int entrySize = 10000;
+        int lac = 0;
+
+        Random r = new Random(0);
+        ReadHandle readHandle = new MockReadHandle(ledgerId, entrySize, lac, () -> (byte)r.nextInt());
+
+        int blockSize = DataBlockHeaderImpl.getDataStartOffset() + entrySize * 2;
+        BlockAwareSegmentInputStreamImpl inputStream = new BlockAwareSegmentInputStreamImpl(readHandle, 0, blockSize);
+
+        int bytesRead = 0;
+        for (int i = 0; i < blockSize*2; i++) {
+            int ret = inputStream.read();
+            if (ret < 0) { // should only be EOF
+                assertEquals(bytesRead, blockSize);
+                break;
+            } else {
+                bytesRead++;
+            }
+        }
     }
 
 }
