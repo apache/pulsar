@@ -18,11 +18,7 @@
  */
 package org.apache.pulsar.broker.s3offload;
 
-import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 
-import io.findify.s3mock.S3Mock;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 import java.util.HashMap;
@@ -42,44 +38,16 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-class S3ManagedLedgerOffloaderTest {
+class S3ManagedLedgerOffloaderTest extends S3TestBase {
 
     final ScheduledExecutorService scheduler;
     final MockBookKeeper bk;
-    S3Mock s3mock = null;
-    AmazonS3 s3client = null;
-    String s3endpoint = null;
-
-    final static String REGION = "foobar";
-    final static String BUCKET = "foobar";
 
     S3ManagedLedgerOffloaderTest() throws Exception {
         scheduler = Executors.newScheduledThreadPool(1, new DefaultThreadFactory("offloader-"));
         bk = new MockBookKeeper(MockedPulsarServiceBaseTest.createMockZooKeeper());
-     }
-
-    @BeforeMethod
-    public void start() throws Exception {
-        s3mock = new S3Mock.Builder().withPort(0).withInMemoryBackend().build();
-        int port = s3mock.start().localAddress().getPort();
-        s3endpoint = "http://localhost:" + port;
-
-        s3client = AmazonS3ClientBuilder.standard()
-            .withRegion(REGION)
-            .withEndpointConfiguration(new EndpointConfiguration(s3endpoint, REGION))
-            .withPathStyleAccessEnabled(true).build();
-        s3client.createBucket(BUCKET);
-    }
-
-    @AfterMethod
-    public void stop() throws Exception {
-        if (s3mock != null) {
-            s3mock.shutdown();
-        }
     }
 
     private ReadHandle buildReadHandle() throws Exception {
@@ -105,7 +73,7 @@ class S3ManagedLedgerOffloaderTest {
         conf.setManagedLedgerOffloadDriver(S3ManagedLedgerOffloader.DRIVER_NAME);
         conf.setS3ManagedLedgerOffloadBucket("no-bucket");
         conf.setS3ManagedLedgerOffloadServiceEndpoint(s3endpoint);
-        conf.setS3ManagedLedgerOffloadRegion(REGION);
+        conf.setS3ManagedLedgerOffloadRegion("eu-west-1");
         LedgerOffloader offloader = S3ManagedLedgerOffloader.create(conf, scheduler);
 
         try {
@@ -134,7 +102,7 @@ class S3ManagedLedgerOffloaderTest {
     public void testNoBucketConfigured() throws Exception {
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setManagedLedgerOffloadDriver(S3ManagedLedgerOffloader.DRIVER_NAME);
-        conf.setS3ManagedLedgerOffloadRegion(REGION);
+        conf.setS3ManagedLedgerOffloadRegion("eu-west-1");
 
         try {
             S3ManagedLedgerOffloader.create(conf, scheduler);
