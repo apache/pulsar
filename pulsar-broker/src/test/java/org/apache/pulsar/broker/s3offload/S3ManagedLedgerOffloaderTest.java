@@ -51,7 +51,8 @@ class S3ManagedLedgerOffloaderTest {
     final ScheduledExecutorService scheduler;
     final MockBookKeeper bk;
     S3Mock s3mock = null;
-    String endpoint = null;
+    AmazonS3 s3client = null;
+    String s3endpoint = null;
 
     final static String REGION = "foobar";
     final static String BUCKET = "foobar";
@@ -65,13 +66,13 @@ class S3ManagedLedgerOffloaderTest {
     public void start() throws Exception {
         s3mock = new S3Mock.Builder().withPort(0).withInMemoryBackend().build();
         int port = s3mock.start().localAddress().getPort();
-        endpoint = "http://localhost:" + port;
+        s3endpoint = "http://localhost:" + port;
 
-        AmazonS3 client = AmazonS3ClientBuilder.standard()
+        s3client = AmazonS3ClientBuilder.standard()
             .withRegion(REGION)
-            .withEndpointConfiguration(new EndpointConfiguration(endpoint, REGION))
+            .withEndpointConfiguration(new EndpointConfiguration(s3endpoint, REGION))
             .withPathStyleAccessEnabled(true).build();
-        client.createBucket(BUCKET);
+        s3client.createBucket(BUCKET);
     }
 
     @AfterMethod
@@ -93,12 +94,7 @@ class S3ManagedLedgerOffloaderTest {
 
     @Test
     public void testHappyCase() throws Exception {
-        ServiceConfiguration conf = new ServiceConfiguration();
-        conf.setManagedLedgerOffloadDriver(S3ManagedLedgerOffloader.DRIVER_NAME);
-        conf.setS3ManagedLedgerOffloadBucket(BUCKET);
-        conf.setS3ManagedLedgerOffloadRegion(REGION);
-        conf.setS3ManagedLedgerOffloadServiceEndpoint(endpoint);
-        LedgerOffloader offloader = new S3ManagedLedgerOffloader(conf, scheduler);
+        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler);
 
         offloader.offload(buildReadHandle(), UUID.randomUUID(), new HashMap<>()).get();
     }
@@ -108,9 +104,9 @@ class S3ManagedLedgerOffloaderTest {
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setManagedLedgerOffloadDriver(S3ManagedLedgerOffloader.DRIVER_NAME);
         conf.setS3ManagedLedgerOffloadBucket("no-bucket");
+        conf.setS3ManagedLedgerOffloadServiceEndpoint(s3endpoint);
         conf.setS3ManagedLedgerOffloadRegion(REGION);
-        conf.setS3ManagedLedgerOffloadServiceEndpoint(endpoint);
-        LedgerOffloader offloader = new S3ManagedLedgerOffloader(conf, scheduler);
+        LedgerOffloader offloader = S3ManagedLedgerOffloader.create(conf, scheduler);
 
         try {
             offloader.offload(buildReadHandle(), UUID.randomUUID(), new HashMap<>()).get();
@@ -127,7 +123,7 @@ class S3ManagedLedgerOffloaderTest {
         conf.setS3ManagedLedgerOffloadBucket(BUCKET);
 
         try {
-            new S3ManagedLedgerOffloader(conf, scheduler);
+            S3ManagedLedgerOffloader.create(conf, scheduler);
             Assert.fail("Should have thrown exception");
         } catch (PulsarServerException pse) {
             // correct
@@ -141,7 +137,7 @@ class S3ManagedLedgerOffloaderTest {
         conf.setS3ManagedLedgerOffloadRegion(REGION);
 
         try {
-            new S3ManagedLedgerOffloader(conf, scheduler);
+            S3ManagedLedgerOffloader.create(conf, scheduler);
             Assert.fail("Should have thrown exception");
         } catch (PulsarServerException pse) {
             // correct
