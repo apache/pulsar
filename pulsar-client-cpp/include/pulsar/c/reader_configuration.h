@@ -25,7 +25,7 @@ extern "C" {
 
 typedef struct _pulsar_reader_configuration pulsar_reader_configuration_t;
 
-typedef void (*pulsar_reader_listener)(pulsar_reader_t *reader, pulsar_message_t *msg);
+typedef void (*pulsar_reader_listener)(pulsar_reader_t *reader, pulsar_message_t *msg, void *ctx);
 
 pulsar_reader_configuration_t *pulsar_reader_configuration_create();
 
@@ -36,7 +36,7 @@ void pulsar_reader_configuration_free(pulsar_reader_configuration_t *configurati
  * messages. A listener will be called in order for every message received.
  */
 void pulsar_reader_configuration_set_reader_listener(pulsar_reader_configuration_t *configuration,
-                                                     pulsar_reader_listener listener);
+                                                     pulsar_reader_listener listener, void *ctx);
 
 int pulsar_reader_configuration_has_reader_listener(pulsar_reader_configuration_t *configuration);
 
