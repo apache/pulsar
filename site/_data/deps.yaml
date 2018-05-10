@@ -1,3 +1,4 @@
+- pulsar-client
 - protobuf
 - futures
 - grpcio
