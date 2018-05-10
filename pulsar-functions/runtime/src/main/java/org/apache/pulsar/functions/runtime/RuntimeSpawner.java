@@ -23,6 +23,7 @@
  */
 package org.apache.pulsar.functions.runtime;
 
+import java.io.IOException;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
@@ -31,6 +32,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
+import org.apache.pulsar.functions.utils.Utils;
 
 @Slf4j
 public class RuntimeSpawner implements AutoCloseable {
@@ -97,6 +99,16 @@ public class RuntimeSpawner implements AutoCloseable {
                builder.setFailureException(runtimeDeathException.getMessage());
            }
            return builder.build();
+        });
+    }
+
+    public CompletableFuture<String> getFunctionStatusAsJson() {
+        return this.getFunctionStatus().thenApply(msg -> {
+            try {
+                return Utils.printJson(msg);
+            } catch (IOException e) {
+                throw new RuntimeException("Exception parsing getstatus", e);
+            }
         });
     }
 

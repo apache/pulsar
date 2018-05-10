@@ -20,7 +20,7 @@ package org.apache.pulsar.functions.sink;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.connect.core.Sink;
+import org.apache.pulsar.io.core.Sink;
 
 /**
  * The default implementation of runtime sink.

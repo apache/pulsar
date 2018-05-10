@@ -40,8 +40,8 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
     private final AmazonS3 s3client;
     private final String bucket;
 
-    public S3ManagedLedgerOffloader(ServiceConfiguration conf,
-                                    ScheduledExecutorService scheduler)
+    public static S3ManagedLedgerOffloader create(ServiceConfiguration conf,
+                                                  ScheduledExecutorService scheduler)
             throws PulsarServerException {
         String region = conf.getS3ManagedLedgerOffloadRegion();
         String bucket = conf.getS3ManagedLedgerOffloadBucket();
@@ -53,12 +53,18 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
             throw new PulsarServerException("s3ManagedLedgerOffloadBucket cannot be empty is s3 offload enabled");
         }
 
-        AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard().withRegion(region);
+        AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard();
         if (!Strings.isNullOrEmpty(endpoint)) {
             builder.setEndpointConfiguration(new EndpointConfiguration(endpoint, region));
             builder.setPathStyleAccessEnabled(true);
+        } else {
+            builder.setRegion(region);
         }
-        s3client = builder.build();
+        return new S3ManagedLedgerOffloader(builder.build(), bucket, scheduler);
+    }
+
+    S3ManagedLedgerOffloader(AmazonS3 s3client, String bucket, ScheduledExecutorService scheduler) {
+        this.s3client = s3client;
         this.bucket = bucket;
         this.scheduler = scheduler;
     }
