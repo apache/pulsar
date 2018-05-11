@@ -86,7 +86,7 @@ public class KubernetesController {
         client = new AppsV1beta1Api(apiClient);
     }
 
-    public void create(InstanceConfig instanceConfig, String bkPath, String fileBaseName, String pulsarServiceUrl, Resource resource) {
+    public void create(InstanceConfig instanceConfig, String bkPath, String fileBaseName, String pulsarServiceUrl) {
         instanceConfig.setInstanceId("$" + ENV_SHARD_ID);
         instanceConfig.setPort(instancePort);
         String instanceCodeFile;
@@ -101,7 +101,7 @@ public class KubernetesController {
         }
 
         final V1beta1StatefulSet statefulSet = createStatefulSet(instanceConfig, instanceCodeFile,
-                bkPath, fileBaseName, pulsarServiceUrl, resource);
+                bkPath, fileBaseName, pulsarServiceUrl);
 
         try {
             final Response response =
@@ -177,8 +177,7 @@ public class KubernetesController {
                                                  String instanceCodeFile,
                                                  String bkPath,
                                                  String fileBaseName,
-                                                 String pulsarServiceUrl,
-                                                 Resource resource) {
+                                                 String pulsarServiceUrl) {
         final String jobName = createJobName(instanceConfig.getFunctionDetails());
 
         final V1beta1StatefulSet statefulSet = new V1beta1StatefulSet();
@@ -213,7 +212,7 @@ public class KubernetesController {
         podTemplateSpec.setMetadata(templateMetaData);
 
         final List<String> command = getExecutorCommand(instanceConfig, instanceCodeFile, bkPath, fileBaseName, pulsarServiceUrl);
-        podTemplateSpec.spec(getPodSpec(command, resource));
+        podTemplateSpec.spec(getPodSpec(command, instanceConfig.getFunctionDetails().getResources()));
 
         statefulSetSpec.setTemplate(podTemplateSpec);
 
@@ -236,7 +235,7 @@ public class KubernetesController {
         return labels;
     }
 
-    private V1PodSpec getPodSpec(List<String> executorCommand, Resource resource) {
+    private V1PodSpec getPodSpec(List<String> executorCommand, Function.Resources resource) {
         final V1PodSpec podSpec = new V1PodSpec();
 
         // set the termination period to 0 so pods can be deleted quickly
@@ -282,7 +281,7 @@ public class KubernetesController {
     }
     */
 
-    private V1Container getContainer(List<String> executorCommand, Resource resource) {
+    private V1Container getContainer(List<String> executorCommand, Function.Resources resource) {
         final V1Container container = new V1Container().name("executor");
 
         // set up the container images
@@ -311,8 +310,8 @@ public class KubernetesController {
         // set container resources
         final V1ResourceRequirements resourceRequirements = new V1ResourceRequirements();
         final Map<String, Quantity> requests = new HashMap<>();
-        requests.put("memory", Quantity.fromString(resource.getRam()));
-        requests.put("cpu", Quantity.fromString(resource.getCpu()));
+        requests.put("memory", Quantity.fromLong(resource != null ? resource.getRam() : 1073741824));
+        requests.put("cpu", Quantity.fromDouble(resource != null ? resource.getCpu() : 1));
         resourceRequirements.setRequests(requests);
         container.setResources(resourceRequirements);
 

@@ -72,7 +72,6 @@ import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.functions.kubernetes.KubernetesConfig;
 import org.apache.pulsar.functions.kubernetes.KubernetesController;
-import org.apache.pulsar.functions.kubernetes.Resource;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
@@ -857,12 +856,6 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--k8Config", description = "Kubernetes config file", required = true)
         protected String k8ConfgiFile;
 
-        @Parameter(names = "--cpu", description = "Container CPU Allocation", required = true)
-        protected String cpu;
-
-        @Parameter(names = "--ram", description = "Container RAM Allocation", required = true)
-        protected String ram;
-
         @Override
         void runCmd() throws Exception {
             if (!areAllRequiredFieldsPresent(functionConfig)) {
@@ -895,7 +888,7 @@ public class CmdFunctions extends CmdBase {
             instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
             instanceConfig.setFunctionId(UUID.randomUUID().toString());
             instanceConfig.setMaxBufferedTuples(1024);
-            k8Controller.create(instanceConfig, bkPath, Paths.get(userCodeFile).getFileName().toString(),serviceUrl, new Resource(cpu, ram));
+            k8Controller.create(instanceConfig, bkPath, Paths.get(userCodeFile).getFileName().toString(),serviceUrl);
         }
     }
 
