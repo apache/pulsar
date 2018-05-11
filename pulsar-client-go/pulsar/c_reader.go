@@ -30,7 +30,6 @@ import (
 	"errors"
 	"github.com/mattn/go-pointer"
 	"runtime"
-	"time"
 	"unsafe"
 )
 
@@ -132,18 +131,9 @@ func (r *reader) Topic() string {
 	return C.GoString(C.pulsar_reader_get_topic(r.ptr))
 }
 
-func (r *reader) ReadNext() (Message, error) {
+func (r *reader) Next() (Message, error) {
 	rm := <-r.defaultChannel
 	return rm.Message, nil
-}
-
-func (r *reader) ReadNextWithTimeout(timeoutMillis int) (Message, error) {
-	select {
-	case rm := <-r.defaultChannel:
-		return rm.Message, nil
-	case <-time.After(time.Duration(timeoutMillis) * time.Millisecond):
-		return nil, newError(C.pulsar_result_Timeout, "Timeout on reader read")
-	}
 }
 
 func (r *reader) Close() error {

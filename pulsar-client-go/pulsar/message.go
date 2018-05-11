@@ -61,18 +61,12 @@ type Message interface {
 	// Properties are application defined key/value pairs that will be attached to the message
 	Properties() map[string]string
 
-	// Check whether the message has a specific property attached.
-	HasProperty(name string) bool
-
-	// Get the value of a specific property
-	Property(name string) string
-
 	// Get the payload of the message
 	Payload() []byte
 
 	// Get the unique message ID associated with this message.
 	// The message id can be used to univocally refer to a message without having the keep the entire payload in memory.
-	MessageId() MessageId
+	Id() MessageId
 
 	// Get the publish time of this message. The publish time is the timestamp that a client publish the message.
 	PublishTime() uint64
@@ -82,10 +76,7 @@ type Message interface {
 	// If there isn't any event time associated with this event, it will return 0.
 	EventTime() uint64
 
-	// Check whether the message has a key
-	HasKey() bool
-
-	// Get the key of the message
+	// Get the key of the message, if any
 	Key() string
 }
 

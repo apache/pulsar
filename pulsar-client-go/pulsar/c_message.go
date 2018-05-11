@@ -132,18 +132,6 @@ func (m *message) Properties() map[string]string {
 	return nil
 }
 
-func (m *message) HasProperty(name string) bool {
-	cName := C.CString(name)
-	defer C.free(unsafe.Pointer(cName))
-	return C.pulsar_message_has_property(m.ptr, cName) == 1
-}
-
-func (m *message) Property(name string) string {
-	cName := C.CString(name)
-	defer C.free(unsafe.Pointer(cName))
-	return C.GoString(C.pulsar_message_get_property(m.ptr, cName))
-}
-
 func (m *message) Payload() []byte {
 	payload := C.pulsar_message_get_data(m.ptr)
 	size := C.pulsar_message_get_length(m.ptr)
@@ -154,7 +142,7 @@ func (m *message) Payload() []byte {
 	return *(*[]byte)(unsafe.Pointer(slice))
 }
 
-func (m *message) MessageId() MessageId {
+func (m *message) Id() MessageId {
 	return newMessageId(m.ptr)
 }
 
@@ -164,10 +152,6 @@ func (m *message) PublishTime() uint64 {
 
 func (m *message) EventTime() uint64 {
 	return uint64(C.pulsar_message_get_event_timestamp(m.ptr))
-}
-
-func (m *message) HasKey() bool {
-	return C.pulsar_message_has_partition_key(m.ptr) == 1
 }
 
 func (m *message) Key() string {

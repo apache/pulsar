@@ -97,8 +97,8 @@ func subscribeAsync(client *client, options ConsumerOptions, callback func(Consu
 		C.pulsar_consumer_set_unacked_messages_timeout_ms(conf, C.ulonglong(timeoutMillis))
 	}
 
-	if options.SubscriptionType != Exclusive {
-		C.pulsar_consumer_configuration_set_consumer_type(conf, C.pulsar_consumer_type(options.SubscriptionType))
+	if options.Type != Exclusive {
+		C.pulsar_consumer_configuration_set_consumer_type(conf, C.pulsar_consumer_type(options.Type))
 	}
 
 	// ReceiverQueueSize==0 means to use the default queue size
@@ -115,8 +115,8 @@ func subscribeAsync(client *client, options ConsumerOptions, callback func(Consu
 			C.int(options.MaxTotalReceiverQueueSizeAcrossPartitions))
 	}
 
-	if options.ConsumerName != "" {
-		name := C.CString(options.ConsumerName)
+	if options.Name != "" {
+		name := C.CString(options.Name)
 		defer C.free(unsafe.Pointer(name))
 
 		C.pulsar_consumer_set_consumer_name(conf, name)
@@ -177,31 +177,22 @@ func (c *consumer) Receive() (Message, error) {
 	return cm.Message, nil
 }
 
-func (c *consumer) ReceiveWithTimeout(timeoutMillis int) (Message, error) {
-	select {
-	case cm := <-c.defaultChannel:
-		return cm.Message, nil
-	case <-time.After(time.Duration(timeoutMillis) * time.Millisecond):
-		return nil, newError(C.pulsar_result_Timeout, "Timeout on consumer receive")
-	}
-}
-
-func (c *consumer) Acknowledge(msg Message) error {
+func (c *consumer) Ack(msg Message) error {
 	C.pulsar_consumer_acknowledge_async(c.ptr, msg.(*message).ptr, nil, nil)
 	return nil
 }
 
-func (c *consumer) AcknowledgeId(msgId MessageId) error {
+func (c *consumer) AckId(msgId MessageId) error {
 	C.pulsar_consumer_acknowledge_async_id(c.ptr, msgId.(*messageId).ptr, nil, nil)
 	return nil
 }
 
-func (c *consumer) AcknowledgeCumulative(msg Message) error {
+func (c *consumer) AckCumulative(msg Message) error {
 	C.pulsar_consumer_acknowledge_cumulative_async(c.ptr, msg.(*message).ptr, nil, nil)
 	return nil
 }
 
-func (c *consumer) AcknowledgeCumulativeId(msgId MessageId) error {
+func (c *consumer) AckCumulativeId(msgId MessageId) error {
 	C.pulsar_consumer_acknowledge_cumulative_async_id(c.ptr, msgId.(*messageId).ptr, nil, nil)
 	return nil
 }
@@ -231,6 +222,6 @@ func pulsarConsumerCloseCallbackProxy(res C.pulsar_result, ctx unsafe.Pointer) {
 	}
 }
 
-func (c *consumer) RedeliverUnacknowledgedMessages() {
+func (c *consumer) RedeliverUnackedMessages() {
 	C.pulsar_consumer_redeliver_unacknowledged_messages(c.ptr)
 }

@@ -60,7 +60,7 @@ type ConsumerOptions struct {
 
 	// Select the subscription type to be used when subscribing to the topic.
 	// Default is `Exclusive`
-	SubscriptionType
+	Type SubscriptionType
 
 	// Sets a `MessageChannel` for the consumer
 	// When a message is received, it will be pushed to the channel for consumption
@@ -80,7 +80,7 @@ type ConsumerOptions struct {
 	MaxTotalReceiverQueueSizeAcrossPartitions int
 
 	// Set the consumer name.
-	ConsumerName string
+	Name string
 }
 
 // An interface that abstracts behavior of Pulsar's consumer
@@ -101,34 +101,29 @@ type Consumer interface {
 	// This calls blocks until a message is available.
 	Receive() (Message, error)
 
-	// Receive a single message
-	// Retrieves a message, waiting up to the specified wait time if necessary.
-	// timeout of 0 or less means immediate rather than infinite
-	ReceiveWithTimeout(timeoutMillis int) (Message, error)
+	//Ack the consumption of a single message
+	Ack(message Message) error
 
-	//Acknowledge the consumption of a single message
-	Acknowledge(message Message) error
+	// Ack the consumption of a single message, identified by its MessageId
+	AckId(messageId MessageId) error
 
-	// Acknowledge the consumption of a single message, identified by its MessageId
-	AcknowledgeId(messageId MessageId) error
-
-	// Acknowledge the reception of all the messages in the stream up to (and including) the provided message.
+	// Ack the reception of all the messages in the stream up to (and including) the provided message.
 	// This method will block until the acknowledge has been sent to the broker. After that, the messages will not be
 	// re-delivered to this consumer.
 	//
 	// Cumulative acknowledge cannot be used when the consumer type is set to ConsumerShared.
 	//
 	// It's equivalent to calling asyncAcknowledgeCumulative(Message) and waiting for the callback to be triggered.
-	AcknowledgeCumulative(message Message) error
+	AckCumulative(message Message) error
 
-	// Acknowledge the reception of all the messages in the stream up to (and including) the provided message.
+	// Ack the reception of all the messages in the stream up to (and including) the provided message.
 	// This method will block until the acknowledge has been sent to the broker. After that, the messages will not be
 	// re-delivered to this consumer.
 	//
 	// Cumulative acknowledge cannot be used when the consumer type is set to ConsumerShared.
 	//
 	// It's equivalent to calling asyncAcknowledgeCumulative(MessageId) and waiting for the callback to be triggered.
-	AcknowledgeCumulativeId(messageId MessageId) error
+	AckCumulativeId(messageId MessageId) error
 
 	// Close the consumer and stop the broker to push more messages
 	Close() error
@@ -140,5 +135,5 @@ type Consumer interface {
 	// active for the given topic. In Shared mode, the consumers messages to be redelivered are distributed across all
 	// the connected consumers. This is a non blocking call and doesn't throw an exception. In case the connection
 	// breaks, the messages are redelivered after reconnect.
-	RedeliverUnacknowledgedMessages()
+	RedeliverUnackedMessages()
 }

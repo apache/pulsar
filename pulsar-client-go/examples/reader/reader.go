@@ -31,6 +31,8 @@ func main() {
 		log.Fatal(err)
 	}
 
+	defer client.Close()
+
 	reader, err := client.CreateReader(pulsar.ReaderOptions{
 		Topic:          "my-topic",
 		StartMessageId: pulsar.EarliestMessage,
@@ -39,8 +41,10 @@ func main() {
 		log.Fatal(err)
 	}
 
+	defer reader.Close()
+
 	for {
-		msg, err := reader.ReadNext()
+		msg, err := reader.Next()
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -48,6 +52,4 @@ func main() {
 		fmt.Printf("Received message  msgId: %s -- content: '%s'\n",
 			msg.MessageId(), string(msg.Payload()))
 	}
-
-	reader.Close()
 }

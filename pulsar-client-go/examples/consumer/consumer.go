@@ -34,11 +34,14 @@ func main() {
 	consumer, err := client.Subscribe(pulsar.ConsumerOptions{
 		Topic:            "my-topic",
 		SubscriptionName: "my-subscription",
-		SubscriptionType: pulsar.Shared,
+		Type:             pulsar.Shared,
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	defer consumer.Close()
+	defer client.Close()
 
 	for {
 		msg, err := consumer.Receive()
@@ -47,10 +50,8 @@ func main() {
 		}
 
 		fmt.Printf("Received message  msgId: %s -- content: '%s'\n",
-			msg.MessageId(), string(msg.Payload()))
+			msg.Id(), string(msg.Payload()))
 
-		consumer.Acknowledge(msg)
+		consumer.Ack(msg)
 	}
-
-	consumer.Close()
 }

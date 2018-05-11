@@ -35,6 +35,8 @@ func main() {
 		log.Fatal(err)
 	}
 
+	defer client.Close()
+
 	producer, err := client.CreateProducer(pulsar.ProducerOptions{
 		Topic:        "my-topic",
 		ProducerName: "xyz",
@@ -43,12 +45,12 @@ func main() {
 		log.Fatal(err)
 	}
 
+	defer producer.Close()
+
 	for i := 0; i < 10; i++ {
 		err := producer.SendBytes([]byte(fmt.Sprintf("hello-%d", i)))
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
-
-	producer.Close()
 }

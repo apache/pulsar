@@ -62,12 +62,8 @@ type Reader interface {
 	// The topic from which this reader is reading from
 	Topic() string
 
-	// Read the next message in the topic
-	ReadNext() (Message, error)
-
-	// Read the next message in the topic waiting for a maximum of timeout
-	// time units. Returns null if no message is recieved in that time.
-	ReadNextWithTimeout(timeoutMillis int) (Message, error)
+	// Read the next message in the topic, blocking until a message is available
+	Next() (Message, error)
 
 	// Close the reader and stop the broker to push more messages
 	Close() error

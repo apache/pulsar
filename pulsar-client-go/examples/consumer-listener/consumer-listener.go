@@ -31,6 +31,8 @@ func main() {
 		log.Fatal(err)
 	}
 
+	defer client.Close()
+
 	channel := make(chan pulsar.ConsumerMessage)
 
 	consumer, err := client.Subscribe(pulsar.ConsumerOptions{
@@ -43,6 +45,8 @@ func main() {
 		log.Fatal(err)
 	}
 
+	defer consumer.Close()
+
 	// Receive messages from channel. The channel returns a struct which contains message and the consumer from where
 	// the message was received. It's not necessary here since we have 1 single consumer, but the channel could be
 	// shared across multiple consumers as well
@@ -51,8 +55,6 @@ func main() {
 		fmt.Printf("Received message  msgId: %s -- content: '%s'\n",
 			msg.MessageId(), string(msg.Payload()))
 
-		consumer.Acknowledge(msg)
+		consumer.Ack(msg)
 	}
-
-	consumer.Close()
 }
