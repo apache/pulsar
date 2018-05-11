@@ -20,7 +20,7 @@
 tenant: "test"
 namespace: "test-namespace"
 name: "example"
-className: "org.apache.pulsar.functions.api.examples.ExclamationFunction"
+className: "org.apache.pulsar.functions.api.examples.WindowFunction"
 inputs: ["test_src"]
 userConfig:
   "PublishTopic" : "test_result"
@@ -28,3 +28,6 @@ userConfig:
 output: "test_result"
 autoAck: true
 parallelism: 1
+windowConfig:
+  windowLengthCount: 10
+  slidingIntervalCount: 5
