@@ -444,8 +444,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
         SourceSpec sourceSpec = this.instanceConfig.getFunctionDetails().getSource();
         Object object;
-        if (sourceSpec.getClassName().equals(PulsarSource.class.getName())) {
-
+        // If source classname is not set, we default pulsar source
+        if (sourceSpec.getClassName().isEmpty()) {
             PulsarSourceConfig pulsarSourceConfig = new PulsarSourceConfig();
             pulsarSourceConfig.setTopicSerdeClassNameMap(sourceSpec.getTopicsToSerDeClassNameMap());
             pulsarSourceConfig.setSubscriptionName(
@@ -461,7 +461,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             Class[] paramTypes = {PulsarClient.class, PulsarSourceConfig.class};
 
             object = Reflections.createInstance(
-                    sourceSpec.getClassName(),
+                    PulsarSource.class.getName(),
                     PulsarSource.class.getClassLoader(), params, paramTypes);
 
         } else {
@@ -487,7 +487,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
         SinkSpec sinkSpec = this.instanceConfig.getFunctionDetails().getSink();
         Object object;
-        if (sinkSpec.getClassName().equals(PulsarSink.class.getName())) {
+        // If sink classname is not set, we default pulsar sink
+        if (sinkSpec.getClassName().isEmpty()) {
             PulsarSinkConfig pulsarSinkConfig = new PulsarSinkConfig();
             pulsarSinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.valueOf(
                     this.instanceConfig.getFunctionDetails().getProcessingGuarantees().name()));
@@ -499,7 +500,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             Class[] paramTypes = {PulsarClient.class, PulsarSinkConfig.class};
 
             object = Reflections.createInstance(
-                    sinkSpec.getClassName(),
+                    PulsarSink.class.getName(),
                     PulsarSink.class.getClassLoader(), params, paramTypes);
         } else {
             object = Reflections.createInstance(
