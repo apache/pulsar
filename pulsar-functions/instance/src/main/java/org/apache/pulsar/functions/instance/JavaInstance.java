@@ -29,13 +29,8 @@ import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.io.core.Source;
 
 import org.apache.pulsar.functions.source.PulsarSource;
-import org.apache.pulsar.functions.windowing.Window;
-import org.apache.pulsar.functions.windowing.WindowContext;
-import org.apache.pulsar.functions.windowing.WindowFunctionExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Collection;
 
 /**
  * This is the Java Instance. This is started by the runtimeSpawner using the JavaInstanceClient
@@ -67,7 +62,7 @@ public class JavaInstance implements AutoCloseable {
         // create the functions
         if (userClassObject instanceof Function) {
             this.function = (Function) userClassObject;
-        } else if (userClassObject instanceof java.util.function.Function) {
+        } else {
             this.javaUtilFunction = (java.util.function.Function) userClassObject;
         }
     }
