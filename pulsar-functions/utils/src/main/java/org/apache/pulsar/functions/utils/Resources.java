@@ -18,11 +18,7 @@
  */
 package org.apache.pulsar.functions.utils;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.*;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -32,14 +28,9 @@ import java.util.Map;
 @Data
 @EqualsAndHashCode
 @ToString
-public class SinkConfig {
-    private String tenant;
-    private String namespace;
-    private String name;
-    private String className;
-    private Map<String, String> topicToSerdeClassName;
-    private Map<String, Object> configs = new HashMap<>();
-    private int parallelism = 1;
-    private FunctionConfig.ProcessingGuarantees processingGuarantees;
-    private Resources resources;
+@AllArgsConstructor
+public class Resources {
+    private Double cpu;
+    private Long ram;
+    private Long disk;
 }
