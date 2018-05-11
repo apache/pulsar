@@ -16,18 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.examples;
+package org.apache.pulsar.functions.windowing;
 
-import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
+/**
+ * Watermark event used for tracking progress of time when
+ * processing event based ts.
+ */
+public class WaterMarkEvent<T> extends EventImpl<T> {
 
-public class PublishFunction implements Function<String, Void> {
+    public WaterMarkEvent(long ts) {
+        super(null, ts, null);
+    }
+
     @Override
-    public Void process(String input, Context context) {
-        String publishTopic = (String) context.getUserConfigValueOrDefault("publish-topic", "persistent://sample/standalone/ns1/publish");
-        String output = String.format("%s!", input);
-        context.publish(publishTopic, output, DefaultSerDe.class.getName());
-        return null;
+    public boolean isWatermark() {
+        return true;
+    }
+
+    @Override
+    public String toString() {
+        return "WaterMarkEvent{} " + super.toString();
     }
 }

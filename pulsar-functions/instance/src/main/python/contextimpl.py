@@ -25,6 +25,7 @@
 
 import time
 import os
+import json
 
 import pulsar
 import util
@@ -59,6 +60,7 @@ class ContextImpl(pulsar.Context):
     self.current_message_id = None
     self.current_input_topic_name = None
     self.current_start_time = None
+    self.user_config = json.loads(instance_config.function_details.userConfig);
 
   # Called on a per message basis to set the context for the current message
   def set_current_message_context(self, msgid, topic):
@@ -94,13 +96,13 @@ class ContextImpl(pulsar.Context):
     return self.log
 
   def get_user_config_value(self, key):
-    if key in self.instance_config.function_details.userConfig:
-      return str(self.instance_config.function_details.userConfig[key])
+    if key in self.user_config:
+      return self.user_config[key]
     else:
       return None
   
   def get_user_config_map(self):
-    return self.instance_config.function_details.userConfig
+    return self.user_config
 
   def record_metric(self, metric_name, metric_value):
     if not metric_name in self.accumulated_metrics:

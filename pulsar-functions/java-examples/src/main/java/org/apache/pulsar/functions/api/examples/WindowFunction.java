@@ -18,16 +18,23 @@
  */
 package org.apache.pulsar.functions.api.examples;
 
-import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
+import lombok.extern.slf4j.Slf4j;
 
-public class PublishFunction implements Function<String, Void> {
+import java.util.Collection;
+import java.util.function.BinaryOperator;
+import java.util.function.Function;
+
+@Slf4j
+public class WindowFunction implements Function <Collection<Integer>, Integer> {
     @Override
-    public Void process(String input, Context context) {
-        String publishTopic = (String) context.getUserConfigValueOrDefault("publish-topic", "persistent://sample/standalone/ns1/publish");
-        String output = String.format("%s!", input);
-        context.publish(publishTopic, output, DefaultSerDe.class.getName());
-        return null;
+    public Integer apply(Collection<Integer> integers) {
+
+        int sum = integers.stream().reduce(new BinaryOperator<Integer>() {
+            @Override
+            public Integer apply(Integer integer, Integer integer2) {
+                return integer + integer2;
+            }
+        }).get();
+        return sum;
     }
 }

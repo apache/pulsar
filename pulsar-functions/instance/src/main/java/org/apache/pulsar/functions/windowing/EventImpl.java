@@ -16,18 +16,41 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.examples;
+package org.apache.pulsar.functions.windowing;
 
-import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 
-public class PublishFunction implements Function<String, Void> {
+@ToString
+@EqualsAndHashCode
+public class EventImpl<T> implements Event<T> {
+    private final T event;
+    private final long ts;
+    private final byte[] messageId;
+
+    EventImpl(T event, long ts, byte[] messageId) {
+        this.event = event;
+        this.ts = ts;
+        this.messageId = messageId;
+    }
+
     @Override
-    public Void process(String input, Context context) {
-        String publishTopic = (String) context.getUserConfigValueOrDefault("publish-topic", "persistent://sample/standalone/ns1/publish");
-        String output = String.format("%s!", input);
-        context.publish(publishTopic, output, DefaultSerDe.class.getName());
-        return null;
+    public long getTimestamp() {
+        return ts;
+    }
+
+    @Override
+    public T get() {
+        return event;
+    }
+
+    @Override
+    public boolean isWatermark() {
+        return false;
+    }
+
+    @Override
+    public byte[] getMessageId() {
+        return messageId;
     }
 }

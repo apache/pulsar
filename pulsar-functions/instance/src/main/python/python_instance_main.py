@@ -116,9 +116,7 @@ def main():
   else:
     function_details.autoAck = False
   if args.user_config != None and len(args.user_config) != 0:
-    user_config = json.loads(args.user_config)
-    for (key, value) in user_config.items():
-      function_details.userConfig[str(key)] = str(value)
+    function_details.userConfig = args.user_config
 
   pulsar_client = pulsar.Client(args.pulsar_serviceurl)
   pyinstance = python_instance.PythonInstance(str(args.instance_id), str(args.function_id),
