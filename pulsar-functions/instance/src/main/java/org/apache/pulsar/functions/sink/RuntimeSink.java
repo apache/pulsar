@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.functions.sink;
 
-import org.apache.pulsar.connect.core.RecordContext;
-import org.apache.pulsar.connect.core.Sink;
+import org.apache.pulsar.io.core.RecordContext;
+import org.apache.pulsar.io.core.Sink;
 
 /**
  * This class extends connect sink.

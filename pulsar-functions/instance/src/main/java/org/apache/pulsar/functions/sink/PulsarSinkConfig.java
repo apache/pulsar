@@ -23,8 +23,6 @@ import lombok.Setter;
 import lombok.ToString;
 import org.apache.pulsar.functions.utils.FunctionConfig;
 
-import java.util.Map;
-
 @Getter
 @Setter
 @ToString

@@ -35,6 +35,7 @@ public class OffloadIndexBlockBuilderImpl implements OffloadIndexBlockBuilder {
 
     private LedgerMetadata ledgerMetadata;
     private List<OffloadIndexEntryImpl> entries;
+    private int lastBlockSize;
 
     public OffloadIndexBlockBuilderImpl() {
         this.entries = Lists.newArrayList();
@@ -50,13 +51,14 @@ public class OffloadIndexBlockBuilderImpl implements OffloadIndexBlockBuilder {
     public OffloadIndexBlockBuilder addBlock(long firstEntryId, int partId, int blockSize) {
         // we should added one by one.
         long offset;
-        if(firstEntryId == 0) {
+        if (firstEntryId == 0) {
             checkState(entries.size() == 0);
             offset = 0;
         } else {
             checkState(entries.size() > 0);
-            offset = entries.get(entries.size() - 1).getOffset() + blockSize;
+            offset = entries.get(entries.size() - 1).getOffset() + lastBlockSize;
         }
+        lastBlockSize = blockSize;
 
         this.entries.add(OffloadIndexEntryImpl.of(firstEntryId, partId, offset));
         return this;

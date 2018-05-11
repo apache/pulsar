@@ -26,12 +26,12 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
-import org.apache.pulsar.connect.core.Record;
-import org.apache.pulsar.connect.core.Source;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.utils.FunctionConfig;
+import org.apache.pulsar.io.core.Record;
+import org.apache.pulsar.io.core.Source;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -104,7 +104,7 @@ public class PulsarSource<T> implements Source<T> {
         PulsarRecord<T> pulsarMessage = (PulsarRecord<T>) PulsarRecord.builder()
                 .value(input)
                 .messageId(message.getMessageId())
-                .partitionId(partitionId)
+                .partitionId(String.format("%s-%s", topicName, partitionId))
                 .sequenceId(message.getSequenceId())
                 .topicName(topicName)
                 .ackFunction(() -> {

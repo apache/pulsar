@@ -628,7 +628,7 @@ public class FunctionsImpl {
                     @Override
                     public void write(final OutputStream output) throws IOException {
                         Utils.downloadFromBookkeeper(worker().getDlogNamespace(),
-                                output, Codec.decode(path));
+                                output, Codec.encode(path));
                     }
                 }).build();
     }
@@ -723,11 +723,13 @@ public class FunctionsImpl {
             if (functionDetails.getClassName() == null || functionDetails.getClassName().isEmpty()) {
                 missingFields.add("ClassName");
             }
+            // TODO in the future add more check here for functions and connectors
             if (!functionDetails.getSource().isInitialized()) {
                 missingFields.add("Source");
             }
-            else if (functionDetails.getSource().getTopicsToSerDeClassNameMap().isEmpty()) {
-                missingFields.add("Source Topics Serde Map");
+            // TODO in the future add more check here for functions and connectors
+            if (!functionDetails.getSink().isInitialized()) {
+                missingFields.add("Sink");
             }
             if (!missingFields.isEmpty()) {
                 String errorMessage = StringUtils.join(missingFields, ",");
