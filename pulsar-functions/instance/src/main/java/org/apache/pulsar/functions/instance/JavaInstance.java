@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.instance;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import net.jodah.typetools.TypeResolver;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.functions.api.Function;
@@ -28,8 +29,13 @@ import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.io.core.Source;
 
 import org.apache.pulsar.functions.source.PulsarSource;
+import org.apache.pulsar.functions.windowing.Window;
+import org.apache.pulsar.functions.windowing.WindowContext;
+import org.apache.pulsar.functions.windowing.WindowFunctionExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Collection;
 
 /**
  * This is the Java Instance. This is started by the runtimeSpawner using the JavaInstanceClient
@@ -61,8 +67,21 @@ public class JavaInstance implements AutoCloseable {
         // create the functions
         if (userClassObject instanceof Function) {
             this.function = (Function) userClassObject;
-        } else {
-            this.javaUtilFunction = (java.util.function.Function) userClassObject;
+        } else if (userClassObject instanceof java.util.function.Function) {
+            Class<?>[] typeArgs = TypeResolver.resolveRawArguments(
+                    java.util.function.Function.class, userClassObject.getClass());
+            // check if window function
+            if (typeArgs[0].equals(Collection.class)) {
+                java.util.function.Function function = (java.util.function.Function) userClassObject;
+                this.function = new WindowFunctionExecutor() {
+                    @Override
+                    public Object process(Window inputWindow, WindowContext context) throws Exception {
+                        return function.apply(inputWindow.get());
+                    }
+                };
+            } else {
+                this.javaUtilFunction = (java.util.function.Function) userClassObject;
+            }
         }
     }
 

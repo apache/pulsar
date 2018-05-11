@@ -16,18 +16,36 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.examples;
+package org.apache.pulsar.functions.utils;
 
-import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
+import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
+import lombok.experimental.Accessors;
 
-public class PublishFunction implements Function<String, Void> {
-    @Override
-    public Void process(String input, Context context) {
-        String publishTopic = (String) context.getUserConfigValueOrDefault("publish-topic", "persistent://sample/standalone/ns1/publish");
-        String output = String.format("%s!", input);
-        context.publish(publishTopic, output, DefaultSerDe.class.getName());
-        return null;
-    }
+@Data
+@Setter
+@Getter
+@Accessors(chain = true)
+@ToString
+public class WindowConfig {
+
+    public static final String WINDOW_CONFIG_KEY = "__WINDOWCONFIGS__";
+
+    private Integer windowLengthCount;
+
+    private Long windowLengthDurationMs;
+
+    private Integer slidingIntervalCount;
+
+    private Long slidingIntervalDurationMs;
+
+    private String lateDataTopic;
+
+    private Long maxLagMs;
+
+    private Long watermarkEmitIntervalMs;
+
+    private String timestampExtractorClassName;
 }

@@ -16,18 +16,41 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.examples;
+package org.apache.pulsar.functions.windowing;
 
-import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
+/**
+ * An event is a wrapper object that gets stored in the window.
+ *
+ * @param <T> the type of the object thats wrapped
+ */
+public interface Event<T> {
+    /**
+     * The event timestamp in millis
+     *
+     * @return the event timestamp in milliseconds.
+     */
+    long getTimestamp();
 
-public class PublishFunction implements Function<String, Void> {
-    @Override
-    public Void process(String input, Context context) {
-        String publishTopic = (String) context.getUserConfigValueOrDefault("publish-topic", "persistent://sample/standalone/ns1/publish");
-        String output = String.format("%s!", input);
-        context.publish(publishTopic, output, DefaultSerDe.class.getName());
-        return null;
-    }
+    /**
+     * Returns the wrapped object
+     *
+     * @return the wrapped object.
+     */
+    T get();
+
+    /**
+     * If this is a watermark event or not. Watermark events are used
+     * for tracking time while processing event based ts.
+     *
+     * @return true if this is a watermark event
+     */
+    boolean isWatermark();
+
+
+    /**
+     * Get the message id of this event
+     *
+     * @return byte array of the message id
+     */
+    byte[] getMessageId();
 }

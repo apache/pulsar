@@ -23,17 +23,22 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.isNull;
 import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.ObjectOutputStream;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
-import java.util.*;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.IntStream;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -66,7 +71,6 @@ import org.apache.pulsar.functions.shaded.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.shaded.proto.Function.Resources;
 import org.apache.pulsar.functions.shaded.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.shaded.proto.Function.ProcessingGuarantees;
-import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.Utils;
 
@@ -82,6 +86,8 @@ import com.google.gson.reflect.TypeToken;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
+import org.apache.pulsar.functions.utils.WindowConfig;
+import org.apache.pulsar.functions.windowing.WindowUtils;
 
 @Slf4j
 @Parameters(commandDescription = "Interface for managing Pulsar Functions (lightweight, Lambda-style compute processes that work with Pulsar)")
@@ -226,7 +232,16 @@ public class CmdFunctions extends CmdBase {
         protected Long ram;
         @Parameter(names = "--disk", description = "The disk in bytes that need to be allocated per function instance(applicable only to docker runtime)")
         protected Long disk;
-
+        @Parameter(names = "--windowLengthCount", description = "")
+        protected Integer windowLengthCount;
+        @Parameter(names = "--windowLengthDurationMs", description = "")
+        protected Long windowLengthDurationMs;
+        @Parameter(names = "--slidingIntervalCount", description = "")
+        protected Integer slidingIntervalCount;
+        @Parameter(names = "--slidingIntervalDurationMs", description = "")
+        protected Long slidingIntervalDurationMs;
+        @Parameter(names = "--autoAck", description = "")
+        protected Boolean autoAck;
         protected FunctionConfig functionConfig;
         protected String userCodeFile;
 
@@ -289,19 +304,8 @@ public class CmdFunctions extends CmdBase {
             }
             if (null != userConfigString) {
                 Type type = new TypeToken<Map<String, String>>(){}.getType();
-                Map<String, String> userConfigMap = new Gson().fromJson(userConfigString, type);
+                Map<String, Object> userConfigMap = new Gson().fromJson(userConfigString, type);
                 functionConfig.setUserConfig(userConfigMap);
-            }
-            if (null != jarFile) {
-                doJavaSubmitChecks(functionConfig);
-                functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
-                userCodeFile = jarFile;
-            } else if (null != pyFile) {
-                doPythonSubmitChecks(functionConfig);
-                functionConfig.setRuntime(FunctionConfig.Runtime.PYTHON);
-                userCodeFile = pyFile;
-            } else {
-                throw new RuntimeException("Either a Java jar or a Python file needs to be specified for the function");
             }
 
             if (functionConfig.getInputs().isEmpty() && functionConfig.getCustomSerdeInputs().isEmpty()) {
@@ -309,7 +313,7 @@ public class CmdFunctions extends CmdBase {
             }
 
             // Ensure that topics aren't being used as both input and output
-            verifyNoTopicClash(functionConfig.getInputs(), functionConfig.getOutput());;
+            verifyNoTopicClash(functionConfig.getInputs(), functionConfig.getOutput());
 
             if (parallelism == null) {
                 if (functionConfig.getParallelism() == 0) {
@@ -335,11 +339,106 @@ public class CmdFunctions extends CmdBase {
                 throw new IllegalArgumentException("Effectively-once processing semantics can only be achieved using a Failover subscription type");
             }
 
-            functionConfig.setAutoAck(true);
+            // window configs
+            WindowConfig windowConfig = functionConfig.getWindowConfig();
+            if (null != windowLengthCount) {
+                if (windowConfig == null) {
+                    windowConfig = new WindowConfig();
+                }
+                windowConfig.setWindowLengthCount(windowLengthCount);
+            }
+            if (null != windowLengthDurationMs) {
+                if (windowConfig == null) {
+                    windowConfig = new WindowConfig();
+                }
+                windowConfig.setWindowLengthDurationMs(windowLengthDurationMs);
+            }
+            if (null != slidingIntervalCount) {
+                if (windowConfig == null) {
+                    windowConfig = new WindowConfig();
+                }
+                windowConfig.setSlidingIntervalCount(slidingIntervalCount);
+            }
+            if (null != slidingIntervalDurationMs) {
+                if (windowConfig == null) {
+                    windowConfig = new WindowConfig();
+                }
+                windowConfig.setSlidingIntervalDurationMs(slidingIntervalDurationMs);
+            }
+            if (windowConfig != null) {
+                WindowUtils.validateAndSetDefaultsWindowConfig(windowConfig);
+                // set auto ack to false since windowing framework is responsible
+                // for acking and not the function framework
+                if (autoAck != null && autoAck == true) {
+                    throw new IllegalArgumentException("Cannot enable auto ack when using windowing functionality");
+                }
+                functionConfig.setAutoAck(false);
+            }
+            functionConfig.setWindowConfig(windowConfig);
+
+            if  (null != autoAck) {
+                functionConfig.setAutoAck(autoAck);
+            } else {
+                functionConfig.setAutoAck(true);
+            }
+
             inferMissingArguments(functionConfig);
+
+            if (null != jarFile) {
+                doJavaSubmitChecks(functionConfig);
+                functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+                userCodeFile = jarFile;
+            } else if (null != pyFile) {
+                doPythonSubmitChecks(functionConfig);
+                functionConfig.setRuntime(FunctionConfig.Runtime.PYTHON);
+                userCodeFile = pyFile;
+            } else {
+                throw new RuntimeException("Either a Java jar or a Python file needs to be specified for the function");
+            }
         }
 
-        public Class<?>[] getFunctionTypes(File file) {
+        private Class<?>[] getFunctionTypes(File file, FunctionConfig functionConfig) {
+            assertClassExistsInJar(file);
+
+            Object userClass = Reflections.createInstance(functionConfig.getClassName(), file);
+            Class<?>[] typeArgs;
+            // if window function
+            if (functionConfig.getWindowConfig() != null) {
+                java.util.function.Function function = (java.util.function.Function) userClass;
+                if (function == null) {
+                    throw new IllegalArgumentException(String.format("The Java util function class %s could not be instantiated from jar %s",
+                            functionConfig.getClassName(), jarFile));
+                }
+                typeArgs = TypeResolver.resolveRawArguments(java.util.function.Function.class, function.getClass());
+                if (!typeArgs[0].equals(Collection.class)) {
+                    throw new IllegalArgumentException("Window function must take a collection as input");
+                }
+                Type type = TypeResolver.resolveGenericType(java.util.function.Function.class, function.getClass());
+                Type collectionType = ((ParameterizedType) type).getActualTypeArguments()[0];
+                Type actualInputType = ((ParameterizedType) collectionType).getActualTypeArguments()[0];
+                typeArgs[0] = (Class<?>) actualInputType;
+            } else {
+                if (userClass instanceof Function) {
+                    Function pulsarFunction = (Function) userClass;
+                    if (pulsarFunction == null) {
+                        throw new IllegalArgumentException(String.format("The Pulsar function class %s could not be instantiated from jar %s",
+                                functionConfig.getClassName(), jarFile));
+                    }
+                    typeArgs = TypeResolver.resolveRawArguments(Function.class, pulsarFunction.getClass());
+                } else {
+                    java.util.function.Function function = (java.util.function.Function) userClass;
+                    if (function == null) {
+                        throw new IllegalArgumentException(String.format("The Java util function class %s could not be instantiated from jar %s",
+                                functionConfig.getClassName(), jarFile));
+                    }
+                    typeArgs = TypeResolver.resolveRawArguments(java.util.function.Function.class, function.getClass());
+                }
+            }
+
+            return typeArgs;
+        }
+
+        private void assertClassExistsInJar(File file) {
             if (!Reflections.classExistsInJar(file, functionConfig.getClassName())) {
                 throw new IllegalArgumentException(String.format("Pulsar function class %s does not exist in jar %s",
                         functionConfig.getClassName(), jarFile));
@@ -348,25 +447,6 @@ public class CmdFunctions extends CmdBase {
                 throw new IllegalArgumentException(String.format("The Pulsar function class %s in jar %s implements neither org.apache.pulsar.functions.api.Function nor java.util.function.Function",
                         functionConfig.getClassName(), jarFile));
             }
-
-            Object userClass = Reflections.createInstance(functionConfig.getClassName(), file);
-            Class<?>[] typeArgs;
-            if (userClass instanceof Function) {
-                Function pulsarFunction = (Function) userClass;
-                if (pulsarFunction == null) {
-                    throw new IllegalArgumentException(String.format("The Pulsar function class %s could not be instantiated from jar %s",
-                            functionConfig.getClassName(), jarFile));
-                }
-                typeArgs = TypeResolver.resolveRawArguments(Function.class, pulsarFunction.getClass());
-            } else {
-                java.util.function.Function function = (java.util.function.Function) userClass;
-                if (function == null) {
-                    throw new IllegalArgumentException(String.format("The Java util function class %s could not be instantiated from jar %s",
-                            functionConfig.getClassName(), jarFile));
-                }
-                typeArgs = TypeResolver.resolveRawArguments(java.util.function.Function.class, function.getClass());
-            }
-            return typeArgs;
         }
 
         private void doJavaSubmitChecks(FunctionConfig functionConfig) {
@@ -375,16 +455,13 @@ public class CmdFunctions extends CmdBase {
             }
 
             File file = new File(jarFile);
-
             ClassLoader userJarLoader;
             try {
                 userJarLoader = Reflections.loadJar(file);
             } catch (MalformedURLException e) {
                 throw new RuntimeException("Failed to load user jar " + file, e);
             }
-
-            Class<?>[] typeArgs = getFunctionTypes(file);
-
+            Class<?>[] typeArgs = getFunctionTypes(file, functionConfig);
             // Check if the Input serialization/deserialization class exists in jar or already loaded and that it
             // implements SerDe class
             functionConfig.getCustomSerdeInputs().forEach((topicName, inputSerializer) -> {
@@ -478,6 +555,10 @@ public class CmdFunctions extends CmdBase {
             if (functionConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
                 throw new RuntimeException("Effectively-once processing guarantees not yet supported in Python");
             }
+
+            if (functionConfig.getWindowConfig() != null) {
+                throw new IllegalArgumentException("There is currently no support windowing in python");
+            }
         }
 
         private void validateTopicName(String topic) {
@@ -562,7 +643,7 @@ public class CmdFunctions extends CmdBase {
                 } catch (MalformedURLException e) {
                     throw new RuntimeException("Failed to load user jar " + file, e);
                 }
-                typeArgs = getFunctionTypes(file);
+                typeArgs = getFunctionTypes(file, functionConfig);
             }
 
             FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
@@ -619,13 +700,18 @@ public class CmdFunctions extends CmdBase {
             if (functionConfig.getRuntime() != null) {
                 functionDetailsBuilder.setRuntime(convertRuntime(functionConfig.getRuntime()));
             }
-            if (!functionConfig.getUserConfig().isEmpty()) {
-                functionDetailsBuilder.putAllUserConfig(functionConfig.getUserConfig());
-            }
             if (functionConfig.getProcessingGuarantees() != null) {
                 functionDetailsBuilder.setProcessingGuarantees(
                         convertProcessingGuarantee(functionConfig.getProcessingGuarantees()));
             }
+
+            Map<String, Object> configs = new HashMap<>();
+            configs.putAll(functionConfig.getUserConfig());
+            // windowing related
+            WindowConfig windowConfig = functionConfig.getWindowConfig();
+            configs.put(WindowConfig.WINDOW_CONFIG_KEY, windowConfig);
+            functionDetailsBuilder.setUserConfig(new Gson().toJson(configs));
+
             functionDetailsBuilder.setAutoAck(functionConfig.isAutoAck());
             functionDetailsBuilder.setParallelism(functionConfig.getParallelism());
             if (functionConfig.getResources() != null) {
@@ -922,9 +1008,8 @@ public class CmdFunctions extends CmdBase {
     }
 
     private static FunctionConfig loadConfig(File file) throws IOException {
-
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-        return  mapper.readValue(file, FunctionConfig.class);
+        return mapper.readValue(file, FunctionConfig.class);
     }
 
     private static void verifyNoTopicClash(Collection<String> inputTopics, String outputTopic) throws IllegalArgumentException {
