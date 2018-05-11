@@ -628,7 +628,7 @@ public class FunctionsImpl {
                     @Override
                     public void write(final OutputStream output) throws IOException {
                         Utils.downloadFromBookkeeper(worker().getDlogNamespace(),
-                                output, Codec.decode(path));
+                                output, Codec.encode(path));
                     }
                 }).build();
     }
