@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.s3offload;
 
+import com.amazonaws.auth.AnonymousAWSCredentials;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
@@ -46,6 +48,7 @@ public class S3TestBase {
         } else {
             s3client = AmazonS3ClientBuilder.standard()
                 .withEndpointConfiguration(new EndpointConfiguration(s3endpoint, "foobar"))
+                .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
                 .withPathStyleAccessEnabled(true).build();
         }
 
