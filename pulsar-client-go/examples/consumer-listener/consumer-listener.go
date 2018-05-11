@@ -26,24 +26,27 @@ import (
 )
 
 func main() {
-	client := pulsar.NewClient().
-		ServiceUrl("pulsar://localhost:6650").Build()
-
-	channel := make(chan pulsar.ConsumerMessage)
-
-	consumer, err := client.NewConsumer().
-		Topic("my-topic").
-		SubscriptionName("my-subscription").
-		SubscriptionType(pulsar.Shared).
-		MessageListener(channel).
-		Subscribe()
+	client, err := pulsar.NewClient(pulsar.ClientOptions{URL: "pulsar://localhost:6650"})
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Receive messages from channel
+	channel := make(chan pulsar.ConsumerMessage)
+
+	consumer, err := client.Subscribe(pulsar.ConsumerOptions{
+		Topic:            "my-topic",
+		SubscriptionName: "my-subscription",
+		SubscriptionType: pulsar.Shared,
+		MessageChannel:   channel,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Receive messages from channel. The channel returns a struct which contains message and the consumer from where
+	// the message was received. It's not necessary here since we have 1 single consumer, but the channel could be
+	// shared across multiple consumers as well
 	for cm := range channel {
-		consumer := cm.Consumer
 		msg := cm.Message
 		fmt.Printf("Received message  msgId: %s -- content: '%s'\n",
 			msg.MessageId(), string(msg.Payload()))

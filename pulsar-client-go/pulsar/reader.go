@@ -24,48 +24,37 @@ type ReaderMessage struct {
 	Message
 }
 
-// ReaderBuilder is used to configure and create instances of Reader.
-type ReaderBuilder interface {
-	// Finalize the creation of the Reader instance.
-	// This method will block until the reader is created successfully.
-	Create() (Reader, error)
-
-	// Finalize the creation of the Reader instance in asynchronous mode.
-	CreateAsync(callback func(Reader, error))
-
+type ReaderOptions struct {
 	// Specify the topic this consumer will subscribe on.
 	// This argument is required when constructing the reader.
-	Topic(topicName string) ReaderBuilder
+	Topic string
 
-	// Start reading from the earliest message available in the topic
-	StartFromEarliest() ReaderBuilder
+	// Set the reader name.
+	Name string
 
-	// Start reading from the end topic, only getting messages published after the
-	// reader was created. This is the default behavior
-	StartFromLatest() ReaderBuilder
+	// The initial reader positioning is done by specifying a message id. The options are:
+	//  * `pulsar.EarliestMessage` : Start reading from the earliest message available in the topic
+	//  * `pulsar.LatestMessage` : Start reading from the end topic, only getting messages published after the
+	//                           reader was created
+	//  * `MessageId` : Start reading from a particular message id, the reader will position itself on that
+	//                  specific position. The first message to be read will be the message next to the specified
+	//                  messageId
+	StartMessageId MessageId
 
-	// Start reading from a particular message id, the reader will position itself on that
-	// specific position. The first message to be read will be the message next to the specified messageId
-	StartMessageId(startMessageId MessageId) ReaderBuilder
-
-	// Sets a channel listener for the reader
-	// When a {@link ReaderListener} is set, application will receive messages through it. Calls to
-	// Reader.ReadNext() will not be allowed.
-	ReaderListener(readerListener chan ReaderMessage) ReaderBuilder
+	// Sets a `MessageChannel` for the consumer
+	// When a message is received, it will be pushed to the channel for consumption
+	MessageChannel chan ReaderMessage
 
 	// Sets the size of the consumer receive queue.
-	// The consumer receive queue controls how many messages can be accumulated by the {@link Consumer} before the
-	// application calls {@link Consumer#receive()}. Using a higher value could potentially increase the consumer
+	// The consumer receive queue controls how many messages can be accumulated by the Reader before the
+	// application calls Reader.readNext(). Using a higher value could potentially increase the consumer
 	// throughput at the expense of bigger memory utilization.
 	//
 	// Default value is {@code 1000} messages and should be good for most use cases.
-	ReceiverQueueSize(receiverQueueSize int) ReaderBuilder
+	ReceiverQueueSize int
 
-	// Set the reader name.
-	ReaderName(readerName string) ReaderBuilder
-
-	// Set the subscription role prefix. The default prefix is "reader".S
-	SubscriptionRolePrefix(subscriptionRolePrefix string) ReaderBuilder
+	// Set the subscription role prefix. The default prefix is "reader".
+	SubscriptionRolePrefix string
 }
 
 // A Reader can be used to scan through all the messages currently available in a topic.

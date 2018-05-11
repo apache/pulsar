@@ -26,14 +26,16 @@ import (
 )
 
 func main() {
-	client := pulsar.NewClient().
-		ServiceUrl("pulsar://localhost:6650").Build()
+	client, err := pulsar.NewClient(pulsar.ClientOptions{URL: "pulsar://localhost:6650"})
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	consumer, err := client.NewConsumer().
-		Topic("my-topic").
-		SubscriptionName("my-subscription").
-		SubscriptionType(pulsar.Shared).
-		Subscribe()
+	consumer, err := client.Subscribe(pulsar.ConsumerOptions{
+		Topic:            "my-topic",
+		SubscriptionName: "my-subscription",
+		SubscriptionType: pulsar.Shared,
+	})
 	if err != nil {
 		log.Fatal(err)
 	}

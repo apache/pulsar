@@ -19,67 +19,78 @@
 
 package pulsar
 
-func NewClient() ClientBuilder {
-	return newClient()
+import "time"
+
+func NewClient(options ClientOptions) (Client, error) {
+	return newClient(options)
 }
 
 // Builder interface that is used to construct a Pulsar Client instance.
-type ClientBuilder interface {
-	// Create the new Pulsar Client instance
-	Build() Client
-
+type ClientOptions struct {
 	// Configure the service URL for the Pulsar service.
 	// This parameter is required
-	ServiceUrl(serviceUrl string) ClientBuilder
+	URL string
 
-	// Set the number of threads to be used for handling connections to brokers (default: 1 thread)
-	IoThreads(ioThreads int) ClientBuilder
+	// Number of threads to be used for handling connections to brokers (default: 1 thread)
+	IoThreads int
 
 	// Set the operation timeout (default: 30 seconds)
 	// Producer-create, subscribe and unsubscribe operations will be retried until this interval, after which the
 	// operation will be maked as failed
-	OperationTimeoutSeconds(operationTimeoutSeconds int) ClientBuilder
+	OperationTimeoutSeconds time.Duration
 
 	// Set the number of threads to be used for message listeners (default: 1 thread)
-	MessageListenerThreads(messageListenerThreads int) ClientBuilder
+	MessageListenerThreads int
 
 	// Number of concurrent lookup-requests allowed to send on each broker-connection to prevent overload on broker.
 	// (default: 5000) It should be configured with higher value only in case of it requires to produce/subscribe
 	// on thousands of topic using created Pulsar Client
-	ConcurrentLookupRequests(concurrentLookupRequests int) ClientBuilder
+	ConcurrentLookupRequests int
 
 	// Initialize the Log4cxx configuration
-	LogConfFilePath(logConfFilePath string) ClientBuilder
+	LogConfFilePath string
 
-	//Configure whether to use TLS encryption on the connection (default: false)
-	EnableTls(enableTls bool) ClientBuilder
+	// Configure whether to use TLS encryption on the connection (default: false)
+	EnableTls bool
 
 	// Set the path to the trusted TLS certificate file
-	TlsTrustCertsFilePath(tlsTrustCertsFilePath string) ClientBuilder
+	TlsTrustCertsFilePath string
 
 	// Configure whether the Pulsar client accept untrusted TLS certificate from broker (default: false)
-	TlsAllowInsecureConnection(tlsAllowInsecureConnection bool) ClientBuilder
+	TlsAllowInsecureConnection bool
 
 	// Set the interval between each stat info (default: 60 seconds). Stats will be activated with positive
 	// statsIntervalSeconds It should be set to at least 1 second
-	StatsIntervalInSeconds(statsIntervalInSeconds int) ClientBuilder
+	StatsIntervalInSeconds int
 }
 
 type Client interface {
-	// Create a producer with default for publishing on a specific topic
-	// Example:
-	// producer := client.newProducer().Topic(myTopic).Create()
-	NewProducer() ProducerBuilder
+	// Create the producer instance
+	// This method will block until the producer is created successfully
+	CreateProducer(options ProducerOptions) (Producer, error)
 
-	// Create a consumer builder
-	// Example:
-	// consumer := client.newConsumer().Topic(myTopic).SubscriptionName(mySubscription).Subscribe()
-	NewConsumer() ConsumerBuilder
+	// Create the producer instance in asynchronous mode. The callback
+	// will be triggered once the operation is completed
+	CreateProducerAsync(options ProducerOptions, callback func(Producer, error))
 
-	// Create a reader builder
-	// Example:
-	// reader := client.newReader().Topic(myTopic).StartFromEarliest().Create()
-	NewReader() ReaderBuilder
+	// Create a `Consumer` by subscribing to a topic.
+	//
+	// If the subscription does not exist, a new subscription will be created and all messages published after the
+	// creation will be retained until acknowledged, even if the consumer is not connected
+	Subscribe(options ConsumerOptions) (Consumer, error)
+
+	// Create a `Consumer` by subscribing to a topic in asynchronous mode.
+	//
+	// If the subscription does not exist, a new subscription will be created and all messages published after the
+	// creation will be retained until acknowledged, even if the consumer is not connected
+	SubscribeAsync(options ConsumerOptions, callback func(Consumer, error))
+
+	// Create a Reader instance.
+	// This method will block until the reader is created successfully.
+	CreateReader(options ReaderOptions) (Reader, error)
+
+	// Create a Reader instance. in asynchronous mode.
+	CreateReaderAsync(options ReaderOptions, callback func(Reader, error))
 
 	// Close the Client and free associated resources
 	Close() error

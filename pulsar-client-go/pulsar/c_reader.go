@@ -34,52 +34,9 @@ import (
 	"unsafe"
 )
 
-/// ReaderBuilder
-
-type readerBuilder struct {
-	client         *client
-	topic          string
-	startMessageId *messageId
-	ptr            *C.pulsar_reader_configuration_t
-	reader         *reader
-}
-
 type reader struct {
 	ptr            *C.pulsar_reader_t
 	defaultChannel chan ReaderMessage
-}
-
-func readerBuilderFinalizer(cb *readerBuilder) {
-	C.pulsar_reader_configuration_free(cb.ptr)
-}
-
-func newReaderBuilder(client *client) ReaderBuilder {
-	builder := &readerBuilder{
-		client: client,
-		ptr:    C.pulsar_reader_configuration_create(),
-		reader: &reader{ptr: nil},
-	}
-
-	runtime.SetFinalizer(builder, readerBuilderFinalizer)
-	return builder
-}
-
-func (rb *readerBuilder) Create() (Reader, error) {
-	c := make(chan struct {
-		Reader
-		error
-	})
-
-	rb.CreateAsync(func(reader Reader, err error) {
-		c <- struct {
-			Reader
-			error
-		}{reader, err}
-		close(c)
-	})
-
-	res := <-c
-	return res.Reader, res.error
 }
 
 func readerFinalizer(c *reader) {
@@ -92,8 +49,10 @@ func readerFinalizer(c *reader) {
 func pulsarCreateReaderCallbackProxy(res C.pulsar_result, ptr *C.pulsar_reader_t, ctx unsafe.Pointer) {
 	cc := pointer.Restore(ctx).(*readerAndCallback)
 
+	C.pulsar_reader_configuration_free(cc.conf)
+
 	if res != C.pulsar_result_Ok {
-		cc.callback(nil, NewError(res, "Failed to create Producer"))
+		cc.callback(nil, newError(res, "Failed to create Reader"))
 	} else {
 		cc.reader.ptr = ptr
 		runtime.SetFinalizer(cc.reader, readerFinalizer)
@@ -103,36 +62,59 @@ func pulsarCreateReaderCallbackProxy(res C.pulsar_result, ptr *C.pulsar_reader_t
 
 type readerAndCallback struct {
 	reader   *reader
+	conf     *C.pulsar_reader_configuration_t
 	callback func(Reader, error)
 }
 
-func (rb *readerBuilder) CreateAsync(callback func(Reader, error)) {
-	if rb.topic == "" {
+func createReaderAsync(client *client, options ReaderOptions, callback func(Reader, error)) {
+	if options.Topic == "" {
 		callback(nil, errors.New("topic is required"))
 		return
 	}
 
-	if rb.startMessageId == nil {
-		rb.startMessageId = messageIdLatest()
+	if options.StartMessageId == nil {
+		callback(nil, errors.New("start message id is required"))
 		return
 	}
 
-	if C.pulsar_reader_configuration_has_reader_listener(rb.ptr) == 0 {
+	reader := &reader{}
+
+	if options.MessageChannel == nil {
 		// If there is no message listener, set a default channel so that we can have receive to
 		// use that
-		rb.reader.defaultChannel = make(chan ReaderMessage)
-		rb.ReaderListener(rb.reader.defaultChannel)
+		reader.defaultChannel = make(chan ReaderMessage)
+		options.MessageChannel = reader.defaultChannel
 	}
 
-	topic := C.CString(rb.topic)
-	defer C.free(unsafe.Pointer(topic))
-	C._pulsar_client_create_reader_async(rb.client.ptr, topic, rb.startMessageId.ptr,
-		rb.ptr, pointer.Save(&readerAndCallback{rb.reader, callback}))
-}
+	conf := C.pulsar_reader_configuration_create()
 
-func (rb *readerBuilder) Topic(topic string) ReaderBuilder {
-	rb.topic = topic
-	return rb
+	C._pulsar_reader_configuration_set_reader_listener(conf, pointer.Save(&readerCallback{
+		reader:  reader,
+		channel: options.MessageChannel,
+	}))
+
+	if options.ReceiverQueueSize != 0 {
+		C.pulsar_reader_configuration_set_receiver_queue_size(conf, C.int(options.ReceiverQueueSize))
+	}
+
+	if options.SubscriptionRolePrefix != "" {
+		prefix := C.CString(options.SubscriptionRolePrefix)
+		defer C.free(unsafe.Pointer(prefix))
+		C.pulsar_reader_configuration_set_subscription_role_prefix(conf, prefix)
+	}
+
+	if options.Name != "" {
+		name := C.CString(options.Name)
+		defer C.free(unsafe.Pointer(name))
+
+		C.pulsar_reader_configuration_set_reader_name(conf, name)
+	}
+
+	topic := C.CString(options.Topic)
+	defer C.free(unsafe.Pointer(topic))
+
+	C._pulsar_client_create_reader_async(client.ptr, topic, options.StartMessageId.(*messageId).ptr,
+		conf, pointer.Save(&readerAndCallback{reader, conf, callback}))
 }
 
 type readerCallback struct {
@@ -145,51 +127,6 @@ func pulsarReaderListenerProxy(cReader *C.pulsar_reader_t, message *C.pulsar_mes
 	rc := pointer.Restore(ctx).(*readerCallback)
 	rc.channel <- ReaderMessage{rc.reader, newMessageWrapper(message)}
 }
-
-func (rb *readerBuilder) ReaderListener(listener chan ReaderMessage) ReaderBuilder {
-	C._pulsar_reader_configuration_set_reader_listener(rb.ptr, pointer.Save(&readerCallback{
-		reader:  rb.reader,
-		channel: listener,
-	}))
-	return rb
-}
-
-func (rb *readerBuilder) ReceiverQueueSize(receiverQueueSize int) ReaderBuilder {
-	C.pulsar_reader_configuration_set_receiver_queue_size(rb.ptr, C.int(receiverQueueSize))
-	return rb
-}
-
-func (rb *readerBuilder) ReaderName(readerName string) ReaderBuilder {
-	name := C.CString(readerName)
-	defer C.free(unsafe.Pointer(name))
-
-	C.pulsar_reader_configuration_set_reader_name(rb.ptr, name)
-	return rb
-}
-
-func (rb *readerBuilder) StartFromEarliest() ReaderBuilder {
-	rb.startMessageId = messageIdEarliest()
-	return rb
-}
-
-func (rb *readerBuilder) StartFromLatest() ReaderBuilder {
-	rb.startMessageId = messageIdLatest()
-	return rb
-}
-
-func (rb *readerBuilder) StartMessageId(startMessageId MessageId) ReaderBuilder {
-	rb.startMessageId = startMessageId.(*messageId)
-	return rb
-}
-
-func (rb *readerBuilder) SubscriptionRolePrefix(subscriptionRolePrefix string) ReaderBuilder {
-	prefix := C.CString(subscriptionRolePrefix)
-	defer C.free(unsafe.Pointer(prefix))
-	C.pulsar_reader_configuration_set_subscription_role_prefix(rb.ptr, prefix)
-	return rb
-}
-
-//// Consumer
 
 func (r *reader) Topic() string {
 	return C.GoString(C.pulsar_reader_get_topic(r.ptr))
@@ -205,7 +142,7 @@ func (r *reader) ReadNextWithTimeout(timeoutMillis int) (Message, error) {
 	case rm := <-r.defaultChannel:
 		return rm.Message, nil
 	case <-time.After(time.Duration(timeoutMillis) * time.Millisecond):
-		return nil, NewError(C.pulsar_result_Timeout, "Timeout on reader read")
+		return nil, newError(C.pulsar_result_Timeout, "Timeout on reader read")
 	}
 }
 
@@ -228,7 +165,7 @@ func pulsarReaderCloseCallbackProxy(res C.pulsar_result, ctx unsafe.Pointer) {
 	callback := pointer.Restore(ctx).(func(err error))
 
 	if res != C.pulsar_result_Ok {
-		callback(NewError(res, "Failed to close Reader"))
+		callback(newError(res, "Failed to close Reader"))
 	} else {
 		callback(nil)
 	}

@@ -47,10 +47,9 @@ static inline void _pulsar_producer_send_async(pulsar_producer_t *producer, puls
 
 int pulsarRouterCallbackProxy(pulsar_message_t *msg, pulsar_topic_metadata_t *topicMetadata, void* ctx);
 
-static inline void _pulsar_client_create_producer_async(pulsar_client_t *client, const char *topic,
-                                                        const pulsar_producer_configuration_t *conf,
-                                                        void *ctx) {
-    pulsar_client_create_producer_async(client, topic, conf, pulsarCreateProducerCallbackProxy, ctx);
+
+static inline void _pulsar_producer_configuration_set_message_router(pulsar_producer_configuration_t *conf, void *ctx) {
+    pulsar_producer_configuration_set_message_router(conf, pulsarRouterCallbackProxy, ctx);
 }
 
 //// Consumer callbacks

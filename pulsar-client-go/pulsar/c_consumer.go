@@ -27,60 +27,15 @@ package pulsar
 import "C"
 
 import (
-	"errors"
-	"fmt"
 	"github.com/mattn/go-pointer"
 	"runtime"
 	"time"
 	"unsafe"
 )
 
-/// ConsumerBuilder
-
-type consumerBuilder struct {
-	client   *client
-	topic    string
-	subName  string
-	ptr      *C.pulsar_consumer_configuration_t
-	consumer *consumer
-}
-
 type consumer struct {
 	ptr            *C.pulsar_consumer_t
 	defaultChannel chan ConsumerMessage
-}
-
-func consumerBuilderFinalizer(cb *consumerBuilder) {
-	C.pulsar_consumer_configuration_free(cb.ptr)
-}
-
-func newConsumerBuilder(client *client) ConsumerBuilder {
-	builder := &consumerBuilder{
-		client:   client,
-		ptr:      C.pulsar_consumer_configuration_create(),
-		consumer: &consumer{ptr: nil},
-	}
-
-	runtime.SetFinalizer(builder, consumerBuilderFinalizer)
-	return builder
-}
-
-func (cb *consumerBuilder) Subscribe() (Consumer, error) {
-	c := make(chan struct {
-		Consumer
-		error
-	})
-
-	cb.SubscribeAsync(func(consumer Consumer, err error) {
-		c <- struct {
-			Consumer
-			error
-		}{consumer, err}
-		close(c)
-	})
-
-	res := <-c
-	return res.Consumer, res.error
 }
 
 func consumerFinalizer(c *consumer) {
@@ -91,10 +46,12 @@ func consumerFinalizer(c *consumer) {
 
 //export pulsarSubscribeCallbackProxy
 func pulsarSubscribeCallbackProxy(res C.pulsar_result, ptr *C.pulsar_consumer_t, ctx unsafe.Pointer) {
-	cc := pointer.Restore(ctx).(*consumerAndCallback)
+	cc := pointer.Restore(ctx).(*subscribeContext)
+
+	C.pulsar_consumer_configuration_free(cc.conf)
 
 	if res != C.pulsar_result_Ok {
-		cc.callback(nil, NewError(res, "Failed to create Producer"))
+		cc.callback(nil, newError(res, "Failed to subscribe to topic"))
 	} else {
 		cc.consumer.ptr = ptr
 		runtime.SetFinalizer(cc.consumer, consumerFinalizer)
@@ -102,56 +59,75 @@ func pulsarSubscribeCallbackProxy(res C.pulsar_result, ptr *C.pulsar_consumer_t,
 	}
 }
 
-type consumerAndCallback struct {
+type subscribeContext struct {
+	conf     *C.pulsar_consumer_configuration_t
 	consumer *consumer
 	callback func(Consumer, error)
 }
 
-func (cb *consumerBuilder) SubscribeAsync(callback func(Consumer, error)) {
-	if cb.topic == "" {
-		callback(nil, errors.New("topic is required"))
+func subscribeAsync(client *client, options ConsumerOptions, callback func(Consumer, error)) {
+	if options.Topic == "" {
+		callback(nil, newError(C.pulsar_result_InvalidConfiguration, "topic is required"))
 		return
 	}
 
-	if cb.subName == "" {
-		callback(nil, errors.New("subscription name is required"))
+	if options.SubscriptionName == "" {
+		callback(nil, newError(C.pulsar_result_InvalidConfiguration, "subscription name is required"))
 		return
 	}
 
-	if C.pulsar_consumer_configuration_has_message_listener(cb.ptr) == 0 {
-		fmt.Println("Adding default listener")
+	conf := C.pulsar_consumer_configuration_create()
+
+	consumer := &consumer{}
+
+	if options.MessageChannel == nil {
 		// If there is no message listener, set a default channel so that we can have receive to
 		// use that
-		cb.consumer.defaultChannel = make(chan ConsumerMessage)
-		cb.MessageListener(cb.consumer.defaultChannel)
+		consumer.defaultChannel = make(chan ConsumerMessage)
+		options.MessageChannel = consumer.defaultChannel
 	}
 
-	topic := C.CString(cb.topic)
-	subName := C.CString(cb.subName)
+	C._pulsar_consumer_configuration_set_message_listener(conf, pointer.Save(&consumerCallback{
+		consumer: consumer,
+		channel:  options.MessageChannel,
+	}))
+
+	if options.AckTimeout != 0 {
+		timeoutMillis := options.AckTimeout.Nanoseconds() / int64(time.Millisecond)
+		C.pulsar_consumer_set_unacked_messages_timeout_ms(conf, C.ulonglong(timeoutMillis))
+	}
+
+	if options.SubscriptionType != Exclusive {
+		C.pulsar_consumer_configuration_set_consumer_type(conf, C.pulsar_consumer_type(options.SubscriptionType))
+	}
+
+	// ReceiverQueueSize==0 means to use the default queue size
+	// -1 means to disable the consumer prefetching
+	if options.ReceiverQueueSize > 0 {
+		C.pulsar_consumer_configuration_set_receiver_queue_size(conf, C.int(options.ReceiverQueueSize))
+	} else if options.ReceiverQueueSize < 0 {
+		// In C++ client lib, 0 means disable prefetching
+		C.pulsar_consumer_configuration_set_receiver_queue_size(conf, C.int(0))
+	}
+
+	if options.MaxTotalReceiverQueueSizeAcrossPartitions != 0 {
+		C.pulsar_consumer_set_max_total_receiver_queue_size_across_partitions(conf,
+			C.int(options.MaxTotalReceiverQueueSizeAcrossPartitions))
+	}
+
+	if options.ConsumerName != "" {
+		name := C.CString(options.ConsumerName)
+		defer C.free(unsafe.Pointer(name))
+
+		C.pulsar_consumer_set_consumer_name(conf, name)
+	}
+
+	topic := C.CString(options.Topic)
+	subName := C.CString(options.SubscriptionName)
 	defer C.free(unsafe.Pointer(topic))
 	defer C.free(unsafe.Pointer(subName))
-	C._pulsar_client_subscribe_async(cb.client.ptr, topic, subName,
-		cb.ptr, pointer.Save(&consumerAndCallback{cb.consumer, callback}))
-}
-
-func (cb *consumerBuilder) Topic(topic string) ConsumerBuilder {
-	cb.topic = topic
-	return cb
-}
-
-func (cb *consumerBuilder) SubscriptionName(subscriptionName string) ConsumerBuilder {
-	cb.subName = subscriptionName
-	return cb
-}
-
-func (cb *consumerBuilder) AckTimeout(ackTimeoutMillis int64) ConsumerBuilder {
-	C.pulsar_consumer_set_unacked_messages_timeout_ms(cb.ptr, C.ulonglong(ackTimeoutMillis))
-	return cb
-}
-
-func (cb *consumerBuilder) SubscriptionType(subscriptionType SubscriptionType) ConsumerBuilder {
-	C.pulsar_consumer_configuration_set_consumer_type(cb.ptr, C.pulsar_consumer_type(subscriptionType))
-	return cb
+	C._pulsar_client_subscribe_async(client.ptr, topic, subName,
+		conf, pointer.Save(&subscribeContext{conf: conf, consumer: consumer, callback: callback}))
 }
 
 type consumerCallback struct {
@@ -163,32 +139,6 @@ type consumerCallback struct {
 func pulsarMessageListenerProxy(cConsumer *C.pulsar_consumer_t, message *C.pulsar_message_t, ctx unsafe.Pointer) {
 	cc := pointer.Restore(ctx).(*consumerCallback)
 	cc.channel <- ConsumerMessage{cc.consumer, newMessageWrapper(message)}
-}
-
-func (cb *consumerBuilder) MessageListener(listener chan ConsumerMessage) ConsumerBuilder {
-	C._pulsar_consumer_configuration_set_message_listener(cb.ptr, pointer.Save(&consumerCallback{
-		consumer: cb.consumer,
-		channel:  listener,
-	}))
-	return cb
-}
-
-func (cb *consumerBuilder) ReceiverQueueSize(receiverQueueSize int) ConsumerBuilder {
-	C.pulsar_consumer_configuration_set_receiver_queue_size(cb.ptr, C.int(receiverQueueSize))
-	return cb
-}
-
-func (cb *consumerBuilder) MaxTotalReceiverQueueSizeAcrossPartitions(maxTotalReceiverQueueSizeAcrossPartitions int) ConsumerBuilder {
-	C.pulsar_consumer_set_max_total_receiver_queue_size_across_partitions(cb.ptr, C.int(maxTotalReceiverQueueSizeAcrossPartitions))
-	return cb
-}
-
-func (cb *consumerBuilder) ConsumerName(consumerName string) ConsumerBuilder {
-	name := C.CString(consumerName)
-	defer C.free(unsafe.Pointer(name))
-
-	C.pulsar_consumer_set_consumer_name(cb.ptr, name)
-	return cb
 }
 
 //// Consumer
@@ -216,7 +166,7 @@ func pulsarConsumerUnsubscribeCallbackProxy(res C.pulsar_result, ctx unsafe.Poin
 	callback := pointer.Restore(ctx).(func(err error))
 
 	if res != C.pulsar_result_Ok {
-		callback(NewError(res, "Failed to unsubscribe consumer"))
+		callback(newError(res, "Failed to unsubscribe consumer"))
 	} else {
 		callback(nil)
 	}
@@ -232,7 +182,7 @@ func (c *consumer) ReceiveWithTimeout(timeoutMillis int) (Message, error) {
 	case cm := <-c.defaultChannel:
 		return cm.Message, nil
 	case <-time.After(time.Duration(timeoutMillis) * time.Millisecond):
-		return nil, NewError(C.pulsar_result_Timeout, "Timeout on consumer receive")
+		return nil, newError(C.pulsar_result_Timeout, "Timeout on consumer receive")
 	}
 }
 
@@ -275,7 +225,7 @@ func pulsarConsumerCloseCallbackProxy(res C.pulsar_result, ctx unsafe.Pointer) {
 	callback := pointer.Restore(ctx).(func(err error))
 
 	if res != C.pulsar_result_Ok {
-		callback(NewError(res, "Failed to close Consumer"))
+		callback(newError(res, "Failed to close Consumer"))
 	} else {
 		callback(nil)
 	}

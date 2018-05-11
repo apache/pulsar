@@ -26,10 +26,15 @@ import (
 )
 
 func main() {
-	client := pulsar.NewClient().
-		ServiceUrl("pulsar://localhost:6650").Build()
+	client, err := pulsar.NewClient(pulsar.ClientOptions{URL: "pulsar://localhost:6650"})
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	reader, err := client.NewReader().Topic("my-topic").StartFromEarliest().Create()
+	reader, err := client.CreateReader(pulsar.ReaderOptions{
+		Topic:          "my-topic",
+		StartMessageId: pulsar.EarliestMessage,
+	})
 	if err != nil {
 		log.Fatal(err)
 	}

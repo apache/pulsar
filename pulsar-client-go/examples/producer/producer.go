@@ -26,15 +26,19 @@ import (
 )
 
 func main() {
-	client := pulsar.NewClient().
-		ServiceUrl("pulsar://localhost:6650").
-		IoThreads(5).
-		Build()
+	client, err := pulsar.NewClient(pulsar.ClientOptions{
+		URL:       "pulsar://localhost:6650",
+		IoThreads: 5,
+	})
 
-	producer, err := client.NewProducer().
-		Topic("my-topic").
-		ProducerName("xyz").
-		Create()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	producer, err := client.CreateProducer(pulsar.ProducerOptions{
+		Topic:        "my-topic",
+		ProducerName: "xyz",
+	})
 	if err != nil {
 		log.Fatal(err)
 	}

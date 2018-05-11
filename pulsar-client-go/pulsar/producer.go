@@ -19,14 +19,16 @@
 
 package pulsar
 
+import "time"
+
 type MessageRoutingMode int
 
 const (
-	// The producer will chose one single partition and publish all the messages into that partition
-	UseSinglePartition MessageRoutingMode = 0
-
 	// Publish messages across all partitions in round-robin.
-	RoundRobinDistribution MessageRoutingMode = 1
+	RoundRobinDistribution MessageRoutingMode = 0
+
+	// The producer will chose one single partition and publish all the messages into that partition
+	UseSinglePartition MessageRoutingMode = 1
 
 	// Use custom message router implementation that will be called to determine the partition for a particular message.
 	CustomPartition MessageRoutingMode = 2
@@ -35,9 +37,9 @@ const (
 type HashingScheme int
 
 const (
-	Murmur3_32Hash HashingScheme = 0 // Use Murmur3 hashing function
-	BoostHash      HashingScheme = 1 // C++ based boost::hash
-	JavaStringHash HashingScheme = 2 // Java String.hashCode() equivalent
+	JavaStringHash HashingScheme = 0 // Java String.hashCode() equivalent
+	Murmur3_32Hash HashingScheme = 1 // Use Murmur3 hashing function
+	BoostHash      HashingScheme = 2 // C++ based boost::hash
 )
 
 type CompressionType int
@@ -53,18 +55,10 @@ type TopicMetadata interface {
 	NumPartitions() int
 }
 
-type ProducerBuilder interface {
-	// Create the producer instance
-	// This method will block until the producer is created successfully
-	Create() (Producer, error)
-
-	// Create the producer instance in asynchronous mode. The callback
-	// will be triggered once the operation is completed
-	CreateAsync(callback func(producer Producer, err error))
-
+type ProducerOptions struct {
 	// Specify the topic this producer will be publishing on.
 	// This argument is required when constructing the producer.
-	Topic(topic string) ProducerBuilder
+	Topic string
 
 	// Specify a name for the producer
 	// If not assigned, the system will generate a globally unique name which can be access with
@@ -72,35 +66,35 @@ type ProducerBuilder interface {
 	// When specifying a name, it is up to the user to ensure that, for a given topic, the producer name is unique
 	// across all Pulsar's clusters. Brokers will enforce that only a single producer a given name can be publishing on
 	// a topic.
-	ProducerName(producerName string) ProducerBuilder
+	ProducerName string
 
 	// Set the send timeout (default: 30 seconds)
 	// If a message is not acknowledged by the server before the sendTimeout expires, an error will be reported.
-	// Setting the timeout to zero, will set the timeout to infinity, which can be useful when using Pulsar's message
+	// Setting the timeout to -1, will set the timeout to infinity, which can be useful when using Pulsar's message
 	// deduplication feature.
-	SendTimeout(sendTimeoutMillis int) ProducerBuilder
+	SendTimeout time.Duration
 
 	// Set the max size of the queue holding the messages pending to receive an acknowledgment from the broker.
 	// When the queue is full, by default, all calls to Producer.send() and Producer.sendAsync() will fail
 	// unless `BlockIfQueueFull` is set to true. Use BlockIfQueueFull(boolean) to change the blocking behavior.
-	MaxPendingMessages(maxPendingMessages int) ProducerBuilder
+	MaxPendingMessages int
 
 	// Set the number of max pending messages across all the partitions
 	// This setting will be used to lower the max pending messages for each partition
 	// `MaxPendingMessages(int)`, if the total exceeds the configured value.
-	MaxPendingMessagesAcrossPartitions(maxPendingMessagesAcrossPartitions int) ProducerBuilder
+	MaxPendingMessagesAcrossPartitions int
 
 	// Set whether the `Producer.Send()` and `Producer.sendAsync()` operations should block when the outgoing
 	// message queue is full. Default is `false`. If set to `false`, send operations will immediately fail with
 	// `ProducerQueueIsFullError` when there is no space left in pending queue.
-	BlockIfQueueFull(blockIfQueueFull bool) ProducerBuilder
+	BlockIfQueueFull bool
 
 	// Set the message routing mode for the partitioned producer.
 	// Default routing mode is round-robin routing.
 	//
 	// This logic is applied when the application is not setting a key MessageBuilder#setKey(String) on a
 	// particular message.
-	MessageRoutingMode(messageRoutingMode MessageRoutingMode) ProducerBuilder
+	MessageRoutingMode
 
 	// Change the `HashingScheme` used to chose the partition on where to publish a particular message.
 	// Standard hashing functions available are:
@@ -111,18 +105,18 @@ type ProducerBuilder interface {
 	//  - `BoostHash`      : C++ based boost::hash
 	//
 	// Default is `JavaStringHash`.
-	HashingScheme(hashingScheme HashingScheme) ProducerBuilder
+	HashingScheme
 
 	// Set the compression type for the producer.
 	// By default, message payloads are not compressed. Supported compression types are:
 	//  - LZ4
 	//  - ZLIB
-	CompressionType(compressionType CompressionType) ProducerBuilder
+	CompressionType
 
 	// Set a custom message routing policy by passing an implementation of MessageRouter
 	// The router is a function that given a particular message and the topic metadata, returns the
 	// partition index where the message should be routed to
-	MessageRouter(messageRouter func(msg Message, metadata TopicMetadata) int) ProducerBuilder
+	MessageRouter func(msg Message, metadata TopicMetadata) int
 
 	// Control whether automatic batching of messages is enabled for the producer. Default: false [No batching]
 	//
@@ -132,20 +126,15 @@ type ProducerBuilder interface {
 	// contents.
 	//
 	// When enabled default batch delay is set to 1 ms and default batch size is 1000 messages
-	EnableBatching(enableBatching bool) ProducerBuilder
+	EnableBatching bool
 
 	// Set the time period within which the messages sent will be batched (default: 10ms) if batch messages are
 	// enabled. If set to a non zero value, messages will be queued until this time interval or until
-	BatchingMaxPublishDelay(batchDelayMillis uint64) ProducerBuilder
+	BatchingMaxPublishDelay time.Duration
 
 	// Set the maximum number of messages permitted in a batch. (default: 1000) If set to a value greater than 1,
 	// messages will be queued until this threshold is reached or batch interval has elapsed
-	BatchingMaxMessages(batchMessagesMaxMessagesPerBatch uint) ProducerBuilder
-
-	// Set the baseline for the sequence ids for messages published by the producer.
-	// First message will be using `(initialSequenceId + 1)` as its sequence id and subsequent messages will be assigned
-	// incremental sequence ids, if not otherwise specified.
-	InitialSequenceId(initialSequenceId int64) ProducerBuilder
+	BatchingMaxMessages uint
 }
 
 // Callback type for asynchronous operations

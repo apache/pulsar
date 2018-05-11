@@ -29,119 +29,109 @@ import (
 	"runtime"
 	"unsafe"
 
-	"errors"
 	"github.com/mattn/go-pointer"
+	"time"
 )
 
-/// ProducerBuilder
-
-type producerBuilder struct {
-	client *client
-	topic  string
-	ptr    *C.pulsar_producer_configuration_t
-}
-
-func producerBuilderFinalizer(cb *producerBuilder) {
-	C.pulsar_producer_configuration_free(cb.ptr)
-}
-
-func newProducerBuilder(client *client) ProducerBuilder {
-	builder := producerBuilder{
-		client: client,
-		ptr:    C.pulsar_producer_configuration_create(),
-	}
-
-	runtime.SetFinalizer(&builder, producerBuilderFinalizer)
-	return &builder
-}
-
-func (pb *producerBuilder) Create() (Producer, error) {
-	// Create is implemented on async create with a channel to wait for
-	// completion without blocking the real thread
-	c := make(chan struct {
-		Producer
-		error
-	})
-
-	pb.CreateAsync(func(producer Producer, err error) {
-		c <- struct {
-			Producer
-			error
-		}{producer, err}
-		close(c)
-	})
-
-	res := <-c
-	return res.Producer, res.error
+type createProducerCtx struct {
+	callback func(producer Producer, err error)
+	conf     *C.pulsar_producer_configuration_t
 }
 
 //export pulsarCreateProducerCallbackProxy
 func pulsarCreateProducerCallbackProxy(res C.pulsar_result, ptr *C.pulsar_producer_t, ctx unsafe.Pointer) {
-	callback := pointer.Restore(ctx).(func(producer Producer, err error))
+	producerCtx := pointer.Restore(ctx).(createProducerCtx)
+
+	C.pulsar_producer_configuration_free(producerCtx.conf)
 
 	if res != C.pulsar_result_Ok {
-		callback(nil, NewError(res, "Failed to create Producer"))
+		producerCtx.callback(nil, newError(res, "Failed to create Producer"))
 	} else {
 		p := &producer{ptr: ptr}
 		runtime.SetFinalizer(p, producerFinalizer)
-		callback(p, nil)
+		producerCtx.callback(p, nil)
 	}
 }
 
-func (pb *producerBuilder) CreateAsync(callback func(producer Producer, err error)) {
-	if pb.topic == "" {
-		callback(nil, errors.New("topic is required"))
+func createProducerAsync(client *client, options ProducerOptions, callback func(producer Producer, err error)) {
+	if options.Topic == "" {
+		callback(nil, newError(C.pulsar_result_InvalidConfiguration, "topic is required when creating producer"))
 		return
 	}
 
-	C._pulsar_client_create_producer_async(pb.client.ptr, C.CString(pb.topic), pb.ptr, pointer.Save(callback))
-}
+	conf := C.pulsar_producer_configuration_create()
 
-func (pb *producerBuilder) Topic(topic string) ProducerBuilder {
-	pb.topic = topic
-	return pb
-}
+	if options.ProducerName != "" {
+		cName := C.CString(options.ProducerName)
+		defer C.free(unsafe.Pointer(cName))
+		C.pulsar_producer_configuration_set_producer_name(conf, cName)
+	}
 
-func (pb *producerBuilder) ProducerName(producerName string) ProducerBuilder {
-	cName := C.CString(producerName)
-	defer C.free(unsafe.Pointer(cName))
-	C.pulsar_producer_configuration_set_producer_name(pb.ptr, cName)
-	return pb
-}
+	// If SendTimeout is 0, we'll leave the default configured value on C library
+	if options.SendTimeout > 0 {
+		timeoutMillis := options.SendTimeout.Nanoseconds() / int64(time.Millisecond)
+		C.pulsar_producer_configuration_set_send_timeout(conf, C.int(timeoutMillis))
+	} else if options.SendTimeout < 0 {
+		// Set infinite publish timeout, which is specified as 0 in C API
+		C.pulsar_producer_configuration_set_send_timeout(conf, C.int(0))
+	}
 
-func (pb *producerBuilder) SendTimeout(sendTimeoutMillis int) ProducerBuilder {
-	C.pulsar_producer_configuration_set_send_timeout(pb.ptr, C.int(sendTimeoutMillis))
-	return pb
-}
+	if options.MaxPendingMessages != 0 {
+		C.pulsar_producer_configuration_set_max_pending_messages(conf, C.int(options.MaxPendingMessages))
+	}
 
-func (pb *producerBuilder) MaxPendingMessages(maxPendingMessages int) ProducerBuilder {
-	C.pulsar_producer_configuration_set_max_pending_messages(pb.ptr, C.int(maxPendingMessages))
-	return pb
-}
+	if options.MaxPendingMessagesAcrossPartitions != 0 {
+		C.pulsar_producer_configuration_set_max_pending_messages_across_partitions(conf, C.int(options.MaxPendingMessagesAcrossPartitions))
+	}
 
-func (pb *producerBuilder) MaxPendingMessagesAcrossPartitions(maxPendingMessagesAcrossPartitions int) ProducerBuilder {
-	C.pulsar_producer_configuration_set_max_pending_messages_across_partitions(pb.ptr, C.int(maxPendingMessagesAcrossPartitions))
-	return pb
-}
+	if options.BlockIfQueueFull {
+		C.pulsar_producer_configuration_set_block_if_queue_full(conf, cBool(options.BlockIfQueueFull))
+	}
 
-func (pb *producerBuilder) BlockIfQueueFull(blockIfQueueFull bool) ProducerBuilder {
-	C.pulsar_producer_configuration_set_block_if_queue_full(pb.ptr, cBool(blockIfQueueFull))
-	return pb
-}
+	switch options.MessageRoutingMode {
+	case RoundRobinDistribution:
+		C.pulsar_producer_configuration_set_partitions_routing_mode(conf, C.pulsar_RoundRobinDistribution)
+	case UseSinglePartition:
+		C.pulsar_producer_configuration_set_partitions_routing_mode(conf, C.pulsar_UseSinglePartition)
+	case CustomPartition:
+		C.pulsar_producer_configuration_set_partitions_routing_mode(conf, C.pulsar_CustomPartition)
+	}
 
-func (pb *producerBuilder) MessageRoutingMode(messageRoutingMode MessageRoutingMode) ProducerBuilder {
-	C.pulsar_producer_configuration_set_partitions_routing_mode(pb.ptr, C.pulsar_partitions_routing_mode(messageRoutingMode))
-	return pb
-}
+	switch options.HashingScheme {
+	case JavaStringHash:
+		C.pulsar_producer_configuration_set_hashing_scheme(conf, C.pulsar_JavaStringHash)
+	case Murmur3_32Hash:
+		C.pulsar_producer_configuration_set_hashing_scheme(conf, C.pulsar_Murmur3_32Hash)
+	case BoostHash:
+		C.pulsar_producer_configuration_set_hashing_scheme(conf, C.pulsar_BoostHash)
+	}
 
-func (pb *producerBuilder) HashingScheme(hashingScheme HashingScheme) ProducerBuilder {
-	C.pulsar_producer_configuration_set_hashing_scheme(pb.ptr, C.pulsar_hashing_scheme(hashingScheme))
-	return pb
-}
+	if options.CompressionType != NoCompression {
+		C.pulsar_producer_configuration_set_compression_type(conf, C.pulsar_compression_type(options.CompressionType))
+	}
 
-func (pb *producerBuilder) CompressionType(compressionType CompressionType) ProducerBuilder {
-	C.pulsar_producer_configuration_set_compression_type(pb.ptr, C.pulsar_compression_type(compressionType))
-	return pb
+	if options.MessageRouter != nil {
+		C._pulsar_producer_configuration_set_message_router(conf, unsafe.Pointer(&options.MessageRouter))
+	}
+
+	if options.EnableBatching {
+		C.pulsar_producer_configuration_set_batching_enabled(conf, cBool(options.EnableBatching))
+	}
+
+	if options.BatchingMaxPublishDelay != 0 {
+		delayMillis := options.BatchingMaxPublishDelay.Nanoseconds() / int64(time.Millisecond)
+		C.pulsar_producer_configuration_set_batching_max_publish_delay_ms(conf, C.ulong(delayMillis))
+	}
+
+	if options.BatchingMaxMessages != 0 {
+		C.pulsar_producer_configuration_set_batching_max_messages(conf, C.uint(options.BatchingMaxMessages))
+	}
+
+	topicName := C.CString(options.Topic)
+	defer C.free(unsafe.Pointer(topicName))
+
+	C._pulsar_client_create_producer_async(client.ptr, topicName, conf,
+		pointer.Save(createProducerCtx{callback, conf}))
 }
 
 type topicMetadata struct {
@@ -156,33 +146,8 @@ func (tm *topicMetadata) NumPartitions() int {
 func pulsarRouterCallbackProxy(msg *C.pulsar_message_t, metadata *C.pulsar_topic_metadata_t, ctx unsafe.Pointer) C.int {
 	router := pointer.Restore(ctx).(*func(msg Message, metadata TopicMetadata) int)
 
-	partitionIdx := (*router)(&message{msg}, &topicMetadata{C.pulsar_topic_metadata_get_num_partitions(metadata)})
-	return partitionIdx
-}
-
-func (pb *producerBuilder) MessageRouter(messageRouter func(msg Message, metadata TopicMetadata) int) ProducerBuilder {
-	C._pulsar_producer_configuration_set_message_router(pb.ptr, unsafe.Pointer(&messageRouter))
-	return pb
-}
-
-func (pb *producerBuilder) EnableBatching(enableBatching bool) ProducerBuilder {
-	C.pulsar_producer_configuration_set_batching_enabled(pb.ptr, cBool(enableBatching))
-	return pb
-}
-
-func (pb *producerBuilder) BatchingMaxPublishDelay(batchDelayMillis uint64) ProducerBuilder {
-	C.pulsar_producer_configuration_set_batching_max_publish_delay_ms(pb.ptr, C.ulong(batchDelayMillis))
-	return pb
-}
-
-func (pb *producerBuilder) BatchingMaxMessages(batchMessagesMaxMessagesPerBatch uint) ProducerBuilder {
-	C.pulsar_producer_configuration_set_batching_max_messages(pb.ptr, C.uint(batchMessagesMaxMessagesPerBatch))
-	return pb
-}
-
-func (pb *producerBuilder) InitialSequenceId(initialSequenceId int64) ProducerBuilder {
-	C.pulsar_producer_configuration_set_initial_sequence_id(pb.ptr, C.longlong(initialSequenceId))
-	return pb
+	partitionIdx := (*router)(&message{msg}, &topicMetadata{int(C.pulsar_topic_metadata_get_num_partitions(metadata))})
+	return C.int(partitionIdx)
 }
 
 /// Producer
@@ -222,7 +187,7 @@ func pulsarProducerSendCallbackProxy(res C.pulsar_result, message *C.pulsar_mess
 	callback := pointer.Restore(ctx).(Callback)
 
 	if res != C.pulsar_result_Ok {
-		callback(NewError(res, "Failed to send message"))
+		callback(newError(res, "Failed to send message"))
 	} else {
 		callback(nil)
 	}
@@ -249,7 +214,7 @@ func pulsarProducerCloseCallbackProxy(res C.pulsar_result, ctx unsafe.Pointer) {
 	callback := pointer.Restore(ctx).(Callback)
 
 	if res != C.pulsar_result_Ok {
-		callback(NewError(res, "Failed to close Producer"))
+		callback(newError(res, "Failed to close Producer"))
 	} else {
 		callback(nil)
 	}

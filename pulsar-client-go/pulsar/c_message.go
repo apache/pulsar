@@ -205,12 +205,12 @@ func (m *messageId) String() string {
 	return C.GoString(str)
 }
 
-func messageIdEarliest() *messageId {
+func earliestMessageId() *messageId {
 	// No need to use finalizer since the pointer doesn't need to be freed
 	return &messageId{C.pulsar_message_id_earliest()}
 }
 
-func messageIdLatest() *messageId {
+func latestMessageId() *messageId {
 	// No need to use finalizer since the pointer doesn't need to be freed
 	return &messageId{C.pulsar_message_id_latest()}
 }

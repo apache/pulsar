@@ -19,6 +19,8 @@
 
 package pulsar
 
+import "time"
+
 // Pair of a Consumer and Message
 type ConsumerMessage struct {
 	Consumer
@@ -42,54 +44,43 @@ const (
 )
 
 // ConsumerBuilder is used to configure and create instances of Consumer
-type ConsumerBuilder interface {
-	// Finalize the `Consumer` creation by subscribing to the topic.
-	//
-	// If the subscription does not exist, a new subscription will be created and all messages published after the
-	// creation will be retained until acknowledged, even if the consumer is not connected
-	Subscribe() (Consumer, error)
-
-	// Finalize the Consumer creation by subscribing to the topic in asynchronous mode.
-	//
-	// If the subscription does not exist, a new subscription will be created and all messages published after the
-	// creation will be retained until acknowledged, even if the consumer is not connected.
-	SubscribeAsync(callback func(Consumer, error))
-
-	// Specify the topic this consumer will subscribe on
-	Topic(topic string) ConsumerBuilder
+type ConsumerOptions struct {
+	// Specify the topic this consumer will subscribe on.
+	// This argument is required when subscribing
+	Topic string
 
 	// Specify the subscription name for this consumer
-	// This argument is required when constructing the consumer
-	SubscriptionName(subscriptionName string) ConsumerBuilder
+	// This argument is required when subscribing
+	SubscriptionName string
 
 	// Set the timeout for unacked messages
 	// Message not acknowledged within the give time, will be replayed by the broker to the same or a different consumer
-	AckTimeout(ackTimeoutMillis int64) ConsumerBuilder
+	// Default is 0, which means message are not being replayed based on ack time
+	AckTimeout time.Duration
 
 	// Select the subscription type to be used when subscribing to the topic.
 	// Default is `Exclusive`
-	SubscriptionType(subscriptionType SubscriptionType) ConsumerBuilder
+	SubscriptionType
 
-	// Sets a `MessageListener` for the consumer
+	// Sets a `MessageChannel` for the consumer
 	// When a message is received, it will be pushed to the channel for consumption
-	// When a listener  is set, application will receive messages through it. Calls to
-	// `Consumer.Receive()` will not be allowed.
-	MessageListener(listener chan ConsumerMessage) ConsumerBuilder
+	MessageChannel chan ConsumerMessage
 
 	// Sets the size of the consumer receive queue.
 	// The consumer receive queue controls how many messages can be accumulated by the `Consumer` before the
 	// application calls `Consumer.receive()`. Using a higher value could potentially increase the consumer
 	// throughput at the expense of bigger memory utilization.
 	// Default value is `1000` messages and should be good for most use cases.
-	ReceiverQueueSize(receiverQueueSize int) ConsumerBuilder
+	// Set to -1 to disable prefetching in consumer
+	ReceiverQueueSize int
 
 	// Set the max total receiver queue size across partitions.
 	// This setting will be used to reduce the receiver queue size for individual partitions
 	// ReceiverQueueSize(int) if the total exceeds this value (default: 50000).
-	MaxTotalReceiverQueueSizeAcrossPartitions(maxTotalReceiverQueueSizeAcrossPartitions int) ConsumerBuilder
+	MaxTotalReceiverQueueSizeAcrossPartitions int
 
 	// Set the consumer name.
-	ConsumerName(consumerName string) ConsumerBuilder
+	ConsumerName string
 }
 
 // An interface that abstracts behavior of Pulsar's consumer
