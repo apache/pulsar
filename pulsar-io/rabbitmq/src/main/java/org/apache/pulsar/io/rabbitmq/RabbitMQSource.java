@@ -32,25 +32,19 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
+import java.util.function.Consumer;
 
 /**
  * A simple connector to consume messages from a RabbitMQ queue
  */
-public class RabbitMQSource implements PushSource<byte[]> {
+public class RabbitMQSource extends PushSource<byte[]> {
 
     private static Logger logger = LoggerFactory.getLogger(RabbitMQSource.class);
 
-    private Function<Record<byte[]>, CompletableFuture<Void>> consumer;
+    private Consumer<Record<byte[]>> consumer;
     private Connection rabbitMQConnection;
     private Channel rabbitMQChannel;
     private RabbitMQConfig rabbitMQConfig;
-
-    @Override
-    public void setConsumer(Function<Record<byte[]>, CompletableFuture<Void>> consumeFunction) {
-        this.consumer = consumeFunction;
-    }
 
     @Override
     public void open(Map<String, Object> config) throws Exception {
@@ -74,22 +68,27 @@ public class RabbitMQSource implements PushSource<byte[]> {
     }
 
     @Override
+    public void setConsumer(Consumer<Record<byte[]>> consumer) {
+        this.consumer = consumer;
+    }
+
+    @Override
     public void close() throws Exception {
         rabbitMQChannel.close();
         rabbitMQConnection.close();
     }
 
     private class RabbitMQConsumer extends DefaultConsumer {
-        private Function<Record<byte[]>, CompletableFuture<Void>> consumeFunction;
+        private Consumer<Record<byte[]>> consumeFunction;
 
-        public RabbitMQConsumer(Function<Record<byte[]>, CompletableFuture<Void>> consumeFunction, Channel channel) {
+        public RabbitMQConsumer(Consumer<Record<byte[]>> consumeFunction, Channel channel) {
             super(channel);
             this.consumeFunction = consumeFunction;
         }
 
         @Override
         public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
-            consumeFunction.apply(new RabbitMQRecord(body));
+            consumeFunction.accept(new RabbitMQRecord(body));
         }
     }
 
