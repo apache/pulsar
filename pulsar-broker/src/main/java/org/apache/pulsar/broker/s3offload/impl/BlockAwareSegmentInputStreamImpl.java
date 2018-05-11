@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.s3offload.impl;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.Lists;
-import com.google.common.primitives.Ints;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
@@ -205,12 +204,13 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
         return dataBlockFullOffset - DataBlockHeaderImpl.getDataStartOffset() - ENTRY_HEADER_SIZE * blockEntryCount;
     }
 
-    // Get the block size after uploaded `bytesUploaded` bytes
-    public static int getBlockSize(ReadHandle readHandle, int maxBlockSize, long startEntryId, long bytesUploaded) {
+    // Calculate the block size after uploaded `entryBytesAlreadyWritten` bytes
+    public static int calculateBlockSize(int maxBlockSize, ReadHandle readHandle,
+                                         long firstEntryToWrite, long entryBytesAlreadyWritten) {
         return (int)Math.min(
             maxBlockSize,
-            (readHandle.getLastAddConfirmed() - startEntryId + 1) * ENTRY_HEADER_SIZE
-                + (readHandle.getLength() - bytesUploaded)
+            (readHandle.getLastAddConfirmed() - firstEntryToWrite + 1) * ENTRY_HEADER_SIZE
+                + (readHandle.getLength() - entryBytesAlreadyWritten)
                 + DataBlockHeaderImpl.getDataStartOffset());
     }
 

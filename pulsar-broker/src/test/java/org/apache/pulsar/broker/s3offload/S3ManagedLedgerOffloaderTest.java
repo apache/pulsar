@@ -18,10 +18,15 @@
  */
 package org.apache.pulsar.broker.s3offload;
 
+import static org.mockito.Matchers.any;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
 
+import com.amazonaws.AmazonServiceException;
+import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.S3Object;
 import io.netty.util.concurrent.DefaultThreadFactory;
+
 import java.io.DataInputStream;
 import java.util.HashMap;
 import java.util.UUID;
@@ -55,7 +60,6 @@ class S3ManagedLedgerOffloaderTest extends S3TestBase {
         bk = new MockBookKeeper(MockedPulsarServiceBaseTest.createMockZooKeeper());
     }
 
-
     private ReadHandle buildReadHandle(int entryCount) throws Exception {
         MockLedgerHandle lh = (MockLedgerHandle)bk.createLedger(1,1,1, BookKeeper.DigestType.CRC32, "foobar".getBytes());
 
@@ -88,7 +92,7 @@ class S3ManagedLedgerOffloaderTest extends S3TestBase {
 
         // 2. verify index block read out each indexEntry.
         int entryIdTracker = 0;
-        int startPartIdTracker = 2;
+        int startPartIdTracker = 1;
         int startOffsetTracker = 0;
         long entryBytesUploaded = 0;
         int entryLength = 10;
@@ -133,7 +137,7 @@ class S3ManagedLedgerOffloaderTest extends S3TestBase {
 
     @Test
     public void testHappyCase() throws Exception {
-        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler);
+        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler, 1024);
 
         offloader.offload(buildReadHandle(1), UUID.randomUUID(), new HashMap<>()).get();
     }
@@ -191,7 +195,7 @@ class S3ManagedLedgerOffloaderTest extends S3TestBase {
         conf.setManagedLedgerOffloadDriver(S3ManagedLedgerOffloader.DRIVER_NAME);
 
         conf.setS3ManagedLedgerOffloadBucket(BUCKET);
-        conf.setS3ManagedLedgerOffloadRegion(REGION);
+        conf.setS3ManagedLedgerOffloadRegion("eu-west-1");
         conf.setS3ManagedLedgerOffloadServiceEndpoint(s3endpoint);
         conf.setS3ManagedLedgerOffloadMaxBlockSizeInBytes(
             DataBlockHeaderImpl.getDataStartOffset() + (entryLength + 12) * entryNumberEachBlock);
@@ -203,8 +207,66 @@ class S3ManagedLedgerOffloaderTest extends S3TestBase {
         UUID uuid = UUID.randomUUID();
         offloader.offload(readHandle, uuid, new HashMap<>()).get();
 
-        S3Object obj = s3client.getObject(BUCKET, S3ManagedLedgerOffloader.offloadKey(readHandle, uuid));
-        verifyS3ObjectRead(obj, readHandle, 3, 30, conf.getS3ManagedLedgerOffloadMaxBlockSizeInBytes());
+        S3Object obj = s3client.getObject(BUCKET, S3ManagedLedgerOffloader.dataBlockOffloadKey(readHandle, uuid));
+        S3Object indexObj = s3client.getObject(BUCKET, S3ManagedLedgerOffloader.indexBlockOffloadKey(readHandle, uuid));
+
+        verifyS3ObjectRead(obj, indexObj, readHandle, 3, 30, conf.getS3ManagedLedgerOffloadMaxBlockSizeInBytes());
+    }
+
+    @Test
+    public void testOffloadFail() throws Exception {
+        int entryLength = 10;
+        int entryNumberEachBlock = 10;
+        int maxBlockSize = DataBlockHeaderImpl.getDataStartOffset() + (entryLength + 12) * entryNumberEachBlock;
+
+        // offload 30 entries, which will be placed into 3 data blocks.
+        int entryCount = 30;
+        ReadHandle readHandle = buildReadHandle(entryCount);
+        UUID uuid = UUID.randomUUID();
+
+        // mock throw exception when initiateMultipartUpload
+        try {
+            AmazonS3 mockS3client = Mockito.spy(s3client);
+            Mockito.when(mockS3client.initiateMultipartUpload(any())).thenThrow(AmazonServiceException.class);
+            LedgerOffloader offloader = new S3ManagedLedgerOffloader(mockS3client, BUCKET, scheduler, maxBlockSize);
+            offloader.offload(readHandle, uuid, new HashMap<>()).get();
+            fail("Should throw exception when initiateMultipartUpload");
+        } catch (Exception e) {
+            // excepted
+        }
+
+        // mock throw exception when uploadPart
+        try {
+            AmazonS3 mockS3client = Mockito.spy(s3client);
+            Mockito.when(mockS3client.uploadPart(any())).thenThrow(AmazonServiceException.class);
+            LedgerOffloader offloader = new S3ManagedLedgerOffloader(mockS3client, BUCKET, scheduler, maxBlockSize);
+            offloader.offload(readHandle, uuid, new HashMap<>()).get();
+            fail("Should throw exception for when uploadPart");
+        } catch (Exception e) {
+            // excepted
+        }
+
+        // mock throw exception when completeMultipartUpload
+        try {
+            AmazonS3 mockS3client = Mockito.spy(s3client);
+            Mockito.when(mockS3client.completeMultipartUpload(any())).thenThrow(AmazonServiceException.class);
+            LedgerOffloader offloader = new S3ManagedLedgerOffloader(mockS3client, BUCKET, scheduler, maxBlockSize);
+            offloader.offload(readHandle, uuid, new HashMap<>()).get();
+            fail("Should throw exception for when completeMultipartUpload");
+        } catch (Exception e) {
+            // excepted
+        }
+
+        // mock throw exception when putObject
+        try {
+            AmazonS3 mockS3client = Mockito.spy(s3client);
+            Mockito.when(mockS3client.putObject(any())).thenThrow(AmazonServiceException.class);
+            LedgerOffloader offloader = new S3ManagedLedgerOffloader(mockS3client, BUCKET, scheduler, maxBlockSize);
+            offloader.offload(readHandle, uuid, new HashMap<>()).get();
+            fail("Should throw exception for when putObject for index block");
+        } catch (Exception e) {
+            // excepted
+        }
     }
 }
 

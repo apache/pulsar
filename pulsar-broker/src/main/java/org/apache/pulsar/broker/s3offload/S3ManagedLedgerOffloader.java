@@ -24,7 +24,9 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.CompleteMultipartUploadRequest;
 import com.amazonaws.services.s3.model.InitiateMultipartUploadRequest;
 import com.amazonaws.services.s3.model.InitiateMultipartUploadResult;
+import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PartETag;
+import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.UploadPartRequest;
 import com.amazonaws.services.s3.model.UploadPartResult;
 import com.google.common.base.Strings;
@@ -50,6 +52,7 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
     private final ScheduledExecutorService scheduler;
     private final AmazonS3 s3client;
     private final String bucket;
+    // max block size for each data block.
     private int maxBlockSize;
 
     public static S3ManagedLedgerOffloader create(ServiceConfiguration conf,
@@ -58,6 +61,8 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
         String region = conf.getS3ManagedLedgerOffloadRegion();
         String bucket = conf.getS3ManagedLedgerOffloadBucket();
         String endpoint = conf.getS3ManagedLedgerOffloadServiceEndpoint();
+        int maxBlockSize = conf.getS3ManagedLedgerOffloadMaxBlockSizeInBytes();
+
         if (Strings.isNullOrEmpty(region)) {
             throw new PulsarServerException("s3ManagedLedgerOffloadRegion cannot be empty is s3 offload enabled");
         }
@@ -72,21 +77,26 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
         } else {
             builder.setRegion(region);
         }
-        S3ManagedLedgerOffloader offloader = new S3ManagedLedgerOffloader(builder.build(), bucket, scheduler);
-        offloader.maxBlockSize = conf.getS3ManagedLedgerOffloadMaxBlockSizeInBytes();
-        return offloader;
+        return new S3ManagedLedgerOffloader(builder.build(), bucket, scheduler, maxBlockSize);
     }
 
-    S3ManagedLedgerOffloader(AmazonS3 s3client, String bucket, ScheduledExecutorService scheduler) {
+    S3ManagedLedgerOffloader(AmazonS3 s3client, String bucket, ScheduledExecutorService scheduler, int maxBlockSize) {
         this.s3client = s3client;
         this.bucket = bucket;
         this.scheduler = scheduler;
+        this.maxBlockSize = maxBlockSize;
     }
 
-    static String offloadKey(ReadHandle readHandle, UUID uuid) {
+    static String dataBlockOffloadKey(ReadHandle readHandle, UUID uuid) {
         return String.format("ledger-%d-%s", readHandle.getId(), uuid.toString());
     }
 
+    static String indexBlockOffloadKey(ReadHandle readHandle, UUID uuid) {
+        return String.format("ledger-%d-%s-index", readHandle.getId(), uuid.toString());
+    }
+
+    // upload DataBlock to s3 using MultiPartUpload, and indexBlock in a new Block,
+    // because the smallest size for MultiPartUpload is 5MB, which is too big for it at present.
     @Override
     public CompletableFuture<Void> offload(ReadHandle readHandle,
                                            UUID uuid,
@@ -94,62 +104,64 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
         CompletableFuture<Void> promise = new CompletableFuture<>();
         scheduler.submit(() -> {
             try {
-                String key = offloadKey(readHandle, uuid);
-                InitiateMultipartUploadResult initRes = s3client.initiateMultipartUpload(
-                    new InitiateMultipartUploadRequest(this.bucket, key));
+                String dataBlockKey = dataBlockOffloadKey(readHandle, uuid);
+                InitiateMultipartUploadResult dataBlockRes = s3client.initiateMultipartUpload(
+                    new InitiateMultipartUploadRequest(this.bucket, dataBlockKey));
+
                 OffloadIndexBlockBuilder indexBuilder = OffloadIndexBlockBuilder.create()
                     .withMetadata(readHandle.getLedgerMetadata());
 
                 long startEntry = 0;
                 int partId = 1;
-                long bytesUploaded = 0;
+                long entryBytesWritten = 0;
                 List<PartETag> etags = new LinkedList<>();
                 while (startEntry <= readHandle.getLastAddConfirmed()) {
                     int blockSize = BlockAwareSegmentInputStreamImpl
-                        .getBlockSize(readHandle, maxBlockSize, startEntry, bytesUploaded);
+                        .calculateBlockSize(maxBlockSize, readHandle, startEntry, entryBytesWritten);
 
-                    BlockAwareSegmentInputStreamImpl blockStream = new BlockAwareSegmentInputStreamImpl(
-                        readHandle, startEntry, blockSize);
+                    try (BlockAwareSegmentInputStream blockStream = new BlockAwareSegmentInputStreamImpl(
+                        readHandle, startEntry, blockSize)) {
+                        UploadPartResult uploadRes = s3client.uploadPart(
+                            new UploadPartRequest()
+                                .withBucketName(bucket)
+                                .withKey(dataBlockKey)
+                                .withUploadId(dataBlockRes.getUploadId())
+                                .withInputStream(blockStream)
+                                .withPartSize(blockSize)
+                                .withPartNumber(partId));
+                        etags.add(uploadRes.getPartETag());
 
-                    UploadPartResult uploadRes = s3client.uploadPart(
-                        new UploadPartRequest()
-                            .withBucketName(bucket)
-                            .withKey(key)
-                            .withUploadId(initRes.getUploadId())
-                            .withInputStream(blockStream)
-                            .withPartSize(blockSize)
-                            .withPartNumber(partId));
-                    etags.add(uploadRes.getPartETag());
+                        indexBuilder.addBlock(startEntry, partId, blockSize);
 
-                    indexBuilder.addBlock(startEntry, partId, blockSize);
-
-                    bytesUploaded += blockStream.getBlockEntryBytesCount();
-                    startEntry = blockStream.getEndEntryId() + 1;
-                    partId++;
-                    blockStream.close();
-                }
-
-                try (OffloadIndexBlock index = indexBuilder.build()) {
-                    InputStream indexStream = index.toStream();
-                    // write the index
-                    UploadPartResult uploadRes = s3client.uploadPart(
-                        new UploadPartRequest()
-                            .withBucketName(bucket)
-                            .withKey(key)
-                            .withUploadId(initRes.getUploadId())
-                            .withInputStream(indexStream)
-                            .withPartSize(indexStream.available())
-                            .withPartNumber(1));
-                    etags.add(uploadRes.getPartETag());
-                    indexStream.close();
+                        if (blockStream.getEndEntryId() != -1) {
+                            startEntry = blockStream.getEndEntryId() + 1;
+                        } else {
+                            // could not read entry from ledger.
+                            break;
+                        }
+                        entryBytesWritten += blockStream.getBlockEntryBytesCount();
+                        partId++;
+                    }
                 }
 
                 s3client.completeMultipartUpload(new CompleteMultipartUploadRequest()
-                    .withBucketName(bucket).withKey(key)
-                    .withUploadId(initRes.getUploadId())
+                    .withBucketName(bucket).withKey(dataBlockKey)
+                    .withUploadId(dataBlockRes.getUploadId())
                     .withPartETags(etags));
 
-                //s3client.putObject(bucket, uid.toString(), uid.toString());
+
+                try (OffloadIndexBlock index = indexBuilder.build();
+                     InputStream indexStream = index.toStream()) {
+                    // write the index block
+                    ObjectMetadata metadata = new ObjectMetadata();
+                    metadata.setContentLength(indexStream.available());
+                    s3client.putObject(new PutObjectRequest(
+                        bucket,
+                        indexBlockOffloadKey(readHandle, uuid),
+                        indexStream,
+                        metadata));
+                }
+
                 promise.complete(null);
             } catch (Throwable t) {
                 promise.completeExceptionally(t);
