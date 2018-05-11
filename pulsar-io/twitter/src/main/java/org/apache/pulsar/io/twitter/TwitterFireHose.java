@@ -122,7 +122,7 @@ public class TwitterFireHose extends PushSource<String> {
                     public boolean process() throws IOException, InterruptedException {
                         String line = reader.readLine();
                         try {
-                            // We don't really care if the future succeeds or not.
+                            // We don't really care if the record succeeds or not.
                             // However might be in the future to count failures
                             // TODO:- Figure out the metrics story for connectors
                             consumeFunction.accept(new TwitterRecord(line));
