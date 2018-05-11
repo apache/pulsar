@@ -321,12 +321,21 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     private Record readInput() {
+        Record record;
         try {
-            return this.source.read();
+            record = this.source.read();
         } catch (Exception e) {
-            log.info("Encountered exception in source write: ", e);
+            log.info("Encountered exception in source read: ", e);
             throw new RuntimeException(e);
         }
+
+        // check record is valid
+        if (record == null) {
+            throw new IllegalArgumentException("The record returned by the source cannot be null");
+        } else if (record.getValue() == null) {
+            throw new IllegalArgumentException("The value in the record returned by the source cannot be null");
+        }
+        return record;
     }
 
     @Override
