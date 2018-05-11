@@ -23,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
+import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.WindowConfig;
 import org.apache.pulsar.functions.windowing.evictors.CountEvictionPolicy;
 import org.apache.pulsar.functions.windowing.evictors.TimeEvictionPolicy;
@@ -35,13 +36,14 @@ import org.apache.pulsar.functions.windowing.triggers.WatermarkTimeTriggerPolicy
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
 
 @Slf4j
-public abstract class WindowFunctionExecutor<I, O> implements Function<I, O> {
+public class WindowFunctionExecutor<I, O> implements Function<I, O> {
 
     private boolean initialized;
     protected WindowConfig windowConfig;
@@ -52,12 +54,34 @@ public abstract class WindowFunctionExecutor<I, O> implements Function<I, O> {
     protected static final long DEFAULT_MAX_LAG_MS = 0; // no lag
     protected static final long DEFAULT_WATERMARK_EVENT_INTERVAL_MS = 1000; // 1s
 
+    protected java.util.function.Function<Collection<I>, O> windowFunction;
+
     public void initialize(Context context) {
         this.windowConfig = this.getWindowConfigs(context);
+        this.windowFunction = intializeUserFunction(this.windowConfig);
         log.info("Window Config: {}", this.windowConfig);
         this.windowManager = this.getWindowManager(this.windowConfig, context);
         this.initialized = true;
         this.start();
+    }
+
+    private java.util.function.Function<Collection<I>, O> intializeUserFunction(WindowConfig windowConfig) {
+        String actualWindowFunctionClassName = windowConfig.getActualWindowFunctionClassName();
+        ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
+        Object userClassObject = Reflections.createInstance(
+                actualWindowFunctionClassName,
+                clsLoader);
+        if (userClassObject instanceof java.util.function.Function) {
+            Class<?>[] typeArgs = TypeResolver.resolveRawArguments(
+                    java.util.function.Function.class, userClassObject.getClass());
+            if (typeArgs[0].equals(Collection.class)) {
+                return (java.util.function.Function) userClassObject;
+            } else {
+                throw new IllegalArgumentException("Window function must take a collection as input");
+            }
+        } else {
+            throw new IllegalArgumentException("Window function does not implement the correct interface");
+        }
     }
 
     private WindowConfig getWindowConfigs(Context context) {
@@ -268,5 +292,7 @@ public abstract class WindowFunctionExecutor<I, O> implements Function<I, O> {
         return null;
     }
 
-    public abstract O process(Window<I> inputWindow, WindowContext context) throws Exception;
+    public O process(Window<I> inputWindow, WindowContext context) throws Exception {
+        return this.windowFunction.apply(inputWindow.get());
+    }
 }

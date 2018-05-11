@@ -68,20 +68,7 @@ public class JavaInstance implements AutoCloseable {
         if (userClassObject instanceof Function) {
             this.function = (Function) userClassObject;
         } else if (userClassObject instanceof java.util.function.Function) {
-            Class<?>[] typeArgs = TypeResolver.resolveRawArguments(
-                    java.util.function.Function.class, userClassObject.getClass());
-            // check if window function
-            if (typeArgs[0].equals(Collection.class)) {
-                java.util.function.Function function = (java.util.function.Function) userClassObject;
-                this.function = new WindowFunctionExecutor() {
-                    @Override
-                    public Object process(Window inputWindow, WindowContext context) throws Exception {
-                        return function.apply(inputWindow.get());
-                    }
-                };
-            } else {
-                this.javaUtilFunction = (java.util.function.Function) userClassObject;
-            }
+            this.javaUtilFunction = (java.util.function.Function) userClassObject;
         }
     }
 

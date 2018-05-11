@@ -48,4 +48,6 @@ public class WindowConfig {
     private Long watermarkEmitIntervalMs;
 
     private String timestampExtractorClassName;
+
+    private String actualWindowFunctionClassName;
 }
