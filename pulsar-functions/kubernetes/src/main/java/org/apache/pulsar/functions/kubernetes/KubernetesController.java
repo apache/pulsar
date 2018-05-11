@@ -310,8 +310,8 @@ public class KubernetesController {
         // set container resources
         final V1ResourceRequirements resourceRequirements = new V1ResourceRequirements();
         final Map<String, Quantity> requests = new HashMap<>();
-        requests.put("memory", Quantity.fromLong(Long.toString(resource != null ? resource.getRam() : 1073741824)));
-        requests.put("cpu", Quantity.fromDouble(Double.toString(resource != null ? resource.getCpu() : 1)));
+        requests.put("memory", Quantity.fromString(Long.toString(resource != null ? resource.getRam() : 1073741824)));
+        requests.put("cpu", Quantity.fromString(Double.toString(resource != null ? resource.getCpu() : 1)));
         resourceRequirements.setRequests(requests);
         container.setResources(resourceRequirements);
 

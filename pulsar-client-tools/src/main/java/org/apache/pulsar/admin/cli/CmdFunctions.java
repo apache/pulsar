@@ -858,9 +858,7 @@ public class CmdFunctions extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            if (!areAllRequiredFieldsPresent(functionConfig)) {
-                throw new RuntimeException("Missing arguments");
-            }
+            checkRequiredFields(functionConfig);
 
             String serviceUrl = admin.getServiceUrl();
             if (brokerServiceUrl != null) {
