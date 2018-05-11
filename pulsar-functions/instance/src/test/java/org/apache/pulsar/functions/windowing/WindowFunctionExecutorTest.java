@@ -30,10 +30,12 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
@@ -52,6 +54,22 @@ public class WindowFunctionExecutorTest {
         @Override
         public Long process(Window<Long> inputWindow, WindowContext context) throws Exception {
             windows.add(inputWindow);
+            return null;
+        }
+    }
+
+    private static class TestFunction implements Function<Collection<Long>, Long> {
+
+        @Override
+        public Long apply(Collection<Long> longs) {
+            return null;
+        }
+    }
+
+    private static class TestWrongFunction implements Function<Long, Long> {
+
+        @Override
+        public Long apply(Long aLong) {
             return null;
         }
     }
@@ -88,15 +106,15 @@ public class WindowFunctionExecutorTest {
         windowConfig.setWindowLengthDurationMs(20L);
         windowConfig.setSlidingIntervalDurationMs(10L);
         windowConfig.setMaxLagMs(5L);
+        // trigger manually to avoid timing issues
         windowConfig.setWatermarkEmitIntervalMs(100000L);
+        windowConfig.setActualWindowFunctionClassName(TestFunction.class.getName());
         Mockito.doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class))).when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
 
         Mockito.doReturn("test-source-topic").when(context).getCurrentMessageTopicName();
         Mockito.doReturn(DefaultSerDe.class.getName()).when(context).getOutputSerdeClassName();
         Mockito.doReturn(Collections.singleton("test-source-topic")).when(context).getInputTopics();
         Mockito.doReturn("test-sink-topic").when(context).getOutputTopic();
-        // trigger manually to avoid timing issues
-
     }
 
     @AfterMethod
@@ -105,9 +123,19 @@ public class WindowFunctionExecutorTest {
     }
 
     @Test(expectedExceptions = RuntimeException.class)
-    public void testExecuteWithWrongType() throws Exception {
+    public void testExecuteWithWrongWrongTimestampExtractorType() throws Exception {
         WindowConfig windowConfig = new WindowConfig();
         windowConfig.setTimestampExtractorClassName(TestWrongTimestampExtractor.class.getName());
+        Mockito.doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
+                .when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
+
+        testWindowedPulsarFunction.process(10L, context);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testExecuteWithWrongJavaWindowFunctionType() throws Exception {
+        WindowConfig windowConfig = new WindowConfig();
+        windowConfig.setActualWindowFunctionClassName(TestWrongFunction.class.getName());
         Mockito.doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
                 .when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
 
@@ -152,6 +180,7 @@ public class WindowFunctionExecutorTest {
         windowConfig.setLateDataTopic("$late");
         windowConfig.setMaxLagMs(5L);
         windowConfig.setWatermarkEmitIntervalMs(10L);
+        windowConfig.setActualWindowFunctionClassName(TestFunction.class.getName());
         Mockito.doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
                 .when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
 
@@ -236,6 +265,7 @@ public class WindowFunctionExecutorTest {
                 windowConfig.setTimestampExtractorClassName(TestTimestampExtractor.class.getName());
                 windowConfig.setWindowLengthCount(windowLengthCount);
                 windowConfig.setSlidingIntervalCount(slidingIntervalCount);
+                windowConfig.setActualWindowFunctionClassName(TestFunction.class.getName());
                 Mockito.doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
                         .when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
 
@@ -326,6 +356,7 @@ public class WindowFunctionExecutorTest {
                 windowConfig.setTimestampExtractorClassName(TestTimestampExtractor.class.getName());
                 windowConfig.setWindowLengthDurationMs(windowLengthDuration);
                 windowConfig.setSlidingIntervalDurationMs(slidingIntervalDuration);
+                windowConfig.setActualWindowFunctionClassName(TestFunction.class.getName());
                 Mockito.doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
                         .when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
 
@@ -390,6 +421,7 @@ public class WindowFunctionExecutorTest {
                 WindowConfig windowConfig = new WindowConfig();
                 windowConfig.setTimestampExtractorClassName(TestTimestampExtractor.class.getName());
                 windowConfig.setWindowLengthCount(windowLengthCount);
+                windowConfig.setActualWindowFunctionClassName(TestFunction.class.getName());
                 Mockito.doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
                         .when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
 
@@ -441,6 +473,7 @@ public class WindowFunctionExecutorTest {
                 WindowConfig windowConfig = new WindowConfig();
                 windowConfig.setTimestampExtractorClassName(TestTimestampExtractor.class.getName());
                 windowConfig.setWindowLengthDurationMs(windowLengthDuration);
+                windowConfig.setActualWindowFunctionClassName(TestFunction.class.getName());
                 Mockito.doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
                         .when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
 
@@ -494,6 +527,7 @@ public class WindowFunctionExecutorTest {
                 windowConfig.setWindowLengthCount(1);
                 windowConfig.setSlidingIntervalCount(1);
                 windowConfig.setMaxLagMs(maxLagMs);
+                windowConfig.setActualWindowFunctionClassName(TestFunction.class.getName());
                 Mockito.doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
                         .when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
 
@@ -543,6 +577,7 @@ public class WindowFunctionExecutorTest {
                 windowConfig.setWindowLengthCount(1);
                 windowConfig.setSlidingIntervalCount(1);
                 windowConfig.setWatermarkEmitIntervalMs(watermarkEmitInterval);
+                windowConfig.setActualWindowFunctionClassName(TestFunction.class.getName());
                 Mockito.doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
                         .when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
 
