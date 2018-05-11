@@ -16,18 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.examples;
+package org.apache.pulsar.functions.windowing;
 
-import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
-
-public class PublishFunction implements Function<String, Void> {
-    @Override
-    public Void process(String input, Context context) {
-        String publishTopic = (String) context.getUserConfigValueOrDefault("publish-topic", "persistent://sample/standalone/ns1/publish");
-        String output = String.format("%s!", input);
-        context.publish(publishTopic, output, DefaultSerDe.class.getName());
-        return null;
-    }
+/**
+ * The callback fired by {@link TriggerPolicy} when the trigger
+ * condition is satisfied.
+ */
+public interface TriggerHandler {
+    /**
+     * The code to execute when the {@link TriggerPolicy} condition is satisfied.
+     *
+     * @return true if the window was evaluated with at least one event in the window, false otherwise
+     */
+    boolean onTrigger();
 }
