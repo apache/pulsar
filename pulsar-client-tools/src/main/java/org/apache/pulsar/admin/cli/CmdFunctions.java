@@ -63,6 +63,7 @@ import org.apache.pulsar.functions.shaded.io.netty.buffer.Unpooled;
 import org.apache.pulsar.functions.shaded.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.shaded.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.shaded.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.shaded.proto.Function.Resources;
 import org.apache.pulsar.functions.shaded.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.shaded.proto.Function.ProcessingGuarantees;
 import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
@@ -219,6 +220,12 @@ public class CmdFunctions extends CmdBase {
         protected String userConfigString;
         @Parameter(names = "--parallelism", description = "The function's parallelism factor (i.e. the number of function instances to run)")
         protected String parallelism;
+        @Parameter(names = "--cpu", description = "The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)")
+        protected Double cpu;
+        @Parameter(names = "--ram", description = "The ram in bytes that need to be allocated per function instance(applicable only to process/docker runtime)")
+        protected Long ram;
+        @Parameter(names = "--disk", description = "The disk in bytes that need to be allocated per function instance(applicable only to docker runtime)")
+        protected Long disk;
 
         protected FunctionConfig functionConfig;
         protected String userCodeFile;
@@ -315,6 +322,11 @@ public class CmdFunctions extends CmdBase {
                 }
                 functionConfig.setParallelism(num);
             }
+
+            com.google.common.base.Preconditions.checkArgument(cpu == null || cpu > 0, "The cpu allocation for the function must be positive");
+            com.google.common.base.Preconditions.checkArgument(ram == null || ram > 0, "The ram allocation for the function must be positive");
+            com.google.common.base.Preconditions.checkArgument(disk == null || disk > 0, "The disk allocation for the function must be positive");
+            functionConfig.setResources(new org.apache.pulsar.functions.utils.Resources(cpu, ram, disk));
 
             if (functionConfig.getSubscriptionType() != null
                     && functionConfig.getSubscriptionType() != FunctionConfig.SubscriptionType.FAILOVER
@@ -616,6 +628,19 @@ public class CmdFunctions extends CmdBase {
             }
             functionDetailsBuilder.setAutoAck(functionConfig.isAutoAck());
             functionDetailsBuilder.setParallelism(functionConfig.getParallelism());
+            if (functionConfig.getResources() != null) {
+                Resources.Builder bldr = Resources.newBuilder();
+                if (functionConfig.getResources().getCpu() != null) {
+                    bldr.setCpu(functionConfig.getResources().getCpu());
+                }
+                if (functionConfig.getResources().getRam() != null) {
+                    bldr.setRam(functionConfig.getResources().getRam());
+                }
+                if (functionConfig.getResources().getDisk() != null) {
+                    bldr.setDisk(functionConfig.getResources().getDisk());
+                }
+                functionDetailsBuilder.setResources(bldr.build());
+            }
             return functionDetailsBuilder.build();
         }
 
