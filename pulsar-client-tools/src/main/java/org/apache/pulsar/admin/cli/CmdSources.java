@@ -267,6 +267,7 @@ public class CmdSources extends CmdBase {
             functionDetailsBuilder.setRuntime(FunctionDetails.Runtime.JAVA);
             functionDetailsBuilder.setParallelism(sourceConfig.getParallelism());
             functionDetailsBuilder.setClassName(IdentityFunction.class.getName());
+            functionDetailsBuilder.setAutoAck(true);
             if (sourceConfig.getProcessingGuarantees() != null) {
                 functionDetailsBuilder.setProcessingGuarantees(
                         convertProcessingGuarantee(sourceConfig.getProcessingGuarantees()));
