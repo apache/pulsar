@@ -61,8 +61,8 @@ func createProducerAsync(client *client, options ProducerOptions, callback func(
 
 	conf := C.pulsar_producer_configuration_create()
 
-	if options.ProducerName != "" {
-		cName := C.CString(options.ProducerName)
+	if options.Name != "" {
+		cName := C.CString(options.Name)
 		defer C.free(unsafe.Pointer(cName))
 		C.pulsar_producer_configuration_set_producer_name(conf, cName)
 	}
@@ -114,8 +114,8 @@ func createProducerAsync(client *client, options ProducerOptions, callback func(
 		C._pulsar_producer_configuration_set_message_router(conf, unsafe.Pointer(&options.MessageRouter))
 	}
 
-	if options.EnableBatching {
-		C.pulsar_producer_configuration_set_batching_enabled(conf, cBool(options.EnableBatching))
+	if options.Batching {
+		C.pulsar_producer_configuration_set_batching_enabled(conf, cBool(options.Batching))
 	}
 
 	if options.BatchingMaxPublishDelay != 0 {

@@ -38,8 +38,7 @@ func main() {
 	defer client.Close()
 
 	producer, err := client.CreateProducer(pulsar.ProducerOptions{
-		Topic:        "my-topic",
-		ProducerName: "xyz",
+		Topic: "my-topic",
 	})
 	if err != nil {
 		log.Fatal(err)

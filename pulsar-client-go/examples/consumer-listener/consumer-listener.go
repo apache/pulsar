@@ -38,7 +38,7 @@ func main() {
 	consumer, err := client.Subscribe(pulsar.ConsumerOptions{
 		Topic:            "my-topic",
 		SubscriptionName: "my-subscription",
-		SubscriptionType: pulsar.Shared,
+		Type:             pulsar.Shared,
 		MessageChannel:   channel,
 	})
 	if err != nil {
@@ -53,7 +53,7 @@ func main() {
 	for cm := range channel {
 		msg := cm.Message
 		fmt.Printf("Received message  msgId: %s -- content: '%s'\n",
-			msg.MessageId(), string(msg.Payload()))
+			msg.Id(), string(msg.Payload()))
 
 		consumer.Ack(msg)
 	}

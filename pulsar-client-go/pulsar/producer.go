@@ -66,7 +66,7 @@ type ProducerOptions struct {
 	// When specifying a name, it is up to the user to ensure that, for a given topic, the producer name is unique
 	// across all Pulsar's clusters. Brokers will enforce that only a single producer a given name can be publishing on
 	// a topic.
-	ProducerName string
+	Name string
 
 	// Set the send timeout (default: 30 seconds)
 	// If a message is not acknowledged by the server before the sendTimeout expires, an error will be reported.
@@ -126,7 +126,7 @@ type ProducerOptions struct {
 	// contents.
 	//
 	// When enabled default batch delay is set to 1 ms and default batch size is 1000 messages
-	EnableBatching bool
+	Batching bool
 
 	// Set the time period within which the messages sent will be batched (default: 10ms) if batch messages are
 	// enabled. If set to a non zero value, messages will be queued until this time interval or until

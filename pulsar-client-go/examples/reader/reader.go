@@ -50,6 +50,6 @@ func main() {
 		}
 
 		fmt.Printf("Received message  msgId: %s -- content: '%s'\n",
-			msg.MessageId(), string(msg.Payload()))
+			msg.Id(), string(msg.Payload()))
 	}
 }
