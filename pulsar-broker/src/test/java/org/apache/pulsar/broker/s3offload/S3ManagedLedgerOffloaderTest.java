@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.broker.s3offload;
 
+import static org.apache.pulsar.broker.s3offload.S3ManagedLedgerOffloader.dataBlockOffloadKey;
+import static org.apache.pulsar.broker.s3offload.S3ManagedLedgerOffloader.indexBlockOffloadKey;
 import static org.mockito.Matchers.any;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.fail;
 
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.s3.AmazonS3;
@@ -88,7 +88,7 @@ class S3ManagedLedgerOffloaderTest extends S3TestBase {
         OffloadIndexBlock indexBlock = OffloadIndexBlockImpl.get(indexBlockIs);
 
         // 1. verify index block with passed in index entry count
-        assertEquals(indexBlock.getEntryCount(), indexEntryCount);
+        Assert.assertEquals(indexBlock.getEntryCount(), indexEntryCount);
 
         // 2. verify index block read out each indexEntry.
         int entryIdTracker = 0;
@@ -100,17 +100,17 @@ class S3ManagedLedgerOffloaderTest extends S3TestBase {
             // 2.1 verify each indexEntry in header block
             OffloadIndexEntry indexEntry = indexBlock.getIndexEntryForEntry(entryIdTracker);
 
-            assertEquals(indexEntry.getPartId(), startPartIdTracker);
-            assertEquals(indexEntry.getEntryId(), entryIdTracker);
-            assertEquals(indexEntry.getOffset(), startOffsetTracker);
+            Assert.assertEquals(indexEntry.getPartId(), startPartIdTracker);
+            Assert.assertEquals(indexEntry.getEntryId(), entryIdTracker);
+            Assert.assertEquals(indexEntry.getOffset(), startOffsetTracker);
 
             // read out and verify each data block related to this index entry
             // 2.2 verify data block header.
             DataBlockHeader headerReadout = DataBlockHeaderImpl.fromStream(dis);
             int expectedBlockSize = BlockAwareSegmentInputStreamImpl
                 .calculateBlockSize(maxBlockSize, readHandle, entryIdTracker, entryBytesUploaded);
-            assertEquals(headerReadout.getBlockLength(), expectedBlockSize);
-            assertEquals(headerReadout.getFirstEntryId(), entryIdTracker);
+            Assert.assertEquals(headerReadout.getBlockLength(), expectedBlockSize);
+            Assert.assertEquals(headerReadout.getFirstEntryId(), entryIdTracker);
 
             // 2.3 verify data block
             int entrySize = 0;
@@ -123,8 +123,8 @@ class S3ManagedLedgerOffloaderTest extends S3TestBase {
                 byte[] bytes = new byte[(int) entrySize];
                 dis.read(bytes);
 
-                assertEquals(entrySize, entryLength);
-                assertEquals(entryId, entryIdTracker ++);
+                Assert.assertEquals(entrySize, entryLength);
+                Assert.assertEquals(entryId, entryIdTracker ++);
                 entryBytesUploaded += entrySize;
             }
 
@@ -207,65 +207,119 @@ class S3ManagedLedgerOffloaderTest extends S3TestBase {
         UUID uuid = UUID.randomUUID();
         offloader.offload(readHandle, uuid, new HashMap<>()).get();
 
-        S3Object obj = s3client.getObject(BUCKET, S3ManagedLedgerOffloader.dataBlockOffloadKey(readHandle, uuid));
+        S3Object obj = s3client.getObject(BUCKET, dataBlockOffloadKey(readHandle, uuid));
         S3Object indexObj = s3client.getObject(BUCKET, S3ManagedLedgerOffloader.indexBlockOffloadKey(readHandle, uuid));
 
         verifyS3ObjectRead(obj, indexObj, readHandle, 3, 30, conf.getS3ManagedLedgerOffloadMaxBlockSizeInBytes());
     }
 
     @Test
-    public void testOffloadFail() throws Exception {
-        int entryLength = 10;
-        int entryNumberEachBlock = 10;
-        int maxBlockSize = DataBlockHeaderImpl.getDataStartOffset() + (entryLength + 12) * entryNumberEachBlock;
-
-        // offload 30 entries, which will be placed into 3 data blocks.
-        int entryCount = 30;
+    public void testOffloadFailInitDataBlockUpload() throws Exception {
+        int maxBlockSize = 1024;
+        int entryCount = 3;
         ReadHandle readHandle = buildReadHandle(entryCount);
         UUID uuid = UUID.randomUUID();
+        String failureString = "fail InitDataBlockUpload";
 
         // mock throw exception when initiateMultipartUpload
         try {
             AmazonS3 mockS3client = Mockito.spy(s3client);
-            Mockito.when(mockS3client.initiateMultipartUpload(any())).thenThrow(AmazonServiceException.class);
+            Mockito
+                .doThrow(new AmazonServiceException(failureString))
+                .when(mockS3client).initiateMultipartUpload(any());
+
             LedgerOffloader offloader = new S3ManagedLedgerOffloader(mockS3client, BUCKET, scheduler, maxBlockSize);
             offloader.offload(readHandle, uuid, new HashMap<>()).get();
-            fail("Should throw exception when initiateMultipartUpload");
+            Assert.fail("Should throw exception when initiateMultipartUpload");
         } catch (Exception e) {
             // excepted
+            Assert.assertTrue(e.getCause() instanceof AmazonServiceException);
+            Assert.assertTrue(e.getCause().getMessage().contains(failureString));
+            Assert.assertFalse(s3client.doesObjectExist(BUCKET, dataBlockOffloadKey(readHandle, uuid)));
+            Assert.assertFalse(s3client.doesObjectExist(BUCKET, indexBlockOffloadKey(readHandle, uuid)));
         }
+    }
+
+    @Test
+    public void testOffloadFailDataBlockPartUpload() throws Exception {
+        int maxBlockSize = 1024;
+        int entryCount = 3;
+        ReadHandle readHandle = buildReadHandle(entryCount);
+        UUID uuid = UUID.randomUUID();
+        String failureString = "fail DataBlockPartUpload";
 
         // mock throw exception when uploadPart
         try {
             AmazonS3 mockS3client = Mockito.spy(s3client);
-            Mockito.when(mockS3client.uploadPart(any())).thenThrow(AmazonServiceException.class);
+            Mockito
+                .doThrow(new AmazonServiceException("fail DataBlockPartUpload"))
+                .when(mockS3client).uploadPart(any());
+            Mockito.doNothing().when(mockS3client).abortMultipartUpload(any());
+
             LedgerOffloader offloader = new S3ManagedLedgerOffloader(mockS3client, BUCKET, scheduler, maxBlockSize);
             offloader.offload(readHandle, uuid, new HashMap<>()).get();
-            fail("Should throw exception for when uploadPart");
+            Assert.fail("Should throw exception for when uploadPart");
         } catch (Exception e) {
             // excepted
+            Assert.assertTrue(e.getCause() instanceof AmazonServiceException);
+            Assert.assertTrue(e.getCause().getMessage().contains(failureString));
+            Assert.assertFalse(s3client.doesObjectExist(BUCKET, dataBlockOffloadKey(readHandle, uuid)));
+            Assert.assertFalse(s3client.doesObjectExist(BUCKET, indexBlockOffloadKey(readHandle, uuid)));
         }
+    }
+
+    @Test
+    public void testOffloadFailDataBlockUploadComplete() throws Exception {
+        int maxBlockSize = 1024;
+        int entryCount = 3;
+        ReadHandle readHandle = buildReadHandle(entryCount);
+        UUID uuid = UUID.randomUUID();
+        String failureString = "fail DataBlockUploadComplete";
 
         // mock throw exception when completeMultipartUpload
         try {
             AmazonS3 mockS3client = Mockito.spy(s3client);
-            Mockito.when(mockS3client.completeMultipartUpload(any())).thenThrow(AmazonServiceException.class);
+            Mockito
+                .doThrow(new AmazonServiceException(failureString))
+                .when(mockS3client).completeMultipartUpload(any());
+            Mockito.doNothing().when(mockS3client).abortMultipartUpload(any());
+
             LedgerOffloader offloader = new S3ManagedLedgerOffloader(mockS3client, BUCKET, scheduler, maxBlockSize);
             offloader.offload(readHandle, uuid, new HashMap<>()).get();
-            fail("Should throw exception for when completeMultipartUpload");
+            Assert.fail("Should throw exception for when completeMultipartUpload");
         } catch (Exception e) {
             // excepted
+            Assert.assertTrue(e.getCause() instanceof AmazonServiceException);
+            Assert.assertTrue(e.getCause().getMessage().contains(failureString));
+            Assert.assertFalse(s3client.doesObjectExist(BUCKET, dataBlockOffloadKey(readHandle, uuid)));
+            Assert.assertFalse(s3client.doesObjectExist(BUCKET, indexBlockOffloadKey(readHandle, uuid)));
         }
+    }
+
+    @Test
+    public void testOffloadFailPutIndexBlock() throws Exception {
+        int maxBlockSize = 1024;
+        int entryCount = 3;
+        ReadHandle readHandle = buildReadHandle(entryCount);
+        UUID uuid = UUID.randomUUID();
+        String failureString = "fail putObject";
 
         // mock throw exception when putObject
         try {
             AmazonS3 mockS3client = Mockito.spy(s3client);
-            Mockito.when(mockS3client.putObject(any())).thenThrow(AmazonServiceException.class);
+            Mockito
+                .doThrow(new AmazonServiceException(failureString))
+                .when(mockS3client).putObject(any());
+
             LedgerOffloader offloader = new S3ManagedLedgerOffloader(mockS3client, BUCKET, scheduler, maxBlockSize);
             offloader.offload(readHandle, uuid, new HashMap<>()).get();
-            fail("Should throw exception for when putObject for index block");
+            Assert.fail("Should throw exception for when putObject for index block");
         } catch (Exception e) {
             // excepted
+            Assert.assertTrue(e.getCause() instanceof AmazonServiceException);
+            Assert.assertTrue(e.getCause().getMessage().contains(failureString));
+            Assert.assertFalse(s3client.doesObjectExist(BUCKET, dataBlockOffloadKey(readHandle, uuid)));
+            Assert.assertFalse(s3client.doesObjectExist(BUCKET, indexBlockOffloadKey(readHandle, uuid)));
         }
     }
 }
