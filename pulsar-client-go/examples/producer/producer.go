@@ -28,7 +28,7 @@ import (
 func main() {
 	client, err := pulsar.NewClient(pulsar.ClientOptions{
 		URL:       "pulsar://localhost:6650",
-		IoThreads: 5,
+		IOThreads: 5,
 	})
 
 	if err != nil {
@@ -47,7 +47,7 @@ func main() {
 	defer producer.Close()
 
 	for i := 0; i < 10; i++ {
-		err := producer.Send(pulsar.MessageOptions{
+		err := producer.Send(pulsar.MessageBuilder{
 			Payload: []byte(fmt.Sprintf("hello-%d", i)),
 		})
 		if err != nil {

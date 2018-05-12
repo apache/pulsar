@@ -35,7 +35,7 @@ func main() {
 
 	reader, err := client.CreateReader(pulsar.ReaderOptions{
 		Topic:          "my-topic",
-		StartMessageId: pulsar.EarliestMessage,
+		StartMessageID: pulsar.EarliestMessage,
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -50,6 +50,6 @@ func main() {
 		}
 
 		fmt.Printf("Received message  msgId: %s -- content: '%s'\n",
-			msg.Id(), string(msg.Payload()))
+			msg.ID(), string(msg.Payload()))
 	}
 }

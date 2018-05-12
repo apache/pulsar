@@ -36,10 +36,10 @@ type ReaderOptions struct {
 	//  * `pulsar.EarliestMessage` : Start reading from the earliest message available in the topic
 	//  * `pulsar.LatestMessage` : Start reading from the end topic, only getting messages published after the
 	//                           reader was created
-	//  * `MessageId` : Start reading from a particular message id, the reader will position itself on that
+	//  * `MessageID` : Start reading from a particular message id, the reader will position itself on that
 	//                  specific position. The first message to be read will be the message next to the specified
-	//                  messageId
-	StartMessageId MessageId
+	//                  messageID
+	StartMessageID MessageID
 
 	// Sets a `MessageChannel` for the consumer
 	// When a message is received, it will be pushed to the channel for consumption

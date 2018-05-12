@@ -53,7 +53,7 @@ func main() {
 	for cm := range channel {
 		msg := cm.Message
 		fmt.Printf("Received message  msgId: %s -- content: '%s'\n",
-			msg.Id(), string(msg.Payload()))
+			msg.ID(), string(msg.Payload()))
 
 		consumer.Ack(msg)
 	}

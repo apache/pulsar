@@ -32,7 +32,7 @@ type ClientOptions struct {
 	URL string
 
 	// Number of threads to be used for handling connections to brokers (default: 1 thread)
-	IoThreads int
+	IOThreads int
 
 	// Set the operation timeout (default: 30 seconds)
 	// Producer-create, subscribe and unsubscribe operations will be retried until this interval, after which the
@@ -51,13 +51,13 @@ type ClientOptions struct {
 	LogConfFilePath string
 
 	// Configure whether to use TLS encryption on the connection (default: false)
-	EnableTls bool
+	EnableTLS bool
 
 	// Set the path to the trusted TLS certificate file
-	TlsTrustCertsFilePath string
+	TLSTrustCertsFilePath string
 
 	// Configure whether the Pulsar client accept untrusted TLS certificate from broker (default: false)
-	TlsAllowInsecureConnection bool
+	TLSAllowInsecureConnection bool
 
 	// Set the interval between each stat info (default: 60 seconds). Stats will be activated with positive
 	// statsIntervalSeconds It should be set to at least 1 second

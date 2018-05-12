@@ -71,7 +71,7 @@ func createReaderAsync(client *client, options ReaderOptions, callback func(Read
 		return
 	}
 
-	if options.StartMessageId == nil {
+	if options.StartMessageID == nil {
 		callback(nil, errors.New("start message id is required"))
 		return
 	}
@@ -112,7 +112,7 @@ func createReaderAsync(client *client, options ReaderOptions, callback func(Read
 	topic := C.CString(options.Topic)
 	defer C.free(unsafe.Pointer(topic))
 
-	C._pulsar_client_create_reader_async(client.ptr, topic, options.StartMessageId.(*messageId).ptr,
+	C._pulsar_client_create_reader_async(client.ptr, topic, options.StartMessageID.(*messageID).ptr,
 		conf, pointer.Save(&readerAndCallback{reader, conf, callback}))
 }
 

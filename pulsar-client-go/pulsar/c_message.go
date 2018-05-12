@@ -30,17 +30,14 @@ import (
 	"reflect"
 	"runtime"
 	"unsafe"
+	"time"
 )
 
 type message struct {
 	ptr *C.pulsar_message_t
 }
 
-type messageBuilder struct {
-	ptr *C.pulsar_message_t
-}
-
-type messageId struct {
+type messageID struct {
 	ptr *C.pulsar_message_id_t
 }
 
@@ -64,15 +61,16 @@ func buildMessage(builder MessageBuilder) *C.pulsar_message_t {
 		for key, value := range builder.Properties {
 			cKey := C.CString(key)
 			cValue := C.CString(value)
-			defer C.free(unsafe.Pointer(cKey))
-			defer C.free(unsafe.Pointer(cValue))
 
 			C.pulsar_message_set_property(msg, cKey, cValue)
+
+			C.free(unsafe.Pointer(cKey))
+			C.free(unsafe.Pointer(cValue))
 		}
 	}
 
-	if builder.EventTime != 0 {
-		C.pulsar_message_set_event_timestamp(msg, C.ulonglong(builder.EventTime))
+	if builder.EventTime.UnixNano() != 0 {
+		C.pulsar_message_set_event_timestamp(msg, timeToUnixTimestampMillis(builder.EventTime))
 	}
 
 	if builder.ReplicationClusters != nil {
@@ -114,59 +112,79 @@ func (m *message) Payload() []byte {
 	return *(*[]byte)(unsafe.Pointer(slice))
 }
 
-func (m *message) Id() MessageId {
+func (m *message) ID() MessageID {
 	return newMessageId(m.ptr)
 }
 
-func (m *message) PublishTime() uint64 {
-	return uint64(C.pulsar_message_get_publish_timestamp(m.ptr))
+func (m *message) PublishTime() time.Time {
+	return timeFromUnixTimestampMillis(C.pulsar_message_get_publish_timestamp(m.ptr))
 }
 
-func (m *message) EventTime() uint64 {
-	return uint64(C.pulsar_message_get_event_timestamp(m.ptr))
+func (m *message) EventTime() *time.Time {
+	eventTime := C.pulsar_message_get_event_timestamp(m.ptr)
+	if uint64(eventTime) == 0 {
+		return nil
+	} else {
+		res := timeFromUnixTimestampMillis(eventTime)
+		return &res
+	}
 }
 
 func (m *message) Key() string {
 	return C.GoString(C.pulsar_message_get_partitionKey(m.ptr))
 }
 
-//////// MessageId
+//////// MessageID
 
-func newMessageId(msg *C.pulsar_message_t) MessageId {
-	msgId := &messageId{ptr: C.pulsar_message_get_message_id(msg)}
+func newMessageId(msg *C.pulsar_message_t) MessageID {
+	msgId := &messageID{ptr: C.pulsar_message_get_message_id(msg)}
 	runtime.SetFinalizer(msgId, messageIdFinalizer)
 	return msgId
 }
 
-func messageIdFinalizer(msgId *messageId) {
-	C.pulsar_message_id_free(msgId.ptr)
+func messageIdFinalizer(msgID *messageID) {
+	C.pulsar_message_id_free(msgID.ptr)
 }
 
-func (m *messageId) Serialize() []byte {
+func (m *messageID) Serialize() []byte {
 	var len C.int
 	buf := C.pulsar_message_id_serialize(m.ptr, &len)
 	defer C.free(unsafe.Pointer(buf))
 	return C.GoBytes(buf, len)
 }
 
-func deserializeMessageId(data []byte) MessageId {
-	msgId := &messageId{ptr: C.pulsar_message_id_deserialize(unsafe.Pointer(&data[0]), C.uint(len(data)))}
+func deserializeMessageId(data []byte) MessageID {
+	msgId := &messageID{ptr: C.pulsar_message_id_deserialize(unsafe.Pointer(&data[0]), C.uint(len(data)))}
 	runtime.SetFinalizer(msgId, messageIdFinalizer)
 	return msgId
 }
 
-func (m *messageId) String() string {
+func (m *messageID) String() string {
 	str := C.pulsar_message_id_str(m.ptr)
 	defer C.free(unsafe.Pointer(str))
 	return C.GoString(str)
 }
 
-func earliestMessageId() *messageId {
+func earliestMessageID() *messageID {
 	// No need to use finalizer since the pointer doesn't need to be freed
-	return &messageId{C.pulsar_message_id_earliest()}
+	return &messageID{C.pulsar_message_id_earliest()}
 }
 
-func latestMessageId() *messageId {
+func latestMessageID() *messageID {
 	// No need to use finalizer since the pointer doesn't need to be freed
-	return &messageId{C.pulsar_message_id_latest()}
+	return &messageID{C.pulsar_message_id_latest()}
+}
+
+func timeFromUnixTimestampMillis(timestamp C.ulonglong) time.Time {
+	ts := int64(timestamp)
+	seconds := ts / int64(time.Millisecond)
+	millis := ts - seconds
+	nanos := millis * int64(time.Millisecond)
+	return time.Unix(seconds, nanos)
+}
+
+func timeToUnixTimestampMillis(t time.Time) C.ulonglong {
+	nanos := t.UnixNano()
+	millis := nanos / int64(time.Millisecond)
+	return millis
 }

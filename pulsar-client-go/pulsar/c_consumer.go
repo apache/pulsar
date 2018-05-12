@@ -182,8 +182,8 @@ func (c *consumer) Ack(msg Message) error {
 	return nil
 }
 
-func (c *consumer) AckId(msgId MessageId) error {
-	C.pulsar_consumer_acknowledge_async_id(c.ptr, msgId.(*messageId).ptr, nil, nil)
+func (c *consumer) AckId(msgId MessageID) error {
+	C.pulsar_consumer_acknowledge_async_id(c.ptr, msgId.(*messageID).ptr, nil, nil)
 	return nil
 }
 
@@ -192,8 +192,8 @@ func (c *consumer) AckCumulative(msg Message) error {
 	return nil
 }
 
-func (c *consumer) AckCumulativeId(msgId MessageId) error {
-	C.pulsar_consumer_acknowledge_cumulative_async_id(c.ptr, msgId.(*messageId).ptr, nil, nil)
+func (c *consumer) AckCumulativeId(msgId MessageID) error {
+	C.pulsar_consumer_acknowledge_cumulative_async_id(c.ptr, msgId.(*messageID).ptr, nil, nil)
 	return nil
 }
 

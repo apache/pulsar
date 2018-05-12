@@ -19,6 +19,8 @@
 
 package pulsar
 
+import "time"
+
 type MessageBuilder struct {
 	// Payload for the message
 	Payload []byte
@@ -30,7 +32,7 @@ type MessageBuilder struct {
 	Properties map[string]string
 
 	// Set the event time for a given message
-	EventTime uint64
+	EventTime time.Time
 
 	// Override the replication clusters for this message.
 	ReplicationClusters []string
@@ -46,35 +48,35 @@ type Message interface {
 
 	// Get the unique message ID associated with this message.
 	// The message id can be used to univocally refer to a message without having the keep the entire payload in memory.
-	Id() MessageId
+	ID() MessageID
 
 	// Get the publish time of this message. The publish time is the timestamp that a client publish the message.
-	PublishTime() uint64
+	PublishTime() time.Time
 
 	// Get the event time associated with this message. It is typically set by the applications via
-	// `MessageBuilder.setEventTime(long)`.
-	// If there isn't any event time associated with this event, it will return 0.
-	EventTime() uint64
+	// `MessageBuilder.EventTime`.
+	// If there isn't any event time associated with this event, it will be nil.
+	EventTime() *time.Time
 
 	// Get the key of the message, if any
 	Key() string
 }
 
 // Identifier for a particular message
-type MessageId interface {
+type MessageID interface {
 	// Serialize the message id into a sequence of bytes that can be stored somewhere else
 	Serialize() []byte
 }
 
-// Reconstruct a MessageId object from its serialized representation
-func DeserializeMessageId(data []byte) MessageId {
+// Reconstruct a MessageID object from its serialized representation
+func DeserializeMessageID(data []byte) MessageID {
 	return deserializeMessageId(data)
 }
 
 var (
-	// MessageId that points to the earliest message avaialable in a topic
-	EarliestMessage MessageId = earliestMessageId()
+	// MessageID that points to the earliest message avaialable in a topic
+	EarliestMessage MessageID = earliestMessageID()
 
-	// MessageId that points to the latest message
-	LatestMessage MessageId = latestMessageId()
+	// MessageID that points to the latest message
+	LatestMessage MessageID = latestMessageID()
 )

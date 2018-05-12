@@ -164,7 +164,7 @@ func (p *producer) Topic() string {
 	return C.GoString(C.pulsar_producer_get_topic(p.ptr))
 }
 
-func (p *producer) ProducerName() string {
+func (p *producer) Name() string {
 	return C.GoString(C.pulsar_producer_get_producer_name(p.ptr))
 }
 

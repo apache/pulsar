@@ -31,6 +31,8 @@ func main() {
 		log.Fatal(err)
 	}
 
+	defer client.Close()
+
 	consumer, err := client.Subscribe(pulsar.ConsumerOptions{
 		Topic:            "my-topic",
 		SubscriptionName: "my-subscription",
@@ -41,7 +43,6 @@ func main() {
 	}
 
 	defer consumer.Close()
-	defer client.Close()
 
 	for {
 		msg, err := consumer.Receive()
@@ -50,7 +51,7 @@ func main() {
 		}
 
 		fmt.Printf("Received message  msgId: %s -- content: '%s'\n",
-			msg.Id(), string(msg.Payload()))
+			msg.ID(), string(msg.Payload()))
 
 		consumer.Ack(msg)
 	}

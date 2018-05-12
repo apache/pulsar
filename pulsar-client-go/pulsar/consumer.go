@@ -104,8 +104,8 @@ type Consumer interface {
 	//Ack the consumption of a single message
 	Ack(message Message) error
 
-	// Ack the consumption of a single message, identified by its MessageId
-	AckId(messageId MessageId) error
+	// Ack the consumption of a single message, identified by its MessageID
+	AckID(messageId MessageID) error
 
 	// Ack the reception of all the messages in the stream up to (and including) the provided message.
 	// This method will block until the acknowledge has been sent to the broker. After that, the messages will not be
@@ -122,8 +122,8 @@ type Consumer interface {
 	//
 	// Cumulative acknowledge cannot be used when the consumer type is set to ConsumerShared.
 	//
-	// It's equivalent to calling asyncAcknowledgeCumulative(MessageId) and waiting for the callback to be triggered.
-	AckCumulativeId(messageId MessageId) error
+	// It's equivalent to calling asyncAcknowledgeCumulative(MessageID) and waiting for the callback to be triggered.
+	AckCumulativeID(messageId MessageID) error
 
 	// Close the consumer and stop the broker to push more messages
 	Close() error

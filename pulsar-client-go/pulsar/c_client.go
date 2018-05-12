@@ -37,8 +37,8 @@ func newClient(options ClientOptions) (Client, error) {
 
 	// Configure the client
 	conf := C.pulsar_client_configuration_create()
-	if options.IoThreads != 0 {
-		C.pulsar_client_configuration_set_io_threads(conf, C.int(options.IoThreads))
+	if options.IOThreads != 0 {
+		C.pulsar_client_configuration_set_io_threads(conf, C.int(options.IOThreads))
 	}
 
 	if options.OperationTimeoutSeconds != 0 {
@@ -59,18 +59,18 @@ func newClient(options ClientOptions) (Client, error) {
 		C.pulsar_client_configuration_set_log_conf_file_path(conf, cPath)
 	}
 
-	if options.EnableTls {
-		C.pulsar_client_configuration_set_use_tls(conf, cBool(options.EnableTls))
+	if options.EnableTLS {
+		C.pulsar_client_configuration_set_use_tls(conf, cBool(options.EnableTLS))
 	}
 
-	if options.TlsTrustCertsFilePath != "" {
-		str := C.CString(options.TlsTrustCertsFilePath)
+	if options.TLSTrustCertsFilePath != "" {
+		str := C.CString(options.TLSTrustCertsFilePath)
 		defer C.free(unsafe.Pointer(str))
 		C.pulsar_client_configuration_set_tls_trust_certs_file_path(conf, str)
 	}
 
-	if options.TlsAllowInsecureConnection {
-		C.pulsar_client_configuration_set_tls_allow_insecure_connection(conf, cBool(options.TlsAllowInsecureConnection))
+	if options.TLSAllowInsecureConnection {
+		C.pulsar_client_configuration_set_tls_allow_insecure_connection(conf, cBool(options.TLSAllowInsecureConnection))
 	}
 
 	if options.StatsIntervalInSeconds != 0 {

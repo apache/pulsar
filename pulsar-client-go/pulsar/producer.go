@@ -146,7 +146,7 @@ type Producer interface {
 	Topic() string
 
 	// return the producer name which could have been assigned by the system or specified by the client
-	ProducerName() string
+	Name() string
 
 	// Send a message
 	// This call will be blocking until is successfully acknowledged by the Pulsar broker.
