@@ -46,73 +46,45 @@ type messageId struct {
 
 ////////////////////////////////////////////////////////////
 
-func newMessage() MessageBuilder {
-	builder := &messageBuilder{
-		ptr: C.pulsar_message_create(),
+func buildMessage(builder MessageBuilder) *C.pulsar_message_t {
+
+	msg := C.pulsar_message_create()
+
+	if builder.Key != "" {
+		cKey := C.CString(builder.Key)
+		defer C.free(unsafe.Pointer(cKey))
+		C.pulsar_message_set_partition_key(msg, cKey)
 	}
 
-	runtime.SetFinalizer(builder, messageBuilderFinalizer)
-	return builder
-}
-
-func messageBuilderFinalizer(b *messageBuilder) {
-	if b.ptr != nil {
-		C.pulsar_message_free(b.ptr)
-	}
-}
-
-func (b *messageBuilder) Build() Message {
-	msg := &message{
-		ptr: b.ptr,
+	if builder.Payload != nil {
+		C.pulsar_message_set_content(msg, unsafe.Pointer(&builder.Payload[0]), C.ulong(len(builder.Payload)))
 	}
 
-	// We have transferred the ownership of the pointer to the message struct
-	b.ptr = nil
+	if builder.Properties != nil {
+		for key, value := range builder.Properties {
+			cKey := C.CString(key)
+			cValue := C.CString(value)
+			defer C.free(unsafe.Pointer(cKey))
+			defer C.free(unsafe.Pointer(cValue))
 
-	runtime.SetFinalizer(msg, messageFinalizer)
+			C.pulsar_message_set_property(msg, cKey, cValue)
+		}
+	}
+
+	if builder.EventTime != 0 {
+		C.pulsar_message_set_event_timestamp(msg, C.ulonglong(builder.EventTime))
+	}
+
+	if builder.ReplicationClusters != nil {
+		if len(builder.ReplicationClusters) == 0 {
+			// Empty list means to disable replication
+			C.pulsar_message_disable_replication(msg, C.int(1))
+		} else {
+			// TODO: Pass the list of clusters
+		}
+	}
+
 	return msg
-}
-
-func (b *messageBuilder) Key(key string) MessageBuilder {
-	cKey := C.CString(key)
-	defer C.free(unsafe.Pointer(cKey))
-	C.pulsar_message_set_partition_key(b.ptr, cKey)
-	return b
-}
-
-func (b *messageBuilder) Payload(payload []byte) MessageBuilder {
-	C.pulsar_message_set_content(b.ptr, unsafe.Pointer(&payload[0]), C.ulong(len(payload)))
-	return b
-}
-
-func (b *messageBuilder) Property(name string, value string) MessageBuilder {
-	cName := C.CString(name)
-	cValue := C.CString(value)
-	defer C.free(unsafe.Pointer(cName))
-	defer C.free(unsafe.Pointer(cValue))
-
-	C.pulsar_message_set_property(b.ptr, cName, cValue)
-	return b
-}
-
-func (b *messageBuilder) EventTime(timestamp uint64) MessageBuilder {
-	C.pulsar_message_set_event_timestamp(b.ptr, C.ulonglong(timestamp))
-	return b
-}
-
-func (b *messageBuilder) SequenceId(sequenceId int64) MessageBuilder {
-	C.pulsar_message_set_event_timestamp(b.ptr, C.ulonglong(sequenceId))
-	return b
-}
-
-func (b *messageBuilder) ReplicationClusters(clusters []string) MessageBuilder {
-	// TODO
-	return b
-}
-
-func (b *messageBuilder) DisableReplication() MessageBuilder {
-	C.pulsar_message_disable_replication(b.ptr, cBool(true))
-	return b
 }
 
 ////////////// Message

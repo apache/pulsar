@@ -19,41 +19,21 @@
 
 package pulsar
 
-// Creates a message builder to construct a new message for publishing
-func NewMessage() MessageBuilder {
-	return newMessage()
-}
+type MessageBuilder struct {
+	// Payload for the message
+	Payload []byte
 
-type MessageBuilder interface {
-	// Build the message to be sent
-	Build() Message
+	// Sets the key of the message for routing policy
+	Key string
 
-	//Sets the key of the message for routing policy
-	Key(key string) MessageBuilder
-
-	// Set the payload for the message
-	Payload(payload []byte) MessageBuilder
-
-	// Sets a new property on the message
-	Property(name string, value string) MessageBuilder
+	// Attach application defined properties on the message
+	Properties map[string]string
 
 	// Set the event time for a given message
-	EventTime(timestamp uint64) MessageBuilder
-
-	// Specify a custom sequence id for the message being published.
-	// The sequence id can be used for deduplication purposes and it needs to follow these rules:
-	//  - `sequenceId >= 0`
-	//  - Sequence id for a message needs to be greater than sequence id for earlier messages:
-	//    `sequenceId(N+1) > sequenceId(N)`
-	//  - It's not necessary for sequence ids to be consecutive.There can be holes between messages. Eg.the
-	//    `sequenceId` could represent an offset or a cumulative size.
-	SequenceId(sequenceId int64) MessageBuilder
+	EventTime uint64
 
 	// Override the replication clusters for this message.
-	ReplicationClusters(clusters []string) MessageBuilder
-
-	// Disable replication for this message.
-	DisableReplication() MessageBuilder
+	ReplicationClusters []string
 }
 
 type Message interface {

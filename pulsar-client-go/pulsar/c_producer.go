@@ -168,15 +168,7 @@ func (p *producer) ProducerName() string {
 	return C.GoString(C.pulsar_producer_get_producer_name(p.ptr))
 }
 
-func (p *producer) SendBytes(payload []byte) error {
-	return p.Send(NewMessage().Payload(payload).Build())
-}
-
-func (p *producer) SendBytesAsync(payload []byte, callback Callback) {
-	p.SendAsync(NewMessage().Payload(payload).Build(), callback)
-}
-
-func (p *producer) Send(msg Message) error {
+func (p *producer) Send(msg MessageBuilder) error {
 	c := make(chan error)
 	p.SendAsync(msg, func(err error) { c <- err; close(c) })
 	return <-c
@@ -193,10 +185,11 @@ func pulsarProducerSendCallbackProxy(res C.pulsar_result, message *C.pulsar_mess
 	}
 }
 
-func (p *producer) SendAsync(msg Message, callback Callback) {
-	cMsg := msg.(*message)
+func (p *producer) SendAsync(msg MessageBuilder, callback Callback) {
+	cMsg := buildMessage(msg)
+	defer C.pulsar_message_free(cMsg)
 
-	C._pulsar_producer_send_async(p.ptr, cMsg.ptr, pointer.Save(callback))
+	C._pulsar_producer_send_async(p.ptr, cMsg, pointer.Save(callback))
 }
 
 func (p *producer) Close() error {

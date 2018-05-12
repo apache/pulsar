@@ -148,22 +148,14 @@ type Producer interface {
 	// return the producer name which could have been assigned by the system or specified by the client
 	ProducerName() string
 
-	// Send a simple message
-	// This call will be blocking until is successfully acknowledged by the Pulsar broker.
-	// Use Send() to specify more properties than just the value on the message to be sent.
-	SendBytes(message []byte) error
-
-	// Send a message in asynchronous mode
-	SendBytesAsync(payload []byte, callback Callback)
-
 	// Send a message
 	// This call will be blocking until is successfully acknowledged by the Pulsar broker.
 	// Example:
-	// producer.Send(NewMessage().Payload(myPayload).Property("a", "1").Build())
-	Send(msg Message) error
+	// producer.Send(pulsar.MessageBuilder{ Payload: myPayload })
+	Send(msg MessageBuilder) error
 
 	// Send a message in asynchronous mode
-	SendAsync(msg Message, callback Callback)
+	SendAsync(msg MessageBuilder, callback Callback)
 
 	// Close the producer and releases resources allocated
 	// No more writes will be accepted from this producer. Waits until all pending write request are persisted. In case

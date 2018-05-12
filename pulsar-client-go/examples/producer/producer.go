@@ -47,7 +47,9 @@ func main() {
 	defer producer.Close()
 
 	for i := 0; i < 10; i++ {
-		err := producer.SendBytes([]byte(fmt.Sprintf("hello-%d", i)))
+		err := producer.Send(pulsar.MessageOptions{
+			Payload: []byte(fmt.Sprintf("hello-%d", i)),
+		})
 		if err != nil {
 			log.Fatal(err)
 		}
