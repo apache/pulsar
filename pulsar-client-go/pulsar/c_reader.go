@@ -31,6 +31,7 @@ import (
 	"github.com/mattn/go-pointer"
 	"runtime"
 	"unsafe"
+	"context"
 )
 
 type reader struct {
@@ -131,9 +132,14 @@ func (r *reader) Topic() string {
 	return C.GoString(C.pulsar_reader_get_topic(r.ptr))
 }
 
-func (r *reader) Next() (Message, error) {
-	rm := <-r.defaultChannel
-	return rm.Message, nil
+func (r *reader) Next(ctx context.Context) (Message, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+
+	case rm := <- r.defaultChannel:
+		return rm.Message, nil
+	}
 }
 
 func (r *reader) Close() error {
@@ -142,7 +148,7 @@ func (r *reader) Close() error {
 	return <-channel
 }
 
-func (r *reader) CloseAsync(callback Callback) {
+func (r *reader) CloseAsync(callback func(error)) {
 	if r.defaultChannel != nil {
 		close(r.defaultChannel)
 	}

@@ -23,6 +23,7 @@ import (
 	"../../pulsar"
 	"fmt"
 	"log"
+	"context"
 )
 
 func main() {
@@ -46,11 +47,12 @@ func main() {
 
 	defer producer.Close()
 
+	ctx := context.Background()
+
 	for i := 0; i < 10; i++ {
-		err := producer.Send(pulsar.MessageBuilder{
+		if err := producer.Send(ctx, pulsar.MessageBuilder{
 			Payload: []byte(fmt.Sprintf("hello-%d", i)),
-		})
-		if err != nil {
+		}); err != nil {
 			log.Fatal(err)
 		}
 	}

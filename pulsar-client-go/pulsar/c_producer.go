@@ -31,6 +31,7 @@ import (
 
 	"github.com/mattn/go-pointer"
 	"time"
+	"context"
 )
 
 type createProducerCtx struct {
@@ -168,15 +169,22 @@ func (p *producer) Name() string {
 	return C.GoString(C.pulsar_producer_get_producer_name(p.ptr))
 }
 
-func (p *producer) Send(msg MessageBuilder) error {
+func (p *producer) Send(ctx context.Context, msg MessageBuilder) error {
 	c := make(chan error)
-	p.SendAsync(msg, func(err error) { c <- err; close(c) })
-	return <-c
+	p.SendAsync(ctx, msg, func(err error) { c <- err; close(c) })
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+
+	case cm := <- c:
+		return cm
+	}
 }
 
 //export pulsarProducerSendCallbackProxy
 func pulsarProducerSendCallbackProxy(res C.pulsar_result, message *C.pulsar_message_t, ctx unsafe.Pointer) {
-	callback := pointer.Restore(ctx).(Callback)
+	callback := pointer.Restore(ctx).(func(error))
 
 	if res != C.pulsar_result_Ok {
 		callback(newError(res, "Failed to send message"))
@@ -185,7 +193,7 @@ func pulsarProducerSendCallbackProxy(res C.pulsar_result, message *C.pulsar_mess
 	}
 }
 
-func (p *producer) SendAsync(msg MessageBuilder, callback Callback) {
+func (p *producer) SendAsync(ctx context.Context, msg MessageBuilder, callback func(error)) {
 	cMsg := buildMessage(msg)
 	defer C.pulsar_message_free(cMsg)
 
@@ -198,13 +206,13 @@ func (p *producer) Close() error {
 	return <-c
 }
 
-func (p *producer) CloseAsync(callback Callback) {
+func (p *producer) CloseAsync(callback func(error)) {
 	C._pulsar_producer_close_async(p.ptr, pointer.Save(callback))
 }
 
 //export pulsarProducerCloseCallbackProxy
 func pulsarProducerCloseCallbackProxy(res C.pulsar_result, ctx unsafe.Pointer) {
-	callback := pointer.Restore(ctx).(Callback)
+	callback := pointer.Restore(ctx).(func(error))
 
 	if res != C.pulsar_result_Ok {
 		callback(newError(res, "Failed to close Producer"))

@@ -19,6 +19,8 @@
 
 package pulsar
 
+import "context"
+
 type ReaderMessage struct {
 	Reader
 	Message
@@ -63,11 +65,11 @@ type Reader interface {
 	Topic() string
 
 	// Read the next message in the topic, blocking until a message is available
-	Next() (Message, error)
+	Next(context.Context) (Message, error)
 
 	// Close the reader and stop the broker to push more messages
 	Close() error
 
 	// Asynchronously close the reader and stop the broker to push more messages
-	CloseAsync(callback Callback)
+	CloseAsync(func(error))
 }

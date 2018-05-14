@@ -67,30 +67,30 @@ type ClientOptions struct {
 type Client interface {
 	// Create the producer instance
 	// This method will block until the producer is created successfully
-	CreateProducer(options ProducerOptions) (Producer, error)
+	CreateProducer(ProducerOptions) (Producer, error)
 
 	// Create the producer instance in asynchronous mode. The callback
 	// will be triggered once the operation is completed
-	CreateProducerAsync(options ProducerOptions, callback func(Producer, error))
+	CreateProducerAsync(ProducerOptions, func(Producer, error))
 
 	// Create a `Consumer` by subscribing to a topic.
 	//
 	// If the subscription does not exist, a new subscription will be created and all messages published after the
 	// creation will be retained until acknowledged, even if the consumer is not connected
-	Subscribe(options ConsumerOptions) (Consumer, error)
+	Subscribe(ConsumerOptions) (Consumer, error)
 
 	// Create a `Consumer` by subscribing to a topic in asynchronous mode.
 	//
 	// If the subscription does not exist, a new subscription will be created and all messages published after the
 	// creation will be retained until acknowledged, even if the consumer is not connected
-	SubscribeAsync(options ConsumerOptions, callback func(Consumer, error))
+	SubscribeAsync(ConsumerOptions, func(Consumer, error))
 
 	// Create a Reader instance.
 	// This method will block until the reader is created successfully.
-	CreateReader(options ReaderOptions) (Reader, error)
+	CreateReader(ReaderOptions) (Reader, error)
 
 	// Create a Reader instance. in asynchronous mode.
-	CreateReaderAsync(options ReaderOptions, callback func(Reader, error))
+	CreateReaderAsync(ReaderOptions, func(Reader, error))
 
 	// Close the Client and free associated resources
 	Close() error

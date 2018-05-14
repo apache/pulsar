@@ -186,5 +186,5 @@ func timeFromUnixTimestampMillis(timestamp C.ulonglong) time.Time {
 func timeToUnixTimestampMillis(t time.Time) C.ulonglong {
 	nanos := t.UnixNano()
 	millis := nanos / int64(time.Millisecond)
-	return millis
+	return C.ulonglong(millis)
 }

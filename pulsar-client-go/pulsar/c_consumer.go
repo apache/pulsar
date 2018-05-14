@@ -31,6 +31,7 @@ import (
 	"runtime"
 	"time"
 	"unsafe"
+	"context"
 )
 
 type consumer struct {
@@ -157,7 +158,7 @@ func (c *consumer) Unsubscribe() error {
 	return <-channel
 }
 
-func (c *consumer) UnsubscribeAsync(callback Callback) {
+func (c *consumer) UnsubscribeAsync(callback func(error)) {
 	C._pulsar_consumer_unsubscribe_async(c.ptr, pointer.Save(callback))
 }
 
@@ -172,9 +173,14 @@ func pulsarConsumerUnsubscribeCallbackProxy(res C.pulsar_result, ctx unsafe.Poin
 	}
 }
 
-func (c *consumer) Receive() (Message, error) {
-	cm := <-c.defaultChannel
-	return cm.Message, nil
+func (c *consumer) Receive(ctx context.Context) (Message, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+
+	case cm := <-c.defaultChannel:
+		return cm.Message, nil
+	}
 }
 
 func (c *consumer) Ack(msg Message) error {
@@ -182,7 +188,7 @@ func (c *consumer) Ack(msg Message) error {
 	return nil
 }
 
-func (c *consumer) AckId(msgId MessageID) error {
+func (c *consumer) AckID(msgId MessageID) error {
 	C.pulsar_consumer_acknowledge_async_id(c.ptr, msgId.(*messageID).ptr, nil, nil)
 	return nil
 }
@@ -192,7 +198,7 @@ func (c *consumer) AckCumulative(msg Message) error {
 	return nil
 }
 
-func (c *consumer) AckCumulativeId(msgId MessageID) error {
+func (c *consumer) AckCumulativeID(msgId MessageID) error {
 	C.pulsar_consumer_acknowledge_cumulative_async_id(c.ptr, msgId.(*messageID).ptr, nil, nil)
 	return nil
 }
@@ -203,7 +209,7 @@ func (c *consumer) Close() error {
 	return <-channel
 }
 
-func (c *consumer) CloseAsync(callback Callback) {
+func (c *consumer) CloseAsync(callback func(error)) {
 	if c.defaultChannel != nil {
 		close(c.defaultChannel)
 	}

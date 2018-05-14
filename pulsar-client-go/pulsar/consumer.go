@@ -19,7 +19,10 @@
 
 package pulsar
 
-import "time"
+import (
+	"time"
+	"context"
+)
 
 // Pair of a Consumer and Message
 type ConsumerMessage struct {
@@ -95,17 +98,17 @@ type Consumer interface {
 	Unsubscribe() error
 
 	// Asynchronously unsubscribe the consumer
-	UnsubscribeAsync(callback Callback)
+	UnsubscribeAsync(func(error))
 
 	// Receives a single message.
 	// This calls blocks until a message is available.
-	Receive() (Message, error)
+	Receive(context.Context) (Message, error)
 
 	//Ack the consumption of a single message
-	Ack(message Message) error
+	Ack(Message) error
 
 	// Ack the consumption of a single message, identified by its MessageID
-	AckID(messageId MessageID) error
+	AckID(MessageID) error
 
 	// Ack the reception of all the messages in the stream up to (and including) the provided message.
 	// This method will block until the acknowledge has been sent to the broker. After that, the messages will not be
@@ -114,7 +117,7 @@ type Consumer interface {
 	// Cumulative acknowledge cannot be used when the consumer type is set to ConsumerShared.
 	//
 	// It's equivalent to calling asyncAcknowledgeCumulative(Message) and waiting for the callback to be triggered.
-	AckCumulative(message Message) error
+	AckCumulative(Message) error
 
 	// Ack the reception of all the messages in the stream up to (and including) the provided message.
 	// This method will block until the acknowledge has been sent to the broker. After that, the messages will not be
@@ -123,13 +126,13 @@ type Consumer interface {
 	// Cumulative acknowledge cannot be used when the consumer type is set to ConsumerShared.
 	//
 	// It's equivalent to calling asyncAcknowledgeCumulative(MessageID) and waiting for the callback to be triggered.
-	AckCumulativeID(messageId MessageID) error
+	AckCumulativeID(MessageID) error
 
 	// Close the consumer and stop the broker to push more messages
 	Close() error
 
 	// Asynchronously close the consumer and stop the broker to push more messages
-	CloseAsync(callback Callback)
+	CloseAsync(func(error))
 
 	// Redelivers all the unacknowledged messages. In Failover mode, the request is ignored if the consumer is not
 	// active for the given topic. In Shared mode, the consumers messages to be redelivered are distributed across all

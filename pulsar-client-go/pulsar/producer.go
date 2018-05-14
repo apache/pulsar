@@ -19,7 +19,10 @@
 
 package pulsar
 
-import "time"
+import (
+	"time"
+	"context"
+)
 
 type MessageRoutingMode int
 
@@ -116,7 +119,7 @@ type ProducerOptions struct {
 	// Set a custom message routing policy by passing an implementation of MessageRouter
 	// The router is a function that given a particular message and the topic metadata, returns the
 	// partition index where the message should be routed to
-	MessageRouter func(msg Message, metadata TopicMetadata) int
+	MessageRouter func(Message, TopicMetadata) int
 
 	// Control whether automatic batching of messages is enabled for the producer. Default: false [No batching]
 	//
@@ -137,9 +140,6 @@ type ProducerOptions struct {
 	BatchingMaxMessages uint
 }
 
-// Callback type for asynchronous operations
-type Callback func(err error)
-
 // The producer is used to publish messages on a topic
 type Producer interface {
 	// return the topic to which producer is publishing to
@@ -151,11 +151,11 @@ type Producer interface {
 	// Send a message
 	// This call will be blocking until is successfully acknowledged by the Pulsar broker.
 	// Example:
-	// producer.Send(pulsar.MessageBuilder{ Payload: myPayload })
-	Send(msg MessageBuilder) error
+	// producer.Send(ctx, pulsar.MessageBuilder{ Payload: myPayload })
+	Send(context.Context, MessageBuilder) error
 
 	// Send a message in asynchronous mode
-	SendAsync(msg MessageBuilder, callback Callback)
+	SendAsync(context.Context, MessageBuilder, func(error))
 
 	// Close the producer and releases resources allocated
 	// No more writes will be accepted from this producer. Waits until all pending write request are persisted. In case
@@ -163,5 +163,5 @@ type Producer interface {
 	Close() error
 
 	// Close the producer in asynchronous mode
-	CloseAsync(callback Callback)
+	CloseAsync(func(error))
 }

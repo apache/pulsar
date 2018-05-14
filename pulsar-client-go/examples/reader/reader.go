@@ -23,6 +23,7 @@ import (
 	"../../pulsar"
 	"fmt"
 	"log"
+	"context"
 )
 
 func main() {
@@ -44,7 +45,7 @@ func main() {
 	defer reader.Close()
 
 	for {
-		msg, err := reader.Next()
+		msg, err := reader.Next(context.Background())
 		if err != nil {
 			log.Fatal(err)
 		}
