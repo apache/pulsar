@@ -24,6 +24,7 @@ import static org.testng.Assert.assertSame;
 
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.FileSystems;
 import java.util.function.Function;
 import org.testng.annotations.Test;
 
@@ -34,7 +35,8 @@ public class FunctionClassLoadersTest {
 
     @Test
     public void testCreateClassLoader() throws Exception {
-        URL jarUrl = getClass().getClassLoader().getResource("multifunction.jar");
+        URL jarUrl = FileSystems.getDefault()
+                .getPath("../pulsar-functions-api-examples/target/pulsar-functions-api-examples.jar").toUri().toURL();
         ClassLoader parent = getClass().getClassLoader();
         URLClassLoader clsLoader = FunctionClassLoaders.create(
             new URL[] { jarUrl },
@@ -42,7 +44,7 @@ public class FunctionClassLoadersTest {
         assertSame(parent, clsLoader.getParent());
         Class<? extends Function<Integer, Integer>> cls =
             (Class<? extends Function<Integer, Integer>>)
-                clsLoader.loadClass("org.apache.pulsar.functions.runtime.functioncache.AddFunction");
+                clsLoader.loadClass("org.apache.pulsar.functions.api.examples.AddFunction");
         Function<Integer, Integer> func = cls.newInstance();
         assertEquals(4, func.apply(2).intValue());
     }
@@ -50,7 +52,7 @@ public class FunctionClassLoadersTest {
     @Test(expectedExceptions = ClassNotFoundException.class)
     public void testClassNotFound() throws Exception {
         ClassLoader clsLoader = getClass().getClassLoader();
-        clsLoader.loadClass("org.apache.pulsar.functions.runtime.functioncache.AddFunction");
+        clsLoader.loadClass("org.apache.pulsar.functions.api.examples.AddFunction");
     }
 
 }

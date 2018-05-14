@@ -27,6 +27,7 @@ import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 
 import java.net.URL;
+import java.nio.file.FileSystems;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -47,8 +48,9 @@ public class FunctionCacheManagerImplTest {
     private FunctionCacheManagerImpl cacheManager;
 
     @BeforeMethod
-    public void setUp() {
-        this.jarUrl = getClass().getClassLoader().getResource("multifunction.jar");
+    public void setUp() throws Exception {
+        this.jarUrl = FileSystems.getDefault()
+                .getPath("../pulsar-functions-api-examples/target/pulsar-functions-api-examples.jar").toUri().toURL();
         this.jarFiles = new ArrayList<>(Collections.singletonList(jarUrl.getPath()));
         this.classpaths = Collections.emptyList();
         this.cacheManager = new FunctionCacheManagerImpl();
@@ -63,7 +65,7 @@ public class FunctionCacheManagerImplTest {
         assertNotNull(clsLoader);
         Class<? extends Function<Integer, Integer>> cls =
             (Class<? extends Function<Integer, Integer>>)
-                clsLoader.loadClass("org.apache.pulsar.functions.runtime.functioncache.AddFunction");
+                clsLoader.loadClass("org.apache.pulsar.functions.api.examples.AddFunction");
         Function<Integer, Integer> func = cls.newInstance();
         assertEquals(4, func.apply(2).intValue());
     }

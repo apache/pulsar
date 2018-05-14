@@ -26,6 +26,7 @@ import static org.testng.AssertJUnit.assertTrue;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
+import java.nio.file.FileSystems;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
@@ -42,8 +43,9 @@ public class FunctionCacheEntryTest {
     private final Set<URL> classpaths;
     private final URL[] libraryUrls;
 
-    public FunctionCacheEntryTest() {
-        this.jarUrl = getClass().getClassLoader().getResource("multifunction.jar");
+    public FunctionCacheEntryTest() throws Exception {
+        this.jarUrl = FileSystems.getDefault()
+                .getPath("../pulsar-functions-api-examples/target/pulsar-functions-api-examples.jar").toUri().toURL();
         this.jarFiles = new HashSet<>();
         this.jarFiles.add(jarUrl.getPath());
         this.libraryUrls = new URL[] { jarUrl };
