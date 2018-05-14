@@ -23,7 +23,6 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.converters.StringConverter;
 import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import com.google.protobuf.Empty;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
@@ -150,9 +149,7 @@ public class JavaInstanceMain {
             functionDetailsBuilder.setAutoAck(false);
         }
         if (userConfig != null && !userConfig.isEmpty()) {
-            Type type = new TypeToken<Map<String, String>>(){}.getType();
-            Map<String, String> userConfigMap = new Gson().fromJson(userConfig, type);
-            functionDetailsBuilder.putAllUserConfig(userConfigMap);
+            functionDetailsBuilder.setUserConfig(userConfig);
         }
 
         // Setup source

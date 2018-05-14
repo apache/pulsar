@@ -47,21 +47,21 @@ pulsar_result pulsar_client_create_producer(pulsar_client_t *client, const char 
 }
 
 static void handle_create_producer_callback(pulsar::Result result, pulsar::Producer producer,
-                                            pulsar_create_producer_callback callback) {
+                                            pulsar_create_producer_callback callback, void *ctx) {
     if (result == pulsar::ResultOk) {
         pulsar_producer_t *c_producer = new pulsar_producer_t;
         c_producer->producer = producer;
-        callback(pulsar_result_Ok, c_producer);
+        callback(pulsar_result_Ok, c_producer, ctx);
     } else {
-        callback((pulsar_result)result, NULL);
+        callback((pulsar_result)result, NULL, ctx);
     }
 }
 
 void pulsar_client_create_producer_async(pulsar_client_t *client, const char *topic,
                                          const pulsar_producer_configuration_t *conf,
-                                         pulsar_create_producer_callback callback) {
+                                         pulsar_create_producer_callback callback, void *ctx) {
     client->client->createProducerAsync(topic, conf->conf,
-                                        boost::bind(&handle_create_producer_callback, _1, _2, callback));
+                                        boost::bind(&handle_create_producer_callback, _1, _2, callback, ctx));
 }
 
 pulsar_result pulsar_client_subscribe(pulsar_client_t *client, const char *topic,
@@ -81,21 +81,21 @@ pulsar_result pulsar_client_subscribe(pulsar_client_t *client, const char *topic
 }
 
 static void handle_subscribe_callback(pulsar::Result result, pulsar::Consumer consumer,
-                                      pulsar_subscribe_callback callback) {
+                                      pulsar_subscribe_callback callback, void *ctx) {
     if (result == pulsar::ResultOk) {
         pulsar_consumer_t *c_consumer = new pulsar_consumer_t;
         c_consumer->consumer = consumer;
-        callback(pulsar_result_Ok, c_consumer);
+        callback(pulsar_result_Ok, c_consumer, ctx);
     } else {
-        callback((pulsar_result)result, NULL);
+        callback((pulsar_result)result, NULL, ctx);
     }
 }
 
 void pulsar_client_subscribe_async(pulsar_client_t *client, const char *topic, const char *subscriptionName,
-                                   const pulsar_consumer_configuration_t *conf, pulsar_consumer_t **consumer,
-                                   pulsar_subscribe_callback callback) {
+                                   const pulsar_consumer_configuration_t *conf,
+                                   pulsar_subscribe_callback callback, void *ctx) {
     client->client->subscribeAsync(topic, subscriptionName, conf->consumerConfiguration,
-                                   boost::bind(&handle_subscribe_callback, _1, _2, callback));
+                                   boost::bind(&handle_subscribe_callback, _1, _2, callback, ctx));
 }
 
 pulsar_result pulsar_client_create_reader(pulsar_client_t *client, const char *topic,
@@ -113,30 +113,30 @@ pulsar_result pulsar_client_create_reader(pulsar_client_t *client, const char *t
 }
 
 static void handle_reader_callback(pulsar::Result result, pulsar::Reader reader,
-                                   pulsar_reader_callback callback) {
+                                   pulsar_reader_callback callback, void *ctx) {
     if (result == pulsar::ResultOk) {
         pulsar_reader_t *c_reader = new pulsar_reader_t;
         c_reader->reader = reader;
-        callback(pulsar_result_Ok, c_reader);
+        callback(pulsar_result_Ok, c_reader, ctx);
     } else {
-        callback((pulsar_result)result, NULL);
+        callback((pulsar_result)result, NULL, ctx);
     }
 }
 
 void pulsar_client_create_reader_async(pulsar_client_t *client, const char *topic,
                                        const pulsar_message_id_t *startMessageId,
-                                       pulsar_reader_configuration_t *conf, pulsar_reader_t **reader,
-                                       pulsar_reader_callback callback) {
+                                       pulsar_reader_configuration_t *conf, pulsar_reader_callback callback,
+                                       void *ctx) {
     client->client->createReaderAsync(topic, startMessageId->messageId, conf->conf,
-                                      boost::bind(&handle_reader_callback, _1, _2, callback));
+                                      boost::bind(&handle_reader_callback, _1, _2, callback, ctx));
 }
 
 pulsar_result pulsar_client_close(pulsar_client_t *client) { return (pulsar_result)client->client->close(); }
 
-static void handle_client_close(pulsar::Result result, pulsar_close_callback callback) {
-    callback((pulsar_result)result);
+static void handle_client_close(pulsar::Result result, pulsar_close_callback callback, void *ctx) {
+    callback((pulsar_result)result, ctx);
 }
 
-void pulsar_client_close_async(pulsar_client_t *client, pulsar_close_callback callback) {
-    client->client->closeAsync(boost::bind(handle_client_close, _1, callback));
+void pulsar_client_close_async(pulsar_client_t *client, pulsar_close_callback callback, void *ctx) {
+    client->client->closeAsync(boost::bind(handle_client_close, _1, callback, ctx));
 }

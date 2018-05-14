@@ -28,11 +28,11 @@ public class UserConfigFunction implements Function<String, Void> {
     @Override
     public Void process(String input, Context context) {
         String key = "config-key";
-        Optional<String> maybeValue = context.getUserConfigValue(key);
+        Optional<Object> maybeValue = context.getUserConfigValue(key);
         Logger LOG = context.getLogger();
 
         if (maybeValue.isPresent()) {
-            String value = maybeValue.get();
+            String value = (String) maybeValue.get();
             LOG.info("The config value is {}", value);
         } else {
             LOG.error("No value present for the key {}", key);

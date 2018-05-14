@@ -30,8 +30,8 @@ extern "C" {
 
 typedef struct _pulsar_producer pulsar_producer_t;
 
-typedef void (*pulsar_send_callback)(pulsar_result, pulsar_message_t *msg);
-typedef void (*pulsar_close_callback)(pulsar_result);
+typedef void (*pulsar_send_callback)(pulsar_result, pulsar_message_t *msg, void *ctx);
+typedef void (*pulsar_close_callback)(pulsar_result, void *ctx);
 
 /**
  * @return the topic to which producer is publishing to
@@ -76,7 +76,7 @@ pulsar_result pulsar_producer_send(pulsar_producer_t *producer, pulsar_message_t
  * @param callback the callback to get notification of the completion
  */
 void pulsar_producer_send_async(pulsar_producer_t *producer, pulsar_message_t *msg,
-                                pulsar_send_callback callback);
+                                pulsar_send_callback callback, void *ctx);
 
 /**
  * Get the last sequence id that was published by this producer.
@@ -110,7 +110,7 @@ pulsar_result pulsar_producer_close(pulsar_producer_t *producer);
  * triggered when all pending write requests are persisted. In case of errors,
  * pending writes will not be retried.
  */
-void pulsar_producer_close_async(pulsar_producer_t *producer, pulsar_close_callback callback);
+void pulsar_producer_close_async(pulsar_producer_t *producer, pulsar_close_callback callback, void *ctx);
 
 void pulsar_producer_free(pulsar_producer_t *producer);
 

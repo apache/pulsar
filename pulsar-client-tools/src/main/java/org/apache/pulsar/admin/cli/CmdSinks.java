@@ -34,6 +34,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.shaded.proto.Function;
 import org.apache.pulsar.functions.shaded.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.shaded.proto.Function.Resources;
 import org.apache.pulsar.functions.shaded.proto.Function.ProcessingGuarantees;
 import org.apache.pulsar.functions.shaded.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.shaded.proto.Function.SourceSpec;
@@ -133,6 +134,12 @@ public class CmdSinks extends CmdBase {
         @Parameter(names = "--sinkConfigFile", description = "The path to a YAML config file specifying the "
                 + "sink's configuration")
         protected String sinkConfigFile;
+        @Parameter(names = "--cpu", description = "The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)")
+        protected Double cpu;
+        @Parameter(names = "--ram", description = "The ram in bytes that need to be allocated per function instance(applicable only to process/docker runtime)")
+        protected Long ram;
+        @Parameter(names = "--disk", description = "The disk in bytes that need to be allocated per function instance(applicable only to docker runtime)")
+        protected Long disk;
         @Parameter(names = "--sinkConfig", description = "Sink config key/values")
         protected String sinkConfigString;
 
@@ -202,6 +209,11 @@ public class CmdSinks extends CmdBase {
                 throw new IllegalArgumentException("Connector JAR not specfied");
             }
 
+            com.google.common.base.Preconditions.checkArgument(cpu == null || cpu > 0, "The cpu allocation for the sink must be positive");
+            com.google.common.base.Preconditions.checkArgument(ram == null || ram > 0, "The ram allocation for the sink must be positive");
+            com.google.common.base.Preconditions.checkArgument(disk == null || disk > 0, "The disk allocation for the sink must be positive");
+            sinkConfig.setResources(new org.apache.pulsar.functions.utils.Resources(cpu, ram, disk));
+
             if (null != sinkConfigString) {
                 Type type = new TypeToken<Map<String, String>>(){}.getType();
                 Map<String, Object> sinkConfigMap = new Gson().fromJson(sinkConfigString, type);
@@ -211,7 +223,6 @@ public class CmdSinks extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            log.info("sinkConfig: {}", sinkConfig);
             if (!areAllRequiredFieldsPresentForSink(sinkConfig)) {
                 throw new RuntimeException("Missing arguments");
             }
@@ -290,6 +301,20 @@ public class CmdSinks extends CmdBase {
             sinkSpecBuilder.setConfigs(new Gson().toJson(sinkConfig.getConfigs()));
             sinkSpecBuilder.setTypeClassName(typeArg.getName());
             functionDetailsBuilder.setSink(sinkSpecBuilder);
+
+            if (sinkConfig.getResources() != null) {
+                Resources.Builder bldr = Resources.newBuilder();
+                if (sinkConfig.getResources().getCpu() != null) {
+                    bldr.setCpu(sinkConfig.getResources().getCpu());
+                }
+                if (sinkConfig.getResources().getRam() != null) {
+                    bldr.setRam(sinkConfig.getResources().getRam());
+                }
+                if (sinkConfig.getResources().getDisk() != null) {
+                    bldr.setDisk(sinkConfig.getResources().getDisk());
+                }
+                functionDetailsBuilder.setResources(bldr.build());
+            }
             return functionDetailsBuilder.build();
         }
     }
