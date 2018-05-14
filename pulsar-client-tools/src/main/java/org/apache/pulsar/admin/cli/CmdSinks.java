@@ -293,6 +293,7 @@ public class CmdSinks extends CmdBase {
             sourceSpecBuilder.setSubscriptionType(Function.SubscriptionType.SHARED);
             sourceSpecBuilder.putAllTopicsToSerDeClassName(sinkConfig.getTopicToSerdeClassName());
             sourceSpecBuilder.setTypeClassName(typeArg.getName());
+            functionDetailsBuilder.setAutoAck(true);
             functionDetailsBuilder.setSource(sourceSpecBuilder);
 
             // set up sink spec
