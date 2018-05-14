@@ -609,7 +609,6 @@ public class CmdFunctions extends CmdBase {
             functionDetailsBuilder.setAutoAck(functionConfig.isAutoAck());
             functionDetailsBuilder.setParallelism(functionConfig.getParallelism());
 
-            log.info("functionDetails: {}", functionDetailsBuilder.build());
             return functionDetailsBuilder.build();
         }
 
