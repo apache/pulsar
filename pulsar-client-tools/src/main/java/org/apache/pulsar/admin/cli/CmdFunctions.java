@@ -582,6 +582,10 @@ public class CmdFunctions extends CmdBase {
         }
 
         private void inferMissingFunctionName(FunctionConfig functionConfig) {
+            if (isNull(functionConfig.getClassName())) {
+                throw new IllegalArgumentException("You must specify a class name for the function");
+            }
+
             String [] domains = functionConfig.getClassName().split("\\.");
             if (domains.length == 0) {
                 functionConfig.setName(functionConfig.getClassName());
