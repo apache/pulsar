@@ -74,10 +74,12 @@ public class FunctionConfig {
 
     private String logTopic;
     private ProcessingGuarantees processingGuarantees;
-    private Map<String, String> userConfig = new HashMap<>();
+    private Map<String, Object> userConfig = new HashMap<>();
     private SubscriptionType subscriptionType;
     private Runtime runtime;
     private boolean autoAck;
     private int parallelism;
+    private Resources resources;
     private String fqfn;
+    private WindowConfig windowConfig;
 }

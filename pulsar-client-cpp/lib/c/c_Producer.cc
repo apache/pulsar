@@ -38,15 +38,15 @@ pulsar_result pulsar_producer_send(pulsar_producer_t *producer, pulsar_message_t
     return (pulsar_result)producer->producer.send(msg->message);
 }
 
-static void handle_producer_send(pulsar::Result result, pulsar_message_t *msg,
-                                 pulsar_send_callback callback) {
-    callback((pulsar_result)result, msg);
+static void handle_producer_send(pulsar::Result result, pulsar_message_t *msg, pulsar_send_callback callback,
+                                 void *ctx) {
+    callback((pulsar_result)result, msg, ctx);
 }
 
 void pulsar_producer_send_async(pulsar_producer_t *producer, pulsar_message_t *msg,
-                                pulsar_send_callback callback) {
+                                pulsar_send_callback callback, void *ctx) {
     msg->message = msg->builder.build();
-    producer->producer.sendAsync(msg->message, boost::bind(&handle_producer_send, _1, msg, callback));
+    producer->producer.sendAsync(msg->message, boost::bind(&handle_producer_send, _1, msg, callback, ctx));
 }
 
 int64_t pulsar_producer_get_last_sequence_id(pulsar_producer_t *producer) {
@@ -57,6 +57,6 @@ pulsar_result pulsar_producer_close(pulsar_producer_t *producer) {
     return (pulsar_result)producer->producer.close();
 }
 
-void pulsar_producer_close_async(pulsar_producer_t *producer, pulsar_close_callback callback) {
-    producer->producer.closeAsync(boost::bind(handle_result_callback, _1, callback));
+void pulsar_producer_close_async(pulsar_producer_t *producer, pulsar_close_callback callback, void *ctx) {
+    producer->producer.closeAsync(boost::bind(handle_result_callback, _1, callback, ctx));
 }

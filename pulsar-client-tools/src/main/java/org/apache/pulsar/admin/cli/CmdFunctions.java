@@ -18,25 +18,19 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.util.Objects.isNull;
-import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
-
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.lang.reflect.Type;
-import java.net.MalformedURLException;
-import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.IntStream;
-
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.Parameters;
+import com.beust.jcommander.converters.StringConverter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonParser;
+import com.google.gson.reflect.TypeToken;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+import net.jodah.typetools.TypeResolver;
 import org.apache.bookkeeper.api.StorageClient;
 import org.apache.bookkeeper.api.kv.Table;
 import org.apache.bookkeeper.api.kv.result.KeyValue;
@@ -49,9 +43,6 @@ import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.sink.PulsarSink;
-import org.apache.pulsar.functions.source.PulsarSource;
-import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -60,27 +51,42 @@ import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.shaded.io.netty.buffer.ByteBuf;
 import org.apache.pulsar.functions.shaded.io.netty.buffer.ByteBufUtil;
 import org.apache.pulsar.functions.shaded.io.netty.buffer.Unpooled;
+import org.apache.pulsar.functions.shaded.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.shaded.proto.Function.ProcessingGuarantees;
+import org.apache.pulsar.functions.shaded.proto.Function.Resources;
 import org.apache.pulsar.functions.shaded.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.shaded.proto.Function.SourceSpec;
-import org.apache.pulsar.functions.shaded.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.shaded.proto.Function.SubscriptionType;
-import org.apache.pulsar.functions.shaded.proto.Function.ProcessingGuarantees;
-import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
+import org.apache.pulsar.functions.sink.PulsarSink;
+import org.apache.pulsar.functions.source.PulsarSource;
+import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.functions.utils.WindowConfig;
+import org.apache.pulsar.functions.windowing.WindowFunctionExecutor;
+import org.apache.pulsar.functions.windowing.WindowUtils;
 
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.Parameters;
-import com.beust.jcommander.converters.StringConverter;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonParser;
-import com.google.gson.reflect.TypeToken;
+import java.io.File;
+import java.io.IOException;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.net.MalformedURLException;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-import net.jodah.typetools.TypeResolver;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Objects.isNull;
+import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 
 @Slf4j
 @Parameters(commandDescription = "Interface for managing Pulsar Functions (lightweight, Lambda-style compute processes that work with Pulsar)")
@@ -219,7 +225,22 @@ public class CmdFunctions extends CmdBase {
         protected String userConfigString;
         @Parameter(names = "--parallelism", description = "The function's parallelism factor (i.e. the number of function instances to run)")
         protected String parallelism;
-
+        @Parameter(names = "--cpu", description = "The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)")
+        protected Double cpu;
+        @Parameter(names = "--ram", description = "The ram in bytes that need to be allocated per function instance(applicable only to process/docker runtime)")
+        protected Long ram;
+        @Parameter(names = "--disk", description = "The disk in bytes that need to be allocated per function instance(applicable only to docker runtime)")
+        protected Long disk;
+        @Parameter(names = "--windowLengthCount", description = "")
+        protected Integer windowLengthCount;
+        @Parameter(names = "--windowLengthDurationMs", description = "")
+        protected Long windowLengthDurationMs;
+        @Parameter(names = "--slidingIntervalCount", description = "")
+        protected Integer slidingIntervalCount;
+        @Parameter(names = "--slidingIntervalDurationMs", description = "")
+        protected Long slidingIntervalDurationMs;
+        @Parameter(names = "--autoAck", description = "")
+        protected Boolean autoAck;
         protected FunctionConfig functionConfig;
         protected String userCodeFile;
 
@@ -282,19 +303,8 @@ public class CmdFunctions extends CmdBase {
             }
             if (null != userConfigString) {
                 Type type = new TypeToken<Map<String, String>>(){}.getType();
-                Map<String, String> userConfigMap = new Gson().fromJson(userConfigString, type);
+                Map<String, Object> userConfigMap = new Gson().fromJson(userConfigString, type);
                 functionConfig.setUserConfig(userConfigMap);
-            }
-            if (null != jarFile) {
-                doJavaSubmitChecks(functionConfig);
-                functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
-                userCodeFile = jarFile;
-            } else if (null != pyFile) {
-                doPythonSubmitChecks(functionConfig);
-                functionConfig.setRuntime(FunctionConfig.Runtime.PYTHON);
-                userCodeFile = pyFile;
-            } else {
-                throw new RuntimeException("Either a Java jar or a Python file needs to be specified for the function");
             }
 
             if (functionConfig.getInputs().isEmpty() && functionConfig.getCustomSerdeInputs().isEmpty()) {
@@ -302,7 +312,7 @@ public class CmdFunctions extends CmdBase {
             }
 
             // Ensure that topics aren't being used as both input and output
-            verifyNoTopicClash(functionConfig.getInputs(), functionConfig.getOutput());;
+            verifyNoTopicClash(functionConfig.getInputs(), functionConfig.getOutput());
 
             if (parallelism == null) {
                 if (functionConfig.getParallelism() == 0) {
@@ -316,6 +326,11 @@ public class CmdFunctions extends CmdBase {
                 functionConfig.setParallelism(num);
             }
 
+            com.google.common.base.Preconditions.checkArgument(cpu == null || cpu > 0, "The cpu allocation for the function must be positive");
+            com.google.common.base.Preconditions.checkArgument(ram == null || ram > 0, "The ram allocation for the function must be positive");
+            com.google.common.base.Preconditions.checkArgument(disk == null || disk > 0, "The disk allocation for the function must be positive");
+            functionConfig.setResources(new org.apache.pulsar.functions.utils.Resources(cpu, ram, disk));
+
             if (functionConfig.getSubscriptionType() != null
                     && functionConfig.getSubscriptionType() != FunctionConfig.SubscriptionType.FAILOVER
                     && functionConfig.getProcessingGuarantees() != null
@@ -323,11 +338,106 @@ public class CmdFunctions extends CmdBase {
                 throw new IllegalArgumentException("Effectively-once processing semantics can only be achieved using a Failover subscription type");
             }
 
-            functionConfig.setAutoAck(true);
+            // window configs
+            WindowConfig windowConfig = functionConfig.getWindowConfig();
+            if (null != windowLengthCount) {
+                if (windowConfig == null) {
+                    windowConfig = new WindowConfig();
+                }
+                windowConfig.setWindowLengthCount(windowLengthCount);
+            }
+            if (null != windowLengthDurationMs) {
+                if (windowConfig == null) {
+                    windowConfig = new WindowConfig();
+                }
+                windowConfig.setWindowLengthDurationMs(windowLengthDurationMs);
+            }
+            if (null != slidingIntervalCount) {
+                if (windowConfig == null) {
+                    windowConfig = new WindowConfig();
+                }
+                windowConfig.setSlidingIntervalCount(slidingIntervalCount);
+            }
+            if (null != slidingIntervalDurationMs) {
+                if (windowConfig == null) {
+                    windowConfig = new WindowConfig();
+                }
+                windowConfig.setSlidingIntervalDurationMs(slidingIntervalDurationMs);
+            }
+            if (windowConfig != null) {
+                WindowUtils.validateAndSetDefaultsWindowConfig(windowConfig);
+                // set auto ack to false since windowing framework is responsible
+                // for acking and not the function framework
+                if (autoAck != null && autoAck == true) {
+                    throw new IllegalArgumentException("Cannot enable auto ack when using windowing functionality");
+                }
+                functionConfig.setAutoAck(false);
+            }
+            functionConfig.setWindowConfig(windowConfig);
+
+            if  (null != autoAck) {
+                functionConfig.setAutoAck(autoAck);
+            } else {
+                functionConfig.setAutoAck(true);
+            }
+
             inferMissingArguments(functionConfig);
+
+            if (null != jarFile) {
+                doJavaSubmitChecks(functionConfig);
+                functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+                userCodeFile = jarFile;
+            } else if (null != pyFile) {
+                doPythonSubmitChecks(functionConfig);
+                functionConfig.setRuntime(FunctionConfig.Runtime.PYTHON);
+                userCodeFile = pyFile;
+            } else {
+                throw new RuntimeException("Either a Java jar or a Python file needs to be specified for the function");
+            }
         }
 
-        public Class<?>[] getFunctionTypes(File file) {
+        private Class<?>[] getFunctionTypes(File file, FunctionConfig functionConfig) {
+            assertClassExistsInJar(file);
+
+            Object userClass = Reflections.createInstance(functionConfig.getClassName(), file);
+            Class<?>[] typeArgs;
+            // if window function
+            if (functionConfig.getWindowConfig() != null) {
+                java.util.function.Function function = (java.util.function.Function) userClass;
+                if (function == null) {
+                    throw new IllegalArgumentException(String.format("The Java util function class %s could not be instantiated from jar %s",
+                            functionConfig.getClassName(), jarFile));
+                }
+                typeArgs = TypeResolver.resolveRawArguments(java.util.function.Function.class, function.getClass());
+                if (!typeArgs[0].equals(Collection.class)) {
+                    throw new IllegalArgumentException("Window function must take a collection as input");
+                }
+                Type type = TypeResolver.resolveGenericType(java.util.function.Function.class, function.getClass());
+                Type collectionType = ((ParameterizedType) type).getActualTypeArguments()[0];
+                Type actualInputType = ((ParameterizedType) collectionType).getActualTypeArguments()[0];
+                typeArgs[0] = (Class<?>) actualInputType;
+            } else {
+                if (userClass instanceof Function) {
+                    Function pulsarFunction = (Function) userClass;
+                    if (pulsarFunction == null) {
+                        throw new IllegalArgumentException(String.format("The Pulsar function class %s could not be instantiated from jar %s",
+                                functionConfig.getClassName(), jarFile));
+                    }
+                    typeArgs = TypeResolver.resolveRawArguments(Function.class, pulsarFunction.getClass());
+                } else {
+                    java.util.function.Function function = (java.util.function.Function) userClass;
+                    if (function == null) {
+                        throw new IllegalArgumentException(String.format("The Java util function class %s could not be instantiated from jar %s",
+                                functionConfig.getClassName(), jarFile));
+                    }
+                    typeArgs = TypeResolver.resolveRawArguments(java.util.function.Function.class, function.getClass());
+                }
+            }
+
+            return typeArgs;
+        }
+
+        private void assertClassExistsInJar(File file) {
             if (!Reflections.classExistsInJar(file, functionConfig.getClassName())) {
                 throw new IllegalArgumentException(String.format("Pulsar function class %s does not exist in jar %s",
                         functionConfig.getClassName(), jarFile));
@@ -336,25 +446,6 @@ public class CmdFunctions extends CmdBase {
                 throw new IllegalArgumentException(String.format("The Pulsar function class %s in jar %s implements neither org.apache.pulsar.functions.api.Function nor java.util.function.Function",
                         functionConfig.getClassName(), jarFile));
             }
-
-            Object userClass = Reflections.createInstance(functionConfig.getClassName(), file);
-            Class<?>[] typeArgs;
-            if (userClass instanceof Function) {
-                Function pulsarFunction = (Function) userClass;
-                if (pulsarFunction == null) {
-                    throw new IllegalArgumentException(String.format("The Pulsar function class %s could not be instantiated from jar %s",
-                            functionConfig.getClassName(), jarFile));
-                }
-                typeArgs = TypeResolver.resolveRawArguments(Function.class, pulsarFunction.getClass());
-            } else {
-                java.util.function.Function function = (java.util.function.Function) userClass;
-                if (function == null) {
-                    throw new IllegalArgumentException(String.format("The Java util function class %s could not be instantiated from jar %s",
-                            functionConfig.getClassName(), jarFile));
-                }
-                typeArgs = TypeResolver.resolveRawArguments(java.util.function.Function.class, function.getClass());
-            }
-            return typeArgs;
         }
 
         private void doJavaSubmitChecks(FunctionConfig functionConfig) {
@@ -363,16 +454,13 @@ public class CmdFunctions extends CmdBase {
             }
 
             File file = new File(jarFile);
-
             ClassLoader userJarLoader;
             try {
                 userJarLoader = Reflections.loadJar(file);
             } catch (MalformedURLException e) {
                 throw new RuntimeException("Failed to load user jar " + file, e);
             }
-
-            Class<?>[] typeArgs = getFunctionTypes(file);
-
+            Class<?>[] typeArgs = getFunctionTypes(file, functionConfig);
             // Check if the Input serialization/deserialization class exists in jar or already loaded and that it
             // implements SerDe class
             functionConfig.getCustomSerdeInputs().forEach((topicName, inputSerializer) -> {
@@ -466,6 +554,10 @@ public class CmdFunctions extends CmdBase {
             if (functionConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
                 throw new RuntimeException("Effectively-once processing guarantees not yet supported in Python");
             }
+
+            if (functionConfig.getWindowConfig() != null) {
+                throw new IllegalArgumentException("There is currently no support windowing in python");
+            }
         }
 
         private void validateTopicName(String topic) {
@@ -550,7 +642,7 @@ public class CmdFunctions extends CmdBase {
                 } catch (MalformedURLException e) {
                     throw new RuntimeException("Failed to load user jar " + file, e);
                 }
-                typeArgs = getFunctionTypes(file);
+                typeArgs = getFunctionTypes(file, functionConfig);
             }
 
             FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
@@ -598,24 +690,49 @@ public class CmdFunctions extends CmdBase {
             if (functionConfig.getName() != null) {
                 functionDetailsBuilder.setName(functionConfig.getName());
             }
-            if (functionConfig.getClassName() != null) {
-                functionDetailsBuilder.setClassName(functionConfig.getClassName());
-            }
             if (functionConfig.getLogTopic() != null) {
                 functionDetailsBuilder.setLogTopic(functionConfig.getLogTopic());
             }
             if (functionConfig.getRuntime() != null) {
                 functionDetailsBuilder.setRuntime(convertRuntime(functionConfig.getRuntime()));
             }
-            if (!functionConfig.getUserConfig().isEmpty()) {
-                functionDetailsBuilder.putAllUserConfig(functionConfig.getUserConfig());
-            }
             if (functionConfig.getProcessingGuarantees() != null) {
                 functionDetailsBuilder.setProcessingGuarantees(
                         convertProcessingGuarantee(functionConfig.getProcessingGuarantees()));
             }
+
+            Map<String, Object> configs = new HashMap<>();
+            configs.putAll(functionConfig.getUserConfig());
+            // windowing related
+            WindowConfig windowConfig = functionConfig.getWindowConfig();
+            if (windowConfig != null) {
+                windowConfig.setActualWindowFunctionClassName(functionConfig.getClassName());
+                configs.put(WindowConfig.WINDOW_CONFIG_KEY, windowConfig);
+                // set class name to window function executor
+                functionDetailsBuilder.setClassName(WindowFunctionExecutor.class.getName());
+
+            } else {
+                if (functionConfig.getClassName() != null) {
+                    functionDetailsBuilder.setClassName(functionConfig.getClassName());
+                }
+            }
+            functionDetailsBuilder.setUserConfig(new Gson().toJson(configs));
+
             functionDetailsBuilder.setAutoAck(functionConfig.isAutoAck());
             functionDetailsBuilder.setParallelism(functionConfig.getParallelism());
+            if (functionConfig.getResources() != null) {
+                Resources.Builder bldr = Resources.newBuilder();
+                if (functionConfig.getResources().getCpu() != null) {
+                    bldr.setCpu(functionConfig.getResources().getCpu());
+                }
+                if (functionConfig.getResources().getRam() != null) {
+                    bldr.setRam(functionConfig.getResources().getRam());
+                }
+                if (functionConfig.getResources().getDisk() != null) {
+                    bldr.setDisk(functionConfig.getResources().getDisk());
+                }
+                functionDetailsBuilder.setResources(bldr.build());
+            }
             return functionDetailsBuilder.build();
         }
 
@@ -897,9 +1014,8 @@ public class CmdFunctions extends CmdBase {
     }
 
     private static FunctionConfig loadConfig(File file) throws IOException {
-
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-        return  mapper.readValue(file, FunctionConfig.class);
+        return mapper.readValue(file, FunctionConfig.class);
     }
 
     private static void verifyNoTopicClash(Collection<String> inputTopics, String outputTopic) throws IllegalArgumentException {

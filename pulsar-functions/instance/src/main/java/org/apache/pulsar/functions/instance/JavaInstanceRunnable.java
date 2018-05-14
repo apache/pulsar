@@ -23,6 +23,7 @@ import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 import static org.apache.bookkeeper.stream.protocol.ProtocolConstants.DEFAULT_STREAM_CONF;
 
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import io.netty.buffer.ByteBuf;
 
 import java.util.Arrays;
@@ -50,11 +51,7 @@ import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.connect.core.Record;
-import org.apache.pulsar.connect.core.Sink;
-import org.apache.pulsar.connect.core.Source;
 import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
@@ -70,6 +67,9 @@ import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.instance.state.StateContextImpl;
 import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.io.core.Record;
+import org.apache.pulsar.io.core.Sink;
+import org.apache.pulsar.io.core.Source;
 
 /**
  * A function container implemented using java thread.
@@ -479,12 +479,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
         this.source = (Source) object;
 
-        try {
-            this.source.open(new Gson().fromJson(sourceSpec.getConfigs(), Map.class));
-        } catch (Exception e) {
-            log.info("Error occurred executing open for source: {}",
-                    sourceSpec.getClassName(), e);
-        }
+        this.source.open(new Gson().fromJson(sourceSpec.getConfigs(),
+                new TypeToken<Map<String, Object>>(){}.getType()));
     }
 
     public void setupOutput() throws Exception {
@@ -518,11 +514,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         } else {
             throw new RuntimeException("Sink does not implement correct interface");
         }
-        try {
-            this.sink.open(new Gson().fromJson(sinkSpec.getConfigs(), Map.class));
-        } catch (Exception e) {
-            log.info("Error occurred executing open for sink: {}",
-                    sinkSpec.getClassName(), e);
-        }
+        this.sink.open(new Gson().fromJson(sinkSpec.getConfigs(), new TypeToken<Map<String, Object>>(){}.getType()));
     }
 }

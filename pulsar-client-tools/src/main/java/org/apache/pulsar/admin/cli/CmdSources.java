@@ -31,17 +31,21 @@ import net.jodah.typetools.TypeResolver;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.connect.core.Sink;
-import org.apache.pulsar.connect.core.Source;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.shaded.proto.Function;
 import org.apache.pulsar.functions.shaded.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.shaded.proto.Function.Resources;
 import org.apache.pulsar.functions.shaded.proto.Function.ProcessingGuarantees;
 import org.apache.pulsar.functions.shaded.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.shaded.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.source.PulsarSource;
-import org.apache.pulsar.functions.utils.*;
+import org.apache.pulsar.functions.utils.FunctionConfig;
+import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.functions.utils.SourceConfig;
+import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.io.core.Sink;
+import org.apache.pulsar.io.core.Source;
 
 import java.io.File;
 import java.io.IOException;
@@ -130,6 +134,14 @@ public class CmdSources extends CmdBase {
         @Parameter(names = "--sourceConfigFile", description = "The path to a YAML config file specifying the "
                 + "source's configuration")
         protected String sourceConfigFile;
+        @Parameter(names = "--cpu", description = "The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)")
+        protected Double cpu;
+        @Parameter(names = "--ram", description = "The ram in bytes that need to be allocated per function instance(applicable only to process/docker runtime)")
+        protected Long ram;
+        @Parameter(names = "--disk", description = "The disk in bytes that need to be allocated per function instance(applicable only to docker runtime)")
+        protected Long disk;
+        @Parameter(names = "--sourceConfig", description = "Source config key/values")
+        protected String sourceConfigString;
 
         protected SourceConfig sourceConfig;
 
@@ -180,6 +192,17 @@ public class CmdSources extends CmdBase {
 
             if (null == jarFile) {
                 throw new IllegalArgumentException("Connector JAR not specfied");
+            }
+
+            com.google.common.base.Preconditions.checkArgument(cpu == null || cpu > 0, "The cpu allocation for the source must be positive");
+            com.google.common.base.Preconditions.checkArgument(ram == null || ram > 0, "The ram allocation for the source must be positive");
+            com.google.common.base.Preconditions.checkArgument(disk == null || disk > 0, "The disk allocation for the source must be positive");
+            sourceConfig.setResources(new org.apache.pulsar.functions.utils.Resources(cpu, ram, disk));
+
+            if (null != sourceConfigString) {
+                Type type = new TypeToken<Map<String, String>>(){}.getType();
+                Map<String, Object> sourceConfigMap = new Gson().fromJson(sourceConfigString, type);
+                sourceConfig.setConfigs(sourceConfigMap);
             }
         }
 
@@ -266,6 +289,21 @@ public class CmdSources extends CmdBase {
             sinkSpecBuilder.setTypeClassName(typeArg.getName());
 
             functionDetailsBuilder.setSink(sinkSpecBuilder);
+
+            if (sourceConfig.getResources() != null) {
+                Resources.Builder bldr = Resources.newBuilder();
+                if (sourceConfig.getResources().getCpu() != null) {
+                    bldr.setCpu(sourceConfig.getResources().getCpu());
+                }
+                if (sourceConfig.getResources().getRam() != null) {
+                    bldr.setRam(sourceConfig.getResources().getRam());
+                }
+                if (sourceConfig.getResources().getDisk() != null) {
+                    bldr.setDisk(sourceConfig.getResources().getDisk());
+                }
+                functionDetailsBuilder.setResources(bldr.build());
+            }
+
             return functionDetailsBuilder.build();
         }
     }
