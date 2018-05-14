@@ -223,7 +223,6 @@ public class CmdSinks extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            log.info("sinkConfig: {}", sinkConfig);
             if (!areAllRequiredFieldsPresentForSink(sinkConfig)) {
                 throw new RuntimeException("Missing arguments");
             }
