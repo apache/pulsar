@@ -651,9 +651,6 @@ public class CmdFunctions extends CmdBase {
             Map<String, String> topicToSerDeClassNameMap = new HashMap<>();
             topicToSerDeClassNameMap.putAll(functionConfig.getCustomSerdeInputs());
             SourceSpec.Builder sourceSpecBuilder = SourceSpec.newBuilder();
-            if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
-                sourceSpecBuilder.setClassName(PulsarSource.class.getName());
-            }
             functionConfig.getInputs().forEach(v -> topicToSerDeClassNameMap.put(v, ""));
             sourceSpecBuilder.putAllTopicsToSerDeClassName(topicToSerDeClassNameMap);
             if (functionConfig.getSubscriptionType() != null) {
@@ -667,9 +664,6 @@ public class CmdFunctions extends CmdBase {
 
             // Setup sink
             SinkSpec.Builder sinkSpecBuilder = SinkSpec.newBuilder();
-            if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
-                sinkSpecBuilder.setClassName(PulsarSink.class.getName());
-            }
             if (functionConfig.getOutput() != null) {
                 sinkSpecBuilder.setTopic(functionConfig.getOutput());
             }
