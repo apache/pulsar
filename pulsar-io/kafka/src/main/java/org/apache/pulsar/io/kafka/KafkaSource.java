@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.io.kafka;
 
+import lombok.Getter;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -38,7 +39,7 @@ import java.util.concurrent.ExecutionException;
 /**
  * Simple Kafka Source to transfer messages from a Kafka topic
  */
-public class KafkaSource<V> implements PushSource<V> {
+public class KafkaSource<V> extends PushSource<V> {
 
     private static final Logger LOG = LoggerFactory.getLogger(KafkaSource.class);
 
@@ -47,7 +48,7 @@ public class KafkaSource<V> implements PushSource<V> {
     private KafkaSourceConfig kafkaSourceConfig;
     Thread runnerThread;
 
-    private java.util.function.Function<Record<V>, CompletableFuture<Void>> consumeFunction;
+    private java.util.function.Consumer<Record<V>> consumeFunction;
 
     @Override
     public void open(Map<String, Object> config) throws Exception {
@@ -77,6 +78,11 @@ public class KafkaSource<V> implements PushSource<V> {
     }
 
     @Override
+    public void setConsumer(java.util.function.Consumer<Record<V>> consumerFunction) {
+        this.consumeFunction = consumerFunction;
+    }
+
+    @Override
     public void close() throws InterruptedException {
         LOG.info("Stopping kafka source");
         if (runnerThread != null) {
@@ -97,14 +103,16 @@ public class KafkaSource<V> implements PushSource<V> {
             consumer = new KafkaConsumer<>(props);
             consumer.subscribe(Arrays.asList(kafkaSourceConfig.getTopic()));
             LOG.info("Kafka source started.");
-            ConsumerRecords<String, V> records;
+            ConsumerRecords<String, V> consumerRecords;
             while(true){
-                records = consumer.poll(1000);
-                CompletableFuture<?>[] futures = new CompletableFuture<?>[records.count()];
+                consumerRecords = consumer.poll(1000);
+                CompletableFuture<?>[] futures = new CompletableFuture<?>[consumerRecords.count()];
                 int index = 0;
-                for (ConsumerRecord<String, V> record : records) {
-                    LOG.debug("Record received from kafka, key: {}. value: {}", record.key(), record.value());
-                    futures[index] = consumeFunction.apply(new KafkaRecord<>(record));
+                for (ConsumerRecord<String, V> consumerRecord : consumerRecords) {
+                    LOG.debug("Record received from kafka, key: {}. value: {}", consumerRecord.key(), consumerRecord.value());
+                    KafkaRecord<V> record = new KafkaRecord<>(consumerRecord);
+                    consumeFunction.accept(record);
+                    futures[index] = record.getCompletableFuture();
                     index++;
                 }
                 if (!kafkaSourceConfig.isAutoCommitEnabled()) {
@@ -122,17 +130,13 @@ public class KafkaSource<V> implements PushSource<V> {
         runnerThread.start();
     }
 
-    @Override
-    public void setConsumer(java.util.function.Function<Record<V>, CompletableFuture<Void>> consumeFunction) {
-        this.consumeFunction = consumeFunction;
-    }
-
     static private class KafkaRecord<V> implements Record<V> {
         private final ConsumerRecord<String, V> record;
+        @Getter
+        private final CompletableFuture<Void> completableFuture = new CompletableFuture();
 
         public KafkaRecord(ConsumerRecord<String, V> record) {
             this.record = record;
-
         }
         @Override
         public String getPartitionId() {
@@ -147,6 +151,11 @@ public class KafkaSource<V> implements PushSource<V> {
         @Override
         public V getValue() {
             return record.value();
+        }
+
+        @Override
+        public void ack() {
+            completableFuture.complete(null);
         }
     }
 }
