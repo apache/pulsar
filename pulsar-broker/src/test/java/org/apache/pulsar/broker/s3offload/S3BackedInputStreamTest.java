@@ -67,6 +67,19 @@ class S3BackedInputStreamTest extends S3TestBase {
         Assert.assertEquals(-1, b.read());
     }
 
+    private void assertStreamsMatchByBytes(InputStream a, InputStream b) throws Exception {
+        byte[] bytesA = new byte[100];
+        byte[] bytesB = new byte[100];
+
+        int retA = 0;
+        while (retA >= 0) {
+            retA = a.read(bytesA, 0, 100);
+            int retB = b.read(bytesB, 0, 100);
+            Assert.assertEquals(retA, retB);
+            Assert.assertEquals(bytesA, bytesB);
+        }
+    }
+
     @Test
     public void testReadingFullObject() throws Exception {
         String objectKey = "foobar";
@@ -80,6 +93,21 @@ class S3BackedInputStreamTest extends S3TestBase {
 
         S3BackedInputStream toTest = new S3BackedInputStreamImpl(s3client, BUCKET, objectKey, objectSize, 1000);
         assertStreamsMatch(toTest, toCompare);
+    }
+
+    @Test
+    public void testReadingFullObjectByBytes() throws Exception {
+        String objectKey = "foobar";
+        int objectSize = 12345;
+        RandomInputStream toWrite = new RandomInputStream(0, objectSize);
+        RandomInputStream toCompare = new RandomInputStream(0, objectSize);
+
+        ObjectMetadata metadata = new ObjectMetadata();
+        metadata.setContentLength(objectSize);
+        s3client.putObject(BUCKET, objectKey, toWrite, metadata);
+
+        S3BackedInputStream toTest = new S3BackedInputStreamImpl(s3client, BUCKET, objectKey, objectSize, 1000);
+        assertStreamsMatchByBytes(toTest, toCompare);
     }
 
     @Test(expectedExceptions = IOException.class)

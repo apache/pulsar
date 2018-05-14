@@ -50,17 +50,20 @@ public class S3BackedInputStreamImpl extends S3BackedInputStream {
         this.s3client = s3client;
         this.bucket = bucket;
         this.key = key;
-        this.buffer = PooledByteBufAllocator.DEFAULT.heapBuffer(bufferSize, bufferSize);
+        this.buffer = PooledByteBufAllocator.DEFAULT.buffer(bufferSize, bufferSize);
         this.objectLen = objectLen;
         this.bufferSize = bufferSize;
         this.cursor = 0;
     }
 
-    @Override
-    public int read() throws IOException {
+    /**
+     * Refill the buffered input if it is empty.
+     * @return true if there are bytes to read, false otherwise
+     */
+    private boolean refillBufferIfNeeded() throws IOException {
         if (buffer.readableBytes() == 0) {
             if (cursor >= objectLen) {
-                return -1;
+                return false;
             }
             long startRange = cursor;
             long endRange = Math.min(cursor + bufferSize - 1,
@@ -74,16 +77,36 @@ public class S3BackedInputStreamImpl extends S3BackedInputStream {
 
                 buffer.clear();
                 InputStream s = obj.getObjectContent();
-                long bytesToCopy = bytesRead;
+                int bytesToCopy = (int)bytesRead;
                 while (bytesToCopy > 0) {
-                    bytesToCopy -= buffer.writeBytes(s, (int)bytesToCopy);
+                    bytesToCopy -= buffer.writeBytes(s, bytesToCopy);
                 }
                 cursor += buffer.readableBytes();
             } catch (AmazonClientException e) {
                 throw new IOException("Error reading from S3", e);
             }
         }
-        return buffer.readUnsignedByte();
+        return true;
+    }
+
+    @Override
+    public int read() throws IOException {
+        if (refillBufferIfNeeded()) {
+            return buffer.readUnsignedByte();
+        } else {
+            return -1;
+        }
+    }
+
+    @Override
+    public int read(byte[] b, int off, int len) throws IOException {
+        if (refillBufferIfNeeded()) {
+            int bytesToRead = Math.min(len, buffer.readableBytes());
+            buffer.readBytes(b, off, bytesToRead);
+            return bytesToRead;
+        } else {
+            return -1;
+        }
     }
 
     @Override
