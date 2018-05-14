@@ -100,7 +100,7 @@ public class JavaInstanceMain {
     @Parameter(names = "--auto_ack", description = "Enable Auto Acking?\n")
     protected String autoAck = "true";
 
-    @Parameter(names = "--source_classname", description = "The source classname", required = true)
+    @Parameter(names = "--source_classname", description = "The source classname")
     protected String sourceClassname;
 
     @Parameter(names = "--source_configs", description = "The source configs")
@@ -149,13 +149,13 @@ public class JavaInstanceMain {
             functionDetailsBuilder.setAutoAck(false);
         }
         if (userConfig != null && !userConfig.isEmpty()) {
-            Type type = new TypeToken<Map<String, String>>(){}.getType();
-            Map<String, String> userConfigMap = new Gson().fromJson(userConfig, type);
-            functionDetailsBuilder.putAllUserConfig(userConfigMap);
+            functionDetailsBuilder.setUserConfig(userConfig);
         }
 
         SourceSpec.Builder sourceDetailsBuilder = SourceSpec.newBuilder();
-        sourceDetailsBuilder.setClassName(sourceClassname);
+        if (sourceClassname != null) {
+            sourceDetailsBuilder.setClassName(sourceClassname);
+        }
         if (sourceConfigs != null && !sourceConfigs.isEmpty()) {;
             sourceDetailsBuilder.setConfigs(sourceConfigs);
         }

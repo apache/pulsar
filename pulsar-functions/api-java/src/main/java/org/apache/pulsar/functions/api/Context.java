@@ -117,14 +117,14 @@ public interface Context {
      * Get a map of all user-defined key/value configs for the function
      * @return The full map of user-defined config values
      */
-    Map<String, String> getUserConfigMap();
+    Map<String, Object> getUserConfigMap();
 
     /**
      * Get any user-defined key/value
      * @param key The key
      * @return The Optional value specified by the user for that key.
      */
-    Optional<String> getUserConfigValue(String key);
+    Optional<Object> getUserConfigValue(String key);
 
     /**
      * Get any user-defined key/value or a default value if none is present
@@ -132,7 +132,7 @@ public interface Context {
      * @param defaultValue
      * @return Either the user config value associated with a given key or a supplied default value
      */
-    String getUserConfigValueOrDefault(String key, String defaultValue);
+    Object getUserConfigValueOrDefault(String key, String defaultValue);
 
     /**
      * Record a user defined metric

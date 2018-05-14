@@ -45,7 +45,7 @@ message FunctionDetails {
     string className = 4;
     string logTopic = 5;
     ProcessingGuarantees processingGuarantees = 6;
-    map<string,string> userConfig = 7;
+    string userConfig = 7;
     Runtime runtime = 8;
     bool autoAck = 9;
     int32 parallelism = 10;
@@ -57,6 +57,7 @@ message SourceSpec {
     string className = 1;
     // map in json format
     string configs = 2;
+    string typeClassName = 5;
 
     // configs used only when source feeds into functions
     SubscriptionType subscriptionType = 3;
@@ -67,6 +68,7 @@ message SinkSpec {
     string className = 1;
     // map in json format
     string configs = 2;
+    string typeClassName = 5;
 
     // configs used only when functions output to sink
     string topic = 3;

@@ -65,7 +65,8 @@ abstract class MessageProcessorBase implements MessageProcessor {
 
         org.apache.pulsar.functions.proto.Function.SourceSpec sourceSpec = this.functionDetails.getSource();
         Object object;
-        if (sourceSpec.getClassName().equals(PulsarSource.class.getName())) {
+        // If source classname is not set, we default pulsar source
+        if (sourceSpec.getClassName().isEmpty()) {
 
             PulsarConfig pulsarConfig = new PulsarConfig();
             pulsarConfig.setTopicSerdeClassNameMap(this.functionDetails.getSource().getTopicsToSerDeClassNameMap());
@@ -80,7 +81,7 @@ abstract class MessageProcessorBase implements MessageProcessor {
             Class[] paramTypes = {PulsarClient.class, PulsarConfig.class};
 
             object = Reflections.createInstance(
-                    sourceSpec.getClassName(),
+                    PulsarSource.class.getName(),
                     PulsarSource.class.getClassLoader(), params, paramTypes);
 
         } else {
@@ -147,7 +148,9 @@ abstract class MessageProcessorBase implements MessageProcessor {
     public void close() {
 
         try {
-            this.source.close();
+            if (this.source != null) {
+                this.source.close();
+            }
         } catch (Exception e) {
             log.warn("Failed to close source {}", this.source, e);
         }
