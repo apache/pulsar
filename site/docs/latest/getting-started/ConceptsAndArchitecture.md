@@ -526,7 +526,10 @@ String topic = "persistent://sample/standalone/ns1/reader-api-test";
 MessageId id = MessageId.earliest;
 
 // Create a reader on a topic and for a specific message (and onward)
-Reader reader = pulsarClient.createReader(topic, id, new ReaderConfiguration());
+Reader<byte[]> reader = pulsarClient.newReader()
+    .topic(topic)
+    .startMessageId(MessageId.earliest)
+    .create();
 
 while (true) {
     Message message = reader.readNext();
