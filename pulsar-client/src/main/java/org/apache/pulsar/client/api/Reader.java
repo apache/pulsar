@@ -73,4 +73,9 @@ public interface Reader<T> extends Closeable {
      * Asynchronously Check if there is message that has been published successfully to the broker in the topic.
      */
     CompletableFuture<Boolean> hasMessageAvailableAsync();
+
+    /**
+     * @return Whether the reader is connected to the broker
+     */
+    boolean isConnected();
 }
