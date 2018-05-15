@@ -370,5 +370,54 @@ class S3ManagedLedgerOffloaderTest extends S3TestBase {
         } catch (BKException.BKIncorrectParameterException e) {
         }
     }
+
+    @Test
+    public void testDeleteOffloaded() throws Exception {
+        int maxBlockSize = 1024;
+        int entryCount = 3;
+        ReadHandle readHandle = buildReadHandle(entryCount);
+        UUID uuid = UUID.randomUUID();
+        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler, maxBlockSize);
+
+        // verify object exist after offload
+        offloader.offload(readHandle, uuid, new HashMap<>()).get();
+        Assert.assertTrue(s3client.doesObjectExist(BUCKET, dataBlockOffloadKey(readHandle.getId(), uuid)));
+        Assert.assertTrue(s3client.doesObjectExist(BUCKET, indexBlockOffloadKey(readHandle.getId(), uuid)));
+
+        // verify object deleted after delete
+        offloader.deleteOffloaded(readHandle.getId(), uuid).get();
+        Assert.assertFalse(s3client.doesObjectExist(BUCKET, dataBlockOffloadKey(readHandle.getId(), uuid)));
+        Assert.assertFalse(s3client.doesObjectExist(BUCKET, indexBlockOffloadKey(readHandle.getId(), uuid)));
+    }
+
+    @Test
+    public void testDeleteOffloadedFail() throws Exception {
+        int maxBlockSize = 1024;
+        int entryCount = 3;
+        ReadHandle readHandle = buildReadHandle(entryCount);
+        UUID uuid = UUID.randomUUID();
+        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler, maxBlockSize);
+        String failureString = "fail deleteOffloaded";
+        AmazonS3 mockS3client = Mockito.spy(s3client);
+        Mockito
+            .doThrow(new AmazonServiceException(failureString))
+            .when(mockS3client).deleteObject(any());
+
+        try {
+            // verify object exist after offload
+            offloader.offload(readHandle, uuid, new HashMap<>()).get();
+            Assert.assertTrue(mockS3client.doesObjectExist(BUCKET, dataBlockOffloadKey(readHandle.getId(), uuid)));
+            Assert.assertTrue(mockS3client.doesObjectExist(BUCKET, indexBlockOffloadKey(readHandle.getId(), uuid)));
+
+            offloader.deleteOffloaded(readHandle.getId(), uuid).get();
+        } catch (Exception e) {
+            // expected
+            Assert.assertTrue(e.getCause() instanceof AmazonServiceException);
+            Assert.assertTrue(e.getCause().getMessage().contains(failureString));
+            // verify object still there.
+            Assert.assertTrue(mockS3client.doesObjectExist(BUCKET, dataBlockOffloadKey(readHandle.getId(), uuid)));
+            Assert.assertTrue(mockS3client.doesObjectExist(BUCKET, indexBlockOffloadKey(readHandle.getId(), uuid)));
+        }
+    }
 }
 

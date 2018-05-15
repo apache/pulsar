@@ -211,8 +211,21 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
 
     @Override
     public CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uid) {
+
         CompletableFuture<Void> promise = new CompletableFuture<>();
-        promise.completeExceptionally(new UnsupportedOperationException());
+
+        scheduler.submit(() -> {
+            try {
+                s3client.deleteObject(bucket, dataBlockOffloadKey(ledgerId, uid));
+                s3client.deleteObject(bucket, indexBlockOffloadKey(ledgerId, uid));
+                promise.complete(null);
+            } catch (Throwable t) {
+                log.error("Failed delete s3 Object ", t);
+                promise.completeExceptionally(t);
+                return;
+            }
+        });
+
         return promise;
     }
 }
