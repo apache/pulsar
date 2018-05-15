@@ -105,3 +105,22 @@ void pulsarReaderCloseCallbackProxy(pulsar_result result, void *ctx);
 static inline void _pulsar_reader_close_async(pulsar_reader_t *reader, void *ctx) {
     pulsar_reader_close_async(reader, pulsarReaderCloseCallbackProxy, ctx);
 }
+
+
+//// String array manipulation
+
+static char** newStringArray(int size) {
+    return calloc(sizeof(char*), size);
+}
+
+static void setString(char** array, char *str, int n) {
+    array[n] = str;
+}
+
+static void freeStringArray(char* *array, int size) {
+    for (int i = 0; i < size; i++) {
+        free(array[i]);
+    }
+
+    free(array);
+}

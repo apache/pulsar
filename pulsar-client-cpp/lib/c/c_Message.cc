@@ -94,3 +94,9 @@ uint64_t pulsar_message_get_publish_timestamp(pulsar_message_t *message) {
 uint64_t pulsar_message_get_event_timestamp(pulsar_message_t *message) {
     return message->message.getEventTimestamp();
 }
+
+pulsar_string_map_t *pulsar_message_get_properties(pulsar_message_t *message) {
+    pulsar_string_map_t *map = pulsar_string_map_create();
+    map->map = message->message.getProperties();
+    return map;
+}

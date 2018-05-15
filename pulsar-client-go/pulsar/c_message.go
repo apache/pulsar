@@ -78,7 +78,15 @@ func buildMessage(builder MessageBuilder) *C.pulsar_message_t {
 			// Empty list means to disable replication
 			C.pulsar_message_disable_replication(msg, C.int(1))
 		} else {
-			// TODO: Pass the list of clusters
+			size := C.int(len(builder.ReplicationClusters))
+			array := C.newStringArray(size)
+			defer C.freeStringArray(array, size)
+
+			for i, s := range builder.ReplicationClusters {
+				C.setString(array, C.CString(s), C.int(i))
+			}
+
+			C.pulsar_message_set_replication_clusters(msg, array)
 		}
 	}
 
@@ -98,8 +106,19 @@ func messageFinalizer(msg *message) {
 }
 
 func (m *message) Properties() map[string]string {
-	// TODO
-	return nil
+	cProperties := C.pulsar_message_get_properties(m.ptr)
+	defer C.pulsar_string_map_free(cProperties)
+
+	properties := make(map[string]string)
+	count := int(C.pulsar_string_map_size(cProperties))
+	for i := 0; i < count; i++ {
+		key := C.GoString(C.pulsar_string_map_get_key(cProperties, C.int(i)))
+		value := C.GoString(C.pulsar_string_map_get_value(cProperties, C.int(i)))
+
+		properties[key] = value
+	}
+
+	return properties
 }
 
 func (m *message) Payload() []byte {
@@ -147,10 +166,10 @@ func messageIdFinalizer(msgID *messageID) {
 }
 
 func (m *messageID) Serialize() []byte {
-	var len C.int
-	buf := C.pulsar_message_id_serialize(m.ptr, &len)
+	var size C.int
+	buf := C.pulsar_message_id_serialize(m.ptr, &size)
 	defer C.free(unsafe.Pointer(buf))
-	return C.GoBytes(buf, len)
+	return C.GoBytes(buf, size)
 }
 
 func deserializeMessageId(data []byte) MessageID {
