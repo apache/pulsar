@@ -1154,7 +1154,7 @@ flexible messaging model and an intuitive client API.</description>
     <repository>
       <id>central</id>
       <layout>default</layout>
-      <url>http://repo1.maven.org/maven2</url>
+      <url>https://repo1.maven.org/maven2</url>
     </repository>
     <repository>
       <snapshots>
@@ -1162,7 +1162,7 @@ flexible messaging model and an intuitive client API.</description>
       </snapshots>
       <id>bintray-yahoo-maven</id>
       <name>bintray</name>
-      <url>http://yahoo.bintray.com/maven</url>
+      <url>https://yahoo.bintray.com/maven</url>
     </repository>
   </repositories>
 </project>
