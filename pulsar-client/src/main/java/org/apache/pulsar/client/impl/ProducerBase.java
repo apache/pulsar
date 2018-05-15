@@ -118,8 +118,6 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
     @Override
     abstract public CompletableFuture<Void> closeAsync();
 
-    abstract public boolean isConnected();
-
     @Override
     public String getTopic() {
         return topic;

@@ -18,8 +18,11 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -93,6 +96,7 @@ class ContextImpl implements Context {
     @Getter
     @Setter
     private StateContextImpl stateContext;
+    private Map<String, Object> userConfigs;
 
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
                        ClassLoader classLoader, Consumer inputConsumer) {
@@ -109,6 +113,8 @@ class ContextImpl implements Context {
         producerConfiguration.setBatchingEnabled(true);
         producerConfiguration.setBatchingMaxPublishDelay(1, TimeUnit.MILLISECONDS);
         producerConfiguration.setMaxPendingMessages(1000000);
+        userConfigs = new Gson().fromJson(config.getFunctionDetails().getUserConfig(),
+                new TypeToken<Map<String, Object>>(){}.getType());
     }
 
     public void setCurrentMessageContext(MessageId messageId, String topicName) {
@@ -181,18 +187,19 @@ class ContextImpl implements Context {
     }
 
     @Override
-    public Optional<String> getUserConfigValue(String key) {
-        return Optional.ofNullable(config.getFunctionDetails().getUserConfigOrDefault(key, null));
+    public Optional<Object> getUserConfigValue(String key) {
+
+        return Optional.ofNullable(userConfigs.getOrDefault(key, null));
     }
 
     @Override
-    public String getUserConfigValueOrDefault(String key, String defaultValue) {
+    public Object getUserConfigValueOrDefault(String key, Object defaultValue) {
         return getUserConfigValue(key).orElse(defaultValue);
     }
 
     @Override
-    public Map<String, String> getUserConfigMap() {
-        return config.getFunctionDetails().getUserConfigMap();
+    public Map<String, Object> getUserConfigMap() {
+        return userConfigs;
     }
 
     @Override
@@ -220,7 +227,9 @@ class ContextImpl implements Context {
                 return retval;
             }
         }
-
+        if (StringUtils.isEmpty(serDeClassName)) {
+            serDeClassName = DefaultSerDe.class.getName();
+        }
         if (!publishSerializers.containsKey(serDeClassName)) {
             SerDe serDe;
             if (serDeClassName.equals(DefaultSerDe.class.getName())) {

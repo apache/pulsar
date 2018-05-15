@@ -94,13 +94,89 @@ Copyright 2004 Jason Paul Kitchen
 TypeUtil.java
 Copyright 2002-2012 Ramnivas Laddad, Juergen Hoeller, Chris Beams
 
+picocli (http://picocli.info)
+Copyright 2017 Remko Popma
+
 ----------------------------------------------------------------------------------------------------
 
 Prometheus instrumentation library for JVM applications
 Copyright 2012-2015 The Prometheus Authors
+
+This product includes software developed at
+Boxever Ltd. (http://www.boxever.com/).
+
+This product includes software developed at
+SoundCloud Ltd. (http://soundcloud.com/).
+
+This product includes software developed as part of the
+Ocelli project by Netflix Inc. (https://github.com/Netflix/ocelli/).
+
+----------------------------------------------------------------------------------------------------
 
 Netty
 Copyright 2014 The Netty Project
 
 High Performance Primitive Collections for Java
 (c) Carrot Search s.c., http://carrotsearch.com/
+
+
+----------------------------------------------------------------------------------------------------
+gRPC
+Copyright 2014 The gRPC Authors
+
+This product contains a modified portion of 'OkHttp', an open source
+HTTP & SPDY client for Android and Java applications, which can be obtained
+at:
+
+  * LICENSE:
+    * okhttp/third_party/okhttp/LICENSE (Apache License 2.0)
+  * HOMEPAGE:
+    * https://github.com/square/okhttp
+  * LOCATION_IN_GRPC:
+    * okhttp/third_party/okhttp
+
+This product contains a modified portion of 'Netty', an open source
+networking library, which can be obtained at:
+
+  * LICENSE:
+    * netty/third_party/netty/LICENSE.txt (Apache License 2.0)
+  * HOMEPAGE:
+    * https://netty.io
+  * LOCATION_IN_GRPC:
+* netty/third_party/netty
+
+----------------------------------------------------------------------------------------------------
+
+Apache Commons Lang
+Copyright 2001-2018 The Apache Software Foundation
+
+This product includes software from the Spring Framework,
+under the Apache License 2.0 (see: StringUtils.containsWhitespace())
+
+----------------------------------------------------------------------------------------------------
+
+Netty tc-native
+Copyright 2016 The Netty Project
+
+This product contains a forked and modified version of Tomcat Native
+
+  * LICENSE:
+    * ASL2
+  * HOMEPAGE:
+    * http://tomcat.apache.org/native-doc/
+    * https://svn.apache.org/repos/asf/tomcat/native/
+
+----------------------------------------------------------------------------------------------------
+
+Jetty Web Container
+Copyright 1995-2016 Mort Bay Consulting Pty Ltd.
+
+The Jetty Web Container is Copyright Mort Bay Consulting Pty Ltd
+unless otherwise noted.
+
+The UnixCrypt.java code implements the one way cryptography used by
+Unix systems for simple password protection.  Copyright 1996 Aki Yoshida,
+modified April 2001  by Iris Van den Broeke, Daniel Deville.
+Permission to use, copy, modify and distribute UnixCrypt
+for non-commercial or commercial purposes and without fee is
+granted provided that the copyright notice appears in all copies.

@@ -49,7 +49,7 @@
         </exclusion>
         <exclusion>
           <groupId>org.apache.pulsar</groupId>
-          <artifactId>pulsar-connect-core</artifactId>
+          <artifactId>pulsar-io-core</artifactId>
         </exclusion>
         <exclusion>
           <groupId>org.apache.pulsar</groupId>
@@ -129,7 +129,6 @@
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-all</artifactId>
-      <version>4.1.12.Final</version>
     </dependency>
 
     <dependency>

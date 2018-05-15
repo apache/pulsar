@@ -81,6 +81,12 @@ class ProcessRuntime implements Runtime {
             args.add("-Dlog4j.configurationFile=java_instance_log4j2.yml");
             args.add("-Dpulsar.log.dir=" + logDirectory);
             args.add("-Dpulsar.log.file=" + instanceConfig.getFunctionDetails().getName());
+            if (instanceConfig.getFunctionDetails().getResources() != null) {
+                Function.Resources resources = instanceConfig.getFunctionDetails().getResources();
+                if (resources.getRam() != 0) {
+                    args.add("-Xmx" + String.valueOf(resources.getRam()));
+                }
+            }
             args.add(JavaInstanceMain.class.getName());
             args.add("--jar");
             args.add(codeFile);
@@ -93,6 +99,7 @@ class ProcessRuntime implements Runtime {
             args.add(logDirectory);
             args.add("--logging_file");
             args.add(instanceConfig.getFunctionDetails().getName());
+            // TODO:- Find a platform independent way of controlling memory for a python application
         }
         args.add("--instance_id");
         args.add(instanceConfig.getInstanceId());
@@ -126,10 +133,10 @@ class ProcessRuntime implements Runtime {
         args.add(pulsarServiceUrl);
         args.add("--max_buffered_tuples");
         args.add(String.valueOf(instanceConfig.getMaxBufferedTuples()));
-        Map<String, String> userConfig = instanceConfig.getFunctionDetails().getUserConfigMap();
+        String userConfig = instanceConfig.getFunctionDetails().getUserConfig();
         if (userConfig != null && !userConfig.isEmpty()) {
             args.add("--user_config");
-            args.add(new Gson().toJson(userConfig));
+            args.add(userConfig);
         }
         args.add("--port");
         args.add(String.valueOf(instanceConfig.getPort()));
@@ -145,10 +152,14 @@ class ProcessRuntime implements Runtime {
                 args.add("--source_configs");
                 args.add(sourceConfigs);
             }
+            if (instanceConfig.getFunctionDetails().getSource().getTypeClassName() != null
+                && !instanceConfig.getFunctionDetails().getSource().getTypeClassName().isEmpty()) {
+                args.add("--source_type_classname");
+                args.add(instanceConfig.getFunctionDetails().getSource().getTypeClassName());
+            }
         }
         args.add("--source_subscription_type");
         args.add(instanceConfig.getFunctionDetails().getSource().getSubscriptionType().toString());
-
         args.add("--source_topics_serde_classname");
         args.add(new Gson().toJson(instanceConfig.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap()));
 
@@ -162,6 +173,11 @@ class ProcessRuntime implements Runtime {
             if (sinkConfigs != null && !sinkConfigs.isEmpty()) {
                 args.add("--sink_configs");
                 args.add(sinkConfigs);
+            }
+            if (instanceConfig.getFunctionDetails().getSink().getTypeClassName() != null
+                    && !instanceConfig.getFunctionDetails().getSink().getTypeClassName().isEmpty()) {
+                args.add("--sink_type_classname");
+                args.add(instanceConfig.getFunctionDetails().getSink().getTypeClassName());
             }
         }
         if (instanceConfig.getFunctionDetails().getSink().getTopic() != null

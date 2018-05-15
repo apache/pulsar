@@ -33,8 +33,9 @@ pulsar_result pulsar_consumer_unsubscribe(pulsar_consumer_t *consumer) {
     return (pulsar_result)consumer->consumer.unsubscribe();
 }
 
-void pulsar_consumer_unsubscribe_async(pulsar_consumer_t *consumer, pulsar_result_callback callback) {
-    consumer->consumer.unsubscribeAsync(boost::bind(handle_result_callback, _1, callback));
+void pulsar_consumer_unsubscribe_async(pulsar_consumer_t *consumer, pulsar_result_callback callback,
+                                       void *ctx) {
+    consumer->consumer.unsubscribeAsync(boost::bind(handle_result_callback, _1, callback, ctx));
 }
 
 pulsar_result pulsar_consumer_receive(pulsar_consumer_t *consumer, pulsar_message_t **msg) {
@@ -67,14 +68,15 @@ pulsar_result pulsar_consumer_acknowledge_id(pulsar_consumer_t *consumer, pulsar
 }
 
 void pulsar_consumer_acknowledge_async(pulsar_consumer_t *consumer, pulsar_message_t *message,
-                                       pulsar_result_callback callback) {
-    consumer->consumer.acknowledgeAsync(message->message, boost::bind(handle_result_callback, _1, callback));
+                                       pulsar_result_callback callback, void *ctx) {
+    consumer->consumer.acknowledgeAsync(message->message,
+                                        boost::bind(handle_result_callback, _1, callback, ctx));
 }
 
 void pulsar_consumer_acknowledge_async_id(pulsar_consumer_t *consumer, pulsar_message_id_t *messageId,
-                                          pulsar_result_callback callback) {
+                                          pulsar_result_callback callback, void *ctx) {
     consumer->consumer.acknowledgeAsync(messageId->messageId,
-                                        boost::bind(handle_result_callback, _1, callback));
+                                        boost::bind(handle_result_callback, _1, callback, ctx));
 }
 
 pulsar_result pulsar_consumer_acknowledge_cumulative(pulsar_consumer_t *consumer, pulsar_message_t *message) {
@@ -87,24 +89,24 @@ pulsar_result pulsar_consumer_acknowledge_cumulative_id(pulsar_consumer_t *consu
 }
 
 void pulsar_consumer_acknowledge_cumulative_async(pulsar_consumer_t *consumer, pulsar_message_t *message,
-                                                  pulsar_result_callback callback) {
+                                                  pulsar_result_callback callback, void *ctx) {
     consumer->consumer.acknowledgeCumulativeAsync(message->message,
-                                                  boost::bind(handle_result_callback, _1, callback));
+                                                  boost::bind(handle_result_callback, _1, callback, ctx));
 }
 
 void pulsar_consumer_acknowledge_cumulative_async_id(pulsar_consumer_t *consumer,
                                                      pulsar_message_id_t *messageId,
-                                                     pulsar_result_callback callback) {
+                                                     pulsar_result_callback callback, void *ctx) {
     consumer->consumer.acknowledgeCumulativeAsync(messageId->messageId,
-                                                  boost::bind(handle_result_callback, _1, callback));
+                                                  boost::bind(handle_result_callback, _1, callback, ctx));
 }
 
 pulsar_result pulsar_consumer_close(pulsar_consumer_t *consumer) {
     return (pulsar_result)consumer->consumer.close();
 }
 
-void pulsar_consumer_close_async(pulsar_consumer_t *consumer, pulsar_result_callback callback) {
-    consumer->consumer.closeAsync(boost::bind(handle_result_callback, _1, callback));
+void pulsar_consumer_close_async(pulsar_consumer_t *consumer, pulsar_result_callback callback, void *ctx) {
+    consumer->consumer.closeAsync(boost::bind(handle_result_callback, _1, callback, ctx));
 }
 
 void pulsar_consumer_free(pulsar_consumer_t *consumer) { delete consumer; }
@@ -117,6 +119,6 @@ pulsar_result resume_message_listener(pulsar_consumer_t *consumer) {
     return (pulsar_result)consumer->consumer.resumeMessageListener();
 }
 
-void redeliverUnacknowledgedMessages(pulsar_consumer_t *consumer) {
+void pulsar_consumer_redeliver_unacknowledged_messages(pulsar_consumer_t *consumer) {
     return consumer->consumer.redeliverUnacknowledgedMessages();
 }

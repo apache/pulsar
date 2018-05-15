@@ -43,7 +43,7 @@ typedef enum {
 } pulsar_consumer_type;
 
 /// Callback definition for MessageListener
-typedef void (*pulsar_message_listener)(pulsar_consumer_t *consumer, pulsar_message_t *msg);
+typedef void (*pulsar_message_listener)(pulsar_consumer_t *consumer, pulsar_message_t *msg, void *ctx);
 
 pulsar_consumer_configuration_t *pulsar_consumer_configuration_create();
 
@@ -73,10 +73,11 @@ pulsar_consumer_type pulsar_consumer_configuration_get_consumer_type(
  * for every message received.
  */
 void pulsar_consumer_configuration_set_message_listener(
-    pulsar_consumer_configuration_t *consumer_configuration, pulsar_message_listener messageListener);
+    pulsar_consumer_configuration_t *consumer_configuration, pulsar_message_listener messageListener,
+    void *ctx);
 
-int pulsar_consumer_has_message_listener(pulsar_consumer_configuration_t *consumer_configuration,
-                                         pulsar_consumer_t *consumer);
+int pulsar_consumer_configuration_has_message_listener(
+    pulsar_consumer_configuration_t *consumer_configuration);
 
 /**
  * Sets the size of the consumer receive queue.
