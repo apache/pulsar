@@ -48,7 +48,7 @@ Value / data payload | The data carried by the message. All Pulsar messages carr
 Key | Messages can optionally be tagged with keys, which can be useful for things like [topic compaction](#compaction)
 Properties | An optional key/value map of user-defined properties
 Producer name | The name of the {% popover producer %} that produced the message (producers are automatically given default names, but you can apply your own explicitly as well)
-Sequence ID | Each message belongs to an ordered sequence on the {% popover topic %}
+Sequence ID | Each Pulsar message belongs to an ordered sequence on its {% popover topic %}. A message's sequence ID is its ordering in that sequence.
 Publish time | The timestamp of when the message was published (automatically applied by the {% popover producer %})
 Event time | An optional timestamp that applications can attach to the message representing when something happened, e.g. when the message was processed. The event time of a message is 0 if none is explicitly set.
 
