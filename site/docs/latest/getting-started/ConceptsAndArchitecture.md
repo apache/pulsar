@@ -40,14 +40,19 @@ Pulsar's key features include:
 
 ## Messages
 
-Pulsar messages 
+Messages are the basic "unit" of Pulsar. They're what {% popover producers %} publish to {% popover topics %} and what {% popover consumers %} then consume from topics (and {% popover acknowledge %} when the message has been processed). Messages are the analogue of letters in a postal service system.
 
 Component | Purpose
 :---------|:-------
-Data payload | The data carried by the message. All Pulsar messages carry raw bytes, although message data can also conform to data [schemas](#schema-registry)
-Key | Messages can optionally be tagged with keys
+Value / data payload | The data carried by the message. All Pulsar messages carry raw bytes, although message data can also conform to data [schemas](#schema-registry)
+Key | Messages can optionally be tagged with keys, which can be useful for things like [topic compaction](#compaction)
 Properties | An optional key/value map of user-defined properties
+Producer name | The name of the {% popover producer %} that produced the message (producers are automatically given default names, but you can apply your own explicitly as well)
+Sequence ID | Each message belongs to an ordered sequence on the {% popover topic %}
+Publish time | The timestamp of when the message was published (automatically applied by the {% popover producer %})
+Event time | An optional timestamp that applications can attach to the message representing when something happened, e.g. when the message was processed. The event time of a message is 0 if none is explicitly set.
 
+{% include admonition.html type="info" content="For a more in-depth breakdown of Pulsar message contents, see the documentation on Pulsar's [binary protocol](../../reference/BinaryProtocol)." %}
 
 ## Producers, consumers, topics, and subscriptions
 
@@ -545,7 +550,7 @@ MessageId id = MessageId.fromByteArray(msgIdBytes);
 Reader reader = pulsarClient.createReader(topic, id, new ReaderConfiguration());
 ```
 
-## Topic compaction
+## Topic compaction {#compaction}
 
 Pulsar was built with highly scalable [persistent storage](#persistent-storage) of message data as a primary objective. Pulsar {% popover topics %} enable you to persistently store as many unacknowledged messages as you need while preserving message ordering. By default, Pulsar stores *all* unacknowledged/unprocessed messages produced on a topic. Accumulating many unacknowledged messages on a topic is necessary for many Pulsar use cases but it can also be very time intensive for Pulsar {% popover consumers %} to "rewind" through the entire log of messages.
 
