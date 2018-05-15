@@ -60,7 +60,9 @@ class ContextImpl(pulsar.Context):
     self.current_message_id = None
     self.current_input_topic_name = None
     self.current_start_time = None
-    self.user_config = json.loads(instance_config.function_details.userConfig);
+    self.user_config = json.loads(instance_config.function_details.userConfig) \
+      if instance_config.function_details.userConfig \
+      else []
 
   # Called on a per message basis to set the context for the current message
   def set_current_message_context(self, msgid, topic):

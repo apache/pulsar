@@ -648,11 +648,16 @@ public class CmdFunctions extends CmdBase {
             FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
 
             // Setup source
-            Map<String, String> topicToSerDeClassNameMap = new HashMap<>();
-            topicToSerDeClassNameMap.putAll(functionConfig.getCustomSerdeInputs());
             SourceSpec.Builder sourceSpecBuilder = SourceSpec.newBuilder();
-            functionConfig.getInputs().forEach(v -> topicToSerDeClassNameMap.put(v, ""));
+            Map<String, String> topicToSerDeClassNameMap = new HashMap<>();
+            if (functionConfig.getCustomSerdeInputs() != null) {
+                topicToSerDeClassNameMap.putAll(functionConfig.getCustomSerdeInputs());
+            }
+            if (functionConfig.getInputs() != null) {
+                functionConfig.getInputs().forEach(v -> topicToSerDeClassNameMap.put(v, ""));
+            }
             sourceSpecBuilder.putAllTopicsToSerDeClassName(topicToSerDeClassNameMap);
+
             if (functionConfig.getSubscriptionType() != null) {
                 sourceSpecBuilder
                         .setSubscriptionType(convertSubscriptionType(functionConfig.getSubscriptionType()));
@@ -696,7 +701,9 @@ public class CmdFunctions extends CmdBase {
             }
 
             Map<String, Object> configs = new HashMap<>();
-            configs.putAll(functionConfig.getUserConfig());
+            if (functionConfig.getUserConfig() != null) {
+                configs.putAll(functionConfig.getUserConfig());
+            }
             // windowing related
             WindowConfig windowConfig = functionConfig.getWindowConfig();
             if (windowConfig != null) {
@@ -710,7 +717,9 @@ public class CmdFunctions extends CmdBase {
                     functionDetailsBuilder.setClassName(functionConfig.getClassName());
                 }
             }
-            functionDetailsBuilder.setUserConfig(new Gson().toJson(configs));
+            if (!configs.isEmpty()) {
+                functionDetailsBuilder.setUserConfig(new Gson().toJson(configs));
+            }
 
             functionDetailsBuilder.setAutoAck(functionConfig.isAutoAck());
             functionDetailsBuilder.setParallelism(functionConfig.getParallelism());
