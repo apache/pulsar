@@ -306,6 +306,15 @@ public class CmdFunctions extends CmdBase {
                 Map<String, Object> userConfigMap = new Gson().fromJson(userConfigString, type);
                 functionConfig.setUserConfig(userConfigMap);
             }
+            if (functionConfig.getInputs() == null) {
+                functionConfig.setInputs(new LinkedList<>());
+            }
+            if (functionConfig.getCustomSerdeInputs() == null) {
+                functionConfig.setCustomSerdeInputs(new HashMap<>());
+            }
+            if (functionConfig.getUserConfig() == null) {
+                functionConfig.setUserConfig(new HashMap<>());
+            }
 
             if (functionConfig.getInputs().isEmpty() && functionConfig.getCustomSerdeInputs().isEmpty()) {
                 throw new RuntimeException("No input topic(s) specified for the function");
@@ -650,12 +659,8 @@ public class CmdFunctions extends CmdBase {
             // Setup source
             SourceSpec.Builder sourceSpecBuilder = SourceSpec.newBuilder();
             Map<String, String> topicToSerDeClassNameMap = new HashMap<>();
-            if (functionConfig.getCustomSerdeInputs() != null) {
-                topicToSerDeClassNameMap.putAll(functionConfig.getCustomSerdeInputs());
-            }
-            if (functionConfig.getInputs() != null) {
-                functionConfig.getInputs().forEach(v -> topicToSerDeClassNameMap.put(v, ""));
-            }
+            topicToSerDeClassNameMap.putAll(functionConfig.getCustomSerdeInputs());
+            functionConfig.getInputs().forEach(v -> topicToSerDeClassNameMap.put(v, ""));
             sourceSpecBuilder.putAllTopicsToSerDeClassName(topicToSerDeClassNameMap);
 
             if (functionConfig.getSubscriptionType() != null) {
@@ -701,9 +706,8 @@ public class CmdFunctions extends CmdBase {
             }
 
             Map<String, Object> configs = new HashMap<>();
-            if (functionConfig.getUserConfig() != null) {
-                configs.putAll(functionConfig.getUserConfig());
-            }
+            configs.putAll(functionConfig.getUserConfig());
+
             // windowing related
             WindowConfig windowConfig = functionConfig.getWindowConfig();
             if (windowConfig != null) {
