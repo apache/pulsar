@@ -38,6 +38,17 @@ Pulsar's key features include:
 * Multiple [subscription modes](#subscription-modes) for {% popover topics %} ([exclusive](#exclusive), [shared](#shared), and [failover](#failover))
 * Guaranteed message delivery with [persistent message storage](#persistent-storage) provided by [Apache BookKeeper](http://bookkeeper.apache.org/)
 
+## Messages
+
+Pulsar messages 
+
+Component | Purpose
+:---------|:-------
+Data payload | The data carried by the message. All Pulsar messages carry raw bytes, although message data can also conform to data [schemas](#schema-registry)
+Key | Messages can optionally be tagged with keys
+Properties | An optional key/value map of user-defined properties
+
+
 ## Producers, consumers, topics, and subscriptions
 
 Pulsar is built on the [publish-subscribe](https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern) pattern, aka {% popover pub-sub %}. In this pattern, [producers](#producers) publish messages to [topics](#topics). [Consumers](#consumers) can then [subscribe](#subscription-modes) to those topics, process incoming messages, and send an {% popover acknowledgement %} when processing is complete.
@@ -534,14 +545,20 @@ MessageId id = MessageId.fromByteArray(msgIdBytes);
 Reader reader = pulsarClient.createReader(topic, id, new ReaderConfiguration());
 ```
 
-## Compaction
+## Topic compaction
 
-Pulsar was built with highly scalable [persistent storage](#persistent-storage) of message data in mind. Pulsar {% popover topics %} enable you to persistently store as many unacknowledged messages as you need while preserving message ordering. Many messaging use cases, however, don't require
+Pulsar was built with highly scalable [persistent storage](#persistent-storage) of message data as a primary objective. Pulsar {% popover topics %} enable you to persistently store as many unacknowledged messages as you need while preserving message ordering. By default, Pulsar stores *all* unacknowledged/unprocessed messages produced on a topic. Accumulating many unacknowledged messages on a topic is necessary for many Pulsar use cases but it can also be very time intensive for Pulsar {% popover consumers %} to "rewind" through the entire log of messages.
+
+For some use cases, however, consumers don't need a complete "image" of the topic log. They may only need a few values to construct a more "shallow" image of the log, perhaps even just the most recent value. For these kinds of use cases Pulsar offers **topic compaction**. When you run compaction on a topic, Pulsar goes through a topic's backlog and removes messages that are *obscured* by later messages, i.e. messages
+
+
+
+{% include admonition.html type="info" title="Topic compaction example: the stock ticker"
+   content='An example use case for a compacted Pulsar topic would be a stock ticker topic. On a stock ticker topic, each message bears a timestamped value for stocks (with the message key holding the stock symbol, e.g. `AAPL` or `GOOG`.' %}
 
 
 {% include admonition.html type="success" content="For a more practical guide to topic compaction, see the [Topic compaction cookbook](../../cookbooks/compaction)." %}
 
-* Large message logs can take a long time to retrieve (a long history may be needed to construct an "image" of the log); that may include reading a lot of useless messages
 * Compaction is the process of going through a topic's backlog and removing messages that would be obscured by a later message (useless here means a message with the same key)
 * Only applies to persistent topics, i.e. `persistent://...`
 * Command-line interface (`pulsar-admin topics compact`)
