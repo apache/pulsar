@@ -907,9 +907,11 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>site/img/**</exclude>
             <exclude>generated-site/**</exclude>
             <exclude>.github/*.md</exclude>
+            <exclude>**/.idea/*</exclude>
           </excludes>
           <mapping>
             <proto>JAVADOC_STYLE</proto>
+            <go>DOUBLESLASH_STYLE</go>
             <conf>SCRIPT_STYLE</conf>
             <ini>SCRIPT_STYLE</ini>
             <yaml>SCRIPT_STYLE</yaml>
