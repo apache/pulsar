@@ -101,7 +101,7 @@ if (PYTHONLIBS_VERSION_STRING MATCHES "^3.+$")
     set(BOOST_PYTHON_NAME_LIST python3;python3-mt;python-py${BOOST_PYTHON_NAME_POSTFIX})
 else ()
     # Regular boost_python
-    set(BOOST_PYTHON_NAME_LIST python;python-mt;python-py27)
+    set(BOOST_PYTHON_NAME_LIST python;python-mt;python-py27;python27-mt)
 endif ()
 
 foreach (BOOST_PYTHON_NAME IN LISTS BOOST_PYTHON_NAME_LIST)
@@ -119,6 +119,10 @@ endif ()
 find_package(Boost REQUIRED COMPONENTS program_options filesystem regex
                                        thread system ${BOOST_PYTHON_NAME_FOUND})
 
+if (APPLE)
+    set(OPENSSL_INCLUDE_DIR /usr/local/opt/openssl/include/)
+    set(OPENSSL_ROOT_DIR /usr/local/opt/openssl/)
+endif ()
 
 find_package(OpenSSL REQUIRED)
 find_path(GTEST_INCLUDE_PATH gtest/gtest.h)
