@@ -21,6 +21,9 @@ cmake_minimum_required(VERSION 2.8)
 project (pulsar-cpp)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules")
 
+option(BUILD_TESTS "Build tests" ON)
+MESSAGE(STATUS "BUILD_TESTS:  " ${BUILD_TESTS})
+
 option(LINK_STATIC "Link against static libraries" OFF)
 MESSAGE(STATUS "LINK_STATIC:  " ${LINK_STATIC})
 
@@ -125,8 +128,12 @@ if (APPLE)
 endif ()
 
 find_package(OpenSSL REQUIRED)
-find_path(GTEST_INCLUDE_PATH gtest/gtest.h)
-find_path(GMOCK_INCLUDE_PATH gmock/gmock.h)
+
+if (BUILD_TESTS)
+    find_path(GTEST_INCLUDE_PATH gtest/gtest.h)
+    find_path(GMOCK_INCLUDE_PATH gmock/gmock.h)
+endif ()
+
 find_path(JSON_INCLUDE_PATH jsoncpp)
 find_path(LOG4CXX_INCLUDE_PATH log4cxx/logger.h)
 
@@ -200,7 +207,11 @@ set(CLIENT_LIBS
 add_subdirectory(lib)
 add_subdirectory(perf)
 add_subdirectory(examples)
-add_subdirectory(tests)
+
+if (BUILD_TESTS)
+    add_subdirectory(tests)
+endif()
+
 add_subdirectory(python)
 
 # `make format` option
