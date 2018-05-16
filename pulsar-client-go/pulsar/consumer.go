@@ -97,9 +97,6 @@ type Consumer interface {
 	// Unsubscribe the consumer
 	Unsubscribe() error
 
-	// Asynchronously unsubscribe the consumer
-	UnsubscribeAsync(func(error))
-
 	// Receives a single message.
 	// This calls blocks until a message is available.
 	Receive(context.Context) (Message, error)
@@ -130,9 +127,6 @@ type Consumer interface {
 
 	// Close the consumer and stop the broker to push more messages
 	Close() error
-
-	// Asynchronously close the consumer and stop the broker to push more messages
-	CloseAsync(func(error))
 
 	// Redelivers all the unacknowledged messages. In Failover mode, the request is ignored if the consumer is not
 	// active for the given topic. In Shared mode, the consumers messages to be redelivered are distributed across all

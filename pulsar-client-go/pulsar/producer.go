@@ -161,7 +161,4 @@ type Producer interface {
 	// No more writes will be accepted from this producer. Waits until all pending write request are persisted. In case
 	// of errors, pending writes will not be retried.
 	Close() error
-
-	// Close the producer in asynchronous mode
-	CloseAsync(func(error))
 }

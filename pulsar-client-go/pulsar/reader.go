@@ -69,7 +69,4 @@ type Reader interface {
 
 	// Close the reader and stop the broker to push more messages
 	Close() error
-
-	// Asynchronously close the reader and stop the broker to push more messages
-	CloseAsync(func(error))
 }
