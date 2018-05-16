@@ -487,6 +487,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // For Amazon S3 ledger offload, Max block size in bytes.
     private int s3ManagedLedgerOffloadMaxBlockSizeInBytes = 64 * 1024 * 1024;
 
+    // For Amazon S3 ledger offload, Read buffer size in bytes.
+    @FieldContext(minValue = 1024)
+    private int s3ManagedLedgerOffloadReadBufferSizeInBytes = 1024 * 1024; // 1MB
+
     public String getZookeeperServers() {
         return zookeeperServers;
     }
@@ -1692,6 +1696,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public int getS3ManagedLedgerOffloadMaxBlockSizeInBytes() {
         return this.s3ManagedLedgerOffloadMaxBlockSizeInBytes;
+    }
+
+    public void setS3ManagedLedgerOffloadReadBufferSizeInBytes(int readBufferSizeInBytes) {
+        this.s3ManagedLedgerOffloadReadBufferSizeInBytes = readBufferSizeInBytes;
+    }
+
+    public int getS3ManagedLedgerOffloadReadBufferSizeInBytes() {
+        return this.s3ManagedLedgerOffloadReadBufferSizeInBytes;
     }
 
 }

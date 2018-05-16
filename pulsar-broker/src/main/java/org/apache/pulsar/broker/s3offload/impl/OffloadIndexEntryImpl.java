@@ -48,6 +48,10 @@ public class OffloadIndexEntryImpl implements OffloadIndexEntry {
     public long getOffset() {
         return offset;
     }
+    @Override
+    public long getDataOffset() {
+        return offset + DataBlockHeaderImpl.getDataStartOffset();
+    }
 
     public OffloadIndexEntryImpl(long entryId, int partId, long offset) {
         this.entryId = entryId;
