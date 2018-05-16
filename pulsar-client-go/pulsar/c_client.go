@@ -20,8 +20,7 @@
 package pulsar
 
 /*
-#cgo CFLAGS: -I../../pulsar-client-cpp/include
-#cgo LDFLAGS: -lpulsar -L../../pulsar-client-cpp/lib
+#cgo LDFLAGS: -lpulsar
 #include "c_go_pulsar.h"
 */
 import "C"
