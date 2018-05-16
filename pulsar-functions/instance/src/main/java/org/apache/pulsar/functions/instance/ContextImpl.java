@@ -113,8 +113,12 @@ class ContextImpl implements Context {
         producerConfiguration.setBatchingEnabled(true);
         producerConfiguration.setBatchingMaxPublishDelay(1, TimeUnit.MILLISECONDS);
         producerConfiguration.setMaxPendingMessages(1000000);
-        userConfigs = new Gson().fromJson(config.getFunctionDetails().getUserConfig(),
-                new TypeToken<Map<String, Object>>(){}.getType());
+        if (config.getFunctionDetails().getUserConfig().isEmpty()) {
+            userConfigs = new HashMap<>();
+        } else {
+            userConfigs = new Gson().fromJson(config.getFunctionDetails().getUserConfig(),
+                    new TypeToken<Map<String, Object>>(){}.getType());
+        }
     }
 
     public void setCurrentMessageContext(MessageId messageId, String topicName) {

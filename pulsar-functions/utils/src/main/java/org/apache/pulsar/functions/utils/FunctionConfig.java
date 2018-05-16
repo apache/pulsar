@@ -66,15 +66,15 @@ public class FunctionConfig {
     private String name;
     private String className;
 
-    private Collection<String> inputs = new LinkedList<>();
-    private Map<String, String> customSerdeInputs = new HashMap<>();
+    private Collection<String> inputs;
+    private Map<String, String> customSerdeInputs;
 
     private String output;
     private String outputSerdeClassName;
 
     private String logTopic;
     private ProcessingGuarantees processingGuarantees;
-    private Map<String, Object> userConfig = new HashMap<>();
+    private Map<String, Object> userConfig;
     private SubscriptionType subscriptionType;
     private Runtime runtime;
     private boolean autoAck;
