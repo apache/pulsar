@@ -24,6 +24,7 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.pulsar.common.util.KeyValue;
+import org.apache.pulsar.io.core.SimpleSink;
 import org.apache.pulsar.io.core.Sink;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,7 +39,7 @@ import java.util.concurrent.Future;
 /**
  * Simple Kafka Sink to publish messages to a Kafka topic
  */
-public class KafkaSink<K, V> implements Sink<KeyValue<K, V>> {
+public class KafkaSink<K, V> extends SimpleSink<KeyValue<K, V>> {
 
     private static final Logger LOG = LoggerFactory.getLogger(KafkaSink.class);
 

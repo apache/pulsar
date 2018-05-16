@@ -28,6 +28,7 @@ import com.datastax.driver.core.Session;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import org.apache.pulsar.common.util.KeyValue;
+import org.apache.pulsar.io.core.SimpleSink;
 import org.apache.pulsar.io.core.Sink;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,7 +40,7 @@ import java.util.concurrent.CompletableFuture;
  * Simple Cassandra sink
  * Takes in a KeyValue and writes it to a predefined keyspace/columnfamily/columnname.
  */
-public class CassandraSink<K, V> implements Sink<KeyValue<K, V>> {
+public class CassandraSink<K, V> extends SimpleSink<KeyValue<K, V>> {
 
     private static final Logger LOG = LoggerFactory.getLogger(CassandraSink.class);
 
