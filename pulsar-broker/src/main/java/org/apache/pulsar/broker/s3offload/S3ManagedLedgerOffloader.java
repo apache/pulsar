@@ -45,6 +45,7 @@ import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.s3offload.impl.BlockAwareSegmentInputStreamImpl;
+import org.apache.pulsar.broker.s3offload.impl.S3BackedReadHandleImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,6 +58,7 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
     private final String bucket;
     // max block size for each data block.
     private int maxBlockSize;
+    private final int readBufferSize;
 
     public static S3ManagedLedgerOffloader create(ServiceConfiguration conf,
                                                   ScheduledExecutorService scheduler)
@@ -65,6 +67,7 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
         String bucket = conf.getS3ManagedLedgerOffloadBucket();
         String endpoint = conf.getS3ManagedLedgerOffloadServiceEndpoint();
         int maxBlockSize = conf.getS3ManagedLedgerOffloadMaxBlockSizeInBytes();
+        int readBufferSize = conf.getS3ManagedLedgerOffloadReadBufferSizeInBytes();
 
         if (Strings.isNullOrEmpty(region)) {
             throw new PulsarServerException("s3ManagedLedgerOffloadRegion cannot be empty is s3 offload enabled");
@@ -80,22 +83,24 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
         } else {
             builder.setRegion(region);
         }
-        return new S3ManagedLedgerOffloader(builder.build(), bucket, scheduler, maxBlockSize);
+        return new S3ManagedLedgerOffloader(builder.build(), bucket, scheduler, maxBlockSize, readBufferSize);
     }
 
-    S3ManagedLedgerOffloader(AmazonS3 s3client, String bucket, ScheduledExecutorService scheduler, int maxBlockSize) {
+    S3ManagedLedgerOffloader(AmazonS3 s3client, String bucket, ScheduledExecutorService scheduler,
+                             int maxBlockSize, int readBufferSize) {
         this.s3client = s3client;
         this.bucket = bucket;
         this.scheduler = scheduler;
         this.maxBlockSize = maxBlockSize;
+        this.readBufferSize = readBufferSize;
     }
 
-    static String dataBlockOffloadKey(ReadHandle readHandle, UUID uuid) {
-        return String.format("ledger-%d-%s", readHandle.getId(), uuid.toString());
+    static String dataBlockOffloadKey(long ledgerId, UUID uuid) {
+        return String.format("ledger-%d-%s", ledgerId, uuid.toString());
     }
 
-    static String indexBlockOffloadKey(ReadHandle readHandle, UUID uuid) {
-        return String.format("ledger-%d-%s-index", readHandle.getId(), uuid.toString());
+    static String indexBlockOffloadKey(long ledgerId, UUID uuid) {
+        return String.format("ledger-%d-%s-index", ledgerId, uuid.toString());
     }
 
     // upload DataBlock to s3 using MultiPartUpload, and indexBlock in a new Block,
@@ -107,8 +112,8 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
         scheduler.submit(() -> {
             OffloadIndexBlockBuilder indexBuilder = OffloadIndexBlockBuilder.create()
                 .withMetadata(readHandle.getLedgerMetadata());
-            String dataBlockKey = dataBlockOffloadKey(readHandle, uuid);
-            String indexBlockKey = indexBlockOffloadKey(readHandle, uuid);
+            String dataBlockKey = dataBlockOffloadKey(readHandle.getId(), uuid);
+            String indexBlockKey = indexBlockOffloadKey(readHandle.getId(), uuid);
             InitiateMultipartUploadRequest dataBlockReq = new InitiateMultipartUploadRequest(bucket, dataBlockKey);
             InitiateMultipartUploadResult dataBlockRes = null;
 
@@ -174,12 +179,12 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
                 metadata.setContentLength(indexStream.available());
                 s3client.putObject(new PutObjectRequest(
                     bucket,
-                    indexBlockOffloadKey(readHandle, uuid),
+                    indexBlockKey,
                     indexStream,
                     metadata));
                 promise.complete(null);
             } catch (Throwable t) {
-                s3client.deleteObject(bucket, dataBlockOffloadKey(readHandle, uuid));
+                s3client.deleteObject(bucket, dataBlockKey);
                 promise.completeExceptionally(t);
                 return;
             }
@@ -190,7 +195,17 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
     @Override
     public CompletableFuture<ReadHandle> readOffloaded(long ledgerId, UUID uid) {
         CompletableFuture<ReadHandle> promise = new CompletableFuture<>();
-        promise.completeExceptionally(new UnsupportedOperationException());
+        String key = dataBlockOffloadKey(ledgerId, uid);
+        String indexKey = indexBlockOffloadKey(ledgerId, uid);
+        scheduler.submit(() -> {
+                try {
+                    promise.complete(S3BackedReadHandleImpl.open(scheduler, s3client,
+                                                                 bucket, key, indexKey,
+                                                                 ledgerId, readBufferSize));
+                } catch (Throwable t) {
+                    promise.completeExceptionally(t);
+                }
+            });
         return promise;
     }
 

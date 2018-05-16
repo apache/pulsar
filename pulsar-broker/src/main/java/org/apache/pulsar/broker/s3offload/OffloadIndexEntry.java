@@ -43,8 +43,13 @@ public interface OffloadIndexEntry {
     int getPartId();
 
     /**
-     * Get the offset of this message entry in code storage.
+     * Get the offset of this block within the object.
      */
     long getOffset();
+
+    /**
+     * Get the offset of the block's data within the object.
+     */
+    long getDataOffset();
 }
 
