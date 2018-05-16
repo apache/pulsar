@@ -25,6 +25,7 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.AbortMultipartUploadRequest;
 import com.amazonaws.services.s3.model.CompleteMultipartUploadRequest;
+import com.amazonaws.services.s3.model.DeleteObjectsRequest;
 import com.amazonaws.services.s3.model.InitiateMultipartUploadRequest;
 import com.amazonaws.services.s3.model.InitiateMultipartUploadResult;
 import com.amazonaws.services.s3.model.ObjectMetadata;
@@ -216,8 +217,9 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
 
         scheduler.submit(() -> {
             try {
-                s3client.deleteObject(bucket, dataBlockOffloadKey(ledgerId, uid));
-                s3client.deleteObject(bucket, indexBlockOffloadKey(ledgerId, uid));
+
+                s3client.deleteObjects(new DeleteObjectsRequest(bucket)
+                    .withKeys(dataBlockOffloadKey(ledgerId, uid), indexBlockOffloadKey(ledgerId, uid)));
                 promise.complete(null);
             } catch (Throwable t) {
                 log.error("Failed delete s3 Object ", t);

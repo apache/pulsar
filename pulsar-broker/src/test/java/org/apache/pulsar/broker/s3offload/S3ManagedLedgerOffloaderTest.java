@@ -401,7 +401,7 @@ class S3ManagedLedgerOffloaderTest extends S3TestBase {
         AmazonS3 mockS3client = Mockito.spy(s3client);
         Mockito
             .doThrow(new AmazonServiceException(failureString))
-            .when(mockS3client).deleteObject(any());
+            .when(mockS3client).deleteObjects(any());
 
         try {
             // verify object exist after offload
