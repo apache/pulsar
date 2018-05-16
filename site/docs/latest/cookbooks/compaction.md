@@ -61,7 +61,7 @@ $ bin/pulsar compact-topic \
 
 ## Consumer configuration {#config}
 
-Pulsar consumers need to be properly configured to read from compacted topics. The sections below show you how to enable compacted topic reads for Pulsar's language clients.
+Pulsar consumers and readers need to be properly configured to read from compacted topics. The sections below show you how to enable compacted topic reads for Pulsar's language clients. If the
 
 {% include admonition.html type="warning" title="Java only" content="Currently, only [Java](#java) clients can consume messages from compacted topics." %}
 
@@ -76,7 +76,7 @@ Consumer<byte[]> compactedTopicConsumer = client.newConsumer()
         .subscribe();
 ```
 
-As mentioned above, topic compaction in Pulsar works on a per-key basis. That means that messages that you produce on compacted topics need to have keys (the content of the key will depend on the use case). Here's an example Pulsar message with a key:
+As mentioned above, topic compaction in Pulsar works on a *per-key basis*. That means that messages that you produce on compacted topics need to have keys (the content of the key will depend on your use case). Messages that don't have keys will be ignored by the compaction process. Here's an example Pulsar message with a key:
 
 ```java
 import org.apache.pulsar.client.api.Message;

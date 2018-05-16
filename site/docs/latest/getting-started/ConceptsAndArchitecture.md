@@ -562,48 +562,33 @@ Reader<byte[]> reader = pulsarClient.newReader()
 
 Pulsar was built with highly scalable [persistent storage](#persistent-storage) of message data as a primary objective. Pulsar {% popover topics %} enable you to persistently store as many unacknowledged messages as you need while preserving message ordering. By default, Pulsar stores *all* unacknowledged/unprocessed messages produced on a topic. Accumulating many unacknowledged messages on a topic is necessary for many Pulsar use cases but it can also be very time intensive for Pulsar {% popover consumers %} to "rewind" through the entire log of messages.
 
-For some use cases, however, consumers don't need a complete "image" of the topic log. They may only need a few values to construct a more "shallow" image of the log, perhaps even just the most recent value. For these kinds of use cases Pulsar offers **topic compaction**. When you run compaction on a topic, Pulsar goes through a topic's backlog and removes messages that are *obscured* by later messages, i.e. messages
-
-
-
-{% include admonition.html type="info" title="Topic compaction example: the stock ticker"
-   content='An example use case for a compacted Pulsar topic would be a stock ticker topic. On a stock ticker topic, each message bears a timestamped value for stocks (with the message key holding the stock symbol, e.g. `AAPL` or `GOOG`.' %}
-
-
 {% include admonition.html type="success" content="For a more practical guide to topic compaction, see the [Topic compaction cookbook](../../cookbooks/compaction)." %}
 
-* Compaction is the process of going through a topic's backlog and removing messages that would be obscured by a later message (useless here means a message with the same key)
-* Only applies to persistent topics, i.e. `persistent://...`
-* Command-line interface (`pulsar-admin topics compact`)
-* Separate process from retention/expiry
+For some use cases, however, consumers don't need a complete "image" of the topic log. They may only need a few values to construct a more "shallow" image of the log, perhaps even just the most recent value. For these kinds of use cases Pulsar offers **topic compaction**. When you run compaction on a topic, Pulsar goes through a topic's backlog and removes messages that are *obscured* by later messages, i.e. it goes through the topic on a per-key basis and leaves only the most recent message associated with that key.
 
-Benefits:
+Pulsar's topic compaction feature:
 
-* Save disk space
-* Make it more efficient to construct snapshots of logs
+* Can help preserve disk space and allow for much more efficient "rewind" of topic logs
+* Applies only to [persistent topics](#persistent-storage)
+* Is triggered manually via the command line. See the [Topic compaction cookbook](../../cookbooks/compaction)
+* Is conceptually and operationally distinct from [retention and expiry](#message-retention-and-expiry)
 
-Mechanism:
+{% include admonition.html type="info" title="Topic compaction example: the stock ticker"
+   content="An example use case for a compacted Pulsar topic would be a stock ticker topic. On a stock ticker topic, each message bears a timestamped dollar value for stocks for purchase (with the message key holding the stock symbol, e.g. `AAPL` or `GOOG`). With a stock ticker you may care only about the most recent value(s) of the stock and have no interest in historical data (i.e. you don't need to construct a complete image of the topic's sequence of messages per key). Compaction would be highly beneficial in this case because it would keep consumers from needing to rewind through obscured messages." %}
 
-* Iterate over the topic from the beginning; for each key it will keep a record of the latest occurrence of the key
-* When it finishes, it will create a BK ledger to store the compacted topic
-* During a second iteration, each message's key will be checked
-  * If the key matches the latest occurrence, then the key's data payload, message ID, and metadata will be written to the open BK ledger
-  * If not, then the message will be skipped
-  * If a message has an empty payload, it will be skipped and considered deleted ("tombstones")
-* When the second iteration reaches the end point of the first iteration, compaction is complete
-* The ledger is closed and the following is written to the topic's metadata:
-  * The ID of the ledger
-  * Message ID of the last message compacted (**compaction horizon**)
+### How topic compaction works
 
-Brokers watch each topic's metadata for changes in topic the ledger ID. Upon change:
+When topic compaction is triggered [via the CLI](../../cookbooks/compaction), Pulsar will iterate over the entire topic from beginning to end. For each key that it encounters the {% popover broker %} responsible will keep a record of the latest occurrence of that key. When this iterative process is finished, the broker will create a [BookKeeper ledger](#ledgers) to store the compacted topic.
 
-* Clients with compacted reads enabled will attempt to read messages from a topic and either:
-  * Read from the topic like normal (if the message ID is higher than or equal to the compaction horizon)
-  * Read from the compaction horizon (if the message ID is lower than the compaction horizon)
+After that, the broker will make a second iteration through each message on the topic. For each message, if the key matches the latest occurrence of that key, then the key's data payload, message ID, and metadata will be written to the newly created BookKeeper ledger. If the key doesn't match the latest then the message will be skipped and left alone. If any given message has an empty payload, it will be skipped and considered deleted (akin to the concept of [tombstones](http://docs.basho.com/riak/kv/2.2.3/using/reference/object-deletion/#tombstones) in key-value databases). At the end of this second iteration through the topic, the newly created BookKeeper ledger is closed and two things are written to the topic's metadata: the ID of the BookKeeper ledger and the message ID of the last compacted message (this is known as the **compaction horizon** of the topic). Once this metadata is written compaction is complete.
 
-Configuration:
+{% include admonition.html type="info" title="Compaction leaves the original topic intact" %}
 
-* Reads and writes have throttling options
+In addition to performing compaction, Pulsar {% popover brokers %} listen for changes on each topic's metadata. If the ledger for the topic changes:
+
+* Clients (consumers and readers) that are reading from the compacted topic will attempt to read messages from a topic and either:
+  * Read from the topic like normal (if the message ID is greater than or equal to the compaction horizon) or
+  * Read beginning at the compaction horizon (if the message ID is lower than the compaction horizon)
 
 ## Schema registry
 
