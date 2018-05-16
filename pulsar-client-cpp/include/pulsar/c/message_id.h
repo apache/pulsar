@@ -41,12 +41,16 @@ const pulsar_message_id_t *pulsar_message_id_latest();
 /**
  * Serialize the message id into a binary string for storing
  */
-const void *pulsar_message_id_serialize(int *len);
+void *pulsar_message_id_serialize(pulsar_message_id_t *messageId, int *len);
 
 /**
  * Deserialize a message id from a binary string
  */
 pulsar_message_id_t *pulsar_message_id_deserialize(const void *buffer, uint32_t len);
+
+char *pulsar_message_id_str(pulsar_message_id_t *messageId);
+
+void pulsar_message_id_free(pulsar_message_id_t *messageId);
 
 #ifdef __cplusplus
 }

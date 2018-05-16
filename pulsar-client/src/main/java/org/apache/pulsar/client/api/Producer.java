@@ -194,4 +194,9 @@ public interface Producer<T> extends Closeable {
      * @return a future that can used to track when the producer has been closed
      */
     CompletableFuture<Void> closeAsync();
+
+    /**
+     * @return Whether the producer is connected to the broker
+     */
+    boolean isConnected();
 }

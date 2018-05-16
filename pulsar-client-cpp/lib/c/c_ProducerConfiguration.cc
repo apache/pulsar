@@ -107,9 +107,10 @@ pulsar_hashing_scheme pulsar_producer_configuration_get_hashing_scheme(
 
 class MessageRoutingPolicy : public pulsar::MessageRoutingPolicy {
     pulsar_message_router _router;
+    void *_ctx;
 
    public:
-    MessageRoutingPolicy(pulsar_message_router router) : _router(router) {}
+    MessageRoutingPolicy(pulsar_message_router router, void *ctx) : _router(router), _ctx(ctx) {}
 
     int getPartition(const pulsar::Message &msg, const pulsar::TopicMetadata &topicMetadata) {
         pulsar_message_t message;
@@ -118,13 +119,13 @@ class MessageRoutingPolicy : public pulsar::MessageRoutingPolicy {
         pulsar_topic_metadata_t metadata;
         metadata.metadata = &topicMetadata;
 
-        return _router(&message, &metadata);
+        return _router(&message, &metadata, _ctx);
     }
 };
 
 void pulsar_producer_configuration_set_message_router(pulsar_producer_configuration_t *conf,
-                                                      pulsar_message_router router) {
-    conf->conf.setMessageRouter(boost::make_shared<MessageRoutingPolicy>(router));
+                                                      pulsar_message_router router, void *ctx) {
+    conf->conf.setMessageRouter(boost::make_shared<MessageRoutingPolicy>(router, ctx));
 }
 
 void pulsar_producer_configuration_set_block_if_queue_full(pulsar_producer_configuration_t *conf,

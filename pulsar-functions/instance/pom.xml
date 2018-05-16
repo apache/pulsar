@@ -54,8 +54,8 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
-      <artifactId>pulsar-connect-core</artifactId>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-io-core</artifactId>
       <version>${project.version}</version>
     </dependency>
 

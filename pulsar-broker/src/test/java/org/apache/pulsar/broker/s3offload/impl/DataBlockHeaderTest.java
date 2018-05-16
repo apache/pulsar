@@ -41,7 +41,7 @@ public class DataBlockHeaderTest {
             firstEntryId);
 
         // verify get methods
-        assertEquals(dataBlockHeader.getBlockMagicWord(), 0xDBDBDBDB);
+        assertEquals(dataBlockHeader.getBlockMagicWord(), DataBlockHeaderImpl.MAGIC_WORD);
         assertEquals(dataBlockHeader.getBlockLength(), headerLength);
         assertEquals(dataBlockHeader.getFirstEntryId(), firstEntryId);
 

@@ -317,8 +317,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         return null;
     }
 
-    abstract public boolean isConnected();
-
     abstract public int getAvailablePermits();
 
     abstract public int numMessagesInQueue();

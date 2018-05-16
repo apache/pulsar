@@ -38,7 +38,8 @@ public class SinkConfig {
     private String name;
     private String className;
     private Map<String, String> topicToSerdeClassName;
-    private Map<String, String> configs = new HashMap<>();
+    private Map<String, Object> configs = new HashMap<>();
     private int parallelism = 1;
     private FunctionConfig.ProcessingGuarantees processingGuarantees;
+    private Resources resources;
 }

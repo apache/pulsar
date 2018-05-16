@@ -285,4 +285,9 @@ public interface Consumer<T> extends Closeable {
      * @return a future to track the completion of the seek operation
      */
     CompletableFuture<Void> seekAsync(MessageId messageId);
+
+    /**
+     * @return Whether the consumer is connected to the broker
+     */
+    boolean isConnected();
 }

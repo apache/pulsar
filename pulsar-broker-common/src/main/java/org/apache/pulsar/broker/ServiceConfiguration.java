@@ -484,6 +484,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // For Amazon S3 ledger offload, Alternative endpoint to connect to (useful for testing)
     private String s3ManagedLedgerOffloadServiceEndpoint = null;
 
+    // For Amazon S3 ledger offload, Max block size in bytes.
+    private int s3ManagedLedgerOffloadMaxBlockSizeInBytes = 64 * 1024 * 1024;
+
     public String getZookeeperServers() {
         return zookeeperServers;
     }
@@ -1682,4 +1685,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public String getS3ManagedLedgerOffloadServiceEndpoint() {
         return this.s3ManagedLedgerOffloadServiceEndpoint;
     }
+
+    public void setS3ManagedLedgerOffloadMaxBlockSizeInBytes(int blockSizeInBytes) {
+        this.s3ManagedLedgerOffloadMaxBlockSizeInBytes = blockSizeInBytes;
+    }
+
+    public int getS3ManagedLedgerOffloadMaxBlockSizeInBytes() {
+        return this.s3ManagedLedgerOffloadMaxBlockSizeInBytes;
+    }
+
 }

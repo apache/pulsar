@@ -27,7 +27,7 @@ extern "C" {
 
 typedef struct _pulsar_reader pulsar_reader_t;
 
-typedef void (*pulsar_result_callback)(pulsar_result);
+typedef void (*pulsar_result_callback)(pulsar_result, void *);
 
 /**
  * @return the topic this reader is reading from
@@ -60,7 +60,7 @@ pulsar_result pulsar_reader_read_next_with_timeout(pulsar_reader_t *reader, puls
 
 pulsar_result pulsar_reader_close(pulsar_reader_t *reader);
 
-void pulsar_reader_close_async(pulsar_reader_t *reader, pulsar_result_callback callback);
+void pulsar_reader_close_async(pulsar_reader_t *reader, pulsar_result_callback callback, void *ctx);
 
 void pulsar_reader_free(pulsar_reader_t *reader);
 

@@ -23,7 +23,6 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.converters.StringConverter;
 import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import com.google.protobuf.Empty;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
@@ -93,7 +92,7 @@ public class JavaInstanceMain {
     @Parameter(names = "--auto_ack", description = "Enable Auto Acking?\n")
     protected String autoAck = "true";
 
-    @Parameter(names = "--source_classname", description = "The source classname", required = true)
+    @Parameter(names = "--source_classname", description = "The source classname")
     protected String sourceClassname;
 
     @Parameter(names = "--source_configs", description = "The source configs")
@@ -114,7 +113,7 @@ public class JavaInstanceMain {
     @Parameter(names = "--sink_configs", description = "The sink configs\n")
     protected String sinkConfigs;
 
-    @Parameter(names = "--sink_classname", description = "The sink classname\n", required = true)
+    @Parameter(names = "--sink_classname", description = "The sink classname\n")
     protected String sinkClassname;
 
     @Parameter(names = "--sink_topic", description = "The sink Topic Name\n")
@@ -150,14 +149,14 @@ public class JavaInstanceMain {
             functionDetailsBuilder.setAutoAck(false);
         }
         if (userConfig != null && !userConfig.isEmpty()) {
-            Type type = new TypeToken<Map<String, String>>(){}.getType();
-            Map<String, String> userConfigMap = new Gson().fromJson(userConfig, type);
-            functionDetailsBuilder.putAllUserConfig(userConfigMap);
+            functionDetailsBuilder.setUserConfig(userConfig);
         }
 
         // Setup source
         SourceSpec.Builder sourceDetailsBuilder = SourceSpec.newBuilder();
-        sourceDetailsBuilder.setClassName(sourceClassname);
+        if (sourceClassname != null) {
+            sourceDetailsBuilder.setClassName(sourceClassname);
+        }
         if (sourceConfigs != null && !sourceConfigs.isEmpty()) {;
             sourceDetailsBuilder.setConfigs(sourceConfigs);
         }
@@ -168,7 +167,9 @@ public class JavaInstanceMain {
 
         // Setup sink
         SinkSpec.Builder sinkSpecBuilder = SinkSpec.newBuilder();
-        sinkSpecBuilder.setClassName(sinkClassname);
+        if (sinkClassname != null) {
+            sinkSpecBuilder.setClassName(sinkClassname);
+        }
         if (sinkConfigs != null) {
             sinkSpecBuilder.setConfigs(sinkConfigs);
         }

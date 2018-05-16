@@ -31,6 +31,7 @@ import org.apache.pulsar.functions.worker.rest.WorkerServer;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.net.URI;
+import java.util.HashSet;
 
 @Slf4j
 public class Worker extends AbstractService {
@@ -104,6 +105,8 @@ public class Worker extends AbstractService {
                     try {
                         Policies policies = new Policies();
                         policies.retention_policies = new RetentionPolicies(-1, -1);
+                        policies.replication_clusters = new HashSet<>();
+                        policies.replication_clusters.add(workerConfig.getPulsarFunctionsCluster());
                         admin.namespaces().createNamespace(workerConfig.getPulsarFunctionsNamespace(),
                                 policies);
                     } catch (PulsarAdminException e1) {
