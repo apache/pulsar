@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -153,12 +153,16 @@ extends Closeable</pre>
 </td>
 </tr>
 <tr id="i5" class="rowColor">
+<td class="colFirst"><code>boolean</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Reader.html#isConnected--">isConnected</a></span>()</code>&nbsp;</td>
+</tr>
+<tr id="i6" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="type parameter in Reader">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Reader.html#readNext--">readNext</a></span>()</code>
 <div class="block">Read the next message in the topic</div>
 </td>
 </tr>
-<tr id="i6" class="altColor">
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="type parameter in Reader">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Reader.html#readNext-int-java.util.concurrent.TimeUnit-">readNext</a></span>(int&nbsp;timeout,
         TimeUnit&nbsp;unit)</code>
@@ -166,7 +170,7 @@ extends Closeable</pre>
  time units.</div>
 </td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i8" class="altColor">
 <td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="type parameter in Reader">T</a>&gt;&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Reader.html#readNextAsync--">readNextAsync</a></span>()</code>&nbsp;</td>
 </tr>
@@ -292,11 +296,24 @@ extends Closeable</pre>
 <a name="hasMessageAvailableAsync--">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>hasMessageAvailableAsync</h4>
 <pre>CompletableFuture&lt;Boolean&gt;&nbsp;hasMessageAvailableAsync()</pre>
 <div class="block">Asynchronously Check if there is message that has been published successfully to the broker in the topic.</div>
+</li>
+</ul>
+<a name="isConnected--">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>isConnected</h4>
+<pre>boolean&nbsp;isConnected()</pre>
+<dl>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>Whether the reader is connected to the broker</dd>
+</dl>
 </li>
 </ul>
 </li>

@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":38,"i8":6,"i9":38,"i10":6};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":38,"i9":6,"i10":38,"i11":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],32:["t6","Deprecated Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -170,6 +170,10 @@ extends Closeable</pre>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#getTopic--">getTopic</a></span>()</code>&nbsp;</td>
 </tr>
 <tr id="i6" class="altColor">
+<td class="colFirst"><code>boolean</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#isConnected--">isConnected</a></span>()</code>&nbsp;</td>
+</tr>
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/TypedMessageBuilder.html" title="interface in org.apache.pulsar.client.api">TypedMessageBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="type parameter in Producer">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#newMessage--">newMessage</a></span>()</code>
 <div class="block">Create a new message builder
@@ -177,7 +181,7 @@ extends Closeable</pre>
  This message builder allows to specify additional properties on the message.</div>
 </td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i8" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#send-org.apache.pulsar.client.api.Message-">send</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="type parameter in Producer">T</a>&gt;&nbsp;message)</code>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;
@@ -186,13 +190,13 @@ extends Closeable</pre>
 </div>
 </td>
 </tr>
-<tr id="i8" class="altColor">
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#send-T-">send</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="type parameter in Producer">T</a>&nbsp;message)</code>
 <div class="block">Sends a message.</div>
 </td>
 </tr>
-<tr id="i9" class="rowColor">
+<tr id="i10" class="altColor">
 <td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#sendAsync-org.apache.pulsar.client.api.Message-">sendAsync</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="type parameter in Producer">T</a>&gt;&nbsp;message)</code>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;
@@ -201,7 +205,7 @@ extends Closeable</pre>
 </div>
 </td>
 </tr>
-<tr id="i10" class="altColor">
+<tr id="i11" class="rowColor">
 <td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#sendAsync-T-">sendAsync</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="type parameter in Producer">T</a>&nbsp;message)</code>
 <div class="block">Send a message asynchronously</div>
@@ -460,7 +464,7 @@ CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Messag
 <a name="closeAsync--">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>closeAsync</h4>
 <pre>CompletableFuture&lt;Void&gt;&nbsp;closeAsync()</pre>
@@ -471,6 +475,19 @@ CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Messag
 <dl>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>a future that can used to track when the producer has been closed</dd>
+</dl>
+</li>
+</ul>
+<a name="isConnected--">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>isConnected</h4>
+<pre>boolean&nbsp;isConnected()</pre>
+<dl>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>Whether the producer is connected to the broker</dd>
 </dl>
 </li>
 </ul>
