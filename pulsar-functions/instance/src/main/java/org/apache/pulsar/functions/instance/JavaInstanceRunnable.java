@@ -28,6 +28,7 @@ import io.netty.buffer.ByteBuf;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -490,8 +491,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
         this.source = (Source) object;
 
-        this.source.open(new Gson().fromJson(sourceSpec.getConfigs(),
-                new TypeToken<Map<String, Object>>(){}.getType()));
+        if (sourceSpec.getConfigs().isEmpty()) {
+            this.source.open(new HashMap<>());
+        } else {
+            this.source.open(new Gson().fromJson(sourceSpec.getConfigs(),
+                    new TypeToken<Map<String, Object>>(){}.getType()));
+        }
     }
 
     public void setupOutput() throws Exception {
@@ -526,6 +531,11 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         } else {
             throw new RuntimeException("Sink does not implement correct interface");
         }
-        this.sink.open(new Gson().fromJson(sinkSpec.getConfigs(), new TypeToken<Map<String, Object>>(){}.getType()));
+        if (sinkSpec.getConfigs().isEmpty()) {
+            this.sink.open(new HashMap<>());
+        } else {
+            this.sink.open(new Gson().fromJson(sinkSpec.getConfigs(),
+                    new TypeToken<Map<String, Object>>() {}.getType()));
+        }
     }
 }

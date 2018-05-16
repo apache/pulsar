@@ -18,38 +18,10 @@
  */
 package org.apache.pulsar.broker.s3offload;
 
-import org.apache.bookkeeper.common.annotation.InterfaceAudience.LimitedPrivate;
-import org.apache.bookkeeper.common.annotation.InterfaceStability.Unstable;
+import java.io.InputStream;
+import java.io.IOException;
 
-/**
- *
- * The Index Entry in OffloadIndexBlock.
- * It consists of the message entry id, the code storage block part id for this message entry,
- * and the offset in code storage block for this message id.
- *
- */
-@Unstable
-@LimitedPrivate
-public interface OffloadIndexEntry {
-
-    /**
-     * Get the entryId that this entry contains.
-     */
-    long getEntryId();
-
-    /**
-     * Get the block part id of code storage.
-     */
-    int getPartId();
-
-    /**
-     * Get the offset of this block within the object.
-     */
-    long getOffset();
-
-    /**
-     * Get the offset of the block's data within the object.
-     */
-    long getDataOffset();
+public abstract class S3BackedInputStream extends InputStream {
+    public abstract void seek(long position);
+    public abstract void seekForward(long position) throws IOException;
 }
-

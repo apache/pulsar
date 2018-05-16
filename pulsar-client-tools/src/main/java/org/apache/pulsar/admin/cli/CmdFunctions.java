@@ -306,6 +306,15 @@ public class CmdFunctions extends CmdBase {
                 Map<String, Object> userConfigMap = new Gson().fromJson(userConfigString, type);
                 functionConfig.setUserConfig(userConfigMap);
             }
+            if (functionConfig.getInputs() == null) {
+                functionConfig.setInputs(new LinkedList<>());
+            }
+            if (functionConfig.getCustomSerdeInputs() == null) {
+                functionConfig.setCustomSerdeInputs(new HashMap<>());
+            }
+            if (functionConfig.getUserConfig() == null) {
+                functionConfig.setUserConfig(new HashMap<>());
+            }
 
             if (functionConfig.getInputs().isEmpty() && functionConfig.getCustomSerdeInputs().isEmpty()) {
                 throw new RuntimeException("No input topic(s) specified for the function");
@@ -582,6 +591,10 @@ public class CmdFunctions extends CmdBase {
         }
 
         private void inferMissingFunctionName(FunctionConfig functionConfig) {
+            if (isNull(functionConfig.getClassName())) {
+                throw new IllegalArgumentException("You must specify a class name for the function");
+            }
+
             String [] domains = functionConfig.getClassName().split("\\.");
             if (domains.length == 0) {
                 functionConfig.setName(functionConfig.getClassName());
@@ -648,11 +661,12 @@ public class CmdFunctions extends CmdBase {
             FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
 
             // Setup source
+            SourceSpec.Builder sourceSpecBuilder = SourceSpec.newBuilder();
             Map<String, String> topicToSerDeClassNameMap = new HashMap<>();
             topicToSerDeClassNameMap.putAll(functionConfig.getCustomSerdeInputs());
-            SourceSpec.Builder sourceSpecBuilder = SourceSpec.newBuilder();
             functionConfig.getInputs().forEach(v -> topicToSerDeClassNameMap.put(v, ""));
             sourceSpecBuilder.putAllTopicsToSerDeClassName(topicToSerDeClassNameMap);
+
             if (functionConfig.getSubscriptionType() != null) {
                 sourceSpecBuilder
                         .setSubscriptionType(convertSubscriptionType(functionConfig.getSubscriptionType()));
@@ -697,6 +711,7 @@ public class CmdFunctions extends CmdBase {
 
             Map<String, Object> configs = new HashMap<>();
             configs.putAll(functionConfig.getUserConfig());
+
             // windowing related
             WindowConfig windowConfig = functionConfig.getWindowConfig();
             if (windowConfig != null) {
@@ -710,7 +725,9 @@ public class CmdFunctions extends CmdBase {
                     functionDetailsBuilder.setClassName(functionConfig.getClassName());
                 }
             }
-            functionDetailsBuilder.setUserConfig(new Gson().toJson(configs));
+            if (!configs.isEmpty()) {
+                functionDetailsBuilder.setUserConfig(new Gson().toJson(configs));
+            }
 
             functionDetailsBuilder.setAutoAck(functionConfig.isAutoAck());
             functionDetailsBuilder.setParallelism(functionConfig.getParallelism());

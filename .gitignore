@@ -51,3 +51,6 @@ deployment/terraform-ansible/aws/.terraform/
 deployment/terraform-ansible/aws/.terraform.tfstate.lock.info
 deployment/terraform-ansible/aws/terraform.tfstate
 deployment/terraform-ansible/aws/terraform.tfstate.backup
+
+# Vagrant
+**/.vagrant
