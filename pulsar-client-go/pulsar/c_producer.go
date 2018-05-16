@@ -26,8 +26,6 @@ import "C"
 import (
 	"runtime"
 	"unsafe"
-
-	"github.com/mattn/go-pointer"
 	"time"
 	"context"
 )
@@ -39,7 +37,7 @@ type createProducerCtx struct {
 
 //export pulsarCreateProducerCallbackProxy
 func pulsarCreateProducerCallbackProxy(res C.pulsar_result, ptr *C.pulsar_producer_t, ctx unsafe.Pointer) {
-	producerCtx := pointer.Restore(ctx).(createProducerCtx)
+	producerCtx := restorePointer(ctx).(createProducerCtx)
 
 	C.pulsar_producer_configuration_free(producerCtx.conf)
 
@@ -130,7 +128,7 @@ func createProducerAsync(client *client, options ProducerOptions, callback func(
 	defer C.free(unsafe.Pointer(topicName))
 
 	C._pulsar_client_create_producer_async(client.ptr, topicName, conf,
-		pointer.Save(createProducerCtx{callback, conf}))
+		savePointer(createProducerCtx{callback, conf}))
 }
 
 type topicMetadata struct {
@@ -143,7 +141,7 @@ func (tm *topicMetadata) NumPartitions() int {
 
 //export pulsarRouterCallbackProxy
 func pulsarRouterCallbackProxy(msg *C.pulsar_message_t, metadata *C.pulsar_topic_metadata_t, ctx unsafe.Pointer) C.int {
-	router := pointer.Restore(ctx).(*func(msg Message, metadata TopicMetadata) int)
+	router := restorePointer(ctx).(*func(msg Message, metadata TopicMetadata) int)
 
 	partitionIdx := (*router)(&message{msg}, &topicMetadata{int(C.pulsar_topic_metadata_get_num_partitions(metadata))})
 	return C.int(partitionIdx)
@@ -175,14 +173,14 @@ func (p *producer) Send(ctx context.Context, msg MessageBuilder) error {
 	case <-ctx.Done():
 		return ctx.Err()
 
-	case cm := <- c:
+	case cm := <-c:
 		return cm
 	}
 }
 
 //export pulsarProducerSendCallbackProxy
 func pulsarProducerSendCallbackProxy(res C.pulsar_result, message *C.pulsar_message_t, ctx unsafe.Pointer) {
-	callback := pointer.Restore(ctx).(func(error))
+	callback := restorePointer(ctx).(func(error))
 
 	if res != C.pulsar_result_Ok {
 		callback(newError(res, "Failed to send message"))
@@ -195,7 +193,7 @@ func (p *producer) SendAsync(ctx context.Context, msg MessageBuilder, callback f
 	cMsg := buildMessage(msg)
 	defer C.pulsar_message_free(cMsg)
 
-	C._pulsar_producer_send_async(p.ptr, cMsg, pointer.Save(callback))
+	C._pulsar_producer_send_async(p.ptr, cMsg, savePointer(callback))
 }
 
 func (p *producer) Close() error {
@@ -205,12 +203,12 @@ func (p *producer) Close() error {
 }
 
 func (p *producer) CloseAsync(callback func(error)) {
-	C._pulsar_producer_close_async(p.ptr, pointer.Save(callback))
+	C._pulsar_producer_close_async(p.ptr, savePointer(callback))
 }
 
 //export pulsarProducerCloseCallbackProxy
 func pulsarProducerCloseCallbackProxy(res C.pulsar_result, ctx unsafe.Pointer) {
-	callback := pointer.Restore(ctx).(func(error))
+	callback := restorePointer(ctx).(func(error))
 
 	if res != C.pulsar_result_Ok {
 		callback(newError(res, "Failed to close Producer"))

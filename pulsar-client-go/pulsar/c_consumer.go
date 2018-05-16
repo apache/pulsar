@@ -25,7 +25,6 @@ package pulsar
 import "C"
 
 import (
-	"github.com/mattn/go-pointer"
 	"runtime"
 	"time"
 	"unsafe"
@@ -45,7 +44,7 @@ func consumerFinalizer(c *consumer) {
 
 //export pulsarSubscribeCallbackProxy
 func pulsarSubscribeCallbackProxy(res C.pulsar_result, ptr *C.pulsar_consumer_t, ctx unsafe.Pointer) {
-	cc := pointer.Restore(ctx).(*subscribeContext)
+	cc := restorePointer(ctx).(*subscribeContext)
 
 	C.pulsar_consumer_configuration_free(cc.conf)
 
@@ -86,7 +85,7 @@ func subscribeAsync(client *client, options ConsumerOptions, callback func(Consu
 		options.MessageChannel = consumer.defaultChannel
 	}
 
-	C._pulsar_consumer_configuration_set_message_listener(conf, pointer.Save(&consumerCallback{
+	C._pulsar_consumer_configuration_set_message_listener(conf, savePointer(&consumerCallback{
 		consumer: consumer,
 		channel:  options.MessageChannel,
 	}))
@@ -126,7 +125,7 @@ func subscribeAsync(client *client, options ConsumerOptions, callback func(Consu
 	defer C.free(unsafe.Pointer(topic))
 	defer C.free(unsafe.Pointer(subName))
 	C._pulsar_client_subscribe_async(client.ptr, topic, subName,
-		conf, pointer.Save(&subscribeContext{conf: conf, consumer: consumer, callback: callback}))
+		conf, savePointer(&subscribeContext{conf: conf, consumer: consumer, callback: callback}))
 }
 
 type consumerCallback struct {
@@ -136,7 +135,7 @@ type consumerCallback struct {
 
 //export pulsarMessageListenerProxy
 func pulsarMessageListenerProxy(cConsumer *C.pulsar_consumer_t, message *C.pulsar_message_t, ctx unsafe.Pointer) {
-	cc := pointer.Restore(ctx).(*consumerCallback)
+	cc := restorePointer(ctx).(*consumerCallback)
 	cc.channel <- ConsumerMessage{cc.consumer, newMessageWrapper(message)}
 }
 
@@ -157,12 +156,12 @@ func (c *consumer) Unsubscribe() error {
 }
 
 func (c *consumer) UnsubscribeAsync(callback func(error)) {
-	C._pulsar_consumer_unsubscribe_async(c.ptr, pointer.Save(callback))
+	C._pulsar_consumer_unsubscribe_async(c.ptr, savePointer(callback))
 }
 
 //export pulsarConsumerUnsubscribeCallbackProxy
 func pulsarConsumerUnsubscribeCallbackProxy(res C.pulsar_result, ctx unsafe.Pointer) {
-	callback := pointer.Restore(ctx).(func(err error))
+	callback := restorePointer(ctx).(func(err error))
 
 	if res != C.pulsar_result_Ok {
 		callback(newError(res, "Failed to unsubscribe consumer"))
@@ -212,12 +211,12 @@ func (c *consumer) CloseAsync(callback func(error)) {
 		close(c.defaultChannel)
 	}
 
-	C._pulsar_consumer_close_async(c.ptr, pointer.Save(callback))
+	C._pulsar_consumer_close_async(c.ptr, savePointer(callback))
 }
 
 //export pulsarConsumerCloseCallbackProxy
 func pulsarConsumerCloseCallbackProxy(res C.pulsar_result, ctx unsafe.Pointer) {
-	callback := pointer.Restore(ctx).(func(err error))
+	callback := restorePointer(ctx).(func(err error))
 
 	if res != C.pulsar_result_Ok {
 		callback(newError(res, "Failed to close Consumer"))

@@ -26,7 +26,6 @@ import "C"
 
 import (
 	"errors"
-	"github.com/mattn/go-pointer"
 	"runtime"
 	"unsafe"
 	"context"
@@ -45,7 +44,7 @@ func readerFinalizer(c *reader) {
 
 //export pulsarCreateReaderCallbackProxy
 func pulsarCreateReaderCallbackProxy(res C.pulsar_result, ptr *C.pulsar_reader_t, ctx unsafe.Pointer) {
-	cc := pointer.Restore(ctx).(*readerAndCallback)
+	cc := restorePointer(ctx).(*readerAndCallback)
 
 	C.pulsar_reader_configuration_free(cc.conf)
 
@@ -86,7 +85,7 @@ func createReaderAsync(client *client, options ReaderOptions, callback func(Read
 
 	conf := C.pulsar_reader_configuration_create()
 
-	C._pulsar_reader_configuration_set_reader_listener(conf, pointer.Save(&readerCallback{
+	C._pulsar_reader_configuration_set_reader_listener(conf, savePointer(&readerCallback{
 		reader:  reader,
 		channel: options.MessageChannel,
 	}))
@@ -112,7 +111,7 @@ func createReaderAsync(client *client, options ReaderOptions, callback func(Read
 	defer C.free(unsafe.Pointer(topic))
 
 	C._pulsar_client_create_reader_async(client.ptr, topic, options.StartMessageID.(*messageID).ptr,
-		conf, pointer.Save(&readerAndCallback{reader, conf, callback}))
+		conf, savePointer(&readerAndCallback{reader, conf, callback}))
 }
 
 type readerCallback struct {
@@ -122,7 +121,7 @@ type readerCallback struct {
 
 //export pulsarReaderListenerProxy
 func pulsarReaderListenerProxy(cReader *C.pulsar_reader_t, message *C.pulsar_message_t, ctx unsafe.Pointer) {
-	rc := pointer.Restore(ctx).(*readerCallback)
+	rc := restorePointer(ctx).(*readerCallback)
 	rc.channel <- ReaderMessage{rc.reader, newMessageWrapper(message)}
 }
 
@@ -135,7 +134,7 @@ func (r *reader) Next(ctx context.Context) (Message, error) {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 
-	case rm := <- r.defaultChannel:
+	case rm := <-r.defaultChannel:
 		return rm.Message, nil
 	}
 }
@@ -151,12 +150,12 @@ func (r *reader) CloseAsync(callback func(error)) {
 		close(r.defaultChannel)
 	}
 
-	C._pulsar_reader_close_async(r.ptr, pointer.Save(callback))
+	C._pulsar_reader_close_async(r.ptr, savePointer(callback))
 }
 
 //export pulsarReaderCloseCallbackProxy
 func pulsarReaderCloseCallbackProxy(res C.pulsar_result, ctx unsafe.Pointer) {
-	callback := pointer.Restore(ctx).(func(err error))
+	callback := restorePointer(ctx).(func(err error))
 
 	if res != C.pulsar_result_Ok {
 		callback(newError(res, "Failed to close Reader"))
