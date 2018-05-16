@@ -117,6 +117,7 @@ flexible messaging model and an intuitive client API.</description>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <redirectTestOutputToFile>true</redirectTestOutputToFile>
     <testRealAWS>false</testRealAWS>
+    <testRetryCount>1</testRetryCount>
 
     <bookkeeper.version>4.7.0</bookkeeper.version>
     <zookeeper.version>3.4.10</zookeeper.version>
@@ -836,6 +837,10 @@ flexible messaging model and an intuitive client API.</description>
             <property>
               <name>testRealAWS</name>
               <value>${testRealAWS}</value>
+            </property>
+            <property>
+              <name>testRetryCount</name>
+              <value>${testRetryCount}</value>
             </property>
             <property>
               <name>listener</name>
