@@ -25,16 +25,9 @@ import java.util.function.BinaryOperator;
 import java.util.function.Function;
 
 @Slf4j
-public class WindowFunction implements Function <Collection<Integer>, Integer> {
+public class WindowFunction implements Function<Collection<Integer>, Integer> {
     @Override
     public Integer apply(Collection<Integer> integers) {
-
-        int sum = integers.stream().reduce(new BinaryOperator<Integer>() {
-            @Override
-            public Integer apply(Integer integer, Integer integer2) {
-                return integer + integer2;
-            }
-        }).get();
-        return sum;
+        return integers.stream().reduce(0, (x, y) -> x + y);
     }
 }

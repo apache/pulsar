@@ -426,6 +426,8 @@ Pulsar Functions use [Apache BookKeeper](https://bookkeeper.apache.org) as a sta
 
 ## Windowing
 
+{% include admonition.html type="warning" content="Window operations for Pulsar Functions are currently available for Java only. Python support is coming soon." %}
+
 **Window operations** gather processing results from functions within a specified time frame rather than on a per-message basis. Here are some example window operations:
 
 * Counting how many clicks a website has received in the last 10 minutes
@@ -433,8 +435,17 @@ Pulsar Functions use [Apache BookKeeper](https://bookkeeper.apache.org) as a sta
 
 Window operations are of two basic types, depending on whether or not the windows overlap with one another:
 
-* [Sliding](#sliding) windows are windows that overlap
+* [Sliding windows](#sliding) are time windows that overlap
+* [Tumbling windows](#tumbling) are exclusive, non-overlapping time windows
 
 ### Sliding windows {#sliding}
 
 {% include figure.html src="/img/sliding-window.png" %}
+
+### Tumbling windows {#tumbling}
+
+{% include figure.html src="/img/tumbling-window.png" %}
+
+### Windowing API
+
+Window operations take a collection of some data type

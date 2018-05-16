@@ -208,3 +208,14 @@ Pulsar supports three different [subscription types](../../getting-started/Conce
 
 Pulsar Functions can also be assigned a subscription type when you [create](#cluster-mode) them or run them [locally](#local-run). In cluster mode, the subscription can also be [updated](#updating) after the function has been created.
 -->
+
+## Windowed functions
+
+[`create`](../../reference/CliTools#)
+
+Flag | Meaning | Default
+:----|:--------|:-------
+`--windowLengthCount` | |
+`--windowLengthDurationMs` | |
+`--slidingIntervalCount` | |
+`--slidingIntervalDurationMs` | |
