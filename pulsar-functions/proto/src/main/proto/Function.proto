@@ -34,6 +34,12 @@ enum SubscriptionType {
     FAILOVER = 1;
 }
 
+message Resources {
+    double cpu = 1;
+    int64 ram = 2;
+    int64 disk = 3;
+}
+
 message FunctionDetails {
     enum Runtime {
         JAVA = 0;
@@ -45,12 +51,13 @@ message FunctionDetails {
     string className = 4;
     string logTopic = 5;
     ProcessingGuarantees processingGuarantees = 6;
-    map<string,string> userConfig = 7;
+    string userConfig = 7;
     Runtime runtime = 8;
     bool autoAck = 9;
     int32 parallelism = 10;
     SourceSpec source = 11;
     SinkSpec sink = 12;
+    Resources resources = 13;
 }
 
 message SourceSpec {

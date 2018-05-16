@@ -302,8 +302,8 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         DataInputStream dis = new DataInputStream(stream);
         int magic = dis.readInt();
         if (magic != this.INDEX_MAGIC_WORD) {
-            throw new IOException("Invalid MagicWord. read: " + Integer.toHexString(magic)
-                + " expected: 0x" + Integer.toHexString(INDEX_MAGIC_WORD));
+            throw new IOException(String.format("Invalid MagicWord. read: 0x%x  expected: 0x%x",
+                                                magic, INDEX_MAGIC_WORD));
         }
         int indexBlockLength = dis.readInt();
         int segmentMetadataLength = dis.readInt();

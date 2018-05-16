@@ -653,7 +653,7 @@ public class PulsarService implements AutoCloseable {
             throws PulsarServerException {
         if (conf.getManagedLedgerOffloadDriver() != null
             && conf.getManagedLedgerOffloadDriver().equalsIgnoreCase(S3ManagedLedgerOffloader.DRIVER_NAME)) {
-            return new S3ManagedLedgerOffloader(conf, getOffloaderScheduler(conf));
+            return S3ManagedLedgerOffloader.create(conf, getOffloaderScheduler(conf));
         } else {
             return NullLedgerOffloader.INSTANCE;
         }

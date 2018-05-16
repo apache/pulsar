@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.s3offload.impl;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.Lists;
-import com.google.common.primitives.Ints;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
@@ -45,7 +44,7 @@ import org.slf4j.LoggerFactory;
 public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStream {
     private static final Logger log = LoggerFactory.getLogger(BlockAwareSegmentInputStreamImpl.class);
 
-    private static final byte[] BLOCK_END_PADDING = Ints.toByteArray(0xFEDCDEAD);
+    private static final int[] BLOCK_END_PADDING = new int[] { 0xFE, 0xDC, 0xDE, 0xAD };
 
     private final ReadHandle ledger;
     private final long startEntryId;
@@ -64,7 +63,7 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
     // how many entries want to read from ReadHandle each time.
     private static final int ENTRIES_PER_READ = 100;
     // buf the entry size and entry id.
-    static final int ENTRY_HEADER_SIZE = 4 /* entry size*/ + 8 /* entry id */;
+    static final int ENTRY_HEADER_SIZE = 4 /* entry size */ + 8 /* entry id */;
     // Keep a list of all entries ByteBuf, each ByteBuf contains 2 buf: entry header and entry content.
     private List<ByteBuf> entriesByteBuf = null;
 
@@ -93,7 +92,7 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
         if (!entriesByteBuf.isEmpty() && bytesReadOffset + entriesByteBuf.get(0).readableBytes() <= blockSize) {
             // always read from the first ByteBuf in the list, once read all of its content remove it.
             ByteBuf entryByteBuf = entriesByteBuf.get(0);
-            int ret = entryByteBuf.readByte();
+            int ret = entryByteBuf.readUnsignedByte();
             bytesReadOffset++;
 
             if (entryByteBuf.readableBytes() == 0) {
@@ -205,8 +204,14 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
         return dataBlockFullOffset - DataBlockHeaderImpl.getDataStartOffset() - ENTRY_HEADER_SIZE * blockEntryCount;
     }
 
-    public static byte[] getBlockEndPadding() {
-        return BLOCK_END_PADDING;
+    // Calculate the block size after uploaded `entryBytesAlreadyWritten` bytes
+    public static int calculateBlockSize(int maxBlockSize, ReadHandle readHandle,
+                                         long firstEntryToWrite, long entryBytesAlreadyWritten) {
+        return (int)Math.min(
+            maxBlockSize,
+            (readHandle.getLastAddConfirmed() - firstEntryToWrite + 1) * ENTRY_HEADER_SIZE
+                + (readHandle.getLength() - entryBytesAlreadyWritten)
+                + DataBlockHeaderImpl.getDataStartOffset());
     }
 
 }
