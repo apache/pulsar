@@ -37,13 +37,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
+import java.util.function.Consumer;
 
 /**
  * Simple Push based Twitter FireHose Source
  */
-public class TwitterFireHose implements PushSource<String> {
+public class TwitterFireHose extends PushSource<String> {
 
     private static final Logger LOG = LoggerFactory.getLogger(TwitterFireHose.class);
 
@@ -51,7 +50,7 @@ public class TwitterFireHose implements PushSource<String> {
 
     // ----- Runtime fields
     private Object waitObject;
-    private Function<Record<String>, CompletableFuture<Void>> consumeFunction;
+    private Consumer<Record<String>> consumeFunction;
 
     @Override
     public void open(Map<String, Object> config) throws IOException {
@@ -67,7 +66,7 @@ public class TwitterFireHose implements PushSource<String> {
     }
 
     @Override
-    public void setConsumer(Function<Record<String>, CompletableFuture<Void>> consumeFunction) {
+    public void setConsumer(Consumer<Record<String>> consumeFunction) {
         this.consumeFunction = consumeFunction;
     }
 
@@ -123,10 +122,10 @@ public class TwitterFireHose implements PushSource<String> {
                     public boolean process() throws IOException, InterruptedException {
                         String line = reader.readLine();
                         try {
-                            // We don't really care if the future succeeds or not.
+                            // We don't really care if the record succeeds or not.
                             // However might be in the future to count failures
                             // TODO:- Figure out the metrics story for connectors
-                            consumeFunction.apply(new TwitterRecord(line));
+                            consumeFunction.accept(new TwitterRecord(line));
                         } catch (Exception e) {
                             LOG.error("Exception thrown");
                         }
