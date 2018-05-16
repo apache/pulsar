@@ -423,3 +423,18 @@ Pulsar Functions that use the [Pulsar Functions SDK](#sdk) can publish metrics t
 ## State storage
 
 Pulsar Functions use [Apache BookKeeper](https://bookkeeper.apache.org) as a state storage interface. All Pulsar installations, including local {% popover standalone %} installations, include a deployment of BookKeeper {% popover bookies %}.
+
+## Windowing
+
+**Window operations** gather processing results from functions within a specified time frame rather than on a per-message basis. Here are some example window operations:
+
+* Counting how many clicks a website has received in the last 10 minutes
+* Determining which product in a product line is the best seller within the last 1000 purchases
+
+Window operations are of two basic types, depending on whether or not the windows overlap with one another:
+
+* [Sliding](#sliding) windows are windows that overlap
+
+### Sliding windows {#sliding}
+
+{% include figure.html src="/img/sliding-window.png" %}
