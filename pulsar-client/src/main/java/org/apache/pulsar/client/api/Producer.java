@@ -171,6 +171,8 @@ public interface Producer<T> extends Closeable {
      */
     ProducerStats getStats();
 
+    Schema<T> getSchema();
+
     /**
      * Close the producer and releases resources allocated.
      *

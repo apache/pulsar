@@ -216,6 +216,8 @@ public interface Consumer<T> extends Closeable {
      */
     ConsumerStats getStats();
 
+    Schema<T> getSchema();
+
     /**
      * Close the consumer and stop the broker to push more messages.
      */
