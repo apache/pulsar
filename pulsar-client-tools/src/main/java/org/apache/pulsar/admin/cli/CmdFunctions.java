@@ -239,7 +239,7 @@ public class CmdFunctions extends CmdBase {
         protected Integer slidingIntervalCount;
         @Parameter(names = "--slidingIntervalDurationMs", description = "")
         protected Long slidingIntervalDurationMs;
-        @Parameter(names = "--autoAck", description = "")
+        @Parameter(names = "--autoAck", description = "Whether the function will automatically acknowledge (ack) each message upon receipt")
         protected Boolean autoAck;
         protected FunctionConfig functionConfig;
         protected String userCodeFile;

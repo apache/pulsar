@@ -160,6 +160,17 @@ commands:
       description: The function's tenant
     - flags: --userConfig
       description: A user-supplied config value, set as a key/value pair. You can set multiple user config values.
+    - flags: --autoAck
+      description: Whether the function will automatically acknowledge (ack) each message upon receipt
+      default: true
+    - flags: --windowLengthCount
+      desription: TODO
+    - flags: --windowLengthDurationMs
+      description: TODO
+    - flags: --slidingIntervalCount
+      description: TODO
+    - flags: --slidingIntervalDurationMs
+      description: TODO
   - name: create
     description: Creates a new Pulsar Function on the target infrastructure
     options:
