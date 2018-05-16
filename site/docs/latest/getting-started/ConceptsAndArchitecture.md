@@ -522,7 +522,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Reader;
 
-String topic = "persistent://sample/standalone/ns1/reader-api-test";
+String topic = "reader-api-test";
 MessageId id = MessageId.earliest;
 
 // Create a reader on a topic and for a specific message (and onward)
@@ -541,8 +541,10 @@ while (true) {
 To create a reader that will read from the latest available message:
 
 ```java
-MessageId id = MessageId.latest;
-Reader reader = pulsarClient.createReader(topic, id, new ReaderConfiguration());
+Reader<byte[]> reader = pulsarClient.newReader()
+    .topic(topic)
+    .startMessageId(MessageId.latest)
+    .create();
 ```
 
 To create a reader that will read from some message between earliest and latest:
@@ -550,7 +552,10 @@ To create a reader that will read from some message between earliest and latest:
 ```java
 byte[] msgIdBytes = // Some byte array
 MessageId id = MessageId.fromByteArray(msgIdBytes);
-Reader reader = pulsarClient.createReader(topic, id, new ReaderConfiguration());
+Reader<byte[]> reader = pulsarClient.newReader()
+    .topic(topic)
+    .startMessageId(id)
+    .create();
 ```
 
 ## Topic compaction {#compaction}
