@@ -16,38 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.sink;
+package org.apache.pulsar.io.core;
 
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.io.core.Sink;
 
 /**
- * The default implementation of runtime sink.
- *
- * @param <T>
+ * A simpler version of the Sink interface users can extend for use cases to
+ * don't require fine grained delivery control
  */
-public class DefaultRuntimeSink<T> implements RuntimeSink<T> {
+public abstract class SimpleSink<T> implements Sink<T> {
 
-    public static <T> DefaultRuntimeSink<T> of(Sink<T> sink) {
-        return new DefaultRuntimeSink<>(sink);
-    }
-
-    private final Sink<T> sink;
-
-    private DefaultRuntimeSink(Sink<T> sink) {
-        this.sink = sink;
-    }
-
-    /**
-     * Open connector with configuration
-     *
-     * @param config initialization config
-     * @throws Exception IO type exceptions when opening a connector
-     */
     @Override
-    public void open(final Map<String, Object> config) throws Exception {
-        sink.open(config);
+    public void write(RecordContext inputRecordContext, T value) throws Exception {
+        write(value)
+                .thenAccept(ignored -> inputRecordContext.ack())
+                .exceptionally(cause -> {
+                    inputRecordContext.fail();
+                    return null;
+                });
     }
 
     /**
@@ -56,13 +42,5 @@ public class DefaultRuntimeSink<T> implements RuntimeSink<T> {
      * @param value output value
      * @return Completable future fo async publish request
      */
-    @Override
-    public CompletableFuture<Void> write(T value) {
-        return sink.write(value);
-    }
-
-    @Override
-    public void close() throws Exception {
-        sink.close();
-    }
+    public abstract CompletableFuture<Void> write(T value);
 }
