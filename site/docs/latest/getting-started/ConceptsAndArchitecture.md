@@ -538,12 +538,15 @@ Reader reader = pulsarClient.createReader(topic, id, new ReaderConfiguration());
 
 Messaging systems are most useful when they can interact with external systems like databases and other messaging systems. **Pulsar IO** is a feature of Pulsar that enables you to easily create, deploy, and manage Pulsar **connectors** that interact with external systems, such as [Apache Cassandra](https://cassandra.apache.org), [Aerospike](https://www.aerospike.com), and many others.
 
+{% include admonition.html type="info" title="Pulsar IO and Pulsar Functions"
+   content="Under the hood, Pulsar IO connectors are specialized [Pulsar Functions](#pulsar-functions) purpose-built to interface with external systems. The [administrative interface](../../cookbooks/pulsar-io) for Pulsar IO is, in fact, quite similar to that of Pulsar Functions." %}
+
 ### Sources and sinks
 
 Pulsar IO connectors are of two types:
 
 * Data is fed into Pulsar by **sources**. Common sources include other messaging systems and "firehose"-style data pipeline APIs.
-* Data is fed into **sinks**. Common sinks include SQL and NoSQL databases.
+* Data is fed into **sinks**. Common sinks include other messaging systems and SQL and NoSQL databases.
 
 This diagram illustrates the relationship between
 
