@@ -22,6 +22,8 @@
 extern "C" {
 #endif
 
+#pragma GCC visibility push(default)
+
 typedef struct _pulsar_consumer_configuration pulsar_consumer_configuration_t;
 
 typedef enum {
@@ -158,6 +160,8 @@ int pulsar_consumer_is_encryption_enabled(pulsar_consumer_configuration_t *consu
 // ConsumerConfiguration&
 // setCryptoFailureAction(ConsumerCryptoFailureAction
 // action);
+
+#pragma GCC visibility pop
 
 #ifdef __cplusplus
 }
