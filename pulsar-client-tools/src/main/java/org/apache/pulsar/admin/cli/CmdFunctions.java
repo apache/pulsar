@@ -231,13 +231,13 @@ public class CmdFunctions extends CmdBase {
         protected Long ram;
         @Parameter(names = "--disk", description = "The disk in bytes that need to be allocated per function instance(applicable only to docker runtime)")
         protected Long disk;
-        @Parameter(names = "--windowLengthCount", description = "")
+        @Parameter(names = "--windowLengthCount", description = "The number of messages per window")
         protected Integer windowLengthCount;
-        @Parameter(names = "--windowLengthDurationMs", description = "")
+        @Parameter(names = "--windowLengthDurationMs", description = "The time duration of the window in milliseconds")
         protected Long windowLengthDurationMs;
-        @Parameter(names = "--slidingIntervalCount", description = "")
+        @Parameter(names = "--slidingIntervalCount", description = "The number of messages after which the window slides")
         protected Integer slidingIntervalCount;
-        @Parameter(names = "--slidingIntervalDurationMs", description = "")
+        @Parameter(names = "--slidingIntervalDurationMs", description = "The time duration after which the window slides")
         protected Long slidingIntervalDurationMs;
         @Parameter(names = "--autoAck", description = "")
         protected Boolean autoAck;
