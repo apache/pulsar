@@ -31,15 +31,7 @@ public interface Sink<T> extends AutoCloseable{
      * @throws Exception IO type exceptions when opening a connector
      */
     void open(final Map<String, Object> config) throws Exception;
-
-    /**
-     * Attempt to publish a type safe collection of messages
-     *
-     * @param value output value
-     * @return Completable future fo async publish request
-     */
-
-
+    
     /**
      * Write a message to Sink
      * @param inputRecordContext Context of value
