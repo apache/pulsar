@@ -13,6 +13,14 @@ $ bin/pulsar-admin source create \
   --name 
 ```
 
+## Available connectors
+
+At the moment, the following connectors are available for Pulsar:
+
+{% include connectors.html %}
+
 ## Custom sources
+
+In order to create 
 
 ## Custom sinks
