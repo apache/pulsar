@@ -56,10 +56,8 @@ import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
-import org.apache.pulsar.functions.sink.DefaultRuntimeSink;
 import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.sink.PulsarSinkConfig;
-import org.apache.pulsar.functions.sink.RuntimeSink;
 import org.apache.pulsar.functions.source.PulsarRecord;
 import org.apache.pulsar.functions.source.PulsarSource;
 import org.apache.pulsar.functions.source.PulsarSourceConfig;
@@ -106,7 +104,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private Record currentRecord;
 
     private Source source;
-    private RuntimeSink sink;
+    private Sink sink;
 
     public JavaInstanceRunnable(InstanceConfig instanceConfig,
                                 FunctionCacheManager fnCache,
@@ -524,10 +522,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     Thread.currentThread().getContextClassLoader());
         }
 
-        if (object instanceof RuntimeSink) {
-            this.sink = (RuntimeSink) object;
-        } else if (object instanceof Sink) {
-            this.sink = DefaultRuntimeSink.of((Sink) object);
+        if (object instanceof Sink) {
+            this.sink = (Sink) object;
         } else {
             throw new RuntimeException("Sink does not implement correct interface");
         }
