@@ -68,11 +68,13 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
         int maxBlockSize = conf.getS3ManagedLedgerOffloadMaxBlockSizeInBytes();
         int readBufferSize = conf.getS3ManagedLedgerOffloadReadBufferSizeInBytes();
 
-        if (Strings.isNullOrEmpty(region)) {
-            throw new PulsarServerException("s3ManagedLedgerOffloadRegion cannot be empty is s3 offload enabled");
+        if (Strings.isNullOrEmpty(region) && Strings.isNullOrEmpty(endpoint)) {
+            throw new PulsarServerException(
+                    "Either s3ManagedLedgerOffloadRegion or s3ManagedLedgerOffloadServiceEndpoint must be set"
+                    + " if s3 offload enabled");
         }
         if (Strings.isNullOrEmpty(bucket)) {
-            throw new PulsarServerException("s3ManagedLedgerOffloadBucket cannot be empty is s3 offload enabled");
+            throw new PulsarServerException("s3ManagedLedgerOffloadBucket cannot be empty if s3 offload enabled");
         }
 
         AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard();
