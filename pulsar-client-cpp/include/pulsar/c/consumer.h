@@ -27,6 +27,8 @@ extern "C" {
 
 #include <stdint.h>
 
+#pragma GCC visibility push(default)
+
 typedef struct _pulsar_consumer pulsar_consumer_t;
 
 typedef void (*pulsar_result_callback)(pulsar_result, void *);
@@ -189,6 +191,8 @@ pulsar_result resume_message_listener(pulsar_consumer_t *consumer);
  * breaks, the messages are redelivered after reconnect.
  */
 void pulsar_consumer_redeliver_unacknowledged_messages(pulsar_consumer_t *consumer);
+
+#pragma GCC visibility pop
 
 #ifdef __cplusplus
 }

@@ -41,6 +41,11 @@ endif(NOT CXX_STANDARD)
 
 set(CMAKE_CXX_FLAGS " -msse4.2 -mpclmul -Wno-deprecated-declarations ${CXX_STANDARD} ${CMAKE_CXX_FLAGS}")
 
+if (!APPLE)
+    # Hide all non-exported symbols to avoid conflicts
+    set(CMAKE_CXX_FLAGS " -fvisibility=hidden -Wl,--exclude-libs,ALL ${CMAKE_CXX_FLAGS}")
+endif ()
+
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 set(PROTOBUF_LIBRARIES $ENV{PROTOBUF_LIBRARIES})

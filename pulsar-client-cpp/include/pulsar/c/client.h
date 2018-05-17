@@ -34,6 +34,8 @@
 extern "C" {
 #endif
 
+#pragma GCC visibility push(default)
+
 typedef struct _pulsar_client pulsar_client_t;
 typedef struct _pulsar_producer pulsar_producer_t;
 
@@ -127,6 +129,8 @@ pulsar_result pulsar_client_close(pulsar_client_t *client);
 void pulsar_client_close_async(pulsar_client_t *client, pulsar_close_callback callback, void *ctx);
 
 void pulsar_client_free(pulsar_client_t *client);
+
+#pragma GCC visibility pop
 
 #ifdef __cplusplus
 }
