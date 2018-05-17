@@ -23,12 +23,16 @@
 extern "C" {
 #endif
 
+#pragma GCC visibility push(default)
+
 typedef struct _pulsar_authentication pulsar_authentication_t;
 
 pulsar_authentication_t *pulsar_authentication_create(const char *dynamicLibPath,
                                                       const char *authParamsString);
 
 void pulsar_authentication_free(pulsar_authentication_t *authentication);
+
+#pragma GCC visibility pop
 
 #ifdef __cplusplus
 }

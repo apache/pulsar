@@ -27,6 +27,8 @@
 extern "C" {
 #endif
 
+#pragma GCC visibility push(default)
+
 typedef enum {
     pulsar_UseSinglePartition,
     pulsar_RoundRobinDistribution,
@@ -141,6 +143,8 @@ unsigned long pulsar_producer_configuration_get_batching_max_publish_delay_ms(
 // std::set <std::string> &getEncryptionKeys();
 // int isEncryptionEnabled() const;
 // ProducerConfiguration &addEncryptionKey(std::string key);
+
+#pragma GCC visibility pop
 
 #ifdef __cplusplus
 }
