@@ -18,13 +18,12 @@
  */
 package org.apache.pulsar.broker.s3offload;
 
-import com.amazonaws.AmazonServiceException;
-import com.amazonaws.SdkClientException;
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.AbortMultipartUploadRequest;
 import com.amazonaws.services.s3.model.CompleteMultipartUploadRequest;
+import com.amazonaws.services.s3.model.DeleteObjectsRequest;
 import com.amazonaws.services.s3.model.InitiateMultipartUploadRequest;
 import com.amazonaws.services.s3.model.InitiateMultipartUploadResult;
 import com.amazonaws.services.s3.model.ObjectMetadata;
@@ -212,7 +211,19 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
     @Override
     public CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uid) {
         CompletableFuture<Void> promise = new CompletableFuture<>();
-        promise.completeExceptionally(new UnsupportedOperationException());
+        scheduler.submit(() -> {
+            try {
+
+                s3client.deleteObjects(new DeleteObjectsRequest(bucket)
+                    .withKeys(dataBlockOffloadKey(ledgerId, uid), indexBlockOffloadKey(ledgerId, uid)));
+                promise.complete(null);
+            } catch (Throwable t) {
+                log.error("Failed delete s3 Object ", t);
+                promise.completeExceptionally(t);
+                return;
+            }
+        });
+
         return promise;
     }
 }
