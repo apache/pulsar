@@ -25,12 +25,9 @@ import static org.mockito.Matchers.any;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.s3.AmazonS3;
 import io.netty.util.concurrent.DefaultThreadFactory;
-
-import java.io.DataInputStream;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
@@ -38,7 +35,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
@@ -52,9 +48,7 @@ import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.broker.s3offload.impl.BlockAwareSegmentInputStreamImpl;
 import org.apache.pulsar.broker.s3offload.impl.DataBlockHeaderImpl;
-import org.apache.pulsar.broker.s3offload.impl.OffloadIndexBlockImpl;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -375,9 +369,9 @@ class S3ManagedLedgerOffloaderTest extends S3TestBase {
     public void testDeleteOffloaded() throws Exception {
         int maxBlockSize = 1024;
         int entryCount = 3;
-        ReadHandle readHandle = buildReadHandle(entryCount);
+        ReadHandle readHandle = buildReadHandle(maxBlockSize, entryCount);
         UUID uuid = UUID.randomUUID();
-        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler, maxBlockSize);
+        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler, maxBlockSize, DEFAULT_READ_BUFFER_SIZE);
 
         // verify object exist after offload
         offloader.offload(readHandle, uuid, new HashMap<>()).get();
@@ -394,9 +388,9 @@ class S3ManagedLedgerOffloaderTest extends S3TestBase {
     public void testDeleteOffloadedFail() throws Exception {
         int maxBlockSize = 1024;
         int entryCount = 3;
-        ReadHandle readHandle = buildReadHandle(entryCount);
+        ReadHandle readHandle = buildReadHandle(maxBlockSize, entryCount);
         UUID uuid = UUID.randomUUID();
-        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler, maxBlockSize);
+        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler, maxBlockSize, DEFAULT_READ_BUFFER_SIZE);
         String failureString = "fail deleteOffloaded";
         AmazonS3 mockS3client = Mockito.spy(s3client);
         Mockito

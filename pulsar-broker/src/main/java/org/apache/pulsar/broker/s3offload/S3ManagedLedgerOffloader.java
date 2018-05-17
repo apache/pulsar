@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.s3offload;
 
-import com.amazonaws.AmazonServiceException;
-import com.amazonaws.SdkClientException;
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
@@ -212,9 +210,7 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
 
     @Override
     public CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uid) {
-
         CompletableFuture<Void> promise = new CompletableFuture<>();
-
         scheduler.submit(() -> {
             try {
 
