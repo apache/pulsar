@@ -160,6 +160,22 @@ class S3ManagedLedgerOffloaderTest extends S3TestBase {
     }
 
     @Test
+    public void testSmallBlockSizeConfigured() throws Exception {
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setManagedLedgerOffloadDriver(S3ManagedLedgerOffloader.DRIVER_NAME);
+        conf.setS3ManagedLedgerOffloadRegion("eu-west-1");
+        conf.setS3ManagedLedgerOffloadBucket(BUCKET);
+        conf.setS3ManagedLedgerOffloadMaxBlockSizeInBytes(1024);
+
+        try {
+            S3ManagedLedgerOffloader.create(conf, scheduler);
+            Assert.fail("Should have thrown exception");
+        } catch (PulsarServerException pse) {
+            // correct
+        }
+    }
+
+    @Test
     public void testOffloadAndRead() throws Exception {
         ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 3);
         LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler,

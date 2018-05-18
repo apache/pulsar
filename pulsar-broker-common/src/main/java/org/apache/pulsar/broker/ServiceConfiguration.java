@@ -485,7 +485,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String s3ManagedLedgerOffloadServiceEndpoint = null;
 
     // For Amazon S3 ledger offload, Max block size in bytes.
-    private int s3ManagedLedgerOffloadMaxBlockSizeInBytes = 64 * 1024 * 1024;
+    @FieldContext(minValue = 5242880) // 5MB
+    private int s3ManagedLedgerOffloadMaxBlockSizeInBytes = 64 * 1024 * 1024; // 64MB
 
     // For Amazon S3 ledger offload, Read buffer size in bytes.
     @FieldContext(minValue = 1024)

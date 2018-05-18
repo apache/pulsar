@@ -74,6 +74,9 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
         if (Strings.isNullOrEmpty(bucket)) {
             throw new PulsarServerException("s3ManagedLedgerOffloadBucket cannot be empty is s3 offload enabled");
         }
+        if (maxBlockSize < 5*1024*1024) {
+            throw new PulsarServerException("s3ManagedLedgerOffloadMaxBlockSizeInBytes cannot be less than 5MB");
+        }
 
         AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard();
         if (!Strings.isNullOrEmpty(endpoint)) {
