@@ -212,6 +212,14 @@ If you see `Deleted successfully` in the output, then you've succesfully run, up
 
 ## Writing and running a new function
 
+{% include admonition.html type="info" content="
+In order to write and run the [Python](../api#python) function below, you'll need to install a few dependencies:
+
+```bash
+$ pip install pulsar-client protobuf futures grpcio grpcio-tools
+```
+" %}
+
 In the above examples, we ran and managed a pre-written Pulsar Function and saw how it worked. To really get our hands dirty, let's write and our own function from scratch, using the Python API. This simple function will also take a string as input but it will reverse the string and publish the resulting, reversed string to the specified topic.
 
 First, create a new Python file:

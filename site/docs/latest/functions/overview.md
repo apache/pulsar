@@ -264,8 +264,8 @@ The Pulsar Functions feature was built to support a variety of deployment option
 
 Deployment mode | Description
 :---------------|:-----------
-Local run mode | The function runs in your local environment, for example on your laptop
-Cluster mode | The function runs *inside of* your Pulsar cluster, on the same machines as your Pulsar {% popover brokers %}
+[Local run mode](#local-run) | The function runs in your local environment, for example on your laptop
+[Cluster mode](#cluster-run) | The function runs *inside of* your Pulsar cluster, on the same machines as your Pulsar {% popover brokers %}
 
 ### Local run mode {#local-run}
 

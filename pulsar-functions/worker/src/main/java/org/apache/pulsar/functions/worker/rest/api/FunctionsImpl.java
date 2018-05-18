@@ -48,6 +48,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.common.policies.data.ErrorData;
+import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
@@ -136,12 +137,7 @@ public class FunctionsImpl {
                 .setVersion(0);
 
         PackageLocationMetaData.Builder packageLocationMetaDataBuilder = PackageLocationMetaData.newBuilder()
-                .setPackagePath(String.format(
-            "%s/%s/%s/%s",
-            tenant,
-            namespace,
-            functionName,
-            Utils.getUniquePackageName(fileDetail.getFileName())));
+                .setPackagePath(createPackagePath(tenant, namespace, functionName, fileDetail.getFileName()));
         functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
 
         return updateRequest(functionMetaDataBuilder.build(), uploadedInputStream);
@@ -189,12 +185,7 @@ public class FunctionsImpl {
                 .setVersion(0);
 
         PackageLocationMetaData.Builder packageLocationMetaDataBuilder = PackageLocationMetaData.newBuilder()
-                .setPackagePath(String.format(
-                        "%s/%s/%s/%s",
-                        tenant,
-                        namespace,
-                        functionName,
-                        Utils.getUniquePackageName(fileDetail.getFileName())));
+                .setPackagePath(createPackagePath(tenant, namespace, functionName, fileDetail.getFileName()));
         functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
 
         return updateRequest(functionMetaDataBuilder.build(), uploadedInputStream);
@@ -617,7 +608,7 @@ public class FunctionsImpl {
             Utils.uploadToBookeeper(
                     worker().getDlogNamespace(),
                     uploadedInputStream,
-                    path);
+                    Codec.encode(path));
         } catch (IOException e) {
             log.error("Error uploading file {}", path, e);
             return Response.serverError()
@@ -637,7 +628,7 @@ public class FunctionsImpl {
                     @Override
                     public void write(final OutputStream output) throws IOException {
                         Utils.downloadFromBookkeeper(worker().getDlogNamespace(),
-                                output, path);
+                                output, Codec.encode(path));
                     }
                 }).build();
     }
@@ -732,11 +723,13 @@ public class FunctionsImpl {
             if (functionDetails.getClassName() == null || functionDetails.getClassName().isEmpty()) {
                 missingFields.add("ClassName");
             }
+            // TODO in the future add more check here for functions and connectors
             if (!functionDetails.getSource().isInitialized()) {
                 missingFields.add("Source");
             }
-            else if (functionDetails.getSource().getTopicsToSerDeClassNameMap().isEmpty()) {
-                missingFields.add("Source Topics Serde Map");
+            // TODO in the future add more check here for functions and connectors
+            if (!functionDetails.getSink().isInitialized()) {
+                missingFields.add("Sink");
             }
             if (!missingFields.isEmpty()) {
                 String errorMessage = StringUtils.join(missingFields, ",");
@@ -781,4 +774,8 @@ public class FunctionsImpl {
                 .build();
     }
 
+    public static String createPackagePath(String tenant, String namespace, String functionName, String fileName) {
+        return String.format("%s/%s/%s/%s", tenant, namespace, Codec.encode(functionName),
+                Utils.getUniquePackageName(Codec.encode(fileName)));
+    }
 }

@@ -468,6 +468,29 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // If true, export publisher stats when returning topics stats from the admin rest api
     private boolean exposePublisherStats = true;
 
+    /**** --- Ledger Offloading --- ****/
+    // Driver to use to offload old data to long term storage
+    private String managedLedgerOffloadDriver = null;
+
+    // Maximum number of thread pool threads for ledger offloading
+    private int managedLedgerOffloadMaxThreads = 2;
+
+    // For Amazon S3 ledger offload, AWS region
+    private String s3ManagedLedgerOffloadRegion = null;
+
+    // For Amazon S3 ledger offload, Bucket to place offloaded ledger into
+    private String s3ManagedLedgerOffloadBucket = null;
+
+    // For Amazon S3 ledger offload, Alternative endpoint to connect to (useful for testing)
+    private String s3ManagedLedgerOffloadServiceEndpoint = null;
+
+    // For Amazon S3 ledger offload, Max block size in bytes.
+    private int s3ManagedLedgerOffloadMaxBlockSizeInBytes = 64 * 1024 * 1024;
+
+    // For Amazon S3 ledger offload, Read buffer size in bytes.
+    @FieldContext(minValue = 1024)
+    private int s3ManagedLedgerOffloadReadBufferSizeInBytes = 1024 * 1024; // 1MB
+
     public String getZookeeperServers() {
         return zookeeperServers;
     }
@@ -1625,4 +1648,62 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public void setRunningStandalone(boolean isRunningStandalone) {
         this.isRunningStandalone = isRunningStandalone;
     }
+
+    /**** --- Ledger Offload ---- ****/
+    public void setManagedLedgerOffloadDriver(String driver) {
+        this.managedLedgerOffloadDriver = driver;
+    }
+
+    public String getManagedLedgerOffloadDriver() {
+        return this.managedLedgerOffloadDriver;
+    }
+
+    public void setManagedLedgerOffloadMaxThreads(int maxThreads) {
+        this.managedLedgerOffloadMaxThreads = maxThreads;
+    }
+
+    public int getManagedLedgerOffloadMaxThreads() {
+        return this.managedLedgerOffloadMaxThreads;
+    }
+
+    public void setS3ManagedLedgerOffloadRegion(String region) {
+        this.s3ManagedLedgerOffloadRegion = region;
+    }
+
+    public String getS3ManagedLedgerOffloadRegion() {
+        return this.s3ManagedLedgerOffloadRegion;
+    }
+
+    public void setS3ManagedLedgerOffloadBucket(String bucket) {
+        this.s3ManagedLedgerOffloadBucket = bucket;
+    }
+
+    public String getS3ManagedLedgerOffloadBucket() {
+        return this.s3ManagedLedgerOffloadBucket;
+    }
+
+    public void setS3ManagedLedgerOffloadServiceEndpoint(String endpoint) {
+        this.s3ManagedLedgerOffloadServiceEndpoint = endpoint;
+    }
+
+    public String getS3ManagedLedgerOffloadServiceEndpoint() {
+        return this.s3ManagedLedgerOffloadServiceEndpoint;
+    }
+
+    public void setS3ManagedLedgerOffloadMaxBlockSizeInBytes(int blockSizeInBytes) {
+        this.s3ManagedLedgerOffloadMaxBlockSizeInBytes = blockSizeInBytes;
+    }
+
+    public int getS3ManagedLedgerOffloadMaxBlockSizeInBytes() {
+        return this.s3ManagedLedgerOffloadMaxBlockSizeInBytes;
+    }
+
+    public void setS3ManagedLedgerOffloadReadBufferSizeInBytes(int readBufferSizeInBytes) {
+        this.s3ManagedLedgerOffloadReadBufferSizeInBytes = readBufferSizeInBytes;
+    }
+
+    public int getS3ManagedLedgerOffloadReadBufferSizeInBytes() {
+        return this.s3ManagedLedgerOffloadReadBufferSizeInBytes;
+    }
+
 }

@@ -27,7 +27,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-client-kafka-compat</artifactId>
-    <version>2.0.0-incubating-SNAPSHOT</version>
+    <version>2.1.0-incubating-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -81,6 +81,7 @@
                   <include>com.google.guava:guava</include>
                   <include>com.google.code.gson:gson</include>
                   <include>com.fasterxml.jackson.core</include>
+                  <include>com.fasterxml.jackson.module</include>
                   <include>io.netty:netty</include>
                   <include>io.netty:netty-all</include>
                   <include>org.apache.pulsar:pulsar-common</include>

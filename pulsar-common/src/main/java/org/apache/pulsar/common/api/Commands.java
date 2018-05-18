@@ -519,7 +519,15 @@ public class Commands {
     }
 
     public static ByteBuf newPartitionMetadataRequest(String topic, long requestId) {
-        return Commands.newPartitionMetadataRequest(topic, requestId, null, null, null);
+        CommandPartitionedTopicMetadata.Builder partitionMetadataBuilder = CommandPartitionedTopicMetadata.newBuilder();
+        partitionMetadataBuilder.setTopic(topic);
+        partitionMetadataBuilder.setRequestId(requestId);
+        CommandPartitionedTopicMetadata partitionMetadata = partitionMetadataBuilder.build();
+        ByteBuf res = serializeWithSize(
+                BaseCommand.newBuilder().setType(Type.PARTITIONED_METADATA).setPartitionMetadata(partitionMetadata));
+        partitionMetadataBuilder.recycle();
+        partitionMetadata.recycle();
+        return res;
     }
 
     public static ByteBuf newPartitionMetadataResponse(int partitions, long requestId) {
@@ -538,7 +546,15 @@ public class Commands {
     }
 
     public static ByteBuf newLookup(String topic, boolean authoritative, long requestId) {
-        return Commands.newLookup(topic, authoritative, null, null, null, requestId);
+        CommandLookupTopic.Builder lookupTopicBuilder = CommandLookupTopic.newBuilder();
+        lookupTopicBuilder.setTopic(topic);
+        lookupTopicBuilder.setRequestId(requestId);
+        lookupTopicBuilder.setAuthoritative(authoritative);
+        CommandLookupTopic lookupBroker = lookupTopicBuilder.build();
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.LOOKUP).setLookupTopic(lookupBroker));
+        lookupTopicBuilder.recycle();
+        lookupBroker.recycle();
+        return res;
     }
 
     public static ByteBuf newLookupResponse(String brokerServiceUrl, String brokerServiceUrlTls, boolean authoritative,
@@ -1034,52 +1050,6 @@ public class Commands {
     public static enum ChecksumType {
         Crc32c,
         None;
-    }
-
-    public static ByteBuf newPartitionMetadataRequest(String topic, long requestId, String originalAuthRole,
-            String originalAuthData, String originalAuthMethod) {
-        CommandPartitionedTopicMetadata.Builder partitionMetadataBuilder = CommandPartitionedTopicMetadata.newBuilder();
-        partitionMetadataBuilder.setTopic(topic);
-        partitionMetadataBuilder.setRequestId(requestId);
-        if (originalAuthRole != null) {
-            partitionMetadataBuilder.setOriginalPrincipal(originalAuthRole);
-        }
-        if (originalAuthData != null) {
-            partitionMetadataBuilder.setOriginalAuthData(originalAuthData);
-        }
-
-        if (originalAuthMethod != null) {
-            partitionMetadataBuilder.setOriginalAuthMethod(originalAuthMethod);
-        }
-        CommandPartitionedTopicMetadata partitionMetadata = partitionMetadataBuilder.build();
-        ByteBuf res = serializeWithSize(
-                BaseCommand.newBuilder().setType(Type.PARTITIONED_METADATA).setPartitionMetadata(partitionMetadata));
-        partitionMetadataBuilder.recycle();
-        partitionMetadata.recycle();
-        return res;
-    }
-
-    public static ByteBuf newLookup(String topic, boolean authoritative, String originalAuthRole,
-            String originalAuthData, String originalAuthMethod, long requestId) {
-        CommandLookupTopic.Builder lookupTopicBuilder = CommandLookupTopic.newBuilder();
-        lookupTopicBuilder.setTopic(topic);
-        lookupTopicBuilder.setRequestId(requestId);
-        lookupTopicBuilder.setAuthoritative(authoritative);
-        if (originalAuthRole != null) {
-            lookupTopicBuilder.setOriginalPrincipal(originalAuthRole);
-        }
-        if (originalAuthData != null) {
-            lookupTopicBuilder.setOriginalAuthData(originalAuthData);
-        }
-
-        if (originalAuthMethod != null) {
-            lookupTopicBuilder.setOriginalAuthMethod(originalAuthMethod);
-        }
-        CommandLookupTopic lookupBroker = lookupTopicBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.LOOKUP).setLookupTopic(lookupBroker));
-        lookupTopicBuilder.recycle();
-        lookupBroker.recycle();
-        return res;
     }
 
     public static boolean peerSupportsGetLastMessageId(int peerVersion) {

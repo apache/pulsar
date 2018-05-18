@@ -24,12 +24,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.functions.worker.rest.WorkerServer;
 
 import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.net.URI;
+import java.util.HashSet;
 
 @Slf4j
 public class Worker extends AbstractService {
@@ -101,7 +103,12 @@ public class Worker extends AbstractService {
                 if (e.getStatusCode() == Response.Status.NOT_FOUND.getStatusCode()) {
                     // if not found than create
                     try {
-                        admin.namespaces().createNamespace(workerConfig.getPulsarFunctionsNamespace());
+                        Policies policies = new Policies();
+                        policies.retention_policies = new RetentionPolicies(-1, -1);
+                        policies.replication_clusters = new HashSet<>();
+                        policies.replication_clusters.add(workerConfig.getPulsarFunctionsCluster());
+                        admin.namespaces().createNamespace(workerConfig.getPulsarFunctionsNamespace(),
+                                policies);
                     } catch (PulsarAdminException e1) {
                         // prevent race condition with other workers starting up
                         if (e1.getStatusCode() != Response.Status.CONFLICT.getStatusCode()) {
@@ -109,14 +116,6 @@ public class Worker extends AbstractService {
                                     .getPulsarFunctionsNamespace(), e1);
                             throw e1;
                         }
-                    }
-                    try {
-                        admin.namespaces().setRetention(
-                                workerConfig.getPulsarFunctionsNamespace(),
-                                new RetentionPolicies(Integer.MAX_VALUE, Integer.MAX_VALUE));
-                    } catch (PulsarAdminException e1) {
-                        log.error("Failed to set retention policy for pulsar functions namespace", e);
-                        throw new RuntimeException(e1);
                     }
                 } else {
                     log.error("Failed to get retention policy for pulsar function namespace {}",

@@ -30,9 +30,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -62,6 +60,7 @@ import org.apache.pulsar.broker.loadbalance.LoadResourceQuotaUpdaterTask;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.s3offload.S3ManagedLedgerOffloader;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
@@ -80,6 +79,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -136,6 +136,8 @@ public class PulsarService implements AutoCloseable {
             .build();
     private final ScheduledExecutorService loadManagerExecutor;
     private ScheduledExecutorService compactorExecutor;
+    private ScheduledExecutorService offloaderScheduler;
+    private LedgerOffloader offloader;
     private ScheduledFuture<?> loadReportTask = null;
     private ScheduledFuture<?> loadSheddingTask = null;
     private ScheduledFuture<?> loadResourceQuotaTask = null;
@@ -259,6 +261,10 @@ public class PulsarService implements AutoCloseable {
                 compactorExecutor.shutdown();
             }
 
+            if (offloaderScheduler != null) {
+                offloaderScheduler.shutdown();
+            }
+
             // executor is not initialized in mocks even when real close method is called
             // guard against null executors
             if (executor != null) {
@@ -326,6 +332,8 @@ public class PulsarService implements AutoCloseable {
 
             // needs load management service
             this.startNamespaceService();
+
+            this.offloader = createManagedLedgerOffloader(this.getConfiguration());
 
             LOG.info("Starting Pulsar Broker service; version: '{}'", ( brokerVersion != null ? brokerVersion : "unknown" )  );
             brokerService.start();
@@ -638,7 +646,17 @@ public class PulsarService implements AutoCloseable {
     }
 
     public LedgerOffloader getManagedLedgerOffloader() {
-        return NullLedgerOffloader.INSTANCE;
+        return offloader;
+    }
+
+    public synchronized LedgerOffloader createManagedLedgerOffloader(ServiceConfiguration conf)
+            throws PulsarServerException {
+        if (conf.getManagedLedgerOffloadDriver() != null
+            && conf.getManagedLedgerOffloadDriver().equalsIgnoreCase(S3ManagedLedgerOffloader.DRIVER_NAME)) {
+            return S3ManagedLedgerOffloader.create(conf, getOffloaderScheduler(conf));
+        } else {
+            return NullLedgerOffloader.INSTANCE;
+        }
     }
 
     public ZooKeeperCache getLocalZkCache() {
@@ -699,6 +717,15 @@ public class PulsarService implements AutoCloseable {
             }
         }
         return this.compactor;
+    }
+
+    protected synchronized ScheduledExecutorService getOffloaderScheduler(ServiceConfiguration conf) {
+        if (this.offloaderScheduler == null) {
+            this.offloaderScheduler = Executors.newScheduledThreadPool(
+                    conf.getManagedLedgerOffloadMaxThreads(),
+                    new DefaultThreadFactory("offloader-"));
+        }
+        return this.offloaderScheduler;
     }
 
     public synchronized PulsarClient getClient() throws PulsarServerException {
@@ -824,7 +851,7 @@ public class PulsarService implements AutoCloseable {
                     .getWorkerConfig().getPulsarFunctionsNamespace();
             String[] a = functionWorkerService.get().getWorkerConfig().getPulsarFunctionsNamespace().split("/");
             String property = a[0];
-            String cluster = a[1];
+            String cluster = functionWorkerService.get().getWorkerConfig().getPulsarFunctionsCluster();
 
                 /*
                 multiple brokers may be trying to create the property, cluster, and namespace
@@ -876,6 +903,8 @@ public class PulsarService implements AutoCloseable {
             // create namespace for function worker service
             try {
                 Policies policies = new Policies();
+                policies.retention_policies = new RetentionPolicies(-1, -1);
+                policies.replication_clusters = Collections.singleton(functionWorkerService.get().getWorkerConfig().getPulsarFunctionsCluster());
                 int defaultNumberOfBundles = this.getConfiguration().getDefaultNumberOfNamespaceBundles();
                 policies.bundles = getBundles(defaultNumberOfBundles);
 

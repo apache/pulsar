@@ -45,10 +45,14 @@ Deploying Pulsar Functions is handled by the [`pulsar-admin`](../../reference/Cl
 
 ```bash
 $ bin/pulsar-admin functions localrun \
-  --py sanitizer.py \
-  --className sanitizer \
-  --tenant sample \
-  --namespace ns1
+  --py sanitizer.py \          # The Python file with the function's code
+  --className sanitizer \      # The class or function holding the processing logic
+  --tenant sample \            # The function's tenant (derived from the topic name by default)
+  --namespace ns1 \            # The function's namespace (derived from the topic name by default)
+  --name sanitizer-function \  # The name of the function (the class name by default)
+  --inputs dirty-strings-in \  # The input topic(s) for the function
+  --output clean-strings-out \ # The output topic for the function
+  --logTopic sanitizer-logs    # The topic to which all functions logs are published
 ```
 
 For instructions on running functions in your Pulsar cluster, see the [Deploying Pulsar Functions](../deployment) guide.
@@ -502,14 +506,15 @@ Writing Pulsar Functions in Python entails implementing one of two things:
 
 ### Getting started
 
-The requirements for writing Pulsar Functions in Python depend on your [deployment mode](../deployment):
+Regardless of which [deployment mode](../deployment) you're using, you'll need to install the following Python libraries on any machine that's running Pulsar Functions written in Python:
 
-* If you're writing a [Python native function](#python-native), you won't need to install any external dependencies
-* If you're writing a [Python SDK function](#python-sdk), you'll need to install the the [`pulsar-client`](/api/python) Python library.
+{% include python-deps.html %}
 
-  ```bash
-  $ pip install pulsar-client=={{ site.python_latest }}
-  ```
+That could be your local machine for [local run mode](../deployment#local-run) or a machine running a Pulsar {% popover broker %} for [cluster mode](../deployment#cluster-mode). To install those libraries using pip:
+
+```bash
+$ pip install {% for dep in site.data.deps %}{% if forloop.last %}{{ dep }}{% else %}{{ dep }} {% endif %}{% endfor %}
+```
 
 ### Packaging
 

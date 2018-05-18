@@ -29,6 +29,7 @@ import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.Supplier;
 
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -69,6 +70,10 @@ public class ConnectionPool implements Closeable {
     public static final String TLS_HANDLER = "tls";
 
     public ConnectionPool(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) {
+        this(conf, eventLoopGroup, () -> new ClientCnx(conf, eventLoopGroup));
+    }
+    
+    public ConnectionPool(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, Supplier<ClientCnx> clientCnxSupplier) {
         this.eventLoopGroup = eventLoopGroup;
         this.maxConnectionsPerHosts = conf.getConnectionsPerBroker();
 
@@ -99,7 +104,7 @@ public class ConnectionPool implements Closeable {
 
                 ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.ENCODER);
                 ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(MaxMessageSize, 0, 4, 0, 4));
-                ch.pipeline().addLast("handler", new ClientCnx(conf, eventLoopGroup));
+                ch.pipeline().addLast("handler", clientCnxSupplier.get());
             }
         });
 

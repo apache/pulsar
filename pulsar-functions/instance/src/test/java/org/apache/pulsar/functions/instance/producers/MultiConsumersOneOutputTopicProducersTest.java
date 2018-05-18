@@ -213,28 +213,23 @@ public class MultiConsumersOneOutputTopicProducersTest {
     @Test
     public void testGetCloseProducer() throws Exception {
         String srcTopic = "test-src-topic";
-        int ptnIdx = 1234;
-        Producer<byte[]> producer = producers.getProducer(srcTopic, ptnIdx);
-
-        String producerName = makeProducerName(srcTopic, ptnIdx);
+        String ptnIdx = "1234";
+        String producerName = String.format("%s-%s", srcTopic, ptnIdx);
+        Producer<byte[]> producer = producers.getProducer(producerName);
 
         assertSame(mockProducers.get(producerName), producer);
         verify(mockClient, times(1))
             .newProducer();
-        assertTrue(producers.getProducers().containsKey(srcTopic));
-        assertEquals(1, producers.getProducers().get(srcTopic).size());
-        assertTrue(producers.getProducers().get(srcTopic).containsKey(ptnIdx));
+        assertTrue(producers.getProducers().containsKey(producerName));
 
         // second get will not create a new producer
         assertSame(mockProducers.get(producerName), producer);
         verify(mockClient, times(1))
             .newProducer();
-        assertTrue(producers.getProducers().containsKey(srcTopic));
-        assertEquals(1, producers.getProducers().get(srcTopic).size());
-        assertTrue(producers.getProducers().get(srcTopic).containsKey(ptnIdx));
+        assertTrue(producers.getProducers().containsKey(producerName));
 
         // close
-        producers.closeProducer(srcTopic, ptnIdx);
+        producers.closeProducer(producerName);
         verify(producer, times(1)).closeAsync();
         assertFalse(producers.getProducers().containsKey(srcTopic));
     }

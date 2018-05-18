@@ -70,14 +70,15 @@ uint32_t Murmur3_32Hash::makeHash(const void *key, const int64_t len) {
         h1 = mixH1(h1, k1);
     }
 
+    const uint8_t *tail = reinterpret_cast<const uint8_t *>(data + nblocks * MACRO_CHUNK_SIZE);
     uint32_t k1 = 0;
     switch (len - nblocks * MACRO_CHUNK_SIZE) {
         case 3:
-            k1 ^= static_cast<uint32_t>(blocks[2]) << 16;
+            k1 ^= static_cast<uint32_t>(tail[2]) << 16;
         case 2:
-            k1 ^= static_cast<uint32_t>(blocks[1]) << 8;
+            k1 ^= static_cast<uint32_t>(tail[1]) << 8;
         case 1:
-            k1 ^= static_cast<uint32_t>(blocks[0]);
+            k1 ^= static_cast<uint32_t>(tail[0]);
     };
 
     h1 ^= mixK1(k1);

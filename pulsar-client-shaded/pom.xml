@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.0.0-incubating-SNAPSHOT</version>
+    <version>2.1.0-incubating-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -59,7 +59,7 @@
 
               <artifactSet>
                 <includes>
-                  <include>org.apache.pulsar:pulsar-connect-core</include>
+                  <include>org.apache.pulsar:pulsar-io-core</include>
                   <include>org.apache.pulsar:pulsar-client-original</include>
                   <include>org.apache.commons:commons-lang3</include>
                   <include>commons-codec:commons-codec</include>
@@ -74,6 +74,7 @@
                   <include>com.google.guava:guava</include>
                   <include>com.google.code.gson:gson</include>
                   <include>com.fasterxml.jackson.core</include>
+                  <include>com.fasterxml.jackson.module</include>
                   <include>io.netty:netty</include>
                   <include>io.netty:netty-all</include>
                   <include>io.netty:netty-tcnative-boringssl-static</include>
@@ -95,7 +96,7 @@
                   </includes>
                 </filter>
                 <filter>
-                  <artifact>org.apache.pulsar:pulsar-connect-core</artifact>
+                  <artifact>org.apache.pulsar:pulsar-io-core</artifact>
                   <includes>
                     <include>**</include>
                   </includes>

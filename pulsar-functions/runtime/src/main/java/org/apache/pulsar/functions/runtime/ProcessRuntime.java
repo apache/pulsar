@@ -64,6 +64,7 @@ class ProcessRuntime implements Runtime {
                    String logDirectory,
                    String codeFile,
                    String pulsarServiceUrl) {
+        this.instancePort = instanceConfig.getPort();
         this.processArgs = composeArgs(instanceConfig, instanceFile, logDirectory, codeFile, pulsarServiceUrl);
     }
 
@@ -80,6 +81,12 @@ class ProcessRuntime implements Runtime {
             args.add("-Dlog4j.configurationFile=java_instance_log4j2.yml");
             args.add("-Dpulsar.log.dir=" + logDirectory);
             args.add("-Dpulsar.log.file=" + instanceConfig.getFunctionDetails().getName());
+            if (instanceConfig.getFunctionDetails().getResources() != null) {
+                Function.Resources resources = instanceConfig.getFunctionDetails().getResources();
+                if (resources.getRam() != 0) {
+                    args.add("-Xmx" + String.valueOf(resources.getRam()));
+                }
+            }
             args.add(JavaInstanceMain.class.getName());
             args.add("--jar");
             args.add(codeFile);
@@ -92,6 +99,7 @@ class ProcessRuntime implements Runtime {
             args.add(logDirectory);
             args.add("--logging_file");
             args.add(instanceConfig.getFunctionDetails().getName());
+            // TODO:- Find a platform independent way of controlling memory for a python application
         }
         args.add("--instance_id");
         args.add(instanceConfig.getInstanceId());
@@ -118,31 +126,22 @@ class ProcessRuntime implements Runtime {
         } else {
             args.add("false");
         }
-        if (instanceConfig.getFunctionDetails().getSink().getTopic() != null
-                && !instanceConfig.getFunctionDetails().getSink().getTopic().isEmpty()) {
-            args.add("--output_topic");
-            args.add(instanceConfig.getFunctionDetails().getSink().getTopic());
-        }
-        if (instanceConfig.getFunctionDetails().getSink().getSerDeClassName() != null
-                && !instanceConfig.getFunctionDetails().getSink().getSerDeClassName().isEmpty()) {
-            args.add("--output_serde_classname");
-            args.add(instanceConfig.getFunctionDetails().getSink().getSerDeClassName());
-        }
+
         args.add("--processing_guarantees");
         args.add(String.valueOf(instanceConfig.getFunctionDetails().getProcessingGuarantees()));
         args.add("--pulsar_serviceurl");
         args.add(pulsarServiceUrl);
         args.add("--max_buffered_tuples");
         args.add(String.valueOf(instanceConfig.getMaxBufferedTuples()));
-        Map<String, String> userConfig = instanceConfig.getFunctionDetails().getUserConfigMap();
+        String userConfig = instanceConfig.getFunctionDetails().getUserConfig();
         if (userConfig != null && !userConfig.isEmpty()) {
             args.add("--user_config");
-            args.add(new Gson().toJson(userConfig));
+            args.add(userConfig);
         }
-        instancePort = findAvailablePort();
         args.add("--port");
-        args.add(String.valueOf(instancePort));
+        args.add(String.valueOf(instanceConfig.getPort()));
 
+        // source related configs
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
             if (!instanceConfig.getFunctionDetails().getSource().getClassName().isEmpty()) {
                 args.add("--source_classname");
@@ -153,12 +152,44 @@ class ProcessRuntime implements Runtime {
                 args.add("--source_configs");
                 args.add(sourceConfigs);
             }
+            if (instanceConfig.getFunctionDetails().getSource().getTypeClassName() != null
+                && !instanceConfig.getFunctionDetails().getSource().getTypeClassName().isEmpty()) {
+                args.add("--source_type_classname");
+                args.add(instanceConfig.getFunctionDetails().getSource().getTypeClassName());
+            }
         }
         args.add("--source_subscription_type");
         args.add(instanceConfig.getFunctionDetails().getSource().getSubscriptionType().toString());
-
         args.add("--source_topics_serde_classname");
         args.add(new Gson().toJson(instanceConfig.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap()));
+
+        // sink related configs
+        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
+            if (!instanceConfig.getFunctionDetails().getSink().getClassName().isEmpty()) {
+                args.add("--sink_classname");
+                args.add(instanceConfig.getFunctionDetails().getSink().getClassName());
+            }
+            String sinkConfigs = instanceConfig.getFunctionDetails().getSink().getConfigs();
+            if (sinkConfigs != null && !sinkConfigs.isEmpty()) {
+                args.add("--sink_configs");
+                args.add(sinkConfigs);
+            }
+            if (instanceConfig.getFunctionDetails().getSink().getTypeClassName() != null
+                    && !instanceConfig.getFunctionDetails().getSink().getTypeClassName().isEmpty()) {
+                args.add("--sink_type_classname");
+                args.add(instanceConfig.getFunctionDetails().getSink().getTypeClassName());
+            }
+        }
+        if (instanceConfig.getFunctionDetails().getSink().getTopic() != null
+                && !instanceConfig.getFunctionDetails().getSink().getTopic().isEmpty()) {
+            args.add("--sink_topic");
+            args.add(instanceConfig.getFunctionDetails().getSink().getTopic());
+        }
+        if (instanceConfig.getFunctionDetails().getSink().getSerDeClassName() != null
+                && !instanceConfig.getFunctionDetails().getSink().getSerDeClassName().isEmpty()) {
+            args.add("--sink_serde_classname");
+            args.add(instanceConfig.getFunctionDetails().getSink().getSerDeClassName());
+        }
         return args;
     }
 
@@ -239,20 +270,6 @@ class ProcessRuntime implements Runtime {
             }
         });
         return retval;
-    }
-
-    private int findAvailablePort() {
-        // The logic here is a little flaky. There is no guarantee that this
-        // port returned will be available later on when the instance starts
-        // TODO(sanjeev):- Fix this
-        try {
-            ServerSocket socket = new ServerSocket(0);
-            int port = socket.getLocalPort();
-            socket.close();
-            return port;
-        } catch (IOException ex){
-            throw new RuntimeException("No free port found", ex);
-        }
     }
 
     private void startProcess() {

@@ -21,10 +21,10 @@ tenant: "test"
 namespace: "test-namespace"
 name: "example"
 className: "org.apache.pulsar.functions.api.examples.ExclamationFunction"
-inputs: ["persistent://sample/standalone/ns1/test_src"]
+inputs: ["test_src"]
 userConfig:
-  "PublishTopic" : "persistent://sample/standalone/ns1/test_result"
+  "PublishTopic" : "test_result"
 
-output: "persistent://sample/standalone/ns1/test_result"
+output: "test_result"
 autoAck: true
 parallelism: 1

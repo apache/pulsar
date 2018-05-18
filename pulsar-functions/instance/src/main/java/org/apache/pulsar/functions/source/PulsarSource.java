@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.source;
 
+import com.google.common.annotations.VisibleForTesting;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
@@ -25,12 +26,12 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
-import org.apache.pulsar.connect.core.Record;
-import org.apache.pulsar.connect.core.Source;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.utils.FunctionConfig;
+import org.apache.pulsar.io.core.Record;
+import org.apache.pulsar.io.core.Source;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -41,27 +42,27 @@ import java.util.concurrent.TimeUnit;
 public class PulsarSource<T> implements Source<T> {
 
     private PulsarClient pulsarClient;
-    private PulsarConfig pulsarConfig;
+    private PulsarSourceConfig pulsarSourceConfig;
     private Map<String, SerDe> topicToSerDeMap = new HashMap<>();
 
     @Getter
     private org.apache.pulsar.client.api.Consumer inputConsumer;
 
-    public PulsarSource(PulsarClient pulsarClient, PulsarConfig pulsarConfig) {
+    public PulsarSource(PulsarClient pulsarClient, PulsarSourceConfig pulsarConfig) {
         this.pulsarClient = pulsarClient;
-        this.pulsarConfig = pulsarConfig;
+        this.pulsarSourceConfig = pulsarConfig;
     }
 
     @Override
     public void open(Map<String, Object> config) throws Exception {
         // Setup Serialization/Deserialization
-        setupSerde();
+        setupSerDe();
 
         // Setup pulsar consumer
         this.inputConsumer = this.pulsarClient.newConsumer()
-                .topics(new ArrayList<>(this.pulsarConfig.getTopicSerdeClassNameMap().keySet()))
-                .subscriptionName(this.pulsarConfig.getSubscriptionName())
-                .subscriptionType(this.pulsarConfig.getSubscriptionType().get())
+                .topics(new ArrayList<>(this.pulsarSourceConfig.getTopicSerdeClassNameMap().keySet()))
+                .subscriptionName(this.pulsarSourceConfig.getSubscriptionName())
+                .subscriptionType(this.pulsarSourceConfig.getSubscriptionType().get())
                 .ackTimeout(1, TimeUnit.MINUTES)
                 .subscribe();
     }
@@ -81,7 +82,7 @@ public class PulsarSource<T> implements Source<T> {
             MessageIdImpl messageId = (MessageIdImpl) topicMessageId.getInnerMessageId();
             partitionId = Long.toString(messageId.getPartitionIndex());
         } else {
-            topicName = this.pulsarConfig.getTopicSerdeClassNameMap().keySet().iterator().next();
+            topicName = this.pulsarSourceConfig.getTopicSerdeClassNameMap().keySet().iterator().next();
             partitionId = Long.toString(((MessageIdImpl) message.getMessageId()).getPartitionIndex());
         }
 
@@ -103,17 +104,17 @@ public class PulsarSource<T> implements Source<T> {
         PulsarRecord<T> pulsarMessage = (PulsarRecord<T>) PulsarRecord.builder()
                 .value(input)
                 .messageId(message.getMessageId())
-                .partitionId(partitionId)
+                .partitionId(String.format("%s-%s", topicName, partitionId))
                 .sequenceId(message.getSequenceId())
                 .topicName(topicName)
                 .ackFunction(() -> {
-                    if (pulsarConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+                    if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
                         inputConsumer.acknowledgeCumulativeAsync(message);
                     } else {
                         inputConsumer.acknowledgeAsync(message);
                     }
                 }).failFunction(() -> {
-                    if (pulsarConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+                    if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
                         throw new RuntimeException("Failed to process message: " + message.getMessageId());
                     }
                 })
@@ -126,17 +127,18 @@ public class PulsarSource<T> implements Source<T> {
         this.inputConsumer.close();
     }
 
-    private void setupSerde() throws ClassNotFoundException {
+    @VisibleForTesting
+    void setupSerDe() throws ClassNotFoundException {
 
-        Class<?> typeArg = Thread.currentThread().getContextClassLoader().loadClass(this.pulsarConfig.getTypeClassName());
+        Class<?> typeArg = Thread.currentThread().getContextClassLoader().loadClass(this.pulsarSourceConfig.getTypeClassName());
         if (Void.class.equals(typeArg)) {
             throw new RuntimeException("Input type of Pulsar Function cannot be Void");
         }
 
-        for (Map.Entry<String, String> entry : this.pulsarConfig.getTopicSerdeClassNameMap().entrySet()) {
+        for (Map.Entry<String, String> entry : this.pulsarSourceConfig.getTopicSerdeClassNameMap().entrySet()) {
             String topic = entry.getKey();
             String serDeClassname = entry.getValue();
-            if (serDeClassname.isEmpty()) {
+            if (serDeClassname == null || serDeClassname.isEmpty()) {
                 serDeClassname = DefaultSerDe.class.getName();
             }
             SerDe serDe = InstanceUtils.initializeSerDe(serDeClassname,
