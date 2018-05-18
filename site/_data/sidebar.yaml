@@ -138,6 +138,8 @@ groups:
     endpoint: message-deduplication
   - title: Non-persistent messaging
     endpoint: non-persistent-messaging
+  - title: Tiered storage
+    endpoint: tiered-storage
   - title: Partitioned topics
     endpoint: PartitionedTopics
   - title: Retention and expiry

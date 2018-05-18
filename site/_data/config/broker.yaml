@@ -326,3 +326,9 @@ configs:
   description: The AWS bucket used for tiered storage ledger offload (if `managedLedgerOffloadDriver` is set to `S3`)
 - name: s3ManagedLedgerOffloadServiceEndpoint
   description: The alternative service endpoint used for Amazon S3 tiered storage offload, which can be useful for testing (if `managedLedgerOffloadDriver` is set to `S3`)
+- name: s3ManagedLedgerOffloadMaxBlockSizeInBytes
+  description: The maximum block size for Amazon S3 ledger offloading (in bytes)
+  default: 67108864 (64 MB)
+- name: s3ManagedLedgerOffloadReadBufferSizeInBytes
+  description: The read buffer size for Amazon S3 ledger offloading (in bytes)
+  default: 1048576 (1 MB)
