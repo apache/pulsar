@@ -287,8 +287,14 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         ServiceConfiguration serviceConfig = pulsar.getConfiguration();
 
         bootstrap.childHandler(new PulsarChannelInitializer(this, serviceConfig, false));
+
         // Bind and start to accept incoming connections.
-        bootstrap.bind(new InetSocketAddress(pulsar.getBindAddress(), port)).sync();
+        InetSocketAddress addr = new InetSocketAddress(pulsar.getBindAddress(), port);
+        try {
+            bootstrap.bind(addr).sync();
+        } catch (Exception e) {
+            throw new IOException("Failed to bind Pulsar broker on " + addr, e);
+        }
         log.info("Started Pulsar Broker service on port {}", port);
 
         if (serviceConfig.isTlsEnabled()) {
