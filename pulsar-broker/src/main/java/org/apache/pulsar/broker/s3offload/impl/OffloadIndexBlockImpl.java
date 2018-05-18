@@ -21,11 +21,14 @@ package org.apache.pulsar.broker.s3offload.impl;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.Maps;
+import com.google.protobuf.ByteString;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
+
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -35,6 +38,7 @@ import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
+
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
@@ -42,7 +46,6 @@ import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.proto.DataFormats;
 import org.apache.bookkeeper.proto.DataFormats.LedgerMetadataFormat;
 import org.apache.bookkeeper.proto.DataFormats.LedgerMetadataFormat.State;
-import org.apache.bookkeeper.shaded.com.google.protobuf.ByteString;
 import org.apache.pulsar.broker.s3offload.OffloadIndexBlock;
 import org.apache.pulsar.broker.s3offload.OffloadIndexEntry;
 import org.slf4j.Logger;
