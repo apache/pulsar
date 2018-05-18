@@ -105,8 +105,6 @@ flexible messaging model and an intuitive client API.</description>
 
     <!-- functions-related modules -->
     <module>pulsar-functions</module>
-    <!-- connector related modules -->
-    <module>pulsar-connect</module>
 
     <!-- connector-related modules -->
     <module>pulsar-io</module>
