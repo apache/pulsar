@@ -348,7 +348,12 @@ A future version of BookKeeper will support *non-persistent messaging* and thus 
 
 ## Tiered storage
 
-By default, Pulsar uses [Apache BookKeeper](https://bookkeeper.apache.org) for all [persistent message storage](#persistent-storage). BookKeeper is an ideal system to be used for this purpose for a [variety of reasons](https://streaml.io/blog/messaging-storage-or-both/), but BookKeeper storage can get expensive over time. Fortunately, Pulsar also offers a **tiered storage** capability that enables you to offload some message data to an external
+By default, Pulsar uses [Apache BookKeeper](https://bookkeeper.apache.org) for all [persistent message storage](#persistent-storage). BookKeeper is an ideal system to be used for this purpose for a [variety of reasons](https://streaml.io/blog/messaging-storage-or-both/), but BookKeeper storage can get expensive over time. Fortunately, Pulsar also offers a **tiered storage** capability that enables you to utilize multiple storage systems for Pulsar message data:
+
+* BookKeeper for more recent data
+* Another system for older data
+
+With tiered storage, you can determine what counts as "older" and "more recent" via configuration. Tiered storage in Pulsar works via a process called **ledger offloading** process. With ledger offloading, Pulsar {% popover brokers %}
 
 The following tiered storage offload targets are currently supported:
 
