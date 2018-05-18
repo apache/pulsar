@@ -267,6 +267,7 @@ public class CmdSources extends CmdBase {
             functionDetailsBuilder.setRuntime(FunctionDetails.Runtime.JAVA);
             functionDetailsBuilder.setParallelism(sourceConfig.getParallelism());
             functionDetailsBuilder.setClassName(IdentityFunction.class.getName());
+            functionDetailsBuilder.setAutoAck(true);
             if (sourceConfig.getProcessingGuarantees() != null) {
                 functionDetailsBuilder.setProcessingGuarantees(
                         convertProcessingGuarantee(sourceConfig.getProcessingGuarantees()));
@@ -279,9 +280,9 @@ public class CmdSources extends CmdBase {
             sourceSpecBuilder.setTypeClassName(typeArg.getName());
             functionDetailsBuilder.setSource(sourceSpecBuilder);
 
-            // set up sink spec
+            // set up sink spec.
+            // Sink spec classname should be empty so that the default pulsar sink will be used
             SinkSpec.Builder sinkSpecBuilder = SinkSpec.newBuilder();
-            sinkSpecBuilder.setClassName(PulsarSink.class.getName());
             if (sourceConfig.getSerdeClassName() != null && !sourceConfig.getSerdeClassName().isEmpty()) {
                 sinkSpecBuilder.setSerDeClassName(sourceConfig.getSerdeClassName());
             }

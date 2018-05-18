@@ -26,6 +26,8 @@ extern "C" {
 #include <stddef.h>
 #include <stdint.h>
 
+#pragma GCC visibility push(default)
+
 typedef struct _pulsar_message_id pulsar_message_id_t;
 
 /**
@@ -51,6 +53,8 @@ pulsar_message_id_t *pulsar_message_id_deserialize(const void *buffer, uint32_t 
 char *pulsar_message_id_str(pulsar_message_id_t *messageId);
 
 void pulsar_message_id_free(pulsar_message_id_t *messageId);
+
+#pragma GCC visibility pop
 
 #ifdef __cplusplus
 }

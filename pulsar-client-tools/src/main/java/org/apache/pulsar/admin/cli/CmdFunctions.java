@@ -237,13 +237,13 @@ public class CmdFunctions extends CmdBase {
         protected Long ram;
         @Parameter(names = "--disk", description = "The disk in bytes that need to be allocated per function instance(applicable only to docker runtime)")
         protected Long disk;
-        @Parameter(names = "--windowLengthCount", description = "")
+        @Parameter(names = "--windowLengthCount", description = "The number of messages per window")
         protected Integer windowLengthCount;
-        @Parameter(names = "--windowLengthDurationMs", description = "")
+        @Parameter(names = "--windowLengthDurationMs", description = "The time duration of the window in milliseconds")
         protected Long windowLengthDurationMs;
-        @Parameter(names = "--slidingIntervalCount", description = "")
+        @Parameter(names = "--slidingIntervalCount", description = "The number of messages after which the window slides")
         protected Integer slidingIntervalCount;
-        @Parameter(names = "--slidingIntervalDurationMs", description = "")
+        @Parameter(names = "--slidingIntervalDurationMs", description = "The time duration after which the window slides")
         protected Long slidingIntervalDurationMs;
         @Parameter(names = "--autoAck", description = "")
         protected Boolean autoAck;
@@ -311,6 +311,15 @@ public class CmdFunctions extends CmdBase {
                 Type type = new TypeToken<Map<String, String>>(){}.getType();
                 Map<String, Object> userConfigMap = new Gson().fromJson(userConfigString, type);
                 functionConfig.setUserConfig(userConfigMap);
+            }
+            if (functionConfig.getInputs() == null) {
+                functionConfig.setInputs(new LinkedList<>());
+            }
+            if (functionConfig.getCustomSerdeInputs() == null) {
+                functionConfig.setCustomSerdeInputs(new HashMap<>());
+            }
+            if (functionConfig.getUserConfig() == null) {
+                functionConfig.setUserConfig(new HashMap<>());
             }
 
             if (functionConfig.getInputs().isEmpty() && functionConfig.getCustomSerdeInputs().isEmpty()) {
@@ -588,6 +597,10 @@ public class CmdFunctions extends CmdBase {
         }
 
         private void inferMissingFunctionName(FunctionConfig functionConfig) {
+            if (isNull(functionConfig.getClassName())) {
+                throw new IllegalArgumentException("You must specify a class name for the function");
+            }
+
             String [] domains = functionConfig.getClassName().split("\\.");
             if (domains.length == 0) {
                 functionConfig.setName(functionConfig.getClassName());
@@ -654,14 +667,12 @@ public class CmdFunctions extends CmdBase {
             FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
 
             // Setup source
+            SourceSpec.Builder sourceSpecBuilder = SourceSpec.newBuilder();
             Map<String, String> topicToSerDeClassNameMap = new HashMap<>();
             topicToSerDeClassNameMap.putAll(functionConfig.getCustomSerdeInputs());
-            SourceSpec.Builder sourceSpecBuilder = SourceSpec.newBuilder();
-            if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
-                sourceSpecBuilder.setClassName(PulsarSource.class.getName());
-            }
             functionConfig.getInputs().forEach(v -> topicToSerDeClassNameMap.put(v, ""));
             sourceSpecBuilder.putAllTopicsToSerDeClassName(topicToSerDeClassNameMap);
+
             if (functionConfig.getSubscriptionType() != null) {
                 sourceSpecBuilder
                         .setSubscriptionType(convertSubscriptionType(functionConfig.getSubscriptionType()));
@@ -673,9 +684,6 @@ public class CmdFunctions extends CmdBase {
 
             // Setup sink
             SinkSpec.Builder sinkSpecBuilder = SinkSpec.newBuilder();
-            if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
-                sinkSpecBuilder.setClassName(PulsarSink.class.getName());
-            }
             if (functionConfig.getOutput() != null) {
                 sinkSpecBuilder.setTopic(functionConfig.getOutput());
             }
@@ -709,6 +717,7 @@ public class CmdFunctions extends CmdBase {
 
             Map<String, Object> configs = new HashMap<>();
             configs.putAll(functionConfig.getUserConfig());
+
             // windowing related
             WindowConfig windowConfig = functionConfig.getWindowConfig();
             if (windowConfig != null) {
@@ -722,7 +731,9 @@ public class CmdFunctions extends CmdBase {
                     functionDetailsBuilder.setClassName(functionConfig.getClassName());
                 }
             }
-            functionDetailsBuilder.setUserConfig(new Gson().toJson(configs));
+            if (!configs.isEmpty()) {
+                functionDetailsBuilder.setUserConfig(new Gson().toJson(configs));
+            }
 
             functionDetailsBuilder.setAutoAck(functionConfig.isAutoAck());
             functionDetailsBuilder.setParallelism(functionConfig.getParallelism());

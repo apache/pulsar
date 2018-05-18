@@ -129,7 +129,6 @@
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-all</artifactId>
-      <version>4.1.12.Final</version>
     </dependency>
 
     <dependency>
@@ -162,6 +161,12 @@
     <dependency>
       <groupId>com.google.code.gson</groupId>
       <artifactId>gson</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>protobuf-shaded</artifactId>
+      <version>${project.version}</version>
     </dependency>
 
   </dependencies>
