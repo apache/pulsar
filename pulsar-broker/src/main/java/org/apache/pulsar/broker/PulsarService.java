@@ -43,6 +43,7 @@ import java.util.function.Supplier;
 
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
@@ -136,7 +137,7 @@ public class PulsarService implements AutoCloseable {
             .build();
     private final ScheduledExecutorService loadManagerExecutor;
     private ScheduledExecutorService compactorExecutor;
-    private ScheduledExecutorService offloaderScheduler;
+    private OrderedScheduler offloaderScheduler;
     private LedgerOffloader offloader;
     private ScheduledFuture<?> loadReportTask = null;
     private ScheduledFuture<?> loadSheddingTask = null;
@@ -719,11 +720,11 @@ public class PulsarService implements AutoCloseable {
         return this.compactor;
     }
 
-    protected synchronized ScheduledExecutorService getOffloaderScheduler(ServiceConfiguration conf) {
+    protected synchronized OrderedScheduler getOffloaderScheduler(ServiceConfiguration conf) {
         if (this.offloaderScheduler == null) {
-            this.offloaderScheduler = Executors.newScheduledThreadPool(
-                    conf.getManagedLedgerOffloadMaxThreads(),
-                    new DefaultThreadFactory("offloader-"));
+            this.offloaderScheduler = OrderedScheduler.newSchedulerBuilder()
+                .numThreads(conf.getManagedLedgerOffloadMaxThreads())
+                .name("offloader").build();
         }
         return this.offloaderScheduler;
     }
