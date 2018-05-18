@@ -172,10 +172,10 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
 
             // upload index block
             try (OffloadIndexBlock index = indexBuilder.build();
-                 InputStream indexStream = index.toStream()) {
+                 OffloadIndexBlock.IndexInputStream indexStream = index.toStream()) {
                 // write the index block
                 ObjectMetadata metadata = new ObjectMetadata();
-                metadata.setContentLength(indexStream.available());
+                metadata.setContentLength(indexStream.getStreamSize());
                 s3client.putObject(new PutObjectRequest(
                     bucket,
                     indexBlockKey,
