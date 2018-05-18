@@ -320,7 +320,7 @@ public class PulsarService implements AutoCloseable {
             // Initialize and start service to access configuration repository.
             this.startZkCacheService();
 
-            this.bkClientFactory = getBookKeeperClientFactory();
+            this.bkClientFactory = newBookKeeperClientFactory();
             managedLedgerClientFactory = new ManagedLedgerClientFactory(config, getZkClient(), bkClientFactory);
 
             this.brokerService = new BrokerService(this);
@@ -695,8 +695,12 @@ public class PulsarService implements AutoCloseable {
         return zkClientFactory;
     }
 
-    public BookKeeperClientFactory getBookKeeperClientFactory() {
+    public BookKeeperClientFactory newBookKeeperClientFactory() {
         return new BookKeeperClientFactoryImpl();
+    }
+
+    public BookKeeperClientFactory getBookKeeperClientFactory() {
+        return bkClientFactory;
     }
 
     protected synchronized ScheduledExecutorService getCompactorExecutor() {
