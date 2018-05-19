@@ -479,13 +479,13 @@ public class ConsumerImpl extends ConsumerBase {
     private CompletableFuture<Void> sendAcknowledge(MessageId messageId, AckType ackType,
                                                     Map<String,Long> properties) {
         MessageIdImpl msgId = (MessageIdImpl) messageId;
-        final ByteBuf cmd = Commands.newAck(consumerId, msgId.getLedgerId(), msgId.getEntryId(),
-                                            ackType, null, properties);
 
         // There's no actual response from ack messages
         final CompletableFuture<Void> ackFuture = new CompletableFuture<Void>();
 
         if (isConnected()) {
+            final ByteBuf cmd = Commands.newAck(consumerId, msgId.getLedgerId(), msgId.getEntryId(),
+                    ackType, null, properties);
             cnx().ctx().writeAndFlush(cmd).addListener(new GenericFutureListener<Future<Void>>() {
                 @Override
                 public void operationComplete(Future<Void> future) throws Exception {
