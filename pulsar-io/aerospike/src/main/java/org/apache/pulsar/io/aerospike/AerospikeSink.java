@@ -33,7 +33,6 @@ import com.aerospike.client.policy.ClientPolicy;
 import com.aerospike.client.policy.WritePolicy;
 import org.apache.pulsar.common.util.KeyValue;
 import org.apache.pulsar.io.core.SimpleSink;
-import org.apache.pulsar.io.core.Sink;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
