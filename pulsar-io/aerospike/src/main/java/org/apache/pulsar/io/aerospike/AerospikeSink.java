@@ -43,9 +43,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingDeque;
 
 /**
- * Simple AeroSpike sink
+ * A Simple abstract class for Aerospike sink
+ * Users need to implement extractKeyValue function to use this sink
  */
-public class AerospikeSink<K, V> extends SimpleSink<KeyValue<K, V>> {
+public abstract class AerospikeSink<K, V> extends SimpleSink<byte[]> {
 
     private static final Logger LOG = LoggerFactory.getLogger(AerospikeSink.class);
 
@@ -83,10 +84,11 @@ public class AerospikeSink<K, V> extends SimpleSink<KeyValue<K, V>> {
     }
 
     @Override
-    public CompletableFuture<Void> write(KeyValue<K, V> record) {
+    public CompletableFuture<Void> write(byte[] record) {
         CompletableFuture<Void> future = new CompletableFuture<>();
-        Key key = new Key(aerospikeSinkConfig.getKeyspace(), aerospikeSinkConfig.getKeySet(), record.getKey().toString());
-        Bin bin = new Bin(aerospikeSinkConfig.getColumnName(), Value.getAsBlob(record.getValue()));
+        KeyValue<K, V> keyValue = extractKeyValue(record);
+        Key key = new Key(aerospikeSinkConfig.getKeyspace(), aerospikeSinkConfig.getKeySet(), keyValue.getKey().toString());
+        Bin bin = new Bin(aerospikeSinkConfig.getColumnName(), Value.getAsBlob(keyValue.getValue()));
         AWriteListener listener = null;
         try {
             listener = queue.take();
@@ -154,4 +156,6 @@ public class AerospikeSink<K, V> extends SimpleSink<KeyValue<K, V>> {
             }
         }
     }
+
+    public abstract KeyValue<K, V> extractKeyValue(byte[] message);
 }

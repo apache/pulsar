@@ -37,9 +37,10 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 /**
- * Simple Kafka Sink to publish messages to a Kafka topic
+ * A Simple abstract class for Kafka sink
+ * Users need to implement extractKeyValue function to use this sink
  */
-public class KafkaSink<K, V> extends SimpleSink<KeyValue<K, V>> {
+public abstract class KafkaSink<K, V> extends SimpleSink<byte[]> {
 
     private static final Logger LOG = LoggerFactory.getLogger(KafkaSink.class);
 
@@ -48,8 +49,9 @@ public class KafkaSink<K, V> extends SimpleSink<KeyValue<K, V>> {
     private KafkaSinkConfig kafkaSinkConfig;
 
     @Override
-    public CompletableFuture<Void> write(KeyValue<K, V> message) {
-        ProducerRecord<K, V> record = new ProducerRecord<>(kafkaSinkConfig.getTopic(), message.getKey(), message.getValue());
+    public CompletableFuture<Void> write(byte[] message) {
+        KeyValue<K, V> keyValue = extractKeyValue(message);
+        ProducerRecord<K, V> record = new ProducerRecord<>(kafkaSinkConfig.getTopic(), keyValue.getKey(), keyValue.getValue());
         LOG.debug("Record sending to kafka, record={}.", record);
         Future f = producer.send(record);
         return CompletableFuture.supplyAsync(() -> {
@@ -91,4 +93,6 @@ public class KafkaSink<K, V> extends SimpleSink<KeyValue<K, V>> {
 
         LOG.info("Kafka sink started.");
     }
+
+    public abstract KeyValue<K, V> extractKeyValue(byte[] message);
 }
