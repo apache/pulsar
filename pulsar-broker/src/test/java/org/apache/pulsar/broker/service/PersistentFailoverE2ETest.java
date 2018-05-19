@@ -31,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -56,6 +57,7 @@ import org.testng.annotations.Test;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
+@Slf4j
 public class PersistentFailoverE2ETest extends BrokerTestBase {
 
     @BeforeClass
@@ -79,6 +81,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
 
         @Override
         public void becameActive(Consumer<?> consumer, int partitionId) {
+            log.info("Consumer {} becomes active in partition {}", consumer, partitionId);
             try {
                 activeQueue.put(partitionId);
             } catch (InterruptedException e) {
@@ -87,6 +90,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
 
         @Override
         public void becameInactive(Consumer<?> consumer, int partitionId) {
+            log.info("Consumer {} becomes inactive in partition {}", consumer, partitionId);
             try {
                 inActiveQueue.put(partitionId);
             } catch (InterruptedException e) {
