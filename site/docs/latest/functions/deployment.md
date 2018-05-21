@@ -214,3 +214,24 @@ Pulsar Functions can also be assigned a subscription type when you [create](#clu
 Deployment of Pulsar Functions is handled by a worker process.
 
 This worker process
+
+### Execution runtimes
+
+The Pulsar Functions worker has two execution runtimes:
+
+* The [process-based](#process) runtime runs Pulsar Function [instances](#parallelism) as separate processes
+* The [thread-based](#thread) runtime
+
+### Process-based execution {#process}
+
+```yaml
+processContainerFactory:
+  logDirectory:
+```
+
+#### Thread-based execution {#thread}
+
+```yaml
+threadContainerFactory:
+  threadGroupName: "Thread Function Container Group"
+```
