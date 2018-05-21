@@ -110,7 +110,7 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
         CompletableFuture<Void> promise = new CompletableFuture<>();
         scheduler.submit(() -> {
             OffloadIndexBlockBuilder indexBuilder = OffloadIndexBlockBuilder.create()
-                .withMetadata(readHandle.getLedgerMetadata());
+                .withLedgerMetadata(readHandle.getLedgerMetadata());
             String dataBlockKey = dataBlockOffloadKey(readHandle.getId(), uuid);
             String indexBlockKey = indexBlockOffloadKey(readHandle.getId(), uuid);
             InitiateMultipartUploadRequest dataBlockReq = new InitiateMultipartUploadRequest(bucket, dataBlockKey);
@@ -124,6 +124,7 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
                 return;
             }
 
+            long dataObjectLength = 0;
             // start multi part upload for data block.
             try {
                 long startEntry = 0;
@@ -157,6 +158,8 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
                         entryBytesWritten += blockStream.getBlockEntryBytesCount();
                         partId++;
                     }
+
+                    dataObjectLength += blockSize;
                 }
 
                 s3client.completeMultipartUpload(new CompleteMultipartUploadRequest()
@@ -171,7 +174,7 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
             }
 
             // upload index block
-            try (OffloadIndexBlock index = indexBuilder.build();
+            try (OffloadIndexBlock index = indexBuilder.withDataObjectLength(dataObjectLength).build();
                  InputStream indexStream = index.toStream()) {
                 // write the index block
                 ObjectMetadata metadata = new ObjectMetadata();

@@ -34,6 +34,7 @@ import org.apache.pulsar.broker.s3offload.OffloadIndexBlockBuilder;
 public class OffloadIndexBlockBuilderImpl implements OffloadIndexBlockBuilder {
 
     private LedgerMetadata ledgerMetadata;
+    private long dataObjectLength;
     private List<OffloadIndexEntryImpl> entries;
     private int lastBlockSize;
 
@@ -42,7 +43,13 @@ public class OffloadIndexBlockBuilderImpl implements OffloadIndexBlockBuilder {
     }
 
     @Override
-    public OffloadIndexBlockBuilder withMetadata(LedgerMetadata metadata) {
+    public OffloadIndexBlockBuilder withDataObjectLength(long dataObjectLength) {
+        this.dataObjectLength = dataObjectLength;
+        return this;
+    }
+
+    @Override
+    public OffloadIndexBlockBuilder withLedgerMetadata(LedgerMetadata metadata) {
         this.ledgerMetadata = metadata;
         return this;
     }
@@ -73,7 +80,8 @@ public class OffloadIndexBlockBuilderImpl implements OffloadIndexBlockBuilder {
     public OffloadIndexBlock build() {
         checkState(ledgerMetadata != null);
         checkState(!entries.isEmpty());
-        return OffloadIndexBlockImpl.get(ledgerMetadata, entries);
+        checkState(dataObjectLength > 0);
+        return OffloadIndexBlockImpl.get(ledgerMetadata, dataObjectLength, entries);
     }
 
 }
