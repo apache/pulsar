@@ -597,6 +597,7 @@ The following formats are supported by the Pulsar schema registry:
 
 * None. If no schema is specified for a topic, producers and consumers will handle raw bytes.
 * `String` (used for UTF-8-encoded strings)
+* [`ByteBuffer`](https://docs.oracle.com/javase/8/docs/api/java/nio/ByteBuffer.html)
 * [JSON](https://www.json.org/)
 
 For usage instructions, see the documentation for your preferred client library:
