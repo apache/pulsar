@@ -45,7 +45,6 @@ import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.SinkConfig;
 import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.io.core.Sink;
-import org.apache.pulsar.io.core.Source;
 
 import java.io.File;
 import java.io.IOException;
@@ -63,16 +62,19 @@ import java.util.function.Consumer;
 public class CmdSinks extends CmdBase {
 
     private final CreateSink createSink;
+    private final UpdateSink updateSink;
     private final DeleteSink deleteSink;
     private final LocalSinkRunner localSinkRunner;
 
     public CmdSinks(PulsarAdmin admin) {
         super("sink", admin);
         createSink = new CreateSink();
+        updateSink = new UpdateSink();
         deleteSink = new DeleteSink();
         localSinkRunner = new LocalSinkRunner();
 
         jcommander.addCommand("create", createSink);
+        jcommander.addCommand("update", updateSink);
         jcommander.addCommand("delete", deleteSink);
         jcommander.addCommand("localrun", localSinkRunner);
     }
@@ -108,7 +110,31 @@ public class CmdSinks extends CmdBase {
     }
 
     @Parameters(commandDescription = "Create Pulsar sink connectors")
-    class CreateSink extends BaseCommand {
+    class CreateSink extends SinkCommand {
+        @Override
+        void runCmd() throws Exception {
+            if (!areAllRequiredFieldsPresentForSink(sinkConfig)) {
+                throw new RuntimeException("Missing arguments");
+            }
+            admin.functions().createFunction(createSinkConfig(sinkConfig), jarFile);
+            print("Created successfully");
+        }
+    }
+
+    @Parameters(commandDescription = "Update Pulsar sink connectors")
+    class UpdateSink extends SinkCommand {
+        @Override
+        void runCmd() throws Exception {
+            if (!areAllRequiredFieldsPresentForSink(sinkConfig)) {
+                throw new RuntimeException("Missing arguments");
+            }
+            admin.functions().updateFunction(createSinkConfig(sinkConfig), jarFile);
+            print("Updated successfully");
+        }
+    }
+
+    @Parameters(commandDescription = "Create Pulsar sink connectors")
+    abstract class SinkCommand extends BaseCommand {
         @Parameter(names = "--tenant", description = "The sink's tenant")
         protected String tenant;
         @Parameter(names = "--namespace", description = "The sink's namespace")
@@ -123,7 +149,7 @@ public class CmdSinks extends CmdBase {
         protected String customSerdeInputString;
         @Parameter(names = "--processingGuarantees", description = "The processing guarantees (aka delivery semantics) applied to the Sink")
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
-        @Parameter(names = "--parallelism", description = "")
+        @Parameter(names = "--parallelism", description = "The sink's parallelism factor (i.e. the number of sink instances to run)")
         protected String parallelism;
         @Parameter(
                 names = "--jar",
@@ -219,15 +245,6 @@ public class CmdSinks extends CmdBase {
                 Map<String, Object> sinkConfigMap = new Gson().fromJson(sinkConfigString, type);
                 sinkConfig.setConfigs(sinkConfigMap);
             }
-        }
-
-        @Override
-        void runCmd() throws Exception {
-            if (!areAllRequiredFieldsPresentForSink(sinkConfig)) {
-                throw new RuntimeException("Missing arguments");
-            }
-            admin.functions().createFunction(createSinkConfig(sinkConfig), jarFile);
-            print("Created successfully");
         }
 
         private Class<?> getSinkType(File file) {
