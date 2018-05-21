@@ -145,7 +145,27 @@ $ bin/pulsar-admin functions update \
 
 ### Function instance resources {#resources}
 
-TODO
+When you run Pulsar Functions in [cluster run](#cluster-run) mode, you can specify the resources that are assigned to each function [instance](#parallelism):
+
+Resource | Specified as... | Runtimes
+:--------|:----------------|:--------
+CPU | The number of cores | Cluster run
+RAM | The number of bytes | TODO
+Disk space | The number of bytes | TODO
+
+Here's an example function creation command that allocates 8 cores, 8 GB of RAM, and 10 GB of disk space to a function:
+
+```bash
+$ bin/pulsar-admin functions create \
+  --jar target/my-functions.jar \
+  --className org.example.functions.MyFunction \
+  --cpu 8 \
+  --ram 8589934592 \
+  --disk 10737418240
+```
+
+{% include admonition.html type="warning" title="Resources are *per instance*"
+   content="Something or other" %}
 
 ## Triggering Pulsar Functions {#triggering}
 

@@ -339,6 +339,8 @@ $ bin/pulsar-admin functions create \
   --disk 10737418240
 ```
 
+For more information on resources, see the [Deploying and Managing Pulsar Functions](../deployment#resources) documentation.
+
 ### Logging
 
 Pulsar Functions created using the [Pulsar Functions SDK(#sdk) can send logs to a log topic that you specify as part of the function's configuration. The function created using the command below, for example, would produce all logs on the `persistent://sample/standalone/ns1/my-func-1-log` topic:
