@@ -21,6 +21,9 @@ cmake_minimum_required(VERSION 2.8)
 project (pulsar-cpp)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules")
 
+option(BUILD_TESTS "Build tests" ON)
+MESSAGE(STATUS "BUILD_TESTS:  " ${BUILD_TESTS})
+
 option(LINK_STATIC "Link against static libraries" OFF)
 MESSAGE(STATUS "LINK_STATIC:  " ${LINK_STATIC})
 
@@ -37,6 +40,11 @@ if (NOT CXX_STANDARD)
 endif(NOT CXX_STANDARD)
 
 set(CMAKE_CXX_FLAGS " -msse4.2 -mpclmul -Wno-deprecated-declarations ${CXX_STANDARD} ${CMAKE_CXX_FLAGS}")
+
+if (!APPLE)
+    # Hide all non-exported symbols to avoid conflicts
+    set(CMAKE_CXX_FLAGS " -fvisibility=hidden -Wl,--exclude-libs,ALL ${CMAKE_CXX_FLAGS}")
+endif ()
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
@@ -98,10 +106,10 @@ if (PYTHONLIBS_VERSION_STRING MATCHES "^3.+$")
     list(GET PYTHONLIBS_VERSION_NO_LIST 1 PYTHONLIBS_VERSION_MINOR)
     set(BOOST_PYTHON_NAME_POSTFIX ${PYTHONLIBS_VERSION_MAJOR}${PYTHONLIBS_VERSION_MINOR})
     # For python3 the lib name is boost_python3
-    set(BOOST_PYTHON_NAME_LIST python3;python3-mt;python-py${BOOST_PYTHON_NAME_POSTFIX})
+    set(BOOST_PYTHON_NAME_LIST python3;python3-mt;python-py${BOOST_PYTHON_NAME_POSTFIX};python${BOOST_PYTHON_NAME_POSTFIX}-mt)
 else ()
     # Regular boost_python
-    set(BOOST_PYTHON_NAME_LIST python;python-mt;python-py27)
+    set(BOOST_PYTHON_NAME_LIST python;python-mt;python-py27;python27-mt)
 endif ()
 
 foreach (BOOST_PYTHON_NAME IN LISTS BOOST_PYTHON_NAME_LIST)
@@ -119,10 +127,18 @@ endif ()
 find_package(Boost REQUIRED COMPONENTS program_options filesystem regex
                                        thread system ${BOOST_PYTHON_NAME_FOUND})
 
+if (APPLE)
+    set(OPENSSL_INCLUDE_DIR /usr/local/opt/openssl/include/)
+    set(OPENSSL_ROOT_DIR /usr/local/opt/openssl/)
+endif ()
 
 find_package(OpenSSL REQUIRED)
-find_path(GTEST_INCLUDE_PATH gtest/gtest.h)
-find_path(GMOCK_INCLUDE_PATH gmock/gmock.h)
+
+if (BUILD_TESTS)
+    find_path(GTEST_INCLUDE_PATH gtest/gtest.h)
+    find_path(GMOCK_INCLUDE_PATH gmock/gmock.h)
+endif ()
+
 find_path(JSON_INCLUDE_PATH jsoncpp)
 find_path(LOG4CXX_INCLUDE_PATH log4cxx/logger.h)
 
@@ -196,7 +212,11 @@ set(CLIENT_LIBS
 add_subdirectory(lib)
 add_subdirectory(perf)
 add_subdirectory(examples)
-add_subdirectory(tests)
+
+if (BUILD_TESTS)
+    add_subdirectory(tests)
+endif()
+
 add_subdirectory(python)
 
 # `make format` option

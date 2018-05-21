@@ -197,9 +197,8 @@ public class S3BackedReadHandleImpl implements ReadHandle {
             OffloadIndexBlockBuilder indexBuilder = OffloadIndexBlockBuilder.create();
             OffloadIndexBlock index = indexBuilder.fromStream(obj.getObjectContent());
 
-            ObjectMetadata dataMetadata = s3client.getObjectMetadata(bucket, key); // FIXME: this should be part of index
             S3BackedInputStream inputStream = new S3BackedInputStreamImpl(s3client, bucket, key,
-                                                                          dataMetadata.getContentLength(),
+                                                                          index.getDataObjectLength(),
                                                                           readBufferSize);
             return new S3BackedReadHandleImpl(ledgerId, index, inputStream, executor);
         }

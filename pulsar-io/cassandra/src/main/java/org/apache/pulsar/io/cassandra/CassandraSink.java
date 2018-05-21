@@ -28,7 +28,7 @@ import com.datastax.driver.core.Session;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import org.apache.pulsar.common.util.KeyValue;
-import org.apache.pulsar.io.core.Sink;
+import org.apache.pulsar.io.core.SimpleSink;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,10 +36,10 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Simple Cassandra sink
- * Takes in a KeyValue and writes it to a predefined keyspace/columnfamily/columnname.
+ * A Simple abstract class for Cassandra sink
+ * Users need to implement extractKeyValue function to use this sink
  */
-public class CassandraSink<K, V> implements Sink<KeyValue<K, V>> {
+public abstract class CassandraSink<K, V> extends SimpleSink<byte[]> {
 
     private static final Logger LOG = LoggerFactory.getLogger(CassandraSink.class);
 
@@ -71,8 +71,9 @@ public class CassandraSink<K, V> implements Sink<KeyValue<K, V>> {
     }
 
     @Override
-    public CompletableFuture<Void> write(KeyValue<K, V> record) {
-        BoundStatement bound = statement.bind(record.getKey(), record.getValue());
+    public CompletableFuture<Void> write(byte[] record) {
+        KeyValue<K, V> keyValue = extractKeyValue(record);
+        BoundStatement bound = statement.bind(keyValue.getKey(), keyValue.getValue());
         ResultSetFuture future = session.executeAsync(bound);
         CompletableFuture<Void> completable = new CompletableFuture<Void>();
         Futures.addCallback(future,
@@ -107,4 +108,6 @@ public class CassandraSink<K, V> implements Sink<KeyValue<K, V>> {
         session = cluster.connect();
         session.execute("USE " + cassandraSinkConfig.getKeyspace());
     }
+
+    public abstract KeyValue<K, V> extractKeyValue(byte[] message);
 }

@@ -169,7 +169,7 @@ public class PulsarClusterUtils {
                     return true;
                 } catch (Exception e) {
                     // couldn't connect, try again after sleep
-                    LOG.info("Failed to connect {} @ {}", ip, BROKER_PORT, e);
+                    LOG.debug("Failed to connect {} @ {}", ip, BROKER_PORT, e);
                 }
                 try {
                     Thread.sleep(pollMillis);
@@ -294,5 +294,28 @@ public class PulsarClusterUtils {
     public static Set<String> zookeeperSet(DockerClient docker, String cluster) {
         return DockerUtils.cubeIdsWithLabels(docker, ImmutableMap.of("service", "zookeeper",
                                                                      "cluster", cluster));
+    }
+
+    public static void updateConf(DockerClient docker, String containerId,
+                                  String confFile, String key, String value) throws Exception {
+        String sedProgram = String.format(
+                "/[[:blank:]]*%s[[:blank:]]*=/ { h; s^=.*^=%s^; }; ${x;/^$/ { s^^%s=%s^;H; }; x}",
+                key, value, key, value);
+        DockerUtils.runCommand(docker, containerId, "sed", "-i", "-e", sedProgram, confFile);
+    }
+
+    public static void setLogLevel(DockerClient docker, String containerId,
+                                   String loggerName, String level) throws Exception {
+        String sedProgram = String.format(
+                "/  Logger:/ a\\\n"
+                +"      - name: %s\\n"
+                +"        level: %s\\n"
+                +"        additivity: false\\n"
+                +"        AppenderRef:\\n"
+                +"          - ref: Console\\n"
+                +"          - level: debug\\n",
+                loggerName, level);
+        String logConf = "/pulsar/conf/log4j2.yaml";
+        DockerUtils.runCommand(docker, containerId, "sed", "-i", "-e", sedProgram, logConf);
     }
 }

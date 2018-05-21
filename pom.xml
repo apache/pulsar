@@ -101,8 +101,11 @@ flexible messaging model and an intuitive client API.</description>
     <module>docker</module>
     <module>tests</module>
     <module>pulsar-log4j2-appender</module>
+    <module>protobuf-shaded</module>
+
     <!-- functions-related modules -->
     <module>pulsar-functions</module>
+
     <!-- connector-related modules -->
     <module>pulsar-io</module>
   </modules>
@@ -152,6 +155,9 @@ flexible messaging model and an intuitive client API.</description>
     <!-- test dependencies -->
     <disruptor.version>3.4.0</disruptor.version>
     <s3mock.version>0.2.5</s3mock.version>
+
+    <!-- Plugin dependencies -->
+    <protobuf-maven-plugin.version>0.5.0</protobuf-maven-plugin.version>
   </properties>
 
   <dependencyManagement>

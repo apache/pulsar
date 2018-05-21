@@ -395,7 +395,7 @@ public class ManagedLedgerConfig {
      * @param lagTime period to wait before deleting offloaded ledgers from bookkeeper
      * @param unit timeunit for lagTime
      */
-    public ManagedLedgerConfig setOffloadLedgerDeletionLag(int lagTime, TimeUnit unit) {
+    public ManagedLedgerConfig setOffloadLedgerDeletionLag(long lagTime, TimeUnit unit) {
         this.offloadLedgerDeletionLagMs = unit.toMillis(lagTime);
         return this;
     }

@@ -23,6 +23,8 @@
 extern "C" {
 #endif
 
+#pragma GCC visibility push(default)
+
 typedef struct _pulsar_client_configuration pulsar_client_configuration_t;
 typedef struct _pulsar_authentication pulsar_authentication_t;
 
@@ -138,6 +140,8 @@ void pulsar_client_configuration_set_stats_interval_in_seconds(pulsar_client_con
  */
 const unsigned int pulsar_client_configuration_get_stats_interval_in_seconds(
     pulsar_client_configuration_t *conf);
+
+#pragma GCC visibility pop
 
 #ifdef __cplusplus
 }
