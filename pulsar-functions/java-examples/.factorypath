@@ -1,0 +1,5 @@
+<factorypath>
+    <factorypathentry kind="VARJAR" id="M2_REPO/org/slf4j/slf4j-api/1.7.25/slf4j-api-1.7.25.jar" enabled="true" runInBatchMode="false"/>
+    <factorypathentry kind="VARJAR" id="M2_REPO/org/apache/pulsar/pulsar-functions-api/2.1.0-incubating-SNAPSHOT/pulsar-functions-api-2.1.0-incubating-SNAPSHOT.jar" enabled="true" runInBatchMode="false"/>
+    <factorypathentry kind="VARJAR" id="M2_REPO/org/projectlombok/lombok/1.16.12/lombok-1.16.12.jar" enabled="true" runInBatchMode="false"/>
+</factorypath>
