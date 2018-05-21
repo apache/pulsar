@@ -38,7 +38,6 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.Consumer;
-import org.apache.pulsar.broker.service.Consumer.SendMessageInfo;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
@@ -199,6 +198,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
             entries.forEach(Entry::release);
             cursor.rewind();
             if (currentConsumer != null) {
+                notifyActiveConsumerChanged(currentConsumer);
                 readMoreEntries(currentConsumer);
             }
         } else {
@@ -457,6 +457,9 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                     if (currentConsumer != null && !havePendingRead) {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}-{}] Retrying read operation", name, c);
+                        }
+                        if (currentConsumer != c) {
+                            notifyActiveConsumerChanged(currentConsumer);
                         }
                         readMoreEntries(currentConsumer);
                     } else {

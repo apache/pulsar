@@ -62,7 +62,7 @@ public class OffloadIndexTest {
 
 
     // use mock to setLastEntryId
-    class LedgerMetadataMock extends org.apache.bookkeeper.client.LedgerMetadata {
+    public static class LedgerMetadataMock extends org.apache.bookkeeper.client.LedgerMetadata {
         long lastId = 0;
         public LedgerMetadataMock(int ensembleSize, int writeQuorumSize, int ackQuorumSize, org.apache.bookkeeper.client.BookKeeper.DigestType digestType, byte[] password, Map<String, byte[]> customMetadata, boolean storeSystemtimeAsLedgerCreationTime) {
             super(ensembleSize, writeQuorumSize, ackQuorumSize, digestType, password, customMetadata, storeSystemtimeAsLedgerCreationTime);
@@ -108,7 +108,7 @@ public class OffloadIndexTest {
         LedgerMetadata metadata = createLedgerMetadata();
         log.debug("created metadata: {}", metadata.toString());
 
-        blockBuilder.withMetadata(metadata);
+        blockBuilder.withLedgerMetadata(metadata).withDataObjectLength(1);
 
         blockBuilder.addBlock(0, 2, 64 * 1024 * 1024);
         blockBuilder.addBlock(1000, 3, 64 * 1024 * 1024);
@@ -161,6 +161,7 @@ public class OffloadIndexTest {
         ByteBuf wrapper = Unpooled.wrappedBuffer(b);
         int magic = wrapper.readInt();
         int indexBlockLength = wrapper.readInt();
+        long dataObjectLength = wrapper.readLong();
         int segmentMetadataLength = wrapper.readInt();
         int indexEntryCount = wrapper.readInt();
 
@@ -168,6 +169,7 @@ public class OffloadIndexTest {
         assertEquals(magic, OffloadIndexBlockImpl.getIndexMagicWord());
         assertEquals(indexBlockLength, readoutLen);
         assertEquals(indexEntryCount, 3);
+        assertEquals(dataObjectLength, 1);
 
         wrapper.readBytes(segmentMetadataLength);
         log.debug("magic: {}, blockLength: {}, metadataLength: {}, indexCount: {}",

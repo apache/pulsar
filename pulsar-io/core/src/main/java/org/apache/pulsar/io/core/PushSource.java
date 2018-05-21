@@ -19,34 +19,66 @@
 package org.apache.pulsar.io.core;
 
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.function.Consumer;
 
 /**
  * Pulsar's Push Source interface. PushSource read data from
  * external sources(database changes, twitter firehose, etc)
  * and publish to a Pulsar topic. The reason its called Push is
- * because PushSources get passed a consumption Function that they
+ * because PushSources get passed a consumer that they
  * invoke whenever they have data to be published to Pulsar.
  * The lifcycle of a PushSource is to open it passing any config needed
  * by it to initialize(like open network connection, authenticate, etc).
- * A consumer Function is then to it which is invoked by the source whenever
+ * A consumer  is then to it which is invoked by the source whenever
  * there is data to be published. Once all data has been read, one can use close
  * at the end of the session to do any cleanup
  */
-public interface PushSource<T> extends AutoCloseable {
+public abstract class PushSource<T> implements Source<T> {
+
+    private LinkedBlockingQueue<Record<T>> queue;
+    private static final int DEFAULT_QUEUE_LENGTH = 1000;
+
+    public PushSource() {
+        this.queue = new LinkedBlockingQueue<>(this.getQueueLength());
+        this.setConsumer(new Consumer<Record<T>>() {
+            @Override
+            public void accept(Record<T> record) {
+                try {
+                    queue.put(record);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+    }
+
+    @Override
+    public Record<T> read() throws Exception {
+        return queue.take();
+    }
+
     /**
      * Open connector with configuration
      *
      * @param config initialization config
      * @throws Exception IO type exceptions when opening a connector
      */
-    void open(final Map<String, Object> config) throws Exception;
+    abstract public void open(Map<String, Object> config) throws Exception;
 
     /**
      * Attach a consumer function to this Source. This is invoked by the implementation
      * to pass messages whenever there is data to be pushed to Pulsar.
      * @param consumer
      */
-    void setConsumer(Function<Record<T>, CompletableFuture<Void>> consumer);
+    abstract public void setConsumer(Consumer<Record<T>> consumer);
+
+    /**
+     * Get length of the queue that records are push onto
+     * Users can override this method to customize the queue length
+     * @return queue length
+     */
+    public int getQueueLength() {
+        return DEFAULT_QUEUE_LENGTH;
+    }
 }

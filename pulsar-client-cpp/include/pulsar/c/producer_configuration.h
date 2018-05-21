@@ -27,6 +27,8 @@
 extern "C" {
 #endif
 
+#pragma GCC visibility push(default)
+
 typedef enum {
     pulsar_UseSinglePartition,
     pulsar_RoundRobinDistribution,
@@ -97,7 +99,7 @@ pulsar_partitions_routing_mode pulsar_producer_configuration_get_partitions_rout
     pulsar_producer_configuration_t *conf);
 
 void pulsar_producer_configuration_set_message_router(pulsar_producer_configuration_t *conf,
-                                                      pulsar_message_router router);
+                                                      pulsar_message_router router, void *ctx);
 
 void pulsar_producer_configuration_set_hashing_scheme(pulsar_producer_configuration_t *conf,
                                                       pulsar_hashing_scheme scheme);
@@ -141,6 +143,8 @@ unsigned long pulsar_producer_configuration_get_batching_max_publish_delay_ms(
 // std::set <std::string> &getEncryptionKeys();
 // int isEncryptionEnabled() const;
 // ProducerConfiguration &addEncryptionKey(std::string key);
+
+#pragma GCC visibility pop
 
 #ifdef __cplusplus
 }

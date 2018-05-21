@@ -32,17 +32,17 @@ pulsar_reader_configuration_t *pulsar_reader_configuration_create() {
 void pulsar_reader_configuration_free(pulsar_reader_configuration_t *configuration) { delete configuration; }
 
 static void message_listener_callback(pulsar::Reader reader, const pulsar::Message &msg,
-                                      pulsar_reader_listener listener) {
+                                      pulsar_reader_listener listener, void *ctx) {
     pulsar_reader_t c_reader;
     c_reader.reader = reader;
     pulsar_message_t *message = new pulsar_message_t;
     message->message = msg;
-    listener(&c_reader, message);
+    listener(&c_reader, message, ctx);
 }
 
 void pulsar_reader_configuration_set_reader_listener(pulsar_reader_configuration_t *configuration,
-                                                     pulsar_reader_listener listener) {
-    configuration->conf.setReaderListener(boost::bind(message_listener_callback, _1, _2, listener));
+                                                     pulsar_reader_listener listener, void *ctx) {
+    configuration->conf.setReaderListener(boost::bind(message_listener_callback, _1, _2, listener, ctx));
 }
 
 int pulsar_reader_configuration_has_reader_listener(pulsar_reader_configuration_t *configuration) {

@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.s3offload.impl;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.Lists;
-import com.google.common.primitives.Ints;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
@@ -64,7 +63,7 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
     // how many entries want to read from ReadHandle each time.
     private static final int ENTRIES_PER_READ = 100;
     // buf the entry size and entry id.
-    static final int ENTRY_HEADER_SIZE = 4 /* entry size*/ + 8 /* entry id */;
+    static final int ENTRY_HEADER_SIZE = 4 /* entry size */ + 8 /* entry id */;
     // Keep a list of all entries ByteBuf, each ByteBuf contains 2 buf: entry header and entry content.
     private List<ByteBuf> entriesByteBuf = null;
 
@@ -204,5 +203,16 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
     public int getBlockEntryBytesCount() {
         return dataBlockFullOffset - DataBlockHeaderImpl.getDataStartOffset() - ENTRY_HEADER_SIZE * blockEntryCount;
     }
+
+    // Calculate the block size after uploaded `entryBytesAlreadyWritten` bytes
+    public static int calculateBlockSize(int maxBlockSize, ReadHandle readHandle,
+                                         long firstEntryToWrite, long entryBytesAlreadyWritten) {
+        return (int)Math.min(
+            maxBlockSize,
+            (readHandle.getLastAddConfirmed() - firstEntryToWrite + 1) * ENTRY_HEADER_SIZE
+                + (readHandle.getLength() - entryBytesAlreadyWritten)
+                + DataBlockHeaderImpl.getDataStartOffset());
+    }
+
 }
 

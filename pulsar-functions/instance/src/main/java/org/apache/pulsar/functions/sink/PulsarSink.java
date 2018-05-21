@@ -39,13 +39,14 @@ import org.apache.pulsar.functions.instance.producers.Producers;
 import org.apache.pulsar.functions.source.PulsarRecord;
 import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.io.core.RecordContext;
+import org.apache.pulsar.io.core.Sink;
 
 import java.util.Base64;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
-public class PulsarSink<T> implements RuntimeSink<T> {
+public class PulsarSink<T> implements Sink<T> {
 
     private PulsarClient client;
     private PulsarSinkConfig pulsarSinkConfig;
@@ -204,11 +205,6 @@ public class PulsarSink<T> implements RuntimeSink<T> {
                 break;
         }
         this.pulsarSinkProcessor.initializeOutputProducer(this.pulsarSinkConfig.getTopic());
-    }
-
-    @Override
-    public CompletableFuture<Void> write(T value) {
-        return null;
     }
 
     @Override

@@ -25,7 +25,7 @@ import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 public class PublishFunction implements Function<String, Void> {
     @Override
     public Void process(String input, Context context) {
-        String publishTopic = context.getUserConfigValueOrDefault("publish-topic", "persistent://sample/standalone/ns1/publish");
+        String publishTopic = (String) context.getUserConfigValueOrDefault("publish-topic", "persistent://sample/standalone/ns1/publish");
         String output = String.format("%s!", input);
         context.publish(publishTopic, output, DefaultSerDe.class.getName());
         return null;

@@ -20,6 +20,11 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.collect.ComparisonChain;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+
 import java.io.IOException;
 
 import org.apache.pulsar.client.api.MessageId;
@@ -27,12 +32,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
-
-import com.google.common.collect.ComparisonChain;
-import com.google.protobuf.UninitializedMessageException;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
+import org.apache.pulsar.shaded.com.google.protobuf.v241.UninitializedMessageException;
 
 public class MessageIdImpl implements MessageId {
     protected final long ledgerId;

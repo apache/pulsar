@@ -41,21 +41,23 @@ pulsar_consumer_type pulsar_consumer_configuration_get_consumer_type(
 }
 
 static void message_listener_callback(pulsar::Consumer consumer, const pulsar::Message &msg,
-                                      pulsar_message_listener listener) {
+                                      pulsar_message_listener listener, void *ctx) {
     pulsar_consumer_t c_consumer;
     c_consumer.consumer = consumer;
     pulsar_message_t *message = new pulsar_message_t;
     message->message = msg;
-    listener(&c_consumer, message);
+    listener(&c_consumer, message, ctx);
 }
 
 void pulsar_consumer_configuration_set_message_listener(
-    pulsar_consumer_configuration_t *consumer_configuration, pulsar_message_listener messageListener) {
+    pulsar_consumer_configuration_t *consumer_configuration, pulsar_message_listener messageListener,
+    void *ctx) {
     consumer_configuration->consumerConfiguration.setMessageListener(
-        boost::bind(message_listener_callback, _1, _2, messageListener));
+        boost::bind(message_listener_callback, _1, _2, messageListener, ctx));
 }
 
-int pulsar_consumer_has_message_listener(pulsar_consumer_configuration_t *consumer_configuration) {
+int pulsar_consumer_configuration_has_message_listener(
+    pulsar_consumer_configuration_t *consumer_configuration) {
     return consumer_configuration->consumerConfiguration.hasMessageListener();
 }
 

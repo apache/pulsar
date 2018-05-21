@@ -101,8 +101,11 @@ flexible messaging model and an intuitive client API.</description>
     <module>docker</module>
     <module>tests</module>
     <module>pulsar-log4j2-appender</module>
+    <module>protobuf-shaded</module>
+
     <!-- functions-related modules -->
     <module>pulsar-functions</module>
+
     <!-- connector-related modules -->
     <module>pulsar-io</module>
   </modules>
@@ -116,6 +119,8 @@ flexible messaging model and an intuitive client API.</description>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <redirectTestOutputToFile>true</redirectTestOutputToFile>
+    <testRealAWS>false</testRealAWS>
+    <testRetryCount>1</testRetryCount>
 
     <bookkeeper.version>4.7.0</bookkeeper.version>
     <zookeeper.version>3.4.10</zookeeper.version>
@@ -150,6 +155,9 @@ flexible messaging model and an intuitive client API.</description>
     <!-- test dependencies -->
     <disruptor.version>3.4.0</disruptor.version>
     <s3mock.version>0.2.5</s3mock.version>
+
+    <!-- Plugin dependencies -->
+    <protobuf-maven-plugin.version>0.5.0</protobuf-maven-plugin.version>
   </properties>
 
   <dependencyManagement>
@@ -428,13 +436,6 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.apache.logging.log4j</groupId>
         <artifactId>log4j-core</artifactId>
-        <type>test-jar</type>
-        <version>${log4j2.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.logging.log4j</groupId>
-        <artifactId>log4j-api</artifactId>
         <type>test-jar</type>
         <version>${log4j2.version}</version>
       </dependency>
@@ -840,6 +841,14 @@ flexible messaging model and an intuitive client API.</description>
           <trimStackTrace>false</trimStackTrace>
           <properties>
             <property>
+              <name>testRealAWS</name>
+              <value>${testRealAWS}</value>
+            </property>
+            <property>
+              <name>testRetryCount</name>
+              <value>${testRetryCount}</value>
+            </property>
+            <property>
               <name>listener</name>
               <value>org.apache.pulsar.tests.PulsarTestListener,org.apache.pulsar.tests.AnnotationListener</value>
             </property>
@@ -1149,7 +1158,7 @@ flexible messaging model and an intuitive client API.</description>
     <repository>
       <id>central</id>
       <layout>default</layout>
-      <url>http://repo1.maven.org/maven2</url>
+      <url>https://repo1.maven.org/maven2</url>
     </repository>
     <repository>
       <snapshots>
@@ -1157,7 +1166,7 @@ flexible messaging model and an intuitive client API.</description>
       </snapshots>
       <id>bintray-yahoo-maven</id>
       <name>bintray</name>
-      <url>http://yahoo.bintray.com/maven</url>
+      <url>https://yahoo.bintray.com/maven</url>
     </repository>
   </repositories>
 </project>
