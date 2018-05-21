@@ -35,7 +35,7 @@ import org.apache.pulsar.broker.s3offload.DataBlockHeader;
 public class DataBlockHeaderImpl implements DataBlockHeader {
     // Magic Word for data block.
     // It is a sequence of bytes used to identify the start of a block.
-    private static final int MAGIC_WORD = 0xDBDBDBDB;
+    static final int MAGIC_WORD = 0xFBDBABCB;
     // This is bigger than header size. Leaving some place for alignment and future enhancement.
     // Payload use this as the start offset.
     private static final int HEADER_MAX_SIZE = 128;

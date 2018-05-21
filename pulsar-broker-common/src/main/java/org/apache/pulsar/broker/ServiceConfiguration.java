@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
@@ -334,6 +335,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int managedLedgerMinLedgerRolloverTimeMinutes = 10;
     // Maximum time before forcing a ledger rollover for a topic
     private int managedLedgerMaxLedgerRolloverTimeMinutes = 240;
+    // Delay between a ledger being successfully offloaded to long term storage
+    // and the ledger being deleted from bookkeeper
+    private long managedLedgerOffloadDeletionLagMs = TimeUnit.HOURS.toMillis(4);
     // Max number of entries to append to a cursor ledger
     private int managedLedgerCursorMaxEntriesPerLedger = 50000;
     // Max time before triggering a rollover on a cursor ledger
@@ -483,6 +487,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     // For Amazon S3 ledger offload, Alternative endpoint to connect to (useful for testing)
     private String s3ManagedLedgerOffloadServiceEndpoint = null;
+
+    // For Amazon S3 ledger offload, Max block size in bytes.
+    private int s3ManagedLedgerOffloadMaxBlockSizeInBytes = 64 * 1024 * 1024;
+
+    // For Amazon S3 ledger offload, Read buffer size in bytes.
+    @FieldContext(minValue = 1024)
+    private int s3ManagedLedgerOffloadReadBufferSizeInBytes = 1024 * 1024; // 1MB
 
     public String getZookeeperServers() {
         return zookeeperServers;
@@ -1217,6 +1228,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
         this.managedLedgerMaxLedgerRolloverTimeMinutes = managedLedgerMaxLedgerRolloverTimeMinutes;
     }
 
+    public long getManagedLedgerOffloadDeletionLagMs() {
+        return managedLedgerOffloadDeletionLagMs;
+    }
+
+    public void setManagedLedgerOffloadDeletionLag(long amount, TimeUnit unit) {
+        this.managedLedgerOffloadDeletionLagMs = unit.toMillis(amount);
+    }
+
     public int getManagedLedgerCursorMaxEntriesPerLedger() {
         return managedLedgerCursorMaxEntriesPerLedger;
     }
@@ -1682,4 +1701,21 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public String getS3ManagedLedgerOffloadServiceEndpoint() {
         return this.s3ManagedLedgerOffloadServiceEndpoint;
     }
+
+    public void setS3ManagedLedgerOffloadMaxBlockSizeInBytes(int blockSizeInBytes) {
+        this.s3ManagedLedgerOffloadMaxBlockSizeInBytes = blockSizeInBytes;
+    }
+
+    public int getS3ManagedLedgerOffloadMaxBlockSizeInBytes() {
+        return this.s3ManagedLedgerOffloadMaxBlockSizeInBytes;
+    }
+
+    public void setS3ManagedLedgerOffloadReadBufferSizeInBytes(int readBufferSizeInBytes) {
+        this.s3ManagedLedgerOffloadReadBufferSizeInBytes = readBufferSizeInBytes;
+    }
+
+    public int getS3ManagedLedgerOffloadReadBufferSizeInBytes() {
+        return this.s3ManagedLedgerOffloadReadBufferSizeInBytes;
+    }
+
 }

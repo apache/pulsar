@@ -34,18 +34,20 @@
 extern "C" {
 #endif
 
+#pragma GCC visibility push(default)
+
 typedef struct _pulsar_client pulsar_client_t;
 typedef struct _pulsar_producer pulsar_producer_t;
 
 typedef struct _pulsar_client_configuration pulsar_client_configuration_t;
 typedef struct _pulsar_producer_configuration pulsar_producer_configuration_t;
 
-typedef void (*pulsar_create_producer_callback)(pulsar_result result, pulsar_producer_t *producer);
+typedef void (*pulsar_create_producer_callback)(pulsar_result result, pulsar_producer_t *producer, void *ctx);
 
-typedef void (*pulsar_subscribe_callback)(pulsar_result result, pulsar_consumer_t *consumer);
-typedef void (*pulsar_reader_callback)(pulsar_result result, pulsar_reader_t *reader);
+typedef void (*pulsar_subscribe_callback)(pulsar_result result, pulsar_consumer_t *consumer, void *ctx);
+typedef void (*pulsar_reader_callback)(pulsar_result result, pulsar_reader_t *reader, void *ctx);
 
-typedef void (*pulsar_close_callback)(pulsar_result result);
+typedef void (*pulsar_close_callback)(pulsar_result result, void *ctx);
 
 /**
  * Create a Pulsar client object connecting to the specified cluster address and using the specified
@@ -73,7 +75,7 @@ pulsar_result pulsar_client_create_producer(pulsar_client_t *client, const char 
 
 void pulsar_client_create_producer_async(pulsar_client_t *client, const char *topic,
                                          const pulsar_producer_configuration_t *conf,
-                                         pulsar_create_producer_callback callback);
+                                         pulsar_create_producer_callback callback, void *ctx);
 
 pulsar_result pulsar_client_subscribe(pulsar_client_t *client, const char *topic,
                                       const char *subscriptionName,
@@ -81,8 +83,8 @@ pulsar_result pulsar_client_subscribe(pulsar_client_t *client, const char *topic
                                       pulsar_consumer_t **consumer);
 
 void pulsar_client_subscribe_async(pulsar_client_t *client, const char *topic, const char *subscriptionName,
-                                   const pulsar_consumer_configuration_t *conf, pulsar_consumer_t **consumer,
-                                   pulsar_subscribe_callback callback);
+                                   const pulsar_consumer_configuration_t *conf,
+                                   pulsar_subscribe_callback callback, void *ctx);
 
 /**
  * Create a topic reader with given {@code ReaderConfiguration} for reading messages from the specified
@@ -119,14 +121,16 @@ pulsar_result pulsar_client_create_reader(pulsar_client_t *client, const char *t
 
 void pulsar_client_create_reader_async(pulsar_client_t *client, const char *topic,
                                        const pulsar_message_id_t *startMessageId,
-                                       pulsar_reader_configuration_t *conf, pulsar_reader_t **reader,
-                                       pulsar_reader_callback callback);
+                                       pulsar_reader_configuration_t *conf, pulsar_reader_callback callback,
+                                       void *ctx);
 
 pulsar_result pulsar_client_close(pulsar_client_t *client);
 
-void pulsar_client_close_async(pulsar_client_t *client, pulsar_close_callback callback);
+void pulsar_client_close_async(pulsar_client_t *client, pulsar_close_callback callback, void *ctx);
 
 void pulsar_client_free(pulsar_client_t *client);
+
+#pragma GCC visibility pop
 
 #ifdef __cplusplus
 }

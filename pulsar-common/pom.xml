@@ -46,9 +46,15 @@
     </dependency>
 
     <dependency>
-      <groupId>com.google.protobuf</groupId>
-      <artifactId>protobuf-java</artifactId>
-      <version>${protobuf2.version}</version>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>protobuf-shaded</artifactId>
+      <version>${project.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>com.google.protobuf</groupId>
+          <artifactId>protobuf-java</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
@@ -65,7 +71,7 @@
       <groupId>net.jpountz.lz4</groupId>
       <artifactId>lz4</artifactId>
     </dependency>
-    
+
     <dependency>
       <groupId>org.apache.bookkeeper</groupId>
       <artifactId>circe-checksum</artifactId>
@@ -81,7 +87,7 @@
         </exclusion>
       </exclusions>
     </dependency>
-    
+
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-tcnative-boringssl-static</artifactId>
@@ -96,6 +102,6 @@
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-lang3</artifactId>
     </dependency>
-    
+
   </dependencies>
 </project>

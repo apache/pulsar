@@ -54,6 +54,7 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
     private static final int INDEX_MAGIC_WORD = 0xDE47DE47;
 
     private LedgerMetadata segmentMetadata;
+    private long dataObjectLength;
     private TreeMap<Long, OffloadIndexEntryImpl> indexEntries;
 
     private final Handle<OffloadIndexBlockImpl> recyclerHandle;
@@ -69,12 +70,14 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         this.recyclerHandle = recyclerHandle;
     }
 
-    public static OffloadIndexBlockImpl get(LedgerMetadata metadata, List<OffloadIndexEntryImpl> entries) {
+    public static OffloadIndexBlockImpl get(LedgerMetadata metadata, long dataObjectLength,
+                                            List<OffloadIndexEntryImpl> entries) {
         OffloadIndexBlockImpl block = RECYCLER.get();
         block.indexEntries = Maps.newTreeMap();
         entries.forEach(entry -> block.indexEntries.putIfAbsent(entry.getEntryId(), entry));
         checkState(entries.size() == block.indexEntries.size());
         block.segmentMetadata = metadata;
+        block.dataObjectLength = dataObjectLength;
         return block;
     }
 
@@ -86,6 +89,7 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
     }
 
     public void recycle() {
+        dataObjectLength = -1;
         segmentMetadata = null;
         indexEntries.clear();
         indexEntries = null;
@@ -96,7 +100,7 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
 
     @Override
     public OffloadIndexEntry getIndexEntryForEntry(long messageEntryId) throws IOException {
-        if(messageEntryId > segmentMetadata.getLastEntryId()) {
+        if (messageEntryId > segmentMetadata.getLastEntryId()) {
             log.warn("Try to get entry: {}, which beyond lastEntryId {}, return null",
                 messageEntryId, segmentMetadata.getLastEntryId());
             throw new IndexOutOfBoundsException("Entry index: " + messageEntryId +
@@ -114,6 +118,11 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
     @Override
     public LedgerMetadata getLedgerMetadata() {
         return this.segmentMetadata;
+    }
+
+    @Override
+    public long getDataObjectLength() {
+        return this.dataObjectLength;
     }
 
     private static byte[] buildLedgerMetadataFormat(LedgerMetadata metadata) {
@@ -159,6 +168,7 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
 
         indexBlockLength = 4 /* magic header */
             + 4 /* index block length */
+            + 8 /* data object length */
             + 4 /* segment metadata length */
             + 4 /* index entry count */
             + segmentMetadataLength
@@ -168,6 +178,7 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
 
         out.writeInt(INDEX_MAGIC_WORD)
             .writeInt(indexBlockLength)
+            .writeLong(dataObjectLength)
             .writeInt(segmentMetadataLength)
             .writeInt(indexEntryCount);
 
@@ -302,9 +313,11 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         DataInputStream dis = new DataInputStream(stream);
         int magic = dis.readInt();
         if (magic != this.INDEX_MAGIC_WORD) {
-            throw new IOException("Invalid MagicWord. read: " + magic + " expected: " + INDEX_MAGIC_WORD);
+            throw new IOException(String.format("Invalid MagicWord. read: 0x%x  expected: 0x%x",
+                                                magic, INDEX_MAGIC_WORD));
         }
         int indexBlockLength = dis.readInt();
+        this.dataObjectLength = dis.readLong();
         int segmentMetadataLength = dis.readInt();
         int indexEntryCount = dis.readInt();
 

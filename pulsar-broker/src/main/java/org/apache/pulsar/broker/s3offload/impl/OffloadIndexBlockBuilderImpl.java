@@ -34,14 +34,22 @@ import org.apache.pulsar.broker.s3offload.OffloadIndexBlockBuilder;
 public class OffloadIndexBlockBuilderImpl implements OffloadIndexBlockBuilder {
 
     private LedgerMetadata ledgerMetadata;
+    private long dataObjectLength;
     private List<OffloadIndexEntryImpl> entries;
+    private int lastBlockSize;
 
     public OffloadIndexBlockBuilderImpl() {
         this.entries = Lists.newArrayList();
     }
 
     @Override
-    public OffloadIndexBlockBuilder withMetadata(LedgerMetadata metadata) {
+    public OffloadIndexBlockBuilder withDataObjectLength(long dataObjectLength) {
+        this.dataObjectLength = dataObjectLength;
+        return this;
+    }
+
+    @Override
+    public OffloadIndexBlockBuilder withLedgerMetadata(LedgerMetadata metadata) {
         this.ledgerMetadata = metadata;
         return this;
     }
@@ -50,13 +58,14 @@ public class OffloadIndexBlockBuilderImpl implements OffloadIndexBlockBuilder {
     public OffloadIndexBlockBuilder addBlock(long firstEntryId, int partId, int blockSize) {
         // we should added one by one.
         long offset;
-        if(firstEntryId == 0) {
+        if (firstEntryId == 0) {
             checkState(entries.size() == 0);
             offset = 0;
         } else {
             checkState(entries.size() > 0);
-            offset = entries.get(entries.size() - 1).getOffset() + blockSize;
+            offset = entries.get(entries.size() - 1).getOffset() + lastBlockSize;
         }
+        lastBlockSize = blockSize;
 
         this.entries.add(OffloadIndexEntryImpl.of(firstEntryId, partId, offset));
         return this;
@@ -71,7 +80,8 @@ public class OffloadIndexBlockBuilderImpl implements OffloadIndexBlockBuilder {
     public OffloadIndexBlock build() {
         checkState(ledgerMetadata != null);
         checkState(!entries.isEmpty());
-        return OffloadIndexBlockImpl.get(ledgerMetadata, entries);
+        checkState(dataObjectLength > 0);
+        return OffloadIndexBlockImpl.get(ledgerMetadata, dataObjectLength, entries);
     }
 
 }

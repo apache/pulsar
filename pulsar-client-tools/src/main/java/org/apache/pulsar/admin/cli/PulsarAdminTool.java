@@ -96,6 +96,8 @@ public class PulsarAdminTool {
 
         commandMap.put("resource-quotas", CmdResourceQuotas.class);
         commandMap.put("functions", CmdFunctions.class);
+        commandMap.put("source", CmdSources.class);
+        commandMap.put("sink", CmdSinks.class);
     }
 
     private void setupCommands(Function<PulsarAdminBuilder, ? extends PulsarAdmin> adminFactory) {

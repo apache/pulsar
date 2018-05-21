@@ -21,6 +21,7 @@
 #include "c_structs.h"
 
 #include <boost/thread/once.hpp>
+#include <sstream>
 
 boost::once_flag initialized = BOOST_ONCE_INIT;
 
@@ -42,7 +43,7 @@ const pulsar_message_id_t *pulsar_message_id_latest() {
     return &latest;
 }
 
-const void *pulsar_message_id_serialize(pulsar_message_id_t *messageId, int *len) {
+void *pulsar_message_id_serialize(pulsar_message_id_t *messageId, int *len) {
     std::string str;
     messageId->messageId.serialize(str);
     void *p = malloc(str.length());
@@ -56,3 +57,13 @@ pulsar_message_id_t *pulsar_message_id_deserialize(const void *buffer, uint32_t 
     messageId->messageId = pulsar::MessageId::deserialize(strId);
     return messageId;
 }
+
+char *pulsar_message_id_str(pulsar_message_id_t *messageId) {
+    std::stringstream ss;
+    ss << messageId->messageId;
+    std::string s = ss.str();
+
+    return strndup(s.c_str(), s.length());
+}
+
+void pulsar_message_id_free(pulsar_message_id_t *messageId) { delete messageId; }
