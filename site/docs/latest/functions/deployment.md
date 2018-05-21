@@ -211,3 +211,6 @@ Pulsar Functions can also be assigned a subscription type when you [create](#clu
 
 ## The Pulsar Functions worker {#worker}
 
+Deployment of Pulsar Functions is handled by a worker process.
+
+This worker process
