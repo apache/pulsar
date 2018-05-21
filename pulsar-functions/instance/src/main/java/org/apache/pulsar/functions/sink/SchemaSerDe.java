@@ -16,23 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.utils;
+package org.apache.pulsar.functions.sink;
 
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.client.api.Schema;
 
 public class SchemaSerDe<T> implements SerDe<T> {
+    private final Schema<T> schema;
 
     public SchemaSerDe(Schema<T> schema) {
+        this.schema = schema;
     }
 
     @Override
     public T deserialize(byte[] input) {
-        return null;
+        return schema.decode(input);
     }
 
     @Override
     public byte[] serialize(T input) {
-        return new byte[0];
+        return schema.encode(input);
     }
 }
