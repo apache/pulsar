@@ -211,27 +211,37 @@ Pulsar Functions can also be assigned a subscription type when you [create](#clu
 
 ## The Pulsar Functions worker {#worker}
 
-Deployment of Pulsar Functions is handled by a worker process.
+Deployment of Pulsar Functions is handled by a dedicated worker process that runs alongside the Pulsar {% popover broker %}. The Pulsar Functions worker is responsible for running [instances](#parallelism) of Pulsar Functions, starting them, stopping them, etc.
 
-This worker process
+{% include admonition.html type="info" title="Cluster mode vs. local run mode" content="The Pulsar Function worker handles Pulsar Functions deployment regardless of whether the functions are run in [local run](#local-run) or [cluster mode](#cluster-mode)." %}
 
 ### Execution runtimes
 
 The Pulsar Functions worker has two execution runtimes:
 
 * The [process-based](#process) runtime runs Pulsar Function [instances](#parallelism) as separate processes
-* The [thread-based](#thread) runtime
+* The [thread-based](#thread) runtime runs Pulsar Function instances as separate [JVM threads](https://docs.oracle.com/javase/tutorial/essential/concurrency/procthread.html). Please note that the thread-based runtime is available *only* for [Java](../api#java) functions.
 
-### Process-based execution {#process}
+{% include admonition.html type="success" title="Other runtimes" content="The process-based and thread-based runtimes for Pulsar Functions" %}
+
+### Process-based runtime {#process}
 
 ```yaml
 processContainerFactory:
   logDirectory:
 ```
 
-#### Thread-based execution {#thread}
+#### Thread-based runtime {#thread}
+
+{% include admonition.html type="warning" title="Java only" content="The thread-based runtime can only be used with Pulsar Functions written in [Java](../api#java). If you choose the thread-based runtime, you won't be able to run non-Java functions." %}
+
+[`broker.conf`](../../reference/Configuration#broker)
 
 ```yaml
 threadContainerFactory:
   threadGroupName: "Thread Function Container Group"
 ```
+
+### Configuration
+
+{% include config.html id="functions_worker" %}
