@@ -24,6 +24,7 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicReference;
@@ -113,7 +114,11 @@ public class ProxyService implements Closeable {
 
         bootstrap.childHandler(new ServiceChannelInitializer(this, proxyConfig, false));
         // Bind and start to accept incoming connections.
-        bootstrap.bind(proxyConfig.getServicePort()).sync();
+        try {
+            bootstrap.bind(proxyConfig.getServicePort()).sync();
+        } catch (Exception e) {
+            throw new IOException("Failed to bind Pulsar Proxy on port " + proxyConfig.getServicePort(), e);
+        }
         LOG.info("Started Pulsar Proxy at {}", serviceUrl);
 
         if (proxyConfig.isTlsEnabledInProxy()) {
@@ -175,7 +180,7 @@ public class ProxyService implements Closeable {
     public Semaphore getLookupRequestSemaphore() {
         return lookupRequestSemaphore.get();
     }
-    
+
     public EventLoopGroup getWorkerGroup() {
         return workerGroup;
     }
