@@ -213,22 +213,24 @@ Pulsar Functions can also be assigned a subscription type when you [create](#clu
 
 Deployment of Pulsar Functions is handled by a dedicated worker process that runs alongside the Pulsar {% popover broker %}. The Pulsar Functions worker is responsible for running [instances](#parallelism) of Pulsar Functions, starting them, stopping them, etc.
 
-{% include admonition.html type="info" title="Cluster mode vs. local run mode" content="The Pulsar Function worker handles Pulsar Functions deployment regardless of whether the functions are run in [local run](#local-run) or [cluster mode](#cluster-mode)." %}
-
 ### Execution runtimes
 
-The Pulsar Functions worker has two execution runtimes:
+The Pulsar Functions worker can support two available execution runtimes:
 
 * The [process-based](#process) runtime runs Pulsar Function [instances](#parallelism) as separate processes
 * The [thread-based](#thread) runtime runs Pulsar Function instances as separate [JVM threads](https://docs.oracle.com/javase/tutorial/essential/concurrency/procthread.html). Please note that the thread-based runtime is available *only* for [Java](../api#java) functions.
 
+You can select the runtime when you start up a Pulsar {% popover broker %} via the broker's [configuration](#config).
+
 {% include admonition.html type="success" title="Other runtimes" content="The process-based and thread-based runtimes for Pulsar Functions" %}
 
-### Process-based runtime {#process}
+##### Process-based runtime {#process}
+
+The process-based runtime for Pulsar Functions runs each function [instance](#parallelism) in its own process.
 
 ```yaml
 processContainerFactory:
-  logDirectory:
+  logDirectory: /TODO
 ```
 
 #### Thread-based runtime {#thread}
@@ -242,6 +244,8 @@ threadContainerFactory:
   threadGroupName: "Thread Function Container Group"
 ```
 
-### Configuration
+### Configuration {#config}
+
+The following configurable parameters are available in the [`broker.conf`](../../reference/Configuration#broker) configuration file for Pulsar {% popover brokers %}:
 
 {% include config.html id="functions_worker" %}
