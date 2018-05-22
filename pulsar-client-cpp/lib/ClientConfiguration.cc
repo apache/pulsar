@@ -96,6 +96,13 @@ ClientConfiguration& ClientConfiguration::setLogConfFilePath(const std::string& 
 
 const std::string& ClientConfiguration::getLogConfFilePath() const { return impl_->logConfFilePath; }
 
+ClientConfiguration& ClientConfiguration::setLogger(LoggerFactoryPtr loggerFactory) {
+    impl_->loggerFactory = loggerFactory;
+    return *this;
+}
+
+LoggerFactoryPtr ClientConfiguration::getLogger() const { return impl_->loggerFactory; }
+
 ClientConfiguration& ClientConfiguration::setStatsIntervalInSeconds(
     const unsigned int& statsIntervalInSeconds) {
     impl_->statsIntervalInSeconds = statsIntervalInSeconds;

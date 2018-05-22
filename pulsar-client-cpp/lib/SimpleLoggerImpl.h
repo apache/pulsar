@@ -16,10 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include <LogUtils.h>
-#include <gmock/gmock.h>
 
-int main(int argc, char **argv) {
-    ::testing::InitGoogleMock(&argc, argv);
-    return RUN_ALL_TESTS();
-}
+#pragma once
+
+#include <pulsar/Logger.h>
+
+namespace pulsar {
+
+class SimpleLoggerFactory : public LoggerFactory {
+   public:
+    Logger* getLogger(const std::string& fileName);
+
+    static LoggerFactoryPtr create();
+};
+
+}  // namespace pulsar
