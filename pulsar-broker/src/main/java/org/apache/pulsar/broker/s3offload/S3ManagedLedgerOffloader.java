@@ -76,6 +76,9 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
         if (Strings.isNullOrEmpty(bucket)) {
             throw new PulsarServerException("s3ManagedLedgerOffloadBucket cannot be empty if s3 offload enabled");
         }
+        if (maxBlockSize < 5*1024*1024) {
+            throw new PulsarServerException("s3ManagedLedgerOffloadMaxBlockSizeInBytes cannot be less than 5MB");
+        }
 
         AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard();
         if (!Strings.isNullOrEmpty(endpoint)) {
@@ -177,10 +180,10 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
 
             // upload index block
             try (OffloadIndexBlock index = indexBuilder.withDataObjectLength(dataObjectLength).build();
-                 InputStream indexStream = index.toStream()) {
+                 OffloadIndexBlock.IndexInputStream indexStream = index.toStream()) {
                 // write the index block
                 ObjectMetadata metadata = new ObjectMetadata();
-                metadata.setContentLength(indexStream.available());
+                metadata.setContentLength(indexStream.getStreamSize());
                 s3client.putObject(new PutObjectRequest(
                     bucket,
                     indexBlockKey,
