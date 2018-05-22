@@ -105,6 +105,7 @@ public class ProcessRuntimeTest {
         config.setInstanceId(java.util.UUID.randomUUID().toString());
         config.setMaxBufferedTuples(1024);
         config.setFullyQualifiedWorkerId("my-fully-qualified-worker-id");
+        config.setWorkerPort(8080);
 
         return config;
     }
@@ -115,7 +116,7 @@ public class ProcessRuntimeTest {
 
         ProcessRuntime container = factory.createContainer(config, userJarFile);
         List<String> args = container.getProcessArgs();
-        assertEquals(args.size(), 53);
+        assertEquals(args.size(), 55);
         String expectedArgs = "java -cp " + javaInstanceJarFile + " -Dlog4j.configurationFile=java_instance_log4j2.yml "
                 + "-Dpulsar.log.dir=" + logDirectory + "/functions" + " -Dpulsar.log.file=" + config.getFunctionDetails().getName()
                 + " org.apache.pulsar.functions.runtime.JavaInstanceMain"
@@ -138,7 +139,8 @@ public class ProcessRuntimeTest {
                 + " --sink_type_classname " + config.getFunctionDetails().getSink().getTypeClassName()
                 + " --sink_topic " + config.getFunctionDetails().getSink().getTopic()
                 + " --sink_serde_classname " + config.getFunctionDetails().getSink().getSerDeClassName()
-                + " --fully_qualified_worker_id " + config.getFullyQualifiedWorkerId();
+                + " --fully_qualified_worker_id " + config.getFullyQualifiedWorkerId()
+                + " --worker_port " + config.getWorkerPort();
         assertEquals(expectedArgs, String.join(" ", args));
     }
 
@@ -148,7 +150,7 @@ public class ProcessRuntimeTest {
 
         ProcessRuntime container = factory.createContainer(config, userJarFile);
         List<String> args = container.getProcessArgs();
-        assertEquals(args.size(), 44);
+        assertEquals(args.size(), 46);
         String expectedArgs = "python " + pythonInstanceFile
                 + " --py " + userJarFile + " --logging_directory "
                 + logDirectory + "/functions" + " --logging_file " + config.getFunctionDetails().getName() + " --instance_id "
@@ -166,7 +168,8 @@ public class ProcessRuntimeTest {
                 + " --source_topics_serde_classname " + new Gson().toJson(topicsToSerDeClassName)
                 + " --sink_topic " + config.getFunctionDetails().getSink().getTopic()
                 + " --sink_serde_classname " + config.getFunctionDetails().getSink().getSerDeClassName()
-                + " --fully_qualified_worker_id " + config.getFullyQualifiedWorkerId();
+                + " --fully_qualified_worker_id " + config.getFullyQualifiedWorkerId()
+                + " --worker_port " + config.getWorkerPort();
         assertEquals(expectedArgs, String.join(" ", args));
     }
 

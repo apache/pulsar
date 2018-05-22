@@ -75,6 +75,7 @@ def main():
   parser.add_argument('--sink_topic', required=False, help='Sink Topic')
   parser.add_argument('--sink_serde_classname', required=False, help='Sink SerDe classname')
   parser.add_argument('--fully_qualified_worker_id', required=True, help='Unique Identifier for worker')
+  parser.add_argument('--worker_port', required=True, help='Service port of worker service')
 
   args = parser.parse_args()
   log_file = os.path.join(args.logging_directory,
