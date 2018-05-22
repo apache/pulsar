@@ -96,7 +96,7 @@ In addition to client-level configuration, you can also apply [producer](#config
 In Pulsar, {% popover producers %} write {% popover messages %} to {% popover topics %}. Once you've instantiated a {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %} object (as in the section [above](#client-configuration)), you can create a {% javadoc Producer client org.apache.pulsar.client.api.Producer %} for a specific Pulsar {% popover topic %}.
 
 ```java
-String topic = "persistent://sample/standalone/ns1/my-topic";
+String topic = "persistent://public/default/my-topic";
 
 Producer producer<byte[]> = client.newProducer()
         .topic(topic)
@@ -252,13 +252,13 @@ ConsumerBuilder consumerBuilder = pulsarClient.newConsumer()
         .subscriptionName(subscription);
 
 // Subscribe to all topics in a namespace
-Pattern allTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/.*");
+Pattern allTopicsInNamespace = Pattern.compile("persistent://public/default/.*");
 Consumer allTopicsConsumer = consumerBuilder
         .topicsPattern(allTopicsInNamespace)
         .subscribe();
 
 // Subscribe to a subsets of topics in a namespace, based on regex
-Pattern someTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/foo.*");
+Pattern someTopicsInNamespace = Pattern.compile("persistent://public/default/foo.*");
 Consumer allTopicsConsumer = consumerBuilder
         .topicsPattern(someTopicsInNamespace)
         .subscribe();
@@ -268,9 +268,9 @@ You can also subscribe to an explicit list of topics (across namespaces if you w
 
 ```java
 List<String> topics = Arrays.asList(
-        "persistent://sample/standalone/ns1/topic-1",
-        "persistent://sample/standalone/ns2/topic-2",
-        "persistent://sample/standalone/ns3/topic-3"
+        "persistent://public/default/topic-1",
+        "persistent://public/default/topic-2",
+        "persistent://public/default/topic-3"
 );
 
 Consumer multiTopicConsumer = consumerBuilder
@@ -280,9 +280,9 @@ Consumer multiTopicConsumer = consumerBuilder
 // Alternatively:
 Consumer multiTopicConsumer = consumerBuilder
         .topics(
-            "persistent://sample/standalone/ns1/topic-1",
-            "persistent://sample/standalone/ns2/topic-2",
-            "persistent://sample/standalone/ns3/topic-3"
+            "persistent://public/default/topic-1",
+            "persistent://public/default/topic-2",
+            "persistent://public/default/topic-3"
         )
         .subscribe();
 ```
@@ -290,7 +290,7 @@ Consumer multiTopicConsumer = consumerBuilder
 You can also subscribe to multiple topics asynchronously using the `subscribeAsync` method rather than the synchronous `subscribe` method. Here's an example:
 
 ```java
-Pattern allTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/.*");
+Pattern allTopicsInNamespace = Pattern.compile("persistent://public/default.*");
 consumerBuilder
         .topics(topics)
         .subscribeAsync()
@@ -474,4 +474,3 @@ The `privateKey` parameter supports the following three pattern formats:
 * `file:///path/to/file`
 * `file:/path/to/file`
 * `data:application/x-pem-file;base64,<base64-encoded value>`' %}
-
