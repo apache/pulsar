@@ -28,6 +28,7 @@ import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.FilterInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -158,15 +159,12 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
      *   |segment_metadata_len | segment metadata | index entries |
      */
     @Override
-    public InputStream toStream() throws IOException {
-        int indexBlockLength;
-        int segmentMetadataLength;
+    public OffloadIndexBlock.IndexInputStream toStream() throws IOException {
         int indexEntryCount = this.indexEntries.size();
-
         byte[] ledgerMetadataByte = buildLedgerMetadataFormat(this.segmentMetadata);
-        segmentMetadataLength = ledgerMetadataByte.length;
+        int segmentMetadataLength = ledgerMetadataByte.length;
 
-        indexBlockLength = 4 /* magic header */
+        int indexBlockLength = 4 /* magic header */
             + 4 /* index block length */
             + 8 /* data object length */
             + 4 /* segment metadata length */
@@ -191,7 +189,7 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
                 .writeInt(entry.getValue().getPartId())
                 .writeLong(entry.getValue().getOffset()));
 
-        return new ByteBufInputStream(out, true);
+        return new OffloadIndexBlock.IndexInputStream(new ByteBufInputStream(out, true), indexBlockLength);
     }
 
     static private class InternalLedgerMetadata implements LedgerMetadata {

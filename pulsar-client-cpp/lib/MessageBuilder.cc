@@ -48,7 +48,7 @@ Message MessageBuilder::build() { return Message(impl_); }
 
 void MessageBuilder::checkMetadata() {
     if (!impl_.get()) {
-        LOG_FATAL("Cannot reuse the same message builder to build a message");
+        LOG_ERROR("Cannot reuse the same message builder to build a message");
         abort();
     }
 }
