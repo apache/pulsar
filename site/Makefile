@@ -72,6 +72,7 @@ serve: clean_local
 		--livereload \
 		--config _config.yml,_config.local.yml
 
+.PHONY: javadoc
 javadoc:
 	rm -rf api/{admin,client}
 	scripts/javadoc-gen.sh
