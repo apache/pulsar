@@ -16,10 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include <LogUtils.h>
-#include <gmock/gmock.h>
 
-int main(int argc, char **argv) {
-    ::testing::InitGoogleMock(&argc, argv);
-    return RUN_ALL_TESTS();
-}
+#pragma once
+
+#include <pulsar/Logger.h>
+
+#ifdef USE_LOG4CXX
+
+#pragma GCC visibility push(default)
+
+namespace pulsar {
+
+class Log4CxxLoggerFactory : public LoggerFactory {
+   public:
+    static LoggerFactoryPtr create();
+    static LoggerFactoryPtr create(const std::string& log4cxxConfFile);
+
+    Logger* getLogger(const std::string& fileName);
+};
+}  // namespace pulsar
+
+#pragma GCC visibility pop
+
+#endif
