@@ -95,7 +95,7 @@ type ProducerOptions struct {
 	// Set the message routing mode for the partitioned producer.
 	// Default routing mode is round-robin routing.
 	//
-	// This logic is applied when the application is not setting a key MessageBuilder#setKey(String) on a
+	// This logic is applied when the application is not setting a key ProducerMessage#setKey(String) on a
 	// particular message.
 	MessageRoutingMode
 
@@ -151,11 +151,13 @@ type Producer interface {
 	// Send a message
 	// This call will be blocking until is successfully acknowledged by the Pulsar broker.
 	// Example:
-	// producer.Send(ctx, pulsar.MessageBuilder{ Payload: myPayload })
-	Send(context.Context, MessageBuilder) error
+	// producer.Send(ctx, pulsar.ProducerMessage{ Payload: myPayload })
+	Send(context.Context, ProducerMessage) error
 
 	// Send a message in asynchronous mode
-	SendAsync(context.Context, MessageBuilder, func(error))
+	// The callback will report back the message being published and
+	// the eventual error in publishing
+	SendAsync(context.Context, ProducerMessage, func(ProducerMessage, error))
 
 	// Close the producer and releases resources allocated
 	// No more writes will be accepted from this producer. Waits until all pending write request are persisted. In case

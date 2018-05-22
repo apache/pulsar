@@ -165,9 +165,9 @@ func (p *producer) Name() string {
 	return C.GoString(C.pulsar_producer_get_producer_name(p.ptr))
 }
 
-func (p *producer) Send(ctx context.Context, msg MessageBuilder) error {
+func (p *producer) Send(ctx context.Context, msg ProducerMessage) error {
 	c := make(chan error)
-	p.SendAsync(ctx, msg, func(err error) { c <- err; close(c) })
+	p.SendAsync(ctx, msg, func(msg ProducerMessage, err error) { c <- err; close(c) })
 
 	select {
 	case <-ctx.Done():
@@ -178,22 +178,27 @@ func (p *producer) Send(ctx context.Context, msg MessageBuilder) error {
 	}
 }
 
+type sendCallback struct {
+	message ProducerMessage
+	callback func(ProducerMessage, error)
+}
+
 //export pulsarProducerSendCallbackProxy
 func pulsarProducerSendCallbackProxy(res C.pulsar_result, message *C.pulsar_message_t, ctx unsafe.Pointer) {
-	callback := restorePointer(ctx).(func(error))
+	sendCallback := restorePointer(ctx).(sendCallback)
 
 	if res != C.pulsar_result_Ok {
-		callback(newError(res, "Failed to send message"))
+		sendCallback.callback(sendCallback.message, newError(res, "Failed to send message"))
 	} else {
-		callback(nil)
+		sendCallback.callback(sendCallback.message, nil)
 	}
 }
 
-func (p *producer) SendAsync(ctx context.Context, msg MessageBuilder, callback func(error)) {
+func (p *producer) SendAsync(ctx context.Context, msg ProducerMessage, callback func(ProducerMessage, error)) {
 	cMsg := buildMessage(msg)
 	defer C.pulsar_message_free(cMsg)
 
-	C._pulsar_producer_send_async(p.ptr, cMsg, savePointer(callback))
+	C._pulsar_producer_send_async(p.ptr, cMsg, savePointer(sendCallback{msg, callback}))
 }
 
 func (p *producer) Close() error {

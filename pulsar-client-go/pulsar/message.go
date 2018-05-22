@@ -21,7 +21,7 @@ package pulsar
 
 import "time"
 
-type MessageBuilder struct {
+type ProducerMessage struct {
 	// Payload for the message
 	Payload []byte
 
@@ -54,7 +54,7 @@ type Message interface {
 	PublishTime() time.Time
 
 	// Get the event time associated with this message. It is typically set by the applications via
-	// `MessageBuilder.EventTime`.
+	// `ProducerMessage.EventTime`.
 	// If there isn't any event time associated with this event, it will be nil.
 	EventTime() *time.Time
 

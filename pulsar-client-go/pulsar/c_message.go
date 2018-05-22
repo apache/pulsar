@@ -41,54 +41,54 @@ type messageID struct {
 
 ////////////////////////////////////////////////////////////
 
-func buildMessage(builder MessageBuilder) *C.pulsar_message_t {
+func buildMessage(message ProducerMessage) *C.pulsar_message_t {
 
-	msg := C.pulsar_message_create()
+	cMsg := C.pulsar_message_create()
 
-	if builder.Key != "" {
-		cKey := C.CString(builder.Key)
+	if message.Key != "" {
+		cKey := C.CString(message.Key)
 		defer C.free(unsafe.Pointer(cKey))
-		C.pulsar_message_set_partition_key(msg, cKey)
+		C.pulsar_message_set_partition_key(cMsg, cKey)
 	}
 
-	if builder.Payload != nil {
-		C.pulsar_message_set_content(msg, unsafe.Pointer(&builder.Payload[0]), C.ulong(len(builder.Payload)))
+	if message.Payload != nil {
+		C.pulsar_message_set_content(cMsg, unsafe.Pointer(&message.Payload[0]), C.ulong(len(message.Payload)))
 	}
 
-	if builder.Properties != nil {
-		for key, value := range builder.Properties {
+	if message.Properties != nil {
+		for key, value := range message.Properties {
 			cKey := C.CString(key)
 			cValue := C.CString(value)
 
-			C.pulsar_message_set_property(msg, cKey, cValue)
+			C.pulsar_message_set_property(cMsg, cKey, cValue)
 
 			C.free(unsafe.Pointer(cKey))
 			C.free(unsafe.Pointer(cValue))
 		}
 	}
 
-	if builder.EventTime.UnixNano() != 0 {
-		C.pulsar_message_set_event_timestamp(msg, timeToUnixTimestampMillis(builder.EventTime))
+	if message.EventTime.UnixNano() != 0 {
+		C.pulsar_message_set_event_timestamp(cMsg, timeToUnixTimestampMillis(message.EventTime))
 	}
 
-	if builder.ReplicationClusters != nil {
-		if len(builder.ReplicationClusters) == 0 {
+	if message.ReplicationClusters != nil {
+		if len(message.ReplicationClusters) == 0 {
 			// Empty list means to disable replication
-			C.pulsar_message_disable_replication(msg, C.int(1))
+			C.pulsar_message_disable_replication(cMsg, C.int(1))
 		} else {
-			size := C.int(len(builder.ReplicationClusters))
+			size := C.int(len(message.ReplicationClusters))
 			array := C.newStringArray(size)
 			defer C.freeStringArray(array, size)
 
-			for i, s := range builder.ReplicationClusters {
+			for i, s := range message.ReplicationClusters {
 				C.setString(array, C.CString(s), C.int(i))
 			}
 
-			C.pulsar_message_set_replication_clusters(msg, array)
+			C.pulsar_message_set_replication_clusters(cMsg, array)
 		}
 	}
 
-	return msg
+	return cMsg
 }
 
 ////////////// Message

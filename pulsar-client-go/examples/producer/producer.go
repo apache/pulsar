@@ -50,7 +50,7 @@ func main() {
 	ctx := context.Background()
 
 	for i := 0; i < 10; i++ {
-		if err := producer.Send(ctx, pulsar.MessageBuilder{
+		if err := producer.Send(ctx, pulsar.ProducerMessage{
 			Payload: []byte(fmt.Sprintf("hello-%d", i)),
 		}); err != nil {
 			log.Fatal(err)
