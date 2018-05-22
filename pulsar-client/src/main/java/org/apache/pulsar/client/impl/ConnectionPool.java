@@ -64,7 +64,7 @@ public class ConnectionPool implements Closeable {
     private final EventLoopGroup eventLoopGroup;
     private final int maxConnectionsPerHosts;
 
-    private final DnsNameResolver dnsResolver;
+    protected final DnsNameResolver dnsResolver;
 
     private static final int MaxMessageSize = 5 * 1024 * 1024;
     public static final String TLS_HANDLER = "tls";
