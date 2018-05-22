@@ -41,4 +41,5 @@ public class InstanceConfig {
     private FunctionDetails functionDetails;
     private int maxBufferedTuples;
     private int port;
+    private String fullyQualifiedWorkerId;
 }

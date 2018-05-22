@@ -19,6 +19,22 @@
 package org.apache.pulsar.functions.worker;
 
 import com.google.common.annotations.VisibleForTesting;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerEventListener;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.policies.data.ConsumerStats;
+import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -32,24 +48,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.ToString;
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerEventListener;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.policies.data.ConsumerStats;
-import org.apache.pulsar.common.policies.data.TopicStats;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
-
 /**
  * A simple implementation of leader election using a pulsar topic.
  */
@@ -62,6 +60,7 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
     private PulsarAdmin pulsarAdminClient;
     private final CompletableFuture<Void> firstConsumerEventFuture;
     private final AtomicBoolean isLeader = new AtomicBoolean();
+    private final WorkerInfo myWorkerInfo;
 
     static final String COORDINATION_TOPIC_SUBSCRIPTION = "participants";
 
@@ -75,12 +74,13 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
     MembershipManager(WorkerConfig workerConfig, PulsarClient client)
             throws PulsarClientException {
         this.workerConfig = workerConfig;
-        consumerName = String.format(
-            "%s:%s:%d",
-            workerConfig.getWorkerId(),
-            workerConfig.getWorkerHostname(),
-            workerConfig.getWorkerPort()
+        myWorkerInfo = WorkerInfo.of(
+                workerConfig.getWorkerId(),
+                workerConfig.getWorkerHostname(),
+                workerConfig.getWorkerPort(),
+                System.currentTimeMillis()
         );
+        consumerName = myWorkerInfo.getFullyQualifiedWorkerId();
         firstConsumerEventFuture = new CompletableFuture<>();
         // the membership manager is using a `coordination` topic for leader election.
         // we don't produce any messages into this topic, we only use the `failover` subscription
@@ -151,23 +151,39 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
         private String workerId;
         private String workerHostname;
         private int port;
+        private long timestamp;
 
-        public static WorkerInfo of (String workerId, String workerHostname, int port) {
-            return new WorkerInfo(workerId, workerHostname, port);
+        public static WorkerInfo of (String workerId, String workerHostname, int port, long timestamp) {
+            return new WorkerInfo(workerId, workerHostname, port, timestamp);
         }
 
         public static WorkerInfo parseFrom(String str) {
             String[] tokens = str.split(":");
-            if (tokens.length != 3) {
+            if (tokens.length != 4) {
                 throw new IllegalArgumentException("Invalid string to parse WorkerInfo : " + str);
             }
 
             String workerId = tokens[0];
             String workerHostname = tokens[1];
             int port = Integer.parseInt(tokens[2]);
+            Long timestamp = Long.parseLong(tokens[3]);
 
-            return new WorkerInfo(workerId, workerHostname, port);
+            return new WorkerInfo(workerId, workerHostname, port, timestamp);
         }
+
+        public String getFullyQualifiedWorkerId() {
+            return String.format(
+                    "%s:%s:%d:%d",
+                    workerId,
+                    workerHostname,
+                    port,
+                    timestamp
+            );
+        }
+    }
+
+    public WorkerInfo getWorkerInfo() {
+        return myWorkerInfo;
     }
 
     public void checkFailures(FunctionMetaDataManager functionMetaDataManager,

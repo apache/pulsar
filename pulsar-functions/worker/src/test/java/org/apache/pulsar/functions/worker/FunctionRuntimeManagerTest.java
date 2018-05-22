@@ -87,12 +87,18 @@ public class FunctionRuntimeManagerTest {
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
         doReturn(mock(Reader.class)).when(readerBuilder).create();
 
+        MembershipManager membershipManager = mock(MembershipManager.class);
+        doReturn(
+                MembershipManager.WorkerInfo.of("id",
+                        "hostname", 5555, System.currentTimeMillis()))
+                .when(membershipManager).getWorkerInfo();
+
         // test new assignment add functions
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
                 workerConfig,
                 pulsarClient,
                 mock(Namespace.class),
-                mock(MembershipManager.class)
+                membershipManager
         ));
 
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
@@ -180,12 +186,18 @@ public class FunctionRuntimeManagerTest {
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
         doReturn(mock(Reader.class)).when(readerBuilder).create();
 
+        MembershipManager membershipManager = mock(MembershipManager.class);
+        doReturn(
+                MembershipManager.WorkerInfo.of("id",
+                        "hostname", 5555, System.currentTimeMillis()))
+                .when(membershipManager).getWorkerInfo();
+
         // test new assignment delete functions
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
                 workerConfig,
                 pulsarClient,
                 mock(Namespace.class),
-                mock(MembershipManager.class)
+                membershipManager
         ));
 
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
@@ -277,12 +289,18 @@ public class FunctionRuntimeManagerTest {
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
         doReturn(mock(Reader.class)).when(readerBuilder).create();
 
+        MembershipManager membershipManager = mock(MembershipManager.class);
+        doReturn(
+                MembershipManager.WorkerInfo.of("id",
+                        "hostname", 5555, System.currentTimeMillis()))
+                .when(membershipManager).getWorkerInfo();
+
         // test new assignment update functions
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
                 workerConfig,
                 pulsarClient,
                 mock(Namespace.class),
-                mock(MembershipManager.class)
+                membershipManager
         ));
 
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(

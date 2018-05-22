@@ -118,6 +118,9 @@ public class RuntimeSpawner implements AutoCloseable {
             runtime.stop();
             runtime = null;
         }
+        if (runtimeFactory != null) {
+            runtimeFactory.close();
+        }
         if (processLivenessCheckTimer != null) {
             processLivenessCheckTimer.cancel();
             processLivenessCheckTimer = null;

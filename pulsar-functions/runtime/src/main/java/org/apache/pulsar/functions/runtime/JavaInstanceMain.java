@@ -37,15 +37,25 @@ import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
 
-import java.lang.reflect.Type;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.ConnectException;
+import java.net.HttpURLConnection;
+import java.net.SocketTimeoutException;
+import java.net.URL;
 import java.util.Map;
+import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * A function container implemented using java thread.
  */
 @Slf4j
-public class JavaInstanceMain {
+public class JavaInstanceMain implements AutoCloseable{
     @Parameter(names = "--function_classname", description = "Function Class Name\n", required = true)
     protected String className;
     @Parameter(
@@ -122,7 +132,13 @@ public class JavaInstanceMain {
     @Parameter(names = "--sink_serde_classname", description = "Sink SerDe\n")
     protected String sinkSerdeClassName;
 
+    @Parameter(names = "--fully_qualified_worker_id", description = "Unique Identifier for worker\n")
+    protected String uniqueWorkerId;
+
     private Server server;
+    private RuntimeSpawner runtimeSpawner;
+    private ScheduledExecutorService timer;
+    private ScheduledFuture<?> handle;
 
     public JavaInstanceMain() { }
 
@@ -133,6 +149,7 @@ public class JavaInstanceMain {
         instanceConfig.setFunctionVersion(functionVersion);
         instanceConfig.setInstanceId(instanceId);
         instanceConfig.setMaxBufferedTuples(maxBufferedTuples);
+        instanceConfig.setFullyQualifiedWorkerId(uniqueWorkerId);
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
         functionDetailsBuilder.setTenant(tenant);
         functionDetailsBuilder.setNamespace(namespace);
@@ -186,12 +203,13 @@ public class JavaInstanceMain {
         instanceConfig.setFunctionDetails(functionDetails);
         instanceConfig.setPort(port);
 
+
         ThreadRuntimeFactory containerFactory = new ThreadRuntimeFactory(
                 "LocalRunnerThreadGroup",
                 pulsarServiceUrl,
                 stateStorageServiceUrl);
 
-        RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
+        runtimeSpawner = new RuntimeSpawner(
                 instanceConfig,
                 jarFile,
                 containerFactory,
@@ -199,21 +217,51 @@ public class JavaInstanceMain {
 
         server = ServerBuilder.forPort(port)
                 .addService(new InstanceControlImpl(runtimeSpawner))
-                .build()
-                .start();
-        log.info("JaveInstance Server started, listening on " + port);
-        java.lang.Runtime.getRuntime().addShutdownHook(new Thread() {
+                .build();
+
+        // monitor worker that spawned this process
+        timer = Executors.newSingleThreadScheduledExecutor();
+        handle = timer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
-                // Use stderr here since the logger may have been reset by its JVM shutdown hook.
+                String uniqueWorkerId = null;
                 try {
-                    server.shutdown();
-                    runtimeSpawner.close();
+                    URL url = new URL("http://127.0.0.1:8080/admin/functions/id");
+                    HttpURLConnection con = (HttpURLConnection) url.openConnection();
+                    con.setConnectTimeout(30000);
+                    con.setReadTimeout(30000);
+                    con.setRequestMethod("GET");
+                    BufferedReader in = new BufferedReader(
+                            new InputStreamReader(con.getInputStream()));
+                    String inputLine;
+                    StringBuffer content = new StringBuffer();
+                    while ((inputLine = in.readLine()) != null) {
+                        content.append(inputLine);
+                    }
+                    in.close();
+
+                    uniqueWorkerId = content.toString();
+
+                } catch (SocketTimeoutException | ConnectException ex) {
+                    log.info("Could not connect to worker.  Shutting down...");
+                    close();
+                    return;
                 } catch (Exception ex) {
-                    System.err.println(ex);
+                    log.error("Exception occurred when getting worker ID", ex);
+                    return;
+                }
+                if (!uniqueWorkerId.equals(instanceConfig.getFullyQualifiedWorkerId())) {
+                    log.info("There is a discrepency in worker ID. Expected worker ID: {} Actual worker ID: {}. New worker process might have been started. Shutting down...", instanceConfig.getFullyQualifiedWorkerId(), uniqueWorkerId);
+                    close();
+                    return;
                 }
             }
-        });
+        }, 30, 30, TimeUnit.SECONDS);
+
+        // start server
+        server.start();
+        log.info("JaveInstance Server started, listening on " + port);
+        java.lang.Runtime.getRuntime().addShutdownHook(new Thread(() -> close()));
         log.info("Starting runtimeSpawner");
         runtimeSpawner.start();
         runtimeSpawner.join();
@@ -229,6 +277,27 @@ public class JavaInstanceMain {
         // parse args by JCommander
         jcommander.parse(args);
         javaInstanceMain.start();
+    }
+
+    @Override
+    public void close() {
+        try {
+            // Use stderr here since the logger may have been reset by its JVM shutdown hook.
+            if (server != null) {
+                server.shutdown();
+            }
+            if (runtimeSpawner != null) {
+                runtimeSpawner.close();
+            }
+            if (handle != null) {
+                handle.cancel(true);
+            }
+            if (timer != null) {
+                timer.shutdown();
+            }
+        } catch (Exception ex) {
+            System.err.println(ex);
+        }
     }
 
     static class InstanceControlImpl extends InstanceControlGrpc.InstanceControlImplBase {
