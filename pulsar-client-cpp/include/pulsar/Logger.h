@@ -16,10 +16,36 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include <LogUtils.h>
-#include <gmock/gmock.h>
+#pragma once
 
-int main(int argc, char **argv) {
-    ::testing::InitGoogleMock(&argc, argv);
-    return RUN_ALL_TESTS();
-}
+#include <boost/shared_ptr.hpp>
+
+#pragma GCC visibility push(default)
+
+namespace pulsar {
+
+class Logger {
+   public:
+    enum Level
+    {
+        DEBUG = 0,
+        INFO = 1,
+        WARN = 2,
+        ERROR = 3
+    };
+
+    virtual bool isEnabled(Level level) = 0;
+
+    virtual void log(Level level, int line, const std::string& message) = 0;
+};
+
+class LoggerFactory {
+   public:
+    virtual ~LoggerFactory() {}
+
+    virtual Logger* getLogger(const std::string& fileName) = 0;
+};
+
+typedef boost::shared_ptr<LoggerFactory> LoggerFactoryPtr;
+}  // namespace pulsar
+#pragma GCC visibility pop
