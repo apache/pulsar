@@ -26,7 +26,6 @@ import com.google.gson.Gson;
 import com.google.protobuf.Empty;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
-import java.util.concurrent.ExecutionException;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -35,12 +34,9 @@ import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
 
-import java.io.IOException;
 import java.io.InputStream;
-import java.net.ServerSocket;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.functions.proto.InstanceControlGrpc.InstanceControlFutureStub;
 
 /**
  * A function container implemented using java thread.
@@ -266,6 +262,28 @@ class ProcessRuntime implements Runtime {
 
             @Override
             public void onSuccess(InstanceCommunication.MetricsData t) {
+                retval.complete(t);
+            }
+        });
+        return retval;
+    }
+
+    @Override
+    public CompletableFuture<InstanceCommunication.HealthCheckResult> healthCheck() {
+        CompletableFuture<InstanceCommunication.HealthCheckResult> retval = new CompletableFuture<>();
+        if (stub == null) {
+            retval.completeExceptionally(new RuntimeException("Not alive"));
+            return retval;
+        }
+        ListenableFuture<InstanceCommunication.HealthCheckResult> response = stub.healthCheck(Empty.newBuilder().build());
+        Futures.addCallback(response, new FutureCallback<InstanceCommunication.HealthCheckResult>() {
+            @Override
+            public void onFailure(Throwable throwable) {
+                retval.completeExceptionally(throwable);
+            }
+
+            @Override
+            public void onSuccess(InstanceCommunication.HealthCheckResult t) {
                 retval.complete(t);
             }
         });

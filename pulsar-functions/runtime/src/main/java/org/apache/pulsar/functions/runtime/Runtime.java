@@ -42,4 +42,6 @@ public interface Runtime {
 
     CompletableFuture<InstanceCommunication.MetricsData> getAndResetMetrics();
 
+    CompletableFuture<InstanceCommunication.HealthCheckResult> healthCheck();
+
 }

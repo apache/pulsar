@@ -27,10 +27,12 @@ import java.io.IOException;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.utils.Utils;
 
@@ -79,6 +81,17 @@ public class RuntimeSpawner implements AutoCloseable {
                         runtimeDeathException = runtime.getDeathException();
                         runtime.start();
                         numRestarts++;
+                    } else {
+                        log.info("health check...{} - {}", runtime.getClass(), runtimeFactory.getClass());
+                        CompletableFuture<InstanceCommunication.HealthCheckResult> result = runtime.healthCheck();
+                        try {
+                            log.info("result: {}", result.get().getSuccess());
+                        } catch (Exception e) {
+                            log.error("{} - Health check failed for {}-{}",
+                                    runtime.getClass(),
+                                    instanceConfig.getFunctionDetails().getName(),
+                                    instanceConfig.getInstanceId(), e);
+                        }
                     }
                 }
             }, instanceLivenessCheckFreqMs, instanceLivenessCheckFreqMs);
@@ -117,6 +130,9 @@ public class RuntimeSpawner implements AutoCloseable {
         if (null != runtime) {
             runtime.stop();
             runtime = null;
+        }
+        if (runtimeFactory != null) {
+            runtimeFactory.close();
         }
         if (processLivenessCheckTimer != null) {
             processLivenessCheckTimer.cancel();
