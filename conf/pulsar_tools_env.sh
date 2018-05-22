@@ -42,7 +42,9 @@
 # PULSAR_GLOBAL_ZK_CONF=
 
 # Extra options to be passed to the jvm
-PULSAR_MEM=" -Xmx256m -XX:MaxDirectMemorySize=256m"
+if [ -z "$PULSAR_MEM" ]; then
+    PULSAR_MEM=" -Xmx256m -XX:MaxDirectMemorySize=256m"
+fi
 
 # Garbage collection options
 PULSAR_GC=" -client "
