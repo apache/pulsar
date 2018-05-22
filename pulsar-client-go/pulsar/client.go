@@ -47,8 +47,11 @@ type ClientOptions struct {
 	// on thousands of topic using created Pulsar Client
 	ConcurrentLookupRequests int
 
-	// Initialize the Log4cxx configuration
-	LogConfFilePath string
+	// Provide a custom logger implementation where all Pulsar library info/warn/error messages will be routed
+	// By default, log messages will be printed on standard output. By passing a logger function, application
+	// can determine how to print logs. This function will be called each time the Pulsar client library wants
+	// to write any logs.
+	Logger func(level LoggerLevel, file string, line int, message string)
 
 	// Configure whether to use TLS encryption on the connection (default: false)
 	EnableTLS bool

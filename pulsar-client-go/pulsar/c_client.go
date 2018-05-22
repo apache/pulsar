@@ -27,7 +27,15 @@ import "C"
 import (
 	"runtime"
 	"unsafe"
+	"log"
 )
+
+//export pulsarClientLoggerProxy
+func pulsarClientLoggerProxy(level C.pulsar_logger_level_t, file *C.char, line C.int, message *C.char, ctx unsafe.Pointer) {
+	logger := restorePointerNoDelete(ctx).(func(LoggerLevel, string, int, string))
+
+	logger(LoggerLevel(level), C.GoString(file), int(line), C.GoString(message))
+}
 
 func newClient(options ClientOptions) (Client, error) {
 	if options.URL == "" {
@@ -52,11 +60,14 @@ func newClient(options ClientOptions) (Client, error) {
 		C.pulsar_client_configuration_set_concurrent_lookup_request(conf, C.int(options.ConcurrentLookupRequests))
 	}
 
-	if options.LogConfFilePath != "" {
-		cPath := C.CString(options.LogConfFilePath)
-		defer C.free(unsafe.Pointer(cPath))
-		C.pulsar_client_configuration_set_log_conf_file_path(conf, cPath)
+	if options.Logger == nil {
+		// Configure a default logger with same date format as Go logs
+		options.Logger = func(level LoggerLevel, file string, line int, message string) {
+			log.Printf("%s | %s:%d | %s", level, file, line, message)
+		}
 	}
+
+	C._pulsar_client_configuration_set_logger(conf, savePointer(options.Logger))
 
 	if options.EnableTLS {
 		C.pulsar_client_configuration_set_use_tls(conf, cBool(options.EnableTLS))

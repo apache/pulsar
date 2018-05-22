@@ -135,7 +135,7 @@ type consumerCallback struct {
 
 //export pulsarMessageListenerProxy
 func pulsarMessageListenerProxy(cConsumer *C.pulsar_consumer_t, message *C.pulsar_message_t, ctx unsafe.Pointer) {
-	cc := restorePointer(ctx).(*consumerCallback)
+	cc := restorePointerNoDelete(ctx).(*consumerCallback)
 	cc.channel <- ConsumerMessage{cc.consumer, newMessageWrapper(message)}
 }
 

@@ -19,46 +19,30 @@
 
 package pulsar
 
-// #include <stdlib.h>
-import "C"
-import (
-	"unsafe"
-	"sync"
+import "fmt"
+
+type LoggerLevel int
+
+const (
+	DEBUG LoggerLevel = 0;
+	INFO  LoggerLevel = 1;
+	WARN  LoggerLevel = 2;
+	ERROR LoggerLevel = 3;
 )
 
-// Inspired by https://github.com/mattn/go-pointer
-// Make sure the marker pointer is freed after restoring
 
-var (
-	mutex sync.Mutex
-	pointers = map[unsafe.Pointer]interface{}{}
-)
+func (l LoggerLevel) String() string {
+	switch l {
+	case DEBUG:
+		return "DEBUG"
+	case INFO:
+		return "INFO "
+	case WARN:
+		return "WARN "
+	case ERROR:
+		return "ERROR"
 
-func savePointer(object interface{}) unsafe.Pointer {
-	// Get a ref to object using reflection
-	ptr := C.malloc(C.size_t(1))
-
-	mutex.Lock()
-	pointers[ptr] = object
-	mutex.Unlock()
-
-	return ptr
-}
-
-func restorePointer(ptr unsafe.Pointer) interface{} {
-	mutex.Lock()
-	obj := pointers[ptr]
-	delete(pointers, ptr)
-	C.free(ptr)
-	mutex.Unlock()
-
-	return obj
-}
-
-func restorePointerNoDelete(ptr unsafe.Pointer) interface{} {
-	mutex.Lock()
-	obj := pointers[ptr]
-	mutex.Unlock()
-
-	return obj
+	default:
+		return fmt.Sprintf("%d", int(l))
+	}
 }

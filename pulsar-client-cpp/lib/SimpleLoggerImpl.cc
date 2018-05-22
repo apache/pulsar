@@ -78,13 +78,7 @@ class SimpleLogger : public Logger {
     }
 };
 
-Logger *SimpleLoggerFactory::getLogger(const std::string &path) {
-    // Remove all directories from filename
-    int startIdx = path.find_last_of("/");
-    int endIdx = path.find_last_of(".");
-    std::string fileName = path.substr(startIdx + 1, endIdx - startIdx - 1);
-    return new SimpleLogger(fileName);
-}
+Logger *SimpleLoggerFactory::getLogger(const std::string &file) { return new SimpleLogger(file); }
 
 LoggerFactoryPtr SimpleLoggerFactory::create() { return LoggerFactoryPtr(new SimpleLoggerFactory); }
 }  // namespace pulsar
