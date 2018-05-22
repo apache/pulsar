@@ -131,18 +131,19 @@ public class MembershipManagerTest {
         doReturn(readerBuilder).when(readerBuilder).topic(anyString());
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
         doReturn(mock(Reader.class)).when(readerBuilder).create();
+
+        FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
+        MembershipManager membershipManager = spy(new MembershipManager(workerConfig, mockPulsarClient()));
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
                 workerConfig,
                 pulsarClient,
                 mock(Namespace.class),
-                mock(MembershipManager.class)
+                membershipManager
         ));
-        FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
-        MembershipManager membershipManager = spy(new MembershipManager(workerConfig, mockPulsarClient()));
 
         List<MembershipManager.WorkerInfo> workerInfoList = new LinkedList<>();
-        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "host-1", 8000));
-        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-2", "host-2", 8001));
+        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "host-1", 8000, System.currentTimeMillis()));
+        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-2", "host-2", 8001, System.currentTimeMillis()));
 
         Mockito.doReturn(workerInfoList).when(membershipManager).getCurrentMembership();
 
@@ -195,18 +196,18 @@ public class MembershipManagerTest {
         doReturn(readerBuilder).when(readerBuilder).topic(anyString());
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
         doReturn(mock(Reader.class)).when(readerBuilder).create();
+
+        FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
+        MembershipManager membershipManager = spy(new MembershipManager(workerConfig, mockPulsarClient()));
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
                 workerConfig,
                 pulsarClient,
                 mock(Namespace.class),
-                mock(MembershipManager.class)
+                membershipManager
         ));
 
-        FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
-        MembershipManager membershipManager = spy(new MembershipManager(workerConfig, mockPulsarClient()));
-
         List<MembershipManager.WorkerInfo> workerInfoList = new LinkedList<>();
-        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "host-1", 8000));
+        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "host-1", 8000, System.currentTimeMillis()));
 
         Mockito.doReturn(workerInfoList).when(membershipManager).getCurrentMembership();
 
@@ -284,18 +285,19 @@ public class MembershipManagerTest {
         doReturn(readerBuilder).when(readerBuilder).topic(anyString());
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
         doReturn(mock(Reader.class)).when(readerBuilder).create();
+
+        FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
+        MembershipManager membershipManager = spy(new MembershipManager(workerConfig, mockPulsarClient()));
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
                 workerConfig,
                 pulsarClient,
                 mock(Namespace.class),
-                mock(MembershipManager.class)
+                membershipManager
         ));
-        FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
-        MembershipManager membershipManager = spy(new MembershipManager(workerConfig, mockPulsarClient()));
 
         List<MembershipManager.WorkerInfo> workerInfoList = new LinkedList<>();
-        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "host-1", 8000));
-        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-2", "host-2", 8001));
+        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "host-1", 8000, System.currentTimeMillis()));
+        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-2", "host-2", 8001, System.currentTimeMillis()));
 
         Mockito.doReturn(workerInfoList).when(membershipManager).getCurrentMembership();
 

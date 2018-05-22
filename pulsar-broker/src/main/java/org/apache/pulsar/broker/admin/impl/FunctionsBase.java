@@ -221,6 +221,20 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
         return functions.getAssignments();
     }
 
+    @GET
+    @ApiOperation(
+            value = "Fetches unqiue Id of worker",
+            response = String.class,
+            responseContainer = "String"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions")
+    })
+    @Path("/id")
+    public Response getId() {
+        return functions.getId();
+    }
+
     @POST
     @ApiOperation(
             value = "Triggers a Pulsar Function with a user-specified value or file data",

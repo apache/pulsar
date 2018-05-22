@@ -146,7 +146,7 @@ public class SchedulerManagerTest {
 
         // single node
         List<MembershipManager.WorkerInfo> workerInfoList = new LinkedList<>();
-        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "workerHostname-1", 5000));
+        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "workerHostname-1", 5000, System.currentTimeMillis()));
         doReturn(workerInfoList).when(membershipManager).getCurrentMembership();
 
         // i am not leader
@@ -190,7 +190,7 @@ public class SchedulerManagerTest {
 
         // single node
         List<MembershipManager.WorkerInfo> workerInfoList = new LinkedList<>();
-        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "workerHostname-1", 5000));
+        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "workerHostname-1", 5000, System.currentTimeMillis()));
         doReturn(workerInfoList).when(membershipManager).getCurrentMembership();
 
         // i am leader
@@ -246,7 +246,7 @@ public class SchedulerManagerTest {
 
         // single node
         List<MembershipManager.WorkerInfo> workerInfoList = new LinkedList<>();
-        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "workerHostname-1", 5000));
+        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "workerHostname-1", 5000, System.currentTimeMillis()));
         doReturn(workerInfoList).when(membershipManager).getCurrentMembership();
 
         // i am leader
@@ -317,7 +317,7 @@ public class SchedulerManagerTest {
 
         // single node
         List<MembershipManager.WorkerInfo> workerInfoList = new LinkedList<>();
-        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "workerHostname-1", 5000));
+        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "workerHostname-1", 5000, System.currentTimeMillis()));
         doReturn(workerInfoList).when(membershipManager).getCurrentMembership();
 
         // i am leader
@@ -376,7 +376,7 @@ public class SchedulerManagerTest {
 
         // single node
         List<MembershipManager.WorkerInfo> workerInfoList = new LinkedList<>();
-        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "workerHostname-1", 5000));
+        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "workerHostname-1", 5000, System.currentTimeMillis()));
         doReturn(workerInfoList).when(membershipManager).getCurrentMembership();
 
         // i am leader
@@ -482,7 +482,7 @@ public class SchedulerManagerTest {
 
         // single node
         List<MembershipManager.WorkerInfo> workerInfoList = new LinkedList<>();
-        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "workerHostname-1", 5000));
+        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "workerHostname-1", 5000, System.currentTimeMillis()));
         doReturn(workerInfoList).when(membershipManager).getCurrentMembership();
 
         // i am leader
@@ -591,7 +591,7 @@ public class SchedulerManagerTest {
 
         // single node
         List<MembershipManager.WorkerInfo> workerInfoList = new LinkedList<>();
-        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "workerHostname-1", 5000));
+        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "workerHostname-1", 5000, System.currentTimeMillis()));
         doReturn(workerInfoList).when(membershipManager).getCurrentMembership();
 
         // i am leader

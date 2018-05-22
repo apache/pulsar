@@ -130,6 +130,12 @@ public class FunctionApiV2Resource extends FunctionApiResource {
         return functions.getAssignments();
     }
 
+    @GET
+    @Path("/id")
+    public Response getId() {
+        return functions.getId();
+    }
+
     @POST
     @Path("/{tenant}/{namespace}/{functionName}/trigger")
     @Consumes(MediaType.MULTIPART_FORM_DATA)

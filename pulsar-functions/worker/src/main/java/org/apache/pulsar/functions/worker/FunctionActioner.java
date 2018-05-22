@@ -55,11 +55,12 @@ public class FunctionActioner implements AutoCloseable {
     private LinkedBlockingQueue<FunctionAction> actionQueue;
     private volatile boolean running;
     private Thread actioner;
+    private String fullyQualifiedWorkerId;
 
     public FunctionActioner(WorkerConfig workerConfig,
                             RuntimeFactory runtimeFactory,
                             Namespace dlogNamespace,
-                            LinkedBlockingQueue<FunctionAction> actionQueue) {
+                            LinkedBlockingQueue<FunctionAction> actionQueue, String fullyQualifiedWorkerId) {
         this.workerConfig = workerConfig;
         this.runtimeFactory = runtimeFactory;
         this.dlogNamespace = dlogNamespace;
@@ -85,6 +86,7 @@ public class FunctionActioner implements AutoCloseable {
             }
         });
         actioner.setName("FunctionActionerThread");
+        this.fullyQualifiedWorkerId = fullyQualifiedWorkerId;
     }
 
     public void start() {
@@ -165,6 +167,8 @@ public class FunctionActioner implements AutoCloseable {
         instanceConfig.setInstanceId(String.valueOf(instanceId));
         instanceConfig.setMaxBufferedTuples(1024);
         instanceConfig.setPort(org.apache.pulsar.functions.utils.Utils.findAvailablePort());
+        instanceConfig.setFullyQualifiedWorkerId(fullyQualifiedWorkerId);
+        instanceConfig.setWorkerPort(workerConfig.getWorkerPort());
         RuntimeSpawner runtimeSpawner = new RuntimeSpawner(instanceConfig, pkgFile.getAbsolutePath(),
                 runtimeFactory, workerConfig.getInstanceLivenessCheckFreqMs());
 

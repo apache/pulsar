@@ -104,6 +104,8 @@ public class ProcessRuntimeTest {
         config.setFunctionVersion("1.0");
         config.setInstanceId(java.util.UUID.randomUUID().toString());
         config.setMaxBufferedTuples(1024);
+        config.setFullyQualifiedWorkerId("my-fully-qualified-worker-id");
+        config.setWorkerPort(8080);
 
         return config;
     }
@@ -114,7 +116,7 @@ public class ProcessRuntimeTest {
 
         ProcessRuntime container = factory.createContainer(config, userJarFile);
         List<String> args = container.getProcessArgs();
-        assertEquals(args.size(), 51);
+        assertEquals(args.size(), 55);
         String expectedArgs = "java -cp " + javaInstanceJarFile + " -Dlog4j.configurationFile=java_instance_log4j2.yml "
                 + "-Dpulsar.log.dir=" + logDirectory + "/functions" + " -Dpulsar.log.file=" + config.getFunctionDetails().getName()
                 + " org.apache.pulsar.functions.runtime.JavaInstanceMain"
@@ -136,7 +138,9 @@ public class ProcessRuntimeTest {
                 + " --sink_classname " + config.getFunctionDetails().getSink().getClassName()
                 + " --sink_type_classname " + config.getFunctionDetails().getSink().getTypeClassName()
                 + " --sink_topic " + config.getFunctionDetails().getSink().getTopic()
-                + " --sink_serde_classname " + config.getFunctionDetails().getSink().getSerDeClassName();
+                + " --sink_serde_classname " + config.getFunctionDetails().getSink().getSerDeClassName()
+                + " --fully_qualified_worker_id " + config.getFullyQualifiedWorkerId()
+                + " --worker_port " + config.getWorkerPort();
         assertEquals(expectedArgs, String.join(" ", args));
     }
 
@@ -146,7 +150,7 @@ public class ProcessRuntimeTest {
 
         ProcessRuntime container = factory.createContainer(config, userJarFile);
         List<String> args = container.getProcessArgs();
-        assertEquals(args.size(), 42);
+        assertEquals(args.size(), 46);
         String expectedArgs = "python " + pythonInstanceFile
                 + " --py " + userJarFile + " --logging_directory "
                 + logDirectory + "/functions" + " --logging_file " + config.getFunctionDetails().getName() + " --instance_id "
@@ -163,7 +167,9 @@ public class ProcessRuntimeTest {
                 + " --source_subscription_type " + config.getFunctionDetails().getSource().getSubscriptionType().name()
                 + " --source_topics_serde_classname " + new Gson().toJson(topicsToSerDeClassName)
                 + " --sink_topic " + config.getFunctionDetails().getSink().getTopic()
-                + " --sink_serde_classname " + config.getFunctionDetails().getSink().getSerDeClassName();
+                + " --sink_serde_classname " + config.getFunctionDetails().getSink().getSerDeClassName()
+                + " --fully_qualified_worker_id " + config.getFullyQualifiedWorkerId()
+                + " --worker_port " + config.getWorkerPort();
         assertEquals(expectedArgs, String.join(" ", args));
     }
 

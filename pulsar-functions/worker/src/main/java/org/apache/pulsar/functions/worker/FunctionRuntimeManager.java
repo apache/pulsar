@@ -110,7 +110,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
         this.actionQueue = new LinkedBlockingQueue<>();
 
         this.functionActioner = new FunctionActioner(this.workerConfig, runtimeFactory,
-                dlogNamespace, actionQueue);
+                dlogNamespace, actionQueue, membershipManager.getWorkerInfo().getFullyQualifiedWorkerId());
 
         this.membershipManager = membershipManager;
     }
