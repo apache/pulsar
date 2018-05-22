@@ -78,6 +78,16 @@ TEST(TopicNameTest, testTopicNameV2) {
     ASSERT_EQ(TopicName::getEncodedName("short-topic"), tn1->getLocalName());
 }
 
+TEST(TopicNameTest, testNonPersistentTopicNameV2) {
+    // v2 topic names doesn't have "cluster"
+    boost::shared_ptr<TopicName> tn1 = TopicName::get("non-persistent://tenant/namespace/short-topic");
+    ASSERT_EQ("tenant", tn1->getProperty());
+    ASSERT_EQ("", tn1->getCluster());
+    ASSERT_EQ("namespace", tn1->getNamespacePortion());
+    ASSERT_EQ("non-persistent", tn1->getDomain());
+    ASSERT_EQ(TopicName::getEncodedName("short-topic"), tn1->getLocalName());
+}
+
 TEST(TopicNameTest, testTopicNameWithSlashes) {
     // Compare getters and setters
     boost::shared_ptr<TopicName> topicName =
