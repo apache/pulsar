@@ -259,7 +259,7 @@ public class WebServiceTest {
         config.setZookeeperServers("localhost:2181");
         pulsar = spy(new PulsarService(config));
         doReturn(new MockedZooKeeperClientFactoryImpl()).when(pulsar).getZooKeeperClientFactory();
-        doReturn(new MockedBookKeeperClientFactory()).when(pulsar).getBookKeeperClientFactory();
+        doReturn(new MockedBookKeeperClientFactory()).when(pulsar).newBookKeeperClientFactory();
         pulsar.start();
 
         try {

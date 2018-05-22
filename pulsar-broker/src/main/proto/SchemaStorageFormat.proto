@@ -20,7 +20,7 @@ syntax = "proto2";
 
 package pulsar.schema;
 option java_package = "org.apache.pulsar.broker.service.schema";
-option optimize_for = LITE_RUNTIME;
+option optimize_for = SPEED;
 
 message PositionInfo {
     required int64 ledgerId = 1;
