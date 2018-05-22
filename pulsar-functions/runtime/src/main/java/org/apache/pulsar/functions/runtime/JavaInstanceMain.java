@@ -132,8 +132,11 @@ public class JavaInstanceMain implements AutoCloseable{
     @Parameter(names = "--sink_serde_classname", description = "Sink SerDe\n")
     protected String sinkSerdeClassName;
 
-    @Parameter(names = "--fully_qualified_worker_id", description = "Unique Identifier for worker\n")
+    @Parameter(names = "--fully_qualified_worker_id", description = "Unique Identifier for worker\n", required = true)
     protected String uniqueWorkerId;
+
+    @Parameter(names = "--worker_port", description = "Service port of worker service\n", required = true)
+    protected int workerPort;
 
     private Server server;
     private RuntimeSpawner runtimeSpawner;
@@ -150,6 +153,7 @@ public class JavaInstanceMain implements AutoCloseable{
         instanceConfig.setInstanceId(instanceId);
         instanceConfig.setMaxBufferedTuples(maxBufferedTuples);
         instanceConfig.setFullyQualifiedWorkerId(uniqueWorkerId);
+        instanceConfig.setWorkerPort(workerPort);
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
         functionDetailsBuilder.setTenant(tenant);
         functionDetailsBuilder.setNamespace(namespace);
@@ -226,7 +230,8 @@ public class JavaInstanceMain implements AutoCloseable{
             public void run() {
                 String uniqueWorkerId = null;
                 try {
-                    URL url = new URL("http://127.0.0.1:8080/admin/functions/id");
+                    URL url = new URL(String.format("http://127.0.0.1:%s/admin/functions/id",
+                            instanceConfig.getWorkerPort()));
                     HttpURLConnection con = (HttpURLConnection) url.openConnection();
                     con.setConnectTimeout(30000);
                     con.setReadTimeout(30000);

@@ -189,6 +189,8 @@ class ProcessRuntime implements Runtime {
 
         args.add("--fully_qualified_worker_id");
         args.add(instanceConfig.getFullyQualifiedWorkerId());
+        args.add("--worker_port");
+        args.add(Integer.toString(instanceConfig.getWorkerPort()));
         return args;
     }
 

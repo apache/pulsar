@@ -168,6 +168,7 @@ public class FunctionActioner implements AutoCloseable {
         instanceConfig.setMaxBufferedTuples(1024);
         instanceConfig.setPort(org.apache.pulsar.functions.utils.Utils.findAvailablePort());
         instanceConfig.setFullyQualifiedWorkerId(fullyQualifiedWorkerId);
+        instanceConfig.setWorkerPort(workerConfig.getWorkerPort());
         RuntimeSpawner runtimeSpawner = new RuntimeSpawner(instanceConfig, pkgFile.getAbsolutePath(),
                 runtimeFactory, workerConfig.getInstanceLivenessCheckFreqMs());
 

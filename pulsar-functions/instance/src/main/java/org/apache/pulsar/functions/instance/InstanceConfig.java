@@ -42,4 +42,5 @@ public class InstanceConfig {
     private int maxBufferedTuples;
     private int port;
     private String fullyQualifiedWorkerId;
+    private int workerPort;
 }

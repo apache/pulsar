@@ -146,6 +146,7 @@ public class PulsarBrokerStarter {
                 // worker talks to local broker
                 workerConfig.setPulsarServiceUrl("pulsar://127.0.0.1:" + brokerConfig.getBrokerServicePort());
                 workerConfig.setPulsarWebServiceUrl("http://127.0.0.1:" + brokerConfig.getWebServicePort());
+                workerConfig.setWorkerPort(brokerConfig.getWebServicePort());
                 String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(
                     brokerConfig.getAdvertisedAddress());
                 workerConfig.setWorkerHostname(hostname);
