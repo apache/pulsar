@@ -23,10 +23,12 @@ import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 import static org.apache.bookkeeper.stream.protocol.ProtocolConstants.DEFAULT_STREAM_CONF;
 
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import io.netty.buffer.ByteBuf;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -51,14 +53,11 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
-import org.apache.pulsar.functions.sink.DefaultRuntimeSink;
 import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.sink.PulsarSinkConfig;
-import org.apache.pulsar.functions.sink.RuntimeSink;
 import org.apache.pulsar.functions.source.PulsarRecord;
 import org.apache.pulsar.functions.source.PulsarSource;
 import org.apache.pulsar.functions.source.PulsarSourceConfig;
@@ -105,7 +104,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private Record currentRecord;
 
     private Source source;
-    private RuntimeSink sink;
+    private Sink sink;
 
     public JavaInstanceRunnable(InstanceConfig instanceConfig,
                                 FunctionCacheManager fnCache,
@@ -305,8 +304,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             if (result.getResult() != null) {
                 sendOutputMessage(srcRecord, result.getResult());
             } else {
-                // the function doesn't produce any result or the user doesn't want the result.
-                srcRecord.ack();
+                if (instanceConfig.getFunctionDetails().getAutoAck()) {
+                    // the function doesn't produce any result or the user doesn't want the result.
+                    srcRecord.ack();
+                }
             }
         }
     }
@@ -321,12 +322,21 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     private Record readInput() {
+        Record record;
         try {
-            return this.source.read();
+            record = this.source.read();
         } catch (Exception e) {
-            log.info("Encountered exception in source write: ", e);
+            log.info("Encountered exception in source read: ", e);
             throw new RuntimeException(e);
         }
+
+        // check record is valid
+        if (record == null) {
+            throw new IllegalArgumentException("The record returned by the source cannot be null");
+        } else if (record.getValue() == null) {
+            throw new IllegalArgumentException("The value in the record returned by the source cannot be null");
+        }
+        return record;
     }
 
     @Override
@@ -444,8 +454,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
         SourceSpec sourceSpec = this.instanceConfig.getFunctionDetails().getSource();
         Object object;
-        if (sourceSpec.getClassName().equals(PulsarSource.class.getName())) {
-
+        // If source classname is not set, we default pulsar source
+        if (sourceSpec.getClassName().isEmpty()) {
             PulsarSourceConfig pulsarSourceConfig = new PulsarSourceConfig();
             pulsarSourceConfig.setTopicSerdeClassNameMap(sourceSpec.getTopicsToSerDeClassNameMap());
             pulsarSourceConfig.setSubscriptionName(
@@ -461,7 +471,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             Class[] paramTypes = {PulsarClient.class, PulsarSourceConfig.class};
 
             object = Reflections.createInstance(
-                    sourceSpec.getClassName(),
+                    PulsarSource.class.getName(),
                     PulsarSource.class.getClassLoader(), params, paramTypes);
 
         } else {
@@ -479,14 +489,20 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
         this.source = (Source) object;
 
-        this.source.open(new Gson().fromJson(sourceSpec.getConfigs(), Map.class));
+        if (sourceSpec.getConfigs().isEmpty()) {
+            this.source.open(new HashMap<>());
+        } else {
+            this.source.open(new Gson().fromJson(sourceSpec.getConfigs(),
+                    new TypeToken<Map<String, Object>>(){}.getType()));
+        }
     }
 
     public void setupOutput() throws Exception {
 
         SinkSpec sinkSpec = this.instanceConfig.getFunctionDetails().getSink();
         Object object;
-        if (sinkSpec.getClassName().equals(PulsarSink.class.getName())) {
+        // If sink classname is not set, we default pulsar sink
+        if (sinkSpec.getClassName().isEmpty()) {
             PulsarSinkConfig pulsarSinkConfig = new PulsarSinkConfig();
             pulsarSinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.valueOf(
                     this.instanceConfig.getFunctionDetails().getProcessingGuarantees().name()));
@@ -498,7 +514,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             Class[] paramTypes = {PulsarClient.class, PulsarSinkConfig.class};
 
             object = Reflections.createInstance(
-                    sinkSpec.getClassName(),
+                    PulsarSink.class.getName(),
                     PulsarSink.class.getClassLoader(), params, paramTypes);
         } else {
             object = Reflections.createInstance(
@@ -506,13 +522,16 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     Thread.currentThread().getContextClassLoader());
         }
 
-        if (object instanceof RuntimeSink) {
-            this.sink = (RuntimeSink) object;
-        } else if (object instanceof Sink) {
-            this.sink = DefaultRuntimeSink.of((Sink) object);
+        if (object instanceof Sink) {
+            this.sink = (Sink) object;
         } else {
             throw new RuntimeException("Sink does not implement correct interface");
         }
-        this.sink.open(new Gson().fromJson(sinkSpec.getConfigs(), Map.class));
+        if (sinkSpec.getConfigs().isEmpty()) {
+            this.sink.open(new HashMap<>());
+        } else {
+            this.sink.open(new Gson().fromJson(sinkSpec.getConfigs(),
+                    new TypeToken<Map<String, Object>>() {}.getType()));
+        }
     }
 }

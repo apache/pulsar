@@ -148,4 +148,8 @@ public class ReaderImpl<T> implements Reader<T> {
         return consumer.hasMessageAvailableAsync();
     }
 
+    @Override
+    public boolean isConnected() {
+        return consumer.isConnected();
+    }
 }

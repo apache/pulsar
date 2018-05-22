@@ -34,6 +34,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.shaded.proto.Function;
 import org.apache.pulsar.functions.shaded.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.shaded.proto.Function.Resources;
 import org.apache.pulsar.functions.shaded.proto.Function.ProcessingGuarantees;
 import org.apache.pulsar.functions.shaded.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.shaded.proto.Function.SourceSpec;
@@ -44,7 +45,6 @@ import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.SinkConfig;
 import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.io.core.Sink;
-import org.apache.pulsar.io.core.Source;
 
 import java.io.File;
 import java.io.IOException;
@@ -62,16 +62,19 @@ import java.util.function.Consumer;
 public class CmdSinks extends CmdBase {
 
     private final CreateSink createSink;
+    private final UpdateSink updateSink;
     private final DeleteSink deleteSink;
     private final LocalSinkRunner localSinkRunner;
 
     public CmdSinks(PulsarAdmin admin) {
         super("sink", admin);
         createSink = new CreateSink();
+        updateSink = new UpdateSink();
         deleteSink = new DeleteSink();
         localSinkRunner = new LocalSinkRunner();
 
         jcommander.addCommand("create", createSink);
+        jcommander.addCommand("update", updateSink);
         jcommander.addCommand("delete", deleteSink);
         jcommander.addCommand("localrun", localSinkRunner);
     }
@@ -107,7 +110,31 @@ public class CmdSinks extends CmdBase {
     }
 
     @Parameters(commandDescription = "Create Pulsar sink connectors")
-    class CreateSink extends BaseCommand {
+    class CreateSink extends SinkCommand {
+        @Override
+        void runCmd() throws Exception {
+            if (!areAllRequiredFieldsPresentForSink(sinkConfig)) {
+                throw new RuntimeException("Missing arguments");
+            }
+            admin.functions().createFunction(createSinkConfig(sinkConfig), jarFile);
+            print("Created successfully");
+        }
+    }
+
+    @Parameters(commandDescription = "Update Pulsar sink connectors")
+    class UpdateSink extends SinkCommand {
+        @Override
+        void runCmd() throws Exception {
+            if (!areAllRequiredFieldsPresentForSink(sinkConfig)) {
+                throw new RuntimeException("Missing arguments");
+            }
+            admin.functions().updateFunction(createSinkConfig(sinkConfig), jarFile);
+            print("Updated successfully");
+        }
+    }
+
+    @Parameters(commandDescription = "Create Pulsar sink connectors")
+    abstract class SinkCommand extends BaseCommand {
         @Parameter(names = "--tenant", description = "The sink's tenant")
         protected String tenant;
         @Parameter(names = "--namespace", description = "The sink's namespace")
@@ -122,7 +149,7 @@ public class CmdSinks extends CmdBase {
         protected String customSerdeInputString;
         @Parameter(names = "--processingGuarantees", description = "The processing guarantees (aka delivery semantics) applied to the Sink")
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
-        @Parameter(names = "--parallelism", description = "")
+        @Parameter(names = "--parallelism", description = "The sink's parallelism factor (i.e. the number of sink instances to run)")
         protected String parallelism;
         @Parameter(
                 names = "--jar",
@@ -133,6 +160,12 @@ public class CmdSinks extends CmdBase {
         @Parameter(names = "--sinkConfigFile", description = "The path to a YAML config file specifying the "
                 + "sink's configuration")
         protected String sinkConfigFile;
+        @Parameter(names = "--cpu", description = "The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)")
+        protected Double cpu;
+        @Parameter(names = "--ram", description = "The ram in bytes that need to be allocated per function instance(applicable only to process/docker runtime)")
+        protected Long ram;
+        @Parameter(names = "--disk", description = "The disk in bytes that need to be allocated per function instance(applicable only to docker runtime)")
+        protected Long disk;
         @Parameter(names = "--sinkConfig", description = "Sink config key/values")
         protected String sinkConfigString;
 
@@ -202,21 +235,16 @@ public class CmdSinks extends CmdBase {
                 throw new IllegalArgumentException("Connector JAR not specfied");
             }
 
+            com.google.common.base.Preconditions.checkArgument(cpu == null || cpu > 0, "The cpu allocation for the sink must be positive");
+            com.google.common.base.Preconditions.checkArgument(ram == null || ram > 0, "The ram allocation for the sink must be positive");
+            com.google.common.base.Preconditions.checkArgument(disk == null || disk > 0, "The disk allocation for the sink must be positive");
+            sinkConfig.setResources(new org.apache.pulsar.functions.utils.Resources(cpu, ram, disk));
+
             if (null != sinkConfigString) {
                 Type type = new TypeToken<Map<String, String>>(){}.getType();
                 Map<String, Object> sinkConfigMap = new Gson().fromJson(sinkConfigString, type);
                 sinkConfig.setConfigs(sinkConfigMap);
             }
-        }
-
-        @Override
-        void runCmd() throws Exception {
-            log.info("sinkConfig: {}", sinkConfig);
-            if (!areAllRequiredFieldsPresentForSink(sinkConfig)) {
-                throw new RuntimeException("Missing arguments");
-            }
-            admin.functions().createFunction(createSinkConfig(sinkConfig), jarFile);
-            print("Created successfully");
         }
 
         private Class<?> getSinkType(File file) {
@@ -277,11 +305,12 @@ public class CmdSinks extends CmdBase {
             }
 
             // set source spec
+            // source spec classname should be empty so that the default pulsar source will be used
             SourceSpec.Builder sourceSpecBuilder = SourceSpec.newBuilder();
-            sourceSpecBuilder.setClassName(PulsarSource.class.getName());
             sourceSpecBuilder.setSubscriptionType(Function.SubscriptionType.SHARED);
             sourceSpecBuilder.putAllTopicsToSerDeClassName(sinkConfig.getTopicToSerdeClassName());
             sourceSpecBuilder.setTypeClassName(typeArg.getName());
+            functionDetailsBuilder.setAutoAck(true);
             functionDetailsBuilder.setSource(sourceSpecBuilder);
 
             // set up sink spec
@@ -290,6 +319,20 @@ public class CmdSinks extends CmdBase {
             sinkSpecBuilder.setConfigs(new Gson().toJson(sinkConfig.getConfigs()));
             sinkSpecBuilder.setTypeClassName(typeArg.getName());
             functionDetailsBuilder.setSink(sinkSpecBuilder);
+
+            if (sinkConfig.getResources() != null) {
+                Resources.Builder bldr = Resources.newBuilder();
+                if (sinkConfig.getResources().getCpu() != null) {
+                    bldr.setCpu(sinkConfig.getResources().getCpu());
+                }
+                if (sinkConfig.getResources().getRam() != null) {
+                    bldr.setRam(sinkConfig.getResources().getRam());
+                }
+                if (sinkConfig.getResources().getDisk() != null) {
+                    bldr.setDisk(sinkConfig.getResources().getDisk());
+                }
+                functionDetailsBuilder.setResources(bldr.build());
+            }
             return functionDetailsBuilder.build();
         }
     }

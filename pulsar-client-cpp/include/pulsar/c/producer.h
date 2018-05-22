@@ -28,6 +28,8 @@ extern "C" {
 
 #include <stdint.h>
 
+#pragma GCC visibility push(default)
+
 typedef struct _pulsar_producer pulsar_producer_t;
 
 typedef void (*pulsar_send_callback)(pulsar_result, pulsar_message_t *msg, void *ctx);
@@ -113,6 +115,8 @@ pulsar_result pulsar_producer_close(pulsar_producer_t *producer);
 void pulsar_producer_close_async(pulsar_producer_t *producer, pulsar_close_callback callback, void *ctx);
 
 void pulsar_producer_free(pulsar_producer_t *producer);
+
+#pragma GCC visibility pop
 
 #ifdef __cplusplus
 }

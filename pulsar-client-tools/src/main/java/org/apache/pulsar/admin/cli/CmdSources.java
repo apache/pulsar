@@ -34,6 +34,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.shaded.proto.Function;
 import org.apache.pulsar.functions.shaded.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.shaded.proto.Function.Resources;
 import org.apache.pulsar.functions.shaded.proto.Function.ProcessingGuarantees;
 import org.apache.pulsar.functions.shaded.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.shaded.proto.Function.SourceSpec;
@@ -63,15 +64,18 @@ public class CmdSources extends CmdBase {
 
     private final CreateSource createSource;
     private final DeleteSource deleteSource;
+    private final UpdateSource updateSource;
     private final LocalSourceRunner localSourceRunner;
 
     public CmdSources(PulsarAdmin admin) {
         super("source", admin);
         createSource = new CreateSource();
+        updateSource = new UpdateSource();
         deleteSource = new DeleteSource();
         localSourceRunner = new LocalSourceRunner();
 
         jcommander.addCommand("create", createSource);
+        jcommander.addCommand("update", updateSource);
         jcommander.addCommand("delete", deleteSource);
         jcommander.addCommand("localrun", localSourceRunner);
     }
@@ -107,7 +111,30 @@ public class CmdSources extends CmdBase {
     }
 
     @Parameters(commandDescription = "Create Pulsar source connectors")
-    class CreateSource extends BaseCommand {
+    public class CreateSource extends SourceCommand {
+        @Override
+        void runCmd() throws Exception {
+            if (!areAllRequiredFieldsPresentForSource(sourceConfig)) {
+                throw new RuntimeException("Missing arguments");
+            }
+            admin.functions().createFunction(createSourceConfig(sourceConfig), jarFile);
+            print("Created successfully");
+        }
+    }
+
+    @Parameters(commandDescription = "Update Pulsar source connectors")
+    public class UpdateSource extends SourceCommand {
+        @Override
+        void runCmd() throws Exception {
+            if (!areAllRequiredFieldsPresentForSource(sourceConfig)) {
+                throw new RuntimeException("Missing arguments");
+            }
+            admin.functions().updateFunction(createSourceConfig(sourceConfig), jarFile);
+            print("Updated successfully");
+        }
+    }
+
+    abstract class SourceCommand extends BaseCommand {
         @Parameter(names = "--tenant", description = "The source's tenant")
         protected String tenant;
         @Parameter(names = "--namespace", description = "The source's namespace")
@@ -122,7 +149,7 @@ public class CmdSources extends CmdBase {
         protected String destinationTopicName;
         @Parameter(names = "--deserializationClassName", description = "The classname for SerDe class for the source")
         protected String deserializationClassName;
-        @Parameter(names = "--parallelism", description = "Number of instances of the source")
+        @Parameter(names = "--parallelism", description = "The source's parallelism factor (i.e. the number of source instances to run)")
         protected String parallelism;
         @Parameter(
                 names = "--jar",
@@ -133,6 +160,12 @@ public class CmdSources extends CmdBase {
         @Parameter(names = "--sourceConfigFile", description = "The path to a YAML config file specifying the "
                 + "source's configuration")
         protected String sourceConfigFile;
+        @Parameter(names = "--cpu", description = "The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)")
+        protected Double cpu;
+        @Parameter(names = "--ram", description = "The ram in bytes that need to be allocated per function instance(applicable only to process/docker runtime)")
+        protected Long ram;
+        @Parameter(names = "--disk", description = "The disk in bytes that need to be allocated per function instance(applicable only to docker runtime)")
+        protected Long disk;
         @Parameter(names = "--sourceConfig", description = "Source config key/values")
         protected String sourceConfigString;
 
@@ -187,20 +220,16 @@ public class CmdSources extends CmdBase {
                 throw new IllegalArgumentException("Connector JAR not specfied");
             }
 
+            com.google.common.base.Preconditions.checkArgument(cpu == null || cpu > 0, "The cpu allocation for the source must be positive");
+            com.google.common.base.Preconditions.checkArgument(ram == null || ram > 0, "The ram allocation for the source must be positive");
+            com.google.common.base.Preconditions.checkArgument(disk == null || disk > 0, "The disk allocation for the source must be positive");
+            sourceConfig.setResources(new org.apache.pulsar.functions.utils.Resources(cpu, ram, disk));
+
             if (null != sourceConfigString) {
                 Type type = new TypeToken<Map<String, String>>(){}.getType();
                 Map<String, Object> sourceConfigMap = new Gson().fromJson(sourceConfigString, type);
                 sourceConfig.setConfigs(sourceConfigMap);
             }
-        }
-
-        @Override
-        void runCmd() throws Exception {
-            if (!areAllRequiredFieldsPresentForSource(sourceConfig)) {
-                throw new RuntimeException("Missing arguments");
-            }
-            admin.functions().createFunction(createSourceConfig(sourceConfig), jarFile);
-            print("Created successfully");
         }
 
         private Class<?> getSourceType(File file) {
@@ -255,6 +284,7 @@ public class CmdSources extends CmdBase {
             functionDetailsBuilder.setRuntime(FunctionDetails.Runtime.JAVA);
             functionDetailsBuilder.setParallelism(sourceConfig.getParallelism());
             functionDetailsBuilder.setClassName(IdentityFunction.class.getName());
+            functionDetailsBuilder.setAutoAck(true);
             if (sourceConfig.getProcessingGuarantees() != null) {
                 functionDetailsBuilder.setProcessingGuarantees(
                         convertProcessingGuarantee(sourceConfig.getProcessingGuarantees()));
@@ -267,9 +297,9 @@ public class CmdSources extends CmdBase {
             sourceSpecBuilder.setTypeClassName(typeArg.getName());
             functionDetailsBuilder.setSource(sourceSpecBuilder);
 
-            // set up sink spec
+            // set up sink spec.
+            // Sink spec classname should be empty so that the default pulsar sink will be used
             SinkSpec.Builder sinkSpecBuilder = SinkSpec.newBuilder();
-            sinkSpecBuilder.setClassName(PulsarSink.class.getName());
             if (sourceConfig.getSerdeClassName() != null && !sourceConfig.getSerdeClassName().isEmpty()) {
                 sinkSpecBuilder.setSerDeClassName(sourceConfig.getSerdeClassName());
             }
@@ -277,6 +307,21 @@ public class CmdSources extends CmdBase {
             sinkSpecBuilder.setTypeClassName(typeArg.getName());
 
             functionDetailsBuilder.setSink(sinkSpecBuilder);
+
+            if (sourceConfig.getResources() != null) {
+                Resources.Builder bldr = Resources.newBuilder();
+                if (sourceConfig.getResources().getCpu() != null) {
+                    bldr.setCpu(sourceConfig.getResources().getCpu());
+                }
+                if (sourceConfig.getResources().getRam() != null) {
+                    bldr.setRam(sourceConfig.getResources().getRam());
+                }
+                if (sourceConfig.getResources().getDisk() != null) {
+                    bldr.setDisk(sourceConfig.getResources().getDisk());
+                }
+                functionDetailsBuilder.setResources(bldr.build());
+            }
+
             return functionDetailsBuilder.build();
         }
     }

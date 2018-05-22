@@ -19,18 +19,11 @@
 package org.apache.pulsar.io.core;
 
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 /**
- * Pulsar's Sink interface. Sink read data from
- * a Pulsar topic and write it to external sinks(kv store, database, filesystem ,etc)
- * The lifcycle of a Sink is to open it passing any config needed
- * by it to initialize(like open network connection, authenticate, etc).
- * On every message from the designated PulsarTopic, the write method is
- * invoked which writes the message to the external sink. One can use close
- * at the end of the session to do any cleanup
+ * Generic sink interface users can implement to run Sink on top of Pulsar Functions
  */
-public interface Sink<T> extends AutoCloseable {
+public interface Sink<T> extends AutoCloseable{
     /**
      * Open connector with configuration
      *
@@ -38,12 +31,12 @@ public interface Sink<T> extends AutoCloseable {
      * @throws Exception IO type exceptions when opening a connector
      */
     void open(final Map<String, Object> config) throws Exception;
-
+    
     /**
-     * Attempt to publish a type safe collection of messages
-     *
-     * @param value output value
-     * @return Completable future fo async publish request
+     * Write a message to Sink
+     * @param inputRecordContext Context of value
+     * @param value value to write to sink
+     * @throws Exception
      */
-    CompletableFuture<Void> write(T value);
+    void write(RecordContext inputRecordContext, T value) throws Exception;
 }
