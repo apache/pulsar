@@ -82,6 +82,16 @@
       <destName>api-examples.jar</destName>
       <outputDirectory>examples</outputDirectory>
     </file>
+    <file>
+      <source>${basedir}/../pulsar-functions/java-examples/src/main/resources/example-function-config.yaml</source>
+      <destName>example-function-config.yaml</destName>
+      <outputDirectory>examples</outputDirectory>
+    </file>
+    <file>
+      <source>${basedir}/../pulsar-functions/java-examples/src/main/resources/example-window-function-config.yaml</source>
+      <destName>example-window-function-config.yaml</destName>
+      <outputDirectory>examples</outputDirectory>
+    </file>
   </files>
   <dependencySets>
     <dependencySet>
