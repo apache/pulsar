@@ -32,7 +32,6 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BKException;
@@ -44,6 +43,7 @@ import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -57,11 +57,11 @@ import org.testng.annotations.Test;
 class S3ManagedLedgerOffloaderTest extends S3TestBase {
     private static final int DEFAULT_BLOCK_SIZE = 5*1024*1024;
     private static final int DEFAULT_READ_BUFFER_SIZE = 1*1024*1024;
-    final ScheduledExecutorService scheduler;
+    final OrderedScheduler scheduler;
     final MockBookKeeper bk;
 
     S3ManagedLedgerOffloaderTest() throws Exception {
-        scheduler = Executors.newScheduledThreadPool(1, new DefaultThreadFactory("offloader-"));
+        scheduler = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("offloader").build();
         bk = new MockBookKeeper(MockedPulsarServiceBaseTest.createMockZooKeeper());
     }
 
@@ -150,6 +150,22 @@ class S3ManagedLedgerOffloaderTest extends S3TestBase {
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setManagedLedgerOffloadDriver(S3ManagedLedgerOffloader.DRIVER_NAME);
         conf.setS3ManagedLedgerOffloadRegion("eu-west-1");
+
+        try {
+            S3ManagedLedgerOffloader.create(conf, scheduler);
+            Assert.fail("Should have thrown exception");
+        } catch (PulsarServerException pse) {
+            // correct
+        }
+    }
+
+    @Test
+    public void testSmallBlockSizeConfigured() throws Exception {
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setManagedLedgerOffloadDriver(S3ManagedLedgerOffloader.DRIVER_NAME);
+        conf.setS3ManagedLedgerOffloadRegion("eu-west-1");
+        conf.setS3ManagedLedgerOffloadBucket(BUCKET);
+        conf.setS3ManagedLedgerOffloadMaxBlockSizeInBytes(1024);
 
         try {
             S3ManagedLedgerOffloader.create(conf, scheduler);

@@ -37,7 +37,7 @@ public interface OffloadIndexBlock extends Closeable {
      * Get the content of the index block as InputStream.
      * Read out in format:
      *   | index_magic_header | index_block_len | index_entry_count |
-     *   |segment_metadata_length | segment metadata | index entries |
+     *   | data_object_size | segment_metadata_length | segment metadata | index entries ... |
      */
     IndexInputStream toStream() throws IOException;
 
@@ -59,6 +59,11 @@ public interface OffloadIndexBlock extends Closeable {
      * Get LedgerMetadata.
      */
     LedgerMetadata getLedgerMetadata();
+
+    /*
+     * Get the total size of the data object.
+     */
+    long getDataObjectLength();
 
     /**
      * An input stream which knows the size of the stream upfront.
