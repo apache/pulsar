@@ -19,8 +19,9 @@
 package org.apache.pulsar.broker.s3offload;
 
 import java.io.Closeable;
-import java.io.IOException;
+import java.io.FilterInputStream;
 import java.io.InputStream;
+import java.io.IOException;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.common.annotation.InterfaceStability.Unstable;
 
@@ -38,7 +39,7 @@ public interface OffloadIndexBlock extends Closeable {
      *   | index_magic_header | index_block_len | index_entry_count |
      *   | data_object_size | segment_metadata_length | segment metadata | index entries ... |
      */
-    InputStream toStream() throws IOException;
+    IndexInputStream toStream() throws IOException;
 
     /**
      * Get the related OffloadIndexEntry that contains the given messageEntryId.
@@ -59,9 +60,28 @@ public interface OffloadIndexBlock extends Closeable {
      */
     LedgerMetadata getLedgerMetadata();
 
-    /**
+    /*
      * Get the total size of the data object.
      */
     long getDataObjectLength();
+
+    /**
+     * An input stream which knows the size of the stream upfront.
+     */
+    public static class IndexInputStream extends FilterInputStream {
+        final long streamSize;
+
+        public IndexInputStream(InputStream in, long streamSize) {
+            super(in);
+            this.streamSize = streamSize;
+        }
+
+        /**
+         * @return the number of bytes in the stream.
+         */
+        public long getStreamSize() {
+            return streamSize;
+        }
+    }
 }
 
