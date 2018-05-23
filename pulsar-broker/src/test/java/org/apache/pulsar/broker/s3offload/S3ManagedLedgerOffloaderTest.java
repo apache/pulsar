@@ -116,13 +116,8 @@ class S3ManagedLedgerOffloaderTest extends S3TestBase {
 
     @Test
     public void testBucketDoesNotExist() throws Exception {
-        ServiceConfiguration conf = new ServiceConfiguration();
-        conf.setManagedLedgerOffloadDriver(S3ManagedLedgerOffloader.DRIVER_NAME);
-        conf.setS3ManagedLedgerOffloadBucket("no-bucket");
-        conf.setS3ManagedLedgerOffloadServiceEndpoint(s3endpoint);
-        conf.setS3ManagedLedgerOffloadRegion("eu-west-1");
-        LedgerOffloader offloader = S3ManagedLedgerOffloader.create(conf, scheduler);
-
+        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, "no-bucket", scheduler,
+                                                                 DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
         try {
             offloader.offload(buildReadHandle(), UUID.randomUUID(), new HashMap<>()).get();
             Assert.fail("Shouldn't be able to add to bucket");
@@ -383,11 +378,10 @@ class S3ManagedLedgerOffloaderTest extends S3TestBase {
 
     @Test
     public void testDeleteOffloaded() throws Exception {
-        int maxBlockSize = 1024;
-        int entryCount = 3;
-        ReadHandle readHandle = buildReadHandle(maxBlockSize, entryCount);
+        ReadHandle readHandle = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
         UUID uuid = UUID.randomUUID();
-        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler, maxBlockSize, DEFAULT_READ_BUFFER_SIZE);
+        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler,
+                                                                 DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
 
         // verify object exist after offload
         offloader.offload(readHandle, uuid, new HashMap<>()).get();
@@ -402,11 +396,10 @@ class S3ManagedLedgerOffloaderTest extends S3TestBase {
 
     @Test
     public void testDeleteOffloadedFail() throws Exception {
-        int maxBlockSize = 1024;
-        int entryCount = 3;
-        ReadHandle readHandle = buildReadHandle(maxBlockSize, entryCount);
+        ReadHandle readHandle = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
         UUID uuid = UUID.randomUUID();
-        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler, maxBlockSize, DEFAULT_READ_BUFFER_SIZE);
+        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler,
+                                                                 DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
         String failureString = "fail deleteOffloaded";
         AmazonS3 mockS3client = Mockito.spy(s3client);
         Mockito
