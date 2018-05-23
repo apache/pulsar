@@ -32,6 +32,7 @@ import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.io.core.Record;
 import org.apache.pulsar.io.core.Source;
+import org.jboss.util.Classes;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -130,7 +131,9 @@ public class PulsarSource<T> implements Source<T> {
     @VisibleForTesting
     void setupSerDe() throws ClassNotFoundException {
 
-        Class<?> typeArg = Thread.currentThread().getContextClassLoader().loadClass(this.pulsarSourceConfig.getTypeClassName());
+        Class<?> typeArg = Classes.loadClass(this.pulsarSourceConfig.getTypeClassName(),
+                Thread.currentThread().getContextClassLoader());
+
         if (Void.class.equals(typeArg)) {
             throw new RuntimeException("Input type of Pulsar Function cannot be Void");
         }
