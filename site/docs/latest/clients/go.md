@@ -84,6 +84,16 @@ producer, err := client.CreateProducer(producerOpts)
 if err != nil {
         log.Fatalf("Could not instantiate Pulsar producer: %v", err)
 }
+
+defer producer.Close()
+
+msg := pulsar.ProducerMessage{
+        Payload: []byte("Hello, Pulsar"),
+}
+
+if err := producer.Send(msg); err != nil {
+        log.Fatalf("Producer could not send message: %v", err)
+}
 ```
 
 {% include admonition.html type="warning" title="Blocking operation"
@@ -127,7 +137,12 @@ if err != nil {
 defer consumer.Close()
 
 for cm := range channel {
+        msg := cm.Message
 
+        fmt.Printf("Message ID: %s", msg.ID())
+        fmt.Printf("Message value: %s", string(msg.Payload()))
+
+        consumer.Ack(msg)
 }
 ```
 
@@ -135,6 +150,17 @@ for cm := range channel {
    content="When you create a new Pulsar consumer, the operation will block until either a producer is successfully created or an error is thrown." %}
 
 ### Consumer configuration
+
+Parameter | Description | Default
+:---------|:------------|:-------
+`Topic` | The Pulsar {% popover topic %} on which the consumer will establish a subscription and listen for messages |
+`SubscriptionName` | The subscription name for this consumer |
+`Name` | The name of the consumer |
+`AckTimeout` | | 0
+`SubscriptionType` | Available options are `Exclusive`, `Shared`, and `Failover` | `Exclusive`
+`MessageChannel` | The Go channel used by the consumer. Messages that arrive from the Pulsar topic(s) will be passed to this channel. |
+`ReceiverQueueSize` | | 1000
+`MaxTotalReceiverQueueSizeAcrossPartitions` | | 50000
 
 ## Readers
 
