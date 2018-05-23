@@ -84,6 +84,11 @@
       <artifactId>typetools</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>org.jboss</groupId>
+      <artifactId>jboss-reflect</artifactId>
+    </dependency>
+
   </dependencies>
 
 </project>
