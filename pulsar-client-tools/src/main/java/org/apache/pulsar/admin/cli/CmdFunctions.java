@@ -1126,7 +1126,7 @@ public class CmdFunctions extends CmdBase {
                         instanceConfig,
                         userCodeFile,
                         containerFactory,
-                        0);
+                        30000);
                 spawners.add(runtimeSpawner);
                 runtimeSpawner.start();
             }
