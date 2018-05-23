@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.api;
 
+import com.google.common.collect.Sets;
+
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.LinkedList;
@@ -38,8 +40,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import dlshade.com.google.common.collect.Sets;
 
 public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(MessageDispatchThrottlingTest.class);
