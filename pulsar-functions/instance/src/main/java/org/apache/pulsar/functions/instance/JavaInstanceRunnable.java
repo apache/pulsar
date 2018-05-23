@@ -341,16 +341,21 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     @Override
     public void close() {
-        try {
-            source.close();
-        } catch (Exception e) {
-            log.error("Failed to close source {}", instanceConfig.getFunctionDetails().getSource().getClassName(), e);
+        if (source != null) {
+            try {
+                source.close();
+            } catch (Exception e) {
+                log.error("Failed to close source {}", instanceConfig.getFunctionDetails().getSource().getClassName(), e);
+
+            }
         }
 
-        try {
-            sink.close();
-        } catch (Exception e) {
-            log.error("Failed to close sink {}", instanceConfig.getFunctionDetails().getSource().getClassName(), e);
+        if (sink != null) {
+            try {
+                sink.close();
+            } catch (Exception e) {
+                log.error("Failed to close sink {}", instanceConfig.getFunctionDetails().getSource().getClassName(), e);
+            }
         }
 
         if (null != javaInstance) {
