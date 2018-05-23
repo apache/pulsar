@@ -228,7 +228,7 @@ public class JavaInstanceMain implements AutoCloseable {
             @Override
             public void run() {
                 try {
-                    if (System.currentTimeMillis() - lastHealthCheckTs > 30000) {
+                    if (System.currentTimeMillis() - lastHealthCheckTs > 90000) {
                         log.info("Haven't received health check from spawner in a while. Stopping instance...");
                         close();
                     }

@@ -115,18 +115,6 @@ class ThreadRuntime implements Runtime {
     }
 
     @Override
-    public CompletableFuture<InstanceCommunication.HealthCheckResult> healthCheck() {
-        InstanceCommunication.HealthCheckResult.Builder healthCheckBuilder
-                = InstanceCommunication.HealthCheckResult.newBuilder();
-        if (isAlive()) {
-            healthCheckBuilder.setSuccess(true);
-        } else {
-            healthCheckBuilder.setSuccess(false);
-        }
-        return CompletableFuture.completedFuture(healthCheckBuilder.build());
-    }
-
-    @Override
     public boolean isAlive() {
         if (this.fnThread != null) {
             return this.fnThread.isAlive();

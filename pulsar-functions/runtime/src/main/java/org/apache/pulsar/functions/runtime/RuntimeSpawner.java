@@ -81,16 +81,6 @@ public class RuntimeSpawner implements AutoCloseable {
                         runtimeDeathException = runtime.getDeathException();
                         runtime.start();
                         numRestarts++;
-                    } else {
-                        log.debug("{} running health check...", runtime.getClass());
-                        CompletableFuture<InstanceCommunication.HealthCheckResult> result = runtime.healthCheck();
-                        try {
-                        } catch (Exception e) {
-                            log.error("{} - Health check failed for {}-{}",
-                                    runtime.getClass(),
-                                    instanceConfig.getFunctionDetails().getName(),
-                                    instanceConfig.getInstanceId(), e);
-                        }
                     }
                 }
             }, instanceLivenessCheckFreqMs, instanceLivenessCheckFreqMs);
