@@ -162,12 +162,56 @@ Parameter | Description | Default
 `ReceiverQueueSize` | | 1000
 `MaxTotalReceiverQueueSizeAcrossPartitions` | | 50000
 
+### Consumer operations
+
+Pulsar Go consumers have the following methods available:
+
+Method | Description | Return type
+:------|:------------|:-----------
+`Topic()` | Fetches the consumer's {% popover topic %} | `string`
+`Subscription()` | Fetches the consumer's subscription name | `string`
+`Unsubcribe()` | Unsubscribes the consumer from the assigned topic. Throws an error if the unsubscribe operation is somehow unsuccessful. | `error`
+`Receive(context.Context)` | Receives a single message from the topic. This method blocks until a message is available. | `(Message, error)`
+`Ack(Message)` | {% popover Acknowledges %} a message to the Pulsar {% popover broker %} | `error`
+`AckID(MessageID)` | {% popover Acknowledges %} a message to the Pulsar {% popover broker %} by message ID | `error`
+`AckCumulative(Message)` | {% popover Acknowledges %} *all* the messages in the stream, up to and including the specified message. The `AckCumulative` method will block until the ack has been sent to the broker. After that, the messages will *not* be redelivered to the consumer. Cumulative acking can only be used with a [shared](../../getting-started/ConceptsAndArchitecture#shared) subscription type.
+`Close()` | Closes the consumer, disabling its ability to receive messages from the broker | `error`
+`RedeliverUnackedMessages()` | Redelivers *all* unacknowledged messages on the topic. In [failover](../../getting-started/ConceptsAndArchitecture#failover) mode, this request is ignored if the consumer isn't active on the specified topic; in [shared](../../getting-started/ConceptsAndArchitecture#shared) mode, redelivered messages are distributed across all consumers connected to the topic. **Note**: this is a *non-blocking* operation that doesn't throw an error. |
+
 ## Readers
 
 Pulsar {% popover readers %} publish messages to Pulsar {% popover topics %}. You can [configure](#producer-configuration) Go producers using a `ProducerOptions` object. Here's an example:
 
 {% include admonition.html type="warning" title="Blocking operation"
    content="When you create a new Pulsar reader, the operation will block until either a producer is successfully created or an error is thrown." %}
+
+## Messages
+
+The Pulsar Go client provides a `ProducerMessage` interface that you can use to construct messages to producer on Pulsar topics. Here's an example message:
+
+```go
+msg := pulsar.ProducerMessage{
+        Payload: []byte("Here is some message data"),
+        Key: "message-key",
+        Properties: map[string]string{
+            "foo": "bar",
+        },
+        EventTime: time.Now(),
+        ReplicationClusters: []string{"cluster1", "cluster3"},
+}
+
+if err := producer.send(msg); err != nil {
+        log.Fatalf("Could not publish message due to: %v", err)
+}
+```
+
+Parameter | Description
+:---------|:-----------
+`Payload` | The actual data payload of the message
+`Key` | The optional key associated with the message (particularly useful for things like topic compaction)
+`Properties` | A key-value map (both keys and values must be strings) for any application-specific metadata attached to the message
+`EventTime` | The timestamp associated with the message
+`ReplicationClusters` | The clusters to which this message will be replicated. Pulsar brokers handle message replication automatically; you should only change this setting if you want to override the broker default.
 
 ## TLS encryption {#tls}
 
