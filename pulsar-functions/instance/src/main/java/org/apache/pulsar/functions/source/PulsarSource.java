@@ -125,7 +125,9 @@ public class PulsarSource<T> implements Source<T> {
 
     @Override
     public void close() throws Exception {
-        this.inputConsumer.close();
+        if (this.inputConsumer != null) {
+            this.inputConsumer.close();
+        }
     }
 
     @VisibleForTesting
