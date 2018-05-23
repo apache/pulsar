@@ -227,9 +227,13 @@ public class JavaInstanceMain implements AutoCloseable {
         timer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
-                if (System.currentTimeMillis() - lastHealthCheckTs > 30000) {
-                    log.info("Haven't received health check from spawner in a while. Stopping instance...");
-                    close();
+                try {
+                    if (System.currentTimeMillis() - lastHealthCheckTs > 30000) {
+                        log.info("Haven't received health check from spawner in a while. Stopping instance...");
+                        close();
+                    }
+                } catch (Exception e) {
+                    log.error("Error occurred when checking for latest health check", e);
                 }
             }
         }, 30000, 30000, TimeUnit.MILLISECONDS);
@@ -273,6 +277,7 @@ public class JavaInstanceMain implements AutoCloseable {
 
         public InstanceControlImpl(RuntimeSpawner runtimeSpawner) {
             this.runtimeSpawner = runtimeSpawner;
+            lastHealthCheckTs = System.currentTimeMillis();
         }
 
         @Override
