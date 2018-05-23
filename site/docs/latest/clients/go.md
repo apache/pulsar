@@ -32,6 +32,7 @@ You can configure your Pulsar client using a `ClientOptions` object. Here's an e
 
 ```go
 import (
+    "log"
     "runtime"
 
     "github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"
@@ -40,13 +41,17 @@ import (
 func main() {
         cores := runtime.NumCPU()
 
-        opts := pulsar.ClientOptions{
+        clientOpts := pulsar.ClientOptions{
                 URL: "pulsar://localhost:6650",
                 OperationTimeoutSeconds: 5,
                 MessageListenerThreads: runtime.NumCPU(),
         }
 
-        client := pulsar.NewClient(opts)
+        client, err := pulsar.NewClient(clientOpts)
+
+        if err != nil {
+            log.Fatalf("Could not instantiate Pulsar client: %v", err)
+        }
 }
 ```
 
@@ -67,7 +72,76 @@ Parameter | Description | Default
 
 ## Producers
 
+Pulsar {% popover producers %} publish messages to Pulsar {% popover topics %}. You can [configure](#producer-configuration) Go producers using a `ProducerOptions` object. Here's an example:
+
+```go
+producerOpts := pulsar.ProducerOptions{
+        Topic: "my-topic",
+}
+
+producer, err := client.CreateProducer(producerOpts)
+
+if err != nil {
+        log.Fatalf("Could not instantiate Pulsar producer: %v", err)
+}
+```
+
+{% include admonition.html type="warning" title="Blocking operation"
+   content="When you create a new Pulsar producer, the operation will block until either a producer is successfully created or an error is thrown." %}
+
+### Producer configuration
+
+Parameter | Description | Default
+:---------|:------------|:-------
+`Topic` | The Pulsar {% popover topic %} to which the producer will publish messages |
+`Name` | A name for the producer. If you don't explicitly assign a name, Pulsar will automatically generate a globally unique name that you can access later using the `Name()` method.  If you choose to explicitly assign a name, it will need to be unique across *all* Pulsar clusters, otherwise the creation operation will throw an error. |
+`SendTimeout` | When publishing a message to a topic, the producer will wait for an acknowledgment from the responsible Pulsar {% popover broker %}. If a message is not acknowledged within the threshold set by this parameter, an error will be thrown. If you set `SendTimeout` to -1, the timeout will be set to infinity (and thus removed). Removing the send timeout is recommended when using Pulsar's [message de-duplication](../../cookbooks/message-deduplication) feature. | 30 seconds
+`MaxPendingMessages` | |
+`MaxPendingMessagesAcrossPartitions` | |
+`BlockIfQueueFull` | |
+`MessageRoutingMode` | |
+`HashingScheme` | |
+`CompressionType` | The message data compression type used by the producer. The available options are [`LZ4`](https://github.com/lz4/lz4) and [`ZLIB`](https://zlib.net/). | No compression
+`MessageRouter` | By default, Pulsar uses a round-robin routing scheme for [partitioned topics](../../cookbooks/PartitionedTopics). The `MessageRouter` parameter enables you to specify custom routing logic via a function that takes the Pulsar message and topic metadata as an argument and returns an integer (where the ), i.e. a function signature of `func(Message, TopicMetadata) int`. |
+
 ## Consumers
+
+Pulsar {% popover consumers %} subscribe to one or more Pulsar {% popover topics %} and listen for incoming messages produced on that topic/those topics. You can [configure](#consumer-configuration) Go consumers using a `ConsumerOptions` object. Here's an example:
+
+```go
+msgChannel := make(chan pulsar.ConsumerMessage)
+
+consumerOpts := pulsar.ConsumerOptions{
+        Topic:            "my-topic",
+        SubscriptionName: "my-subscription-1",
+        Type:             pulsar.Exclusive,
+        MessageChannel:   msgChannel,
+}
+
+consumer, err := client.Subscribe(consumerOpts)
+
+if err != nil {
+        log.Fatalf("Could not establish subscription: %v", err)
+}
+
+defer consumer.Close()
+
+for cm := range channel {
+
+}
+```
+
+{% include admonition.html type="warning" title="Blocking operation"
+   content="When you create a new Pulsar consumer, the operation will block until either a producer is successfully created or an error is thrown." %}
+
+### Consumer configuration
+
+## Readers
+
+Pulsar {% popover readers %} publish messages to Pulsar {% popover topics %}. You can [configure](#producer-configuration) Go producers using a `ProducerOptions` object. Here's an example:
+
+{% include admonition.html type="warning" title="Blocking operation"
+   content="When you create a new Pulsar reader, the operation will block until either a producer is successfully created or an error is thrown." %}
 
 ## TLS encryption {#tls}
 
