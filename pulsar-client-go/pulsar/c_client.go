@@ -63,7 +63,7 @@ func newClient(options ClientOptions) (Client, error) {
 	if options.Logger == nil {
 		// Configure a default logger with same date format as Go logs
 		options.Logger = func(level LoggerLevel, file string, line int, message string) {
-			log.Printf("%s | %s:%d | %s", level, file, line, message)
+			log.Printf("%-5s | %s:%d | %s", level, file, line, message)
 		}
 	}
 

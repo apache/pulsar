@@ -24,25 +24,24 @@ import "fmt"
 type LoggerLevel int
 
 const (
-	DEBUG LoggerLevel = 0;
-	INFO  LoggerLevel = 1;
-	WARN  LoggerLevel = 2;
-	ERROR LoggerLevel = 3;
+	DEBUG LoggerLevel = iota
+	INFO
+	WARN
+	ERROR
 )
-
 
 func (l LoggerLevel) String() string {
 	switch l {
 	case DEBUG:
 		return "DEBUG"
 	case INFO:
-		return "INFO "
+		return "INFO"
 	case WARN:
-		return "WARN "
+		return "WARN"
 	case ERROR:
 		return "ERROR"
 
 	default:
-		return fmt.Sprintf("%d", int(l))
+		return fmt.Sprintf("UNKNOWN: %d", l)
 	}
 }
