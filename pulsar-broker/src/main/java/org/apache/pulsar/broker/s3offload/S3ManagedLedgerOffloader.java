@@ -118,7 +118,7 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
                 .withLedgerMetadata(readHandle.getLedgerMetadata());
             String dataBlockKey = dataBlockOffloadKey(readHandle.getId(), uuid);
             String indexBlockKey = indexBlockOffloadKey(readHandle.getId(), uuid);
-            InitiateMultipartUploadRequest dataBlockReq = new InitiateMultipartUploadRequest(bucket, dataBlockKey);
+            InitiateMultipartUploadRequest dataBlockReq = new InitiateMultipartUploadRequest(bucket, dataBlockKey, new ObjectMetadata());
             InitiateMultipartUploadResult dataBlockRes = null;
 
             // init multi part upload for data block.
@@ -172,9 +172,9 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
                     .withUploadId(dataBlockRes.getUploadId())
                     .withPartETags(etags));
             } catch (Throwable t) {
+                promise.completeExceptionally(t);
                 s3client.abortMultipartUpload(
                     new AbortMultipartUploadRequest(bucket, dataBlockKey, dataBlockRes.getUploadId()));
-                promise.completeExceptionally(t);
                 return;
             }
 
@@ -191,8 +191,8 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
                     metadata));
                 promise.complete(null);
             } catch (Throwable t) {
-                s3client.deleteObject(bucket, dataBlockKey);
                 promise.completeExceptionally(t);
+                s3client.deleteObject(bucket, dataBlockKey);
                 return;
             }
         });

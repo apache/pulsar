@@ -154,7 +154,6 @@ flexible messaging model and an intuitive client API.</description>
 
     <!-- test dependencies -->
     <disruptor.version>3.4.0</disruptor.version>
-    <s3mock.version>0.2.5</s3mock.version>
 
     <!-- Plugin dependencies -->
     <protobuf-maven-plugin.version>0.5.0</protobuf-maven-plugin.version>
@@ -728,13 +727,6 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>com.lmax</groupId>
         <artifactId>disruptor</artifactId>
         <version>${disruptor.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.findify</groupId>
-        <artifactId>s3mock_2.12</artifactId>
-        <version>${s3mock.version}</version>
-        <scope>test</scope>
       </dependency>
     </dependencies>
   </dependencyManagement>
