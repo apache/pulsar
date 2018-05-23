@@ -221,7 +221,7 @@ class ProcessRuntime implements Runtime {
                                 instanceConfig.getInstanceId(), e);
                     }
                 }
-            }, 30000, 30000, TimeUnit.SECONDS);
+            }, 30000, 30000, TimeUnit.MILLISECONDS);
         }
     }
 
