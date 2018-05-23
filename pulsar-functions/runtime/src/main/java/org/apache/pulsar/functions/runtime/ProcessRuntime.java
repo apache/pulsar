@@ -26,7 +26,6 @@ import com.google.gson.Gson;
 import com.google.protobuf.Empty;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
-import java.util.concurrent.ExecutionException;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -35,12 +34,12 @@ import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
 
-import java.io.IOException;
 import java.io.InputStream;
-import java.net.ServerSocket;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.functions.proto.InstanceControlGrpc.InstanceControlFutureStub;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * A function container implemented using java thread.
@@ -58,12 +57,15 @@ class ProcessRuntime implements Runtime {
     private Exception deathException;
     private ManagedChannel channel;
     private InstanceControlGrpc.InstanceControlFutureStub stub;
+    private ScheduledExecutorService timer;
+    private InstanceConfig instanceConfig;
 
     ProcessRuntime(InstanceConfig instanceConfig,
                    String instanceFile,
                    String logDirectory,
                    String codeFile,
                    String pulsarServiceUrl) {
+        this.instanceConfig = instanceConfig;
         this.instancePort = instanceConfig.getPort();
         this.processArgs = composeArgs(instanceConfig, instanceFile, logDirectory, codeFile, pulsarServiceUrl);
     }
@@ -205,6 +207,21 @@ class ProcessRuntime implements Runtime {
                     .usePlaintext(true)
                     .build();
             stub = InstanceControlGrpc.newFutureStub(channel);
+
+            timer = Executors.newSingleThreadScheduledExecutor();
+            timer.scheduleAtFixedRate(new TimerTask() {
+
+                @Override
+                public void run() {
+                    CompletableFuture<InstanceCommunication.HealthCheckResult> result = healthCheck();
+                    try {
+                    } catch (Exception e) {
+                        log.error("Health check failed for {}-{}",
+                                instanceConfig.getFunctionDetails().getName(),
+                                instanceConfig.getInstanceId(), e);
+                    }
+                }
+            }, 30000, 30000, TimeUnit.MILLISECONDS);
         }
     }
 
@@ -215,8 +232,15 @@ class ProcessRuntime implements Runtime {
 
     @Override
     public void stop() {
-        process.destroy();
-        channel.shutdown();
+        if (timer != null) {
+            timer.shutdown();
+        }
+        if (process != null) {
+            process.destroy();
+        }
+        if (channel != null) {
+            channel.shutdown();
+        }
         channel = null;
         stub = null;
     }
@@ -266,6 +290,27 @@ class ProcessRuntime implements Runtime {
 
             @Override
             public void onSuccess(InstanceCommunication.MetricsData t) {
+                retval.complete(t);
+            }
+        });
+        return retval;
+    }
+
+    public CompletableFuture<InstanceCommunication.HealthCheckResult> healthCheck() {
+        CompletableFuture<InstanceCommunication.HealthCheckResult> retval = new CompletableFuture<>();
+        if (stub == null) {
+            retval.completeExceptionally(new RuntimeException("Not alive"));
+            return retval;
+        }
+        ListenableFuture<InstanceCommunication.HealthCheckResult> response = stub.healthCheck(Empty.newBuilder().build());
+        Futures.addCallback(response, new FutureCallback<InstanceCommunication.HealthCheckResult>() {
+            @Override
+            public void onFailure(Throwable throwable) {
+                retval.completeExceptionally(throwable);
+            }
+
+            @Override
+            public void onSuccess(InstanceCommunication.HealthCheckResult t) {
                 retval.complete(t);
             }
         });
