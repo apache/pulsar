@@ -92,10 +92,12 @@ groups:
   docs:
   - title: Java client
     endpoint: Java
-  - title: C++ client
-    endpoint: Cpp
+  - title: Go client
+    endpoint: go
   - title: Python client
     endpoint: Python
+  - title: C++ client
+    endpoint: Cpp
   - title: WebSocket API
     endpoint: WebSocket
 
