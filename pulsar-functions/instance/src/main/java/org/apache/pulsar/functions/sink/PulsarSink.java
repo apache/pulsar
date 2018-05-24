@@ -70,7 +70,7 @@ public class PulsarSink<T> implements Sink<T> {
         @Override
         public void initializeOutputProducer(String outputTopic) throws Exception {
             this.producer = AbstractOneOuputTopicProducers.createProducer(
-                    client, pulsarSinkConfig.getTopic());
+                    client, pulsarSinkConfig.getTopic(), outputSerDe);
         }
 
         @Override
@@ -98,7 +98,7 @@ public class PulsarSink<T> implements Sink<T> {
         @Override
         public void initializeOutputProducer(String outputTopic) throws Exception {
             this.producer = AbstractOneOuputTopicProducers.createProducer(
-                    client, pulsarSinkConfig.getTopic());
+                    client, pulsarSinkConfig.getTopic(), outputSerDe);
         }
 
         @Override
@@ -127,7 +127,7 @@ public class PulsarSink<T> implements Sink<T> {
 
         @Override
         public void initializeOutputProducer(String outputTopic) throws Exception {
-            outputProducer = new MultiConsumersOneOuputTopicProducers(client, outputTopic);
+            outputProducer = new MultiConsumersOneOuputTopicProducers(client, outputTopic, outputSerDe);
             outputProducer.initialize();
         }
 

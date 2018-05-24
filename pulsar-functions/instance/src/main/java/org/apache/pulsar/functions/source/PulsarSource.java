@@ -44,7 +44,7 @@ public class PulsarSource<T> implements Source<T> {
 
     private PulsarClient pulsarClient;
     private PulsarSourceConfig pulsarSourceConfig;
-    private Map<String, SerDe> topicToSerDeMap = new HashMap<>();
+    private Map<String, SerDe<T>> topicToSerDeMap = new HashMap<>();
 
     @Getter
     private org.apache.pulsar.client.api.Consumer inputConsumer;

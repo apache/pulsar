@@ -19,8 +19,8 @@
 package org.apache.pulsar.functions.api;
 
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.common.schema.SchemaInfo;
-import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.shade.org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.shade.org.apache.pulsar.common.schema.SchemaType;
 
 /**
  * An interface for serializer/deserializer.
@@ -30,9 +30,20 @@ public interface SerDe<T> extends Schema<T> {
 
     byte[] serialize(T input);
 
+    @Override
     default SchemaInfo getSchemaInfo() {
         SchemaInfo info = new SchemaInfo();
         info.setType(SchemaType.NONE);
         return info;
+    }
+
+    @Override
+    default byte[] encode(T message) {
+        return serialize(message);
+    }
+
+    @Override
+    default T decode(byte[] bytes) {
+        return deserialize(bytes);
     }
 }
