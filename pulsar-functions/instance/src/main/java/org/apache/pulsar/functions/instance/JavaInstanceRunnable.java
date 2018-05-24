@@ -294,7 +294,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         if (result.getUserException() != null) {
             log.info("Encountered user exception when processing message {}", srcRecord, result.getUserException());
             stats.incrementUserExceptions(result.getUserException());
-            this.currentRecord.fail();
+            srcRecord.fail();
         } else if (result.getSystemException() != null) {
             log.info("Encountered system exception when processing message {}", srcRecord, result.getSystemException());
             stats.incrementSystemExceptions(result.getSystemException());
