@@ -121,9 +121,6 @@
         <!-- Already included in pulsar-zookeeper instrumented jar -->
         <exclude>org.apache.zookeeper:zookeeper</exclude>
 
-        <!-- Already shaded in runtime-shaded jar -->
-        <exclude>io.grpc:*</exclude>
-
         <!-- Explicitely remove JUnit which is getting pulled in even
              though it's set to the scope 'test' -->
         <exclude>junit:junit</exclude>
