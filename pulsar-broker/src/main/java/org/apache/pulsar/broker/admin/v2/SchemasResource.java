@@ -86,7 +86,7 @@ public class SchemasResource extends AdminResource {
                     if (isNull(schema)) {
                         response.resume(Response.status(Response.Status.NOT_FOUND).build());
                     } else if (schema.schema.isDeleted()) {
-                        response.resume(Response.noContent());
+                        response.resume(Response.noContent().build());
                     } else {
                         response.resume(
                             Response.ok()
@@ -132,7 +132,7 @@ public class SchemasResource extends AdminResource {
                     if (isNull(schema)) {
                         response.resume(Response.status(Response.Status.NOT_FOUND).build());
                     } else if (schema.schema.isDeleted()) {
-                        response.resume(Response.noContent());
+                        response.resume(Response.noContent().build());
                     } else {
                         response.resume(
                             Response.ok()

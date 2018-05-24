@@ -3,10 +3,7 @@
 .bundle/
 node_modules/
 vendor/
-api/admin/
-api/client/
-api/cpp
-api/python
+api/
 generated/
 .sass-cache
 _data/config/*.bak

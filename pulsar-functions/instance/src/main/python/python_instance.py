@@ -24,12 +24,15 @@
 """
 import base64
 import os
+import signal
 import time
 import Queue
 import threading
 from functools import partial
 from collections import namedtuple
+from threading import Timer
 import traceback
+import sys
 
 import pulsar
 import contextimpl
@@ -116,6 +119,21 @@ class PythonInstance(object):
     self.contextimpl = None
     self.total_stats = Stats()
     self.current_stats = Stats()
+    self.last_health_check_ts = time.time()
+
+  def health_check(self):
+    self.last_health_check_ts = time.time()
+    health_check_result = InstanceCommunication_pb2.HealthCheckResult()
+    health_check_result.success = True
+    return health_check_result
+
+  def process_spawner_health_check_timer(self):
+    if time.time() - self.last_health_check_ts > 90:
+      Log.critical("Haven't received health check from spawner in a while. Stopping instance...")
+      os.kill(os.getpid(), signal.SIGTERM)
+      sys.exit(1)
+
+    Timer(30, self.process_spawner_health_check_timer).start()
 
   def run(self):
     # Setup consumers and input deserializers
@@ -152,6 +170,10 @@ class PythonInstance(object):
     # Now launch a thread that does execution
     self.exeuction_thread = threading.Thread(target=self.actual_execution)
     self.exeuction_thread.start()
+
+    # start proccess spawner health check timer
+    self.last_health_check_ts = time.time()
+    Timer(30, self.process_spawner_health_check_timer).start()
 
   def actual_execution(self):
     Log.info("Started Thread for executing the function")

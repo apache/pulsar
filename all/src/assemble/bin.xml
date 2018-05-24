@@ -82,6 +82,16 @@
       <destName>api-examples.jar</destName>
       <outputDirectory>examples</outputDirectory>
     </file>
+    <file>
+      <source>${basedir}/../pulsar-functions/java-examples/src/main/resources/example-function-config.yaml</source>
+      <destName>example-function-config.yaml</destName>
+      <outputDirectory>examples</outputDirectory>
+    </file>
+    <file>
+      <source>${basedir}/../pulsar-functions/java-examples/src/main/resources/example-window-function-config.yaml</source>
+      <destName>example-window-function-config.yaml</destName>
+      <outputDirectory>examples</outputDirectory>
+    </file>
   </files>
   <dependencySets>
     <dependencySet>
@@ -110,9 +120,6 @@
 
         <!-- Already included in pulsar-zookeeper instrumented jar -->
         <exclude>org.apache.zookeeper:zookeeper</exclude>
-
-        <!-- Already shaded in runtime-shaded jar -->
-        <exclude>io.grpc:*</exclude>
 
         <!-- Explicitely remove JUnit which is getting pulled in even
              though it's set to the scope 'test' -->

@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.netty.channel.EventLoopGroup;
@@ -696,6 +697,20 @@ public class PulsarClientImpl implements PulsarClient {
     void cleanupConsumer(ConsumerBase<?> consumer) {
         synchronized (consumers) {
             consumers.remove(consumer);
+        }
+    }
+
+    @VisibleForTesting
+    int producersCount() {
+        synchronized (producers) {
+            return producers.size();
+        }
+    }
+
+    @VisibleForTesting
+    int consumersCount() {
+        synchronized (consumers) {
+            return consumers.size();
         }
     }
 }

@@ -39,13 +39,17 @@ import org.apache.pulsar.functions.proto.InstanceControlGrpc;
 
 import java.lang.reflect.Type;
 import java.util.Map;
+import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * A function container implemented using java thread.
  */
 @Slf4j
-public class JavaInstanceMain {
+public class JavaInstanceMain implements AutoCloseable {
     @Parameter(names = "--function_classname", description = "Function Class Name\n", required = true)
     protected String className;
     @Parameter(
@@ -123,6 +127,9 @@ public class JavaInstanceMain {
     protected String sinkSerdeClassName;
 
     private Server server;
+    private RuntimeSpawner runtimeSpawner;
+    private Long lastHealthCheckTs = null;
+    private ScheduledExecutorService timer;
 
     public JavaInstanceMain() { }
 
@@ -190,8 +197,7 @@ public class JavaInstanceMain {
                 "LocalRunnerThreadGroup",
                 pulsarServiceUrl,
                 stateStorageServiceUrl);
-
-        RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
+        runtimeSpawner = new RuntimeSpawner(
                 instanceConfig,
                 jarFile,
                 containerFactory,
@@ -216,9 +222,25 @@ public class JavaInstanceMain {
         });
         log.info("Starting runtimeSpawner");
         runtimeSpawner.start();
+
+        timer = Executors.newSingleThreadScheduledExecutor();
+        timer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                try {
+                    if (System.currentTimeMillis() - lastHealthCheckTs > 90000) {
+                        log.info("Haven't received health check from spawner in a while. Stopping instance...");
+                        close();
+                    }
+                } catch (Exception e) {
+                    log.error("Error occurred when checking for latest health check", e);
+                }
+            }
+        }, 30000, 30000, TimeUnit.MILLISECONDS);
+
         runtimeSpawner.join();
         log.info("RuntimeSpawner quit, shutting down JavaInstance");
-        server.shutdown();
+        close();
     }
 
     public static void main(String[] args) throws Exception {
@@ -231,11 +253,31 @@ public class JavaInstanceMain {
         javaInstanceMain.start();
     }
 
-    static class InstanceControlImpl extends InstanceControlGrpc.InstanceControlImplBase {
+    @Override
+    public void close() {
+        try {
+            // Use stderr here since the logger may have been reset by its JVM shutdown hook.
+            if (server != null) {
+                server.shutdown();
+            }
+            if (runtimeSpawner != null) {
+                runtimeSpawner.close();
+            }
+            if (timer != null) {
+                timer.shutdown();
+            }
+        } catch (Exception ex) {
+            System.err.println(ex);
+        }
+    }
+
+
+    class InstanceControlImpl extends InstanceControlGrpc.InstanceControlImplBase {
         private RuntimeSpawner runtimeSpawner;
 
         public InstanceControlImpl(RuntimeSpawner runtimeSpawner) {
             this.runtimeSpawner = runtimeSpawner;
+            lastHealthCheckTs = System.currentTimeMillis();
         }
 
         @Override
@@ -266,5 +308,16 @@ public class JavaInstanceMain {
             }
         }
 
+        @Override
+        public void healthCheck(com.google.protobuf.Empty request,
+                                io.grpc.stub.StreamObserver<org.apache.pulsar.functions.proto.InstanceCommunication.HealthCheckResult> responseObserver) {
+            log.debug("Recieved health check request...");
+            InstanceCommunication.HealthCheckResult healthCheckResult
+                    = InstanceCommunication.HealthCheckResult.newBuilder().setSuccess(true).build();
+            responseObserver.onNext(healthCheckResult);
+            responseObserver.onCompleted();
+
+            lastHealthCheckTs = System.currentTimeMillis();
+        }
     }
 }

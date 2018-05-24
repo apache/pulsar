@@ -25,54 +25,49 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-import net.jodah.typetools.TypeResolver;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.internal.FunctionsImpl;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.functions.api.utils.IdentityFunction;
-import org.apache.pulsar.functions.shaded.proto.Function;
-import org.apache.pulsar.functions.shaded.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.shaded.proto.Function.Resources;
-import org.apache.pulsar.functions.shaded.proto.Function.ProcessingGuarantees;
-import org.apache.pulsar.functions.shaded.proto.Function.SinkSpec;
-import org.apache.pulsar.functions.shaded.proto.Function.SourceSpec;
-import org.apache.pulsar.functions.sink.PulsarSink;
-import org.apache.pulsar.functions.source.PulsarSource;
-import org.apache.pulsar.functions.utils.FunctionConfig;
-import org.apache.pulsar.functions.utils.Reflections;
-import org.apache.pulsar.functions.utils.SourceConfig;
-import org.apache.pulsar.functions.utils.Utils;
-import org.apache.pulsar.io.core.Sink;
-import org.apache.pulsar.io.core.Source;
 
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
 
-@Slf4j
+import lombok.Getter;
+
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.internal.FunctionsImpl;
+import org.apache.pulsar.functions.api.utils.IdentityFunction;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.proto.Function.ProcessingGuarantees;
+import org.apache.pulsar.functions.proto.Function.Resources;
+import org.apache.pulsar.functions.proto.Function.SinkSpec;
+import org.apache.pulsar.functions.proto.Function.SourceSpec;
+import org.apache.pulsar.functions.utils.FunctionConfig;
+import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.functions.utils.SourceConfig;
+import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.io.core.Source;
+
+import net.jodah.typetools.TypeResolver;
+
 @Getter
 @Parameters(commandDescription = "Interface for managing Pulsar Source (Ingress data to Pulsar)")
 public class CmdSources extends CmdBase {
 
     private final CreateSource createSource;
     private final DeleteSource deleteSource;
+    private final UpdateSource updateSource;
     private final LocalSourceRunner localSourceRunner;
 
     public CmdSources(PulsarAdmin admin) {
         super("source", admin);
         createSource = new CreateSource();
+        updateSource = new UpdateSource();
         deleteSource = new DeleteSource();
         localSourceRunner = new LocalSourceRunner();
 
         jcommander.addCommand("create", createSource);
+        jcommander.addCommand("update", updateSource);
         jcommander.addCommand("delete", deleteSource);
         jcommander.addCommand("localrun", localSourceRunner);
     }
@@ -108,7 +103,30 @@ public class CmdSources extends CmdBase {
     }
 
     @Parameters(commandDescription = "Create Pulsar source connectors")
-    class CreateSource extends BaseCommand {
+    public class CreateSource extends SourceCommand {
+        @Override
+        void runCmd() throws Exception {
+            if (!areAllRequiredFieldsPresentForSource(sourceConfig)) {
+                throw new RuntimeException("Missing arguments");
+            }
+            admin.functions().createFunction(createSourceConfig(sourceConfig), jarFile);
+            print("Created successfully");
+        }
+    }
+
+    @Parameters(commandDescription = "Update Pulsar source connectors")
+    public class UpdateSource extends SourceCommand {
+        @Override
+        void runCmd() throws Exception {
+            if (!areAllRequiredFieldsPresentForSource(sourceConfig)) {
+                throw new RuntimeException("Missing arguments");
+            }
+            admin.functions().updateFunction(createSourceConfig(sourceConfig), jarFile);
+            print("Updated successfully");
+        }
+    }
+
+    abstract class SourceCommand extends BaseCommand {
         @Parameter(names = "--tenant", description = "The source's tenant")
         protected String tenant;
         @Parameter(names = "--namespace", description = "The source's namespace")
@@ -123,7 +141,7 @@ public class CmdSources extends CmdBase {
         protected String destinationTopicName;
         @Parameter(names = "--deserializationClassName", description = "The classname for SerDe class for the source")
         protected String deserializationClassName;
-        @Parameter(names = "--parallelism", description = "Number of instances of the source")
+        @Parameter(names = "--parallelism", description = "The source's parallelism factor (i.e. the number of source instances to run)")
         protected String parallelism;
         @Parameter(
                 names = "--jar",
@@ -204,15 +222,6 @@ public class CmdSources extends CmdBase {
                 Map<String, Object> sourceConfigMap = new Gson().fromJson(sourceConfigString, type);
                 sourceConfig.setConfigs(sourceConfigMap);
             }
-        }
-
-        @Override
-        void runCmd() throws Exception {
-            if (!areAllRequiredFieldsPresentForSource(sourceConfig)) {
-                throw new RuntimeException("Missing arguments");
-            }
-            admin.functions().createFunction(createSourceConfig(sourceConfig), jarFile);
-            print("Created successfully");
         }
 
         private Class<?> getSourceType(File file) {

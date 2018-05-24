@@ -60,6 +60,18 @@
     </dependency>
 
     <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-functions-api</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+     <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-client-original</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
       <groupId>org.apache.bookkeeper</groupId>
       <artifactId>stream-storage-java-client</artifactId>
     </dependency>
@@ -82,6 +94,11 @@
     <dependency>
       <groupId>net.jodah</groupId>
       <artifactId>typetools</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.jboss</groupId>
+      <artifactId>jboss-reflect</artifactId>
     </dependency>
 
   </dependencies>

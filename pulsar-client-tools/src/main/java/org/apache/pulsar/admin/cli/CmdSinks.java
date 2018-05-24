@@ -25,27 +25,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-import net.jodah.typetools.TypeResolver;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.internal.FunctionsImpl;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.functions.api.utils.IdentityFunction;
-import org.apache.pulsar.functions.shaded.proto.Function;
-import org.apache.pulsar.functions.shaded.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.shaded.proto.Function.Resources;
-import org.apache.pulsar.functions.shaded.proto.Function.ProcessingGuarantees;
-import org.apache.pulsar.functions.shaded.proto.Function.SinkSpec;
-import org.apache.pulsar.functions.shaded.proto.Function.SourceSpec;
-import org.apache.pulsar.functions.sink.PulsarSink;
-import org.apache.pulsar.functions.source.PulsarSource;
-import org.apache.pulsar.functions.utils.FunctionConfig;
-import org.apache.pulsar.functions.utils.Reflections;
-import org.apache.pulsar.functions.utils.SinkConfig;
-import org.apache.pulsar.functions.utils.Utils;
-import org.apache.pulsar.io.core.Sink;
-import org.apache.pulsar.io.core.Source;
 
 import java.io.File;
 import java.io.IOException;
@@ -57,22 +36,44 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
-@Slf4j
+import lombok.Getter;
+
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.internal.FunctionsImpl;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.functions.api.utils.IdentityFunction;
+import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.proto.Function.ProcessingGuarantees;
+import org.apache.pulsar.functions.proto.Function.Resources;
+import org.apache.pulsar.functions.proto.Function.SinkSpec;
+import org.apache.pulsar.functions.proto.Function.SourceSpec;
+import org.apache.pulsar.functions.utils.FunctionConfig;
+import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.functions.utils.SinkConfig;
+import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.io.core.Sink;
+
+import net.jodah.typetools.TypeResolver;
+
 @Getter
 @Parameters(commandDescription = "Interface for managing Pulsar Sinks (Egress data from Pulsar)")
 public class CmdSinks extends CmdBase {
 
     private final CreateSink createSink;
+    private final UpdateSink updateSink;
     private final DeleteSink deleteSink;
     private final LocalSinkRunner localSinkRunner;
 
     public CmdSinks(PulsarAdmin admin) {
         super("sink", admin);
         createSink = new CreateSink();
+        updateSink = new UpdateSink();
         deleteSink = new DeleteSink();
         localSinkRunner = new LocalSinkRunner();
 
         jcommander.addCommand("create", createSink);
+        jcommander.addCommand("update", updateSink);
         jcommander.addCommand("delete", deleteSink);
         jcommander.addCommand("localrun", localSinkRunner);
     }
@@ -108,7 +109,31 @@ public class CmdSinks extends CmdBase {
     }
 
     @Parameters(commandDescription = "Create Pulsar sink connectors")
-    class CreateSink extends BaseCommand {
+    class CreateSink extends SinkCommand {
+        @Override
+        void runCmd() throws Exception {
+            if (!areAllRequiredFieldsPresentForSink(sinkConfig)) {
+                throw new RuntimeException("Missing arguments");
+            }
+            admin.functions().createFunction(createSinkConfig(sinkConfig), jarFile);
+            print("Created successfully");
+        }
+    }
+
+    @Parameters(commandDescription = "Update Pulsar sink connectors")
+    class UpdateSink extends SinkCommand {
+        @Override
+        void runCmd() throws Exception {
+            if (!areAllRequiredFieldsPresentForSink(sinkConfig)) {
+                throw new RuntimeException("Missing arguments");
+            }
+            admin.functions().updateFunction(createSinkConfig(sinkConfig), jarFile);
+            print("Updated successfully");
+        }
+    }
+
+    @Parameters(commandDescription = "Create Pulsar sink connectors")
+    abstract class SinkCommand extends BaseCommand {
         @Parameter(names = "--tenant", description = "The sink's tenant")
         protected String tenant;
         @Parameter(names = "--namespace", description = "The sink's namespace")
@@ -123,7 +148,7 @@ public class CmdSinks extends CmdBase {
         protected String customSerdeInputString;
         @Parameter(names = "--processingGuarantees", description = "The processing guarantees (aka delivery semantics) applied to the Sink")
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
-        @Parameter(names = "--parallelism", description = "")
+        @Parameter(names = "--parallelism", description = "The sink's parallelism factor (i.e. the number of sink instances to run)")
         protected String parallelism;
         @Parameter(
                 names = "--jar",
@@ -219,15 +244,6 @@ public class CmdSinks extends CmdBase {
                 Map<String, Object> sinkConfigMap = new Gson().fromJson(sinkConfigString, type);
                 sinkConfig.setConfigs(sinkConfigMap);
             }
-        }
-
-        @Override
-        void runCmd() throws Exception {
-            if (!areAllRequiredFieldsPresentForSink(sinkConfig)) {
-                throw new RuntimeException("Missing arguments");
-            }
-            admin.functions().createFunction(createSinkConfig(sinkConfig), jarFile);
-            print("Created successfully");
         }
 
         private Class<?> getSinkType(File file) {

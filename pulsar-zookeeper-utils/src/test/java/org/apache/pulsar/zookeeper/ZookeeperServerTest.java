@@ -48,6 +48,8 @@ public class ZookeeperServerTest implements Closeable {
 
     public void start() throws IOException {
         try {
+            // Allow all commands on ZK control port
+            System.setProperty("zookeeper.4lw.commands.whitelist", "*");
             zks = new ZooKeeperServer(zkTmpDir, zkTmpDir, ZooKeeperServer.DEFAULT_TICK_TIME);
             zks.setMaxSessionTimeout(20000);
             serverFactory = new NIOServerCnxnFactory();

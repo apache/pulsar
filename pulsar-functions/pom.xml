@@ -44,7 +44,6 @@
     <module>runtime-all</module>
     <module>worker</module>
     <module>kubernetes</module>
-    <module>worker-shaded</module>
   </modules>
 
   <dependencyManagement>

@@ -32,7 +32,6 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BKException;
@@ -44,6 +43,7 @@ import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -57,11 +57,11 @@ import org.testng.annotations.Test;
 class S3ManagedLedgerOffloaderTest extends S3TestBase {
     private static final int DEFAULT_BLOCK_SIZE = 5*1024*1024;
     private static final int DEFAULT_READ_BUFFER_SIZE = 1*1024*1024;
-    final ScheduledExecutorService scheduler;
+    final OrderedScheduler scheduler;
     final MockBookKeeper bk;
 
     S3ManagedLedgerOffloaderTest() throws Exception {
-        scheduler = Executors.newScheduledThreadPool(1, new DefaultThreadFactory("offloader-"));
+        scheduler = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("offloader").build();
         bk = new MockBookKeeper(MockedPulsarServiceBaseTest.createMockZooKeeper());
     }
 
@@ -116,13 +116,8 @@ class S3ManagedLedgerOffloaderTest extends S3TestBase {
 
     @Test
     public void testBucketDoesNotExist() throws Exception {
-        ServiceConfiguration conf = new ServiceConfiguration();
-        conf.setManagedLedgerOffloadDriver(S3ManagedLedgerOffloader.DRIVER_NAME);
-        conf.setS3ManagedLedgerOffloadBucket("no-bucket");
-        conf.setS3ManagedLedgerOffloadServiceEndpoint(s3endpoint);
-        conf.setS3ManagedLedgerOffloadRegion("eu-west-1");
-        LedgerOffloader offloader = S3ManagedLedgerOffloader.create(conf, scheduler);
-
+        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, "no-bucket", scheduler,
+                                                                 DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
         try {
             offloader.offload(buildReadHandle(), UUID.randomUUID(), new HashMap<>()).get();
             Assert.fail("Shouldn't be able to add to bucket");
@@ -150,6 +145,22 @@ class S3ManagedLedgerOffloaderTest extends S3TestBase {
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setManagedLedgerOffloadDriver(S3ManagedLedgerOffloader.DRIVER_NAME);
         conf.setS3ManagedLedgerOffloadRegion("eu-west-1");
+
+        try {
+            S3ManagedLedgerOffloader.create(conf, scheduler);
+            Assert.fail("Should have thrown exception");
+        } catch (PulsarServerException pse) {
+            // correct
+        }
+    }
+
+    @Test
+    public void testSmallBlockSizeConfigured() throws Exception {
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setManagedLedgerOffloadDriver(S3ManagedLedgerOffloader.DRIVER_NAME);
+        conf.setS3ManagedLedgerOffloadRegion("eu-west-1");
+        conf.setS3ManagedLedgerOffloadBucket(BUCKET);
+        conf.setS3ManagedLedgerOffloadMaxBlockSizeInBytes(1024);
 
         try {
             S3ManagedLedgerOffloader.create(conf, scheduler);
@@ -367,11 +378,10 @@ class S3ManagedLedgerOffloaderTest extends S3TestBase {
 
     @Test
     public void testDeleteOffloaded() throws Exception {
-        int maxBlockSize = 1024;
-        int entryCount = 3;
-        ReadHandle readHandle = buildReadHandle(maxBlockSize, entryCount);
+        ReadHandle readHandle = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
         UUID uuid = UUID.randomUUID();
-        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler, maxBlockSize, DEFAULT_READ_BUFFER_SIZE);
+        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler,
+                                                                 DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
 
         // verify object exist after offload
         offloader.offload(readHandle, uuid, new HashMap<>()).get();
@@ -386,11 +396,10 @@ class S3ManagedLedgerOffloaderTest extends S3TestBase {
 
     @Test
     public void testDeleteOffloadedFail() throws Exception {
-        int maxBlockSize = 1024;
-        int entryCount = 3;
-        ReadHandle readHandle = buildReadHandle(maxBlockSize, entryCount);
+        ReadHandle readHandle = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
         UUID uuid = UUID.randomUUID();
-        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler, maxBlockSize, DEFAULT_READ_BUFFER_SIZE);
+        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler,
+                                                                 DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
         String failureString = "fail deleteOffloaded";
         AmazonS3 mockS3client = Mockito.spy(s3client);
         Mockito

@@ -34,6 +34,8 @@ struct ClientConfigurationImpl {
     std::string tlsTrustCertsFilePath;
     bool tlsAllowInsecureConnection;
     unsigned int statsIntervalInSeconds;
+    LoggerFactoryPtr loggerFactory;
+
     ClientConfigurationImpl()
         : authenticationPtr(AuthFactory::Disabled()),
           ioThreads(1),
