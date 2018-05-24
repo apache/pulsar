@@ -176,8 +176,8 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
                     s3client.abortMultipartUpload(
                         new AbortMultipartUploadRequest(bucket, dataBlockKey, dataBlockRes.getUploadId()));
                 } catch (Throwable throwable) {
-                    log.error("Failed abortMultipartUpload in bucket - {} with key - {}.",
-                        bucket, dataBlockKey, throwable);
+                    log.error("Failed abortMultipartUpload in bucket - {} with key - {}, uploadId - {}.",
+                        bucket, dataBlockKey, dataBlockRes.getUploadId(), throwable);
                 }
                 promise.completeExceptionally(t);
                 return;
