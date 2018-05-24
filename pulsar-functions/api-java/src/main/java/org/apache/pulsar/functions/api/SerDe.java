@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -18,10 +18,21 @@
  */
 package org.apache.pulsar.functions.api;
 
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
+
 /**
  * An interface for serializer/deserializer.
  */
-public interface SerDe<T> {
+public interface SerDe<T> extends Schema<T> {
     T deserialize(byte[] input);
+
     byte[] serialize(T input);
+
+    default SchemaInfo getSchemaInfo() {
+        SchemaInfo info = new SchemaInfo();
+        info.setType(SchemaType.NONE);
+        return info;
+    }
 }
