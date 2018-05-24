@@ -32,10 +32,10 @@ You can configure your Pulsar client using a `ClientOptions` object. Here's an e
 
 ```go
 import (
-    "log"
-    "runtime"
+        "log"
+        "runtime"
 
-    "github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"
+        "github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"
 )
 
 func main() {
@@ -50,7 +50,7 @@ func main() {
         client, err := pulsar.NewClient(clientOpts)
 
         if err != nil {
-            log.Fatalf("Could not instantiate Pulsar client: %v", err)
+                log.Fatalf("Could not instantiate Pulsar client: %v", err)
         }
 }
 ```
@@ -99,6 +99,72 @@ if err := producer.Send(msg); err != nil {
 {% include admonition.html type="warning" title="Blocking operation"
    content="When you create a new Pulsar producer, the operation will block until either a producer is successfully created or an error is thrown." %}
 
+### Producer operations
+
+Pulsar Go producers have the following methods available:
+
+Method | Description | Return type
+:------|:------------|:-----------
+`Topic()` | Fetches the producer's {% popover topic %} | `string`
+`Name()` | Fetchs the producer's name | `string`
+`Send(context.Context, ProducerMessage) error` | Publishes a [message](#messages) to the producer's topic. This call will block until the message is successfully acknowledged by the Pulsar broker, or an error will be thrown if the timeout set using the `SendTimeout` in the producer's [configuration](#producer-configuration) is exceeded. | `error`
+`SendAsync(context.Context, ProducerMessage, func(ProducerMessage, error))` | Publishes a [message](#messages) to the producer's topic asynchronously. The third argument is a callback function that specifies what happens either when the message is acknowledged or an error is thrown. |
+`Close()` | Closes the producer and releases all resources allocated to it. If `Close()` is called then no more messages will be accepted from the publisher. This method will block until all pending publish requests have been persisted by Pulsar. If an error is thrown, no pending writes will be retried. | `error`
+
+Here's a more involved example usage of a producer:
+
+```go
+import (
+        "context"
+        "fmt"
+
+        "github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"
+)
+
+func main() {
+        // Instantiate a Pulsar client
+        client, err := pulsar.NewClient(pulsar.ClientOptions{
+                URL: "pulsar://localhost:6650",
+        })
+
+        if err != nil { log.Fatal(err) }
+
+        // Use the client to instantiate a producer
+        producer, err := client.CreateProducer(pulsar.ProducerOptions{
+                Topic: "my-topic",
+        })
+
+        if err != nil { log.Fatal(err) }
+
+        ctx := context.Background()
+
+        // Send 10 messages synchronously and 10 messages asynchronously
+        for i := 0; i < 10; i++ {
+                // Create a message
+                msg := pulsar.ProducerMessage{
+                        Payload: []byte(fmt.Sprintf("message-%d", i)),
+                }
+
+                // Attempt to send the message
+                if err := producer.Send(ctx, msg); err != nil {
+                        log.Fatal(err)
+                }
+
+                // Create a different message to send asynchronously
+                asyncMsg := pulsar.ProducerMessage{
+                        Payload: []byte(fmt.Sprintf("async-message-%d", i)),
+                }
+
+                // Attempt to send the message asynchronously and handle the response
+                producer.SendAsync(ctx, asyncMsg, func(msg pulsar.ProducerMessage, err error) {
+                        if err != nil { log.Fatal(err) }
+
+                        fmt.Printf("Message %s succesfully published", msg.ID())
+                })
+        }
+}
+```
+
 ### Producer configuration
 
 Parameter | Description | Default
@@ -116,7 +182,7 @@ Parameter | Description | Default
 
 ## Consumers
 
-Pulsar {% popover consumers %} subscribe to one or more Pulsar {% popover topics %} and listen for incoming messages produced on that topic/those topics. You can [configure](#consumer-configuration) Go consumers using a `ConsumerOptions` object. Here's an example:
+Pulsar {% popover consumers %} subscribe to one or more Pulsar {% popover topics %} and listen for incoming messages produced on that topic/those topics. You can [configure](#consumer-configuration) Go consumers using a `ConsumerOptions` object. Here's a basic example that uses channels:
 
 ```go
 msgChannel := make(chan pulsar.ConsumerMessage)
@@ -149,19 +215,6 @@ for cm := range channel {
 {% include admonition.html type="warning" title="Blocking operation"
    content="When you create a new Pulsar consumer, the operation will block until either a producer is successfully created or an error is thrown." %}
 
-### Consumer configuration
-
-Parameter | Description | Default
-:---------|:------------|:-------
-`Topic` | The Pulsar {% popover topic %} on which the consumer will establish a subscription and listen for messages |
-`SubscriptionName` | The subscription name for this consumer |
-`Name` | The name of the consumer |
-`AckTimeout` | | 0
-`SubscriptionType` | Available options are `Exclusive`, `Shared`, and `Failover` | `Exclusive`
-`MessageChannel` | The Go channel used by the consumer. Messages that arrive from the Pulsar topic(s) will be passed to this channel. |
-`ReceiverQueueSize` | | 1000
-`MaxTotalReceiverQueueSizeAcrossPartitions` | | 50000
-
 ### Consumer operations
 
 Pulsar Go consumers have the following methods available:
@@ -177,6 +230,125 @@ Method | Description | Return type
 `AckCumulative(Message)` | {% popover Acknowledges %} *all* the messages in the stream, up to and including the specified message. The `AckCumulative` method will block until the ack has been sent to the broker. After that, the messages will *not* be redelivered to the consumer. Cumulative acking can only be used with a [shared](../../getting-started/ConceptsAndArchitecture#shared) subscription type.
 `Close()` | Closes the consumer, disabling its ability to receive messages from the broker | `error`
 `RedeliverUnackedMessages()` | Redelivers *all* unacknowledged messages on the topic. In [failover](../../getting-started/ConceptsAndArchitecture#failover) mode, this request is ignored if the consumer isn't active on the specified topic; in [shared](../../getting-started/ConceptsAndArchitecture#shared) mode, redelivered messages are distributed across all consumers connected to the topic. **Note**: this is a *non-blocking* operation that doesn't throw an error. |
+
+#### Receive example
+
+Here's an example usage of a Go consumer that uses the `Receive()` method to process incoming messages:
+
+```go
+import (
+        "context"
+        "log"
+
+        "github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"
+)
+
+func main() {
+        // Instantiate a Pulsar client
+        client, err := pulsar.NewClient(pulsar.ClientOptions{
+                URL: "pulsar://localhost:6650",
+        })
+
+        if err != nil { log.Fatal(err) }
+
+        // Use the client object to instantiate a consumer
+        consumer, err := client.Subscribe(pulsar.ConsumerOptions{
+                Topic:            "my-golang-topic",
+                SubscriptionName: "sub-1",
+                SubscriptionType: pulsar.Exclusive,
+        })
+
+        if err != nil { log.Fatal(err) }
+
+        defer consumer.Close()
+
+        ctx := context.Background()
+
+        // Listen indefinitely on the topic
+        for {
+                msg, err := consumer.Receive(ctx)
+
+                if err != nil { log.Fatal(err) }
+
+                msgBytes := msg.Payload()
+
+                // Do something with the message
+
+                consumer.Ack(msg)
+        }
+}
+```
+
+#### Channel example
+
+Here's a more involved example usage of a Go consumer that uses Go [channels](https://gobyexample.com/channels) to process incoming messages:
+
+```go
+import (
+        "context"
+        "fmt"
+        "log"
+        "strings"
+
+        "github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"
+)
+
+func main() {
+        // Instantiate a Pulsar client
+        client, err := pulsar.NewClient(pulsar.ClientOptions{
+                URL: "pulsar://localhost:6650",
+        })
+
+        if err != nil { log.Fatal(err) }
+
+        // Create 5 consumers with a shared subscription
+        for i := 0; i < 5; i++ {
+                consumerName := fmt.Sprintf("consumer-%d", i)
+
+                // Establish a per-consumer channel to listen for received messages
+                rcvChannel := make(chan pulsar.ConsumerMessage)
+
+                consumer, err := client.Subscribe(pulsar.ConsumerOptions{
+                        Topic:            "my-golang-topic",
+                        SubscriptionName: "shared-subscription-1",
+                        SubscriptionType: pulsar.Shared,
+                        MessageChannel:   rcvChannel,
+                })
+
+                if err != nil { log.Fatal(err) }
+
+                defer consumer.Close()
+
+                // Listen on the message receiver channel
+                for cm := range rcvChannel {
+                        msg := cm.Message
+
+                        // Unsubscribe if the message contains a specified string
+                        msgStr := string(msg.Payload())
+
+                        if strings.Contains(msgStr, "hocus") {
+                                log.Fatal(consumer.Unsubscribe())
+                        }
+
+                        // Acknowledge the message
+                        consumer.Ack(msg)
+                }
+        }
+}
+```
+
+### Consumer configuration
+
+Parameter | Description | Default
+:---------|:------------|:-------
+`Topic` | The Pulsar {% popover topic %} on which the consumer will establish a subscription and listen for messages |
+`SubscriptionName` | The subscription name for this consumer |
+`Name` | The name of the consumer |
+`AckTimeout` | | 0
+`SubscriptionType` | Available options are `Exclusive`, `Shared`, and `Failover` | `Exclusive`
+`MessageChannel` | The Go channel used by the consumer. Messages that arrive from the Pulsar topic(s) will be passed to this channel. |
+`ReceiverQueueSize` | | 1000
+`MaxTotalReceiverQueueSizeAcrossPartitions` | | 50000
 
 ## Readers
 
