@@ -6,7 +6,7 @@ tags: [client, go, golang]
 The Pulsar Go client can be used to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Go (aka Golang).
 
 {% include admonition.html type="info" title="API docs available as well"
-   content="For API docs, consult the [Godoc](https://godoc.org/github.com/apache/incubator-pulsar/pulsar-client-go/pulsar)." %}
+   content="For standard API docs, consult the [Godoc](https://godoc.org/github.com/apache/incubator-pulsar/pulsar-client-go/pulsar)." %}
 
 ## Installation
 
@@ -22,11 +22,41 @@ Once installed locally, you can import it into your project:
 import "github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"
 ```
 
-## Connection URLs
+## Connection URLs {#urls}
 
 {% include explanations/client-url.md %}
 
-## Client configuration
+## Creating a client
+
+In order to interact with Pulsar, you'll first need a `Client` object. You can create a client object using the `NewClient` function, passing in a `ClientOptions` object (more on configuration [below](#client-configuration)). Here's an example:
+
+
+```go
+import (
+        "log"
+        "runtime"
+
+        "github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"
+)
+
+func main() {
+        cores := runtime.NumCPU()
+
+        clientOpts := pulsar.ClientOptions{
+                URL: "pulsar://localhost:6650",
+                OperationTimeoutSeconds: 5,
+                MessageListenerThreads: cores,
+        }
+
+        client, err := pulsar.NewClient(clientOpts)
+
+        if err != nil {
+                log.Fatalf("Could not instantiate Pulsar client: %v", err)
+        }
+}
+```
+
+### Client configuration
 
 You can configure your Pulsar client using a `ClientOptions` object. Here's an example:
 
@@ -55,20 +85,20 @@ func main() {
 }
 ```
 
-The following configurable parameters are available
+The following configurable parameters are available for Pulsar clients:
 
 Parameter | Description | Default
 :---------|:------------|:-------
-`URL` | The connection URL for the Pulsar cluster |
+`URL` | The connection URL for the Pulsar cluster. See [above](#urls) for more info |
 `IOThreads` | The number of threads to use for handling connections to Pulsar {% popover brokers %} | 1
 `OperationTimeoutSeconds` | The timeout for some Go client operations (creating producers, subscribing to and unsubscribing from {% popover topics %}). Retries will occur until this threshold is reached, at which point the operation will fail. | 30
-`MessageListenerThreads` | The number of threads used by message listeners ([consumers](#consumers)) | 1
+`MessageListenerThreads` | The number of threads used by message listeners ([consumers](#consumers) and [readers](#readers)) | 1
 `ConcurrentLookupRequests` | The number of concurrent lookup requests that can be sent on each broker connection. Setting a maximum helps to keep from overloading brokers. You should set values over the default of 5000 only if the client needs to produce and/or subscribe to thousands of Pulsar topics. | 5000
 `Logger` | A custom logger implementation for the client (as a function that takes a log level, filepath, line number, and message). All info, warn, and error messages will be routed to this function.
 `EnableTLS` | Whether [TLS](#tls) encryption is enabled for the client | `false`
 `TLSTrustCertsFilePath` | The filepath for the trusted TLS certificate |
 `TLSAllowInsecureConnection` | Whether the client accepts untrusted TLS certificates from the broker | `false`
-`StatsIntervalInSeconds` | The interval at which (in seconds) TODO | 60
+`StatsIntervalInSeconds` | The interval (in seconds) at which client stats are published | 60
 
 ## Producers
 
@@ -172,11 +202,11 @@ Parameter | Description | Default
 `Topic` | The Pulsar {% popover topic %} to which the producer will publish messages |
 `Name` | A name for the producer. If you don't explicitly assign a name, Pulsar will automatically generate a globally unique name that you can access later using the `Name()` method.  If you choose to explicitly assign a name, it will need to be unique across *all* Pulsar clusters, otherwise the creation operation will throw an error. |
 `SendTimeout` | When publishing a message to a topic, the producer will wait for an acknowledgment from the responsible Pulsar {% popover broker %}. If a message is not acknowledged within the threshold set by this parameter, an error will be thrown. If you set `SendTimeout` to -1, the timeout will be set to infinity (and thus removed). Removing the send timeout is recommended when using Pulsar's [message de-duplication](../../cookbooks/message-deduplication) feature. | 30 seconds
-`MaxPendingMessages` | |
+`MaxPendingMessages` | The maximum size of the queue holding pending messages (i.e. messages waiting to receive an acknowledgment from the {% popover broker %}). By default, when the queue is full all calls to the `Send` and `SendAsync` methods will fail *unless* `BlockIfQueueFull` is set to `true`. |
 `MaxPendingMessagesAcrossPartitions` | |
-`BlockIfQueueFull` | |
-`MessageRoutingMode` | |
-`HashingScheme` | |
+`BlockIfQueueFull` | If set to `true`, the producer's `Send` and `SendAsync` methods will block when the outgoing message queue is full rather than failing and throwing an error (the size of that queue is dictated by the `MaxPendingMessages` parameter); if set to `false` (the default), `Send` and `SendAsync` operations will fail and throw a `ProducerQueueIsFullError` when the queue is full. | `false`
+`MessageRoutingMode` | The message routing logic (for producers on [partitioned topics](../../getting-started/ConceptsAndArchitecture#partitioned-topics)). This logic is applied only when no key is set on messages. The available options are: round robin (`pulsar.RoundRobinDistribution`, the default), publishing all messages to a single partition (`pulsar.UseSinglePartition`), or a custom partitioning scheme (`pulsar.CustomPartition`). | `pulsar.RoundRobinDistribution`
+`HashingScheme` | The hashing function that determines the partition on which a particular message is published (partitioned topics only). The available options are: `pulsar.JavaStringHash` (the equivalent of `String.hashCode()` in Java), `pulsar.Murmur3_32Hash` (applies the [Murmur3](https://en.wikipedia.org/wiki/MurmurHash) hashing function), or `pulsar.BoostHash` (applies the hashing function from C++'s [Boost](https://www.boost.org/doc/libs/1_62_0/doc/html/hash.html) library) | `pulsar.JavaStringHash`
 `CompressionType` | The message data compression type used by the producer. The available options are [`LZ4`](https://github.com/lz4/lz4) and [`ZLIB`](https://zlib.net/). | No compression
 `MessageRouter` | By default, Pulsar uses a round-robin routing scheme for [partitioned topics](../../cookbooks/PartitionedTopics). The `MessageRouter` parameter enables you to specify custom routing logic via a function that takes the Pulsar message and topic metadata as an argument and returns an integer (where the ), i.e. a function signature of `func(Message, TopicMetadata) int`. |
 
@@ -221,8 +251,8 @@ Pulsar Go consumers have the following methods available:
 
 Method | Description | Return type
 :------|:------------|:-----------
-`Topic()` | Fetches the consumer's {% popover topic %} | `string`
-`Subscription()` | Fetches the consumer's subscription name | `string`
+`Topic()` | Returns the consumer's {% popover topic %} | `string`
+`Subscription()` | Returns the consumer's subscription name | `string`
 `Unsubcribe()` | Unsubscribes the consumer from the assigned topic. Throws an error if the unsubscribe operation is somehow unsuccessful. | `error`
 `Receive(context.Context)` | Receives a single message from the topic. This method blocks until a message is available. | `(Message, error)`
 `Ack(Message)` | {% popover Acknowledges %} a message to the Pulsar {% popover broker %} | `error`
@@ -347,15 +377,148 @@ Parameter | Description | Default
 `AckTimeout` | | 0
 `SubscriptionType` | Available options are `Exclusive`, `Shared`, and `Failover` | `Exclusive`
 `MessageChannel` | The Go channel used by the consumer. Messages that arrive from the Pulsar topic(s) will be passed to this channel. |
-`ReceiverQueueSize` | | 1000
+`ReceiverQueueSize` | Sets the size of the consumer's receiver queue, i.e. the number of messages that can be accumulated by the consumer before the application calls `Receive`. A value higher than the default of 1000 could increase consumer throughput, though at the expense of more memory utilization. | 1000
 `MaxTotalReceiverQueueSizeAcrossPartitions` | | 50000
 
 ## Readers
 
-Pulsar {% popover readers %} publish messages to Pulsar {% popover topics %}. You can [configure](#producer-configuration) Go producers using a `ProducerOptions` object. Here's an example:
+Pulsar {% popover readers %} process messages from Pulsar {% popover topics %}. Readers are different from consumers because with readers you need to explicitly specify which message in the stream you want to begin with (consumers, on the other hand, automatically begin with the most recent unacked message). You can [configure](#reader-configuration) Go readers using a `ReaderOptions` object. Here's an example:
+
+```go
+readerOpts := pulsar.ReaderOptions{
+        Topic: "my-golang-topic",
+        StartMessageId: pulsar.LatestMessage,
+}
+
+reader, err := client.CreateReader(readerOpts)
+```
 
 {% include admonition.html type="warning" title="Blocking operation"
-   content="When you create a new Pulsar reader, the operation will block until either a producer is successfully created or an error is thrown." %}
+   content="When you create a new Pulsar reader, the operation will block until either a reader is successfully created or an error is thrown." %}
+
+### Reader operations
+
+Pulsar Go readers have the following methods available:
+
+Method | Description | Return type
+:------|:------------|:-----------
+`Topic()` | Returns the reader's {% popover topic %} | `string`
+`Next(context.Context)` | Receives the next message on the topic (analogous to the `Receive` method for [consumers](#consumer-operations)). This method blocks until a message is available. | `(Message, error)`
+`Close()` | Closes the reader, disabling its ability to receive messages from the broker | `error`
+
+#### "Next" example
+
+Here's an example usage of a Go reader that uses the `Next()` method to process incoming messages:
+
+```go
+import (
+        "context"
+        "log"
+
+        "github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"
+)
+
+func main() {
+        // Instantiate a Pulsar client
+        client, err := pulsar.NewClient(pulsar.ClientOptions{
+                URL: "pulsar://localhost:6650",
+        })
+
+        if err != nil { log.Fatalf("Could not create client: %v", err) }
+
+        // Reader configuration
+        readerOpts := pulsar.ReaderOptions{
+                Topic:          "my-golang-topic",
+                StartMessageID: pulsar.EarliestMessage,
+        }
+
+        // Use the client to instantiate a reader
+        reader, err := client.CreateReader(readerOpts)
+
+        if err != nil { log.Fatalf("Could not create reader: %v", err) }
+
+        defer reader.Close()
+
+        ctx := context.Background()
+
+        // Listen on the topic for incoming messages
+        for {
+                msg, err := reader.Next(ctx)
+
+                if err != nil { log.Fatalf("Error reading from topic: %v", err) }
+
+                // Process the message
+        }
+}
+```
+
+In the example above, the reader begins reading from the earliest available message (specified by `pulsar.EarliestMessage`). The reader can also begin reading from the latest message (`pulsar.LatestMessage`) or some other message ID specified by bytes using the `DeserializeMessageID` function, which takes a byte array and returns a `MessageID` object. Here's an example:
+
+```go
+fetchedMsg := // Fetch a message from a Pulsar topic somehow
+
+msgId := DeserializeMessageID(fetchedMsg.ID())
+
+readerOpts := pulsar.ReaderOptions{
+        Topic:          "my-golang-topic",
+        StartMessageID: msgId,
+}
+
+reader, err := client.CreateReader(readerOpts)
+```
+
+#### Channel example
+
+Here's a more involved example usage of a Go reader that uses Go [channels](https://gobyexample.com/channels) to process incoming messages:
+
+```go
+import (
+        "context"
+        "fmt"
+        "log"
+        "strings"
+
+        "github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"
+)
+
+func main() {
+        // Instantiate a Pulsar client
+        client, err := pulsar.NewClient(pulsar.ClientOptions{
+                URL: "pulsar://localhost:6650",
+        })
+
+        if err != nil { log.Fatal(err) }
+
+        // Create a reader with an assigned channel
+        rcvChannel := make(chan pulsar.ReaderMessage)
+
+        reader, err := client.CreateReader(pulsar.ReaderOpts{
+                Topic:          "my-golang-topic",
+                MessageChannel: rcvChannel,
+        })
+
+        if err != nil { log.Fatalf("Could not create reader: %v", err) }
+
+        defer reader.Close()
+
+        for cm := range rvcChannel {
+                msg := cm.Message
+
+                // Process the message
+        }
+}
+```
+
+### Reader configuration
+
+Parameter | Description | Default
+:---------|:------------|:-------
+`Topic` | The Pulsar {% popover topic %} on which the reader will establish a subscription and listen for messages |
+`Name` | The name of the reader |
+`StartMessageID` | THe initial reader position, i.e. the message at which the reader begins processing messages. The options are `pulsar.EarliestMessage` (the earliest available message on the topic), `pulsar.LatestMessage` (the latest available message on the topic), or a `MessageID` object for a position that isn't earliest or latest. |
+`MessageChannel` | The Go channel used by the reader. Messages that arrive from the Pulsar topic(s) will be passed to this channel. |
+`ReceiverQueueSize` | Sets the size of the reader's receiver queue, i.e. the number of messages that can be accumulated by the reader before the application calls `Next`. A value higher than the default of 1000 could increase reader throughput, though at the expense of more memory utilization. | 1000
+`SubscriptionRolePrefix` | The subscription role prefix. | `reader`
 
 ## Messages
 
@@ -377,6 +540,8 @@ if err := producer.send(msg); err != nil {
 }
 ```
 
+The following methods parameters are available for `ProducerMessage` objects:
+
 Parameter | Description
 :---------|:-----------
 `Payload` | The actual data payload of the message
@@ -390,7 +555,7 @@ Parameter | Description
 In order to use [TLS encryption](../../admin/Authz#), you'll need to configure your client to do so:
 
 * Set `EnableTLS` to `true`
-* Set `TLSTrustCertsFilePath` to the path to the TLS certs used by your client and the broker
+* Set `TLSTrustCertsFilePath` to the path to the TLS certs used by your client and the Pulsar {% popover broker %}
 
 Here's an example:
 
