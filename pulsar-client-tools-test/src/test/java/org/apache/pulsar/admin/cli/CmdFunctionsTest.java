@@ -209,7 +209,7 @@ public class CmdFunctionsTest {
         });
 
         CreateFunction creater = cmd.getCreater();
-        assertEquals("tenant", creater.getFunctionConfig().getTenant());
+        assertEquals("public", creater.getFunctionConfig().getTenant());
         verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
     }
 
