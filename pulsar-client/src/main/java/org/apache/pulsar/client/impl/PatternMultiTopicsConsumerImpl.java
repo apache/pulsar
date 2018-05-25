@@ -147,7 +147,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
             }
 
             List<CompletableFuture<Void>> futures = Lists.newArrayListWithExpectedSize(topics.size());
-            addedTopics.stream().forEach(topic -> futures.add(subscribeAsync(topic)));
+            addedTopics.stream().forEach(topic -> futures.add(subscribeAsync(topic, schema)));
             FutureUtil.waitForAll(futures)
                 .thenAccept(finalFuture -> addFuture.complete(null))
                 .exceptionally(ex -> {

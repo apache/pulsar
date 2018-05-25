@@ -50,7 +50,7 @@ public class ReaderImpl<T> implements Reader<T> {
         }
 
         ConsumerConfigurationData<T> consumerConfiguration = new ConsumerConfigurationData<>();
-        consumerConfiguration.getTopicNames().add(readerConfiguration.getTopicName());
+        consumerConfiguration.getTopicNames().put(readerConfiguration.getTopicName(), schema);
         consumerConfiguration.setSubscriptionName(subscription);
         consumerConfiguration.setSubscriptionType(SubscriptionType.Exclusive);
         consumerConfiguration.setReceiverQueueSize(readerConfiguration.getReceiverQueueSize());

@@ -33,6 +33,7 @@ import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -93,7 +94,9 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
         this.clientConf = ((ClientBuilderImpl) clientBuilder).getClientConfigurationData().clone();
         this.clientConf.setServiceUrl(pulsarSpoutConf.getServiceUrl());
         this.consumerConf = new ConsumerConfigurationData<>();
-        this.consumerConf.setTopicNames(Sets.newHashSet(pulsarSpoutConf.getTopic()));
+        Map<String, Schema<byte[]>> topicNames = Maps.newHashMap();
+        topicNames.put(pulsarSpoutConf.getTopic(), Schema.BYTES);
+        this.consumerConf.setTopicNames(topicNames);
         this.consumerConf.setSubscriptionName(pulsarSpoutConf.getSubscriptionName());
 
         this.pulsarSpoutConf = pulsarSpoutConf;
@@ -117,7 +120,9 @@ public class PulsarSpout extends BaseRichSpout implements IMetric {
         Preconditions.checkNotNull(pulsarSpoutConf.getMessageToValuesMapper());
 
         this.clientConf.setServiceUrl(pulsarSpoutConf.getServiceUrl());
-        this.consumerConf.setTopicNames(Sets.newHashSet(pulsarSpoutConf.getTopic()));
+        Map<String, Schema<byte[]>> topicNames = Maps.newHashMap();
+        topicNames.put(pulsarSpoutConf.getTopic(), Schema.BYTES);
+        this.consumerConf.setTopicNames(topicNames);
         this.consumerConf.setSubscriptionName(pulsarSpoutConf.getSubscriptionName());
 
         this.pulsarSpoutConf = pulsarSpoutConf;

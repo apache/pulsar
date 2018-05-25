@@ -19,13 +19,19 @@
 package org.apache.pulsar.functions.source;
 
 import com.google.common.annotations.VisibleForTesting;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
+import org.apache.pulsar.shade.org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.instance.InstanceUtils;
@@ -34,17 +40,29 @@ import org.apache.pulsar.io.core.Record;
 import org.apache.pulsar.io.core.Source;
 import org.jboss.util.Classes;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-
 @Slf4j
 public class PulsarSource<T> implements Source<T> {
 
     private PulsarClient pulsarClient;
     private PulsarSourceConfig pulsarSourceConfig;
     private Map<String, SerDe<T>> topicToSerDeMap = new HashMap<>();
+
+    private final Schema<T> emptySchema = new Schema<T>() {
+        @Override
+        public byte[] encode(T message) {
+            return new byte[0];
+        }
+
+        @Override
+        public T decode(byte[] bytes) {
+            return null;
+        }
+
+        @Override
+        public SchemaInfo getSchemaInfo() {
+            return null;
+        }
+    };
 
     @Getter
     private org.apache.pulsar.client.api.Consumer inputConsumer;
@@ -60,12 +78,17 @@ public class PulsarSource<T> implements Source<T> {
         setupSerDe();
 
         // Setup pulsar consumer
-        this.inputConsumer = this.pulsarClient.newConsumer()
-                .topics(new ArrayList<>(this.pulsarSourceConfig.getTopicSerdeClassNameMap().keySet()))
+        ConsumerBuilder<T> consumerBuilder =
+            this.pulsarClient.newConsumer(emptySchema)
                 .subscriptionName(this.pulsarSourceConfig.getSubscriptionName())
                 .subscriptionType(this.pulsarSourceConfig.getSubscriptionType().get())
-                .ackTimeout(1, TimeUnit.MINUTES)
-                .subscribe();
+                .ackTimeout(1, TimeUnit.MINUTES);
+
+        topicToSerDeMap.forEach(consumerBuilder::addTopic);
+
+        this.inputConsumer = consumerBuilder.subscribe();
+
+
     }
 
     @Override

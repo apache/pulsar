@@ -114,10 +114,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
 
         checkArgument(conf.getTopicNames().isEmpty() || topicNamesValid(conf.getTopicNames()), "Topics should have same namespace.");
-        this.namespaceName = conf.getTopicNames().stream().findFirst()
+        this.namespaceName = conf.getTopicNames().keySet().stream().findFirst()
                 .flatMap(s -> Optional.of(TopicName.get(s).getNamespaceObject())).get();
 
-        List<CompletableFuture<Void>> futures = conf.getTopicNames().stream().map(t -> subscribeAsync(t))
+        List<CompletableFuture<Void>> futures = conf.getTopicNames().entrySet().stream().map(t -> subscribeAsync(t.getKey(), t.getValue()))
                 .collect(Collectors.toList());
         FutureUtil.waitForAll(futures)
             .thenAccept(finalFuture -> {
@@ -146,13 +146,13 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     // - each topic is valid,
     // - every topic has same namespace,
     // - topic names are unique.
-    private static boolean topicNamesValid(Collection<String> topics) {
+    private static boolean topicNamesValid(Map<String, ?> topics) {
         checkState(topics != null && topics.size() >= 1,
             "topics should should contain more than 1 topic");
 
-        final String namespace = TopicName.get(topics.stream().findFirst().get()).getNamespace();
+        final String namespace = TopicName.get(topics.keySet().stream().findFirst().get()).getNamespace();
 
-        Optional<String> result = topics.stream()
+        Optional<String> result = topics.keySet().stream()
             .filter(topic -> {
                 boolean topicInvalid = !TopicName.isValid(topic);
                 if (topicInvalid) {
@@ -173,7 +173,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
 
         // check topic names are unique
-        HashSet<String> set = new HashSet<>(topics);
+        HashSet<String> set = new HashSet<>(topics.keySet());
         if (set.size() == topics.size()) {
             return true;
         } else {
@@ -610,7 +610,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     // subscribe one more given topic
-    public CompletableFuture<Void> subscribeAsync(String topicName) {
+    public CompletableFuture<Void> subscribeAsync(String topicName, Schema<T> schema) {
         if (!topicNameValid(topicName)) {
             return FutureUtil.failedFuture(
                 new PulsarClientException.AlreadyClosedException("Topic name not valid"));
