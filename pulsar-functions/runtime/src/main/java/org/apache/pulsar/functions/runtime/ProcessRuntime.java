@@ -215,6 +215,7 @@ class ProcessRuntime implements Runtime {
                 public void run() {
                     CompletableFuture<InstanceCommunication.HealthCheckResult> result = healthCheck();
                     try {
+                        result.get();
                     } catch (Exception e) {
                         log.error("Health check failed for {}-{}",
                                 instanceConfig.getFunctionDetails().getName(),
