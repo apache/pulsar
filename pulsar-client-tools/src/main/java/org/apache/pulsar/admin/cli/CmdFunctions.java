@@ -22,6 +22,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.isNull;
 import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
+import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
+import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
@@ -606,21 +608,11 @@ public class CmdFunctions extends CmdBase {
         }
 
         private void inferMissingTenant(FunctionConfig functionConfig) {
-            try {
-                String inputTopic = getUniqueInput(functionConfig);
-                functionConfig.setTenant(TopicName.get(inputTopic).getTenant());
-            } catch (IllegalArgumentException ex) {
-                throw new RuntimeException("You need to specify a tenant for the function", ex);
-            }
+            functionConfig.setTenant(PUBLIC_TENANT);
         }
 
         private void inferMissingNamespace(FunctionConfig functionConfig) {
-            try {
-                String inputTopic = getUniqueInput(functionConfig);
-                functionConfig.setNamespace(TopicName.get(inputTopic).getNamespacePortion());
-            } catch (IllegalArgumentException ex) {
-                throw new RuntimeException("You need to specify a namespace for the function");
-            }
+            functionConfig.setNamespace(DEFAULT_NAMESPACE);
         }
 
         private void inferMissingOutput(FunctionConfig functionConfig) {
