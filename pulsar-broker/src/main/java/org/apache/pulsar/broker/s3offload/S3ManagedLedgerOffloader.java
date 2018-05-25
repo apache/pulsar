@@ -172,9 +172,14 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
                     .withUploadId(dataBlockRes.getUploadId())
                     .withPartETags(etags));
             } catch (Throwable t) {
+                try {
+                    s3client.abortMultipartUpload(
+                        new AbortMultipartUploadRequest(bucket, dataBlockKey, dataBlockRes.getUploadId()));
+                } catch (Throwable throwable) {
+                    log.error("Failed abortMultipartUpload in bucket - {} with key - {}, uploadId - {}.",
+                        bucket, dataBlockKey, dataBlockRes.getUploadId(), throwable);
+                }
                 promise.completeExceptionally(t);
-                s3client.abortMultipartUpload(
-                    new AbortMultipartUploadRequest(bucket, dataBlockKey, dataBlockRes.getUploadId()));
                 return;
             }
 
@@ -191,8 +196,13 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
                     metadata));
                 promise.complete(null);
             } catch (Throwable t) {
+                try {
+                    s3client.deleteObject(bucket, dataBlockKey);
+                } catch (Throwable throwable) {
+                    log.error("Failed deleteObject in bucket - {} with key - {}.",
+                        bucket, dataBlockKey, throwable);
+                }
                 promise.completeExceptionally(t);
-                s3client.deleteObject(bucket, dataBlockKey);
                 return;
             }
         });
