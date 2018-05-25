@@ -50,6 +50,9 @@ import org.apache.pulsar.io.core.Source;
 
 import net.jodah.typetools.TypeResolver;
 
+import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
+import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
+
 @Getter
 @Parameters(commandDescription = "Interface for managing Pulsar Source (Ingress data to Pulsar)")
 public class CmdSources extends CmdBase {
@@ -175,9 +178,13 @@ public class CmdSources extends CmdBase {
 
             if (null != tenant) {
                 sourceConfig.setTenant(tenant);
+            } else if (sourceConfig.getTenant() == null) {
+                sourceConfig.setTenant(PUBLIC_TENANT);
             }
             if (null != namespace) {
                 sourceConfig.setNamespace(namespace);
+            } else if (sourceConfig.getNamespace() == null) {
+                sourceConfig.setNamespace(DEFAULT_NAMESPACE);
             }
             if (null != name) {
                 sourceConfig.setName(name);

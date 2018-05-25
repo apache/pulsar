@@ -56,6 +56,9 @@ import org.apache.pulsar.io.core.Sink;
 
 import net.jodah.typetools.TypeResolver;
 
+import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
+import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
+
 @Getter
 @Parameters(commandDescription = "Interface for managing Pulsar Sinks (Egress data from Pulsar)")
 public class CmdSinks extends CmdBase {
@@ -182,9 +185,13 @@ public class CmdSinks extends CmdBase {
 
             if (null != tenant) {
                 sinkConfig.setTenant(tenant);
+            } else if (sinkConfig.getTenant() == null) {
+                sinkConfig.setTenant(PUBLIC_TENANT);
             }
             if (null != namespace) {
                 sinkConfig.setNamespace(namespace);
+            } else if (sinkConfig.getNamespace() == null) {
+                sinkConfig.setNamespace(DEFAULT_NAMESPACE);
             }
             if (null != name) {
                 sinkConfig.setName(name);
