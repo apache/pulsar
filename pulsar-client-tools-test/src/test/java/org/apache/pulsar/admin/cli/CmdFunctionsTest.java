@@ -228,8 +228,8 @@ public class CmdFunctionsTest {
         });
 
         CreateFunction creater = cmd.getCreater();
-        assertEquals("tenant", creater.getFunctionConfig().getTenant());
-        assertEquals("namespace", creater.getFunctionConfig().getNamespace());
+        assertEquals("public", creater.getFunctionConfig().getTenant());
+        assertEquals("default", creater.getFunctionConfig().getNamespace());
         verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
     }
 
