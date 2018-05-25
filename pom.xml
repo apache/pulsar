@@ -279,15 +279,9 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>stream-storage-java-client</artifactId>
         <version>${bookkeeper.version}</version>
         <exclusions>
-          <!-- exclude all netty dependencies, use whatever pulsar is using -->
           <exclusion>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-*</artifactId>
-          </exclusion>
-          <!-- exclude all grpc dependencies, use whatever pulsar is using -->
-          <exclusion>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-*</artifactId>
+            <groupId>*</groupId>
+            <artifactId>*</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
