@@ -121,7 +121,7 @@ flexible messaging model and an intuitive client API.</description>
     <testRealAWS>false</testRealAWS>
     <testRetryCount>1</testRetryCount>
 
-    <bookkeeper.version>4.8.0-SNAPSHOT</bookkeeper.version>
+    <bookkeeper.version>4.7.0</bookkeeper.version>
     <zookeeper.version>3.5.4-beta</zookeeper.version>
     <netty.version>4.1.22.Final</netty.version>
     <storm.version>1.0.5</storm.version>
@@ -266,6 +266,11 @@ flexible messaging model and an intuitive client API.</description>
             <groupId>org.jboss.netty</groupId>
             <artifactId>netty</artifactId>
           </exclusion>
+          <!-- exclude all netty dependencies, use whatever pulsar is using -->
+          <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-*</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
 
@@ -273,11 +278,29 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.apache.bookkeeper</groupId>
         <artifactId>stream-storage-java-client</artifactId>
         <version>${bookkeeper.version}</version>
+        <exclusions>
+          <!-- exclude all netty dependencies, use whatever pulsar is using -->
+          <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-*</artifactId>
+          </exclusion>
+          <!-- exclude all grpc dependencies, use whatever pulsar is using -->
+          <exclusion>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-*</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <dependency>
         <groupId>org.apache.bookkeeper</groupId>
-        <artifactId>bookkeeper-bookkeeper-stats-api</artifactId>
+        <artifactId>bookkeeper-common</artifactId>
+        <version>${bookkeeper.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.bookkeeper.stats</groupId>
+        <artifactId>bookkeeper-stats-api</artifactId>
         <version>${bookkeeper.version}</version>
       </dependency>
 
@@ -356,7 +379,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>com.google.guava</groupId>
         <artifactId>guava</artifactId>
-        <version>20.0</version>
+        <version>21.0</version>
       </dependency>
 
       <dependency>
@@ -725,6 +748,13 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.apache.distributedlog</groupId>
         <artifactId>distributedlog-core</artifactId>
         <version>${bookkeeper.version}</version>
+        <exclusions>
+          <!-- exclude bookkeeper, reply on the bookkeeper version that pulsar uses -->
+          <exclusion>
+            <groupId>org.apache.bookkeeper</groupId>
+            <artifactId>bookkeeper-server</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <!-- test dependencies -->
