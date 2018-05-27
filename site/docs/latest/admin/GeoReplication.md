@@ -112,12 +112,14 @@ List<String> restrictReplicationTo = new ArrayList<>;
 restrictReplicationTo.add("us-west");
 restrictReplicationTo.add("us-east");
 
-Message message = MessageBuilder.create()
-        .setContent("my-payload".getBytes())
-        .setReplicationClusters(restrictReplicationTo)
-        .build();
+Producer producer = client.newProducer()
+        .topic("some-topic")
+        .create();
 
-producer.send(message);
+producer.newMessage()
+        .value("my-payload".getBytes())
+        .setReplicationClusters(restrictReplicationTo)
+        .send();
 ```
 
 #### Topic stats
