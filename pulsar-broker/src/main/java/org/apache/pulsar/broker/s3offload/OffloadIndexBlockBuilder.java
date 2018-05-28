@@ -58,6 +58,12 @@ public interface OffloadIndexBlockBuilder {
     OffloadIndexBlockBuilder withDataObjectLength(long dataObjectLength);
 
     /**
+     * Specify the length of the block headers in the data object.
+     * @param dataHeaderLength the length of the headers
+     */
+    OffloadIndexBlockBuilder withDataBlockHeaderLength(long dataHeaderLength);
+
+    /**
      * Finalize the immutable OffloadIndexBlock
      */
     OffloadIndexBlock build();
