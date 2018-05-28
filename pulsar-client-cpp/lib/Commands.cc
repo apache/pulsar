@@ -185,7 +185,7 @@ SharedBuffer Commands::newConnect(const AuthenticationPtr& authentication, const
 SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string& subscription,
                                     uint64_t consumerId, uint64_t requestId, CommandSubscribe_SubType subType,
                                     const std::string& consumerName, SubscriptionMode subscriptionMode,
-                                    Optional<MessageId> startMessageId) {
+                                    Optional<MessageId> startMessageId, bool readCompacted) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::SUBSCRIBE);
     CommandSubscribe* subscribe = cmd.mutable_subscribe();
@@ -196,6 +196,7 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
     subscribe->set_request_id(requestId);
     subscribe->set_consumer_name(consumerName);
     subscribe->set_durable(subscriptionMode == SubscriptionModeDurable);
+    subscribe->set_read_compacted(readCompacted);
     if (startMessageId.is_present()) {
         MessageIdData& messageIdData = *subscribe->mutable_start_message_id();
         messageIdData.set_ledgerid(startMessageId.value().ledgerId());

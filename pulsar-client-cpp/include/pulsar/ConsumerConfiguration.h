@@ -149,6 +149,9 @@ class ConsumerConfiguration {
     ConsumerCryptoFailureAction getCryptoFailureAction() const;
     ConsumerConfiguration& setCryptoFailureAction(ConsumerCryptoFailureAction action);
 
+    bool isReadCompacted() const;
+    ConsumerConfiguration& setReadCompacted(bool compacted);
+
     friend class PulsarWrapper;
 
    private:

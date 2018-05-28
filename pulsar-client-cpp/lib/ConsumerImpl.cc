@@ -57,7 +57,8 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
       batchAcknowledgementTracker_(topic_, subscription, (long)consumerId_),
       brokerConsumerStats_(),
       consumerStatsBasePtr_(),
-      msgCrypto_() {
+      msgCrypto_(),
+      readCompacted_(false) {
     std::stringstream consumerStrStream;
     consumerStrStream << "[" << topic_ << ", " << subscription_ << ", " << consumerId_ << "] ";
     consumerStr_ = consumerStrStream.str();
@@ -86,6 +87,8 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
     if (conf.isEncryptionEnabled()) {
         msgCrypto_ = boost::make_shared<MessageCrypto>(consumerStr_, false);
     }
+
+    readCompacted_ = conf.isReadCompacted();
 }
 
 ConsumerImpl::~ConsumerImpl() {
@@ -135,8 +138,9 @@ void ConsumerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
 
     ClientImplPtr client = client_.lock();
     uint64_t requestId = client->newRequestId();
-    SharedBuffer cmd = Commands::newSubscribe(topic_, subscription_, consumerId_, requestId, getSubType(),
-                                              consumerName_, subscriptionMode_, startMessageId_);
+    SharedBuffer cmd =
+        Commands::newSubscribe(topic_, subscription_, consumerId_, requestId, getSubType(), consumerName_,
+                               subscriptionMode_, startMessageId_, readCompacted_);
     cnx->sendRequestWithId(cmd, requestId)
         .addListener(boost::bind(&ConsumerImpl::handleCreateConsumer, shared_from_this(), cnx, _1));
 }
@@ -907,7 +911,7 @@ void ConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback callback) {
         LOG_DEBUG(getName() << " Sending seek Command for Consumer - " << getConsumerId() << ", requestId - "
                             << requestId);
         Future<Result, ResponseData> future =
-            cnx->sendRequestWithId(Commands::newSeek(consumerId_, requestId, msgId), requestId);
+                cnx->sendRequestWithId(Commands::newSeek(consumerId_, requestId, msgId), requestId);
 
         if (!callback.empty()) {
             future.addListener(boost::bind(&ConsumerImpl::handleSeek, shared_from_this(), _1, callback));
@@ -917,6 +921,13 @@ void ConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback callback) {
 
     LOG_ERROR(getName() << " Client Connection not ready for Consumer");
     callback(ResultNotConnected);
+}
+
+bool ConsumerImpl::isReadCompacted() {
+    Lock lock(mutex_);
+    bool ret = readCompacted_;
+    lock.unlock();
+    return ret;
 }
 
 } /* namespace pulsar */
