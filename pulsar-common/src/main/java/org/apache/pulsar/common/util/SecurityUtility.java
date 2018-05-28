@@ -58,7 +58,7 @@ public class SecurityUtility {
     }
 
     public static SslContext createNettySslContextForClient(boolean allowInsecureConnection, String trustCertsFilePath)
-            throws GeneralSecurityException, SSLException, FileNotFoundException {
+            throws IOException, GeneralSecurityException, SSLException, FileNotFoundException {
         return createNettySslContextForClient(allowInsecureConnection, trustCertsFilePath, (Certificate[]) null,
                 (PrivateKey) null);
     }
@@ -73,7 +73,7 @@ public class SecurityUtility {
 
     public static SslContext createNettySslContextForClient(boolean allowInsecureConnection, String trustCertsFilePath,
             String certFilePath, String keyFilePath)
-            throws GeneralSecurityException, SSLException, FileNotFoundException {
+            throws IOException, GeneralSecurityException, SSLException, FileNotFoundException {
         X509Certificate[] certificates = loadCertificatesFromPemFile(certFilePath);
         PrivateKey privateKey = loadPrivateKeyFromPemFile(keyFilePath);
         return createNettySslContextForClient(allowInsecureConnection, trustCertsFilePath, certificates, privateKey);
@@ -81,13 +81,15 @@ public class SecurityUtility {
 
     public static SslContext createNettySslContextForClient(boolean allowInsecureConnection, String trustCertsFilePath,
             Certificate[] certificates, PrivateKey privateKey)
-            throws GeneralSecurityException, SSLException, FileNotFoundException {
+            throws GeneralSecurityException, IOException, FileNotFoundException {
         SslContextBuilder builder = SslContextBuilder.forClient();
         if (allowInsecureConnection) {
             builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
         } else {
             if (trustCertsFilePath != null && trustCertsFilePath.length() != 0) {
-                builder.trustManager(new FileInputStream(trustCertsFilePath));
+                try (FileInputStream input = new FileInputStream(trustCertsFilePath)) {
+                    builder.trustManager(input);
+                }
             }
         }
         builder.keyManager(privateKey, (X509Certificate[]) certificates);
@@ -96,7 +98,7 @@ public class SecurityUtility {
 
     public static SslContext createNettySslContextForServer(boolean allowInsecureConnection, String trustCertsFilePath,
             String certFilePath, String keyFilePath)
-            throws GeneralSecurityException, SSLException, FileNotFoundException {
+            throws IOException, GeneralSecurityException, SSLException, FileNotFoundException {
         X509Certificate[] certificates = loadCertificatesFromPemFile(certFilePath);
         PrivateKey privateKey = loadPrivateKeyFromPemFile(keyFilePath);
 
@@ -105,7 +107,9 @@ public class SecurityUtility {
             builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
         } else {
             if (trustCertsFilePath != null && trustCertsFilePath.length() != 0) {
-                builder.trustManager(new FileInputStream(trustCertsFilePath));
+                try (FileInputStream input = new FileInputStream(trustCertsFilePath)) {
+                    builder.trustManager(input);
+                }
             } else {
                 builder.trustManager((File) null);
             }
