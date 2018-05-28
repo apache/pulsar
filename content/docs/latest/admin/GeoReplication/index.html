@@ -109,7 +109,7 @@
 
           <div class="dropdown-divider"></div>
           <h3 class="dropdown-header">Stable release</h3>
-          <a class="dropdown-item" href="/docs/v2.0.0-incubating/getting-started/LocalCluster">2.0.0-incubating</a>
+          <a class="dropdown-item" href="/docs/v2.0.0-rc1-incubating/getting-started/LocalCluster">2.0.0-rc1-incubating</a>
 
           
               <div class="dropdown-divider"></div>
@@ -1041,16 +1041,19 @@
 
 <p>Below is an example for the <a href="../../clients/Java">Java API</a>. Note the use of the <code class="highlighter-rouge">setReplicationClusters</code> method when constructing the <a target="_blank" href="/api/client/org/apache/pulsar/client/api/Message.html"><code class="highlighter-rouge">Message</code></a> object:</p>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">List</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">restrictReplicationTo</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ArrayList</span><span class="o">&lt;&gt;;</span>
-<span class="n">restrictReplicationTo</span><span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="s">"us-west"</span><span class="o">);</span>
-<span class="n">restrictReplicationTo</span><span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="s">"us-east"</span><span class="o">);</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">List</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">restrictReplicationTo</span> <span class="o">=</span> <span class="n">Arrays</span><span class="o">.</span><span class="na">asList</span><span class="o">(</span>
+        <span class="s">"us-west"</span><span class="o">,</span>
+        <span class="s">"us-east"</span>
+<span class="o">);</span>
 
-<span class="n">Message</span> <span class="n">message</span> <span class="o">=</span> <span class="n">MessageBuilder</span><span class="o">.</span><span class="na">create</span><span class="o">()</span>
-        <span class="o">.</span><span class="na">setContent</span><span class="o">(</span><span class="s">"my-payload"</span><span class="o">.</span><span class="na">getBytes</span><span class="o">())</span>
+<span class="n">Producer</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">newProducer</span><span class="o">()</span>
+        <span class="o">.</span><span class="na">topic</span><span class="o">(</span><span class="s">"some-topic"</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">create</span><span class="o">();</span>
+
+<span class="n">producer</span><span class="o">.</span><span class="na">newMessage</span><span class="o">()</span>
+        <span class="o">.</span><span class="na">value</span><span class="o">(</span><span class="s">"my-payload"</span><span class="o">.</span><span class="na">getBytes</span><span class="o">())</span>
         <span class="o">.</span><span class="na">setReplicationClusters</span><span class="o">(</span><span class="n">restrictReplicationTo</span><span class="o">)</span>
-        <span class="o">.</span><span class="na">build</span><span class="o">();</span>
-
-<span class="n">producer</span><span class="o">.</span><span class="na">send</span><span class="o">(</span><span class="n">message</span><span class="o">);</span>
+        <span class="o">.</span><span class="na">send</span><span class="o">();</span>
 </code></pre></div></div>
 
 <h4 id="topic-stats">Topic stats</h4>
