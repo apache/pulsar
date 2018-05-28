@@ -1039,6 +1039,30 @@ flexible messaging model and an intuitive client API.</description>
           </excludes>
         </configuration>
       </plugin>
+      <plugin>
+        <groupId>pl.project13.maven</groupId>
+        <artifactId>git-commit-id-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>git-info</id>
+            <goals>
+              <goal>revision</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <useNativeGit>true</useNativeGit>
+          <prefix>git</prefix>
+          <verbose>true</verbose>
+          <generateGitPropertiesFile>true</generateGitPropertiesFile>
+          <generateGitPropertiesFilename>${project.build.outputDirectory}/${project.artifactId}-git.properties</generateGitPropertiesFilename>
+          <failOnUnableToExtractRepoInfo>false</failOnUnableToExtractRepoInfo>
+          <format>properties</format>
+          <gitDescribe>
+            <skip>true</skip>
+          </gitDescribe>
+        </configuration>
+      </plugin>
     </plugins>
 
     <pluginManagement>
@@ -1110,6 +1134,11 @@ flexible messaging model and an intuitive client API.</description>
               </pluginExecutions>
             </lifecycleMappingMetadata>
           </configuration>
+        </plugin>
+        <plugin>
+          <groupId>pl.project13.maven</groupId>
+          <artifactId>git-commit-id-plugin</artifactId>
+          <version>2.2.4</version>
         </plugin>
       </plugins>
     </pluginManagement>
