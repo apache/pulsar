@@ -168,7 +168,7 @@ public class KubernetesController {
 
     private List<String> getDownloadCommand(String bkPath, String userCodeFilePath) {
         return Arrays.asList(
-                kubernetesConfig.getPulsarRootDir() + "/pulsar-admin",
+                kubernetesConfig.getPulsarRootDir() + "/bin/pulsar-admin",
                 "functions",
                 "download",
                 "--path",
