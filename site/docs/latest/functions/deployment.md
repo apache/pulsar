@@ -69,8 +69,8 @@ If you run a Pulsar Function in **local run** mode, it will run on the machine f
 $ bin/pulsar-admin functions localrun \
   --py myfunc.py \
   --className myfunc.SomeFunction \
-  --inputs persistent://sample/standalone/ns1/input-1 \
-  --output persistent://sample/standalone/ns1/output-1
+  --inputs persistent://public/default/input-1 \
+  --output persistent://public/default/output-1
 ```
 
 By default, the function will connect to a Pulsar cluster running on the same machine, via a local {% popover broker %} service URL of `pulsar://localhost:6650`. If you'd like to use local run mode to run a function but connect it to a non-local Pulsar cluster, you can specify a different broker URL using the `--brokerServiceUrl` flag. Here's an example:
@@ -89,8 +89,8 @@ When you run a Pulsar Function in **cluster mode**, the function code will be up
 $ bin/pulsar-admin functions create \
   --py myfunc.py \
   --className myfunc.SomeFunction \
-  --inputs persistent://sample/standalone/ns1/input-1 \
-  --output persistent://sample/standalone/ns1/output-1
+  --inputs persistent://public/default/input-1 \
+  --output persistent://public/default/output-1
 ```
 
 ### Updating cluster mode functions {#updating}
@@ -101,8 +101,8 @@ You can use the [`update`](../../CliTools#pulsar-admin-functions-update) command
 $ bin/pulsar-admin functions update \
   --py myfunc.py \
   --className myfunc.SomeFunction \
-  --inputs persistent://sample/standalone/ns1/new-input-topic \
-  --output persistent://sample/standalone/ns1/new-output-topic
+  --inputs persistent://public/default/new-input-topic \
+  --output persistent://public/default/new-output-topic
 ```
 
 ### Parallelism
@@ -131,8 +131,8 @@ If you're specifying a function's configuration via YAML, use the `parallelism` 
 # function-config.yaml
 parallelism: 3
 inputs:
-- persistent://sample/standalone/ns1/input-1
-output: persistent://sample/standalone/ns1/output-1
+- persistent://public/default/input-1
+output: persistent://public/default/output-1
 # other parameters
 ```
 
@@ -161,19 +161,19 @@ Let's run that function in [local run mode](../deployment#local-run):
 
 ```bash
 $ bin/pulsar-admin functions create \
-  --tenant sample \
-  --namespace ns1 \
+  --tenant public \
+  --namespace default \
   --name myfunc \
   --py myfunc.py \
   --className myfunc \
-  --inputs persistent://sample/standalone/ns1/in \
-  --output persistent://sample/standalone/ns1/out
+  --inputs persistent://public/default/in \
+  --output persistent://public/default/out
 ```
 
 Now let's make a consumer listen on the output topic for messages coming from the `myfunc` function using the [`pulsar-client consume`](../../CliTools#pulsar-client-consume) command:
 
 ```bash
-$ bin/pulsar-client consume persistent://sample/standalone/ns1/out \
+$ bin/pulsar-client consume persistent://public/default/out \
   --subscription-name my-subscription
   --num-messages 0 # Listen indefinitely
 ```
@@ -182,8 +182,8 @@ Now let's trigger that function:
 
 ```bash
 $ bin/pulsar-admin functions trigger \
-  --tenant sample \
-  --namespace ns1 \
+  --tenant public \
+  --namespace default \
   --name myfunc \
   --triggerValue "hello world"
 ```

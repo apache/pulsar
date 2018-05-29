@@ -53,7 +53,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
 
 String SERVICE_URL = "pulsar://localhost:6650";
-String TOPIC = "persistent://sample/standalone/ns1/mq-topic-1";
+String TOPIC = "persistent://public/default/mq-topic-1";
 String subscription = "sub-1";
 
 PulsarClient client = PulsarClient.builder()
@@ -77,7 +77,7 @@ Here's an example Python consumer configuration that uses a shared subscription:
 from pulsar import Client, ConsumerType
 
 SERVICE_URL = "pulsar://localhost:6650"
-TOPIC = "persistent://sample/standalone/ns1/mq-topic-1"
+TOPIC = "persistent://public/default/mq-topic-1"
 SUBSCRIPTION = "sub-1"
 
 client = Client(SERVICE_URL)
@@ -97,7 +97,7 @@ Here's an example C++ consumer configuration that uses a shared subscription:
 #include <pulsar/Client.h>
 
 std::string serviceUrl = "pulsar://localhost:6650";
-std::string topic = "persistent://sample/standalone/ns1/mq-topic-1";
+std::string topic = "persistent://public/defaultmq-topic-1";
 std::string subscription = "sub-1";
 
 Client client(serviceUrl);
@@ -109,5 +109,5 @@ consumerConfig.setReceiverQueueSize(10);
 
 Consumer consumer;
 
-Result result = client.subscribe("persistent://sample/standalone/ns1/my-topic", subscription, consumerConfig, consumer);
+Result result = client.subscribe("persistent://public/default/my-topic", subscription, consumerConfig, consumer);
 ```
