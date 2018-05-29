@@ -205,6 +205,10 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
         return dataBlockFullOffset - DataBlockHeaderImpl.getDataStartOffset() - ENTRY_HEADER_SIZE * blockEntryCount;
     }
 
+    public static long getHeaderSize() {
+        return DataBlockHeaderImpl.getDataStartOffset();
+    }
+
     // Calculate the block size after uploaded `entryBytesAlreadyWritten` bytes
     public static int calculateBlockSize(int maxBlockSize, ReadHandle readHandle,
                                          long firstEntryToWrite, long entryBytesAlreadyWritten) {
