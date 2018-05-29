@@ -118,6 +118,12 @@
       <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-functions-worker</artifactId>
       <version>${project.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>io.grpc</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <!-- runtime-all -->
@@ -127,6 +133,18 @@
       <version>${project.version}</version>
       <!-- make sure the api examples are compiled before assembly -->
       <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>io.grpc</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <!-- grpc -->
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-all</artifactId>
     </dependency>
   </dependencies>
 
