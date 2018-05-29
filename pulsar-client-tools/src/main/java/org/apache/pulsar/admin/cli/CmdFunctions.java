@@ -93,7 +93,6 @@ import org.apache.pulsar.functions.utils.WindowConfig;
 import org.apache.pulsar.functions.windowing.WindowFunctionExecutor;
 import org.apache.pulsar.functions.windowing.WindowUtils;
 
-<<<<<<< HEAD
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
