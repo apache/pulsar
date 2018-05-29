@@ -24,7 +24,7 @@ $ bin/pulsar standalone \
   --advertised-address 127.0.0.1
 ```
 
-When running Pulsar in standalone mode, the `sample` {% popover tenant %} and `ns1` {% popover namespace %} will be created automatically for you. That tenant and namespace will be used throughout this tutorial.
+When running Pulsar in standalone mode, the `public` {% popover tenant %} and `default` {% popover namespace %} will be created automatically for you. That tenant and namespace will be used throughout this tutorial.
 
 ## Run a Pulsar Function in local run mode {#local-run-mode}
 
@@ -49,8 +49,8 @@ A JAR file containing this and several other functions (written in Java) is incl
 $ bin/pulsar-admin functions localrun \
   --jar examples/api-examples.jar \
   --className org.apache.pulsar.functions.api.examples.ExclamationFunction \
-  --inputs persistent://sample/standalone/ns1/exclamation-input \
-  --output persistent://sample/standalone/ns1/exclamation-output \
+  --inputs persistent://public/default/exclamation-input \
+  --output persistent://public/default/exclamation-output \
   --name exclamation
 ```
 
@@ -65,7 +65,7 @@ In the example above, a single topic was specified using the `--inputs` flag. Yo
 We can open up another shell and use the [`pulsar-client`](../../reference/CliTools#pulsar-client) tool to listen for messages on the output topic:
 
 ```bash
-$ bin/pulsar-client consume persistent://sample/standalone/ns1/exclamation-output \
+$ bin/pulsar-client consume persistent://public/default/exclamation-output \
   --subscription-name my-subscription \
   --num-messages 0
 ```
@@ -75,7 +75,7 @@ $ bin/pulsar-client consume persistent://sample/standalone/ns1/exclamation-outpu
 With a listener up and running, we can open up another shell and produce a message on the input topic that we specified:
 
 ```bash
-$ bin/pulsar-client produce persistent://sample/standalone/ns1/exclamation-input \
+$ bin/pulsar-client produce persistent://public/default/exclamation-input \
   --num-produce 1 \
   --messages "Hello world"
 ```
@@ -91,8 +91,8 @@ Success! As you can see, the message has been successfully processed by the excl
 
 Here's what happened:
 
-* The `Hello world` message that we published to the input {% popover topic %} (`persistent://sample/standalone/ns1/exclamation-input`) was passed to the exclamation function that we ran on our machine
-* The exclamation function processed the message (providing a result of `Hello world!`) and published the result to the output topic (`persistent://sample/standalone/ns1/exclamation-output`).
+* The `Hello world` message that we published to the input {% popover topic %} (`persistent://public/default/exclamation-input`) was passed to the exclamation function that we ran on our machine
+* The exclamation function processed the message (providing a result of `Hello world!`) and published the result to the output topic (`persistent://public/default/exclamation-output`).
 * If our exclamation function *hadn't* been running, Pulsar would have durably stored the message data published to the input topic in [Apache BookKeeper](https://bookkeeper.apache.org) until a {% popover consumer %} consumed and {% popover acknowledged %} the message
 
 ## Run a Pulsar Function in cluster mode {#cluster-mode}
@@ -105,10 +105,8 @@ This command, for example, would deploy the same exclamation function we ran loc
 $ bin/pulsar-admin functions create \
   --jar examples/api-examples.jar \
   --className org.apache.pulsar.functions.api.examples.ExclamationFunction \
-  --inputs persistent://sample/standalone/ns1/exclamation-input \
-  --output persistent://sample/standalone/ns1/exclamation-output \
-  --tenant sample \
-  --namespace ns1 \
+  --inputs persistent://public/default/exclamation-input \
+  --output persistent://public/default/exclamation-output \
   --name exclamation
 ```
 
@@ -116,16 +114,16 @@ You should see `Created successfully` in the output. Now, let's see a list of fu
 
 ```bash
 $ bin/pulsar-admin functions list \
-  --tenant sample \
-  --namespace ns1
+  --tenant public \
+  --namespace default
 ```
 
 We should see just the `exclamation` function listed there. We can also check the status of our deployed function using the `getstatus` command:
 
 ```bash
 $ bin/pulsar-admin functions getstatus \
-  --tenant sample \
-  --namespace ns1 \
+  --tenant public \
+  --namespace default \
   --name exclamation
 ```
 
@@ -146,8 +144,8 @@ As we can see, (a) the instance is currently running and (b) there is one instan
 
 ```bash
 $ bin/pulsar-admin functions get \
-  --tenant sample \
-  --namespace ns1 \
+  --tenant public \
+  --namespace default \
   --name exclamation
 ```
 
@@ -155,14 +153,14 @@ You should see this JSON output:
 
 ```json
 {
-  "tenant": "sample",
-  "namespace": "ns1",
+  "tenant": "public",
+  "namespace": "default",
   "name": "exclamation",
   "className": "org.apache.pulsar.functions.api.examples.ExclamationFunction",
-  "output": "persistent://sample/standalone/ns1/exclamation-output",
+  "output": "persistent://public/default/exclamation-output",
   "autoAck": true,
   "inputs": [
-    "persistent://sample/standalone/ns1/exclamation-input"
+    "persistent://public/default/exclamation-input"
   ],
   "parallelism": 1
 }
@@ -174,10 +172,10 @@ As we can see, the parallelism of the function is 1, meaning that only one insta
 $ bin/pulsar-admin functions update \
   --jar examples/api-examples.jar \
   --className org.apache.pulsar.functions.api.examples.ExclamationFunction \
-  --inputs persistent://sample/standalone/ns1/exclamation-input \
-  --output persistent://sample/standalone/ns1/exclamation-output \
-  --tenant sample \
-  --namespace ns1 \
+  --inputs persistent://public/default/exclamation-input \
+  --output persistent://public/default/exclamation-output \
+  --tenant public \
+  --namespace default \
   --name exclamation \
   --parallelism 3
 ```
@@ -186,14 +184,14 @@ You should see `Updated successfully` in the output. If you run the `get` comman
 
 ```json
 {
-  "tenant": "sample",
-  "namespace": "ns1",
+  "tenant": "public",
+  "namespace": "default",
   "name": "exclamation",
   "className": "org.apache.pulsar.functions.api.examples.ExclamationFunction",
-  "output": "persistent://sample/standalone/ns1/exclamation-output",
+  "output": "persistent://public/default/exclamation-output",
   "autoAck": true,
   "inputs": [
-    "persistent://sample/standalone/ns1/exclamation-input"
+    "persistent://public/default/exclamation-input"
   ],
   "parallelism": 3
 }
@@ -203,8 +201,8 @@ Finally, we can shut down our running function using the `delete` command:
 
 ```bash
 $ bin/pulsar-admin functions delete \
-  --tenant sample \
-  --namespace ns1 \
+  --tenant public \
+  --namespace default \
   --name exclamation
 ```
 
@@ -241,10 +239,10 @@ Here, the `process` method defines the processing logic of the Pulsar Function. 
 $ bin/pulsar-admin functions create \
   --py reverse.py \
   --className reverse \
-  --inputs persistent://sample/standalone/ns1/backwards \
-  --output persistent://sample/standalone/ns1/forwards \
-  --tenant sample \
-  --namespace ns1 \
+  --inputs persistent://public/default/backwards \
+  --output persistent://public/default/forwards \
+  --tenant public \
+  --namespace default \
   --name reverse
 ```
 
@@ -253,8 +251,8 @@ If you see `Created successfully`, the function is ready to accept incoming mess
 ```bash
 $ bin/pulsar-admin functions trigger \
   --name reverse \
-  --tenant sample \
-  --namespace ns1 \
+  --tenant public \
+  --namespace default \
   --triggerValue "sdrawrof won si tub sdrawkcab saw gnirts sihT"
 ```
 
