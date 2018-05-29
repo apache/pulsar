@@ -25,26 +25,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-import net.jodah.typetools.TypeResolver;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.internal.FunctionsImpl;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.functions.api.utils.IdentityFunction;
-import org.apache.pulsar.functions.shaded.proto.Function;
-import org.apache.pulsar.functions.shaded.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.shaded.proto.Function.Resources;
-import org.apache.pulsar.functions.shaded.proto.Function.ProcessingGuarantees;
-import org.apache.pulsar.functions.shaded.proto.Function.SinkSpec;
-import org.apache.pulsar.functions.shaded.proto.Function.SourceSpec;
-import org.apache.pulsar.functions.sink.PulsarSink;
-import org.apache.pulsar.functions.source.PulsarSource;
-import org.apache.pulsar.functions.utils.FunctionConfig;
-import org.apache.pulsar.functions.utils.Reflections;
-import org.apache.pulsar.functions.utils.SinkConfig;
-import org.apache.pulsar.functions.utils.Utils;
-import org.apache.pulsar.io.core.Sink;
 
 import java.io.File;
 import java.io.IOException;
@@ -56,7 +36,29 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
-@Slf4j
+import lombok.Getter;
+
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.internal.FunctionsImpl;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.functions.api.utils.IdentityFunction;
+import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.proto.Function.ProcessingGuarantees;
+import org.apache.pulsar.functions.proto.Function.Resources;
+import org.apache.pulsar.functions.proto.Function.SinkSpec;
+import org.apache.pulsar.functions.proto.Function.SourceSpec;
+import org.apache.pulsar.functions.utils.FunctionConfig;
+import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.functions.utils.SinkConfig;
+import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.io.core.Sink;
+
+import net.jodah.typetools.TypeResolver;
+
+import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
+import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
+
 @Getter
 @Parameters(commandDescription = "Interface for managing Pulsar Sinks (Egress data from Pulsar)")
 public class CmdSinks extends CmdBase {
@@ -183,9 +185,13 @@ public class CmdSinks extends CmdBase {
 
             if (null != tenant) {
                 sinkConfig.setTenant(tenant);
+            } else if (sinkConfig.getTenant() == null) {
+                sinkConfig.setTenant(PUBLIC_TENANT);
             }
             if (null != namespace) {
                 sinkConfig.setNamespace(namespace);
+            } else if (sinkConfig.getNamespace() == null) {
+                sinkConfig.setNamespace(DEFAULT_NAMESPACE);
             }
             if (null != name) {
                 sinkConfig.setName(name);

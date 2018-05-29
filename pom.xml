@@ -83,7 +83,6 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-client-shaded</module>
     <module>pulsar-client-admin</module>
     <module>pulsar-client-admin-shaded</module>
-    <module>pulsar-client-admin-shaded-for-functions</module>
     <module>pulsar-client-tools</module>
     <module>pulsar-client-tools-test</module>
     <module>pulsar-websocket</module>
@@ -123,8 +122,8 @@ flexible messaging model and an intuitive client API.</description>
     <testRetryCount>1</testRetryCount>
 
     <bookkeeper.version>4.7.0</bookkeeper.version>
-    <zookeeper.version>3.4.10</zookeeper.version>
-    <netty.version>4.1.21.Final</netty.version>
+    <zookeeper.version>3.5.4-beta</zookeeper.version>
+    <netty.version>4.1.22.Final</netty.version>
     <storm.version>1.0.5</storm.version>
     <jetty.version>9.3.11.v20160721</jetty.version>
     <jersey.version>2.25</jersey.version>
@@ -139,9 +138,10 @@ flexible messaging model and an intuitive client API.</description>
     <puppycrawl.checkstyle.version>6.19</puppycrawl.checkstyle.version>
     <dockerfile-maven.version>1.3.7</dockerfile-maven.version>
     <typetools.version>0.5.0</typetools.version>
+    <jboss-reflect.version>2.2.1.SP1</jboss-reflect.version>
     <protobuf2.version>2.4.1</protobuf2.version>
     <protobuf3.version>3.5.1</protobuf3.version>
-    <grpc.version>1.5.0</grpc.version>
+    <grpc.version>1.12.0</grpc.version>
     <protoc-gen-grpc-java.version>1.0.0</protoc-gen-grpc-java.version>
     <gson.version>2.8.2</gson.version>
     <sketches.version>0.8.3</sketches.version>
@@ -154,7 +154,6 @@ flexible messaging model and an intuitive client API.</description>
 
     <!-- test dependencies -->
     <disruptor.version>3.4.0</disruptor.version>
-    <s3mock.version>0.2.5</s3mock.version>
 
     <!-- Plugin dependencies -->
     <protobuf-maven-plugin.version>0.5.0</protobuf-maven-plugin.version>
@@ -252,7 +251,7 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>org.apache.bookkeeper</groupId>
-        <artifactId>bookkeeper-server-shaded</artifactId>
+        <artifactId>bookkeeper-server</artifactId>
         <version>${bookkeeper.version}</version>
         <exclusions>
           <exclusion>
@@ -267,6 +266,11 @@ flexible messaging model and an intuitive client API.</description>
             <groupId>org.jboss.netty</groupId>
             <artifactId>netty</artifactId>
           </exclusion>
+          <!-- exclude all netty dependencies, use whatever pulsar is using -->
+          <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-*</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
 
@@ -274,11 +278,23 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.apache.bookkeeper</groupId>
         <artifactId>stream-storage-java-client</artifactId>
         <version>${bookkeeper.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>*</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <dependency>
         <groupId>org.apache.bookkeeper</groupId>
-        <artifactId>bookkeeper-bookkeeper-stats-api</artifactId>
+        <artifactId>bookkeeper-common</artifactId>
+        <version>${bookkeeper.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.bookkeeper.stats</groupId>
+        <artifactId>bookkeeper-stats-api</artifactId>
         <version>${bookkeeper.version}</version>
       </dependency>
 
@@ -357,7 +373,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>com.google.guava</groupId>
         <artifactId>guava</artifactId>
-        <version>20.0</version>
+        <version>21.0</version>
       </dependency>
 
       <dependency>
@@ -691,8 +707,32 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
+        <groupId>org.jboss</groupId>
+        <artifactId>jboss-reflect</artifactId>
+        <version>${jboss-reflect.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>io.grpc</groupId>
         <artifactId>grpc-all</artifactId>
+        <version>${grpc.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-testing</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+
+      <dependency>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-core</artifactId>
+        <version>${grpc.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-protobuf-lite</artifactId>
         <version>${grpc.version}</version>
       </dependency>
 
@@ -716,11 +756,17 @@ flexible messaging model and an intuitive client API.</description>
         <scope>import</scope>
       </dependency>
 
-      <!-- use shaded dependency util pulsar bump zookeeper version to 3.5 -->
       <dependency>
         <groupId>org.apache.distributedlog</groupId>
-        <artifactId>distributedlog-core-shaded</artifactId>
+        <artifactId>distributedlog-core</artifactId>
         <version>${bookkeeper.version}</version>
+        <exclusions>
+          <!-- exclude bookkeeper, reply on the bookkeeper version that pulsar uses -->
+          <exclusion>
+            <groupId>org.apache.bookkeeper</groupId>
+            <artifactId>bookkeeper-server</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <!-- test dependencies -->
@@ -728,13 +774,6 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>com.lmax</groupId>
         <artifactId>disruptor</artifactId>
         <version>${disruptor.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.findify</groupId>
-        <artifactId>s3mock_2.12</artifactId>
-        <version>${s3mock.version}</version>
-        <scope>test</scope>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -782,9 +821,10 @@ flexible messaging model and an intuitive client API.</description>
     <dependency>
       <!-- We use MockedBookKeeper in many unit tests -->
       <groupId>org.apache.bookkeeper</groupId>
-      <artifactId>bookkeeper-server-tests-shaded</artifactId>
+      <artifactId>bookkeeper-server</artifactId>
       <version>${bookkeeper.version}</version>
       <scope>test</scope>
+      <classifier>tests</classifier>
       <exclusions>
         <exclusion>
           <groupId>org.slf4j</groupId>

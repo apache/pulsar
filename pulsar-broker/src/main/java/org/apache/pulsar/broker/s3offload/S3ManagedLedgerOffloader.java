@@ -114,11 +114,17 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
                                            Map<String, String> extraMetadata) {
         CompletableFuture<Void> promise = new CompletableFuture<>();
         scheduler.chooseThread(readHandle.getId()).submit(() -> {
+            if (readHandle.getLength() == 0 || !readHandle.isClosed() || readHandle.getLastAddConfirmed() < 0) {
+                promise.completeExceptionally(
+                        new IllegalArgumentException("An empty or open ledger should never be offloaded"));
+                return;
+            }
             OffloadIndexBlockBuilder indexBuilder = OffloadIndexBlockBuilder.create()
-                .withLedgerMetadata(readHandle.getLedgerMetadata());
+                .withLedgerMetadata(readHandle.getLedgerMetadata())
+                .withDataBlockHeaderLength(BlockAwareSegmentInputStreamImpl.getHeaderSize());
             String dataBlockKey = dataBlockOffloadKey(readHandle.getId(), uuid);
             String indexBlockKey = indexBlockOffloadKey(readHandle.getId(), uuid);
-            InitiateMultipartUploadRequest dataBlockReq = new InitiateMultipartUploadRequest(bucket, dataBlockKey);
+            InitiateMultipartUploadRequest dataBlockReq = new InitiateMultipartUploadRequest(bucket, dataBlockKey, new ObjectMetadata());
             InitiateMultipartUploadResult dataBlockRes = null;
 
             // init multi part upload for data block.
@@ -172,8 +178,13 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
                     .withUploadId(dataBlockRes.getUploadId())
                     .withPartETags(etags));
             } catch (Throwable t) {
-                s3client.abortMultipartUpload(
-                    new AbortMultipartUploadRequest(bucket, dataBlockKey, dataBlockRes.getUploadId()));
+                try {
+                    s3client.abortMultipartUpload(
+                        new AbortMultipartUploadRequest(bucket, dataBlockKey, dataBlockRes.getUploadId()));
+                } catch (Throwable throwable) {
+                    log.error("Failed abortMultipartUpload in bucket - {} with key - {}, uploadId - {}.",
+                        bucket, dataBlockKey, dataBlockRes.getUploadId(), throwable);
+                }
                 promise.completeExceptionally(t);
                 return;
             }
@@ -191,7 +202,12 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
                     metadata));
                 promise.complete(null);
             } catch (Throwable t) {
-                s3client.deleteObject(bucket, dataBlockKey);
+                try {
+                    s3client.deleteObject(bucket, dataBlockKey);
+                } catch (Throwable throwable) {
+                    log.error("Failed deleteObject in bucket - {} with key - {}.",
+                        bucket, dataBlockKey, throwable);
+                }
                 promise.completeExceptionally(t);
                 return;
             }

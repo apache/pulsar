@@ -18,6 +18,13 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Objects.isNull;
+import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
+import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
+import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
+
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.StringConverter;
@@ -28,9 +35,31 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.Unpooled;
+
+import java.io.File;
+import java.io.IOException;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.net.MalformedURLException;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import net.jodah.typetools.TypeResolver;
+
 import org.apache.bookkeeper.api.StorageClient;
 import org.apache.bookkeeper.api.kv.Table;
 import org.apache.bookkeeper.api.kv.result.KeyValue;
@@ -46,19 +75,14 @@ import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.proto.Function.ProcessingGuarantees;
+import org.apache.pulsar.functions.proto.Function.Resources;
+import org.apache.pulsar.functions.proto.Function.SinkSpec;
+import org.apache.pulsar.functions.proto.Function.SourceSpec;
+import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.runtime.ProcessRuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
-import org.apache.pulsar.functions.shaded.io.netty.buffer.ByteBuf;
-import org.apache.pulsar.functions.shaded.io.netty.buffer.ByteBufUtil;
-import org.apache.pulsar.functions.shaded.io.netty.buffer.Unpooled;
-import org.apache.pulsar.functions.shaded.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.shaded.proto.Function.ProcessingGuarantees;
-import org.apache.pulsar.functions.shaded.proto.Function.Resources;
-import org.apache.pulsar.functions.shaded.proto.Function.SinkSpec;
-import org.apache.pulsar.functions.shaded.proto.Function.SourceSpec;
-import org.apache.pulsar.functions.shaded.proto.Function.SubscriptionType;
-import org.apache.pulsar.functions.sink.PulsarSink;
-import org.apache.pulsar.functions.source.PulsarSource;
 import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.Utils;
@@ -88,6 +112,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.isNull;
 import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
+import net.jodah.typetools.TypeResolver;
 
 @Slf4j
 @Parameters(commandDescription = "Interface for managing Pulsar Functions (lightweight, Lambda-style compute processes that work with Pulsar)")
@@ -620,21 +645,11 @@ public class CmdFunctions extends CmdBase {
         }
 
         private void inferMissingTenant(FunctionConfig functionConfig) {
-            try {
-                String inputTopic = getUniqueInput(functionConfig);
-                functionConfig.setTenant(TopicName.get(inputTopic).getTenant());
-            } catch (IllegalArgumentException ex) {
-                throw new RuntimeException("You need to specify a tenant for the function", ex);
-            }
+            functionConfig.setTenant(PUBLIC_TENANT);
         }
 
         private void inferMissingNamespace(FunctionConfig functionConfig) {
-            try {
-                String inputTopic = getUniqueInput(functionConfig);
-                functionConfig.setNamespace(TopicName.get(inputTopic).getNamespacePortion());
-            } catch (IllegalArgumentException ex) {
-                throw new RuntimeException("You need to specify a namespace for the function");
-            }
+            functionConfig.setNamespace(DEFAULT_NAMESPACE);
         }
 
         private void inferMissingOutput(FunctionConfig functionConfig) {
@@ -1142,7 +1157,7 @@ public class CmdFunctions extends CmdBase {
                         instanceConfig,
                         userCodeFile,
                         containerFactory,
-                        0);
+                        30000);
                 spawners.add(runtimeSpawner);
                 runtimeSpawner.start();
             }
