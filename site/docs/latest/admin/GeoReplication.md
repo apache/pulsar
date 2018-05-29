@@ -108,16 +108,19 @@ By default, messages are replicated to all clusters configured for the namespace
 Below is an example for the [Java API](../../clients/Java). Note the use of the `setReplicationClusters` method when constructing the {% javadoc Message client org.apache.pulsar.client.api.Message %} object:
 
 ```java
-List<String> restrictReplicationTo = new ArrayList<>;
-restrictReplicationTo.add("us-west");
-restrictReplicationTo.add("us-east");
+List<String> restrictReplicationTo = Arrays.asList(
+        "us-west",
+        "us-east"
+);
 
-Message message = MessageBuilder.create()
-        .setContent("my-payload".getBytes())
+Producer producer = client.newProducer()
+        .topic("some-topic")
+        .create();
+
+producer.newMessage()
+        .value("my-payload".getBytes())
         .setReplicationClusters(restrictReplicationTo)
-        .build();
-
-producer.send(message);
+        .send();
 ```
 
 #### Topic stats

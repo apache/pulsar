@@ -60,10 +60,15 @@ public interface OffloadIndexBlock extends Closeable {
      */
     LedgerMetadata getLedgerMetadata();
 
-    /*
+    /**
      * Get the total size of the data object.
      */
     long getDataObjectLength();
+
+    /**
+     * Get the length of the header in the blocks in the data object.
+     */
+    long getDataBlockHeaderLength();
 
     /**
      * An input stream which knows the size of the stream upfront.

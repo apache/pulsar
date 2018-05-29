@@ -213,8 +213,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             ClientCnx cnx = cnx();
             cnx.sendRequestWithId(unsubscribe, requestId).thenRun(() -> {
                 cnx.removeConsumer(consumerId);
-                log.info("[{}][{}] Successfully unsubscribed from topic", topic, subscription);
                 unAckedMessageTracker.close();
+                client.cleanupConsumer(ConsumerImpl.this);
+                log.info("[{}][{}] Successfully unsubscribed from topic", topic, subscription);
                 unsubscribeFuture.complete(null);
                 setState(State.Closed);
             }).exceptionally(e -> {
@@ -1350,7 +1351,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     void connectionClosed(ClientCnx cnx) {
         this.connectionHandler.connectionClosed(cnx);
     }
-    
+
     @VisibleForTesting
     public ClientCnx getClientCnx() {
         return this.connectionHandler.getClientCnx();
