@@ -42,6 +42,8 @@ public class KubernetesConfig implements Serializable {
     private String jobNamespace = "default";
     private String pulsarDockerImageName = "apachepulsar/pulsar";
     private String pulsarRootDir = "/pulsar";
+    private String pulsarAdminUri = "http://pulsar:8080";
+    private String pulsarServiceUri = "pulsar://pulsar:6650";
 
     public static KubernetesConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
@@ -54,7 +56,8 @@ public class KubernetesConfig implements Serializable {
     }
 
     public boolean areAllFieldsPresent() {
-        return k8Uri != null && jobNamespace != null && pulsarDockerImageName != null
-                && pulsarRootDir != null;
+        return jobNamespace != null && pulsarDockerImageName != null
+                && pulsarRootDir != null && pulsarAdminUri != null
+                && pulsarServiceUri != null;
     }
 }

@@ -19,15 +19,14 @@
 package org.apache.pulsar.functions.kubernetes;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 
 import com.squareup.okhttp.Response;
@@ -35,37 +34,34 @@ import com.squareup.okhttp.Response;
 import io.kubernetes.client.ApiClient;
 import io.kubernetes.client.ApiException;
 import io.kubernetes.client.Configuration;
-import io.kubernetes.client.apis.AppsV1beta1Api;
+import io.kubernetes.client.apis.AppsV1beta2Api;
 import io.kubernetes.client.custom.Quantity;
 import io.kubernetes.client.models.V1Container;
 import io.kubernetes.client.models.V1ContainerPort;
 import io.kubernetes.client.models.V1DeleteOptions;
-import io.kubernetes.client.models.V1EnvVar;
-import io.kubernetes.client.models.V1EnvVarSource;
 import io.kubernetes.client.models.V1LabelSelector;
-import io.kubernetes.client.models.V1ObjectFieldSelector;
 import io.kubernetes.client.models.V1ObjectMeta;
 import io.kubernetes.client.models.V1PodSpec;
 import io.kubernetes.client.models.V1PodTemplateSpec;
 import io.kubernetes.client.models.V1ResourceRequirements;
 import io.kubernetes.client.models.V1Toleration;
-import io.kubernetes.client.models.V1Volume;
-import io.kubernetes.client.models.V1VolumeMount;
-import io.kubernetes.client.models.V1beta1StatefulSet;
-import io.kubernetes.client.models.V1beta1StatefulSetSpec;
+import io.kubernetes.client.models.V1beta2StatefulSet;
+import io.kubernetes.client.models.V1beta2StatefulSetSpec;
 import io.kubernetes.client.util.Config;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.runtime.ProcessRuntime;
-import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 
 @Slf4j
 public class KubernetesController {
 
     private static final String ENV_SHARD_ID = "SHARD_ID";
+    public static final Pattern VALID_POD_NAME_REGEX =
+            Pattern.compile("[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*",
+                    Pattern.CASE_INSENSITIVE);
 
-    private final AppsV1beta1Api client;
+    private final AppsV1beta2Api client;
     private KubernetesConfig kubernetesConfig;
     static final List<String> TOLERATIONS = Collections.unmodifiableList(
             Arrays.asList(
@@ -80,7 +76,11 @@ public class KubernetesController {
     static final String pythonInstanceFile = "/instances/python-instance/python_instance_main.py";
 
     public KubernetesController(String yamlFile) throws IOException {
-        kubernetesConfig = KubernetesConfig.load(yamlFile);
+        if (yamlFile != null) {
+            kubernetesConfig = KubernetesConfig.load(yamlFile);
+        } else {
+            kubernetesConfig = new KubernetesConfig();
+        }
         if (!kubernetesConfig.areAllFieldsPresent()) {
             throw new RuntimeException("Missing arguments");
         }
@@ -92,10 +92,10 @@ public class KubernetesController {
         Configuration.setDefaultApiClient(cli);
 
 
-        client = new AppsV1beta1Api();
+        client = new AppsV1beta2Api();
     }
 
-    public void create(InstanceConfig instanceConfig, String bkPath, String fileBaseName, String pulsarServiceUrl) {
+    public void create(InstanceConfig instanceConfig, String bkPath, String fileBaseName) {
         instanceConfig.setInstanceId("$" + ENV_SHARD_ID);
         instanceConfig.setPort(instancePort);
         String instanceCodeFile;
@@ -108,21 +108,27 @@ public class KubernetesController {
         if (!jobName.equals(jobName.toLowerCase())) {
             throw new RuntimeException("K8S scheduler does not allow upper case jobNames.");
         }
+        final Matcher matcher = VALID_POD_NAME_REGEX.matcher(jobName);
+        if (!matcher.matches()) {
+            throw new RuntimeException("K8S scheduler only admits lower case and numbers.");
+        }
 
-        final V1beta1StatefulSet statefulSet = createStatefulSet(instanceConfig, instanceCodeFile,
-                bkPath, fileBaseName, pulsarServiceUrl);
+        final V1beta2StatefulSet statefulSet = createStatefulSet(instanceConfig, instanceCodeFile,
+                bkPath, fileBaseName);
+
+        log.info("Submitting the following spec to k8 " + client.getApiClient().getJSON().serialize(statefulSet));
 
         try {
             final Response response =
                     client.createNamespacedStatefulSetCall(kubernetesConfig.getJobNamespace(), statefulSet, null,
                             null, null).execute();
             if (!response.isSuccessful()) {
-                log.error("Error creating topology message: " + response.message());
+                log.error("Error creating k8 job:- : " + response.message());
                 // construct a message based on the k8s api server response
                 throw new RuntimeException(response.message());
             }
         } catch (IOException | ApiException e) {
-            log.error("Error creating topology", e);
+            log.error("Error creating k8 job", e);
             throw new RuntimeException(e.getMessage());
         }
     }
@@ -138,7 +144,7 @@ public class KubernetesController {
                     .execute();
 
             if (!response.isSuccessful()) {
-                throw new RuntimeException("Error killing topology " + response.message());
+                throw new RuntimeException("Error killing k8 job " + response.message());
             }
         } catch (IOException | ApiException e) {
             throw new RuntimeException(e);
@@ -149,14 +155,13 @@ public class KubernetesController {
     protected List<String> getExecutorCommand(InstanceConfig instanceConfig,
                                               String instanceCodeFile,
                                               String bkPath,
-                                              String fileBaseName,
-                                              String pulsarServiceUrl) {
+                                              String fileBaseName) {
         String userCodeFilePath = fileBaseName;
         final List<String> executorCommand =
                 ProcessRuntime.composeArgs(instanceConfig,
                         kubernetesConfig.getPulsarRootDir() + instanceCodeFile,
                         logDirectory,
-                        userCodeFilePath, pulsarServiceUrl);
+                        userCodeFilePath, kubernetesConfig.getPulsarServiceUri());
         return Arrays.asList(
                 "sh",
                 "-c",
@@ -169,11 +174,13 @@ public class KubernetesController {
     private List<String> getDownloadCommand(String bkPath, String userCodeFilePath) {
         return Arrays.asList(
                 kubernetesConfig.getPulsarRootDir() + "/bin/pulsar-admin",
+                "--admin-url",
+                kubernetesConfig.getPulsarAdminUri(),
                 "functions",
                 "download",
                 "--path",
                 bkPath,
-                "--destinationPath",
+                "--destinationFile",
                 userCodeFilePath);
     }
 
@@ -182,14 +189,13 @@ public class KubernetesController {
     }
 
 
-    private V1beta1StatefulSet createStatefulSet(InstanceConfig instanceConfig,
+    private V1beta2StatefulSet createStatefulSet(InstanceConfig instanceConfig,
                                                  String instanceCodeFile,
                                                  String bkPath,
-                                                 String fileBaseName,
-                                                 String pulsarServiceUrl) {
+                                                 String fileBaseName) {
         final String jobName = createJobName(instanceConfig.getFunctionDetails());
 
-        final V1beta1StatefulSet statefulSet = new V1beta1StatefulSet();
+        final V1beta2StatefulSet statefulSet = new V1beta2StatefulSet();
 
         // setup stateful set metadata
         final V1ObjectMeta objectMeta = new V1ObjectMeta();
@@ -197,7 +203,7 @@ public class KubernetesController {
         statefulSet.metadata(objectMeta);
 
         // create the stateful set spec
-        final V1beta1StatefulSetSpec statefulSetSpec = new V1beta1StatefulSetSpec();
+        final V1beta2StatefulSetSpec statefulSetSpec = new V1beta2StatefulSetSpec();
         statefulSetSpec.serviceName(jobName);
         statefulSetSpec.setReplicas(instanceConfig.getFunctionDetails().getParallelism());
 
@@ -206,21 +212,21 @@ public class KubernetesController {
         // terminated prior to launching or terminating another Pod.
         statefulSetSpec.setPodManagementPolicy("Parallel");
 
-        // add selector match labels "app=heron" and "topology=topology-name"
+        // add selector match labels
         // so the we know which pods to manage
         final V1LabelSelector selector = new V1LabelSelector();
-        selector.matchLabels(getLabels(jobName));
+        selector.matchLabels(getLabels(instanceConfig.getFunctionDetails()));
         statefulSetSpec.selector(selector);
 
         // create a pod template
         final V1PodTemplateSpec podTemplateSpec = new V1PodTemplateSpec();
 
         // set up pod meta
-        final V1ObjectMeta templateMetaData = new V1ObjectMeta().labels(getLabels(jobName));
+        final V1ObjectMeta templateMetaData = new V1ObjectMeta().labels(getLabels(instanceConfig.getFunctionDetails()));
         templateMetaData.annotations(getPrometheusAnnotations());
         podTemplateSpec.setMetadata(templateMetaData);
 
-        final List<String> command = getExecutorCommand(instanceConfig, instanceCodeFile, bkPath, fileBaseName, pulsarServiceUrl);
+        final List<String> command = getExecutorCommand(instanceConfig, instanceCodeFile, bkPath, fileBaseName);
         podTemplateSpec.spec(getPodSpec(command, instanceConfig.getFunctionDetails().getResources()));
 
         statefulSetSpec.setTemplate(podTemplateSpec);
@@ -237,10 +243,12 @@ public class KubernetesController {
         return annotations;
     }
 
-    private Map<String, String> getLabels(String jobName) {
+    private Map<String, String> getLabels(Function.FunctionDetails functionDetails) {
         final Map<String, String> labels = new HashMap<>();
         labels.put("app", "pulsarfunction");
-        labels.put("job", jobName);
+        labels.put("name", functionDetails.getName());
+        labels.put("namespace", functionDetails.getNamespace());
+        labels.put("tenant", functionDetails.getTenant());
         return labels;
     }
 
@@ -319,8 +327,8 @@ public class KubernetesController {
         // set container resources
         final V1ResourceRequirements resourceRequirements = new V1ResourceRequirements();
         final Map<String, Quantity> requests = new HashMap<>();
-        requests.put("memory", Quantity.fromString(Long.toString(resource != null ? resource.getRam() : 1073741824)));
-        requests.put("cpu", Quantity.fromString(Double.toString(resource != null ? resource.getCpu() : 1)));
+        requests.put("memory", Quantity.fromString(Long.toString(resource != null && resource.getRam() != 0 ? resource.getRam() : 1073741824)));
+        requests.put("cpu", Quantity.fromString(Double.toString(resource != null && resource.getCpu() != 0 ? resource.getCpu() : 1)));
         resourceRequirements.setRequests(requests);
         container.setResources(resourceRequirements);
 
@@ -350,7 +358,7 @@ public class KubernetesController {
     }
 
     private String createJobName(String tenant, String namespace, String functionName) {
-        return FunctionDetailsUtils.getFullyQualifiedName(tenant, namespace, functionName);
+        return functionName;
     }
 
     /*

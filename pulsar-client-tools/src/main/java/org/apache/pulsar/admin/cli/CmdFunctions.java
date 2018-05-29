@@ -951,7 +951,7 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker")
         protected String brokerServiceUrl;
 
-        @Parameter(names = "--k8Config", description = "Kubernetes config file", required = true)
+        @Parameter(names = "--k8Config", description = "Kubernetes config file")
         protected String k8ConfgiFile;
 
         @Override
@@ -975,6 +975,7 @@ public class CmdFunctions extends CmdBase {
             }
             String bkPath = "pulsar-function-k8-" + FunctionDetailsUtils.getFullyQualifiedName(functionConfig.getTenant(),
                     functionConfig.getNamespace(), functionConfig.getName());
+
             admin.functions().uploadFunction(userCodeFile, bkPath);
 
             // Now that we have uploaded, launch it via kubernetes
@@ -984,7 +985,7 @@ public class CmdFunctions extends CmdBase {
             instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
             instanceConfig.setFunctionId(UUID.randomUUID().toString());
             instanceConfig.setMaxBufferedTuples(1024);
-            k8Controller.create(instanceConfig, bkPath, Paths.get(userCodeFile).getFileName().toString(),serviceUrl);
+            k8Controller.create(instanceConfig, bkPath, Paths.get(userCodeFile).getFileName().toString());
         }
     }
 
