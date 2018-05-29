@@ -23,6 +23,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.io.ByteArrayInputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import lombok.extern.slf4j.Slf4j;
@@ -34,22 +35,22 @@ public class DataBlockHeaderTest {
 
     @Test
     public void dataBlockHeaderImplTest() throws Exception {
-        int headerLength = 1024 * 1024;
+        int blockLength = 1024 * 1024;
         long firstEntryId = 3333L;
 
-        DataBlockHeaderImpl dataBlockHeader = DataBlockHeaderImpl.of(headerLength,
+        DataBlockHeaderImpl dataBlockHeader = DataBlockHeaderImpl.of(blockLength,
             firstEntryId);
 
         // verify get methods
         assertEquals(dataBlockHeader.getBlockMagicWord(), DataBlockHeaderImpl.MAGIC_WORD);
-        assertEquals(dataBlockHeader.getBlockLength(), headerLength);
+        assertEquals(dataBlockHeader.getBlockLength(), blockLength);
         assertEquals(dataBlockHeader.getFirstEntryId(), firstEntryId);
 
         // verify toStream and fromStream
         InputStream stream = dataBlockHeader.toStream();
         stream.mark(0);
         DataBlockHeader rebuild = DataBlockHeaderImpl.fromStream(stream);
-        assertEquals(rebuild.getBlockLength(), headerLength);
+        assertEquals(rebuild.getBlockLength(), blockLength);
         assertEquals(rebuild.getFirstEntryId(), firstEntryId);
         // verify InputStream reach end
         assertEquals(stream.read(), -1);
@@ -72,8 +73,8 @@ public class DataBlockHeaderTest {
                 new ByteArrayInputStream(streamContent, 0, DataBlockHeaderImpl.getDataStartOffset() - 1)) {
             DataBlockHeader rebuild3 = DataBlockHeaderImpl.fromStream(stream3);
             fail("Should throw EOFException");
-        } catch (Exception e) {
-            assertTrue(e instanceof java.io.EOFException);
+        } catch (EOFException e) {
+            // expected
         }
 
         stream.close();

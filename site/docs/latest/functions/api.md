@@ -506,14 +506,15 @@ Writing Pulsar Functions in Python entails implementing one of two things:
 
 ### Getting started
 
-The requirements for writing Pulsar Functions in Python depend on your [deployment mode](../deployment):
+Regardless of which [deployment mode](../deployment) you're using, you'll need to install the following Python libraries on any machine that's running Pulsar Functions written in Python:
 
-* If you're writing a [Python native function](#python-native), you won't need to install any external dependencies
-* If you're writing a [Python SDK function](#python-sdk), you'll need to install the the [`pulsar-client`](/api/python) Python library.
+{% include python-deps.html %}
 
-  ```bash
-  $ pip install pulsar-client=={{ site.python_latest }}
-  ```
+That could be your local machine for [local run mode](../deployment#local-run) or a machine running a Pulsar {% popover broker %} for [cluster mode](../deployment#cluster-mode). To install those libraries using pip:
+
+```bash
+$ pip install {% for dep in site.data.deps %}{% if forloop.last %}{{ dep }}{% else %}{{ dep }} {% endif %}{% endfor %}
+```
 
 ### Packaging
 

@@ -39,13 +39,15 @@ import org.apache.pulsar.functions.instance.producers.Producers;
 import org.apache.pulsar.functions.source.PulsarRecord;
 import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.io.core.RecordContext;
+import org.apache.pulsar.io.core.Sink;
+import org.jboss.util.Classes;
 
 import java.util.Base64;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
-public class PulsarSink<T> implements RuntimeSink<T> {
+public class PulsarSink<T> implements Sink<T> {
 
     private PulsarClient client;
     private PulsarSinkConfig pulsarSinkConfig;
@@ -207,11 +209,6 @@ public class PulsarSink<T> implements RuntimeSink<T> {
     }
 
     @Override
-    public CompletableFuture<Void> write(T value) {
-        return null;
-    }
-
-    @Override
     public void write(RecordContext recordContext, T value) throws Exception {
 
         byte[] output;
@@ -236,14 +233,16 @@ public class PulsarSink<T> implements RuntimeSink<T> {
 
     @Override
     public void close() throws Exception {
-        this.pulsarSinkProcessor.close();
-
+        if (this.pulsarSinkProcessor != null) {
+            this.pulsarSinkProcessor.close();
+        }
     }
 
     @VisibleForTesting
     void setupSerDe() throws ClassNotFoundException {
-        Class<?> typeArg = Thread.currentThread().getContextClassLoader().loadClass(
-                this.pulsarSinkConfig.getTypeClassName());
+
+        Class<?> typeArg = Classes.loadClass(this.pulsarSinkConfig.getTypeClassName(),
+                Thread.currentThread().getContextClassLoader());
 
         if (!Void.class.equals(typeArg)) { // return type is not `Void.class`
             if (this.pulsarSinkConfig.getSerDeClassName() == null

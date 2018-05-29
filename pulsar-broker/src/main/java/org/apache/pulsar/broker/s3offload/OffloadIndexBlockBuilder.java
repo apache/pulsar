@@ -37,7 +37,7 @@ public interface OffloadIndexBlockBuilder {
      *
      * @param metadata the ledger metadata
      */
-    OffloadIndexBlockBuilder withMetadata(LedgerMetadata metadata);
+    OffloadIndexBlockBuilder withLedgerMetadata(LedgerMetadata metadata);
 
     /**
      * Add one payload block related information into index block.
@@ -50,6 +50,18 @@ public interface OffloadIndexBlockBuilder {
      * @param blockSize the payload block size
      */
     OffloadIndexBlockBuilder addBlock(long firstEntryId, int partId, int blockSize);
+
+    /**
+     * Specify the length of data object this index is associated with.
+     * @param dataObjectLength the length of the data object
+     */
+    OffloadIndexBlockBuilder withDataObjectLength(long dataObjectLength);
+
+    /**
+     * Specify the length of the block headers in the data object.
+     * @param dataHeaderLength the length of the headers
+     */
+    OffloadIndexBlockBuilder withDataBlockHeaderLength(long dataHeaderLength);
 
     /**
      * Finalize the immutable OffloadIndexBlock

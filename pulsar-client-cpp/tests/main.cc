@@ -20,7 +20,6 @@
 #include <gmock/gmock.h>
 
 int main(int argc, char **argv) {
-    LogUtils::init("log4cxx.conf");
     ::testing::InitGoogleMock(&argc, argv);
     return RUN_ALL_TESTS();
 }

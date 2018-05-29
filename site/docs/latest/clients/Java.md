@@ -98,7 +98,7 @@ In Pulsar, {% popover producers %} write {% popover messages %} to {% popover to
 ```java
 String topic = "persistent://sample/standalone/ns1/my-topic";
 
-Producer producer<byte[]> = client.newProducer()
+Producer<byte[]> producer = client.newProducer()
         .topic(topic)
         .create();
 ```
@@ -106,18 +106,18 @@ Producer producer<byte[]> = client.newProducer()
 You can then send messages to the broker and topic you specified:
 
 ```java
-import org.apache.pulsar.client.api.MessageBuilder;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 
 import java.util.stream.IntStream;
 
-MessageBuilder<byte[]> msgBuilder = MessageBuilder.create();
+TypedMessageBuilder<byte[]> msgBuilder = producer.newMessage();
 
 // Publish 10 messages to the topic
 IntStream.range(1, 11).forEach(i -> {
-    msgBuilder.setContent(String.format("Message number %d", i).getBytes());
+    msgBuilder.value(String.format("Message number %d", i).getBytes());
 
     try {
-        producer.send(msgBuilder);
+        msgBuilder.send();
     } catch (PulsarClientException e) {
         e.printStackTrace();
     }
@@ -172,7 +172,10 @@ You can also publish messages [asynchronously](../../getting-started/ConceptsAnd
 Here's an example async send operation:
 
 ```java
-CompletableFuture<MessageId> future = producer.sendAsync("my-async-message".getBytes());
+TypedMessageBuilder<byte[]> msgBuilder = producer.newMessage()
+        .value("my-async-message".getBytes());
+
+CompletableFuture<MessageId> future = msgBuilder.sendAsync();
 future.thenAccept(msgId -> {
         System.out.printf("Message with ID %s successfully sent", new String(msgId.toByteArray());
 });
