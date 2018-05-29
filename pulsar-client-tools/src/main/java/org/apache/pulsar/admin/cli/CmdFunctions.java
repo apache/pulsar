@@ -107,7 +107,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.isNull;
@@ -376,9 +375,9 @@ public class CmdFunctions extends CmdBase {
                 functionConfig.setParallelism(num);
             }
 
-            checkArgument(cpu == null || cpu > 0, "The cpu allocation for the function must be positive");
-            checkArgument(ram == null || ram > 0, "The ram allocation for the function must be positive");
-            checkArgument(disk == null || disk > 0, "The disk allocation for the function must be positive");
+            com.google.common.base.Preconditions.checkArgument(cpu == null || cpu > 0, "The cpu allocation for the function must be positive");
+            com.google.common.base.Preconditions.checkArgument(ram == null || ram > 0, "The ram allocation for the function must be positive");
+            com.google.common.base.Preconditions.checkArgument(disk == null || disk > 0, "The disk allocation for the function must be positive");
             functionConfig.setResources(new org.apache.pulsar.functions.utils.Resources(cpu, ram, disk));
 
             if (functionConfig.getSubscriptionType() != null
