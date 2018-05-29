@@ -74,8 +74,8 @@ public class KubernetesController {
     );
     static final int instancePort = 7000;
     static final String logDirectory = "/logs";
-    static final String javaInstanceFile = "/pulsar-functions/runtime-all/target/java-instance.jar";
-    static final String pythonInstanceFile = "/pulsar-functions/runtime/target/python-instance/python_instance_main.py";
+    static final String javaInstanceFile = "/instances/java-instance.jar";
+    static final String pythonInstanceFile = "/instances/python-instance/python_instance_main.py";
 
     public KubernetesController(String yamlFile) throws IOException {
         kubernetesConfig = KubernetesConfig.load(yamlFile);
@@ -145,7 +145,7 @@ public class KubernetesController {
         String userCodeFilePath = fileBaseName;
         final List<String> executorCommand =
                 ProcessRuntime.composeArgs(instanceConfig,
-                        kubernetesConfig.getPulsarRootir() + instanceCodeFile,
+                        kubernetesConfig.getPulsarRootDir() + instanceCodeFile,
                         logDirectory,
                         userCodeFilePath, pulsarServiceUrl);
         return Arrays.asList(
@@ -159,7 +159,7 @@ public class KubernetesController {
 
     private List<String> getDownloadCommand(String bkPath, String userCodeFilePath) {
         return Arrays.asList(
-                kubernetesConfig.getPulsarRootir() + "/pulsar-admin",
+                kubernetesConfig.getPulsarRootDir() + "/pulsar-admin",
                 "functions",
                 "download",
                 "--path",
