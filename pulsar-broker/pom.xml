@@ -55,9 +55,15 @@
     </dependency>
 
     <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>protobuf-shaded</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
-      <version>${protobuf2.version}</version>
+      <version>${protobuf3.version}</version>
     </dependency>
 
     <dependency>
@@ -105,12 +111,6 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-common</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-broker-common</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -140,12 +140,6 @@
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>aws-java-sdk-s3</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>io.findify</groupId>
-      <artifactId>s3mock_2.12</artifactId>
-      <scope>test</scope>
     </dependency>
 
     <!-- functions related dependencies (begin) -->
@@ -319,6 +313,24 @@
           </execution>
         </executions>
       </plugin>
+
+      <plugin>
+        <groupId>org.xolstice.maven.plugins</groupId>
+        <artifactId>protobuf-maven-plugin</artifactId>
+        <version>${protobuf-maven-plugin.version}</version>
+        <configuration>
+          <protocArtifact>com.google.protobuf:protoc:${protobuf3.version}:exe:${os.detected.classifier}</protocArtifact>
+          <checkStaleness>true</checkStaleness>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>compile</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
     </plugins>
     <resources>
       <resource>

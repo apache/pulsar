@@ -161,7 +161,7 @@ bool TopicName::operator==(const TopicName& other) {
 
 bool TopicName::validate() {
     // check domain matches to "persistent", in future check "memory" when server is ready
-    if (domain_.compare("persistent") != 0) {
+    if (domain_.compare("persistent") != 0 && domain_.compare("non-persistent") != 0) {
         return false;
     }
     // cluster_ can be empty

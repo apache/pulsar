@@ -36,5 +36,6 @@
     <module>smoke</module>
     <module>compaction</module>
     <module>cli</module>
+    <module>s3-offload</module>
   </modules>
 </project>

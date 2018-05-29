@@ -40,7 +40,7 @@ You can enable message deduplication on specific namespaces, regardless of the t
 
 ```bash
 $ bin/pulsar-admin namespaces set-deduplication \
-  persistent://sample/standalone/ns1/topic-1 \
+  persistent://public/default/topic-1 \
   --enable # or just -e
 ```
 
@@ -50,7 +50,7 @@ You can disable message deduplication on a specific namespace using the same met
 
 ```bash
 $ bin/pulsar-admin namespaces set-deduplication \
-  persistent://sample/standalone/ns1/topic-1 \
+  persistent://public/default/topic-1 \
   --disable # or just -d
 ```
 
@@ -77,7 +77,7 @@ PulsarClient pulsarClient = PulsarClient.builder()
         .build();
 Producer producer = pulsarClient.newProducer()
         .producerName("producer-1")
-        .topic("persistent://sample/standalone/ns1/topic-1")
+        .topic("persistent://public/default/topic-1")
         .sendTimeout(0, TimeUnit.SECONDS)
         .create();
 ```
@@ -91,7 +91,7 @@ import pulsar
 
 client = pulsar.Client("pulsar://localhost:6650")
 producer = client.create_producer(
-    "persistent://sample/standalone/ns1/topic-1",
+    "persistent://public/default/topic-1",
     producer_name="producer-1",
     send_timeout_millis=0)
 ```
@@ -104,7 +104,7 @@ To enable message deduplication on a [C++ producer](../../clients/Cpp#producer),
 #include <pulsar/Client.h>
 
 std::string serviceUrl = "pulsar://localhost:6650";
-std::string topic = "persistent://prop/unit/ns1/topic-1";
+std::string topic = "persistent://some-tenant/ns1/topic-1";
 std::string producerName = "producer-1";
 
 Client client(serviceUrl);
@@ -115,5 +115,5 @@ producerConfig.setProducerName(producerName);
 
 Producer producer;
 
-Result result = client.createProducer("persistent://sample/standalone/ns1/my-topic", producerConfig, producer);
+Result result = client.createProducer(topic, producerConfig, producer);
 ```

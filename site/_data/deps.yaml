@@ -17,14 +17,8 @@
 # under the License.
 #
 
-tenant: "test"
-namespace: "test-namespace"
-name: "example"
-className: "org.apache.pulsar.functions.api.examples.ExclamationFunction"
-inputs: ["test_src"]
-userConfig:
-  "PublishTopic" : "test_result"
-
-output: "test_result"
-autoAck: true
-parallelism: 1
+- pulsar-client
+- protobuf
+- futures
+- grpcio
+- grpcio-tools

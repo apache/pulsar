@@ -24,32 +24,20 @@ import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 
-import io.findify.s3mock.S3Mock;
-
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.AfterMethod;
 
 public class S3TestBase {
     final static String BUCKET = "pulsar-unittest";
 
-    S3Mock s3mock = null;
     protected AmazonS3 s3client = null;
-    protected String s3endpoint = null;
 
     @BeforeMethod
     public void start() throws Exception {
-        s3mock = new S3Mock.Builder().withPort(0).withInMemoryBackend().build();
-        int port = s3mock.start().localAddress().getPort();
-        s3endpoint = "http://localhost:" + port;
-
         if (Boolean.parseBoolean(System.getProperty("testRealAWS", "false"))) {
             // To use this, ~/.aws must be configured with credentials and a default region
             s3client = AmazonS3ClientBuilder.standard().build();
         } else {
-            s3client = AmazonS3ClientBuilder.standard()
-                .withEndpointConfiguration(new EndpointConfiguration(s3endpoint, "foobar"))
-                .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
-                .withPathStyleAccessEnabled(true).build();
+            s3client = new S3Mock();
         }
 
         if (!s3client.doesBucketExistV2(BUCKET)) {
@@ -57,10 +45,4 @@ public class S3TestBase {
         }
     }
 
-    @AfterMethod
-    public void stop() throws Exception {
-        if (s3mock != null) {
-            s3mock.shutdown();
-        }
-    }
 }

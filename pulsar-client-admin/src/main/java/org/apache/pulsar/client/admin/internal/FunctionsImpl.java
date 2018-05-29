@@ -18,20 +18,15 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.admin.Functions;
-import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.common.policies.data.*;
-import org.apache.pulsar.functions.shaded.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.shaded.proto.InstanceCommunication.FunctionStatusList;
-import org.glassfish.jersey.media.multipart.FormDataBodyPart;
-import org.glassfish.jersey.media.multipart.FormDataMultiPart;
-import org.glassfish.jersey.media.multipart.file.FileDataBodyPart;
+import com.google.protobuf.AbstractMessage.Builder;
+import com.google.protobuf.MessageOrBuilder;
+import com.google.protobuf.util.JsonFormat;
 
-import org.apache.pulsar.functions.shaded.com.google.protobuf.MessageOrBuilder;
-import org.apache.pulsar.functions.shaded.com.google.protobuf.AbstractMessage.Builder;
-import org.apache.pulsar.functions.shaded.com.google.protobuf.util.JsonFormat;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.StandardCopyOption;
+import java.util.List;
 
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.client.Entity;
@@ -39,11 +34,18 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.StandardCopyOption;
-import java.util.List;
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.pulsar.client.admin.Functions;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.common.policies.data.ErrorData;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
+import org.glassfish.jersey.media.multipart.FormDataBodyPart;
+import org.glassfish.jersey.media.multipart.FormDataMultiPart;
+import org.glassfish.jersey.media.multipart.file.FileDataBodyPart;
 
 @Slf4j
 public class FunctionsImpl extends BaseResource implements Functions {
@@ -199,11 +201,11 @@ public class FunctionsImpl extends BaseResource implements Functions {
             throw getApiException(e);
         }
     }
-    
+
     public static void mergeJson(String json, Builder builder) throws IOException {
         JsonFormat.parser().merge(json, builder);
     }
-    
+
     public static String printJson(MessageOrBuilder msg) throws IOException {
         return JsonFormat.printer().print(msg);
     }

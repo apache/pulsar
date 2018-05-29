@@ -21,138 +21,107 @@ package org.apache.pulsar.broker.s3offload;
 import static org.apache.pulsar.broker.s3offload.S3ManagedLedgerOffloader.dataBlockOffloadKey;
 import static org.apache.pulsar.broker.s3offload.S3ManagedLedgerOffloader.indexBlockOffloadKey;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyLong;
 
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.S3Object;
 import io.netty.util.concurrent.DefaultThreadFactory;
-
-import java.io.DataInputStream;
+import java.lang.reflect.Method;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 
+import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
-import org.apache.bookkeeper.client.BookKeeper.DigestType;
+import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.client.LedgerMetadata;
 import org.apache.bookkeeper.client.MockBookKeeper;
-import org.apache.bookkeeper.client.MockLedgerHandle;
+import org.apache.bookkeeper.client.api.DigestType;
+import org.apache.bookkeeper.client.api.LedgerEntries;
+import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.broker.s3offload.impl.BlockAwareSegmentInputStreamImpl;
 import org.apache.pulsar.broker.s3offload.impl.DataBlockHeaderImpl;
-import org.apache.pulsar.broker.s3offload.impl.OffloadIndexBlockImpl;
-import org.apache.pulsar.broker.s3offload.impl.OffloadIndexTest.LedgerMetadataMock;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+@Slf4j
 class S3ManagedLedgerOffloaderTest extends S3TestBase {
-    final ScheduledExecutorService scheduler;
+    private static final int DEFAULT_BLOCK_SIZE = 5*1024*1024;
+    private static final int DEFAULT_READ_BUFFER_SIZE = 1*1024*1024;
+    final OrderedScheduler scheduler;
     final MockBookKeeper bk;
 
     S3ManagedLedgerOffloaderTest() throws Exception {
-        scheduler = Executors.newScheduledThreadPool(1, new DefaultThreadFactory("offloader-"));
+        scheduler = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("offloader").build();
         bk = new MockBookKeeper(MockedPulsarServiceBaseTest.createMockZooKeeper());
     }
 
-    private ReadHandle buildReadHandle(int entryCount) throws Exception {
-        MockLedgerHandle lh = (MockLedgerHandle)bk.createLedger(1,1,1, BookKeeper.DigestType.CRC32, "foobar".getBytes());
+    private ReadHandle buildReadHandle() throws Exception {
+        return buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
+    }
 
-        for (int index = 0; index < entryCount; index ++) {
-            lh.addEntry(("foooobarrr").getBytes()); // add entry with 10 bytes data
+    private ReadHandle buildReadHandle(int maxBlockSize, int blockCount) throws Exception {
+        Assert.assertTrue(maxBlockSize > DataBlockHeaderImpl.getDataStartOffset());
+
+        LedgerHandle lh = bk.createLedger(1,1,1, BookKeeper.DigestType.CRC32, "foobar".getBytes());
+
+        int i = 0;
+        int bytesWrittenCurrentBlock = DataBlockHeaderImpl.getDataStartOffset();
+        int blocksWritten = 1;
+        int entries = 0;
+
+        while (blocksWritten < blockCount
+               || bytesWrittenCurrentBlock < maxBlockSize/2) {
+            byte[] entry = ("foobar"+i).getBytes();
+            int sizeInBlock = entry.length + 12 /* ENTRY_HEADER_SIZE */;
+
+            if (bytesWrittenCurrentBlock + sizeInBlock > maxBlockSize) {
+                bytesWrittenCurrentBlock = DataBlockHeaderImpl.getDataStartOffset();
+                blocksWritten++;
+                entries = 0;
+            }
+            entries++;
+
+            lh.addEntry(entry);
+            bytesWrittenCurrentBlock += sizeInBlock;
+            i++;
         }
+
+        // workaround mock not closing metadata correctly
+        Method close = LedgerMetadata.class.getDeclaredMethod("close", long.class);
+        close.setAccessible(true);
+        close.invoke(lh.getLedgerMetadata(), lh.getLastAddConfirmed());
 
         lh.close();
 
-        // mock ledgerMetadata, so the lac in metadata is not -1;
-        MockLedgerHandle spy = Mockito.spy(lh);
-        LedgerMetadataMock metadata = new LedgerMetadataMock(1, 1, 1,
-            DigestType.CRC32C, "foobar".getBytes(), null, false);
-        metadata.setLastEntryId(entryCount - 1);
-        Mockito.when(spy.getLedgerMetadata()).thenReturn(metadata);
-
-        return spy;
-    }
-
-    private void verifyS3ObjectRead(S3Object object, S3Object indexObject, ReadHandle readHandle, int indexEntryCount, int entryCount, int maxBlockSize) throws Exception {
-        DataInputStream dis = new DataInputStream(object.getObjectContent());
-        int isLength = dis.available();
-
-        // read out index block
-        DataInputStream indexBlockIs = new DataInputStream(indexObject.getObjectContent());
-        OffloadIndexBlock indexBlock = OffloadIndexBlockImpl.get(indexBlockIs);
-
-        // 1. verify index block with passed in index entry count
-        Assert.assertEquals(indexBlock.getEntryCount(), indexEntryCount);
-
-        // 2. verify index block read out each indexEntry.
-        int entryIdTracker = 0;
-        int startPartIdTracker = 1;
-        int startOffsetTracker = 0;
-        long entryBytesUploaded = 0;
-        int entryLength = 10;
-        for (int i = 0; i < indexEntryCount; i ++) {
-            // 2.1 verify each indexEntry in header block
-            OffloadIndexEntry indexEntry = indexBlock.getIndexEntryForEntry(entryIdTracker);
-
-            Assert.assertEquals(indexEntry.getPartId(), startPartIdTracker);
-            Assert.assertEquals(indexEntry.getEntryId(), entryIdTracker);
-            Assert.assertEquals(indexEntry.getOffset(), startOffsetTracker);
-
-            // read out and verify each data block related to this index entry
-            // 2.2 verify data block header.
-            DataBlockHeader headerReadout = DataBlockHeaderImpl.fromStream(dis);
-            int expectedBlockSize = BlockAwareSegmentInputStreamImpl
-                .calculateBlockSize(maxBlockSize, readHandle, entryIdTracker, entryBytesUploaded);
-            Assert.assertEquals(headerReadout.getBlockLength(), expectedBlockSize);
-            Assert.assertEquals(headerReadout.getFirstEntryId(), entryIdTracker);
-
-            // 2.3 verify data block
-            int entrySize = 0;
-            long entryId = 0;
-            for (int bytesReadout = headerReadout.getBlockLength() - DataBlockHeaderImpl.getDataStartOffset();
-                bytesReadout > 0;
-                bytesReadout -= (4 + 8 + entrySize)) {
-                entrySize = dis.readInt();
-                entryId = dis.readLong();
-                byte[] bytes = new byte[(int) entrySize];
-                dis.read(bytes);
-
-                Assert.assertEquals(entrySize, entryLength);
-                Assert.assertEquals(entryId, entryIdTracker ++);
-                entryBytesUploaded += entrySize;
-            }
-
-            startPartIdTracker ++;
-            startOffsetTracker += headerReadout.getBlockLength();
-        }
-
-        return;
+        return bk.newOpenLedgerOp().withLedgerId(lh.getId())
+            .withPassword("foobar".getBytes()).withDigestType(DigestType.CRC32).execute().get();
     }
 
     @Test
     public void testHappyCase() throws Exception {
-        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler, 1024);
-
-        offloader.offload(buildReadHandle(1), UUID.randomUUID(), new HashMap<>()).get();
+        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler,
+                DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
+        offloader.offload(buildReadHandle(), UUID.randomUUID(), new HashMap<>()).get();
     }
 
     @Test
     public void testBucketDoesNotExist() throws Exception {
-        ServiceConfiguration conf = new ServiceConfiguration();
-        conf.setManagedLedgerOffloadDriver(S3ManagedLedgerOffloader.DRIVER_NAME);
-        conf.setS3ManagedLedgerOffloadBucket("no-bucket");
-        conf.setS3ManagedLedgerOffloadServiceEndpoint(s3endpoint);
-        conf.setS3ManagedLedgerOffloadRegion("eu-west-1");
-        LedgerOffloader offloader = S3ManagedLedgerOffloader.create(conf, scheduler);
-
+        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, "no-bucket", scheduler,
+                                                                 DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
         try {
-            offloader.offload(buildReadHandle(1), UUID.randomUUID(), new HashMap<>()).get();
+            offloader.offload(buildReadHandle(), UUID.randomUUID(), new HashMap<>()).get();
             Assert.fail("Shouldn't be able to add to bucket");
         } catch (ExecutionException e) {
             Assert.assertTrue(e.getMessage().contains("NoSuchBucket"));
@@ -188,36 +157,54 @@ class S3ManagedLedgerOffloaderTest extends S3TestBase {
     }
 
     @Test
-    public void testOffload() throws Exception {
-        int entryLength = 10;
-        int entryNumberEachBlock = 10;
+    public void testSmallBlockSizeConfigured() throws Exception {
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setManagedLedgerOffloadDriver(S3ManagedLedgerOffloader.DRIVER_NAME);
-
-        conf.setS3ManagedLedgerOffloadBucket(BUCKET);
         conf.setS3ManagedLedgerOffloadRegion("eu-west-1");
-        conf.setS3ManagedLedgerOffloadServiceEndpoint(s3endpoint);
-        conf.setS3ManagedLedgerOffloadMaxBlockSizeInBytes(
-            DataBlockHeaderImpl.getDataStartOffset() + (entryLength + 12) * entryNumberEachBlock);
-        LedgerOffloader offloader = S3ManagedLedgerOffloader.create(conf, scheduler);
+        conf.setS3ManagedLedgerOffloadBucket(BUCKET);
+        conf.setS3ManagedLedgerOffloadMaxBlockSizeInBytes(1024);
 
-        // offload 30 entries, which will be placed into 3 data blocks.
-        int entryCount = 30;
-        ReadHandle readHandle = buildReadHandle(entryCount);
+        try {
+            S3ManagedLedgerOffloader.create(conf, scheduler);
+            Assert.fail("Should have thrown exception");
+        } catch (PulsarServerException pse) {
+            // correct
+        }
+    }
+
+    @Test
+    public void testOffloadAndRead() throws Exception {
+        ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 3);
+        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler,
+                                                                 DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
         UUID uuid = UUID.randomUUID();
-        offloader.offload(readHandle, uuid, new HashMap<>()).get();
+        offloader.offload(toWrite, uuid, new HashMap<>()).get();
 
-        S3Object obj = s3client.getObject(BUCKET, dataBlockOffloadKey(readHandle, uuid));
-        S3Object indexObj = s3client.getObject(BUCKET, S3ManagedLedgerOffloader.indexBlockOffloadKey(readHandle, uuid));
+        ReadHandle toTest = offloader.readOffloaded(toWrite.getId(), uuid).get();
+        Assert.assertEquals(toTest.getLastAddConfirmed(), toWrite.getLastAddConfirmed());
 
-        verifyS3ObjectRead(obj, indexObj, readHandle, 3, 30, conf.getS3ManagedLedgerOffloadMaxBlockSizeInBytes());
+        try (LedgerEntries toWriteEntries = toWrite.read(0, toWrite.getLastAddConfirmed());
+             LedgerEntries toTestEntries = toTest.read(0, toTest.getLastAddConfirmed())) {
+            Iterator<LedgerEntry> toWriteIter = toWriteEntries.iterator();
+            Iterator<LedgerEntry> toTestIter = toTestEntries.iterator();
+
+            while (toWriteIter.hasNext() && toTestIter.hasNext()) {
+                LedgerEntry toWriteEntry = toWriteIter.next();
+                LedgerEntry toTestEntry = toTestIter.next();
+
+                Assert.assertEquals(toWriteEntry.getLedgerId(), toTestEntry.getLedgerId());
+                Assert.assertEquals(toWriteEntry.getEntryId(), toTestEntry.getEntryId());
+                Assert.assertEquals(toWriteEntry.getLength(), toTestEntry.getLength());
+                Assert.assertEquals(toWriteEntry.getEntryBuffer(), toTestEntry.getEntryBuffer());
+            }
+            Assert.assertFalse(toWriteIter.hasNext());
+            Assert.assertFalse(toTestIter.hasNext());
+        }
     }
 
     @Test
     public void testOffloadFailInitDataBlockUpload() throws Exception {
-        int maxBlockSize = 1024;
-        int entryCount = 3;
-        ReadHandle readHandle = buildReadHandle(entryCount);
+        ReadHandle readHandle = buildReadHandle();
         UUID uuid = UUID.randomUUID();
         String failureString = "fail InitDataBlockUpload";
 
@@ -228,23 +215,22 @@ class S3ManagedLedgerOffloaderTest extends S3TestBase {
                 .doThrow(new AmazonServiceException(failureString))
                 .when(mockS3client).initiateMultipartUpload(any());
 
-            LedgerOffloader offloader = new S3ManagedLedgerOffloader(mockS3client, BUCKET, scheduler, maxBlockSize);
+            LedgerOffloader offloader = new S3ManagedLedgerOffloader(mockS3client, BUCKET, scheduler,
+                                                                     DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
             offloader.offload(readHandle, uuid, new HashMap<>()).get();
             Assert.fail("Should throw exception when initiateMultipartUpload");
         } catch (Exception e) {
             // excepted
             Assert.assertTrue(e.getCause() instanceof AmazonServiceException);
             Assert.assertTrue(e.getCause().getMessage().contains(failureString));
-            Assert.assertFalse(s3client.doesObjectExist(BUCKET, dataBlockOffloadKey(readHandle, uuid)));
-            Assert.assertFalse(s3client.doesObjectExist(BUCKET, indexBlockOffloadKey(readHandle, uuid)));
+            Assert.assertFalse(s3client.doesObjectExist(BUCKET, dataBlockOffloadKey(readHandle.getId(), uuid)));
+            Assert.assertFalse(s3client.doesObjectExist(BUCKET, indexBlockOffloadKey(readHandle.getId(), uuid)));
         }
     }
 
     @Test
     public void testOffloadFailDataBlockPartUpload() throws Exception {
-        int maxBlockSize = 1024;
-        int entryCount = 3;
-        ReadHandle readHandle = buildReadHandle(entryCount);
+        ReadHandle readHandle = buildReadHandle();
         UUID uuid = UUID.randomUUID();
         String failureString = "fail DataBlockPartUpload";
 
@@ -256,23 +242,22 @@ class S3ManagedLedgerOffloaderTest extends S3TestBase {
                 .when(mockS3client).uploadPart(any());
             Mockito.doNothing().when(mockS3client).abortMultipartUpload(any());
 
-            LedgerOffloader offloader = new S3ManagedLedgerOffloader(mockS3client, BUCKET, scheduler, maxBlockSize);
+            LedgerOffloader offloader = new S3ManagedLedgerOffloader(mockS3client, BUCKET, scheduler,
+                                                                     DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
             offloader.offload(readHandle, uuid, new HashMap<>()).get();
             Assert.fail("Should throw exception for when uploadPart");
         } catch (Exception e) {
             // excepted
             Assert.assertTrue(e.getCause() instanceof AmazonServiceException);
             Assert.assertTrue(e.getCause().getMessage().contains(failureString));
-            Assert.assertFalse(s3client.doesObjectExist(BUCKET, dataBlockOffloadKey(readHandle, uuid)));
-            Assert.assertFalse(s3client.doesObjectExist(BUCKET, indexBlockOffloadKey(readHandle, uuid)));
+            Assert.assertFalse(s3client.doesObjectExist(BUCKET, dataBlockOffloadKey(readHandle.getId(), uuid)));
+            Assert.assertFalse(s3client.doesObjectExist(BUCKET, indexBlockOffloadKey(readHandle.getId(), uuid)));
         }
     }
 
     @Test
     public void testOffloadFailDataBlockUploadComplete() throws Exception {
-        int maxBlockSize = 1024;
-        int entryCount = 3;
-        ReadHandle readHandle = buildReadHandle(entryCount);
+        ReadHandle readHandle = buildReadHandle();
         UUID uuid = UUID.randomUUID();
         String failureString = "fail DataBlockUploadComplete";
 
@@ -284,23 +269,22 @@ class S3ManagedLedgerOffloaderTest extends S3TestBase {
                 .when(mockS3client).completeMultipartUpload(any());
             Mockito.doNothing().when(mockS3client).abortMultipartUpload(any());
 
-            LedgerOffloader offloader = new S3ManagedLedgerOffloader(mockS3client, BUCKET, scheduler, maxBlockSize);
+            LedgerOffloader offloader = new S3ManagedLedgerOffloader(mockS3client, BUCKET, scheduler,
+                                                                     DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
             offloader.offload(readHandle, uuid, new HashMap<>()).get();
             Assert.fail("Should throw exception for when completeMultipartUpload");
         } catch (Exception e) {
             // excepted
             Assert.assertTrue(e.getCause() instanceof AmazonServiceException);
             Assert.assertTrue(e.getCause().getMessage().contains(failureString));
-            Assert.assertFalse(s3client.doesObjectExist(BUCKET, dataBlockOffloadKey(readHandle, uuid)));
-            Assert.assertFalse(s3client.doesObjectExist(BUCKET, indexBlockOffloadKey(readHandle, uuid)));
+            Assert.assertFalse(s3client.doesObjectExist(BUCKET, dataBlockOffloadKey(readHandle.getId(), uuid)));
+            Assert.assertFalse(s3client.doesObjectExist(BUCKET, indexBlockOffloadKey(readHandle.getId(), uuid)));
         }
     }
 
     @Test
     public void testOffloadFailPutIndexBlock() throws Exception {
-        int maxBlockSize = 1024;
-        int entryCount = 3;
-        ReadHandle readHandle = buildReadHandle(entryCount);
+        ReadHandle readHandle = buildReadHandle();
         UUID uuid = UUID.randomUUID();
         String failureString = "fail putObject";
 
@@ -311,15 +295,156 @@ class S3ManagedLedgerOffloaderTest extends S3TestBase {
                 .doThrow(new AmazonServiceException(failureString))
                 .when(mockS3client).putObject(any());
 
-            LedgerOffloader offloader = new S3ManagedLedgerOffloader(mockS3client, BUCKET, scheduler, maxBlockSize);
+            LedgerOffloader offloader = new S3ManagedLedgerOffloader(mockS3client, BUCKET, scheduler,
+                                                                     DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
             offloader.offload(readHandle, uuid, new HashMap<>()).get();
             Assert.fail("Should throw exception for when putObject for index block");
         } catch (Exception e) {
             // excepted
             Assert.assertTrue(e.getCause() instanceof AmazonServiceException);
             Assert.assertTrue(e.getCause().getMessage().contains(failureString));
-            Assert.assertFalse(s3client.doesObjectExist(BUCKET, dataBlockOffloadKey(readHandle, uuid)));
-            Assert.assertFalse(s3client.doesObjectExist(BUCKET, indexBlockOffloadKey(readHandle, uuid)));
+            Assert.assertFalse(s3client.doesObjectExist(BUCKET, dataBlockOffloadKey(readHandle.getId(), uuid)));
+            Assert.assertFalse(s3client.doesObjectExist(BUCKET, indexBlockOffloadKey(readHandle.getId(), uuid)));
+        }
+    }
+
+    @Test
+    public void testOffloadReadRandomAccess() throws Exception {
+        ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 3);
+        long[][] randomAccesses = new long[10][2];
+        Random r = new Random(0);
+        for (int i = 0; i < 10; i++) {
+            long first = r.nextInt((int)toWrite.getLastAddConfirmed());
+            long second = r.nextInt((int)toWrite.getLastAddConfirmed());
+            if (second < first) {
+                long tmp = first;
+                first = second;
+                second = tmp;
+            }
+            randomAccesses[i][0] = first;
+            randomAccesses[i][1] = second;
+        }
+
+        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler,
+                                                                 DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
+        UUID uuid = UUID.randomUUID();
+        offloader.offload(toWrite, uuid, new HashMap<>()).get();
+
+        ReadHandle toTest = offloader.readOffloaded(toWrite.getId(), uuid).get();
+        Assert.assertEquals(toTest.getLastAddConfirmed(), toWrite.getLastAddConfirmed());
+
+        for (long[] access : randomAccesses) {
+            try (LedgerEntries toWriteEntries = toWrite.read(access[0], access[1]);
+                 LedgerEntries toTestEntries = toTest.read(access[0], access[1])) {
+                Iterator<LedgerEntry> toWriteIter = toWriteEntries.iterator();
+                Iterator<LedgerEntry> toTestIter = toTestEntries.iterator();
+
+                while (toWriteIter.hasNext() && toTestIter.hasNext()) {
+                    LedgerEntry toWriteEntry = toWriteIter.next();
+                    LedgerEntry toTestEntry = toTestIter.next();
+
+                    Assert.assertEquals(toWriteEntry.getLedgerId(), toTestEntry.getLedgerId());
+                    Assert.assertEquals(toWriteEntry.getEntryId(), toTestEntry.getEntryId());
+                    Assert.assertEquals(toWriteEntry.getLength(), toTestEntry.getLength());
+                    Assert.assertEquals(toWriteEntry.getEntryBuffer(), toTestEntry.getEntryBuffer());
+                }
+                Assert.assertFalse(toWriteIter.hasNext());
+                Assert.assertFalse(toTestIter.hasNext());
+            }
+        }
+    }
+
+    @Test
+    public void testOffloadReadInvalidEntryIds() throws Exception {
+        ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
+        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler,
+                                                                 DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
+        UUID uuid = UUID.randomUUID();
+        offloader.offload(toWrite, uuid, new HashMap<>()).get();
+
+        ReadHandle toTest = offloader.readOffloaded(toWrite.getId(), uuid).get();
+        Assert.assertEquals(toTest.getLastAddConfirmed(), toWrite.getLastAddConfirmed());
+
+        try {
+            toTest.read(-1, -1);
+            Assert.fail("Shouldn't be able to read anything");
+        } catch (BKException.BKIncorrectParameterException e) {
+        }
+
+        try {
+            toTest.read(0, toTest.getLastAddConfirmed() + 1);
+            Assert.fail("Shouldn't be able to read anything");
+        } catch (BKException.BKIncorrectParameterException e) {
+        }
+    }
+
+    @Test
+    public void testDeleteOffloaded() throws Exception {
+        ReadHandle readHandle = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
+        UUID uuid = UUID.randomUUID();
+        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler,
+                                                                 DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
+
+        // verify object exist after offload
+        offloader.offload(readHandle, uuid, new HashMap<>()).get();
+        Assert.assertTrue(s3client.doesObjectExist(BUCKET, dataBlockOffloadKey(readHandle.getId(), uuid)));
+        Assert.assertTrue(s3client.doesObjectExist(BUCKET, indexBlockOffloadKey(readHandle.getId(), uuid)));
+
+        // verify object deleted after delete
+        offloader.deleteOffloaded(readHandle.getId(), uuid).get();
+        Assert.assertFalse(s3client.doesObjectExist(BUCKET, dataBlockOffloadKey(readHandle.getId(), uuid)));
+        Assert.assertFalse(s3client.doesObjectExist(BUCKET, indexBlockOffloadKey(readHandle.getId(), uuid)));
+    }
+
+    @Test
+    public void testDeleteOffloadedFail() throws Exception {
+        ReadHandle readHandle = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
+        UUID uuid = UUID.randomUUID();
+        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler,
+                                                                 DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
+        String failureString = "fail deleteOffloaded";
+        AmazonS3 mockS3client = Mockito.spy(s3client);
+        Mockito
+            .doThrow(new AmazonServiceException(failureString))
+            .when(mockS3client).deleteObjects(any());
+
+        try {
+            // verify object exist after offload
+            offloader.offload(readHandle, uuid, new HashMap<>()).get();
+            Assert.assertTrue(mockS3client.doesObjectExist(BUCKET, dataBlockOffloadKey(readHandle.getId(), uuid)));
+            Assert.assertTrue(mockS3client.doesObjectExist(BUCKET, indexBlockOffloadKey(readHandle.getId(), uuid)));
+
+            offloader.deleteOffloaded(readHandle.getId(), uuid).get();
+        } catch (Exception e) {
+            // expected
+            Assert.assertTrue(e.getCause() instanceof AmazonServiceException);
+            Assert.assertTrue(e.getCause().getMessage().contains(failureString));
+            // verify object still there.
+            Assert.assertTrue(mockS3client.doesObjectExist(BUCKET, dataBlockOffloadKey(readHandle.getId(), uuid)));
+            Assert.assertTrue(mockS3client.doesObjectExist(BUCKET, indexBlockOffloadKey(readHandle.getId(), uuid)));
+        }
+    }
+
+    @Test
+    public void testOffloadEmpty() throws Exception {
+        CompletableFuture<LedgerEntries> noEntries = new CompletableFuture<>();
+        noEntries.completeExceptionally(new BKException.BKReadException());
+
+        ReadHandle readHandle = Mockito.mock(ReadHandle.class);
+        Mockito.doReturn(-1L).when(readHandle).getLastAddConfirmed();
+        Mockito.doReturn(noEntries).when(readHandle).readAsync(anyLong(), anyLong());
+        Mockito.doReturn(0L).when(readHandle).getLength();
+        Mockito.doReturn(true).when(readHandle).isClosed();
+        Mockito.doReturn(1234L).when(readHandle).getId();
+
+        UUID uuid = UUID.randomUUID();
+        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler,
+                                                                 DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
+        try {
+            offloader.offload(readHandle, uuid, new HashMap<>()).get();
+            Assert.fail("Shouldn't have been able to offload");
+        } catch (ExecutionException e) {
+            Assert.assertEquals(e.getCause().getClass(), IllegalArgumentException.class);
         }
     }
 }

@@ -18,6 +18,8 @@
 # under the License.
 #
 
+set -x
+
 ZNODE="/initialized"
 
 bin/watch-znode.py -z $zkServers -p / -w
@@ -28,7 +30,7 @@ if [ $? != 0 ]; then
     bin/apply-config-from-env.py conf/bookkeeper.conf &&
         bin/pulsar initialize-cluster-metadata --cluster $cluster --zookeeper $zkServers \
                    --configuration-store $configurationStore --web-service-url http://$pulsarNode:8080/ \
-                   --broker-service-url http://$pulsarNode:6650/ &&
+                   --broker-service-url pulsar://$pulsarNode:6650/ &&
         bin/watch-znode.py -z $zkServers -p $ZNODE -c
     echo Initialized
 else

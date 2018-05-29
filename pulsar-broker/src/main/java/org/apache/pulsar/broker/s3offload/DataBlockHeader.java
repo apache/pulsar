@@ -36,7 +36,7 @@ public interface DataBlockHeader {
     /**
      * Get the length of the block in bytes, including the header.
      */
-    int getBlockLength();
+    long getBlockLength();
 
     /**
      * Get the message entry Id for the first message that stored in this data block.
@@ -46,7 +46,7 @@ public interface DataBlockHeader {
     /**
      * Get the size of this DataBlockHeader.
      */
-    int getHeaderSize();
+    long getHeaderLength();
 
     /**
      * Get the content of the data block header as InputStream.

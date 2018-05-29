@@ -26,15 +26,14 @@ import org.apache.pulsar.broker.s3offload.OffloadIndexEntry;
  *
  */
 public class OffloadIndexEntryImpl implements OffloadIndexEntry {
-    public static OffloadIndexEntryImpl of(long entryId, int partId, long offset) {
-        return new OffloadIndexEntryImpl(entryId, partId, offset);
+    public static OffloadIndexEntryImpl of(long entryId, int partId, long offset, long blockHeaderSize) {
+        return new OffloadIndexEntryImpl(entryId, partId, offset, blockHeaderSize);
     }
 
     private final long entryId;
-
     private final int partId;
-
     private final long offset;
+    private final long blockHeaderSize;
 
     @Override
     public long getEntryId() {
@@ -48,11 +47,16 @@ public class OffloadIndexEntryImpl implements OffloadIndexEntry {
     public long getOffset() {
         return offset;
     }
+    @Override
+    public long getDataOffset() {
+        return offset + blockHeaderSize;
+    }
 
-    public OffloadIndexEntryImpl(long entryId, int partId, long offset) {
+    private OffloadIndexEntryImpl(long entryId, int partId, long offset, long blockHeaderSize) {
         this.entryId = entryId;
         this.partId = partId;
         this.offset = offset;
+        this.blockHeaderSize = blockHeaderSize;
     }
 }
 

@@ -122,14 +122,15 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
             Iterator<LedgerEntry> iterator = ledgerEntriesOnce.iterator();
             while (iterator.hasNext()) {
                 LedgerEntry entry = iterator.next();
-                int entryLength = (int) entry.getLength();
+                ByteBuf buf = entry.getEntryBuffer().retain();
+                int entryLength = buf.readableBytes();
                 long entryId = entry.getEntryId();
 
                 CompositeByteBuf entryBuf = PooledByteBufAllocator.DEFAULT.compositeBuffer(2);
                 ByteBuf entryHeaderBuf = PooledByteBufAllocator.DEFAULT.buffer(ENTRY_HEADER_SIZE, ENTRY_HEADER_SIZE);
 
                 entryHeaderBuf.writeInt(entryLength).writeLong(entryId);
-                entryBuf.addComponents(true, entryHeaderBuf, entry.getEntryBuffer().retain());
+                entryBuf.addComponents(true, entryHeaderBuf, buf);
 
                 entries.add(entryBuf);
             }
@@ -202,6 +203,10 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
     @Override
     public int getBlockEntryBytesCount() {
         return dataBlockFullOffset - DataBlockHeaderImpl.getDataStartOffset() - ENTRY_HEADER_SIZE * blockEntryCount;
+    }
+
+    public static long getHeaderSize() {
+        return DataBlockHeaderImpl.getDataStartOffset();
     }
 
     // Calculate the block size after uploaded `entryBytesAlreadyWritten` bytes
