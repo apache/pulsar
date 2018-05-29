@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.s3offload;
 import static org.apache.pulsar.broker.s3offload.S3ManagedLedgerOffloader.dataBlockOffloadKey;
 import static org.apache.pulsar.broker.s3offload.S3ManagedLedgerOffloader.indexBlockOffloadKey;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyLong;
 
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.s3.AmazonS3;
@@ -30,6 +31,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 
@@ -420,6 +422,29 @@ class S3ManagedLedgerOffloaderTest extends S3TestBase {
             // verify object still there.
             Assert.assertTrue(mockS3client.doesObjectExist(BUCKET, dataBlockOffloadKey(readHandle.getId(), uuid)));
             Assert.assertTrue(mockS3client.doesObjectExist(BUCKET, indexBlockOffloadKey(readHandle.getId(), uuid)));
+        }
+    }
+
+    @Test
+    public void testOffloadEmpty() throws Exception {
+        CompletableFuture<LedgerEntries> noEntries = new CompletableFuture<>();
+        noEntries.completeExceptionally(new BKException.BKReadException());
+
+        ReadHandle readHandle = Mockito.mock(ReadHandle.class);
+        Mockito.doReturn(-1L).when(readHandle).getLastAddConfirmed();
+        Mockito.doReturn(noEntries).when(readHandle).readAsync(anyLong(), anyLong());
+        Mockito.doReturn(0L).when(readHandle).getLength();
+        Mockito.doReturn(true).when(readHandle).isClosed();
+        Mockito.doReturn(1234L).when(readHandle).getId();
+
+        UUID uuid = UUID.randomUUID();
+        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler,
+                                                                 DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
+        try {
+            offloader.offload(readHandle, uuid, new HashMap<>()).get();
+            Assert.fail("Shouldn't have been able to offload");
+        } catch (ExecutionException e) {
+            Assert.assertEquals(e.getCause().getClass(), IllegalArgumentException.class);
         }
     }
 }
