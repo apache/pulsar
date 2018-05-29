@@ -142,7 +142,7 @@ public class KubernetesController {
                                               String bkPath,
                                               String fileBaseName,
                                               String pulsarServiceUrl) {
-        String userCodeFilePath = kubernetesConfig.getContainerDownloadDir() + "/" + fileBaseName;
+        String userCodeFilePath = fileBaseName;
         final List<String> executorCommand =
                 ProcessRuntime.composeArgs(instanceConfig,
                         kubernetesConfig.getPulsarRootir() + instanceCodeFile,
