@@ -34,6 +34,7 @@ import com.squareup.okhttp.Response;
 
 import io.kubernetes.client.ApiClient;
 import io.kubernetes.client.ApiException;
+import io.kubernetes.client.Configuration;
 import io.kubernetes.client.apis.AppsV1beta1Api;
 import io.kubernetes.client.custom.Quantity;
 import io.kubernetes.client.models.V1Container;
@@ -52,6 +53,7 @@ import io.kubernetes.client.models.V1Volume;
 import io.kubernetes.client.models.V1VolumeMount;
 import io.kubernetes.client.models.V1beta1StatefulSet;
 import io.kubernetes.client.models.V1beta1StatefulSetSpec;
+import io.kubernetes.client.util.Config;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
@@ -82,8 +84,15 @@ public class KubernetesController {
         if (!kubernetesConfig.areAllFieldsPresent()) {
             throw new RuntimeException("Missing arguments");
         }
+        /*
         final ApiClient apiClient = new ApiClient().setBasePath(kubernetesConfig.getK8Uri());
         client = new AppsV1beta1Api(apiClient);
+        */
+        ApiClient cli = Config.defaultClient();
+        Configuration.setDefaultApiClient(cli);
+
+
+        client = new AppsV1beta1Api();
     }
 
     public void create(InstanceConfig instanceConfig, String bkPath, String fileBaseName, String pulsarServiceUrl) {
