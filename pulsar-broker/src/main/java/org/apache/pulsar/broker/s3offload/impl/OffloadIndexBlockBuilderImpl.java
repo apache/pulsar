@@ -35,6 +35,7 @@ public class OffloadIndexBlockBuilderImpl implements OffloadIndexBlockBuilder {
 
     private LedgerMetadata ledgerMetadata;
     private long dataObjectLength;
+    private long dataHeaderLength;
     private List<OffloadIndexEntryImpl> entries;
     private int lastBlockSize;
 
@@ -49,6 +50,12 @@ public class OffloadIndexBlockBuilderImpl implements OffloadIndexBlockBuilder {
     }
 
     @Override
+    public OffloadIndexBlockBuilder withDataBlockHeaderLength(long dataHeaderLength) {
+        this.dataHeaderLength = dataHeaderLength;
+        return this;
+    }
+
+    @Override
     public OffloadIndexBlockBuilder withLedgerMetadata(LedgerMetadata metadata) {
         this.ledgerMetadata = metadata;
         return this;
@@ -56,6 +63,8 @@ public class OffloadIndexBlockBuilderImpl implements OffloadIndexBlockBuilder {
 
     @Override
     public OffloadIndexBlockBuilder addBlock(long firstEntryId, int partId, int blockSize) {
+        checkState(dataHeaderLength > 0);
+
         // we should added one by one.
         long offset;
         if (firstEntryId == 0) {
@@ -67,7 +76,7 @@ public class OffloadIndexBlockBuilderImpl implements OffloadIndexBlockBuilder {
         }
         lastBlockSize = blockSize;
 
-        this.entries.add(OffloadIndexEntryImpl.of(firstEntryId, partId, offset));
+        this.entries.add(OffloadIndexEntryImpl.of(firstEntryId, partId, offset, dataHeaderLength));
         return this;
     }
 
@@ -81,7 +90,8 @@ public class OffloadIndexBlockBuilderImpl implements OffloadIndexBlockBuilder {
         checkState(ledgerMetadata != null);
         checkState(!entries.isEmpty());
         checkState(dataObjectLength > 0);
-        return OffloadIndexBlockImpl.get(ledgerMetadata, dataObjectLength, entries);
+        checkState(dataHeaderLength > 0);
+        return OffloadIndexBlockImpl.get(ledgerMetadata, dataObjectLength, dataHeaderLength, entries);
     }
 
 }

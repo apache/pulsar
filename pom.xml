@@ -716,6 +716,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>io.grpc</groupId>
         <artifactId>grpc-all</artifactId>
         <version>${grpc.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-testing</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <dependency>

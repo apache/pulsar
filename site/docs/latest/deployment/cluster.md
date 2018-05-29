@@ -243,7 +243,7 @@ Once you've done that, you can publish a message to Pulsar topic:
 
 ```bash
 $ bin/pulsar-client produce \
-  persistent://sample/pulsar-cluster-1/ns1/test \
+  persistent://public/default/test \
   -n 1 \
   -m "Hello, Pulsar"
 ```
