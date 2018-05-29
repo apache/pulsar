@@ -24,7 +24,9 @@ import com.google.common.collect.Lists;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URI;
+import java.net.URL;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -100,17 +102,29 @@ public class WebServer {
         return this.server.getURI();
     }
 
-    public void addServlet(String path, ServletHolder servletHolder) {
-        addServlet(path, servletHolder, Collections.emptyList());
+    public void addServlet(String basePath, ServletHolder servletHolder) {
+        addServlet(basePath, servletHolder, Collections.emptyList());
     }
 
-    public void addServlet(String path, ServletHolder servletHolder, List<Pair<String, Object>> attributes) {
+    public void addServlet(String basePath, ServletHolder servletHolder, List<Pair<String, Object>> attributes) {
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
-        context.addServlet(servletHolder, path);
+        context.setContextPath(basePath);
+        context.addServlet(servletHolder, "/*");
         for (Pair<String, Object> attribute : attributes) {
             context.setAttribute(attribute.getLeft(), attribute.getRight());
         }
         handlers.add(context);
+    }
+
+    public void addProxyServlet(String basePath, AdminProxyHandler adminProxyHandler, String brokerWebServiceUrl)
+            throws MalformedURLException {
+        URL url = new URL(brokerWebServiceUrl);
+        String proxyTo = String.format("%s://%s:%d%s", url.getProtocol(), url.getHost(), url.getPort(), basePath);
+
+        ServletHolder servletHolder = new ServletHolder(adminProxyHandler);
+        servletHolder.setInitParameter("preserveHost", "true");
+        servletHolder.setInitParameter("proxyTo", proxyTo.toString());
+        addServlet(basePath, servletHolder);
     }
 
     public void addRestResources(String basePath, String javaPackages, String attribute, Object attributeValue) {

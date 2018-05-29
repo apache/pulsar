@@ -21,12 +21,20 @@ package org.apache.pulsar.proxy.server;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.constraints.AssertTrue;
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.WebTarget;
+
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.common.configuration.VipStatus;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.glassfish.jersey.client.ClientConfig;
+import org.glassfish.jersey.logging.LoggingFeature;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -34,6 +42,7 @@ import org.testng.annotations.Test;
 
 public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
     private final String DUMMY_VALUE = "DUMMY_VALUE";
+    private final String STATUS_FILE_PATH = "./src/test/resources/status.html";
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
     private AdminProxyWrapper adminProxyHandler;
     private WebServer webServer;
@@ -55,18 +64,17 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setServicePort(PortManager.nextFreePort());
         proxyConfig.setWebServicePort(PortManager.nextFreePort());
         proxyConfig.setBrokerServiceURL(brokerUrl.toString());
-
+        proxyConfig.setStatusFilePath(STATUS_FILE_PATH);
         proxyConfig.setZookeeperServers(DUMMY_VALUE);
         proxyConfig.setGlobalZookeeperServers(DUMMY_VALUE);
 
         webServer = new WebServer(proxyConfig);
 
         adminProxyHandler = new AdminProxyWrapper(proxyConfig);
-        ServletHolder servletHolder = new ServletHolder(adminProxyHandler);
-        servletHolder.setInitParameter("preserveHost", "true");
-        servletHolder.setInitParameter("proxyTo", brokerUrl.toString());
-        webServer.addServlet("/admin/*", servletHolder);
-        webServer.addServlet("/lookup/*", servletHolder);
+        webServer.addProxyServlet("/admin", adminProxyHandler, brokerUrl.toString());
+
+        webServer.addRestResources("/", VipStatus.class.getPackage().getName(),
+                VipStatus.ATTRIBUTE_STATUS_FILE_PATH, proxyConfig.getStatusFilePath());
 
         // start web-service
         webServer.start();
@@ -88,6 +96,16 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
         List<String> activeBrokers = admin.brokers().getActiveBrokers(configClusterName);
         Assert.assertEquals(activeBrokers.size(), 1);
         Assert.assertTrue(adminProxyHandler.rewriteCalled);
+    }
+
+    @Test
+    public void testVipStatus() throws Exception {
+        Client client = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
+        WebTarget webTarget = client.target("http://127.0.0.1:" + proxyConfig.getWebServicePort())
+                .path("/status.html");
+        String response = webTarget.request().get(String.class);
+        Assert.assertEquals(response, "OK");
+        client.close();
     }
 
     static class AdminProxyWrapper extends AdminProxyHandler {

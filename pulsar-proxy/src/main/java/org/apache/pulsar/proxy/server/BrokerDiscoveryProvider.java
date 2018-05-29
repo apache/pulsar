@@ -35,6 +35,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.proxy.server.util.ZookeeperCacheLoader;
@@ -64,6 +65,7 @@ public class BrokerDiscoveryProvider implements Closeable {
             new DefaultThreadFactory("pulsar-proxy-scheduled-executor"));
 
     private static final String PARTITIONED_TOPIC_PATH_ZNODE = "partitioned-topics";
+    private static final String CLUSTERS_TOPIC_PATH_ZNODE = "clusters";
 
     public BrokerDiscoveryProvider(ProxyConfiguration config, ZooKeeperClientFactory zkClientFactory)
             throws PulsarServerException {
@@ -124,6 +126,25 @@ public class BrokerDiscoveryProvider implements Closeable {
         } catch (Exception e) {
             metadataFuture.completeExceptionally(e);
         }
+        return metadataFuture;
+    }
+
+    CompletableFuture<ClusterData> getClusterMetadata(String clusterName) {
+        CompletableFuture<ClusterData> metadataFuture = new CompletableFuture<>();
+
+        try {
+            final String path = path(CLUSTERS_TOPIC_PATH_ZNODE, clusterName);
+            globalZkCache.getDataAsync(path, (key, content) -> getThreadLocal().readValue(content, ClusterData.class))
+                    .thenAccept(metadata -> {
+                        metadataFuture.complete(metadata.get());
+                    }).exceptionally(ex -> {
+                        metadataFuture.completeExceptionally(ex);
+                        return null;
+                    });
+        } catch (Exception e) {
+            metadataFuture.completeExceptionally(e);
+        }
+
         return metadataFuture;
     }
 
