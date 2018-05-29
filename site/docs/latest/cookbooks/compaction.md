@@ -47,7 +47,7 @@ $ bin/pulsar compact-topic \
   --topic persistent://my-tenant/my-namespace/my-topic
 ```
 
-## When should I trigger compaction?
+#### When should I trigger compaction?
 
 How often you [trigger compaction](#trigger) will vary widely based on the use case. If you want a compacted topic to be extremely speedy on read, then you should run compaction fairly frequently.
 
