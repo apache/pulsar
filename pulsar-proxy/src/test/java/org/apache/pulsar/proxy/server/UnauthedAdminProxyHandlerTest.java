@@ -42,7 +42,7 @@ import org.testng.annotations.Test;
 
 public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
     private final String DUMMY_VALUE = "DUMMY_VALUE";
-    private final String STATUS_FILE_PATH = "./src/test/resources/status.html";
+    private final String STATUS_FILE_PATH = "./src/test/resources/vip_status.html";
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
     private AdminProxyWrapper adminProxyHandler;
     private WebServer webServer;
