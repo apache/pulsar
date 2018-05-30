@@ -1888,9 +1888,8 @@
 
 <p>You can instantiate a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/PulsarClient.html"><code class="highlighter-rouge">PulsarClient</code></a> object using just a URL for the target Pulsar <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span>, like this:</p>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">pulsarBrokerRootUrl</span> <span class="o">=</span> <span class="s">"pulsar://localhost:6650"</span><span class="o">;</span>
-<span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">builder</span><span class="o">()</span>
-        <span class="o">.</span><span class="na">serviceUrl</span><span class="o">(</span><span class="n">pulsarBrokerRootUrl</span><span class="o">)</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">builder</span><span class="o">()</span>
+        <span class="o">.</span><span class="na">serviceUrl</span><span class="o">(</span><span class="s">"pulsar://localhost:6650"</span><span class="o">)</span>
         <span class="o">.</span><span class="na">build</span><span class="o">();</span>
 </code></pre></div></div>
 
@@ -1959,38 +1958,20 @@
 
 <p>In Pulsar, <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producers</span> write <span class="popover-term" tabindex="0" title="What is a message in Pulsar?" data-placement="top" data-content="A" data-toggle="popover" data-trigger="focus">messages</span> to <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span>. Once you’ve instantiated a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/PulsarClient.html"><code class="highlighter-rouge">PulsarClient</code></a> object (as in the section <a href="#client-configuration">above</a>), you can create a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/Producer.html"><code class="highlighter-rouge">Producer</code></a> for a specific Pulsar <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span>.</p>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://public/default/my-topic"</span><span class="o">;</span>
-
-<span class="n">Producer</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">newProducer</span><span class="o">()</span>
-        <span class="o">.</span><span class="na">topic</span><span class="o">(</span><span class="n">topic</span><span class="o">)</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Producer</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">newProducer</span><span class="o">()</span>
+        <span class="o">.</span><span class="na">topic</span><span class="o">(</span><span class="s">"my-topic"</span><span class="o">)</span>
         <span class="o">.</span><span class="na">create</span><span class="o">();</span>
-</code></pre></div></div>
 
-<p>You can then send messages to the broker and topic you specified:</p>
-
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">org.apache.pulsar.client.api.TypedMessageBuilder</span><span class="o">;</span>
-
-<span class="kn">import</span> <span class="nn">java.util.stream.IntStream</span><span class="o">;</span>
-
-<span class="n">TypedMessageBuilder</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="n">msgBuilder</span> <span class="o">=</span> <span class="n">producer</span><span class="o">.</span><span class="na">newMessage</span><span class="o">();</span>
-
-<span class="c1">// Publish 10 messages to the topic</span>
-<span class="n">IntStream</span><span class="o">.</span><span class="na">range</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">11</span><span class="o">).</span><span class="na">forEach</span><span class="o">(</span><span class="n">i</span> <span class="o">-&gt;</span> <span class="o">{</span>
-    <span class="n">msgBuilder</span><span class="o">.</span><span class="na">value</span><span class="o">(</span><span class="n">String</span><span class="o">.</span><span class="na">format</span><span class="o">(</span><span class="s">"Message number %d"</span><span class="o">,</span> <span class="n">i</span><span class="o">).</span><span class="na">getBytes</span><span class="o">());</span>
-
-    <span class="k">try</span> <span class="o">{</span>
-        <span class="n">msgBuilder</span><span class="o">.</span><span class="na">send</span><span class="o">();</span>
-    <span class="o">}</span> <span class="k">catch</span> <span class="o">(</span><span class="n">PulsarClientException</span> <span class="n">e</span><span class="o">)</span> <span class="o">{</span>
-        <span class="n">e</span><span class="o">.</span><span class="na">printStackTrace</span><span class="o">();</span>
-    <span class="o">}</span>
-<span class="o">});</span>
+<span class="c1">// You can then send messages to the broker and topic you specified:</span>
+<span class="n">producer</span><span class="o">.</span><span class="na">send</span><span class="o">(</span><span class="s">"My message"</span><span class="o">.</span><span class="na">getBytes</span><span class="o">());</span>
 </code></pre></div></div>
 
 <p>By default, producers produce messages that consist of byte arrays. You can produce different types, however, by specifying a message <a href="#schemas">schema</a>.</p>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Producer</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">stringProducer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">newProducer</span><span class="o">(</span><span class="k">new</span> <span class="n">StringSchema</span><span class="o">())</span>
-        <span class="o">.</span><span class="na">topic</span><span class="o">(</span><span class="n">topic</span><span class="o">)</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Producer</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">stringProducer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">newProducer</span><span class="o">(</span><span class="n">Schema</span><span class="o">.</span><span class="na">STRING</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">topic</span><span class="o">(</span><span class="s">"my-topic"</span><span class="o">)</span>
         <span class="o">.</span><span class="na">create</span><span class="o">();</span>
+<span class="n">stringProducer</span><span class="o">.</span><span class="na">send</span><span class="o">(</span><span class="s">"My message"</span><span class="o">);</span>
 </code></pre></div></div>
 
 <!--
@@ -2026,7 +2007,12 @@
 
 <p>Close operations can also be asynchronous:</p>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">producer</span><span class="o">.</span><span class="na">closeAsync</span><span class="o">().</span><span class="na">thenRun</span><span class="o">(()</span> <span class="o">-&gt;</span> <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">"Producer closed"</span><span class="o">));</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">producer</span><span class="o">.</span><span class="na">closeAsync</span><span class="o">()</span>
+    <span class="o">.</span><span class="na">thenRun</span><span class="o">(()</span> <span class="o">-&gt;</span> <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">"Producer closed"</span><span class="o">));</span>
+    <span class="o">.</span><span class="na">exceptionally</span><span class="o">((</span><span class="n">ex</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="o">{</span>
+        <span class="n">System</span><span class="o">.</span><span class="na">err</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">"Failed to close producer: "</span> <span class="o">+</span> <span class="n">ex</span><span class="o">);</span>
+        <span class="k">return</span> <span class="n">ex</span><span class="o">;</span>
+    <span class="o">});</span>
 </code></pre></div></div>
 
   </div>
@@ -2037,11 +2023,11 @@
 <p>If you instantiate a <code class="highlighter-rouge">Producer</code> object specifying only a topic name, as in the example above, the producer will use the default configuration. To use a non-default configuration, there’s a variety of configurable parameters that you can set. For a full listing, see the Javadoc for the <a target="_blank" href="/api/client/org/apache/pulsar/client/api/ProducerBuilder.html"><code class="highlighter-rouge">ProducerBuilder</code></a> class. Here’s an example:</p>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Producer</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">newProducer</span><span class="o">()</span>
-        <span class="o">.</span><span class="na">topic</span><span class="o">(</span><span class="n">topic</span><span class="o">)</span>
-        <span class="o">.</span><span class="na">enableBatching</span><span class="o">(</span><span class="kc">true</span><span class="o">)</span>
-        <span class="o">.</span><span class="na">sendTimeout</span><span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="n">TimeUnit</span><span class="o">.</span><span class="na">SECONDS</span><span class="o">)</span>
-        <span class="o">.</span><span class="na">producerName</span><span class="o">(</span><span class="s">"my-producer"</span><span class="o">)</span>
-        <span class="o">.</span><span class="na">create</span><span class="o">();</span>
+    <span class="o">.</span><span class="na">topic</span><span class="o">(</span><span class="s">"my-topic"</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">batchingMaxPublishDelay</span><span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="n">TimeUnit</span><span class="o">.</span><span class="na">MILLISECONDS</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">sendTimeout</span><span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="n">TimeUnit</span><span class="o">.</span><span class="na">SECONDS</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">blockIfQueueFull</span><span class="o">(</span><span class="kc">true</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">create</span><span class="o">();</span>
 </code></pre></div></div>
 
 <h3 id="message-routing">Message routing</h3>
@@ -2054,16 +2040,27 @@
 
 <p>Here’s an example async send operation:</p>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">TypedMessageBuilder</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="n">msgBuilder</span> <span class="o">=</span> <span class="n">producer</span><span class="o">.</span><span class="na">newMessage</span><span class="o">()</span>
-        <span class="o">.</span><span class="na">value</span><span class="o">(</span><span class="s">"my-async-message"</span><span class="o">.</span><span class="na">getBytes</span><span class="o">());</span>
-
-<span class="n">CompletableFuture</span><span class="o">&lt;</span><span class="n">MessageId</span><span class="o">&gt;</span> <span class="n">future</span> <span class="o">=</span> <span class="n">msgBuilder</span><span class="o">.</span><span class="na">sendAsync</span><span class="o">();</span>
-<span class="n">future</span><span class="o">.</span><span class="na">thenAccept</span><span class="o">(</span><span class="n">msgId</span> <span class="o">-&gt;</span> <span class="o">{</span>
-        <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">printf</span><span class="o">(</span><span class="s">"Message with ID %s successfully sent"</span><span class="o">,</span> <span class="k">new</span> <span class="n">String</span><span class="o">(</span><span class="n">msgId</span><span class="o">.</span><span class="na">toByteArray</span><span class="o">());</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">producer</span><span class="o">.</span><span class="na">sendAsync</span><span class="o">(</span><span class="s">"my-async-message"</span><span class="o">.</span><span class="na">getBytes</span><span class="o">()).</span><span class="na">thenAccept</span><span class="o">(</span><span class="n">msgId</span> <span class="o">-&gt;</span> <span class="o">{</span>
+    <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">printf</span><span class="o">(</span><span class="s">"Message with ID %s successfully sent"</span><span class="o">,</span> <span class="n">msgId</span><span class="o">);</span>
 <span class="o">});</span>
 </code></pre></div></div>
 
 <p>As you can see from the example above, async send operations return a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/MessageId.html"><code class="highlighter-rouge">MessageId</code></a> wrapped in a <a href="http://www.baeldung.com/java-completablefuture"><code class="highlighter-rouge">CompletableFuture</code></a>.</p>
+
+<h3 id="configuring-messages">Configuring messages</h3>
+
+<p>In addition to a value, it’s possible to set additional items on a given message:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">producer</span><span class="o">.</span><span class="na">newMessage</span><span class="o">()</span>
+    <span class="o">.</span><span class="na">key</span><span class="o">(</span><span class="s">"my-message-key"</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">value</span><span class="o">(</span><span class="s">"my-async-message"</span><span class="o">.</span><span class="na">getBytes</span><span class="o">())</span>
+    <span class="o">.</span><span class="na">property</span><span class="o">(</span><span class="s">"my-key"</span><span class="o">,</span> <span class="s">"my-value"</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">property</span><span class="o">(</span><span class="s">"my-other-key"</span><span class="o">,</span> <span class="s">"my-other-value"</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">send</span><span class="o">();</span>
+</code></pre></div></div>
+
+<p>As for the previous case, it’s also possible to terminate the builder chain with <code class="highlighter-rouge">sendAsync()</code> and
+get a future returned.</p>
 
 <h2 id="consumers">Consumers</h2>
 
@@ -2147,9 +2144,9 @@
 <p>You can also subscribe to an explicit list of topics (across namespaces if you wish):</p>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">List</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">topics</span> <span class="o">=</span> <span class="n">Arrays</span><span class="o">.</span><span class="na">asList</span><span class="o">(</span>
-        <span class="s">"persistent://public/default/topic-1"</span><span class="o">,</span>
-        <span class="s">"persistent://public/default/topic-2"</span><span class="o">,</span>
-        <span class="s">"persistent://public/default/topic-3"</span>
+        <span class="s">"topic-1"</span><span class="o">,</span>
+        <span class="s">"topic-2"</span><span class="o">,</span>
+        <span class="s">"topic-3"</span>
 <span class="o">);</span>
 
 <span class="n">Consumer</span> <span class="n">multiTopicConsumer</span> <span class="o">=</span> <span class="n">consumerBuilder</span>
@@ -2159,9 +2156,9 @@
 <span class="c1">// Alternatively:</span>
 <span class="n">Consumer</span> <span class="n">multiTopicConsumer</span> <span class="o">=</span> <span class="n">consumerBuilder</span>
         <span class="o">.</span><span class="na">topics</span><span class="o">(</span>
-            <span class="s">"persistent://public/default/topic-1"</span><span class="o">,</span>
-            <span class="s">"persistent://public/default/topic-2"</span><span class="o">,</span>
-            <span class="s">"persistent://public/default/topic-3"</span>
+            <span class="s">"topic-1"</span><span class="o">,</span>
+            <span class="s">"topic-2"</span><span class="o">,</span>
+            <span class="s">"topic-3"</span>
         <span class="o">)</span>
         <span class="o">.</span><span class="na">subscribe</span><span class="o">();</span>
 </code></pre></div></div>
@@ -2212,7 +2209,7 @@
 
 <p>In Pulsar, all message data consists of byte arrays “under the hood.” <a href="../../getting-started/ConceptsAndArchitecture#schema-registry">Message schemas</a> enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a <a href="#producers">producer</a> without specifying a schema, then the producer can only produce messages of type <code class="highlighter-rouge">byte[]</code>. Here’s an example:</p>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Producer</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">newProducer</span><span class="o">()</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Producer</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">newProducer</span><span class="o">()</span>
         <span class="o">.</span><span class="na">topic</span><span class="o">(</span><span class="n">topic</span><span class="o">)</span>
         <span class="o">.</span><span class="na">create</span><span class="o">();</span>
 </code></pre></div></div>
