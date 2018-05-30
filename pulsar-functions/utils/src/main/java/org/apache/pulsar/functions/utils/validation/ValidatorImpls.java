@@ -644,8 +644,11 @@ public class ValidatorImpls {
             objectClass = Class.forName(className);
         } catch (ClassNotFoundException e) {
             ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
-            objectClass = clsLoader.loadClass(className);
-
+            if (clsLoader != null) {
+                objectClass = clsLoader.loadClass(className);
+            } else {
+                throw e;
+            }
         }
         return objectClass;
     }
