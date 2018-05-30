@@ -165,9 +165,9 @@ public class KubernetesController {
         return Arrays.asList(
                 "sh",
                 "-c",
-                setShardIdEnvironmentVariableCommand()
-                        + " && " + String.join(" ", getDownloadCommand(bkPath, userCodeFilePath))
-                        + " && " + String.join(" ", executorCommand)
+                String.join(" ", getDownloadCommand(bkPath, userCodeFilePath))
+                + " && " + setShardIdEnvironmentVariableCommand()
+                + " && " + String.join(" ", executorCommand)
         );
     }
 
