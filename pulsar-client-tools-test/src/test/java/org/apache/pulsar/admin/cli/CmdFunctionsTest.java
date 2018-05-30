@@ -18,29 +18,10 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNull;
-
 import com.google.gson.Gson;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
-
-import java.io.File;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
-
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.api.StorageClient;
 import org.apache.bookkeeper.api.kv.Table;
 import org.apache.bookkeeper.clients.StorageClientBuilder;
@@ -50,10 +31,10 @@ import org.apache.pulsar.admin.cli.CmdFunctions.CreateFunction;
 import org.apache.pulsar.admin.cli.CmdFunctions.DeleteFunction;
 import org.apache.pulsar.admin.cli.CmdFunctions.GetFunction;
 import org.apache.pulsar.admin.cli.CmdFunctions.ListFunctions;
-import org.apache.pulsar.admin.cli.CmdFunctions.LocalRunner;
 import org.apache.pulsar.admin.cli.CmdFunctions.UpdateFunction;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
@@ -68,9 +49,34 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.powermock.api.mockito.PowerMockito.mockStatic;
+import static org.testng.Assert.assertEquals;
+
 /**
  * Unit test of {@link CmdFunctions}.
  */
+@Slf4j
 @PrepareForTest({ CmdFunctions.class, Reflections.class, StorageClientBuilder.class })
 @PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*" })
 public class CmdFunctionsTest {
@@ -124,16 +130,16 @@ public class CmdFunctionsTest {
         when(Reflections.createInstance(eq(DefaultSerDe.class.getName()), any(File.class))).thenReturn(new DefaultSerDe(String.class));
     }
 
-    @Test
-    public void testLocalRunnerCmdNoArguments() throws Exception {
-        cmd.run(new String[] { "run" });
-
-        LocalRunner runner = cmd.getLocalRunner();
-        assertNull(runner.getFunctionName());
-        assertNull(runner.getInputs());
-        assertNull(runner.getOutput());
-        assertNull(runner.getFnConfigFile());
-    }
+//    @Test
+//    public void testLocalRunnerCmdNoArguments() throws Exception {
+//        cmd.run(new String[] { "run" });
+//
+//        LocalRunner runner = cmd.getLocalRunner();
+//        assertNull(runner.getFunctionName());
+//        assertNull(runner.getInputs());
+//        assertNull(runner.getOutput());
+//        assertNull(runner.getFnConfigFile());
+//    }
 
     /*
     TODO(sijie):- Can we fix this?
@@ -347,8 +353,6 @@ public class CmdFunctionsTest {
         String inputTopicName = TEST_NAME + "-input-topic";
         String outputTopicName = TEST_NAME + "-output-topic";
 
-
-
         cmd.run(new String[] {
             "update",
             "--name", fnName,
@@ -424,5 +428,245 @@ public class CmdFunctionsTest {
         assertEquals(
             "test-key",
             new String(ByteBufUtil.getBytes(keyHolder.get()), UTF_8));
+    }
+
+    private static final String fnName = TEST_NAME + "-function";
+    private static final String inputTopicName = TEST_NAME + "-input-topic";
+    private static final String outputTopicName = TEST_NAME + "-output-topic";
+
+    private void testValidateFunctionsConfigs(String[] correctArgs, String[] incorrectArgs,
+                                              String errMessageCheck) throws Exception {
+
+        String[] cmds = {"create", "update", "localrun"};
+
+        for (String type : cmds) {
+            List<String> correctArgList = new LinkedList<>();
+            List<String> incorrectArgList = new LinkedList<>();
+            correctArgList.add(type);
+            incorrectArgList.add(type);
+
+            correctArgList.addAll(Arrays.asList(correctArgs));
+            incorrectArgList.addAll(Arrays.asList(incorrectArgs));
+            cmd.run(correctArgList.toArray(new String[correctArgList.size()]));
+
+            if (type.equals("create")) {
+                CreateFunction creater = cmd.getCreater();
+                assertEquals(fnName, creater.getFunctionName());
+                assertEquals(inputTopicName, creater.getInputs());
+                assertEquals(outputTopicName, creater.getOutput());
+            } else if (type.equals("update")){
+                UpdateFunction updater = cmd.getUpdater();
+                assertEquals(fnName, updater.getFunctionName());
+                assertEquals(inputTopicName, updater.getInputs());
+                assertEquals(outputTopicName, updater.getOutput());
+            } else {
+                CmdFunctions.LocalRunner localRunner = cmd.getLocalRunner();
+                assertEquals(fnName, localRunner.getFunctionName());
+                assertEquals(inputTopicName, localRunner.getInputs());
+                assertEquals(outputTopicName, localRunner.getOutput());
+            }
+
+            if (type.equals("create")) {
+                verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
+            } else if (type.equals("update")) {
+                verify(functions, times(1)).updateFunction(any(FunctionDetails.class), anyString());
+            }
+
+            setup();
+            ConsoleOutputCapturer consoleOutputCapturer = new ConsoleOutputCapturer();
+            consoleOutputCapturer.start();
+            cmd.run(incorrectArgList.toArray(new String[incorrectArgList.size()]));
+
+            consoleOutputCapturer.stop();
+            String output = consoleOutputCapturer.getStderr();
+            assertEquals(output.replace("\n", ""), errMessageCheck);
+        }
+    }
+
+    @Test
+    public void TestCreateFunctionParallelism() throws Exception{
+
+        String[] correctArgs = new String[]{
+                "--name", fnName,
+                "--inputs", inputTopicName,
+                "--output", outputTopicName,
+                "--jar", "SomeJar.jar",
+                "--tenant", "sample",
+                "--namespace", "ns1",
+                "--className", DummyFunction.class.getName(),
+                "--parallelism", "1"
+        };
+
+        String[] incorrectArgs = new String[]{
+                "--name", fnName,
+                "--inputs", inputTopicName,
+                "--output", outputTopicName,
+                "--jar", "SomeJar.jar",
+                "--tenant", "sample",
+                "--namespace", "ns1",
+                "--className", DummyFunction.class.getName(),
+                "--parallelism", "-1"
+        };
+
+        testValidateFunctionsConfigs(correctArgs, incorrectArgs, "Field 'parallelism' must be a Positive Number");
+
+    }
+
+    @Test
+    public void TestCreateTopicName() throws Exception {
+
+        String[] correctArgs = new String[]{
+                "--name", fnName,
+                "--inputs", inputTopicName,
+                "--output", outputTopicName,
+                "--jar", "SomeJar.jar",
+                "--tenant", "sample",
+                "--namespace", "ns1",
+                "--className", DummyFunction.class.getName(),
+        };
+
+        String wrongOutputTopicName = TEST_NAME + "-output-topic/test:";
+        String[] incorrectArgs = new String[]{
+                "--name", fnName,
+                "--inputs", inputTopicName,
+                "--output", wrongOutputTopicName,
+                "--jar", "SomeJar.jar",
+                "--tenant", "sample",
+                "--namespace", "ns1",
+                "--className", DummyFunction.class.getName(),
+        };
+
+        testValidateFunctionsConfigs(correctArgs, incorrectArgs, "The topic name " + wrongOutputTopicName + " is invalid for field 'output'");
+    }
+
+    @Test
+    public void TestCreateClassName() throws Exception {
+
+        String[] correctArgs = new String[]{
+                "--name", fnName,
+                "--inputs", inputTopicName,
+                "--output", outputTopicName,
+                "--jar", "SomeJar.jar",
+                "--tenant", "sample",
+                "--namespace", "ns1",
+                "--className", DummyFunction.class.getName(),
+        };
+
+        String cannotLoadClass = "com.test.Function";
+        String[] incorrectArgs = new String[]{
+                "--name", fnName,
+                "--inputs", inputTopicName,
+                "--output", outputTopicName,
+                "--jar", "SomeJar.jar",
+                "--tenant", "sample",
+                "--namespace", "ns1",
+                "--className", cannotLoadClass,
+        };
+
+        testValidateFunctionsConfigs(correctArgs, incorrectArgs, "Cannot find/load class " + cannotLoadClass);
+    }
+
+    @Test
+    public void TestCreateSameInOutTopic() throws Exception {
+
+        String[] correctArgs = new String[]{
+                "--name", fnName,
+                "--inputs", inputTopicName,
+                "--output", outputTopicName,
+                "--jar", "SomeJar.jar",
+                "--tenant", "sample",
+                "--namespace", "ns1",
+                "--className", DummyFunction.class.getName(),
+        };
+
+        String[] incorrectArgs = new String[]{
+                "--name", fnName,
+                "--inputs", inputTopicName,
+                "--output", inputTopicName,
+                "--jar", "SomeJar.jar",
+                "--tenant", "sample",
+                "--namespace", "ns1",
+                "--className", DummyFunction.class.getName(),
+        };
+
+        testValidateFunctionsConfigs(correctArgs, incorrectArgs,
+                "Output topic " + inputTopicName
+                        + " is also being used as an input topic (topics must be one or the other)");
+
+    }
+
+
+    public static class ConsoleOutputCapturer {
+        private ByteArrayOutputStream stdout;
+        private ByteArrayOutputStream stderr;
+        private PrintStream previous;
+        private boolean capturing;
+
+        public void start() {
+            if (capturing) {
+                return;
+            }
+
+            capturing = true;
+            previous = System.out;
+            stdout = new ByteArrayOutputStream();
+            stderr = new ByteArrayOutputStream();
+
+            OutputStream outputStreamCombinerstdout =
+                    new OutputStreamCombiner(Arrays.asList(previous, stdout));
+            PrintStream stdoutStream = new PrintStream(outputStreamCombinerstdout);
+
+            OutputStream outputStreamCombinerStderr =
+                    new OutputStreamCombiner(Arrays.asList(previous, stderr));
+            PrintStream stderrStream = new PrintStream(outputStreamCombinerStderr);
+
+            System.setOut(stdoutStream);
+            System.setErr(stderrStream);
+        }
+
+        public void stop() {
+            if (!capturing) {
+                return;
+            }
+
+            System.setOut(previous);
+
+            previous = null;
+            capturing = false;
+        }
+
+        public String getStdout() {
+            return stdout.toString();
+        }
+
+        public String getStderr() {
+            return stderr.toString();
+        }
+
+        private static class OutputStreamCombiner extends OutputStream {
+            private List<OutputStream> outputStreams;
+
+            public OutputStreamCombiner(List<OutputStream> outputStreams) {
+                this.outputStreams = outputStreams;
+            }
+
+            public void write(int b) throws IOException {
+                for (OutputStream os : outputStreams) {
+                    os.write(b);
+                }
+            }
+
+            public void flush() throws IOException {
+                for (OutputStream os : outputStreams) {
+                    os.flush();
+                }
+            }
+
+            public void close() throws IOException {
+                for (OutputStream os : outputStreams) {
+                    os.close();
+                }
+            }
+        }
     }
 }
