@@ -25,44 +25,7 @@ public class WindowUtils {
         return String.format("%s/%s/%s", tenant, namespace, name);
     }
 
-    public static void validateAndSetDefaultsWindowConfig(WindowConfig windowConfig) {
-        if (windowConfig.getWindowLengthDurationMs() == null && windowConfig.getWindowLengthCount() == null) {
-            throw new IllegalArgumentException("Window length is not specified");
-        }
-
-        if (windowConfig.getWindowLengthDurationMs() != null && windowConfig.getWindowLengthCount() != null) {
-            throw new IllegalArgumentException(
-                    "Window length for time and count are set! Please set one or the other.");
-        }
-
-        if (windowConfig.getWindowLengthCount() != null) {
-            if (windowConfig.getWindowLengthCount() <= 0) {
-                throw new IllegalArgumentException(
-                        "Window length must be positive [" + windowConfig.getWindowLengthCount() + "]");
-            }
-        }
-
-        if (windowConfig.getWindowLengthDurationMs() != null) {
-            if (windowConfig.getWindowLengthDurationMs() <= 0) {
-                throw new IllegalArgumentException(
-                        "Window length must be positive [" + windowConfig.getWindowLengthDurationMs() + "]");
-            }
-        }
-
-        if (windowConfig.getSlidingIntervalCount() != null) {
-            if (windowConfig.getSlidingIntervalCount() <= 0) {
-                throw new IllegalArgumentException(
-                        "Sliding interval must be positive [" + windowConfig.getSlidingIntervalCount() + "]");
-            }
-        }
-
-        if (windowConfig.getSlidingIntervalDurationMs() != null) {
-            if (windowConfig.getSlidingIntervalDurationMs() <= 0) {
-                throw new IllegalArgumentException(
-                        "Sliding interval must be positive [" + windowConfig.getSlidingIntervalDurationMs() + "]");
-            }
-        }
-
+    public static void inferDefaultConfigs(WindowConfig windowConfig) {
         if (windowConfig.getWindowLengthDurationMs() != null && windowConfig.getSlidingIntervalDurationMs() == null) {
             windowConfig.setSlidingIntervalDurationMs(windowConfig.getWindowLengthDurationMs());
         }
@@ -72,20 +35,10 @@ public class WindowUtils {
         }
 
         if (windowConfig.getTimestampExtractorClassName() != null) {
-            if (windowConfig.getMaxLagMs() != null) {
-                if (windowConfig.getMaxLagMs() <= 0) {
-                    throw new IllegalArgumentException(
-                            "Lag duration must be positive [" + windowConfig.getMaxLagMs() + "]");
-                }
-            } else {
+            if (windowConfig.getMaxLagMs() == null) {
                 windowConfig.setMaxLagMs(WindowFunctionExecutor.DEFAULT_MAX_LAG_MS);
             }
-            if (windowConfig.getWatermarkEmitIntervalMs() != null) {
-                if (windowConfig.getWatermarkEmitIntervalMs() <= 0) {
-                    throw new IllegalArgumentException(
-                            "Watermark interval must be positive [" + windowConfig.getWatermarkEmitIntervalMs() + "]");
-                }
-            } else {
+            if (windowConfig.getWatermarkEmitIntervalMs() == null) {
                 windowConfig.setWatermarkEmitIntervalMs(WindowFunctionExecutor.DEFAULT_WATERMARK_EVENT_INTERVAL_MS);
             }
         }
