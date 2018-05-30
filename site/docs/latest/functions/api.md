@@ -47,8 +47,8 @@ Deploying Pulsar Functions is handled by the [`pulsar-admin`](../../reference/Cl
 $ bin/pulsar-admin functions localrun \
   --py sanitizer.py \          # The Python file with the function's code
   --className sanitizer \      # The class or function holding the processing logic
-  --tenant sample \            # The function's tenant (derived from the topic name by default)
-  --namespace ns1 \            # The function's namespace (derived from the topic name by default)
+  --tenant public \            # The function's tenant (derived from the topic name by default)
+  --namespace default \        # The function's namespace (derived from the topic name by default)
   --name sanitizer-function \  # The name of the function (the class name by default)
   --inputs dirty-strings-in \  # The input topic(s) for the function
   --output clean-strings-out \ # The output topic for the function
@@ -417,11 +417,11 @@ If you want your function to produce logs, you need to specify a log topic when 
 $ bin/pulsar-admin functions create \
   --jar my-functions.jar \
   --className my.package.LoggingFunction \
-  --logTopic persistent://sample/standalone/ns1/logging-function-logs \
+  --logTopic persistent://public/default/logging-function-logs \
   # Other function configs
 ```
 
-Now, all logs produced by the `LoggingFunction` above can be accessed via the `persistent://sample/standalone/ns1/logging-function-logs` topic.
+Now, all logs produced by the `LoggingFunction` above can be accessed via the `persistent://public/default/logging-function-logs` topic.
 
 ### Java user config
 
@@ -577,8 +577,8 @@ Pulsar Functions use [SerDe](#serde) when publishing data to and consuming data 
 
 ```bash
 $ bin/pulsar-admin functions create \
-  --tenant sample \
-  --namespace ns1 \
+  --tenant public \
+  --namespace default \
   --name my_function \
   --py my_function.py \
   --className my_function.MyFunction \

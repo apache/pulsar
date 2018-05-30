@@ -39,11 +39,6 @@
       <artifactId>pulsar-functions-runtime</artifactId>
       <version>${project.parent.version}</version>
       <exclusions>
-        <!-- exclude `pulsar-client-admin-shaded-for-functions` here, this allows worker and runtime to use unshaded clients -->
-        <exclusion>
-          <groupId>org.apache.pulsar</groupId>
-          <artifactId>pulsar-client-admin-shaded-for-functions</artifactId>
-        </exclusion>
         <exclusion>
           <groupId>io.netty</groupId>
           <artifactId>netty-common</artifactId>
@@ -89,7 +84,7 @@
 
     <dependency>
       <groupId>org.apache.bookkeeper</groupId>
-      <artifactId>bookkeeper-server-shaded</artifactId>
+      <artifactId>bookkeeper-server</artifactId>
     </dependency>
 
     <dependency>
@@ -132,6 +127,9 @@
                   <include>com.google.googlejavaformat:google-java-format</include>
                   <include>com.google.errorprone:javac</include>
                   <include>net.jodah:typetools</include>
+                  <include>org.jboss:jboss-reflect</include>
+                  <include>org.jboss.logging:jboss-logging-spi</include>
+                  <include>org.jboss:jboss-common-core</include>
                   <include>com.beust:jcommander</include>
                   <include>com.fasterxml.jackson.dataformat:jackson-dataformat-yaml</include>
                   <include>org.yaml:snakeyaml</include>

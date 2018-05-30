@@ -65,7 +65,12 @@ message MetricsData {
     map<string, DataDigest> metrics = 1;
 }
 
+message HealthCheckResult {
+    bool success = 1;
+}
+
 service InstanceControl {
     rpc GetFunctionStatus(google.protobuf.Empty) returns (FunctionStatus) {}
     rpc GetAndResetMetrics(google.protobuf.Empty) returns (MetricsData) {}
+    rpc HealthCheck(google.protobuf.Empty) returns (HealthCheckResult) {}
 }
