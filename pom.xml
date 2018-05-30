@@ -927,7 +927,6 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>pulsar-client-cpp/CMakeFiles/**</exclude>
             <exclude>pulsar-client-cpp/**/Makefile</exclude>
             <exclude>pulsar-client-cpp/**/cmake_install.cmake</exclude>
-            <exclude>pulsar-proxy/src/test/resources/vip_status.html</exclude>
             <exclude>**/*.pyc</exclude>
             <exclude>**/*.graffle</exclude>
             <exclude>**/*.hgrm</exclude>
