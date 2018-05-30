@@ -490,6 +490,19 @@ commands:
     - flags: -w, --wait-complete
       description: Wait for compaction to complete
       default: 'false'
+  - name: offload
+    description: Trigger offload of data from a topic to long-term storage (e.g. Amazon S3)
+    argument: "persistent://tenant/namespace/topic"
+    options:
+    - flags: -s, --size-threshold
+      description: The maximum amount of data to keep in BookKeeper for the specific topic
+  - name: offload-status
+    description: Check the status of data offloading from a topic to long-term storage
+    argument: "persistent://tenant/namespace/topic"
+    options:
+    - flags: -w, --wait-complete
+      description: Wait for offloading to complete
+      default: false
   - name: create-partitioned-topic
     description: Create a partitioned topic. A partitioned topic must be created before producers can publish to it.
     argument: "{persistent|non-persistent}://tenant/namespace/topic"
