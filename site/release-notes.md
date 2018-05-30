@@ -26,6 +26,33 @@ layout: content
 
 ## Apache incubator
 
+### 2.0.0-rc1-incubating &mdash; 2018-05-29 <a id="2.0.0-rc1-incubating"></a>
+
+This is the fifth release of Apache Pulsar since entering the ASF incubator and the
+first time we increase major release number.
+
+There are several new features and major improvements:
+
+ * [Pulsar functions](http://pulsar.apache.org/docs/latest/functions/overview/): Lightweight
+   compute framework
+ * New type-safe [Java API](http://pulsar.apache.org/docs/latest/clients/Java/) for producer/consumers
+ * [Schema registry](http://pulsar.apache.org/docs/v2.0.0-rc1-incubating/getting-started/ConceptsAndArchitecture/#Schemaregistry-ll008b) &mdash; Enforce schema on topics
+ * Topic compaction &mdash; Out of band compaction of messages to allow consumer to fetch a
+   snapshot with last published message for each message key.
+ * Upgraded to [Apache BookKeeper](https://bookkeeper.apache.org/) 4.7.0
+ * Performance improvements &mdash; Up to 3x throughput improvements compared to Pulsar-1.22 and
+   99.9 Pct publish latencies <10ms
+ * [Simplified terminology](http://pulsar.apache.org/docs/v2.0.0-rc1-incubating/getting-started/Pulsar-2.0/#Propertiesversustenants-gh1amh) and admin tools
+   - Renamed "property" into "tenants"
+   - Short topic names: `my-topic`
+   - Topics independent of cluster names: `my-tenant/my-namespace/my-topic`
+
+The complete list of changes can be found at:
+https://github.com/apache/incubator-pulsar/milestone/12?closed=1
+
+https://github.com/apache/incubator-pulsar/releases/tag/v2.0.0-rc1-incubating
+
+
 ### 1.22.0-incubating &mdash; 2018-03-06 <a id="1.22.0-incubating"></a>
 
 This is the fourth of Apache Pulsar since entering the ASF incubator.
