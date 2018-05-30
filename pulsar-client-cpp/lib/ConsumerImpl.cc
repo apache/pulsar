@@ -925,9 +925,7 @@ void ConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback callback) {
 
 bool ConsumerImpl::isReadCompacted() {
     Lock lock(mutex_);
-    bool ret = readCompacted_;
-    lock.unlock();
-    return ret;
+    return readCompacted_;
 }
 
 } /* namespace pulsar */
