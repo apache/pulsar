@@ -36,17 +36,7 @@ import io.kubernetes.client.ApiException;
 import io.kubernetes.client.Configuration;
 import io.kubernetes.client.apis.AppsV1beta2Api;
 import io.kubernetes.client.custom.Quantity;
-import io.kubernetes.client.models.V1Container;
-import io.kubernetes.client.models.V1ContainerPort;
-import io.kubernetes.client.models.V1DeleteOptions;
-import io.kubernetes.client.models.V1LabelSelector;
-import io.kubernetes.client.models.V1ObjectMeta;
-import io.kubernetes.client.models.V1PodSpec;
-import io.kubernetes.client.models.V1PodTemplateSpec;
-import io.kubernetes.client.models.V1ResourceRequirements;
-import io.kubernetes.client.models.V1Toleration;
-import io.kubernetes.client.models.V1beta2StatefulSet;
-import io.kubernetes.client.models.V1beta2StatefulSetSpec;
+import io.kubernetes.client.models.*;
 import io.kubernetes.client.util.Config;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -307,21 +297,21 @@ public class KubernetesController {
         // set up the container command
         container.setCommand(executorCommand);
 
-        /*
         // setup the environment variables for the container
+        /*
         final V1EnvVar envVarHost = new V1EnvVar();
         envVarHost.name(KubernetesConstants.ENV_HOST)
                 .valueFrom(new V1EnvVarSource()
                         .fieldRef(new V1ObjectFieldSelector()
                                 .fieldPath(KubernetesConstants.POD_IP)));
+        */
 
         final V1EnvVar envVarPodName = new V1EnvVar();
-        envVarPodName.name(KubernetesConstants.ENV_POD_NAME)
+        envVarPodName.name("POD_NAME")
                 .valueFrom(new V1EnvVarSource()
                         .fieldRef(new V1ObjectFieldSelector()
-                                .fieldPath(KubernetesConstants.POD_NAME)));
-        container.setEnv(Arrays.asList(envVarHost, envVarPodName));
-        */
+                                .fieldPath("metadata.name")));
+        container.setEnv(Arrays.asList(envVarPodName));
 
 
         // set container resources
