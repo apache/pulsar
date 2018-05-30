@@ -853,58 +853,6 @@
           
         </section>
 
-        <!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-
-<!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<div class="admonition">
-  <div class="success">
-    <span class="admonition-title"><p>Pulsar version 2.0</p>
-</span>
-    
-<p>The documentation that you’re reading is for the 2.0 release of Apache Pulsar. For more information on Pulsar 2.0, see <a href="../../getting-started/Pulsar-2.0">this guide</a>.</p>
-
-  </div>
-</div>
-
-
         <hr class="hr">
       </section>
 
@@ -969,19 +917,18 @@
 <p>List of topics can be fetched using <a href="../../reference/CliTools#list"><code class="highlighter-rouge">list</code></a> command.</p>
 
 <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin persistent list <span class="se">\</span>
-  my-property/my-cluster/my-namespace <span class="se">\</span>
-  my-topic
+  my-tenant/my-namespace
 </code></pre></div></div>
 
 <h4 id="rest-api">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span></code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span></code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/persistent/:tenant/:namespace">More info</a></p>
 
 <h4 id="java">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">namespace</span> <span class="o">=</span> <span class="s">"my-property/my-cluster-my-namespace"</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">namespace</span> <span class="o">=</span> <span class="s">"my-tenant/my-namespace"</span><span class="o">;</span>
 <span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getList</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
 </code></pre></div></div>
 
@@ -995,19 +942,19 @@
 
 <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin persistent grant-permission <span class="se">\</span>
   <span class="nt">--actions</span> produce,consume <span class="nt">--role</span> application1 <span class="se">\</span>
-  persistent://test-property/cl1/ns1/tp1 <span class="se">\</span>
+  persistent://test-tenant/ns1/tp1 <span class="se">\</span>
 
 </code></pre></div></div>
 
 <h4 id="rest-api-1">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/permissions/<span class="endpoint">:role</span></code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/namespaces/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/permissions/<span class="endpoint">:role</span></code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/permissions/:role">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/namespaces/:tenant/:namespace/permissions/:role">More info</a></p>
 
 <h4 id="java-1">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
 <span class="n">String</span> <span class="n">role</span> <span class="o">=</span> <span class="s">"test-role"</span><span class="o">;</span>
 <span class="n">Set</span><span class="o">&lt;</span><span class="n">AuthAction</span><span class="o">&gt;</span> <span class="n">actions</span>  <span class="o">=</span> <span class="n">Sets</span><span class="o">.</span><span class="na">newHashSet</span><span class="o">(</span><span class="n">AuthAction</span><span class="o">.</span><span class="na">produce</span><span class="o">,</span> <span class="n">AuthAction</span><span class="o">.</span><span class="na">consume</span><span class="o">);</span>
 <span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">grantPermission</span><span class="o">(</span><span class="n">destination</span><span class="o">,</span> <span class="n">role</span><span class="o">,</span> <span class="n">actions</span><span class="o">);</span>
@@ -1022,7 +969,7 @@
 <p>TODO: admin</p>
 
 <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin persistent permissions <span class="se">\</span>
-  persistent://test-property/cl1/ns1/tp1 <span class="se">\</span>
+  persistent://test-tenant/ns1/tp1 <span class="se">\</span>
 
 <span class="o">{</span>
     <span class="s2">"application1"</span>: <span class="o">[</span>
@@ -1034,13 +981,13 @@
 
 <h4 id="rest-api-2">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/permissions</code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/permissions</code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/permissions">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/namespaces/:tenant:namespace/permissions">More info</a></p>
 
 <h4 id="java-2">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
 <span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getPermissions</span><span class="o">(</span><span class="n">destination</span><span class="o">);</span>
 </code></pre></div></div>
 
@@ -1054,25 +1001,25 @@
 
 <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin persistent revoke-permission <span class="se">\</span>
   <span class="nt">--role</span> application1 <span class="se">\</span>
-  persistent://test-property/cl1/ns1/tp1 <span class="se">\</span>
+  persistent://test-tenant/ns1/tp1 <span class="se">\</span>
 
 <span class="o">{</span>
-    <span class="s2">"application1"</span>: <span class="o">[</span>
-        <span class="s2">"consume"</span>,
-        <span class="s2">"produce"</span>
-    <span class="o">]</span>
+  <span class="s2">"application1"</span>: <span class="o">[</span>
+    <span class="s2">"consume"</span>,
+    <span class="s2">"produce"</span>
+  <span class="o">]</span>
 <span class="o">}</span>
 </code></pre></div></div>
 
 <h4 id="rest-api-3">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method delete">DELETE</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/permissions/<span class="endpoint">:role</span></code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method delete">DELETE</code><code class="url">/admin/namespaces/<span class="endpoint">:tenant</span><span class="endpoint">:namespace</span>/permissions/<span class="endpoint">:role</span></code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/permissions/:role">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/namespaces/:tenant/:namespace/permissions/:role">More info</a></p>
 
 <h4 id="java-3">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
 <span class="n">String</span> <span class="n">role</span> <span class="o">=</span> <span class="s">"test-role"</span><span class="o">;</span>
 <span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">revokePermissions</span><span class="o">(</span><span class="n">destination</span><span class="o">,</span> <span class="n">role</span><span class="o">);</span>
 </code></pre></div></div>
@@ -1086,18 +1033,18 @@
 <p>Topic can be deleted using <a href="../../reference/CliTools#delete"><code class="highlighter-rouge">delete</code></a> command.</p>
 
 <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin persistent delete <span class="se">\</span>
-  persistent://test-property/cl1/ns1/tp1 <span class="se">\</span>
+  persistent://test-tenant/ns1/tp1 <span class="se">\</span>
 </code></pre></div></div>
 
 <h4 id="rest-api-4">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method delete">DELETE</code><code class="url">/admin/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span></code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method delete">DELETE</code><code class="url">/admin/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span></code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination">More info</a></p>
 
 <h4 id="java-4">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
 <span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">delete</span><span class="o">(</span><span class="n">destination</span><span class="o">);</span>
 </code></pre></div></div>
 
@@ -1110,18 +1057,18 @@
 <p>Topic can be unloaded using <a href="../../reference/CliTools#unload"><code class="highlighter-rouge">unload</code></a> command.</p>
 
 <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin persistent unload <span class="se">\</span>
-  persistent://test-property/cl1/ns1/tp1 <span class="se">\</span>
+  persistent://test-tenant/ns1/tp1 <span class="se">\</span>
 </code></pre></div></div>
 
 <h4 id="rest-api-5">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method put">PUT</code><code class="url">/admin/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/unload</code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method put">PUT</code><code class="url">/admin/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/unload</code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/unload">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/unload">More info</a></p>
 
 <h4 id="java-5">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
 <span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">unload</span><span class="o">(</span><span class="n">destination</span><span class="o">);</span>
 </code></pre></div></div>
 
@@ -1247,18 +1194,18 @@
 <p>Topic stats can be fetched using <a href="../../reference/CliTools#stats"><code class="highlighter-rouge">stats</code></a> command.</p>
 
 <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin persistent stats <span class="se">\</span>
-  persistent://test-property/cl1/ns1/tp1 <span class="se">\</span>
+  persistent://test-tenant/ns1/tp1 <span class="se">\</span>
 </code></pre></div></div>
 
 <h4 id="rest-api-6">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/stats</code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/stats</code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/stats">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/persistent/:tenant:namespace/:destination/stats">More info</a></p>
 
 <h4 id="java-6">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
 <span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getStats</span><span class="o">(</span><span class="n">destination</span><span class="o">);</span>
 </code></pre></div></div>
 
@@ -1379,18 +1326,18 @@
 <p>Topic internal-stats can be fetched using <a href="../../reference/CliTools#stats-internal"><code class="highlighter-rouge">stats-internal</code></a> command.</p>
 
 <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin persistent stats-internal <span class="se">\</span>
-  persistent://test-property/cl1/ns1/tp1 <span class="se">\</span>
+  persistent://test-tenant/ns1/tp1 <span class="se">\</span>
 </code></pre></div></div>
 
 <h4 id="rest-api-7">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/internalStats</code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/internalStats</code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/internalStats">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/internalStats">More info</a></p>
 
 <h4 id="java-7">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
 <span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getInternalStats</span><span class="o">(</span><span class="n">destination</span><span class="o">);</span>
 </code></pre></div></div>
 
@@ -1402,22 +1349,22 @@
 
 <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin persistent peek-messages <span class="se">\</span>
   <span class="nt">--count</span> 10 <span class="nt">--subscription</span> my-subscription <span class="se">\</span>
-  persistent://test-property/cl1/ns1/tp1 <span class="se">\</span>
+  persistent://test-tenant/ns1/tp1 <span class="se">\</span>
 
-Message ID: 315674752:0  
+Message ID: 315674752:0
 Properties:  <span class="o">{</span>  <span class="s2">"X-Pulsar-publish-time"</span> : <span class="s2">"2015-07-13 17:40:28.451"</span>  <span class="o">}</span>
 msg-payload
 </code></pre></div></div>
 
 <h4 id="rest-api-8">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/subscription/<span class="endpoint">:subName</span>/position/<span class="endpoint">:messagePosition</span></code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/subscription/<span class="endpoint">:subName</span>/position/<span class="endpoint">:messagePosition</span></code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/subscription/:subName/position/:messagePosition">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/subscription/:subName/position/:messagePosition">More info</a></p>
 
 <h4 id="java-8">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
 <span class="n">String</span> <span class="n">subName</span> <span class="o">=</span> <span class="s">"my-subscription"</span><span class="o">;</span>
 <span class="kt">int</span> <span class="n">numMessages</span> <span class="o">=</span> <span class="mi">1</span><span class="o">;</span>
 <span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">peekMessages</span><span class="o">(</span><span class="n">destination</span><span class="o">,</span> <span class="n">subName</span><span class="o">,</span> <span class="n">numMessages</span><span class="o">);</span>
@@ -1431,18 +1378,18 @@ msg-payload
 
 <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin persistent skip <span class="se">\</span>
   <span class="nt">--count</span> 10 <span class="nt">--subscription</span> my-subscription <span class="se">\</span>
-  persistent://test-property/cl1/ns1/tp1 <span class="se">\</span>
+  persistent://test-tenant/ns1/tp1 <span class="se">\</span>
 </code></pre></div></div>
 
 <h4 id="rest-api-9">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/subscription/<span class="endpoint">:subName</span>/skip/<span class="endpoint">:numMessages</span></code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/subscription/<span class="endpoint">:subName</span>/skip/<span class="endpoint">:numMessages</span></code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/subscription/:subName/skip/:numMessages">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/subscription/:subName/skip/:numMessages">More info</a></p>
 
 <h4 id="java-9">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
 <span class="n">String</span> <span class="n">subName</span> <span class="o">=</span> <span class="s">"my-subscription"</span><span class="o">;</span>
 <span class="kt">int</span> <span class="n">numMessages</span> <span class="o">=</span> <span class="mi">1</span><span class="o">;</span>
 <span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">skipMessages</span><span class="o">(</span><span class="n">destination</span><span class="o">,</span> <span class="n">subName</span><span class="o">,</span> <span class="n">numMessages</span><span class="o">);</span>
@@ -1456,18 +1403,18 @@ msg-payload
 
 <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin persistent skip-all <span class="se">\</span>
   <span class="nt">--subscription</span> my-subscription <span class="se">\</span>
-  persistent://test-property/cl1/ns1/tp1 <span class="se">\</span>
+  persistent://test-tenant/ns1/tp1 <span class="se">\</span>
 </code></pre></div></div>
 
 <h4 id="rest-api-10">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/subscription/<span class="endpoint">:subName</span>/skip_all</code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/subscription/<span class="endpoint">:subName</span>/skip_all</code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/subscription/:subName/skip_all">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/subscription/:subName/skip_all">More info</a></p>
 
 <h4 id="java-10">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
 <span class="n">String</span> <span class="n">subName</span> <span class="o">=</span> <span class="s">"my-subscription"</span><span class="o">;</span>
 <span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">skipAllMessages</span><span class="o">(</span><span class="n">destination</span><span class="o">,</span> <span class="n">subName</span><span class="o">);</span>
 </code></pre></div></div>
@@ -1480,18 +1427,18 @@ msg-payload
 
 <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin persistent reset-cursor <span class="se">\</span>
   <span class="nt">--subscription</span> my-subscription <span class="nt">--time</span> 10 <span class="se">\</span>
-  persistent://test-property/cl1/ns1/tp1 <span class="se">\</span>
+  persistent://test-tenant/ns1/tp1 <span class="se">\</span>
 </code></pre></div></div>
 
 <h4 id="rest-api-11">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/subscription/<span class="endpoint">:subName</span>/resetcursor/<span class="endpoint">:timestamp</span></code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/subscription/<span class="endpoint">:subName</span>/resetcursor/<span class="endpoint">:timestamp</span></code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/subscription/:subName/resetcursor/:timestamp">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/subscription/:subName/resetcursor/:timestamp">More info</a></p>
 
 <h4 id="java-11">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
 <span class="n">String</span> <span class="n">subName</span> <span class="o">=</span> <span class="s">"my-subscription"</span><span class="o">;</span>
 <span class="kt">long</span> <span class="n">timestamp</span> <span class="o">=</span> <span class="mi">2342343L</span><span class="o">;</span>
 <span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">skipAllMessages</span><span class="o">(</span><span class="n">destination</span><span class="o">,</span> <span class="n">subName</span><span class="o">,</span> <span class="n">timestamp</span><span class="o">);</span>
@@ -1504,18 +1451,18 @@ msg-payload
 <h4 id="pulsar-admin-12">pulsar-admin</h4>
 
 <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin persistent lookup <span class="se">\</span>
-  persistent://test-property/cl1/ns1/tp1 <span class="se">\</span>
+  persistent://test-tenant/ns1/tp1 <span class="se">\</span>
 
  <span class="s2">"pulsar://broker1.org.com:4480"</span>
 </code></pre></div></div>
 
 <h4 id="rest-api-12">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/lookup/v2/destination/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span></code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/lookup/v2/destination/persistent/<span class="endpoint">:tenant</span><span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span></code></pre></div>
 
 <h4 id="java-12">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
 <span class="n">admin</span><span class="o">.</span><span class="na">lookup</span><span class="o">().</span><span class="na">lookupDestination</span><span class="o">(</span><span class="n">destination</span><span class="o">);</span>
 </code></pre></div></div>
 
@@ -1526,18 +1473,18 @@ msg-payload
 <h4 id="pulsar-admin-13">pulsar-admin</h4>
 
 <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin persistent bundle-range <span class="se">\</span>
-  persistent://test-property/cl1/ns1/tp1 <span class="se">\</span>
+  persistent://test-tenant/ns1/tp1 <span class="se">\</span>
 
  <span class="s2">"0x00000000_0xffffffff"</span>
 </code></pre></div></div>
 
 <h4 id="rest-api-13">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/lookup/v2/destination/<span class="endpoint">:destination_domain</span>/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/bundle</code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/lookup/v2/destination/<span class="endpoint">:destination_domain</span>/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/bundle</code></pre></div>
 
 <h4 id="java-13">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
 <span class="n">admin</span><span class="o">.</span><span class="na">lookup</span><span class="o">().</span><span class="na">getBundleRange</span><span class="o">(</span><span class="n">destination</span><span class="o">);</span>
 </code></pre></div></div>
 
@@ -1548,20 +1495,20 @@ msg-payload
 <h4 id="pulsar-admin-14">pulsar-admin</h4>
 
 <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin persistent subscriptions <span class="se">\</span>
-  persistent://test-property/cl1/ns1/tp1 <span class="se">\</span>
+  persistent://test-tenant/ns1/tp1 <span class="se">\</span>
 
  my-subscription
 </code></pre></div></div>
 
 <h4 id="rest-api-14">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/subscriptions</code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/persistent/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:destination</span>/subscriptions</code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/subscriptions">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/subscriptions">More info</a></p>
 
 <h4 id="java-14">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
 <span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getSubscriptions</span><span class="o">(</span><span class="n">destination</span><span class="o">);</span>
 </code></pre></div></div>
 
@@ -1573,18 +1520,18 @@ msg-payload
 
 <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin persistent unsubscribe <span class="se">\</span>
   <span class="nt">--subscription</span> my-subscription <span class="se">\</span>
-  persistent://test-property/cl1/ns1/tp1 <span class="se">\</span>
+  persistent://test-tenant/ns1/tp1 <span class="se">\</span>
 </code></pre></div></div>
 
 <h4 id="rest-api-15">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/unsubscribe/<span class="endpoint">:subscription</span></code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method post">POST</code><code class="url">/admin/namespaces/<span class="endpoint">:tenant</span>/<span class="endpoint">:namespace</span>/unsubscribe/<span class="endpoint">:subscription</span></code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/unsubscribe/:subscription">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/namespaces/:tenant/:namespace/unsubscribe/:subscription">More info</a></p>
 
 <h4 id="java-15">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">destination</span> <span class="o">=</span> <span class="s">"persistent://my-tenant/my-namespace/my-topic"</span><span class="o">;</span>
 <span class="n">String</span> <span class="n">subscriptionName</span> <span class="o">=</span> <span class="s">"my-subscription"</span><span class="o">;</span>
 <span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">deleteSubscription</span><span class="o">(</span><span class="n">destination</span><span class="o">,</span> <span class="n">subscriptionName</span><span class="o">);</span>
 </code></pre></div></div>

@@ -853,58 +853,6 @@
           
         </section>
 
-        <!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-
-<!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<div class="admonition">
-  <div class="success">
-    <span class="admonition-title"><p>Pulsar version 2.0</p>
-</span>
-    
-<p>The documentation that you’re reading is for the 2.0 release of Apache Pulsar. For more information on Pulsar 2.0, see <a href="../../getting-started/Pulsar-2.0">this guide</a>.</p>
-
-  </div>
-</div>
-
-
         <hr class="hr">
       </section>
 
@@ -944,20 +892,20 @@
 
 <h3 id="create">Create</h3>
 
-<p>You can create new namespaces under a given <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">property</span> and within a Pulsar <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span>.</p>
+<p>You can create new namespaces under a given <span class="popover-term" tabindex="0" title="What is a tenant?" data-placement="top" data-content="An administrative unit for allocating capacity and enforcing an authentication/authorization scheme. Tenants in Pulsar are managed at the property level." data-toggle="popover" data-trigger="focus">tenant</span>.</p>
 
 <h4 id="pulsar-admin">pulsar-admin</h4>
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-create"><code class="highlighter-rouge">create</code></a> subcommand and specify the namespace by name:</p>
 
-<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces create test-property/cl1/ns1
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces create test-tenant/test-namespace
 </code></pre></div></div>
 
 <h4 id="rest-api">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method put">PUT</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span></code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method put">PUT</code><code class="url">/admin/namespaces/<span class="endpoint">:tenant</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span></code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/namespaces/:tenant/:cluster/:namespace">More info</a></p>
 
 <h4 id="java">Java</h4>
 
@@ -972,7 +920,7 @@
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-policies"><code class="highlighter-rouge">policies</code></a> subcommand and specify the namespace:</p>
 
-<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces policies test-property/cl1/ns1
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces policies test-tenant/test-namespace
 <span class="o">{</span>
   <span class="s2">"auth_policies"</span>: <span class="o">{</span>
     <span class="s2">"namespace_auth"</span>: <span class="o">{}</span>,
@@ -998,37 +946,37 @@
 
 <h4 id="rest-api-1">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span></code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:tenant</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span></code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/namespaces/:tenant/:cluster/:namespace">More info</a></p>
 
 <h4 id="java-1">Java</h4>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getPolicies</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
 </code></pre></div></div>
 
-<h3 id="list-namespaces-within-a-property">List namespaces within a property</h3>
+<h3 id="list-namespaces-within-a-tenant">List namespaces within a tenant</h3>
 
-<p>You can list all namespaces within a given Pulsar <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">property</span>.</p>
+<p>You can list all namespaces within a given Pulsar <span class="popover-term" tabindex="0" title="What is a tenant?" data-placement="top" data-content="An administrative unit for allocating capacity and enforcing an authentication/authorization scheme. Tenants in Pulsar are managed at the property level." data-toggle="popover" data-trigger="focus">tenant</span>.</p>
 
 <h4 id="pulsar-admin-2">pulsar-admin</h4>
 
-<p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-list"><code class="highlighter-rouge">list</code></a> subcommand and specify the property:</p>
+<p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-list"><code class="highlighter-rouge">list</code></a> subcommand and specify the tenant:</p>
 
-<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces list test-property
-test-property/cl1/ns1
-test-property/cl2/ns2
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces list test-tenant
+test-tenant/ns1
+test-tenant/ns2
 </code></pre></div></div>
 
 <h4 id="rest-api-2">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span></code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:tenant</span></code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/namespaces/:property">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/namespaces/:tenant">More info</a></p>
 
 <h4 id="java-2">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getNamespaces</span><span class="o">(</span><span class="n">property</span><span class="o">);</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getNamespaces</span><span class="o">(</span><span class="n">tenant</span><span class="o">);</span>
 </code></pre></div></div>
 
 <h3 id="list-namespaces-within-a-cluster">List namespaces within a cluster</h3>
@@ -1039,38 +987,38 @@ test-property/cl2/ns2
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-list-cluster"><code class="highlighter-rouge">list-cluster</code></a> subcommand and specify the cluster:</p>
 
-<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces list-cluster test-property/cl1
-test-property/cl1/ns1
-test-property/cl1/ns1
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces list-cluster test-tenant/cl1
+test-tenant/ns1
+test-tenant/ns2
 </code></pre></div></div>
 
 <h4 id="rest-api-3">REST API</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span></code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/namespaces/<span class="endpoint">:tenant</span>/<span class="endpoint">:cluster</span></code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/namespaces/:tenant/:cluster">More info</a></p>
 
 <h4 id="java-3">Java</h4>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getNamespaces</span><span class="o">(</span><span class="n">property</span><span class="o">,</span> <span class="n">cluster</span><span class="o">);</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getNamespaces</span><span class="o">(</span><span class="n">tenant</span><span class="o">);</span>
 </code></pre></div></div>
 
 <h3 id="delete">Delete</h3>
 
-<p>You can delete existing namespaces from a property/cluster.</p>
+<p>You can delete existing namespaces from a tenant.</p>
 
 <h4 id="pulsar-admin-4">pulsar-admin</h4>
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-delete"><code class="highlighter-rouge">delete</code></a> subcommand and specify the namespace:</p>
 
-<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces delete test-property/cl1/ns1
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces delete test-tenant/ns1
 </code></pre></div></div>
 
 <h4 id="rest">REST</h4>
 
-<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method delete">DELETE</code><code class="url">/admin/namespaces/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span></code></pre></div>
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method delete">DELETE</code><code class="url">/admin/namespaces/<span class="endpoint">:tenant</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span></code></pre></div>
 
-<p><a href="../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace">More info</a></p>
+<p><a href="../../reference/RestApi#/admin/namespaces/:tenant/:cluster/:namespace">More info</a></p>
 
 <h4 id="java-4">Java</h4>
 
@@ -1079,22 +1027,22 @@ test-property/cl1/ns1
 
 <h4 id="set-replication-cluster">set replication cluster</h4>
 
-<p>It sets replication clusters for a namespace, so Pulsar can internally replicate publish message from one colo to another colo. However, in order to set replication clusters, your namespace has to be global such as: <em>test-property/<strong>global</strong>/ns1.</em> It means cluster-name has to be <em>“global”</em></p>
+<p>It sets replication clusters for a namespace, so Pulsar can internally replicate publish message from one colo to another colo.</p>
 
 <h6 id="cli">CLI</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces set-clusters test-property/cl1/ns1 \
-  --clusters cl2
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces set-clusters test-tenant/ns1 \
+  --clusters cl1
 </code></pre></div></div>
 
 <h6 id="rest-1">REST</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt;div class="highlighter-rouge endpoint"&gt;&lt;pre class="highlight"&gt;&lt;code class="method post"&gt;POST&lt;/code&gt;&lt;code class="url"&gt;/admin/namespaces/&lt;span class="endpoint"&gt;:property&lt;/span&gt;/&lt;span class="endpoint"&gt;:cluster&lt;/span&gt;/&lt;span class="endpoint"&gt;:namespace&lt;/span&gt;/replication&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt;div class="highlighter-rouge endpoint"&gt;&lt;pre class="highlight"&gt;&lt;code class="method post"&gt;POST&lt;/code&gt;&lt;code class="url"&gt;/admin/namespaces/&lt;span class="endpoint"&gt;:tenant&lt;/span&gt;/&lt;span class="endpoint"&gt;:namespace&lt;/span&gt;/replication&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
 </code></pre></div></div>
 
 <h6 id="java-5">Java</h6>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setNamespaceReplicationClusters</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">clusters</span><span class="o">)</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setNamespaceReplicationClusters</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">clusters</span><span class="o">);</span>
 </code></pre></div></div>
 
 <h4 id="get-replication-cluster">get replication cluster</h4>
@@ -1103,7 +1051,7 @@ test-property/cl1/ns1
 
 <h6 id="cli-1">CLI</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces get-clusters test-property/cl1/ns1
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces get-clusters test-tenant/cl1/ns1
 </code></pre></div></div>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>cl2
@@ -1111,7 +1059,7 @@ test-property/cl1/ns1
 
 <h6 id="rest-2">REST</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/replication
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/namespaces/{tenant}/{namespace}/replication
 </code></pre></div></div>
 
 <h6 id="java-6">Java</h6>
@@ -1139,7 +1087,7 @@ test-property/cl1/ns1
 
 <h6 id="cli-2">CLI</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces set-backlog-quota --limit 10 --policy producer_request_hold test-property/cl1/ns1
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces set-backlog-quota --limit 10 --policy producer_request_hold test-tenant/ns1
 </code></pre></div></div>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>N/A
@@ -1147,7 +1095,7 @@ test-property/cl1/ns1
 
 <h6 id="rest-3">REST</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/backlogQuota
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/namespaces/{tenant}/{namespace}/backlogQuota
 </code></pre></div></div>
 
 <h6 id="java-7">Java</h6>
@@ -1161,25 +1109,25 @@ test-property/cl1/ns1
 
 <h6 id="cli-3">CLI</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces get-backlog-quotas test-property/cl1/ns1
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces get-backlog-quotas test-tenant/ns1
 </code></pre></div></div>
 
 <div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
-    </span><span class="s2">"destination_storage"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
-        </span><span class="s2">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w">
-        </span><span class="s2">"policy"</span><span class="p">:</span><span class="w"> </span><span class="s2">"producer_request_hold"</span><span class="w">
-    </span><span class="p">}</span><span class="w">
+  </span><span class="s2">"destination_storage"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+    </span><span class="s2">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w">
+    </span><span class="s2">"policy"</span><span class="p">:</span><span class="w"> </span><span class="s2">"producer_request_hold"</span><span class="w">
+  </span><span class="p">}</span><span class="w">
 </span><span class="p">}</span><span class="w">          
 </span></code></pre></div></div>
 
 <h6 id="rest-4">REST</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/backlogQuotaMap
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/namespaces/{tenant}/{namespace}/backlogQuotaMap
 </code></pre></div></div>
 
 <h6 id="java-8">Java</h6>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getBacklogQuotaMap</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getBacklogQuotaMap</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
 </code></pre></div></div>
 
 <h4 id="remove-backlog-quota-policies">remove backlog quota policies</h4>
@@ -1188,7 +1136,7 @@ test-property/cl1/ns1
 
 <h6 id="cli-4">CLI</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces remove-backlog-quota test-property/cl1/ns1
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces remove-backlog-quota test-tenant/ns1
 </code></pre></div></div>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>N/A
@@ -1196,7 +1144,7 @@ test-property/cl1/ns1
 
 <h6 id="rest-5">REST</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>DELETE /admin/namespaces/{property}/{cluster}/{namespace}/backlogQuota
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>DELETE /admin/namespaces/{tenant}/{namespace}/backlogQuota
 </code></pre></div></div>
 
 <h6 id="java-9">Java</h6>
@@ -1225,7 +1173,7 @@ test-property/cl1/ns1
 
 <h6 id="cli-5">CLI</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces set-persistence --bookkeeper-ack-quorum 2 --bookkeeper-ensemble 3 --bookkeeper-write-quorum 2 --ml-mark-delete-max-rate 0 test-property/cl1/ns1
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces set-persistence --bookkeeper-ack-quorum 2 --bookkeeper-ensemble 3 --bookkeeper-write-quorum 2 --ml-mark-delete-max-rate 0 test-tenant/ns1
 </code></pre></div></div>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>N/A
@@ -1233,7 +1181,7 @@ test-property/cl1/ns1
 
 <h6 id="rest-6">REST</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/persistent/{property}/{cluster}/{namespace}/persistence
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/persistent/{tenant}/{namespace}/persistence
 </code></pre></div></div>
 
 <h6 id="java-10">Java</h6>
@@ -1247,7 +1195,7 @@ test-property/cl1/ns1
 
 <h6 id="cli-6">CLI</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces get-persistence test-property/cl1/ns1
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces get-persistence test-tenant/ns1
 </code></pre></div></div>
 
 <div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
@@ -1260,7 +1208,7 @@ test-property/cl1/ns1
 
 <h6 id="rest-7">REST</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/persistence
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/namespaces/{tenant}/{namespace}/persistence
 </code></pre></div></div>
 
 <h6 id="java-11">Java</h6>
@@ -1274,7 +1222,7 @@ test-property/cl1/ns1
 
 <h6 id="cli-7">CLI</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces unload --bundle 0x00000000_0xffffffff test-property/pstg-gq1/ns1
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces unload --bundle 0x00000000_0xffffffff test-tenant/ns1
 </code></pre></div></div>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>N/A
@@ -1282,7 +1230,7 @@ test-property/cl1/ns1
 
 <h6 id="rest-8">REST</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PUT /admin/namespaces/{property}/{cluster}/{namespace}/unload
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PUT /admin/namespaces/{tenant}/{namespace}/unload
 </code></pre></div></div>
 
 <h6 id="java-12">Java</h6>
@@ -1296,7 +1244,7 @@ test-property/cl1/ns1
 
 <h6 id="cli-8">CLI</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces set-message-ttl --messageTTL 100 test-property/cl1/ns1
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces set-message-ttl --messageTTL 100 test-tenant/ns1
 </code></pre></div></div>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>N/A
@@ -1304,7 +1252,7 @@ test-property/cl1/ns1
 
 <h6 id="rest-9">REST</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/messageTTL
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/namespaces/{tenant}/{namespace}/messageTTL
 </code></pre></div></div>
 
 <h6 id="java-13">Java</h6>
@@ -1318,7 +1266,7 @@ test-property/cl1/ns1
 
 <h6 id="cli-9">CLI</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces get-message-ttl test-property/cl1/ns1
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces get-message-ttl test-tenant/ns1
 </code></pre></div></div>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>100
@@ -1326,7 +1274,7 @@ test-property/cl1/ns1
 
 <h6 id="rest-10">REST</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/messageTTL
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/namespaces/{tenant}/{namespace}/messageTTL
 </code></pre></div></div>
 
 <h6 id="java-14">Java</h6>
@@ -1340,7 +1288,7 @@ test-property/cl1/ns1
 
 <h6 id="cli-10">CLI</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces split-bundle --bundle 0x00000000_0xffffffff test-property/cl1/ns1
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces split-bundle --bundle 0x00000000_0xffffffff test-tenant/ns1
 </code></pre></div></div>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>N/A
@@ -1348,7 +1296,7 @@ test-property/cl1/ns1
 
 <h6 id="rest-11">REST</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PUT /admin/namespaces/{property}/{cluster}/{namespace}/{bundle}/split
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PUT /admin/namespaces/{tenant}/{namespace}/{bundle}/split
 </code></pre></div></div>
 
 <h6 id="java-15">Java</h6>
@@ -1362,7 +1310,7 @@ test-property/cl1/ns1
 
 <h6 id="cli-11">CLI</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces clear-backlog --sub my-subscription test-property/pstg-gq1/ns1
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces clear-backlog --sub my-subscription test-tenant/ns1
 </code></pre></div></div>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>N/A
@@ -1370,7 +1318,7 @@ test-property/cl1/ns1
 
 <h6 id="rest-12">REST</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/clearBacklog
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/namespaces/{tenant}/{namespace}/clearBacklog
 </code></pre></div></div>
 
 <h6 id="java-16">Java</h6>
@@ -1384,7 +1332,7 @@ test-property/cl1/ns1
 
 <h6 id="cli-12">CLI</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces clear-backlog  --bundle 0x00000000_0xffffffff  --sub my-subscription test-property/pstg-gq1/ns1
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces clear-backlog  --bundle 0x00000000_0xffffffff  --sub my-subscription test-tenant/ns1
 </code></pre></div></div>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>N/A
@@ -1392,7 +1340,7 @@ test-property/cl1/ns1
 
 <h6 id="rest-13">REST</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/{bundle}/clearBacklog
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/namespaces/{tenant}/{namespace}/{bundle}/clearBacklog
 </code></pre></div></div>
 
 <h6 id="java-17">Java</h6>
@@ -1406,7 +1354,7 @@ test-property/cl1/ns1
 
 <h6 id="cli-13">CLI</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin set-retention --size 10 --time 100 test-property/cl1/ns1
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin set-retention --size 10 --time 100 test-tenant/ns1
 </code></pre></div></div>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>N/A
@@ -1414,7 +1362,7 @@ test-property/cl1/ns1
 
 <h6 id="rest-14">REST</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/retention
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/namespaces/{tenant}/{namespace}/retention
 </code></pre></div></div>
 
 <h6 id="java-18">Java</h6>
@@ -1428,18 +1376,18 @@ test-property/cl1/ns1
 
 <h6 id="cli-14">CLI</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces get-retention test-property/cl1/ns1
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces get-retention test-tenant/ns1
 </code></pre></div></div>
 
 <div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
-    </span><span class="s2">"retentionTimeInMinutes"</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w">
-    </span><span class="s2">"retentionSizeInMB"</span><span class="p">:</span><span class="w"> </span><span class="mi">100</span><span class="w">
+  </span><span class="s2">"retentionTimeInMinutes"</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"retentionSizeInMB"</span><span class="p">:</span><span class="w"> </span><span class="mi">100</span><span class="w">
 </span><span class="p">}</span><span class="w">
 </span></code></pre></div></div>
 
 <h6 id="rest-15">REST</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/retention
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/namespaces/{tenant}/{namespace}/retention
 </code></pre></div></div>
 
 <h6 id="java-19">Java</h6>
@@ -1456,12 +1404,15 @@ disables the throttling.</p>
 
 <h6 id="cli-15">CLI</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces set-dispatch-rate test-property/cl1/ns1 --msg-dispatch-rate 1000 --byte-dispatch-rate 1048576 --dispatch-rate-period 1
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces set-dispatch-rate test-tenant/ns1 \
+  --msg-dispatch-rate 1000 \
+  --byte-dispatch-rate 1048576 \
+  --dispatch-rate-period 1
 </code></pre></div></div>
 
 <h6 id="rest-16">REST</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/dispatchRate
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/namespaces/{tenant}/{namespace}/dispatchRate
 </code></pre></div></div>
 
 <h6 id="java-20">Java</h6>
@@ -1475,7 +1426,7 @@ disables the throttling.</p>
 
 <h6 id="cli-16">CLI</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces get-dispatch-rate test-property/cl1/ns1
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces get-dispatch-rate test-tenant/ns1
 </code></pre></div></div>
 
 <div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
@@ -1487,7 +1438,7 @@ disables the throttling.</p>
 
 <h6 id="rest-17">REST</h6>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/dispatchRate
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/namespaces/{tenant}/{namespace}/dispatchRate
 </code></pre></div></div>
 
 <h6 id="java-21">Java</h6>
@@ -1509,7 +1460,7 @@ disables the throttling.</p>
 
 <h5 id="example">Example</h5>
 
-<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces unload my-prop/my-cluster/my-ns
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces unload my-tenant/my-ns
 </code></pre></div></div>
 
 <h4 id="rest-api-4">REST API</h4>

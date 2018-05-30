@@ -853,58 +853,6 @@
           
         </section>
 
-        <!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-
-<!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<div class="admonition">
-  <div class="success">
-    <span class="admonition-title"><p>Pulsar version 2.0</p>
-</span>
-    
-<p>The documentation that you’re reading is for the 2.0 release of Apache Pulsar. For more information on Pulsar 2.0, see <a href="../../getting-started/Pulsar-2.0">this guide</a>.</p>
-
-  </div>
-</div>
-
-
         <hr class="hr">
       </section>
 
@@ -986,8 +934,8 @@
 <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions localrun <span class="se">\</span>
   <span class="nt">--py</span> sanitizer.py <span class="se">\ </span>         <span class="c"># The Python file with the function's code</span>
   <span class="nt">--className</span> sanitizer <span class="se">\ </span>     <span class="c"># The class or function holding the processing logic</span>
-  <span class="nt">--tenant</span> sample <span class="se">\ </span>           <span class="c"># The function's tenant (derived from the topic name by default)</span>
-  <span class="nt">--namespace</span> ns1 <span class="se">\ </span>           <span class="c"># The function's namespace (derived from the topic name by default)</span>
+  <span class="nt">--tenant</span> public <span class="se">\ </span>           <span class="c"># The function's tenant (derived from the topic name by default)</span>
+  <span class="nt">--namespace</span> default <span class="se">\ </span>       <span class="c"># The function's namespace (derived from the topic name by default)</span>
   <span class="nt">--name</span> sanitizer-function <span class="se">\ </span> <span class="c"># The name of the function (the class name by default)</span>
   <span class="nt">--inputs</span> dirty-strings-in <span class="se">\ </span> <span class="c"># The input topic(s) for the function</span>
   <span class="nt">--output</span> clean-strings-out <span class="se">\ </span><span class="c"># The output topic for the function</span>
@@ -1510,11 +1458,11 @@
 <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions create <span class="se">\</span>
   <span class="nt">--jar</span> my-functions.jar <span class="se">\</span>
   <span class="nt">--className</span> my.package.LoggingFunction <span class="se">\</span>
-  <span class="nt">--logTopic</span> persistent://sample/standalone/ns1/logging-function-logs <span class="se">\</span>
+  <span class="nt">--logTopic</span> persistent://public/default/logging-function-logs <span class="se">\</span>
   <span class="c"># Other function configs</span>
 </code></pre></div></div>
 
-<p>Now, all logs produced by the <code class="highlighter-rouge">LoggingFunction</code> above can be accessed via the <code class="highlighter-rouge">persistent://sample/standalone/ns1/logging-function-logs</code> topic.</p>
+<p>Now, all logs produced by the <code class="highlighter-rouge">LoggingFunction</code> above can be accessed via the <code class="highlighter-rouge">persistent://public/default/logging-function-logs</code> topic.</p>
 
 <h3 id="java-user-config">Java user config</h3>
 
@@ -1835,8 +1783,8 @@
 <p>Pulsar Functions use <a href="#serde">SerDe</a> when publishing data to and consuming data from Pulsar topics (this is true of both <a href="#python-native">native</a> functions and <a href="#python-sdk">SDK</a> functions). You can specify the SerDe when <a href="../deployment#cluster-mode">creating</a> or <a href="../deployment#local-run">running</a> functions. Here’s an example:</p>
 
 <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions create <span class="se">\</span>
-  <span class="nt">--tenant</span> sample <span class="se">\</span>
-  <span class="nt">--namespace</span> ns1 <span class="se">\</span>
+  <span class="nt">--tenant</span> public <span class="se">\</span>
+  <span class="nt">--namespace</span> default <span class="se">\</span>
   <span class="nt">--name</span> my_function <span class="se">\</span>
   <span class="nt">--py</span> my_function.py <span class="se">\</span>
   <span class="nt">--className</span> my_function.MyFunction <span class="se">\</span>

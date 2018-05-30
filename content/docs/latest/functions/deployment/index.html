@@ -853,58 +853,6 @@
           
         </section>
 
-        <!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-
-<!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<div class="admonition">
-  <div class="success">
-    <span class="admonition-title"><p>Pulsar version 2.0</p>
-</span>
-    
-<p>The documentation that you’re reading is for the 2.0 release of Apache Pulsar. For more information on Pulsar 2.0, see <a href="../../getting-started/Pulsar-2.0">this guide</a>.</p>
-
-  </div>
-</div>
-
-
         <hr class="hr">
       </section>
 
@@ -1066,8 +1014,8 @@
 <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions localrun <span class="se">\</span>
   <span class="nt">--py</span> myfunc.py <span class="se">\</span>
   <span class="nt">--className</span> myfunc.SomeFunction <span class="se">\</span>
-  <span class="nt">--inputs</span> persistent://sample/standalone/ns1/input-1 <span class="se">\</span>
-  <span class="nt">--output</span> persistent://sample/standalone/ns1/output-1
+  <span class="nt">--inputs</span> persistent://public/default/input-1 <span class="se">\</span>
+  <span class="nt">--output</span> persistent://public/default/output-1
 </code></pre></div></div>
 
 <p>By default, the function will connect to a Pulsar cluster running on the same machine, via a local <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> service URL of <code class="highlighter-rouge">pulsar://localhost:6650</code>. If you’d like to use local run mode to run a function but connect it to a non-local Pulsar cluster, you can specify a different broker URL using the <code class="highlighter-rouge">--brokerServiceUrl</code> flag. Here’s an example:</p>
@@ -1084,8 +1032,8 @@
 <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions create <span class="se">\</span>
   <span class="nt">--py</span> myfunc.py <span class="se">\</span>
   <span class="nt">--className</span> myfunc.SomeFunction <span class="se">\</span>
-  <span class="nt">--inputs</span> persistent://sample/standalone/ns1/input-1 <span class="se">\</span>
-  <span class="nt">--output</span> persistent://sample/standalone/ns1/output-1
+  <span class="nt">--inputs</span> persistent://public/default/input-1 <span class="se">\</span>
+  <span class="nt">--output</span> persistent://public/default/output-1
 </code></pre></div></div>
 
 <h3 id="updating">Updating cluster mode functions</h3>
@@ -1095,8 +1043,8 @@
 <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions update <span class="se">\</span>
   <span class="nt">--py</span> myfunc.py <span class="se">\</span>
   <span class="nt">--className</span> myfunc.SomeFunction <span class="se">\</span>
-  <span class="nt">--inputs</span> persistent://sample/standalone/ns1/new-input-topic <span class="se">\</span>
-  <span class="nt">--output</span> persistent://sample/standalone/ns1/new-output-topic
+  <span class="nt">--inputs</span> persistent://public/default/new-input-topic <span class="se">\</span>
+  <span class="nt">--output</span> persistent://public/default/new-output-topic
 </code></pre></div></div>
 
 <h3 id="parallelism">Parallelism</h3>
@@ -1122,8 +1070,8 @@
 <div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># function-config.yaml</span>
 <span class="na">parallelism</span><span class="pi">:</span> <span class="s">3</span>
 <span class="na">inputs</span><span class="pi">:</span>
-<span class="pi">-</span> <span class="s">persistent://sample/standalone/ns1/input-1</span>
-<span class="na">output</span><span class="pi">:</span> <span class="s">persistent://sample/standalone/ns1/output-1</span>
+<span class="pi">-</span> <span class="s">persistent://public/default/input-1</span>
+<span class="na">output</span><span class="pi">:</span> <span class="s">persistent://public/default/output-1</span>
 <span class="c1"># other parameters</span>
 </code></pre></div></div>
 
@@ -1175,18 +1123,18 @@
 <p>Let’s run that function in <a href="../deployment#local-run">local run mode</a>:</p>
 
 <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions create <span class="se">\</span>
-  <span class="nt">--tenant</span> sample <span class="se">\</span>
-  <span class="nt">--namespace</span> ns1 <span class="se">\</span>
+  <span class="nt">--tenant</span> public <span class="se">\</span>
+  <span class="nt">--namespace</span> default <span class="se">\</span>
   <span class="nt">--name</span> myfunc <span class="se">\</span>
   <span class="nt">--py</span> myfunc.py <span class="se">\</span>
   <span class="nt">--className</span> myfunc <span class="se">\</span>
-  <span class="nt">--inputs</span> persistent://sample/standalone/ns1/in <span class="se">\</span>
-  <span class="nt">--output</span> persistent://sample/standalone/ns1/out
+  <span class="nt">--inputs</span> persistent://public/default/in <span class="se">\</span>
+  <span class="nt">--output</span> persistent://public/default/out
 </code></pre></div></div>
 
 <p>Now let’s make a consumer listen on the output topic for messages coming from the <code class="highlighter-rouge">myfunc</code> function using the <a href="../../CliTools#pulsar-client-consume"><code class="highlighter-rouge">pulsar-client consume</code></a> command:</p>
 
-<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-client consume persistent://sample/standalone/ns1/out <span class="se">\</span>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-client consume persistent://public/default/out <span class="se">\</span>
   <span class="nt">--subscription-name</span> my-subscription
   <span class="nt">--num-messages</span> 0 <span class="c"># Listen indefinitely</span>
 </code></pre></div></div>
@@ -1194,8 +1142,8 @@
 <p>Now let’s trigger that function:</p>
 
 <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions trigger <span class="se">\</span>
-  <span class="nt">--tenant</span> sample <span class="se">\</span>
-  <span class="nt">--namespace</span> ns1 <span class="se">\</span>
+  <span class="nt">--tenant</span> public <span class="se">\</span>
+  <span class="nt">--namespace</span> default <span class="se">\</span>
   <span class="nt">--name</span> myfunc <span class="se">\</span>
   <span class="nt">--triggerValue</span> <span class="s2">"hello world"</span>
 </code></pre></div></div>

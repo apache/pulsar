@@ -1991,58 +1991,6 @@
           
         </section>
 
-        <!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-
-<!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<div class="admonition">
-  <div class="success">
-    <span class="admonition-title"><p>Pulsar version 2.0</p>
-</span>
-    
-<p>The documentation that you’re reading is for the 2.0 release of Apache Pulsar. For more information on Pulsar 2.0, see <a href="../../getting-started/Pulsar-2.0">this guide</a>.</p>
-
-  </div>
-</div>
-
-
         <hr class="hr">
       </section>
 
@@ -2127,7 +2075,7 @@
 <span class="kn">import</span> <span class="nn">org.apache.pulsar.client.api.SubscriptionType</span><span class="o">;</span>
 
 <span class="n">String</span> <span class="n">SERVICE_URL</span> <span class="o">=</span> <span class="s">"pulsar://localhost:6650"</span><span class="o">;</span>
-<span class="n">String</span> <span class="n">TOPIC</span> <span class="o">=</span> <span class="s">"persistent://sample/standalone/ns1/mq-topic-1"</span><span class="o">;</span>
+<span class="n">String</span> <span class="n">TOPIC</span> <span class="o">=</span> <span class="s">"persistent://public/default/mq-topic-1"</span><span class="o">;</span>
 <span class="n">String</span> <span class="n">subscription</span> <span class="o">=</span> <span class="s">"sub-1"</span><span class="o">;</span>
 
 <span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">builder</span><span class="o">()</span>
@@ -2150,7 +2098,7 @@
 <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">pulsar</span> <span class="kn">import</span> <span class="n">Client</span><span class="p">,</span> <span class="n">ConsumerType</span>
 
 <span class="n">SERVICE_URL</span> <span class="o">=</span> <span class="s">"pulsar://localhost:6650"</span>
-<span class="n">TOPIC</span> <span class="o">=</span> <span class="s">"persistent://sample/standalone/ns1/mq-topic-1"</span>
+<span class="n">TOPIC</span> <span class="o">=</span> <span class="s">"persistent://public/default/mq-topic-1"</span>
 <span class="n">SUBSCRIPTION</span> <span class="o">=</span> <span class="s">"sub-1"</span>
 
 <span class="n">client</span> <span class="o">=</span> <span class="n">Client</span><span class="p">(</span><span class="n">SERVICE_URL</span><span class="p">)</span>
@@ -2169,7 +2117,7 @@
 <div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">#include &lt;pulsar/Client.h&gt;
 </span>
 <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">serviceUrl</span> <span class="o">=</span> <span class="s">"pulsar://localhost:6650"</span><span class="p">;</span>
-<span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://sample/standalone/ns1/mq-topic-1"</span><span class="p">;</span>
+<span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://public/defaultmq-topic-1"</span><span class="p">;</span>
 <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">subscription</span> <span class="o">=</span> <span class="s">"sub-1"</span><span class="p">;</span>
 
 <span class="n">Client</span> <span class="n">client</span><span class="p">(</span><span class="n">serviceUrl</span><span class="p">);</span>
@@ -2181,7 +2129,7 @@
 
 <span class="n">Consumer</span> <span class="n">consumer</span><span class="p">;</span>
 
-<span class="n">Result</span> <span class="n">result</span> <span class="o">=</span> <span class="n">client</span><span class="p">.</span><span class="n">subscribe</span><span class="p">(</span><span class="s">"persistent://sample/standalone/ns1/my-topic"</span><span class="p">,</span> <span class="n">subscription</span><span class="p">,</span> <span class="n">consumerConfig</span><span class="p">,</span> <span class="n">consumer</span><span class="p">);</span>
+<span class="n">Result</span> <span class="n">result</span> <span class="o">=</span> <span class="n">client</span><span class="p">.</span><span class="n">subscribe</span><span class="p">(</span><span class="s">"persistent://public/default/my-topic"</span><span class="p">,</span> <span class="n">subscription</span><span class="p">,</span> <span class="n">consumerConfig</span><span class="p">,</span> <span class="n">consumer</span><span class="p">);</span>
 </code></pre></div></div>
 
       </section>

@@ -853,58 +853,6 @@
           
         </section>
 
-        <!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-
-<!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<div class="admonition">
-  <div class="success">
-    <span class="admonition-title"><p>Pulsar version 2.0</p>
-</span>
-    
-<p>The documentation that you’re reading is for the 2.0 release of Apache Pulsar. For more information on Pulsar 2.0, see <a href="../../getting-started/Pulsar-2.0">this guide</a>.</p>
-
-  </div>
-</div>
-
-
         <hr class="hr">
       </section>
 
@@ -954,7 +902,7 @@
   <span class="nt">--advertised-address</span> 127.0.0.1
 </code></pre></div></div>
 
-<p>When running Pulsar in standalone mode, the <code class="highlighter-rouge">sample</code> <span class="popover-term" tabindex="0" title="What is a tenant?" data-placement="top" data-content="An administrative unit for allocating capacity and enforcing an authentication/authorization scheme. Tenants in Pulsar are managed at the property level." data-toggle="popover" data-trigger="focus">tenant</span> and <code class="highlighter-rouge">ns1</code> <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span> will be created automatically for you. That tenant and namespace will be used throughout this tutorial.</p>
+<p>When running Pulsar in standalone mode, the <code class="highlighter-rouge">public</code> <span class="popover-term" tabindex="0" title="What is a tenant?" data-placement="top" data-content="An administrative unit for allocating capacity and enforcing an authentication/authorization scheme. Tenants in Pulsar are managed at the property level." data-toggle="popover" data-trigger="focus">tenant</span> and <code class="highlighter-rouge">default</code> <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span> will be created automatically for you. That tenant and namespace will be used throughout this tutorial.</p>
 
 <h2 id="local-run-mode">Run a Pulsar Function in local run mode</h2>
 
@@ -977,8 +925,8 @@
 <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions localrun <span class="se">\</span>
   <span class="nt">--jar</span> examples/api-examples.jar <span class="se">\</span>
   <span class="nt">--className</span> org.apache.pulsar.functions.api.examples.ExclamationFunction <span class="se">\</span>
-  <span class="nt">--inputs</span> persistent://sample/standalone/ns1/exclamation-input <span class="se">\</span>
-  <span class="nt">--output</span> persistent://sample/standalone/ns1/exclamation-output <span class="se">\</span>
+  <span class="nt">--inputs</span> persistent://public/default/exclamation-input <span class="se">\</span>
+  <span class="nt">--output</span> persistent://public/default/exclamation-output <span class="se">\</span>
   <span class="nt">--name</span> exclamation
 </code></pre></div></div>
 
@@ -1017,7 +965,7 @@
 
 <p>We can open up another shell and use the <a href="../../reference/CliTools#pulsar-client"><code class="highlighter-rouge">pulsar-client</code></a> tool to listen for messages on the output topic:</p>
 
-<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-client consume persistent://sample/standalone/ns1/exclamation-output <span class="se">\</span>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-client consume persistent://public/default/exclamation-output <span class="se">\</span>
   <span class="nt">--subscription-name</span> my-subscription <span class="se">\</span>
   <span class="nt">--num-messages</span> 0
 </code></pre></div></div>
@@ -1052,7 +1000,7 @@
 
 <p>With a listener up and running, we can open up another shell and produce a message on the input topic that we specified:</p>
 
-<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-client produce persistent://sample/standalone/ns1/exclamation-input <span class="se">\</span>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-client produce persistent://public/default/exclamation-input <span class="se">\</span>
   <span class="nt">--num-produce</span> 1 <span class="se">\</span>
   <span class="nt">--messages</span> <span class="s2">"Hello world"</span>
 </code></pre></div></div>
@@ -1068,8 +1016,8 @@ Hello world!
 <p>Here’s what happened:</p>
 
 <ul>
-  <li>The <code class="highlighter-rouge">Hello world</code> message that we published to the input <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span> (<code class="highlighter-rouge">persistent://sample/standalone/ns1/exclamation-input</code>) was passed to the exclamation function that we ran on our machine</li>
-  <li>The exclamation function processed the message (providing a result of <code class="highlighter-rouge">Hello world!</code>) and published the result to the output topic (<code class="highlighter-rouge">persistent://sample/standalone/ns1/exclamation-output</code>).</li>
+  <li>The <code class="highlighter-rouge">Hello world</code> message that we published to the input <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span> (<code class="highlighter-rouge">persistent://public/default/exclamation-input</code>) was passed to the exclamation function that we ran on our machine</li>
+  <li>The exclamation function processed the message (providing a result of <code class="highlighter-rouge">Hello world!</code>) and published the result to the output topic (<code class="highlighter-rouge">persistent://public/default/exclamation-output</code>).</li>
   <li>If our exclamation function <em>hadn’t</em> been running, Pulsar would have durably stored the message data published to the input topic in <a href="https://bookkeeper.apache.org">Apache BookKeeper</a> until a <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span> consumed and <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledged</span> the message</li>
 </ul>
 
@@ -1082,25 +1030,23 @@ Hello world!
 <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions create <span class="se">\</span>
   <span class="nt">--jar</span> examples/api-examples.jar <span class="se">\</span>
   <span class="nt">--className</span> org.apache.pulsar.functions.api.examples.ExclamationFunction <span class="se">\</span>
-  <span class="nt">--inputs</span> persistent://sample/standalone/ns1/exclamation-input <span class="se">\</span>
-  <span class="nt">--output</span> persistent://sample/standalone/ns1/exclamation-output <span class="se">\</span>
-  <span class="nt">--tenant</span> sample <span class="se">\</span>
-  <span class="nt">--namespace</span> ns1 <span class="se">\</span>
+  <span class="nt">--inputs</span> persistent://public/default/exclamation-input <span class="se">\</span>
+  <span class="nt">--output</span> persistent://public/default/exclamation-output <span class="se">\</span>
   <span class="nt">--name</span> exclamation
 </code></pre></div></div>
 
 <p>You should see <code class="highlighter-rouge">Created successfully</code> in the output. Now, let’s see a list of functions running in our cluster:</p>
 
 <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions list <span class="se">\</span>
-  <span class="nt">--tenant</span> sample <span class="se">\</span>
-  <span class="nt">--namespace</span> ns1
+  <span class="nt">--tenant</span> public <span class="se">\</span>
+  <span class="nt">--namespace</span> default
 </code></pre></div></div>
 
 <p>We should see just the <code class="highlighter-rouge">exclamation</code> function listed there. We can also check the status of our deployed function using the <code class="highlighter-rouge">getstatus</code> command:</p>
 
 <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions getstatus <span class="se">\</span>
-  <span class="nt">--tenant</span> sample <span class="se">\</span>
-  <span class="nt">--namespace</span> ns1 <span class="se">\</span>
+  <span class="nt">--tenant</span> public <span class="se">\</span>
+  <span class="nt">--namespace</span> default <span class="se">\</span>
   <span class="nt">--name</span> exclamation
 </code></pre></div></div>
 
@@ -1119,22 +1065,22 @@ Hello world!
 <p>As we can see, (a) the instance is currently running and (b) there is one instance, with an ID of 0, running. We can get other information about the function (topics, tenant, namespace, etc.) using the <code class="highlighter-rouge">get</code> command instead of <code class="highlighter-rouge">getstatus</code>:</p>
 
 <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions get <span class="se">\</span>
-  <span class="nt">--tenant</span> sample <span class="se">\</span>
-  <span class="nt">--namespace</span> ns1 <span class="se">\</span>
+  <span class="nt">--tenant</span> public <span class="se">\</span>
+  <span class="nt">--namespace</span> default <span class="se">\</span>
   <span class="nt">--name</span> exclamation
 </code></pre></div></div>
 
 <p>You should see this JSON output:</p>
 
 <div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
-  </span><span class="s2">"tenant"</span><span class="p">:</span><span class="w"> </span><span class="s2">"sample"</span><span class="p">,</span><span class="w">
-  </span><span class="s2">"namespace"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ns1"</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"tenant"</span><span class="p">:</span><span class="w"> </span><span class="s2">"public"</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"namespace"</span><span class="p">:</span><span class="w"> </span><span class="s2">"default"</span><span class="p">,</span><span class="w">
   </span><span class="s2">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"exclamation"</span><span class="p">,</span><span class="w">
   </span><span class="s2">"className"</span><span class="p">:</span><span class="w"> </span><span class="s2">"org.apache.pulsar.functions.api.examples.ExclamationFunction"</span><span class="p">,</span><span class="w">
-  </span><span class="s2">"output"</span><span class="p">:</span><span class="w"> </span><span class="s2">"persistent://sample/standalone/ns1/exclamation-output"</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"output"</span><span class="p">:</span><span class="w"> </span><span class="s2">"persistent://public/default/exclamation-output"</span><span class="p">,</span><span class="w">
   </span><span class="s2">"autoAck"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w">
   </span><span class="s2">"inputs"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
-    </span><span class="s2">"persistent://sample/standalone/ns1/exclamation-input"</span><span class="w">
+    </span><span class="s2">"persistent://public/default/exclamation-input"</span><span class="w">
   </span><span class="p">],</span><span class="w">
   </span><span class="s2">"parallelism"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="w">
 </span><span class="p">}</span><span class="w">
@@ -1145,10 +1091,10 @@ Hello world!
 <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions update <span class="se">\</span>
   <span class="nt">--jar</span> examples/api-examples.jar <span class="se">\</span>
   <span class="nt">--className</span> org.apache.pulsar.functions.api.examples.ExclamationFunction <span class="se">\</span>
-  <span class="nt">--inputs</span> persistent://sample/standalone/ns1/exclamation-input <span class="se">\</span>
-  <span class="nt">--output</span> persistent://sample/standalone/ns1/exclamation-output <span class="se">\</span>
-  <span class="nt">--tenant</span> sample <span class="se">\</span>
-  <span class="nt">--namespace</span> ns1 <span class="se">\</span>
+  <span class="nt">--inputs</span> persistent://public/default/exclamation-input <span class="se">\</span>
+  <span class="nt">--output</span> persistent://public/default/exclamation-output <span class="se">\</span>
+  <span class="nt">--tenant</span> public <span class="se">\</span>
+  <span class="nt">--namespace</span> default <span class="se">\</span>
   <span class="nt">--name</span> exclamation <span class="se">\</span>
   <span class="nt">--parallelism</span> 3
 </code></pre></div></div>
@@ -1156,14 +1102,14 @@ Hello world!
 <p>You should see <code class="highlighter-rouge">Updated successfully</code> in the output. If you run the <code class="highlighter-rouge">get</code> command from above for the function, you can see that the parallelism has increased to 3, meaning that there are now three instances of the function running in our cluster:</p>
 
 <div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
-  </span><span class="s2">"tenant"</span><span class="p">:</span><span class="w"> </span><span class="s2">"sample"</span><span class="p">,</span><span class="w">
-  </span><span class="s2">"namespace"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ns1"</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"tenant"</span><span class="p">:</span><span class="w"> </span><span class="s2">"public"</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"namespace"</span><span class="p">:</span><span class="w"> </span><span class="s2">"default"</span><span class="p">,</span><span class="w">
   </span><span class="s2">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"exclamation"</span><span class="p">,</span><span class="w">
   </span><span class="s2">"className"</span><span class="p">:</span><span class="w"> </span><span class="s2">"org.apache.pulsar.functions.api.examples.ExclamationFunction"</span><span class="p">,</span><span class="w">
-  </span><span class="s2">"output"</span><span class="p">:</span><span class="w"> </span><span class="s2">"persistent://sample/standalone/ns1/exclamation-output"</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"output"</span><span class="p">:</span><span class="w"> </span><span class="s2">"persistent://public/default/exclamation-output"</span><span class="p">,</span><span class="w">
   </span><span class="s2">"autoAck"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w">
   </span><span class="s2">"inputs"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
-    </span><span class="s2">"persistent://sample/standalone/ns1/exclamation-input"</span><span class="w">
+    </span><span class="s2">"persistent://public/default/exclamation-input"</span><span class="w">
   </span><span class="p">],</span><span class="w">
   </span><span class="s2">"parallelism"</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="w">
 </span><span class="p">}</span><span class="w">
@@ -1172,8 +1118,8 @@ Hello world!
 <p>Finally, we can shut down our running function using the <code class="highlighter-rouge">delete</code> command:</p>
 
 <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions delete <span class="se">\</span>
-  <span class="nt">--tenant</span> sample <span class="se">\</span>
-  <span class="nt">--namespace</span> ns1 <span class="se">\</span>
+  <span class="nt">--tenant</span> public <span class="se">\</span>
+  <span class="nt">--namespace</span> default <span class="se">\</span>
   <span class="nt">--name</span> exclamation
 </code></pre></div></div>
 
@@ -1231,10 +1177,10 @@ Hello world!
 <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions create <span class="se">\</span>
   <span class="nt">--py</span> reverse.py <span class="se">\</span>
   <span class="nt">--className</span> reverse <span class="se">\</span>
-  <span class="nt">--inputs</span> persistent://sample/standalone/ns1/backwards <span class="se">\</span>
-  <span class="nt">--output</span> persistent://sample/standalone/ns1/forwards <span class="se">\</span>
-  <span class="nt">--tenant</span> sample <span class="se">\</span>
-  <span class="nt">--namespace</span> ns1 <span class="se">\</span>
+  <span class="nt">--inputs</span> persistent://public/default/backwards <span class="se">\</span>
+  <span class="nt">--output</span> persistent://public/default/forwards <span class="se">\</span>
+  <span class="nt">--tenant</span> public <span class="se">\</span>
+  <span class="nt">--namespace</span> default <span class="se">\</span>
   <span class="nt">--name</span> reverse
 </code></pre></div></div>
 
@@ -1242,8 +1188,8 @@ Hello world!
 
 <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions trigger <span class="se">\</span>
   <span class="nt">--name</span> reverse <span class="se">\</span>
-  <span class="nt">--tenant</span> sample <span class="se">\</span>
-  <span class="nt">--namespace</span> ns1 <span class="se">\</span>
+  <span class="nt">--tenant</span> public <span class="se">\</span>
+  <span class="nt">--namespace</span> default <span class="se">\</span>
   <span class="nt">--triggerValue</span> <span class="s2">"sdrawrof won si tub sdrawkcab saw gnirts sihT"</span>
 </code></pre></div></div>
 

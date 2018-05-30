@@ -283,6 +283,37 @@
 
 <h2 id="apache-incubator">Apache incubator</h2>
 
+<h3 id="200-rc1-incubating--2018-05-29-">2.0.0-rc1-incubating — 2018-05-29 <a id="2.0.0-rc1-incubating"></a></h3>
+
+<p>This is the fifth release of Apache Pulsar since entering the ASF incubator and the
+first time we increase major release number.</p>
+
+<p>There are several new features and major improvements:</p>
+
+<ul>
+  <li><a href="http://pulsar.apache.org/docs/latest/functions/overview/">Pulsar functions</a>: Lightweight
+compute framework</li>
+  <li>New type-safe <a href="http://pulsar.apache.org/docs/latest/clients/Java/">Java API</a> for producer/consumers</li>
+  <li><a href="http://pulsar.apache.org/docs/v2.0.0-rc1-incubating/getting-started/ConceptsAndArchitecture/#Schemaregistry-ll008b">Schema registry</a> — Enforce schema on topics</li>
+  <li>Topic compaction — Out of band compaction of messages to allow consumer to fetch a
+snapshot with last published message for each message key.</li>
+  <li>Upgraded to <a href="https://bookkeeper.apache.org/">Apache BookKeeper</a> 4.7.0</li>
+  <li>Performance improvements — Up to 3x throughput improvements compared to Pulsar-1.22 and
+99.9 Pct publish latencies &lt;10ms</li>
+  <li><a href="http://pulsar.apache.org/docs/v2.0.0-rc1-incubating/getting-started/Pulsar-2.0/#Propertiesversustenants-gh1amh">Simplified terminology</a> and admin tools
+    <ul>
+      <li>Renamed “property” into “tenants”</li>
+      <li>Short topic names: <code class="highlighter-rouge">my-topic</code></li>
+      <li>Topics independent of cluster names: <code class="highlighter-rouge">my-tenant/my-namespace/my-topic</code></li>
+    </ul>
+  </li>
+</ul>
+
+<p>The complete list of changes can be found at:
+https://github.com/apache/incubator-pulsar/milestone/12?closed=1</p>
+
+<p>https://github.com/apache/incubator-pulsar/releases/tag/v2.0.0-rc1-incubating</p>
+
 <h3 id="1220-incubating--2018-03-06-">1.22.0-incubating — 2018-03-06 <a id="1.22.0-incubating"></a></h3>
 
 <p>This is the fourth of Apache Pulsar since entering the ASF incubator.</p>
