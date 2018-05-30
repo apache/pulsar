@@ -33,6 +33,7 @@ class MessageId {
    public:
     MessageId& operator=(const MessageId&);
     MessageId();
+    MessageId(int32_t partition, int64_t ledgerId, int64_t entryId, int32_t batchIndex);
 
     /**
      * MessageId representing the "earliest" or "oldest available" message stored in the topic
@@ -75,7 +76,6 @@ class MessageId {
     friend class PulsarWrapper;
     friend class PulsarFriend;
 
-    explicit MessageId(int32_t partition, int64_t ledgerId, int64_t entryId, int32_t batchIndex);
     friend std::ostream& operator<<(std::ostream& s, const MessageId& messageId);
 
     int64_t ledgerId() const;
