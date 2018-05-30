@@ -157,8 +157,8 @@ public class ConfigValidationAnnotations {
     /**
      * checks function config as a whole to make sure all fields are valid
      */
+    @Retention(RetentionPolicy.RUNTIME)
     @Target({ElementType.TYPE})
-    @Retention(RetentionPolicy.SOURCE)
     public @interface isValidFunctionConfig {
         Class<?> validatorClass() default ValidatorImpls.FunctionConfigValidator.class;
     }
