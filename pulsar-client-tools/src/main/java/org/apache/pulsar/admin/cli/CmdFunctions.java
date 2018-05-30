@@ -991,7 +991,7 @@ public class CmdFunctions extends CmdBase {
 
     @Parameters(commandDescription = "Kill Pulsar Function running in Kubernetes cluster")
     class K8Killer extends FunctionCommand {
-        @Parameter(names = "--k8Config", description = "Kubernetes config file", required = true)
+        @Parameter(names = "--k8Config", description = "Kubernetes config file")
         protected String k8ConfgiFile;
 
         @Override
