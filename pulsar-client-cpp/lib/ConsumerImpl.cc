@@ -58,7 +58,7 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
       brokerConsumerStats_(),
       consumerStatsBasePtr_(),
       msgCrypto_(),
-      readCompacted_(false) {
+      readCompacted_(conf.isReadCompacted()) {
     std::stringstream consumerStrStream;
     consumerStrStream << "[" << topic_ << ", " << subscription_ << ", " << consumerId_ << "] ";
     consumerStr_ = consumerStrStream.str();
@@ -87,8 +87,6 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
     if (conf.isEncryptionEnabled()) {
         msgCrypto_ = boost::make_shared<MessageCrypto>(consumerStr_, false);
     }
-
-    readCompacted_ = conf.isReadCompacted();
 }
 
 ConsumerImpl::~ConsumerImpl() {
@@ -883,6 +881,7 @@ void ConsumerImpl::brokerConsumerStatsListener(Result res, BrokerConsumerStatsIm
     }
 }
 
+<<<<<<< HEAD
 void ConsumerImpl::handleSeek(Result result, ResultCallback callback) {
     if (result == ResultOk) {
         LOG_INFO(getName() << "Seek successfully");
@@ -927,5 +926,7 @@ bool ConsumerImpl::isReadCompacted() {
     Lock lock(mutex_);
     return readCompacted_;
 }
+
+bool ConsumerImpl::isReadCompacted() { return readCompacted_; }
 
 } /* namespace pulsar */

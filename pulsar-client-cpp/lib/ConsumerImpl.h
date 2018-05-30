@@ -166,7 +166,7 @@ class ConsumerImpl : public ConsumerImplBase,
     BrokerConsumerStatsImpl brokerConsumerStats_;
 
     MessageCryptoPtr msgCrypto_;
-    bool readCompacted_;
+    const bool readCompacted_;
 
     friend class PulsarFriend;
 };

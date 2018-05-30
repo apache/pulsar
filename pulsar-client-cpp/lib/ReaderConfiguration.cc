@@ -59,5 +59,8 @@ void ReaderConfiguration::setSubscriptionRolePrefix(const std::string& subscript
 
 bool ReaderConfiguration::isReadCompacted() const { return impl_->readCompacted; }
 
-void ReaderConfiguration::setReadCompacted(bool compacted) { impl_->readCompacted = compacted; }
+ReaderConfiguration& ReaderConfiguration::setReadCompacted(bool compacted) {
+    impl_->readCompacted = compacted;
+    return *this;
+}
 }  // namespace pulsar
