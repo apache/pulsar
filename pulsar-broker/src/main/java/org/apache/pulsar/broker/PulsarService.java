@@ -308,6 +308,13 @@ public class PulsarService implements AutoCloseable {
     public void start() throws PulsarServerException {
         mutex.lock();
 
+        LOG.info("Starting Pulsar Broker service; version: '{}'", ( brokerVersion != null ? brokerVersion : "unknown" )  );
+        LOG.info("Git Revision {}", PulsarBrokerVersionStringUtils.getGitSha());
+        LOG.info("Built by {} on {} at {}",
+                 PulsarBrokerVersionStringUtils.getBuildUser(),
+                 PulsarBrokerVersionStringUtils.getBuildHost(),
+                 PulsarBrokerVersionStringUtils.getBuildTime());
+
         try {
             if (state != State.Init) {
                 throw new PulsarServerException("Cannot start the service once it was stopped");
@@ -336,7 +343,6 @@ public class PulsarService implements AutoCloseable {
 
             this.offloader = createManagedLedgerOffloader(this.getConfiguration());
 
-            LOG.info("Starting Pulsar Broker service; version: '{}'", ( brokerVersion != null ? brokerVersion : "unknown" )  );
             brokerService.start();
 
             this.webService = new WebService(this);
@@ -420,8 +426,6 @@ public class PulsarService implements AutoCloseable {
             });
 
             leaderElectionService.start();
-
-            LOG.info("Starting Pulsar Broker service; version: '{}'", ( brokerVersion != null ? brokerVersion : "unknown" )  );
 
             webService.start();
 

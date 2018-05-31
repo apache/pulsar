@@ -134,7 +134,9 @@ groups:
 - title: Cookbooks
   dir: cookbooks
   docs:
-  - title: Message deduplication
+  - title: Topic compaction
+    endpoint: compaction
+  - title: Managing message deduplication
     endpoint: message-deduplication
   - title: Non-persistent messaging
     endpoint: non-persistent-messaging
