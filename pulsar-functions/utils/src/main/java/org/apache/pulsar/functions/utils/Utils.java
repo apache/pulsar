@@ -21,17 +21,28 @@ package org.apache.pulsar.functions.utils;
 import com.google.protobuf.AbstractMessage.Builder;
 import com.google.protobuf.MessageOrBuilder;
 import com.google.protobuf.util.JsonFormat;
+
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.net.ServerSocket;
+import java.util.Collection;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.functions.api.Function;
+
+import net.jodah.typetools.TypeResolver;
 
 /**
  * Utils used for runtime.
  */
+@Slf4j
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class Utils {
 
@@ -75,5 +86,67 @@ public class Utils {
         } catch (IOException ex){
             throw new RuntimeException("No free port found", ex);
         }
+    }
+
+    public static Class<?>[] getFunctionTypes(FunctionConfig functionConfig) {
+
+        Object userClass = createInstance(functionConfig.getClassName(), Thread.currentThread().getContextClassLoader());
+
+        Class<?>[] typeArgs;
+        // if window function
+        if (functionConfig.getWindowConfig() != null) {
+            java.util.function.Function function = (java.util.function.Function) userClass;
+            if (function == null) {
+                throw new IllegalArgumentException(String.format("The Java util function class %s could not be instantiated",
+                        functionConfig.getClassName()));
+            }
+            typeArgs = TypeResolver.resolveRawArguments(java.util.function.Function.class, function.getClass());
+            if (!typeArgs[0].equals(Collection.class)) {
+                throw new IllegalArgumentException("Window function must take a collection as input");
+            }
+            Type type = TypeResolver.resolveGenericType(java.util.function.Function.class, function.getClass());
+            Type collectionType = ((ParameterizedType) type).getActualTypeArguments()[0];
+            Type actualInputType = ((ParameterizedType) collectionType).getActualTypeArguments()[0];
+            typeArgs[0] = (Class<?>) actualInputType;
+        } else {
+            if (userClass instanceof Function) {
+                Function pulsarFunction = (Function) userClass;
+                typeArgs = TypeResolver.resolveRawArguments(Function.class, pulsarFunction.getClass());
+            } else {
+                java.util.function.Function function = (java.util.function.Function) userClass;
+                typeArgs = TypeResolver.resolveRawArguments(java.util.function.Function.class, function.getClass());
+            }
+        }
+
+        return typeArgs;
+    }
+
+    public static Object createInstance(String userClassName, ClassLoader classLoader) {
+        Class<?> theCls;
+        try {
+            theCls = Class.forName(userClassName);
+        } catch (ClassNotFoundException cnfe) {
+            try {
+                theCls = Class.forName(userClassName, true, classLoader);
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException("User class must be in class path", cnfe);
+            }
+        }
+        Object result;
+        try {
+            Constructor<?> meth = theCls.getDeclaredConstructor();
+            meth.setAccessible(true);
+            result = meth.newInstance();
+        } catch (InstantiationException ie) {
+            throw new RuntimeException("User class must be concrete", ie);
+        } catch (NoSuchMethodException e) {
+            throw new RuntimeException("User class doesn't have such method", e);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException("User class must have a no-arg constructor", e);
+        } catch (InvocationTargetException e) {
+            throw new RuntimeException("User class constructor throws exception", e);
+        }
+        return result;
+
     }
 }
