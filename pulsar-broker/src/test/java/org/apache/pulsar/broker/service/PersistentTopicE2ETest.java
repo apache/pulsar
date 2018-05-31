@@ -58,6 +58,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerBusyException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerImpl;
@@ -1388,5 +1389,21 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         Optional<Topic> t = pulsar.getBrokerService().getTopicReference(topicName);
         assertFalse(t.isPresent());
+    }
+
+    @Test
+    public void testWithEventTime() throws Exception {
+        final String topicName = "prop/ns-abc/topic-event-time";
+        final String subName = "sub";
+
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName(subName)
+                .subscribe();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
+
+        producer.newMessage().value("test").eventTime(5).send();
+        Message<String> msg = consumer.receive();
+        assertNotNull(msg);
+        assertEquals(msg.getValue(), "test");
+        assertEquals(msg.getEventTime(), 5);
     }
 }

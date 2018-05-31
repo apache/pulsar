@@ -416,6 +416,10 @@ void Commands::serializeSingleMessageInBatchWithPayload(const Message& msg, Shar
         metadata.mutable_properties()->AddAllocated(keyValue);
     }
 
+    if (msg.impl_->getEventTimestamp() != 0) {
+        metadata.set_event_time(msg.impl_->getEventTimestamp());
+    }
+
     // Format of batch message
     // Each Message = [METADATA_SIZE][METADATA] [PAYLOAD]
 
