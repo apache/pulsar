@@ -25,8 +25,11 @@ import static org.mockito.Matchers.anyLong;
 
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.model.CopyObjectRequest;
+import com.amazonaws.services.s3.model.ObjectMetadata;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Method;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Random;
@@ -445,6 +448,72 @@ class S3ManagedLedgerOffloaderTest extends S3TestBase {
             Assert.fail("Shouldn't have been able to offload");
         } catch (ExecutionException e) {
             Assert.assertEquals(e.getCause().getClass(), IllegalArgumentException.class);
+        }
+    }
+
+    @Test
+    public void testReadUnknownDataVersion() throws Exception {
+        ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
+        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler,
+                                                                 DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
+        UUID uuid = UUID.randomUUID();
+        offloader.offload(toWrite, uuid, new HashMap<>()).get();
+
+        String dataKey = dataBlockOffloadKey(toWrite.getId(), uuid);
+        ObjectMetadata md = s3client.getObjectMetadata(BUCKET, dataKey);
+        md.getUserMetadata().put(S3ManagedLedgerOffloader.METADATA_FORMAT_VERSION_KEY, String.valueOf(-12345));
+        s3client.copyObject(new CopyObjectRequest(BUCKET, dataKey, BUCKET, dataKey).withNewObjectMetadata(md));
+
+        try (ReadHandle toRead = offloader.readOffloaded(toWrite.getId(), uuid).get()) {
+            toRead.readAsync(0, 0).get();
+            Assert.fail("Shouldn't have been able to read");
+        } catch (ExecutionException e) {
+            Assert.assertEquals(e.getCause().getClass(), IOException.class);
+            Assert.assertTrue(e.getCause().getMessage().contains("Invalid object version"));
+        }
+
+        md.getUserMetadata().put(S3ManagedLedgerOffloader.METADATA_FORMAT_VERSION_KEY, String.valueOf(12345));
+        s3client.copyObject(new CopyObjectRequest(BUCKET, dataKey, BUCKET, dataKey).withNewObjectMetadata(md));
+
+        try (ReadHandle toRead = offloader.readOffloaded(toWrite.getId(), uuid).get()) {
+            toRead.readAsync(0, 0).get();
+            Assert.fail("Shouldn't have been able to read");
+        } catch (ExecutionException e) {
+            Assert.assertEquals(e.getCause().getClass(), IOException.class);
+            Assert.assertTrue(e.getCause().getMessage().contains("Invalid object version"));
+        }
+    }
+
+    @Test
+    public void testReadUnknownIndexVersion() throws Exception {
+        ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
+        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler,
+                                                                 DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
+        UUID uuid = UUID.randomUUID();
+        offloader.offload(toWrite, uuid, new HashMap<>()).get();
+
+        String indexKey = indexBlockOffloadKey(toWrite.getId(), uuid);
+        ObjectMetadata md = s3client.getObjectMetadata(BUCKET, indexKey);
+        md.getUserMetadata().put(S3ManagedLedgerOffloader.METADATA_FORMAT_VERSION_KEY, String.valueOf(-12345));
+        s3client.copyObject(new CopyObjectRequest(BUCKET, indexKey, BUCKET, indexKey).withNewObjectMetadata(md));
+
+        try {
+            offloader.readOffloaded(toWrite.getId(), uuid).get();
+            Assert.fail("Shouldn't have been able to open");
+        } catch (ExecutionException e) {
+            Assert.assertEquals(e.getCause().getClass(), IOException.class);
+            Assert.assertTrue(e.getCause().getMessage().contains("Invalid object version"));
+        }
+
+        md.getUserMetadata().put(S3ManagedLedgerOffloader.METADATA_FORMAT_VERSION_KEY, String.valueOf(12345));
+        s3client.copyObject(new CopyObjectRequest(BUCKET, indexKey, BUCKET, indexKey).withNewObjectMetadata(md));
+
+        try {
+            offloader.readOffloaded(toWrite.getId(), uuid).get();
+            Assert.fail("Shouldn't have been able to open");
+        } catch (ExecutionException e) {
+            Assert.assertEquals(e.getCause().getClass(), IOException.class);
+            Assert.assertTrue(e.getCause().getMessage().contains("Invalid object version"));
         }
     }
 }
