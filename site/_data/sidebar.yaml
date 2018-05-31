@@ -158,8 +158,6 @@ groups:
     endpoint: BinaryProtocol
   - title: Codebase
     endpoint: Codebase
-  - title: Custom Pulsar IO connectors
-    endpoint: custom-connectors
   - title: Custom schema storage
     endpoint: schema-storage
   - title: Modular load manager

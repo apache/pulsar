@@ -49,5 +49,3 @@ $ bin/pulsar-admin source create \
 At the moment, the following connectors are available for Pulsar:
 
 {% include connectors.html %}
-
-{% include admonition.html type="success" title="Custom connectors" content="You can easily extend Pulsar IO by creating your own custom connectors in Java. See the [Custom Pulsar IO connectors](../../project/custom-connectors) for instructions." %}
