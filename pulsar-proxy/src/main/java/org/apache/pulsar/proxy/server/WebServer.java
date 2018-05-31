@@ -97,13 +97,14 @@ public class WebServer {
         return this.server.getURI();
     }
 
-    public void addServlet(String path, ServletHolder servletHolder) {
-        addServlet(path, servletHolder, Collections.emptyList());
+    public void addServlet(String basePath, ServletHolder servletHolder) {
+        addServlet(basePath, servletHolder, Collections.emptyList());
     }
 
-    public void addServlet(String path, ServletHolder servletHolder, List<Pair<String, Object>> attributes) {
+    public void addServlet(String basePath, ServletHolder servletHolder, List<Pair<String, Object>> attributes) {
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
-        context.addServlet(servletHolder, path);
+        context.setContextPath(basePath);
+        context.addServlet(servletHolder, "/*");
         for (Pair<String, Object> attribute : attributes) {
             context.setAttribute(attribute.getLeft(), attribute.getRight());
         }
