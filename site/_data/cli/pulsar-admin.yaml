@@ -483,79 +483,79 @@ commands:
   - name: create
     description: Create a Pulsar IO sink connector
     options:
-    - name: --className
+    - flags: --className
       description: The sink's Java class name
-    - name: --cpu
+    - flags: --cpu
       description: The CPU (in cores) that needs to be allocated per sink instance (applicable only to the Docker runtime)
-    - name: --customSerdeInputs
+    - flags: --customSerdeInputs
       description: The map of input topics to SerDe class names (as a JSON string)
-    - name: --disk
+    - flags: --disk
       description: The disk (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)
-    - name: --inputs
+    - flags: --inputs
       description: The sink's input topic(s) (multiple topics can be specified as a comma-separated list)
-    - name: --jar
+    - flags: --jar
       description: Path to the Java jar file for the sink
-    - name: --name
+    - flags: --name
       description: The sink's name
-    - name: --namespace
+    - flags: --namespace
       description: The sink's namespace
-    - name: --parallelism
+    - flags: --parallelism
       description: |
         "The sink's parallelism factor (i.e. the number of sink instances to run)."
-    - name: --processingGuarantees
+    - flags: --processingGuarantees
       description: |
         "The processing guarantees (aka delivery semantics) applied to the sink. Available values: `ATLEAST_ONCE`, `ATMOST_ONCE`, `EFFECTIVELY_ONCE`."
-    - name: --ram
+    - flags: --ram
       description: The RAM (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)
-    - name: --sinkConfig
+    - flags: --sinkConfig
       description: Sink config key/values
-    - name: --sinkConfigFile
+    - flags: --sinkConfigFile
       description: The path to a YAML config file specifying the sink's configuration
-    - name: --tenant
+    - flags: --tenant
       description: The sink's tenant
   - name: delete
     description: Stops a Pulsar IO sink
     options:
-    - name: --name
+    - flags: --name
       description: The name of the sink
-    - name: --namespace
+    - flags: --namespace
       description: The namespace of the sink
-    - name: --tenant
+    - flags: --tenant
       description: The tenant of the sink
   - name: localrun
     description: Run the Pulsar sink locally (rather than in the Pulsar cluster)
     options:
-    - name: --brokerServiceUrl
+    - flags: --brokerServiceUrl
       description: The URL for the Pulsar broker
-    - name: --className
+    - flags: --className
       description: The sink's Java class name
-    - name: --cpu
+    - flags: --cpu
       description: The CPU (in cores) that needs to be allocated per sink instance (applicable only to the Docker runtime)
-    - name: --customSerdeInputs
+    - flags: --customSerdeInputs
       description: The map of input topics to SerDe class names (as a JSON string)
-    - name: --disk
+    - flags: --disk
       description: The disk (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)
-    - name: --inputs
+    - flags: --inputs
       description: The sink's input topic(s) (multiple topics can be specified as a comma-separated list)
-    - name: --jar
+    - flags: --jar
       description: Path to the Java jar file for the sink
-    - name: --name
+    - flags: --name
       description: The sink's name
-    - name: --namespace
+    - flags: --namespace
       description: The sink's namespace
-    - name: --parallelism
+    - flags: --parallelism
       description: |
         "The sink's parallelism factor (i.e. the number of sink instances to run)."
-    - name: --processingGuarantees
+    - flags: --processingGuarantees
       description: |
         "The processing guarantees (aka delivery semantics) applied to the sink. Available values: `ATLEAST_ONCE`, `ATMOST_ONCE`, `EFFECTIVELY_ONCE`."
-    - name: --ram
+    - flags: --ram
       description: The RAM (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)
-    - name: --sinkConfig
+    - flags: --sinkConfig
       description: Sink config key/values
-    - name: --sinkConfigFile
+    - flags: --sinkConfigFile
       description: The path to a YAML config file specifying the sink's configuration
-    - name: --tenant
+    - flags: --tenant
       description: The sink's tenant
 - name: source
   description: An interface for managing Pulsar IO sources (ingress data into Pulsar)
@@ -563,77 +563,77 @@ commands:
   - name: create
     description: Create a Pulsar IO source connector
     options:
-    - name: --className
+    - flags: --className
       description: The source's Java class name
-    - name: --cpu
+    - flags: --cpu
       description: The CPU (in cores) that needs to be allocated per source instance (applicable only to the Docker runtime)
-    - name: --deserializationClassName
+    - flags: --deserializationClassName
       description: The SerDe classname for the source
-    - name: --destinationTopicName
+    - flags: --destinationTopicName
       description: The Pulsar topic to which data is sent
-    - name: --disk
+    - flags: --disk
       description: The disk (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)
-    - name: --jar
+    - flags: --jar
       description: Path to the Java jar file for the source
-    - name: --name
+    - flags: --name
       description: The source's name
-    - name: --namespace
+    - flags: --namespace
       description: The source's namespace
-    - name: --parallelism
+    - flags: --parallelism
       description: |
         The source's parallelism factor (i.e. the number of source instances to run).
-    - name: --processingGuarantees
+    - flags: --processingGuarantees
       description: |
         "The processing guarantees (aka delivery semantics) applied to the source. Available values: `ATLEAST_ONCE`, `ATMOST_ONCE`, `EFFECTIVELY_ONCE`."
-    - name: --ram
+    - flags: --ram
       description: The RAM (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)
-    - name: --sourceConfig
+    - flags: --sourceConfig
       description: Source config key/values
-    - name: --sourceConfigFile
+    - flags: --sourceConfigFile
       description: The path to a YAML config file specifying the source's configuration
-    - name: --tenant
+    - flags: --tenant
       description: The source's tenant
   - name: delete
     description: Stops a Pulsar IO source
     options:
-    - name: --name
+    - flags: --name
       description: The name of the source
-    - name: --namespace
+    - flags: --namespace
       description: The namespace of the source
-    - name: --tenant
+    - flags: --tenant
       description: The tenant of the source
   - name: localrun
     description: Run the Pulsar source locally (rather than in the Pulsar cluster)
     options:
-    - name: --className
+    - flags: --className
       description: The source's Java class name
-    - name: --cpu
+    - flags: --cpu
       description: The CPU (in cores) that needs to be allocated per source instance (applicable only to the Docker runtime)
-    - name: --deserializationClassName
+    - flags: --deserializationClassName
       description: The SerDe classname for the source
-    - name: --destinationTopicName
+    - flags: --destinationTopicName
       description: The Pulsar topic to which data is sent
-    - name: --disk
+    - flags: --disk
       description: The disk (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)
-    - name: --jar
+    - flags: --jar
       description: Path to the Java jar file for the source
-    - name: --name
+    - flags: --name
       description: The source's name
-    - name: --namespace
+    - flags: --namespace
       description: The source's namespace
-    - name: --parallelism
+    - flags: --parallelism
       description: |
         The source's parallelism factor (i.e. the number of source instances to run).
-    - name: --processingGuarantees
+    - flags: --processingGuarantees
       description: |
         "The processing guarantees (aka delivery semantics) applied to the source. Available values: `ATLEAST_ONCE`, `ATMOST_ONCE`, `EFFECTIVELY_ONCE`."
-    - name: --ram
+    - flags: --ram
       description: The RAM (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)
-    - name: --sourceConfig
+    - flags: --sourceConfig
       description: Source config key/values
-    - name: --sourceConfigFile
+    - flags: --sourceConfigFile
       description: The path to a YAML config file specifying the source's configuration
-    - name: --tenant
+    - flags: --tenant
       description: The source's tenant
 - name: topics
   description: Operations for managing Pulsar topics (both persistent and non persistent)
