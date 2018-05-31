@@ -59,7 +59,7 @@ import java.util.function.Consumer;
 
 @Slf4j
 @Getter
-@Parameters(commandDescription = "Interface for managing Pulsar Source (Ingress data to Pulsar)")
+@Parameters(commandDescription = "Interface for managing Pulsar IO sources (ingress data into Pulsar)")
 public class CmdSources extends CmdBase {
 
     private final CreateSource createSource;
@@ -107,7 +107,7 @@ public class CmdSources extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Create Pulsar source connectors")
+    @Parameters(commandDescription = "Create a Pulsar source connector")
     class CreateSource extends BaseCommand {
         @Parameter(names = "--tenant", description = "The source's tenant")
         protected String tenant;
@@ -119,9 +119,9 @@ public class CmdSources extends CmdBase {
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
         @Parameter(names = "--className", description = "The source's class name")
         protected String className;
-        @Parameter(names = "--destinationTopicName", description = "Pulsar topic to ingress data to")
+        @Parameter(names = "--destinationTopicName", description = "The Pulsar topic to which data is sent")
         protected String destinationTopicName;
-        @Parameter(names = "--deserializationClassName", description = "The classname for SerDe class for the source")
+        @Parameter(names = "--deserializationClassName", description = "The SerDe classname for the source")
         protected String deserializationClassName;
         @Parameter(names = "--parallelism", description = "Number of instances of the source")
         protected String parallelism;
