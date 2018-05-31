@@ -632,10 +632,11 @@ public class CmdTopics extends CmdBase {
         return null;
     }
 
-    @Parameters(commandDescription = "Trigger offload data from a topic to long term storage")
+    @Parameters(commandDescription = "Trigger offload of data from a topic to long-term storage (e.g. Amazon S3)")
     private class Offload extends CliCommand {
         @Parameter(names = { "-s", "--size-threshold" },
-                   description = "Max amount of data to keep in bookkeeper for topic", required = true)
+                   description = "Maximum amount of data to keep in BookKeeper for the specified topic",
+                   required = true)
         private Long sizeThreshold;
 
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
@@ -664,7 +665,7 @@ public class CmdTopics extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Status of offloading on a topic")
+    @Parameters(commandDescription = "Check the status of data offloading from a topic to long-term storage")
     private class OffloadStatusCmd extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
