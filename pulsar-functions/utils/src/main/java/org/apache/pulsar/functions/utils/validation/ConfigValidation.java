@@ -19,40 +19,76 @@
 package org.apache.pulsar.functions.utils.validation;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.functions.utils.FunctionConfig;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
+
+import static org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.ValidatorParams.ACTUAL_RUNTIME;
+import static org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.ValidatorParams.TARGET_RUNTIME;
+import static org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.ValidatorParams.VALIDATOR_CLASS;
 
 @Slf4j
 public class ConfigValidation {
 
-    public static void validateConfig(Object config) {
+    public enum Runtime {
+        ALL,
+        JAVA,
+        PYTHON
+    }
+
+    public static void validateConfig(Object config, String runtimeType) {
         for (Field field : config.getClass().getDeclaredFields()) {
-            Object value = null;
+            Object value;
             field.setAccessible(true);
             try {
                 value = field.get(config);
             } catch (IllegalAccessException e) {
                throw new RuntimeException(e);
             }
-            validateField(field, value);
+            validateField(field, value, Runtime.valueOf(runtimeType));
         }
-        validateClass(config);
+        validateClass(config, Runtime.valueOf(runtimeType));
     }
 
-    private static void validateClass(Object config) {
-        processAnnotations(config.getClass().getAnnotations(), config.getClass().getName(), config);
+    private static void validateClass(Object config, Runtime runtime) {
+
+        List<Annotation> annotationList = new LinkedList<>();
+        Class<?>[] classes = ConfigValidationAnnotations.class.getDeclaredClasses();
+        for (Class clazz : classes) {
+            try {
+                Annotation[] anots = config.getClass().getAnnotationsByType(clazz);
+                annotationList.addAll(Arrays.asList(anots));
+            } catch (ClassCastException e) {
+
+            }
+        }
+        processAnnotations(annotationList, config.getClass().getName(), config, runtime);
     }
 
-    private static void validateField(Field field, Object value) {
-        processAnnotations(field.getAnnotations(), field.getName(), value);
+    private static void validateField(Field field, Object value, Runtime runtime) {
+        List<Annotation> annotationList = new LinkedList<>();
+        Class<?>[] classes = ConfigValidationAnnotations.class.getDeclaredClasses();
+        for (Class clazz : classes) {
+            try {
+                Annotation[] anots = field.getAnnotationsByType(clazz);
+                annotationList.addAll(Arrays.asList(anots));
+            } catch (ClassCastException e) {
+
+            }
+        }
+        processAnnotations(annotationList, field.getName(), value, runtime);
     }
 
-    private static void processAnnotations(Annotation[] annotations, String fieldName, Object value) {
+    private static void processAnnotations( List<Annotation> annotations, String fieldName, Object value,
+                                           Runtime runtime) {
         try {
             for (Annotation annotation : annotations) {
 
@@ -68,24 +104,44 @@ public class ConfigValidation {
                 }
                 if (validatorClass != null) {
                     Object v = validatorClass.cast(annotation);
-                    @SuppressWarnings("unchecked")
-                    Class<Validator> clazz = (Class<Validator>) validatorClass
-                            .getMethod(ConfigValidationAnnotations.ValidatorParams.VALIDATOR_CLASS).invoke(v);
-                    Validator o = null;
-                    Map<String, Object> params = getParamsFromAnnotation(validatorClass, v);
-                    //two constructor signatures used to initialize validators.
-                    //One constructor takes input a Map of arguments, the other doesn't take any arguments (default constructor)
-                    //If validator has a constructor that takes a Map as an argument call that constructor
-                    if (hasConstructor(clazz, Map.class)) {
-                        o = clazz.getConstructor(Map.class).newInstance(params);
-                    } else { //If not call default constructor
-                        o = clazz.newInstance();
+                    if (hasMethod(validatorClass, VALIDATOR_CLASS)) {
+
+                        @SuppressWarnings("unchecked")
+                        Class<Validator> clazz = (Class<Validator>) validatorClass
+                                .getMethod(ConfigValidationAnnotations.ValidatorParams.VALIDATOR_CLASS).invoke(v);
+                        Validator o = null;
+                        Map<String, Object> params = getParamsFromAnnotation(validatorClass, v);
+
+                        if (params.containsKey(TARGET_RUNTIME)
+                                && params.get(TARGET_RUNTIME) != Runtime.ALL
+                                && params.get(TARGET_RUNTIME) != runtime) {
+                            continue;
+                        }
+                        params.put(ACTUAL_RUNTIME, runtime);
+                        //two constructor signatures used to initialize validators.
+                        //One constructor takes input a Map of arguments, the other doesn't take any arguments (default constructor)
+
+                        //If validator has a constructor that takes a Map as an argument call that constructor
+                        if (hasConstructor(clazz, Map.class)) {
+                            o = clazz.getConstructor(Map.class).newInstance(params);
+                        } else { //If not call default constructor
+                            o = clazz.newInstance();
+                        }
+                        o.validateField(fieldName, value);
                     }
-                    o.validateField(fieldName, value);
                 }
             }
         } catch (NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    private static boolean hasMethod(Class<?> clazz, String method) {
+        try {
+            clazz.getMethod(method);
+            return true;
+        } catch (NoSuchMethodException e) {
+           return false;
         }
     }
 
