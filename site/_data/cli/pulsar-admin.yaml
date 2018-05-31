@@ -501,10 +501,10 @@ commands:
       description: The sink's namespace
     - name: --parallelism
       description: |
-        The sink's parallelism factor (i.e. the number of sink instances to run).
+        "The sink's parallelism factor (i.e. the number of sink instances to run)."
     - name: --processingGuarantees
       description: |
-        The processing guarantees (aka delivery semantics) applied to the sink. Available values: `ATLEAST_ONCE`, `ATMOST_ONCE`, `EFFECTIVELY_ONCE`.
+        "The processing guarantees (aka delivery semantics) applied to the sink. Available values: `ATLEAST_ONCE`, `ATMOST_ONCE`, `EFFECTIVELY_ONCE`."
     - name: --ram
       description: The RAM (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)
     - name: --sinkConfig
@@ -545,10 +545,10 @@ commands:
       description: The sink's namespace
     - name: --parallelism
       description: |
-        The sink's parallelism factor (i.e. the number of sink instances to run).
+        "The sink's parallelism factor (i.e. the number of sink instances to run)."
     - name: --processingGuarantees
       description: |
-        The processing guarantees (aka delivery semantics) applied to the sink. Available values: `ATLEAST_ONCE`, `ATMOST_ONCE`, `EFFECTIVELY_ONCE`.
+        "The processing guarantees (aka delivery semantics) applied to the sink. Available values: `ATLEAST_ONCE`, `ATMOST_ONCE`, `EFFECTIVELY_ONCE`."
     - name: --ram
       description: The RAM (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)
     - name: --sinkConfig
@@ -559,6 +559,7 @@ commands:
       description: The sink's tenant
 - name: source
   description: An interface for managing Pulsar IO sources (ingress data into Pulsar)
+  subcommands:
   - name: create
     description: Create a Pulsar IO source connector
     options:
@@ -583,7 +584,7 @@ commands:
         The source's parallelism factor (i.e. the number of source instances to run).
     - name: --processingGuarantees
       description: |
-        The processing guarantees (aka delivery semantics) applied to the source. Available values: `ATLEAST_ONCE`, `ATMOST_ONCE`, `EFFECTIVELY_ONCE`.
+        "The processing guarantees (aka delivery semantics) applied to the source. Available values: `ATLEAST_ONCE`, `ATMOST_ONCE`, `EFFECTIVELY_ONCE`."
     - name: --ram
       description: The RAM (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)
     - name: --sourceConfig
@@ -625,7 +626,7 @@ commands:
         The source's parallelism factor (i.e. the number of source instances to run).
     - name: --processingGuarantees
       description: |
-        The processing guarantees (aka delivery semantics) applied to the source. Available values: `ATLEAST_ONCE`, `ATMOST_ONCE`, `EFFECTIVELY_ONCE`.
+        "The processing guarantees (aka delivery semantics) applied to the source. Available values: `ATLEAST_ONCE`, `ATMOST_ONCE`, `EFFECTIVELY_ONCE`."
     - name: --ram
       description: The RAM (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)
     - name: --sourceConfig
