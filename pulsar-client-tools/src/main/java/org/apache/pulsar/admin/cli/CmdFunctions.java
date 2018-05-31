@@ -385,7 +385,7 @@ public class CmdFunctions extends CmdBase {
 
             try {
                 // Need to load jar and set context class loader before calling
-                ConfigValidation.validateConfig(functionConfig);
+                ConfigValidation.validateConfig(functionConfig, functionConfig.getRuntime().name());
             } catch (Exception e) {
                 throw new ParameterException(e.getMessage());
             }

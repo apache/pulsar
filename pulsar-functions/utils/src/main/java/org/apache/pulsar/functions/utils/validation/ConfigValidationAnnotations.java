@@ -18,7 +18,10 @@
  */
 package org.apache.pulsar.functions.utils.validation;
 
+import org.apache.pulsar.functions.utils.FunctionConfig;
+
 import java.lang.annotation.ElementType;
+import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
@@ -32,6 +35,8 @@ public class ConfigValidationAnnotations {
     @Target(ElementType.FIELD)
     public @interface NotNull {
         Class<?> validatorClass() default ValidatorImpls.NotNullValidator.class;
+
+        ConfigValidation.Runtime targetRuntime() default ConfigValidation.Runtime.ALL;
     }
 
     /**
@@ -43,6 +48,8 @@ public class ConfigValidationAnnotations {
         Class<?> validatorClass() default ValidatorImpls.PositiveNumberValidator.class;
 
         boolean includeZero() default false;
+
+        ConfigValidation.Runtime targetRuntime() default ConfigValidation.Runtime.ALL;
     }
 
 
@@ -54,6 +61,8 @@ public class ConfigValidationAnnotations {
     public @interface isValidResources {
 
         Class<?> validatorClass() default ValidatorImpls.ResourcesValidator.class;
+
+        ConfigValidation.Runtime targetRuntime() default ConfigValidation.Runtime.ALL;
     }
 
     /**
@@ -65,6 +74,8 @@ public class ConfigValidationAnnotations {
         Class<?> validatorClass() default ValidatorImpls.ListEntryTypeValidator.class;
 
         Class<?> type();
+
+        ConfigValidation.Runtime targetRuntime() default ConfigValidation.Runtime.ALL;
     }
 
     @Retention(RetentionPolicy.RUNTIME)
@@ -73,6 +84,8 @@ public class ConfigValidationAnnotations {
         Class<?> validatorClass() default ValidatorImpls.ListEntryTypeValidator.class;
 
         Class<?> type() default String.class;
+
+        ConfigValidation.Runtime targetRuntime() default ConfigValidation.Runtime.ALL;
     }
 
     /**
@@ -84,6 +97,8 @@ public class ConfigValidationAnnotations {
         Class<?> validatorClass() default ValidatorImpls.ListEntryCustomValidator.class;
 
         Class<?>[] entryValidatorClasses();
+
+        ConfigValidation.Runtime targetRuntime() default ConfigValidation.Runtime.ALL;
     }
 
 
@@ -98,6 +113,8 @@ public class ConfigValidationAnnotations {
         Class<?> keyType();
 
         Class<?> valueType();
+
+        ConfigValidation.Runtime targetRuntime() default ConfigValidation.Runtime.ALL;
     }
 
     /**
@@ -109,6 +126,8 @@ public class ConfigValidationAnnotations {
         Class<?> validatorClass() default ValidatorImpls.ImplementsClassValidator.class;
 
         Class<?> implementsClass();
+
+        ConfigValidation.Runtime targetRuntime() default ConfigValidation.Runtime.JAVA;
     }
 
     /**
@@ -120,20 +139,31 @@ public class ConfigValidationAnnotations {
         Class<?> validatorClass() default ValidatorImpls.ImplementsClassesValidator.class;
 
         Class<?>[] implementsClasses();
+
+        ConfigValidation.Runtime targetRuntime() default ConfigValidation.Runtime.JAVA;
     }
 
     /**
      * Validates a each key and value in a Map with a list of validators Validator with fields: validatorClass, keyValidatorClasses,
      * valueValidatorClasses
      */
+    @Repeatable(isMapEntryCustoms.class)
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.FIELD)
     public @interface isMapEntryCustom {
         Class<?> validatorClass() default ValidatorImpls.MapEntryCustomValidator.class;
 
-        Class<?>[] keyValidatorClasses();
+        Class<?>[] keyValidatorClasses() default {};
 
-        Class<?>[] valueValidatorClasses();
+        Class<?>[] valueValidatorClasses() default {};
+
+        ConfigValidation.Runtime targetRuntime() default ConfigValidation.Runtime.ALL;
+    }
+
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.FIELD)
+    public @interface isMapEntryCustoms {
+        isMapEntryCustom[] value();
     }
 
     /**
@@ -143,6 +173,8 @@ public class ConfigValidationAnnotations {
     @Target(ElementType.FIELD)
     public @interface isValidTopicName {
         Class<?> validatorClass() default ValidatorImpls.TopicNameValidator.class;
+
+        ConfigValidation.Runtime targetRuntime() default ConfigValidation.Runtime.ALL;
     }
 
     /**
@@ -152,6 +184,8 @@ public class ConfigValidationAnnotations {
     @Target(ElementType.FIELD)
     public @interface isValidWindowConfig {
         Class<?> validatorClass() default ValidatorImpls.WindowConfigValidator.class;
+
+        ConfigValidation.Runtime targetRuntime() default ConfigValidation.Runtime.ALL;
     }
 
     /**
@@ -179,5 +213,7 @@ public class ConfigValidationAnnotations {
         static final String ACCEPTED_VALUES = "acceptedValues";
         static final String IMPLEMENTS_CLASS = "implementsClass";
         static final String IMPLEMENTS_CLASSES = "implementsClasses";
+        static final String ACTUAL_RUNTIME = "actualRuntime";
+        static final String TARGET_RUNTIME = "targetRuntime";
     }
 }
