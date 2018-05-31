@@ -63,7 +63,7 @@ public class PulsarSource<T> implements Source<T> {
         this.inputConsumer = this.pulsarClient.newConsumer()
                 .topics(new ArrayList<>(this.pulsarSourceConfig.getTopicSerdeClassNameMap().keySet()))
                 .subscriptionName(this.pulsarSourceConfig.getSubscriptionName())
-                .subscriptionType(this.pulsarSourceConfig.getSubscriptionType().get())
+                .subscriptionType(this.pulsarSourceConfig.getSubscriptionType())
                 .ackTimeout(1, TimeUnit.MINUTES)
                 .subscribe();
     }
