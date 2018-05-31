@@ -44,6 +44,10 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private String brokerServiceURL;
     private String brokerServiceURLTLS;
 
+    // These settings are unnecessary if `zookeeperServers` is specified
+    private String brokerWebServiceURL;
+    private String brokerWebServiceURLTLS;
+
     // Port to use to server binary-proto request
     private int servicePort = 6650;
     // Port to use to server binary-proto-tls request
@@ -136,6 +140,22 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     public void setBrokerServiceURL(String discoveryServiceURL) {
         this.brokerServiceURL = discoveryServiceURL;
+    }
+
+    public String getBrokerWebServiceURL() {
+        return brokerWebServiceURL;
+    }
+
+    public void setBrokerWebServiceURL(String brokerWebServiceURL) {
+        this.brokerWebServiceURL = brokerWebServiceURL;
+    }
+
+    public String getBrokerWebServiceURLTLS() {
+        return brokerWebServiceURLTLS;
+    }
+
+    public void setBrokerWebServiceURLTLS(String brokerWebServiceURLTLS) {
+        this.brokerWebServiceURLTLS = brokerWebServiceURLTLS;
     }
 
     public String getZookeeperServers() {
