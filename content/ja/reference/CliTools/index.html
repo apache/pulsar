@@ -674,8 +674,6 @@
           
           
           
-          
-          
           <li><a href="/ja/admin/Authz/">Pulsarにおける認証と認可</a></li>
           
           
@@ -687,6 +685,8 @@
           
           
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
+          
+          
           
           
           
@@ -752,9 +752,9 @@
           
           
           
-          
-          
           <li><a href="/ja/advanced/PartitionedTopics/">パーティションドトピック</a></li>
+          
+          
           
           
           
@@ -782,9 +782,11 @@
           
           
           
-          
-          
           <li><a href="/ja/advanced/RetentionExpiry/">メッセージの保存と有効期限</a></li>
+          
+          
+          
+          
           
           
           
@@ -918,9 +920,11 @@
           
           
           
-          
-          
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
+          
+          
+          
+          
           
           
           
@@ -1140,8 +1144,6 @@
           
           
           
-          
-          
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
           
           
@@ -1319,6 +1321,10 @@
           
           
           
+          
+          
+          
+          
         </ul>
       </div>
     </div>
@@ -1368,9 +1374,11 @@
           
           
           
-          
-          
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
+          
+          
+          
+          
           
           
           
@@ -1590,9 +1598,11 @@
           
           
           
-          
-          
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
+          
+          
+          
+          
           
           
           
@@ -1812,9 +1822,11 @@
           
           
           
-          
-          
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
+          
+          
+          
+          
           
           
           
@@ -2474,7 +2486,7 @@
         <code class="highlighter-rouge">compact-topic</code>
       </h3>
       <div class="card-content">
-        <p>Run compaction against a Pulsar topic</p>
+        <p>Run compaction against a Pulsar topic (in a new process)</p>
 
         <h5>Usage</h5>
         <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar compact-topic <span class="options">options</span></code></pre></div>
@@ -2504,6 +2516,25 @@
 </td>
                 <td>
                   
+                </td>
+              </tr>
+              
+              <tr>
+                <td nowrap="">
+                  
+                  
+                  <code class="highlighter-rouge">-c</code>
+                  , 
+                  
+                  <code class="highlighter-rouge">--broker-conf</code>
+                  
+                   <!-- for flag in option.flags -->
+                </td>
+                <td><p>Configuration file for the broker</p>
+</td>
+                <td>
+                  <p>${pulsarDirectory}/conf/broker.conf</p>
+
                 </td>
               </tr>
                <!-- for option in options -->
@@ -3303,6 +3334,12 @@
       <li>
         <a href="#pulsar-admin-resource-quotas">
           <code class="highlighter-rouge">resource-quotas</code>
+        </a>
+      </li>
+      
+      <li>
+        <a href="#pulsar-admin-topics">
+          <code class="highlighter-rouge">topics</code>
         </a>
       </li>
        <!-- for command in commands -->
@@ -8100,7 +8137,7 @@
                       
                        <!-- for flag in option.flags -->
                     </td>
-                    <td><p>The namespace as <code class="highlighter-rouge">tenant/namespace</code>, for example <code class="highlighter-rouge">my-tenant/my-ns</code>.</p>
+                    <td><p>The namespace as <code class="highlighter-rouge">property/cluster/namespace</code>, for example <code class="highlighter-rouge">my-prop/my-cluster/my-ns</code>.</p>
 </td>
                     <td>
                       
@@ -8110,6 +8147,46 @@
                 </tbody>
               </thead>
             </table>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+       <!-- for subcommand in subcommands -->
+      
+      </div>
+    </div>
+    
+    <div class="card cli-command">
+      <h3 class="cli-command-title" id="pulsar-admin-topics">
+        <code class="highlighter-rouge">topics</code>
+      </h3>
+      <div class="card-content">
+        <p>Operations related to Pulsar topics of all kinds (both persistent and non-persistent)</p>
+
+        <h5>Usage</h5>
+        <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin topics <span class="command">subcommand</span></code></pre></div>
+         <!-- if command.options -->
+         <!-- if command.example -->
+
+        
+        <h5>Subcommands</h5>
+        <ul>
+          
+          <li>
+            <a href="#pulsar-admin-topics-compact">
+              <code class="highlighter-rouge">compact</code>
+            </a>
+          </li>
+           <!-- for subcommand in subcommands -->
+        </ul>
+
+        
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-topics-compact"><code class="highlighter-rouge">compact</code></h4>
+          <div class="card-content">
+            <p>Runs a compaction operation on the specified topic</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin topics compact <span class="command">topic-name</span></code></pre></div>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>

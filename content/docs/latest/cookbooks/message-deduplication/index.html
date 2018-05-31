@@ -701,8 +701,15 @@
           
           
           <li>
+            <a href="../../cookbooks/compaction">
+              Topic compaction
+            </a>
+          </li>
+          
+          
+          <li>
             <a href="../../cookbooks/message-deduplication">
-              Message deduplication
+              Managing message deduplication
             </a>
           </li>
           
@@ -885,6 +892,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
           
           
@@ -1009,8 +1018,6 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/deployment/aws-cluster/">Deploying a Pulsar cluster on AWS using Terraform and Ansible</a></li>
           
           
@@ -1020,6 +1027,10 @@
           <li><a href="/docs/latest/deployment/cluster/">Deploying a Pulsar cluster on bare metal</a></li>
           
           
+          
+          
+          
+          <li><a href="/docs/latest/cookbooks/compaction/">Topic compaction cookbook</a></li>
           
           
           
@@ -1119,6 +1130,8 @@
       </div>
       <div class="modal-body">
         <ul>
+          
+          
           
           
           
@@ -1419,6 +1432,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/cookbooks/PartitionedTopics/">Partitioned topics</a></li>
           
           
@@ -1626,8 +1641,6 @@
   </tbody>
 </table>
 
-<p>Any configuration changes you make won’t take effect until you re-start the broker.</p>
-
 <h3 id="default">Setting the broker-level default</h3>
 
 <p>By default, message deduplication is <em>disabled</em> on all Pulsar namespaces. To enable it by default on all namespaces, set the <code class="highlighter-rouge">brokerDeduplicationEnabled</code> parameter to <code class="highlighter-rouge">true</code> and re-start the broker.</p>
@@ -1694,7 +1707,7 @@
     <span class="n">send_timeout_millis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 </code></pre></div></div>
 
-<h2 id="cpp">C++ clients</h2>
+<h3 id="cpp">C++ clients</h3>
 
 <p>To enable message deduplication on a <a href="../../clients/Cpp#producer">C++ producer</a>, set the producer name using <code class="highlighter-rouge">producer_name</code> and the timeout to 0 using <code class="highlighter-rouge">send_timeout_millis</code>. Here’s an example:</p>
 

@@ -701,8 +701,15 @@
           
           
           <li>
+            <a href="../../cookbooks/compaction">
+              Topic compaction
+            </a>
+          </li>
+          
+          
+          <li>
             <a href="../../cookbooks/message-deduplication">
-              Message deduplication
+              Managing message deduplication
             </a>
           </li>
           
@@ -881,6 +888,8 @@
       </div>
       <div class="modal-body">
         <ul>
+          
+          
           
           
           
@@ -1129,6 +1138,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/getting-started/ConceptsAndArchitecture/">Pulsar concepts and architecture</a></li>
           
           
@@ -1336,6 +1347,77 @@
   <li>Multiple <a href="#subscription-modes">subscription modes</a> for <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span> (<a href="#exclusive">exclusive</a>, <a href="#shared">shared</a>, and <a href="#failover">failover</a>)</li>
   <li>Guaranteed message delivery with <a href="#persistent-storage">persistent message storage</a> provided by <a href="http://bookkeeper.apache.org/">Apache BookKeeper</a></li>
 </ul>
+
+<h2 id="messages">Messages</h2>
+
+<p>Messages are the basic “unit” of Pulsar. They’re what <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producers</span> publish to <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span> and what <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumers</span> then consume from topics (and <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledge</span> when the message has been processed). Messages are the analogue of letters in a postal service system.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Component</th>
+      <th style="text-align: left">Purpose</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">Value / data payload</td>
+      <td style="text-align: left">The data carried by the message. All Pulsar messages carry raw bytes, although message data can also conform to data <a href="#schema-registry">schemas</a></td>
+    </tr>
+    <tr>
+      <td style="text-align: left">Key</td>
+      <td style="text-align: left">Messages can optionally be tagged with keys, which can be useful for things like <a href="#compaction">topic compaction</a></td>
+    </tr>
+    <tr>
+      <td style="text-align: left">Properties</td>
+      <td style="text-align: left">An optional key/value map of user-defined properties</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">Producer name</td>
+      <td style="text-align: left">The name of the <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producer</span> that produced the message (producers are automatically given default names, but you can apply your own explicitly as well)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">Sequence ID</td>
+      <td style="text-align: left">Each Pulsar message belongs to an ordered sequence on its <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span>. A message’s sequence ID is its ordering in that sequence.</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">Publish time</td>
+      <td style="text-align: left">The timestamp of when the message was published (automatically applied by the <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producer</span>)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">Event time</td>
+      <td style="text-align: left">An optional timestamp that applications can attach to the message representing when something happened, e.g. when the message was processed. The event time of a message is 0 if none is explicitly set.</td>
+    </tr>
+  </tbody>
+</table>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    
+    <p>For a more in-depth breakdown of Pulsar message contents, see the documentation on Pulsar’s <a href="../../reference/BinaryProtocol">binary protocol</a>.</p>
+
+  </div>
+</div>
 
 <h2 id="producers-consumers-topics-and-subscriptions">Producers, consumers, topics, and subscriptions</h2>
 
@@ -2837,11 +2919,11 @@
 <span class="kn">import</span> <span class="nn">org.apache.pulsar.client.api.MessageId</span><span class="o">;</span>
 <span class="kn">import</span> <span class="nn">org.apache.pulsar.client.api.Reader</span><span class="o">;</span>
 
-<span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://public/default/reader-api-test"</span><span class="o">;</span>
-<span class="n">MessageId</span> <span class="n">id</span> <span class="o">=</span> <span class="n">MessageId</span><span class="o">.</span><span class="na">earliest</span><span class="o">;</span>
-
 <span class="c1">// Create a reader on a topic and for a specific message (and onward)</span>
-<span class="n">Reader</span> <span class="n">reader</span> <span class="o">=</span> <span class="n">pulsarClient</span><span class="o">.</span><span class="na">createReader</span><span class="o">(</span><span class="n">topic</span><span class="o">,</span> <span class="n">id</span><span class="o">,</span> <span class="k">new</span> <span class="n">ReaderConfiguration</span><span class="o">());</span>
+<span class="n">Reader</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="n">reader</span> <span class="o">=</span> <span class="n">pulsarClient</span><span class="o">.</span><span class="na">newReader</span><span class="o">()</span>
+    <span class="o">.</span><span class="na">topic</span><span class="o">(</span><span class="s">"reader-api-test"</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">startMessageId</span><span class="o">(</span><span class="n">MessageId</span><span class="o">.</span><span class="na">earliest</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">create</span><span class="o">();</span>
 
 <span class="k">while</span> <span class="o">(</span><span class="kc">true</span><span class="o">)</span> <span class="o">{</span>
     <span class="n">Message</span> <span class="n">message</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="na">readNext</span><span class="o">();</span>
@@ -2852,16 +2934,138 @@
 
 <p>To create a reader that will read from the latest available message:</p>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">MessageId</span> <span class="n">id</span> <span class="o">=</span> <span class="n">MessageId</span><span class="o">.</span><span class="na">latest</span><span class="o">;</span>
-<span class="n">Reader</span> <span class="n">reader</span> <span class="o">=</span> <span class="n">pulsarClient</span><span class="o">.</span><span class="na">createReader</span><span class="o">(</span><span class="n">topic</span><span class="o">,</span> <span class="n">id</span><span class="o">,</span> <span class="k">new</span> <span class="n">ReaderConfiguration</span><span class="o">());</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Reader</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="n">reader</span> <span class="o">=</span> <span class="n">pulsarClient</span><span class="o">.</span><span class="na">newReader</span><span class="o">()</span>
+    <span class="o">.</span><span class="na">topic</span><span class="o">(</span><span class="n">topic</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">startMessageId</span><span class="o">(</span><span class="n">MessageId</span><span class="o">.</span><span class="na">latest</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">create</span><span class="o">();</span>
 </code></pre></div></div>
 
 <p>To create a reader that will read from some message between earliest and latest:</p>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">byte</span><span class="o">[]</span> <span class="n">msgIdBytes</span> <span class="o">=</span> <span class="c1">// Some byte array</span>
 <span class="n">MessageId</span> <span class="n">id</span> <span class="o">=</span> <span class="n">MessageId</span><span class="o">.</span><span class="na">fromByteArray</span><span class="o">(</span><span class="n">msgIdBytes</span><span class="o">);</span>
-<span class="n">Reader</span> <span class="n">reader</span> <span class="o">=</span> <span class="n">pulsarClient</span><span class="o">.</span><span class="na">createReader</span><span class="o">(</span><span class="n">topic</span><span class="o">,</span> <span class="n">id</span><span class="o">,</span> <span class="k">new</span> <span class="n">ReaderConfiguration</span><span class="o">());</span>
+<span class="n">Reader</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="n">reader</span> <span class="o">=</span> <span class="n">pulsarClient</span><span class="o">.</span><span class="na">newReader</span><span class="o">()</span>
+    <span class="o">.</span><span class="na">topic</span><span class="o">(</span><span class="n">topic</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">startMessageId</span><span class="o">(</span><span class="n">id</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">create</span><span class="o">();</span>
 </code></pre></div></div>
+
+<h2 id="compaction">Topic compaction</h2>
+
+<p>Pulsar was built with highly scalable <a href="#persistent-storage">persistent storage</a> of message data as a primary objective. Pulsar <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span> enable you to persistently store as many unacknowledged messages as you need while preserving message ordering. By default, Pulsar stores <em>all</em> unacknowledged/unprocessed messages produced on a topic. Accumulating many unacknowledged messages on a topic is necessary for many Pulsar use cases but it can also be very time intensive for Pulsar <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumers</span> to “rewind” through the entire log of messages.</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="success">
+    
+    <p>For a more practical guide to topic compaction, see the <a href="../../cookbooks/compaction">Topic compaction cookbook</a>.</p>
+
+  </div>
+</div>
+
+<p>For some use cases consumers don’t need a complete “image” of the topic log. They may only need a few values to construct a more “shallow” image of the log, perhaps even just the most recent value. For these kinds of use cases Pulsar offers <strong>topic compaction</strong>. When you run compaction on a topic, Pulsar goes through a topic’s backlog and removes messages that are <em>obscured</em> by later messages, i.e. it goes through the topic on a per-key basis and leaves only the most recent message associated with that key.</p>
+
+<p>Pulsar’s topic compaction feature:</p>
+
+<ul>
+  <li>Allos for much more efficient “rewind” through topic logs</li>
+  <li>Applies only to <a href="#persistent-storage">persistent topics</a></li>
+  <li>Is triggered manually via the command line. See the <a href="../../cookbooks/compaction">Topic compaction cookbook</a></li>
+  <li>Is conceptually and operationally distinct from <a href="#message-retention-and-expiry">retention and expiry</a>. Topic compaction <em>does</em>, however, respect retention. If retention has removed a message from the message backlog of a topic, the message will also not be readable from the compacted topic ledger.</li>
+</ul>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    <span class="admonition-title"><p>Topic compaction example: the stock ticker</p>
+</span>
+    <p>An example use case for a compacted Pulsar topic would be a stock ticker topic. On a stock ticker topic, each message bears a timestamped dollar value for stocks for purchase (with the message key holding the stock symbol, e.g. <code class="highlighter-rouge">AAPL</code> or <code class="highlighter-rouge">GOOG</code>). With a stock ticker you may care only about the most recent value(s) of the stock and have no interest in historical data (i.e. you don’t need to construct a complete image of the topic’s sequence of messages per key). Compaction would be highly beneficial in this case because it would keep consumers from needing to rewind through obscured messages.</p>
+
+  </div>
+</div>
+
+<h3 id="how-topic-compaction-works">How topic compaction works</h3>
+
+<p>When topic compaction is triggered <a href="../../cookbooks/compaction">via the CLI</a>, Pulsar will iterate over the entire topic from beginning to end. For each key that it encounters the <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> responsible will keep a record of the latest occurrence of that key. When this iterative process is finished, the broker will create a <a href="#ledgers">BookKeeper ledger</a> to store the compacted topic.</p>
+
+<p>After that, the broker will make a second iteration through each message on the topic. For each message, if the key matches the latest occurrence of that key, then the key’s data payload, message ID, and metadata will be written to the new BookKeeper ledger (the one that was created when compaction was manually initiated). If the key doesn’t match the latest then the message will be skipped and left alone. If any given message has an empty payload, it will be skipped and considered deleted (akin to the concept of <a href="https://en.wikipedia.org/wiki/Tombstone_(data_store)">tombstones</a> in key-value databases). At the end of this second iteration through the topic, the newly created BookKeeper ledger is closed and two things are written to the topic’s metadata: the ID of the BookKeeper ledger and the message ID of the last compacted message (this is known as the <strong>compaction horizon</strong> of the topic). Once this metadata is written compaction is complete.</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    <span class="admonition-title"><p>Compaction leaves the original topic intact</p>
+</span>
+    
+  </div>
+</div>
+
+<p>In addition to performing compaction, Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span> listen for changes on each topic’s metadata. If the ledger for the topic changes:</p>
+
+<ul>
+  <li>Clients (consumers and readers) that have read compacted enabled will attempt to read messages from a topic and either:
+    <ul>
+      <li>Read from the topic like normal (if the message ID is greater than or equal to the compaction horizon) or</li>
+      <li>Read beginning at the compaction horizon (if the message ID is lower than the compaction horizon)</li>
+    </ul>
+  </li>
+</ul>
 
 <h2 id="schema-registry">Schema registry</h2>
 
@@ -3063,6 +3267,7 @@
 
   </div>
 </div>
+
 
       </section>
     </article>

@@ -701,8 +701,15 @@
           
           
           <li>
+            <a href="../../cookbooks/compaction">
+              Topic compaction
+            </a>
+          </li>
+          
+          
+          <li>
             <a href="../../cookbooks/message-deduplication">
-              Message deduplication
+              Managing message deduplication
             </a>
           </li>
           
@@ -881,6 +888,8 @@
       </div>
       <div class="modal-body">
         <ul>
+          
+          
           
           
           
@@ -1109,6 +1118,8 @@
       </div>
       <div class="modal-body">
         <ul>
+          
+          
           
           
           
@@ -1391,6 +1402,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/clients/Java/">The Pulsar Java client</a></li>
           
           
@@ -1565,6 +1578,8 @@
       </div>
       <div class="modal-body">
         <ul>
+          
+          
           
           
           
@@ -1956,7 +1971,7 @@
 
 <h2 id="producers">Producers</h2>
 
-<p>In Pulsar, <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producers</span> write <span class="popover-term" tabindex="0" title="What is a message in Pulsar?" data-placement="top" data-content="A" data-toggle="popover" data-trigger="focus">messages</span> to <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span>. Once you’ve instantiated a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/PulsarClient.html"><code class="highlighter-rouge">PulsarClient</code></a> object (as in the section <a href="#client-configuration">above</a>), you can create a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/Producer.html"><code class="highlighter-rouge">Producer</code></a> for a specific Pulsar <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span>.</p>
+<p>In Pulsar, <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producers</span> write &lt;span class=”popover-term” tabindex=”0” title=”What is a message in Pulsar?” data-placement=”top” data-content=”Messages are the basic “unit” of Pulsar. They’re what producers publish to topics and what consumers then consume from topics.” data-toggle=”popover” data-trigger=”focus”&gt;messages&lt;/span&gt; to <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span>. Once you’ve instantiated a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/PulsarClient.html"><code class="highlighter-rouge">PulsarClient</code></a> object (as in the section <a href="#client-configuration">above</a>), you can create a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/Producer.html"><code class="highlighter-rouge">Producer</code></a> for a specific Pulsar <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span>.</p>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Producer</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">newProducer</span><span class="o">()</span>
         <span class="o">.</span><span class="na">topic</span><span class="o">(</span><span class="s">"my-topic"</span><span class="o">)</span>
@@ -2064,7 +2079,7 @@ get a future returned.</p>
 
 <h2 id="consumers">Consumers</h2>
 
-<p>In Pulsar, <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumers</span> subscribe to <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span> and handle <span class="popover-term" tabindex="0" title="What is a message in Pulsar?" data-placement="top" data-content="A" data-toggle="popover" data-trigger="focus">messages</span> that <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producers</span> publish to those topics. You can instantiate a new <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span> by first instantiating a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/PulsarClient.html"><code class="highlighter-rouge">PulsarClient</code></a> object and passing it a URL for a Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> (as <a href="#client-configuration">above</a>).</p>
+<p>In Pulsar, <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumers</span> subscribe to <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span> and handle &lt;span class=”popover-term” tabindex=”0” title=”What is a message in Pulsar?” data-placement=”top” data-content=”Messages are the basic “unit” of Pulsar. They’re what producers publish to topics and what consumers then consume from topics.” data-toggle=”popover” data-trigger=”focus”&gt;messages&lt;/span&gt; that <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producers</span> publish to those topics. You can instantiate a new <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span> by first instantiating a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/PulsarClient.html"><code class="highlighter-rouge">PulsarClient</code></a> object and passing it a URL for a Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> (as <a href="#client-configuration">above</a>).</p>
 
 <p>Once you’ve instantiated a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/PulsarClient.html"><code class="highlighter-rouge">PulsarClient</code></a> object, you can create a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/Consumer.html"><code class="highlighter-rouge">Consumer</code></a> by specifying a <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span> and a <a href="../../getting-started/ConceptsAndArchitecture#subscription-modes">subscription</a>.</p>
 

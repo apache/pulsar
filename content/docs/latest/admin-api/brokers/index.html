@@ -701,8 +701,15 @@
           
           
           <li>
+            <a href="../../cookbooks/compaction">
+              Topic compaction
+            </a>
+          </li>
+          
+          
+          <li>
             <a href="../../cookbooks/message-deduplication">
-              Message deduplication
+              Managing message deduplication
             </a>
           </li>
           
@@ -882,7 +889,7 @@
 
 <ol>
   <li>An HTTP server exposing a <a href="../../reference/RestApi">REST interface</a> administration and <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span> lookup.</li>
-  <li>A dispatcher that handles all Pulsar <span class="popover-term" tabindex="0" title="What is a message in Pulsar?" data-placement="top" data-content="A" data-toggle="popover" data-trigger="focus">message</span> transfers.</li>
+  <li>A dispatcher that handles all Pulsar &lt;span class=”popover-term” tabindex=”0” title=”What is a message in Pulsar?” data-placement=”top” data-content=”Messages are the basic “unit” of Pulsar. They’re what producers publish to topics and what consumers then consume from topics.” data-toggle=”popover” data-trigger=”focus”&gt;message&lt;/span&gt; transfers.</li>
 </ol>
 
 <p><span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">Brokers</span> can be managed via:</p>
