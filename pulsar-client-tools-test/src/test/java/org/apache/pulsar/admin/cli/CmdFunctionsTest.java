@@ -86,7 +86,12 @@ public class CmdFunctionsTest {
     private Functions functions;
     private CmdFunctions cmd;
 
-    public class DummyFunction implements Function<String, String> {
+    public static class DummyFunction implements Function<String, String> {
+
+        public DummyFunction() {
+
+        }
+
         @Override
         public String process(String input, Context context) throws Exception {
             return null;
