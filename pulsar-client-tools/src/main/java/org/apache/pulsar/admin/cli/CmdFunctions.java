@@ -487,19 +487,21 @@ public class CmdFunctions extends CmdBase {
             sourceSpecBuilder.putAllTopicsToSerDeClassName(topicToSerDeClassNameMap);
 
             // Set subscription type based on processing semantics
-            switch (functionConfig.getProcessingGuarantees()) {
-                case ATMOST_ONCE:
-                    sourceSpecBuilder.setSubscriptionType(SubscriptionType.SHARED);
-                    break;
-                case ATLEAST_ONCE:
-                    sourceSpecBuilder.setSubscriptionType(SubscriptionType.SHARED);
-                    break;
-                case EFFECTIVELY_ONCE:
-                    sourceSpecBuilder.setSubscriptionType(SubscriptionType.FAILOVER);
-                    break;
-                default:
-                    throw new RuntimeException("Unknown processing guarantee: "
-                            + functionConfig.getProcessingGuarantees().name());
+            if (functionConfig.getProcessingGuarantees() != null) {
+                switch (functionConfig.getProcessingGuarantees()) {
+                    case ATMOST_ONCE:
+                        sourceSpecBuilder.setSubscriptionType(SubscriptionType.SHARED);
+                        break;
+                    case ATLEAST_ONCE:
+                        sourceSpecBuilder.setSubscriptionType(SubscriptionType.SHARED);
+                        break;
+                    case EFFECTIVELY_ONCE:
+                        sourceSpecBuilder.setSubscriptionType(SubscriptionType.FAILOVER);
+                        break;
+                    default:
+                        throw new RuntimeException("Unknown processing guarantee: "
+                                + functionConfig.getProcessingGuarantees().name());
+                }
             }
 
             if (typeArgs != null) {
