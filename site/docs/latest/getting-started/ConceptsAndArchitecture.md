@@ -565,9 +565,7 @@ When topic compaction is triggered [via the CLI](../../cookbooks/compaction), Pu
 
 After that, the broker will create a new [BookKeeper ledger](#ledgers) and make a second iteration through each message on the topic. For each message, if the key matches the latest occurrence of that key, then the key's data payload, message ID, and metadata will be written to the newly created ledger. If the key doesn't match the latest then the message will be skipped and left alone. If any given message has an empty payload, it will be skipped and considered deleted (akin to the concept of [tombstones](https://en.wikipedia.org/wiki/Tombstone_(data_store)) in key-value databases). At the end of this second iteration through the topic, the newly created BookKeeper ledger is closed and two things are written to the topic's metadata: the ID of the BookKeeper ledger and the message ID of the last compacted message (this is known as the **compaction horizon** of the topic). Once this metadata is written compaction is complete.
 
-{% include admonition.html type="info" title="Compaction leaves the original topic intact" %}
-
-In addition to performing compaction, Pulsar {% popover brokers %} listen for changes on each topic's metadata. If the ledger for the topic changes:
+After the initial compaction operation, the Pulsar {% popover broker %} that owns the topic is notified whenever any future changes are made to the compaction horizon and compacted backlog. When such changes occur:
 
 * Clients (consumers and readers) that have read compacted enabled will attempt to read messages from a topic and either:
   * Read from the topic like normal (if the message ID is greater than or equal to the compaction horizon) or
