@@ -72,6 +72,7 @@ def main():
   parser.add_argument('--log_topic', required=False, help='Topic to send Log Messages')
   parser.add_argument('--source_subscription_type', required=True, help='Subscription Type')
   parser.add_argument('--source_topics_serde_classname', required=True, help='A mapping of Input topics to SerDe')
+  parser.add_argument('--source_timeout_ms', required=False, help='Source message timeout in milliseconds')
   parser.add_argument('--sink_topic', required=False, help='Sink Topic')
   parser.add_argument('--sink_serde_classname', required=False, help='Sink SerDe classname')
 

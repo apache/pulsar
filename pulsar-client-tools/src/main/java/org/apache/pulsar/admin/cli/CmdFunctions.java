@@ -238,8 +238,10 @@ public class CmdFunctions extends CmdBase {
         protected Integer slidingIntervalCount;
         @Parameter(names = "--slidingIntervalDurationMs", description = "The time duration after which the window slides")
         protected Long slidingIntervalDurationMs;
-        @Parameter(names = "--autoAck", description = "")
+        @Parameter(names = "--autoAck", description = "Whether or not the framework will automatically acknowleges messages")
         protected Boolean autoAck;
+        @Parameter(names = "--timeoutMs", description = "The message timeout in milliseconds")
+        protected Long timeoutMs;
         protected FunctionConfig functionConfig;
         protected String userCodeFile;
 
@@ -315,6 +317,10 @@ public class CmdFunctions extends CmdBase {
             }
 
             functionConfig.setResources(new org.apache.pulsar.functions.utils.Resources(cpu, ram, disk));
+
+            if (timeoutMs != null) {
+                functionConfig.setTimeoutMs(timeoutMs);
+            }
 
             // window configs
             WindowConfig windowConfig = functionConfig.getWindowConfig();

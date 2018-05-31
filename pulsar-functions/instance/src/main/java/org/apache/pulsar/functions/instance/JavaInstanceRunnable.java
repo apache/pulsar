@@ -472,6 +472,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     FunctionConfig.SubscriptionType.valueOf(sourceSpec.getSubscriptionType().name()));
             pulsarSourceConfig.setTypeClassName(sourceSpec.getTypeClassName());
 
+            if (sourceSpec.getTimeoutMs() > 0 ) {
+                pulsarSourceConfig.setTimeoutMs(sourceSpec.getTimeoutMs());
+            }
+
             Object[] params = {this.client, pulsarSourceConfig};
             Class[] paramTypes = {PulsarClient.class, PulsarSourceConfig.class};
 

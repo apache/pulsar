@@ -22,6 +22,7 @@ import com.google.common.annotations.VisibleForTesting;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
@@ -60,12 +61,15 @@ public class PulsarSource<T> implements Source<T> {
         setupSerDe();
 
         // Setup pulsar consumer
-        this.inputConsumer = this.pulsarClient.newConsumer()
+        ConsumerBuilder<byte[]> consumerBuilder = this.pulsarClient.newConsumer()
                 .topics(new ArrayList<>(this.pulsarSourceConfig.getTopicSerdeClassNameMap().keySet()))
                 .subscriptionName(this.pulsarSourceConfig.getSubscriptionName())
-                .subscriptionType(this.pulsarSourceConfig.getSubscriptionType().get())
-                .ackTimeout(1, TimeUnit.MINUTES)
-                .subscribe();
+                .subscriptionType(this.pulsarSourceConfig.getSubscriptionType().get());
+
+        if (pulsarSourceConfig.getTimeoutMs() != null) {
+            consumerBuilder.ackTimeout(pulsarSourceConfig.getTimeoutMs(), TimeUnit.MILLISECONDS);
+        }
+        this.inputConsumer = consumerBuilder.subscribe();
     }
 
     @Override
