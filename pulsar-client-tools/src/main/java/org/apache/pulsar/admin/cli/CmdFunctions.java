@@ -125,11 +125,21 @@ public class CmdFunctions extends CmdBase {
      */
     @Getter
     abstract class NamespaceCommand extends BaseCommand {
-        @Parameter(names = "--tenant", description = "The function's tenant", required = true)
+        @Parameter(names = "--tenant", description = "The function's tenant")
         protected String tenant;
 
-        @Parameter(names = "--namespace", description = "The function's namespace", required = true)
+        @Parameter(names = "--namespace", description = "The function's namespace")
         protected String namespace;
+
+        @Override
+        public void processArguments() {
+            if (tenant == null) {
+                tenant = PUBLIC_TENANT;
+            }
+            if (namespace == null) {
+                namespace = DEFAULT_NAMESPACE;
+            }
+        }
     }
 
     /**
@@ -171,9 +181,15 @@ public class CmdFunctions extends CmdBase {
                 namespace = fqfnParts[1];
                 functionName = fqfnParts[2];
             } else {
-                if (null == tenant || null == namespace || null == functionName) {
+                if (tenant == null) {
+                    tenant = PUBLIC_TENANT;
+                }
+                if (namespace == null) {
+                    namespace = DEFAULT_NAMESPACE;
+                }
+                if (null == functionName) {
                     throw new RuntimeException(
-                            "You must specify a tenant, namespace, and name for the function or a Fully Qualified Function Name (FQFN)");
+                            "You must specify a name for the function or a Fully Qualified Function Name (FQFN)");
                 }
             }
         }
