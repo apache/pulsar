@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.proxy.server;
 
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
+
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -44,8 +47,9 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
     private final String DUMMY_VALUE = "DUMMY_VALUE";
     private final String STATUS_FILE_PATH = "./src/test/resources/vip_status.html";
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
-    private AdminProxyWrapper adminProxyHandler;
     private WebServer webServer;
+    private BrokerDiscoveryProvider discoveryProvider;
+    private AdminProxyWrapper adminProxyHandler;
 
     @Override
     @BeforeClass
@@ -63,15 +67,19 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
         // start proxy service
         proxyConfig.setServicePort(PortManager.nextFreePort());
         proxyConfig.setWebServicePort(PortManager.nextFreePort());
-        proxyConfig.setBrokerServiceURL(brokerUrl.toString());
+        proxyConfig.setBrokerWebServiceURL(brokerUrl.toString());
         proxyConfig.setStatusFilePath(STATUS_FILE_PATH);
         proxyConfig.setZookeeperServers(DUMMY_VALUE);
         proxyConfig.setGlobalZookeeperServers(DUMMY_VALUE);
 
         webServer = new WebServer(proxyConfig);
 
-        adminProxyHandler = new AdminProxyWrapper(proxyConfig);
-        webServer.addProxyServlet("/admin", adminProxyHandler, brokerUrl.toString());
+        discoveryProvider = spy(new BrokerDiscoveryProvider(proxyConfig, mockZooKeeperClientFactory));
+        adminProxyHandler = new AdminProxyWrapper(proxyConfig, discoveryProvider);
+        ServletHolder servletHolder = new ServletHolder(adminProxyHandler);
+        servletHolder.setInitParameter("preserveHost", "true");
+        webServer.addServlet("/admin", servletHolder);
+        webServer.addServlet("/lookup", servletHolder);
 
         webServer.addRestResources("/", VipStatus.class.getPackage().getName(),
                 VipStatus.ATTRIBUTE_STATUS_FILE_PATH, proxyConfig.getStatusFilePath());
@@ -95,7 +103,8 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
             .build();
         List<String> activeBrokers = admin.brokers().getActiveBrokers(configClusterName);
         Assert.assertEquals(activeBrokers.size(), 1);
-        Assert.assertTrue(adminProxyHandler.rewriteCalled);
+        Assert.assertEquals(adminProxyHandler.rewrittenUrl, String.format("%s/admin/v2/brokers/%s",
+                brokerUrl.toString(), configClusterName));
     }
 
     @Test
@@ -109,16 +118,16 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
     }
 
     static class AdminProxyWrapper extends AdminProxyHandler {
-        boolean rewriteCalled = false;
+        String rewrittenUrl;
 
-        AdminProxyWrapper(ProxyConfiguration config) {
-            super(config);
+        AdminProxyWrapper(ProxyConfiguration config, BrokerDiscoveryProvider discoveryProvider) {
+            super(config, discoveryProvider);
         }
 
         @Override
         protected String rewriteTarget(HttpServletRequest clientRequest) {
-            rewriteCalled = true;
-            return super.rewriteTarget(clientRequest);
+            rewrittenUrl = super.rewriteTarget(clientRequest);
+            return rewrittenUrl;
         }
 
     }

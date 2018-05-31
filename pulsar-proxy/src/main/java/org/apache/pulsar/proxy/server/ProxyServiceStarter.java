@@ -27,13 +27,9 @@ import static org.slf4j.bridge.SLF4JBridgeHandler.install;
 import static org.slf4j.bridge.SLF4JBridgeHandler.removeHandlersForRootLogger;
 
 import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.ExecutionException;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
-import org.apache.pulsar.common.policies.data.ClusterData;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -115,9 +111,7 @@ public class ProxyServiceStarter {
 
         if ((!config.isTlsEnabledWithBroker() && isBlank(config.getBrokerWebServiceURL()))
                 || (config.isTlsEnabledWithBroker() && isBlank(config.getBrokerWebServiceURLTLS()))) {
-            checkArgument(!isEmpty(config.getConfigurationStoreServers()),
-                    "configurationStoreServers must be provided");
-            checkArgument(!isEmpty(config.getClusterName()), "clusterName must be provided");
+            checkArgument(!isEmpty(config.getZookeeperServers()), "zookeeperServers must be provided");
         }
 
         java.security.Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
@@ -138,44 +132,17 @@ public class ProxyServiceStarter {
 
         proxyService.start();
 
-        // Get broker URL to proxy http requests
-        String brokerWebServiceUrl = null;
-
-        if (config.isTlsEnabledWithBroker()) {
-            brokerWebServiceUrl = config.getBrokerWebServiceURLTLS();
-        } else {
-            brokerWebServiceUrl = config.getBrokerWebServiceURL();
-        }
-
-        if (isEmpty(brokerWebServiceUrl)) {
-            try {
-                ClusterData clusterData = proxyService.getDiscoveryProvider()
-                        .getClusterMetadata(config.getClusterName()).get(30L, TimeUnit.SECONDS);
-                if (config.isTlsEnabledWithBroker()) {
-                    brokerWebServiceUrl = clusterData.getServiceUrlTls();
-                } else {
-                    brokerWebServiceUrl = clusterData.getServiceUrl();
-                }
-            } catch (ExecutionException e) {
-                if (e.getCause() instanceof NoSuchElementException) {
-                    log.error("Metadata of {} cluster does not exist in configuration store", config.getClusterName());
-                }
-                throw e;
-            }
-        }
-
-        if (isEmpty(brokerWebServiceUrl)) {
-            throw new RuntimeException("Could not get broker url to proxy http requests");
-        }
-
         // Setup metrics
         DefaultExports.initialize();
         server.addServlet("/metrics", new ServletHolder(MetricsServlet.class));
         server.addRestResources("/", VipStatus.class.getPackage().getName(),
                 VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath());
 
-        server.addProxyServlet("/admin", new AdminProxyHandler(config), brokerWebServiceUrl);
-        server.addProxyServlet("/lookup", new AdminProxyHandler(config), brokerWebServiceUrl);
+        AdminProxyHandler adminProxyHandler = new AdminProxyHandler(config, proxyService.getDiscoveryProvider());
+        ServletHolder servletHolder = new ServletHolder(adminProxyHandler);
+        servletHolder.setInitParameter("preserveHost", "true");
+        server.addServlet("/admin", servletHolder);
+        server.addServlet("/lookup", servletHolder);
 
         // start web-service
         server.start();

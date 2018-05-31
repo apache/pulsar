@@ -40,14 +40,11 @@ public class ProxyConfiguration implements PulsarConfiguration {
     // ZooKeeper session timeout
     private int zookeeperSessionTimeoutMs = 30_000;
 
-    // Name of the pulsar cluster to connect to
-    private String clusterName;
-
     // if Service Discovery is Disabled this url should point to the discovery service provider.
     private String brokerServiceURL;
     private String brokerServiceURLTLS;
 
-    // These settings are unnecessary if `configurationStoreServers` and `clusterName` are specified
+    // These settings are unnecessary if `zookeeperServers` is specified
     private String brokerWebServiceURL;
     private String brokerWebServiceURLTLS;
 
@@ -193,14 +190,6 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     public void setZookeeperSessionTimeoutMs(int zookeeperSessionTimeoutMs) {
         this.zookeeperSessionTimeoutMs = zookeeperSessionTimeoutMs;
-    }
-
-    public String getClusterName() {
-        return clusterName;
-    }
-
-    public void setClusterName(String clusterName) {
-        this.clusterName = clusterName;
     }
 
     public int getServicePort() {
