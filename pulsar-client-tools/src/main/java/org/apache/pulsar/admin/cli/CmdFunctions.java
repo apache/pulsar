@@ -34,7 +34,6 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import net.jodah.typetools.TypeResolver;
 import org.apache.bookkeeper.api.StorageClient;
 import org.apache.bookkeeper.api.kv.Table;
 import org.apache.bookkeeper.api.kv.result.KeyValue;
@@ -45,7 +44,6 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.ProcessingGuarantees;
@@ -65,11 +63,9 @@ import org.apache.pulsar.functions.windowing.WindowUtils;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -125,11 +121,21 @@ public class CmdFunctions extends CmdBase {
      */
     @Getter
     abstract class NamespaceCommand extends BaseCommand {
-        @Parameter(names = "--tenant", description = "The function's tenant", required = true)
+        @Parameter(names = "--tenant", description = "The function's tenant")
         protected String tenant;
 
-        @Parameter(names = "--namespace", description = "The function's namespace", required = true)
+        @Parameter(names = "--namespace", description = "The function's namespace")
         protected String namespace;
+
+        @Override
+        public void processArguments() {
+            if (tenant == null) {
+                tenant = PUBLIC_TENANT;
+            }
+            if (namespace == null) {
+                namespace = DEFAULT_NAMESPACE;
+            }
+        }
     }
 
     /**
@@ -171,9 +177,15 @@ public class CmdFunctions extends CmdBase {
                 namespace = fqfnParts[1];
                 functionName = fqfnParts[2];
             } else {
-                if (null == tenant || null == namespace || null == functionName) {
+                if (tenant == null) {
+                    tenant = PUBLIC_TENANT;
+                }
+                if (namespace == null) {
+                    namespace = DEFAULT_NAMESPACE;
+                }
+                if (null == functionName) {
                     throw new RuntimeException(
-                            "You must specify a tenant, namespace, and name for the function or a Fully Qualified Function Name (FQFN)");
+                            "You must specify a name for the function or a Fully Qualified Function Name (FQFN)");
                 }
             }
         }
@@ -354,17 +366,14 @@ public class CmdFunctions extends CmdBase {
                 functionConfig.setRuntime(FunctionConfig.Runtime.PYTHON);
                 userCodeFile = pyFile;
             } else {
-                throw new RuntimeException("Either a Java jar or a Python file needs to be specified for the function");
+                throw new ParameterException("Either a Java jar or a Python file needs to be specified for the function");
             }
 
             // infer default vaues
             inferMissingArguments(functionConfig);
-
-            // check if function configs are valid
-            validateFunctionConfigs(functionConfig);
         }
 
-        private void validateFunctionConfigs(FunctionConfig functionConfig) {
+        protected void validateFunctionConfigs(FunctionConfig functionConfig) {
 
             if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
                 File file = new File(jarFile);
@@ -372,7 +381,7 @@ public class CmdFunctions extends CmdBase {
                 try {
                     userJarLoader = Reflections.loadJar(file);
                 } catch (MalformedURLException e) {
-                    throw new RuntimeException("Failed to load user jar " + file, e);
+                    throw new ParameterException("Failed to load user jar " + file + " with error " + e.getMessage());
                 }
                 // make sure the function class loader is accessible thread-locally
                 Thread.currentThread().setContextClassLoader(userJarLoader);
@@ -410,7 +419,7 @@ public class CmdFunctions extends CmdBase {
                 // set auto ack to false since windowing framework is responsible
                 // for acking and not the function framework
                 if (autoAck != null && autoAck == true) {
-                    throw new IllegalArgumentException("Cannot enable auto ack when using windowing functionality");
+                    throw new ParameterException("Cannot enable auto ack when using windowing functionality");
                 }
                 functionConfig.setAutoAck(false);
             }
@@ -418,7 +427,7 @@ public class CmdFunctions extends CmdBase {
 
         private void inferMissingFunctionName(FunctionConfig functionConfig) {
             if (isNull(functionConfig.getClassName())) {
-                throw new IllegalArgumentException("You must specify a class name for the function");
+                throw new ParameterException("You must specify a class name for the function");
             }
 
             String [] domains = functionConfig.getClassName().split("\\.");
@@ -464,13 +473,7 @@ public class CmdFunctions extends CmdBase {
 
             Class<?>[] typeArgs = null;
             if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
-
-                File file = new File(jarFile);
-                try {
-                    Reflections.loadJar(file);
-                } catch (MalformedURLException e) {
-                    throw new RuntimeException("Failed to load user jar " + file, e);
-                }
+                // Assuming any external jars are already loaded
                 typeArgs = Utils.getFunctionTypes(functionConfig);
             }
 
@@ -595,7 +598,8 @@ public class CmdFunctions extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            checkRequiredFields(functionConfig);
+            // check if function configs are valid
+            validateFunctionConfigs(functionConfig);
             CmdFunctions.startLocalRun(convertProto2(functionConfig),
                     functionConfig.getParallelism(), brokerServiceUrl, userCodeFile, admin);
         }
@@ -605,7 +609,8 @@ public class CmdFunctions extends CmdBase {
     class CreateFunction extends FunctionDetailsCommand {
         @Override
         void runCmd() throws Exception {
-            checkRequiredFields(functionConfig);
+            // check if function configs are valid
+            validateFunctionConfigs(functionConfig);
             admin.functions().createFunction(convert(functionConfig), userCodeFile);
             print("Created successfully");
         }
@@ -644,7 +649,8 @@ public class CmdFunctions extends CmdBase {
     class UpdateFunction extends FunctionDetailsCommand {
         @Override
         void runCmd() throws Exception {
-            checkRequiredFields(functionConfig);
+            // check if function configs are valid
+            validateFunctionConfigs(functionConfig);
             admin.functions().updateFunction(convert(functionConfig), userCodeFile);
             print("Updated successfully");
         }
@@ -727,7 +733,7 @@ public class CmdFunctions extends CmdBase {
         @Override
         void runCmd() throws Exception {
             if (triggerFile == null && triggerValue == null) {
-                throw new RuntimeException("Either a trigger value or a trigger filepath needs to be specified");
+                throw new ParameterException("Either a trigger value or a trigger filepath needs to be specified");
             }
             String retval = admin.functions().triggerFunction(tenant, namespace, functionName, topic, triggerValue, triggerFile);
             System.out.println(retval);
@@ -857,36 +863,6 @@ public class CmdFunctions extends CmdBase {
         return mapper.readValue(file, FunctionConfig.class);
     }
 
-    private static void verifyNoTopicClash(Collection<String> inputTopics, String outputTopic) throws IllegalArgumentException {
-        if (inputTopics.contains(outputTopic)) {
-            throw new IllegalArgumentException(
-                    String.format("Output topic %s is also being used as an input topic (topics must be one or the other)",
-                            outputTopic));
-        }
-    }
-
-    private static void checkRequiredFields(FunctionConfig config) throws IllegalArgumentException {
-        if (isNull(config.getTenant())) {
-            throw new IllegalArgumentException("You must specify a tenant for the function");
-        }
-
-        if (isNull(config.getNamespace())) {
-            throw new IllegalArgumentException("You must specify a namespace for the function");
-        }
-
-        if (isNull(config.getName())) {
-            throw new IllegalArgumentException("You must specify a name for the function");
-        }
-
-        if (isNull(config.getClassName())) {
-            throw new IllegalArgumentException("You must specify a class name for the function");
-        }
-
-        if (config.getInputs().isEmpty() && config.getCustomSerdeInputs().isEmpty()) {
-            throw new IllegalArgumentException("You must specify one or more input topics for the function");
-        }
-    }
-
     private static FunctionDetails.Runtime convertRuntime(FunctionConfig.Runtime runtime) {
         for (FunctionDetails.Runtime type : FunctionDetails.Runtime.values()) {
             if (type.name().equals(runtime.name())) {
@@ -909,7 +885,7 @@ public class CmdFunctions extends CmdBase {
     private void parseFullyQualifiedFunctionName(String fqfn, FunctionConfig functionConfig) {
         String[] args = fqfn.split("/");
         if (args.length != 3) {
-            throw new RuntimeException("Fully qualified function names (FQFNs) must be of the form tenant/namespace/name");
+            throw new ParameterException("Fully qualified function names (FQFNs) must be of the form tenant/namespace/name");
         } else {
             functionConfig.setTenant(args[0]);
             functionConfig.setNamespace(args[1]);
