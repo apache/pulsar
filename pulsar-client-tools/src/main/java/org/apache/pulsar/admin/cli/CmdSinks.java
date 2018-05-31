@@ -358,9 +358,15 @@ public class CmdSinks extends CmdBase {
         @Override
         void processArguments() throws Exception {
             super.processArguments();
-            if (null == tenant || null == namespace || null == name) {
+            if (null == name) {
                 throw new RuntimeException(
-                        "You must specify a tenant, namespace, and name for the sink");
+                        "You must specify a name for the sink");
+            }
+            if (tenant == null) {
+                tenant = PUBLIC_TENANT;
+            }
+            if (namespace == null) {
+                namespace = DEFAULT_NAMESPACE;
             }
         }
 
