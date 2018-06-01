@@ -111,6 +111,9 @@ public class JavaInstanceMain implements AutoCloseable {
     @Parameter(names = "--source_topics_serde_classname", description = "A map of topics to SerDe for the source")
     protected String sourceTopicsSerdeClassName;
 
+    @Parameter(names = "--source_timeout_ms", description = "Source message timeout in milliseconds")
+    protected Long sourceTimeoutMs;
+
     @Parameter(names = "--sink_type_classname", description = "The injest type of the sink", required = true)
     protected String sinkTypeClassName;
 
@@ -170,6 +173,9 @@ public class JavaInstanceMain implements AutoCloseable {
         sourceDetailsBuilder.setSubscriptionType(Function.SubscriptionType.valueOf(sourceSubscriptionType));
         sourceDetailsBuilder.putAllTopicsToSerDeClassName(new Gson().fromJson(sourceTopicsSerdeClassName, Map.class));
         sourceDetailsBuilder.setTypeClassName(sourceTypeClassName);
+        if (sourceTimeoutMs != null) {
+            sourceDetailsBuilder.setTimeoutMs(sourceTimeoutMs);
+        }
         functionDetailsBuilder.setSource(sourceDetailsBuilder);
 
         // Setup sink
