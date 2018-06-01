@@ -4556,6 +4556,10 @@ public final class PulsarApi {
     // optional bool compacted_out = 4 [default = false];
     boolean hasCompactedOut();
     boolean getCompactedOut();
+    
+    // optional uint64 event_time = 5 [default = 0];
+    boolean hasEventTime();
+    long getEventTime();
   }
   public static final class SingleMessageMetadata extends
       com.google.protobuf.GeneratedMessageLite
@@ -4667,11 +4671,22 @@ public final class PulsarApi {
       return compactedOut_;
     }
     
+    // optional uint64 event_time = 5 [default = 0];
+    public static final int EVENT_TIME_FIELD_NUMBER = 5;
+    private long eventTime_;
+    public boolean hasEventTime() {
+      return ((bitField0_ & 0x00000008) == 0x00000008);
+    }
+    public long getEventTime() {
+      return eventTime_;
+    }
+    
     private void initFields() {
       properties_ = java.util.Collections.emptyList();
       partitionKey_ = "";
       payloadSize_ = 0;
       compactedOut_ = false;
+      eventTime_ = 0L;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -4712,6 +4727,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
         output.writeBool(4, compactedOut_);
       }
+      if (((bitField0_ & 0x00000008) == 0x00000008)) {
+        output.writeUInt64(5, eventTime_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -4735,6 +4753,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
         size += com.google.protobuf.CodedOutputStream
           .computeBoolSize(4, compactedOut_);
+      }
+      if (((bitField0_ & 0x00000008) == 0x00000008)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeUInt64Size(5, eventTime_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -4857,6 +4879,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000004);
         compactedOut_ = false;
         bitField0_ = (bitField0_ & ~0x00000008);
+        eventTime_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000010);
         return this;
       }
       
@@ -4907,6 +4931,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000004;
         }
         result.compactedOut_ = compactedOut_;
+        if (((from_bitField0_ & 0x00000010) == 0x00000010)) {
+          to_bitField0_ |= 0x00000008;
+        }
+        result.eventTime_ = eventTime_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -4931,6 +4959,9 @@ public final class PulsarApi {
         }
         if (other.hasCompactedOut()) {
           setCompactedOut(other.getCompactedOut());
+        }
+        if (other.hasEventTime()) {
+          setEventTime(other.getEventTime());
         }
         return this;
       }
@@ -4990,6 +5021,11 @@ public final class PulsarApi {
             case 32: {
               bitField0_ |= 0x00000008;
               compactedOut_ = input.readBool();
+              break;
+            }
+            case 40: {
+              bitField0_ |= 0x00000010;
+              eventTime_ = input.readUInt64();
               break;
             }
           }
@@ -5161,6 +5197,27 @@ public final class PulsarApi {
       public Builder clearCompactedOut() {
         bitField0_ = (bitField0_ & ~0x00000008);
         compactedOut_ = false;
+        
+        return this;
+      }
+      
+      // optional uint64 event_time = 5 [default = 0];
+      private long eventTime_ ;
+      public boolean hasEventTime() {
+        return ((bitField0_ & 0x00000010) == 0x00000010);
+      }
+      public long getEventTime() {
+        return eventTime_;
+      }
+      public Builder setEventTime(long value) {
+        bitField0_ |= 0x00000010;
+        eventTime_ = value;
+        
+        return this;
+      }
+      public Builder clearEventTime() {
+        bitField0_ = (bitField0_ & ~0x00000010);
+        eventTime_ = 0L;
         
         return this;
       }

@@ -961,6 +961,11 @@ public class Commands {
             singleMessageMetadataBuilder = singleMessageMetadataBuilder
                     .addAllProperties(msgBuilder.getPropertiesList());
         }
+
+        if (msgBuilder.hasEventTime()) {
+            singleMessageMetadataBuilder.setEventTime(msgBuilder.getEventTime());
+        }
+
         try {
             return serializeSingleMessageInBatchWithPayload(singleMessageMetadataBuilder, payload, batchBuffer);
         } finally {
@@ -978,6 +983,7 @@ public class Commands {
         ByteBufCodedInputStream stream = ByteBufCodedInputStream.get(uncompressedPayload);
         PulsarApi.SingleMessageMetadata singleMessageMetadata = singleMessageMetadataBuilder.mergeFrom(stream, null)
                 .build();
+
         int singleMessagePayloadSize = singleMessageMetadata.getPayloadSize();
 
         uncompressedPayload.markReaderIndex();
