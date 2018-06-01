@@ -54,4 +54,6 @@ Once your Pulsar proxy is up and running, preferably behind a load-distributing 
 
 ## Proxy configuration
 
-The Pulsar proxy can be configured using the [`proxy.conf`](../../reference/Configuration#proxy)
+The Pulsar proxy can be configured using the [`proxy.conf`](../../reference/Configuration#proxy) configuration file. The following parameters are available in that file:
+
+{% include config.html id="proxy" %}
