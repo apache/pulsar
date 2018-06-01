@@ -55,20 +55,6 @@ public class FunctionConfig {
         EFFECTIVELY_ONCE
     }
 
-    public enum SubscriptionType {
-        SHARED,
-        FAILOVER;
-
-        public org.apache.pulsar.client.api.SubscriptionType get() {
-            switch (this) {
-                case FAILOVER:
-                    return org.apache.pulsar.client.api.SubscriptionType.Failover;
-                default:
-                    return org.apache.pulsar.client.api.SubscriptionType.Shared;
-            }
-        }
-    }
-
     public enum Runtime {
         JAVA,
         PYTHON
@@ -98,7 +84,6 @@ public class FunctionConfig {
     private String logTopic;
     private ProcessingGuarantees processingGuarantees;
     private Map<String, Object> userConfig;
-    private SubscriptionType subscriptionType;
     private Runtime runtime;
     private boolean autoAck;
     @isPositiveNumber

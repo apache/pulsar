@@ -230,8 +230,6 @@ public class CmdFunctions extends CmdBase {
         protected String fnConfigFile;
         @Parameter(names = "--processingGuarantees", description = "The processing guarantees (aka delivery semantics) applied to the function")
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
-        @Parameter(names = "--subscriptionType", description = "The type of subscription used by the function when consuming messages from the input topic(s)")
-        protected FunctionConfig.SubscriptionType subscriptionType;
         @Parameter(names = "--userConfig", description = "User-defined config key/values")
         protected String userConfigString;
         @Parameter(names = "--parallelism", description = "The function's parallelism factor (i.e. the number of function instances to run)")
@@ -305,9 +303,6 @@ public class CmdFunctions extends CmdBase {
             }
             if (null != processingGuarantees) {
                 functionConfig.setProcessingGuarantees(processingGuarantees);
-            }
-            if (null != subscriptionType) {
-                functionConfig.setSubscriptionType(subscriptionType);
             }
             if (null != userConfigString) {
                 Type type = new TypeToken<Map<String, String>>(){}.getType();
@@ -497,10 +492,24 @@ public class CmdFunctions extends CmdBase {
             functionConfig.getInputs().forEach(v -> topicToSerDeClassNameMap.put(v, ""));
             sourceSpecBuilder.putAllTopicsToSerDeClassName(topicToSerDeClassNameMap);
 
-            if (functionConfig.getSubscriptionType() != null) {
-                sourceSpecBuilder
-                        .setSubscriptionType(convertSubscriptionType(functionConfig.getSubscriptionType()));
+            // Set subscription type based on processing semantics
+            if (functionConfig.getProcessingGuarantees() != null) {
+                switch (functionConfig.getProcessingGuarantees()) {
+                    case ATMOST_ONCE:
+                        sourceSpecBuilder.setSubscriptionType(SubscriptionType.SHARED);
+                        break;
+                    case ATLEAST_ONCE:
+                        sourceSpecBuilder.setSubscriptionType(SubscriptionType.SHARED);
+                        break;
+                    case EFFECTIVELY_ONCE:
+                        sourceSpecBuilder.setSubscriptionType(SubscriptionType.FAILOVER);
+                        break;
+                    default:
+                        throw new RuntimeException("Unknown processing guarantee: "
+                                + functionConfig.getProcessingGuarantees().name());
+                }
             }
+
             if (typeArgs != null) {
                 sourceSpecBuilder.setTypeClassName(typeArgs[0].getName());
             }
@@ -872,16 +881,6 @@ public class CmdFunctions extends CmdBase {
             }
         }
         throw new RuntimeException("Unrecognized runtime: " + runtime.name());
-    }
-
-    private static SubscriptionType convertSubscriptionType(
-            FunctionConfig.SubscriptionType subscriptionType) {
-        for (SubscriptionType type : SubscriptionType.values()) {
-            if (type.name().equals(subscriptionType.name())) {
-                return type;
-            }
-        }
-        throw new RuntimeException("Unrecognized subscription type: " + subscriptionType.name());
     }
 
     private static ProcessingGuarantees convertProcessingGuarantee(
