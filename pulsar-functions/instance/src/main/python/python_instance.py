@@ -156,7 +156,7 @@ class PythonInstance(object):
         str(topic), subscription_name,
         consumer_type=mode,
         message_listener=partial(self.message_listener, topic, self.input_serdes[topic]),
-        unacked_messages_timeout_ms= self.timeout_ms
+        unacked_messages_timeout_ms= int(self.timeout_ms)
       )
 
     function_kclass = util.import_class(os.path.dirname(self.user_code), self.instance_config.function_details.className)

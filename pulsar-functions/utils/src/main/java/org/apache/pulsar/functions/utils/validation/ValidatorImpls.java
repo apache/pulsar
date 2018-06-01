@@ -337,7 +337,6 @@ public class ValidatorImpls {
             // implements SerDe class
             functionConfig.getCustomSerdeInputs().forEach((topicName, inputSerializer) -> {
 
-
                 Class<?> serdeClass;
                 try {
                     serdeClass = loadClass(inputSerializer);
@@ -465,6 +464,13 @@ public class ValidatorImpls {
                     throw new IllegalArgumentException("Cannot enable auto ack when using windowing functionality");
                 }
                 functionConfig.setAutoAck(false);
+            }
+
+            if (functionConfig.getTimeoutMs() != null
+                    && functionConfig.getProcessingGuarantees() != null
+                    && functionConfig.getProcessingGuarantees() != FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE) {
+                throw new IllegalArgumentException("Message timeout can only be specifed with processing guarantee is "
+                        + FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE.name());
             }
         }
 

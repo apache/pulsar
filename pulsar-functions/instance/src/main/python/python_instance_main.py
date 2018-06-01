@@ -103,7 +103,7 @@ def main():
   for topics, serde_classname in source_topics_serde_classname_dict.items():
     sourceSpec.topicsToSerDeClassName[topics] = serde_classname
   if args.source_timeout_ms:
-    sourceSpec.timeoutMs = args.source_timeout_ms
+    sourceSpec.timeoutMs = long(args.source_timeout_ms)
   function_details.source.MergeFrom(sourceSpec)
 
   sinkSpec = Function_pb2.SinkSpec()
