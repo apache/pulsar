@@ -126,6 +126,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     JavaInstance setupJavaInstance() throws Exception {
         // initialize the thread context
         ThreadContext.put("function", FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
+        ThreadContext.put("functionname", instanceConfig.getFunctionDetails().getName());
         ThreadContext.put("instance", instanceConfig.getInstanceId());
 
         log.info("Starting Java Instance {}", instanceConfig.getFunctionDetails().getName());
