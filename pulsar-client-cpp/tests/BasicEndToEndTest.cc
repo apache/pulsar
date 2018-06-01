@@ -1311,7 +1311,7 @@ TEST(BasicEndToEndTest, testEventTime) {
     Producer producer;
     ProducerConfiguration producerConf;
     producerConf.setBatchingEnabled(true);
-    Result result = client.createProducer(topicName, producer, producerConf);
+    Result result = client.createProducer(topicName, producerConf, producer);
     ASSERT_EQ(ResultOk, result);
 
     Consumer consumer;
@@ -1321,7 +1321,7 @@ TEST(BasicEndToEndTest, testEventTime) {
     producer.send(MessageBuilder().setContent("test").setEventTimestamp(5).build());
 
     Message msg;
-    result = consumer.receive(msg)
+    result = consumer.receive(msg);
     ASSERT_EQ(ResultOk, result);
 
     ASSERT_EQ(msg.getEventTimestamp(), 5);
@@ -1329,4 +1329,3 @@ TEST(BasicEndToEndTest, testEventTime) {
     consumer.close();
     producer.close();
 }
-
