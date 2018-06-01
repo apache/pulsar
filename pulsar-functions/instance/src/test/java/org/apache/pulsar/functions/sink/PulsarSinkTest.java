@@ -81,7 +81,6 @@ public class PulsarSinkTest {
     private static PulsarSinkConfig getPulsarConfigs() {
         PulsarSinkConfig pulsarConfig = new PulsarSinkConfig();
         pulsarConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
-        pulsarConfig.setSubscriptionType(FunctionConfig.SubscriptionType.FAILOVER);
         pulsarConfig.setTopic(TOPIC);
         pulsarConfig.setSerDeClassName(serDeClassName);
         pulsarConfig.setTypeClassName(String.class.getName());

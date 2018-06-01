@@ -337,7 +337,6 @@ public class ValidatorImpls {
             // implements SerDe class
             functionConfig.getCustomSerdeInputs().forEach((topicName, inputSerializer) -> {
 
-
                 Class<?> serdeClass;
                 try {
                     serdeClass = loadClass(inputSerializer);
@@ -450,13 +449,6 @@ public class ValidatorImpls {
             // Ensure that topics aren't being used as both input and output
             verifyNoTopicClash(functionConfig.getInputs(), functionConfig.getOutput());
 
-            if (functionConfig.getSubscriptionType() != null
-                    && functionConfig.getSubscriptionType() != FunctionConfig.SubscriptionType.FAILOVER
-                    && functionConfig.getProcessingGuarantees() != null
-                    && functionConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
-                throw new IllegalArgumentException("Effectively-once processing semantics can only be achieved using a Failover subscription type");
-            }
-
             WindowConfig windowConfig = functionConfig.getWindowConfig();
             if (windowConfig != null) {
                 // set auto ack to false since windowing framework is responsible
@@ -465,6 +457,13 @@ public class ValidatorImpls {
                     throw new IllegalArgumentException("Cannot enable auto ack when using windowing functionality");
                 }
                 functionConfig.setAutoAck(false);
+            }
+
+            if (functionConfig.getTimeoutMs() != null
+                    && functionConfig.getProcessingGuarantees() != null
+                    && functionConfig.getProcessingGuarantees() != FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE) {
+                throw new IllegalArgumentException("Message timeout can only be specifed with processing guarantee is "
+                        + FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE.name());
             }
         }
 

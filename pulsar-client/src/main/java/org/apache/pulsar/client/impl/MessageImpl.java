@@ -121,6 +121,10 @@ public class MessageImpl<T> extends MessageRecordImpl<T, MessageId> {
             msgMetadataBuilder.setPartitionKey(singleMessageMetadata.getPartitionKey());
         }
 
+        if (singleMessageMetadata.hasEventTime()) {
+            msgMetadataBuilder.setEventTime(singleMessageMetadata.getEventTime());
+        }
+
         this.schema = schema;
     }
 

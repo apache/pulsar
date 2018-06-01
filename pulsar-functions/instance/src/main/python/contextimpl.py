@@ -121,6 +121,9 @@ class ContextImpl(pulsar.Context):
     return self.publish(topic_name, message, "serde.IdentitySerDe")
 
   def publish(self, topic_name, message, serde_class_name):
+    # Just make sure that user supplied values are properly typed
+    topic_name = str(topic_name)
+    serde_class_name = str(serde_class_name)
     if topic_name not in self.publish_producers:
       self.publish_producers[topic_name] = self.pulsar_client.create_producer(
         topic_name,
