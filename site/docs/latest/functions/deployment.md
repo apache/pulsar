@@ -208,3 +208,27 @@ Pulsar supports three different [subscription types](../../getting-started/Conce
 
 Pulsar Functions can also be assigned a subscription type when you [create](#cluster-mode) them or run them [locally](#local-run). In cluster mode, the subscription can also be [updated](#updating) after the function has been created.
 -->
+
+## Window functions
+
+When running Pulsar Functions in either [cluster](#cluster-mode) or [local run](#local-run) mode, you can create [**window functions**](../overview#windows) that process collections of messages accumulated over a specified time window.
+
+This CLI command, for example, would run a window
+
+```bash
+$ bin/pulsar-admin functions create \
+  --jar my-functions.jar \
+  --className org.example.WordCountFunction \
+  --windowLengthCount 100 \
+
+```
+
+
+
+Flag | Meaning | Default
+:----|:--------|:-------
+`--windowLengthCount` | |
+`--windowLengthDurationMs` | |
+`--slidingIntervalCount` | |
+`--slidingIntervalDurationMs` | |
+

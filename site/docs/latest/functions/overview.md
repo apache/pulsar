@@ -423,3 +423,90 @@ Pulsar Functions that use the [Pulsar Functions SDK](#sdk) can publish metrics t
 ## State storage
 
 Pulsar Functions use [Apache BookKeeper](https://bookkeeper.apache.org) as a state storage interface. All Pulsar installations, including local {% popover standalone %} installations, include a deployment of BookKeeper {% popover bookies %}.
+
+## Window functions {#windows}
+
+{% include admonition.html type="warning" content="Window operations for Pulsar Functions are currently available for Java only. Python support is coming soon." %}
+
+**Window operations** gather processing results from functions within a specified time frame rather than on a per-message basis. Here are some example window operations:
+
+* Counting how many clicks a website has received in the last 10 minutes
+* Determining which product in a product line is the best seller within the last 1000 purchases
+
+Window operations are of two basic types, depending on whether or not the windows overlap with one another:
+
+* [Sliding windows](#sliding) are time windows that overlap
+* [Tumbling windows](#tumbling) are exclusive, non-overlapping time windows
+
+### Sliding windows {#sliding}
+
+{% include figure.html src="/img/sliding-window.png" %}
+
+### Tumbling windows {#tumbling}
+
+{% include figure.html src="/img/tumbling-window.png" %}
+
+### Windowing API
+
+{% include admonition.html type="success" title="Windowing supported in both Pulsar Function APIs" content="Window operations are supported in both the [language-native](#language-native) API and the [Pulsar Functions SDK](#sdk)." %}
+
+Window operations take a collection of some data type and "flatten" it into a single object of that type. Let's say that string objects are being published on a Pulsar {% popover topic %} called `words`. The example Java function below would lowercase each word, winnow the word stream down to a collection of unique words, and then count the total number of unique words encountered:
+
+```java
+import java.util.Collection;
+import java.util.function.Function;
+
+public class CountUniqueWordsFunction implements Function<Collection<String>, Long> {
+    @Override
+    public Long apply(Collection<String> strings) {
+        return strings
+                .stream()
+                .map(String::toLowerCase)
+                .distinct()
+                .count();
+    }
+}
+```
+
+Here's an example command for running the function in [cluster mode](../deployment#cluster-mode) with a [count-based tumbling window](../overview#tumbling) of 100 messages:
+
+```bash
+$ bin/pulsar-admin functions create \
+  --jar my-functions.jar \
+  --className org.example.CountUniqueWordsFunction \
+  --inputs words \
+  --ouput count \
+  --windowLengthCount 100 \
+  # Other function configs
+```
+
+This would run the functino with a [count-based sliding window](../overview#sliding) of 100 with an interval of 50:
+
+```bash
+$ bin/pulsar-admin functions create \
+  --jar my-functions.jar \
+  --className org.example.CountUniqueWordsFunction \
+  --inputs words \
+  --ouput count \
+  --windowLengthCount 100 \
+  --slidingIntervalCount 50 \
+  # Other function configs
+```
+
+Window operations can be useful for things like reduce operations that collapse collections into a single value on the basis of an item-by-item operation. Here's an example:
+
+```java
+import java.util.Collection;
+import java.util.function.Function;
+
+public class SummationFunction implements Function<Collection<Integer>, Integer> {
+    @Override
+    public Integer apply(Collection<Integer> integers) {
+        return integers.stream().reduce(0, (x, y) -> x + y);
+    }
+}
+```
+
+In `SummationFunction`, each integer in the `integers` collection is added to the next integer to produce a total sum (or 0 if not values are supplied within the time window).
+
+{% include admonition.html type="success" title="Windowing vs. state management" content="It may be useful to think of window functions as normal Pulsar Functions but with the crucial difference that you don't need to manually use [state storage](#state-storage) to achieve results across many operations. Windows are essentially a convenience layer over normal Pulsar Functions." %}
