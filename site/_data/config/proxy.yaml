@@ -1,0 +1,3 @@
+configs:
+- name: zookeeperServers
+  description: The ZooKeeper quorum connection string (as a comma-separated list)
