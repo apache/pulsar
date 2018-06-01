@@ -160,6 +160,11 @@ class ProcessRuntime implements Runtime {
                 args.add(instanceConfig.getFunctionDetails().getSource().getTypeClassName());
             }
         }
+
+        if (instanceConfig.getFunctionDetails().getSource().getTimeoutMs() > 0) {
+            args.add("--source_timeout_ms");
+            args.add(String.valueOf(instanceConfig.getFunctionDetails().getSource().getTimeoutMs()));
+        }
         args.add("--source_subscription_type");
         args.add(instanceConfig.getFunctionDetails().getSource().getSubscriptionType().toString());
         args.add("--source_topics_serde_classname");
