@@ -58,13 +58,16 @@ commands:
     description: Run a BookKeeper autorecovery daemon on the same host as the Pulsar broker
     default: 'false'
 - name: compact-topic
-  description: Run compaction against a Pulsar topic
+  description: Run compaction against a Pulsar topic (in a new process)
   example: |
     pulsar compact-topic \
       --topic topic-to-compact
   options:
   - flags: -t, --topic
     description: The Pulsar topic that you would like to compact
+  - flags: -c, --broker-conf
+    description: Configuration file for the broker
+    default: ${pulsarDirectory}/conf/broker.conf
 - name: discovery
   description: Run a discovery server
   example: |

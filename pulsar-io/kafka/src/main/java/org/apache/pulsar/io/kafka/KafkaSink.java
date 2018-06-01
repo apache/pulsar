@@ -65,8 +65,10 @@ public abstract class KafkaSink<K, V> extends SimpleSink<byte[]> {
 
     @Override
     public void close() throws IOException {
-        producer.close();
-        LOG.info("Kafka sink stopped.");
+        if (producer != null) {
+            producer.close();
+            LOG.info("Kafka sink stopped.");
+        }
     }
 
     @Override

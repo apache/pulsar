@@ -1,3 +1,4 @@
+<?xml version="1.0"?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -18,6 +19,14 @@
     under the License.
 
 -->
+<arquillian xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xmlns="http://jboss.org/schema/arquillian"
+            xsi:schemaLocation="http://jboss.org/schema/arquillian
+                                http://jboss.org/schema/arquillian/arquillian_1_0.xsd">
 
-{% include admonition.html type="success" title="Pulsar version 2.0" content="
-The documentation that you're reading is for the 2.0 release of Apache Pulsar. For more information on Pulsar 2.0, see [this guide](../../getting-started/Pulsar-2.0)." %}
+  <extension qualifier="docker">
+    <property name="definitionFormat">CUBE</property>
+    <property name="dockerContainersResource">cube-definitions/single-cluster-2-bookie-1-broker-unstarted-with-s3.yaml</property>
+  </extension>
+
+</arquillian>

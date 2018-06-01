@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.broker.s3offload;
 
+import static org.mockito.Matchers.anyObject;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 
@@ -91,7 +96,9 @@ class S3BackedInputStreamTest extends S3TestBase {
         metadata.setContentLength(objectSize);
         s3client.putObject(BUCKET, objectKey, toWrite, metadata);
 
-        S3BackedInputStream toTest = new S3BackedInputStreamImpl(s3client, BUCKET, objectKey, objectSize, 1000);
+        S3BackedInputStream toTest = new S3BackedInputStreamImpl(s3client, BUCKET, objectKey,
+                                                                 (key, md) -> {},
+                                                                 objectSize, 1000);
         assertStreamsMatch(toTest, toCompare);
     }
 
@@ -106,13 +113,17 @@ class S3BackedInputStreamTest extends S3TestBase {
         metadata.setContentLength(objectSize);
         s3client.putObject(BUCKET, objectKey, toWrite, metadata);
 
-        S3BackedInputStream toTest = new S3BackedInputStreamImpl(s3client, BUCKET, objectKey, objectSize, 1000);
+        S3BackedInputStream toTest = new S3BackedInputStreamImpl(s3client, BUCKET, objectKey,
+                                                                 (key, md) -> {},
+                                                                 objectSize, 1000);
         assertStreamsMatchByBytes(toTest, toCompare);
     }
 
     @Test(expectedExceptions = IOException.class)
     public void testErrorOnS3Read() throws Exception {
-        S3BackedInputStream toTest = new S3BackedInputStreamImpl(s3client, BUCKET, "doesn't exist", 1234, 1000);
+        S3BackedInputStream toTest = new S3BackedInputStreamImpl(s3client, BUCKET, "doesn't exist",
+                                                                 (key, md) -> {},
+                                                                 1234, 1000);
         toTest.read();
     }
 
@@ -136,11 +147,55 @@ class S3BackedInputStreamTest extends S3TestBase {
         metadata.setContentLength(objectSize);
         s3client.putObject(BUCKET, objectKey, toWrite, metadata);
 
-        S3BackedInputStream toTest = new S3BackedInputStreamImpl(s3client, BUCKET, objectKey, objectSize, 1000);
+        S3BackedInputStream toTest = new S3BackedInputStreamImpl(s3client, BUCKET, objectKey,
+                                                                 (key, md) -> {},
+                                                                 objectSize, 1000);
         for (Map.Entry<Integer, InputStream> e : seeks.entrySet()) {
             toTest.seek(e.getKey());
             assertStreamsMatch(toTest, e.getValue());
         }
+    }
+
+    @Test
+    public void testSeekWithinCurrent() throws Exception {
+        String objectKey = "foobar";
+        int objectSize = 12345;
+        RandomInputStream toWrite = new RandomInputStream(0, objectSize);
+
+        ObjectMetadata metadata = new ObjectMetadata();
+        metadata.setContentLength(objectSize);
+        s3client.putObject(BUCKET, objectKey, toWrite, metadata);
+
+        AmazonS3 spiedClient = spy(s3client);
+        S3BackedInputStream toTest = new S3BackedInputStreamImpl(spiedClient, BUCKET, objectKey,
+                                                                 (key, md) -> {},
+                                                                 objectSize, 1000);
+
+        // seek forward
+        RandomInputStream firstSeek = new RandomInputStream(0, objectSize);
+        toTest.seek(100);
+        firstSeek.skip(100);
+        for (int i = 0; i < 100; i++) {
+            Assert.assertEquals(firstSeek.read(), toTest.read());
+        }
+
+        // seek forward a bit more, but in same block
+        RandomInputStream secondSeek = new RandomInputStream(0, objectSize);
+        toTest.seek(600);
+        secondSeek.skip(600);
+        for (int i = 0; i < 100; i++) {
+            Assert.assertEquals(secondSeek.read(), toTest.read());
+        }
+
+        // seek back
+        RandomInputStream thirdSeek = new RandomInputStream(0, objectSize);
+        toTest.seek(200);
+        thirdSeek.skip(200);
+        for (int i = 0; i < 100; i++) {
+            Assert.assertEquals(thirdSeek.read(), toTest.read());
+        }
+
+        verify(spiedClient, times(1)).getObject(anyObject());
     }
 
     @Test
@@ -153,7 +208,9 @@ class S3BackedInputStreamTest extends S3TestBase {
         metadata.setContentLength(objectSize);
         s3client.putObject(BUCKET, objectKey, toWrite, metadata);
 
-        S3BackedInputStream toTest = new S3BackedInputStreamImpl(s3client, BUCKET, objectKey, objectSize, 1000);
+        S3BackedInputStream toTest = new S3BackedInputStreamImpl(s3client, BUCKET, objectKey,
+                                                                 (key, md) -> {},
+                                                                 objectSize, 1000);
 
         // seek forward to middle
         long middle = objectSize/2;

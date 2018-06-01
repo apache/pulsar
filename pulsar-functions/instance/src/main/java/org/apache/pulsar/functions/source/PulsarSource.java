@@ -22,6 +22,7 @@ import com.google.common.annotations.VisibleForTesting;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
@@ -32,6 +33,7 @@ import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.io.core.Record;
 import org.apache.pulsar.io.core.Source;
+import org.jboss.util.Classes;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -59,12 +61,15 @@ public class PulsarSource<T> implements Source<T> {
         setupSerDe();
 
         // Setup pulsar consumer
-        this.inputConsumer = this.pulsarClient.newConsumer()
+        ConsumerBuilder<byte[]> consumerBuilder = this.pulsarClient.newConsumer()
                 .topics(new ArrayList<>(this.pulsarSourceConfig.getTopicSerdeClassNameMap().keySet()))
                 .subscriptionName(this.pulsarSourceConfig.getSubscriptionName())
-                .subscriptionType(this.pulsarSourceConfig.getSubscriptionType().get())
-                .ackTimeout(1, TimeUnit.MINUTES)
-                .subscribe();
+                .subscriptionType(this.pulsarSourceConfig.getSubscriptionType());
+
+        if (pulsarSourceConfig.getTimeoutMs() != null) {
+            consumerBuilder.ackTimeout(pulsarSourceConfig.getTimeoutMs(), TimeUnit.MILLISECONDS);
+        }
+        this.inputConsumer = consumerBuilder.subscribe();
     }
 
     @Override
@@ -124,13 +129,17 @@ public class PulsarSource<T> implements Source<T> {
 
     @Override
     public void close() throws Exception {
-        this.inputConsumer.close();
+        if (this.inputConsumer != null) {
+            this.inputConsumer.close();
+        }
     }
 
     @VisibleForTesting
     void setupSerDe() throws ClassNotFoundException {
 
-        Class<?> typeArg = Thread.currentThread().getContextClassLoader().loadClass(this.pulsarSourceConfig.getTypeClassName());
+        Class<?> typeArg = Classes.loadClass(this.pulsarSourceConfig.getTypeClassName(),
+                Thread.currentThread().getContextClassLoader());
+
         if (Void.class.equals(typeArg)) {
             throw new RuntimeException("Input type of Pulsar Function cannot be Void");
         }

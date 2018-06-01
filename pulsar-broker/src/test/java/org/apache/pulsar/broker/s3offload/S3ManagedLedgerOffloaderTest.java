@@ -21,15 +21,20 @@ package org.apache.pulsar.broker.s3offload;
 import static org.apache.pulsar.broker.s3offload.S3ManagedLedgerOffloader.dataBlockOffloadKey;
 import static org.apache.pulsar.broker.s3offload.S3ManagedLedgerOffloader.indexBlockOffloadKey;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyLong;
 
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.model.CopyObjectRequest;
+import com.amazonaws.services.s3.model.ObjectMetadata;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Method;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 
@@ -116,13 +121,8 @@ class S3ManagedLedgerOffloaderTest extends S3TestBase {
 
     @Test
     public void testBucketDoesNotExist() throws Exception {
-        ServiceConfiguration conf = new ServiceConfiguration();
-        conf.setManagedLedgerOffloadDriver(S3ManagedLedgerOffloader.DRIVER_NAME);
-        conf.setS3ManagedLedgerOffloadBucket("no-bucket");
-        conf.setS3ManagedLedgerOffloadServiceEndpoint(s3endpoint);
-        conf.setS3ManagedLedgerOffloadRegion("eu-west-1");
-        LedgerOffloader offloader = S3ManagedLedgerOffloader.create(conf, scheduler);
-
+        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, "no-bucket", scheduler,
+                                                                 DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
         try {
             offloader.offload(buildReadHandle(), UUID.randomUUID(), new HashMap<>()).get();
             Assert.fail("Shouldn't be able to add to bucket");
@@ -383,11 +383,10 @@ class S3ManagedLedgerOffloaderTest extends S3TestBase {
 
     @Test
     public void testDeleteOffloaded() throws Exception {
-        int maxBlockSize = 1024;
-        int entryCount = 3;
-        ReadHandle readHandle = buildReadHandle(maxBlockSize, entryCount);
+        ReadHandle readHandle = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
         UUID uuid = UUID.randomUUID();
-        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler, maxBlockSize, DEFAULT_READ_BUFFER_SIZE);
+        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler,
+                                                                 DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
 
         // verify object exist after offload
         offloader.offload(readHandle, uuid, new HashMap<>()).get();
@@ -402,11 +401,10 @@ class S3ManagedLedgerOffloaderTest extends S3TestBase {
 
     @Test
     public void testDeleteOffloadedFail() throws Exception {
-        int maxBlockSize = 1024;
-        int entryCount = 3;
-        ReadHandle readHandle = buildReadHandle(maxBlockSize, entryCount);
+        ReadHandle readHandle = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
         UUID uuid = UUID.randomUUID();
-        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler, maxBlockSize, DEFAULT_READ_BUFFER_SIZE);
+        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler,
+                                                                 DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
         String failureString = "fail deleteOffloaded";
         AmazonS3 mockS3client = Mockito.spy(s3client);
         Mockito
@@ -427,6 +425,95 @@ class S3ManagedLedgerOffloaderTest extends S3TestBase {
             // verify object still there.
             Assert.assertTrue(mockS3client.doesObjectExist(BUCKET, dataBlockOffloadKey(readHandle.getId(), uuid)));
             Assert.assertTrue(mockS3client.doesObjectExist(BUCKET, indexBlockOffloadKey(readHandle.getId(), uuid)));
+        }
+    }
+
+    @Test
+    public void testOffloadEmpty() throws Exception {
+        CompletableFuture<LedgerEntries> noEntries = new CompletableFuture<>();
+        noEntries.completeExceptionally(new BKException.BKReadException());
+
+        ReadHandle readHandle = Mockito.mock(ReadHandle.class);
+        Mockito.doReturn(-1L).when(readHandle).getLastAddConfirmed();
+        Mockito.doReturn(noEntries).when(readHandle).readAsync(anyLong(), anyLong());
+        Mockito.doReturn(0L).when(readHandle).getLength();
+        Mockito.doReturn(true).when(readHandle).isClosed();
+        Mockito.doReturn(1234L).when(readHandle).getId();
+
+        UUID uuid = UUID.randomUUID();
+        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler,
+                                                                 DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
+        try {
+            offloader.offload(readHandle, uuid, new HashMap<>()).get();
+            Assert.fail("Shouldn't have been able to offload");
+        } catch (ExecutionException e) {
+            Assert.assertEquals(e.getCause().getClass(), IllegalArgumentException.class);
+        }
+    }
+
+    @Test
+    public void testReadUnknownDataVersion() throws Exception {
+        ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
+        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler,
+                                                                 DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
+        UUID uuid = UUID.randomUUID();
+        offloader.offload(toWrite, uuid, new HashMap<>()).get();
+
+        String dataKey = dataBlockOffloadKey(toWrite.getId(), uuid);
+        ObjectMetadata md = s3client.getObjectMetadata(BUCKET, dataKey);
+        md.getUserMetadata().put(S3ManagedLedgerOffloader.METADATA_FORMAT_VERSION_KEY, String.valueOf(-12345));
+        s3client.copyObject(new CopyObjectRequest(BUCKET, dataKey, BUCKET, dataKey).withNewObjectMetadata(md));
+
+        try (ReadHandle toRead = offloader.readOffloaded(toWrite.getId(), uuid).get()) {
+            toRead.readAsync(0, 0).get();
+            Assert.fail("Shouldn't have been able to read");
+        } catch (ExecutionException e) {
+            Assert.assertEquals(e.getCause().getClass(), IOException.class);
+            Assert.assertTrue(e.getCause().getMessage().contains("Invalid object version"));
+        }
+
+        md.getUserMetadata().put(S3ManagedLedgerOffloader.METADATA_FORMAT_VERSION_KEY, String.valueOf(12345));
+        s3client.copyObject(new CopyObjectRequest(BUCKET, dataKey, BUCKET, dataKey).withNewObjectMetadata(md));
+
+        try (ReadHandle toRead = offloader.readOffloaded(toWrite.getId(), uuid).get()) {
+            toRead.readAsync(0, 0).get();
+            Assert.fail("Shouldn't have been able to read");
+        } catch (ExecutionException e) {
+            Assert.assertEquals(e.getCause().getClass(), IOException.class);
+            Assert.assertTrue(e.getCause().getMessage().contains("Invalid object version"));
+        }
+    }
+
+    @Test
+    public void testReadUnknownIndexVersion() throws Exception {
+        ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
+        LedgerOffloader offloader = new S3ManagedLedgerOffloader(s3client, BUCKET, scheduler,
+                                                                 DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
+        UUID uuid = UUID.randomUUID();
+        offloader.offload(toWrite, uuid, new HashMap<>()).get();
+
+        String indexKey = indexBlockOffloadKey(toWrite.getId(), uuid);
+        ObjectMetadata md = s3client.getObjectMetadata(BUCKET, indexKey);
+        md.getUserMetadata().put(S3ManagedLedgerOffloader.METADATA_FORMAT_VERSION_KEY, String.valueOf(-12345));
+        s3client.copyObject(new CopyObjectRequest(BUCKET, indexKey, BUCKET, indexKey).withNewObjectMetadata(md));
+
+        try {
+            offloader.readOffloaded(toWrite.getId(), uuid).get();
+            Assert.fail("Shouldn't have been able to open");
+        } catch (ExecutionException e) {
+            Assert.assertEquals(e.getCause().getClass(), IOException.class);
+            Assert.assertTrue(e.getCause().getMessage().contains("Invalid object version"));
+        }
+
+        md.getUserMetadata().put(S3ManagedLedgerOffloader.METADATA_FORMAT_VERSION_KEY, String.valueOf(12345));
+        s3client.copyObject(new CopyObjectRequest(BUCKET, indexKey, BUCKET, indexKey).withNewObjectMetadata(md));
+
+        try {
+            offloader.readOffloaded(toWrite.getId(), uuid).get();
+            Assert.fail("Shouldn't have been able to open");
+        } catch (ExecutionException e) {
+            Assert.assertEquals(e.getCause().getClass(), IOException.class);
+            Assert.assertTrue(e.getCause().getMessage().contains("Invalid object version"));
         }
     }
 }
