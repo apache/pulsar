@@ -25,6 +25,7 @@ import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.WindowConfig;
+import org.apache.pulsar.functions.utils.validation.ValidatorImpls;
 import org.apache.pulsar.functions.windowing.evictors.CountEvictionPolicy;
 import org.apache.pulsar.functions.windowing.evictors.TimeEvictionPolicy;
 import org.apache.pulsar.functions.windowing.evictors.WatermarkCountEvictionPolicy;
@@ -93,7 +94,9 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
                 (new Gson().toJson(context.getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY).get())),
                 WindowConfig.class);
 
-        WindowUtils.validateAndSetDefaultsWindowConfig(windowConfig);
+
+        WindowUtils.inferDefaultConfigs(windowConfig);
+        ValidatorImpls.WindowConfigValidator.validateWindowConfig(windowConfig);
         return windowConfig;
     }
 

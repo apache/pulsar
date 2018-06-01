@@ -51,6 +51,7 @@ import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
@@ -125,6 +126,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     JavaInstance setupJavaInstance() throws Exception {
         // initialize the thread context
         ThreadContext.put("function", FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
+        ThreadContext.put("functionname", instanceConfig.getFunctionDetails().getName());
         ThreadContext.put("instance", instanceConfig.getInstanceId());
 
         log.info("Starting Java Instance {}", instanceConfig.getFunctionDetails().getName());
@@ -468,8 +470,16 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             pulsarSourceConfig.setProcessingGuarantees(
                     FunctionConfig.ProcessingGuarantees.valueOf(
                             this.instanceConfig.getFunctionDetails().getProcessingGuarantees().name()));
-            pulsarSourceConfig.setSubscriptionType(
-                    FunctionConfig.SubscriptionType.valueOf(sourceSpec.getSubscriptionType().name()));
+
+            switch (sourceSpec.getSubscriptionType()) {
+                case FAILOVER:
+                    pulsarSourceConfig.setSubscriptionType(SubscriptionType.Failover);
+                    break;
+                default:
+                    pulsarSourceConfig.setSubscriptionType(SubscriptionType.Shared);
+                    break;
+            }
+
             pulsarSourceConfig.setTypeClassName(sourceSpec.getTypeClassName());
 
             Object[] params = {this.client, pulsarSourceConfig};

@@ -537,8 +537,8 @@ public class WindowFunctionExecutorTest {
                 if (arg0 == null) {
                     Assert.assertEquals(testWindowedPulsarFunction.windowConfig.getMaxLagMs(),
                             new Long(testWindowedPulsarFunction.DEFAULT_MAX_LAG_MS));
-                } else if((Long) arg0 <= 0) {
-                    fail(String.format("Window lag cannot be zero or less -- lagTime: %s", arg0));
+                } else if((Long) arg0 < 0) {
+                    fail(String.format("Window lag cannot be less than zero -- lagTime: %s", arg0));
                 } else {
                     Assert.assertEquals(testWindowedPulsarFunction.windowConfig.getMaxLagMs().longValue(),
                             maxLagMs.longValue());
