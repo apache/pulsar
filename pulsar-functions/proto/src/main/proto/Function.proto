@@ -69,6 +69,7 @@ message SourceSpec {
     // configs used only when source feeds into functions
     SubscriptionType subscriptionType = 3;
     map<string,string> topicsToSerDeClassName = 4;
+    uint64 timeoutMs = 6;
 }
 
 message SinkSpec {

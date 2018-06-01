@@ -39,6 +39,7 @@ public class PulsarSourceConfig {
     private String subscriptionName;
     private Map<String, String> topicSerdeClassNameMap;
     private String typeClassName;
+    private Long timeoutMs;
 
     public static PulsarSourceConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();

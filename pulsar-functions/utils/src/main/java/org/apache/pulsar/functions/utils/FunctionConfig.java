@@ -93,4 +93,6 @@ public class FunctionConfig {
     private String fqfn;
     @isValidWindowConfig
     private WindowConfig windowConfig;
+    @isPositiveNumber
+    private Long timeoutMs;
 }
