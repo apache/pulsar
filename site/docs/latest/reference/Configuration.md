@@ -63,7 +63,7 @@ The [`pulsar-client`](../CliTools#pulsar-client) CLI tool can be used to publish
 
 {% include config.html id="configuration-store" %}
 
-## Pulsar Functions worker
+## Pulsar Functions worker {#worker}
 
 Configuration for the [worker](../../functions/deployment#worker) process that drives [Pulsar Functions](../../functions/overview).
 
