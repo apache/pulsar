@@ -34,8 +34,8 @@ You can download Pulsar from the [releases page](https://github.com/apache/incub
 
 Release | Link | Crypto files
 :-------|:-----|:------------
-Binary | [pulsar-{{ site.current_version }}-bin.tar.gz]({{ mirror_url }}-bin.tar.gz) | [asc]({{ dist_url }}-bin.tar.gz.asc), [md5]({{ dist_url }}-bin.tar.gz.md5), [sha512]({{ dist_url }}-bin.tar.gz.sha512)
-Source | [pulsar-{{ site.current_version }}-src.tar.gz]({{ mirror_url }}-src.tar.gz) | [asc]({{ dist_url }}-src.tar.gz.asc), [md5]({{ dist_url }}-src.tar.gz.md5), [sha512]({{ dist_url }}-src.tar.gz.sha512)
+Binary | [pulsar-{{ site.current_version }}-bin.tar.gz]({{ mirror_url }}-bin.tar.gz) | [asc]({{ dist_url }}-bin.tar.gz.asc), [sha1]({{ dist_url }}-bin.tar.gz.sha1), [sha512]({{ dist_url }}-bin.tar.gz.sha512)
+Source | [pulsar-{{ site.current_version }}-src.tar.gz]({{ mirror_url }}-src.tar.gz) | [asc]({{ dist_url }}-src.tar.gz.asc), [sha1]({{ dist_url }}-src.tar.gz.sha1), [sha512]({{ dist_url }}-src.tar.gz.sha512)
 
 ### Release Integrity
 
@@ -73,6 +73,6 @@ Client guide | API docs
 Release | Binary | Source | Release notes
 :-------|:---------|:-------------|:-------------
 {% for version in site.archived_releases
-%} {{ version }} | [pulsar-{{version}}-bin.tar.gz]({{ archive_root_url }}/pulsar-{{ version }}/apache-pulsar-{{ version }}-bin.tar.gz) - [asc]({{ archive_root_https_url }}/pulsar-{{ version }}/apache-pulsar-{{ version }}-bin.tar.gz.asc), [md5]({{ archive_root_https_url }}/pulsar-{{ version }}/apache-pulsar-{{ version }}-bin.tar.gz.md5), [sha]({{ archive_root_https_url }}/pulsar-{{ version }}/apache-pulsar-{{ version }}-bin.tar.gz.sha) | [pulsar-{{ version }}-src.tar.gz]({{ archive_root_url }}/pulsar-{{ version }}/apache-pulsar-{{ version }}-src.tar.gz) - [asc]({{ archive_root_https_url }}/pulsar-{{ version }}/apache-pulsar-{{ version }}-src.tar.gz.asc), [md5]({{ archive_root_https_url }}/pulsar-{{ version }}/apache-pulsar-{{ version }}-src.tar.gz.md5), [sha]({{ archive_root_https_url }}/pulsar-{{ version }}/apache-pulsar-{{ version }}-src.tar.gz.sha) | [Release notes v{{ version }}]({{ release_notes_root_url }}/v{{ version }})
+%} {{ version }} | [pulsar-{{version}}-bin.tar.gz]({{ archive_root_url }}/pulsar-{{ version }}/apache-pulsar-{{ version }}-bin.tar.gz) - [asc]({{ archive_root_https_url }}/pulsar-{{ version }}/apache-pulsar-{{ version }}-bin.tar.gz.asc), [sha1]({{ archive_root_https_url }}/pulsar-{{ version }}/apache-pulsar-{{ version }}-bin.tar.gz.sha1), [sha512]({{ archive_root_https_url }}/pulsar-{{ version }}/apache-pulsar-{{ version }}-bin.tar.gz.sha512) | [pulsar-{{ version }}-src.tar.gz]({{ archive_root_url }}/pulsar-{{ version }}/apache-pulsar-{{ version }}-src.tar.gz) - [asc]({{ archive_root_https_url }}/pulsar-{{ version }}/apache-pulsar-{{ version }}-src.tar.gz.asc), [sha1]({{ archive_root_https_url }}/pulsar-{{ version }}/apache-pulsar-{{ version }}-src.tar.gz.sha1), [sha512]({{ archive_root_https_url }}/pulsar-{{ version }}/apache-pulsar-{{ version }}-src.tar.gz.sha512) | [Release notes v{{ version }}]({{ release_notes_root_url }}/v{{ version }})
 {% endfor %}
 {% endif %}
