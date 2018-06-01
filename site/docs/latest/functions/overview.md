@@ -324,9 +324,9 @@ When you run Pulsar Functions in [cluster run](#cluster-run) mode, you can speci
 
 Resource | Specified as... | Runtimes
 :--------|:----------------|:--------
-CPU | The number of cores | Cluster run
-RAM | The number of bytes | TODO
-Disk space | The number of bytes | TODO
+CPU | The number of cores | Docker (coming soon)
+RAM | The number of bytes | Process, Docker
+Disk space | The number of bytes | Docker
 
 Here's an example function creation command that allocates 8 cores, 8 GB of RAM, and 10 GB of disk space to a function:
 

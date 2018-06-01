@@ -149,9 +149,9 @@ When you run Pulsar Functions in [cluster run](#cluster-run) mode, you can speci
 
 Resource | Specified as... | Runtimes
 :--------|:----------------|:--------
-CPU | The number of cores | Cluster run
-RAM | The number of bytes | TODO
-Disk space | The number of bytes | TODO
+CPU | The number of cores | Docker (coming soon)
+RAM | The number of bytes | Process, Docker
+Disk space | The number of bytes | Docker
 
 Here's an example function creation command that allocates 8 cores, 8 GB of RAM, and 10 GB of disk space to a function:
 
@@ -165,7 +165,7 @@ $ bin/pulsar-admin functions create \
 ```
 
 {% include admonition.html type="warning" title="Resources are *per instance*"
-   content="Something or other" %}
+   content="The resources that you apply to a given Pulsar Function are applied to each [instance](#parallelism) of the function. If you apply 8 GB of RAM to a function with a paralellism of 5, for example, then you are applying 40 GB of RAM total for the function. You should always make sure to factor paralellism---i.e. the number of instances---into your resource calculations." %}
 
 ## Triggering Pulsar Functions {#triggering}
 

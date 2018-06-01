@@ -93,8 +93,6 @@ Permission can be fetched using [`permissions`](../../reference/CliTools#permiss
 
 #### pulsar-admin
 
-TODO: admin
-
 ```shell
 $ pulsar-admin persistent permissions \
   persistent://test-tenant/ns1/tp1 \
