@@ -47,6 +47,8 @@ public class S3BackedInputStreamImpl extends S3BackedInputStream {
     private final int bufferSize;
 
     private long cursor;
+    private long bufferOffsetStart;
+    private long bufferOffsetEnd;
 
     public S3BackedInputStreamImpl(AmazonS3 s3client, String bucket, String key,
                                    VersionCheck versionCheck,
@@ -59,6 +61,7 @@ public class S3BackedInputStreamImpl extends S3BackedInputStream {
         this.objectLen = objectLen;
         this.bufferSize = bufferSize;
         this.cursor = 0;
+        this.bufferOffsetStart = this.bufferOffsetEnd = -1;
     }
 
     /**
@@ -83,6 +86,8 @@ public class S3BackedInputStreamImpl extends S3BackedInputStream {
                 long bytesRead = range[1] - range[0] + 1;
 
                 buffer.clear();
+                bufferOffsetStart = range[0];
+                bufferOffsetEnd = range[1];
                 InputStream s = obj.getObjectContent();
                 int bytesToCopy = (int)bytesRead;
                 while (bytesToCopy > 0) {
@@ -119,8 +124,13 @@ public class S3BackedInputStreamImpl extends S3BackedInputStream {
     @Override
     public void seek(long position) {
         log.debug("Seeking to {} on {}/{}, current position {}", position, bucket, key, cursor);
-        this.cursor = position;
-        buffer.clear();
+        if (position >= bufferOffsetStart && position <= bufferOffsetEnd) {
+            long newIndex = position - bufferOffsetStart;
+            buffer.readerIndex((int)newIndex);
+        } else {
+            this.cursor = position;
+            buffer.clear();
+        }
     }
 
     @Override
