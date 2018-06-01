@@ -1307,7 +1307,7 @@ TEST(BasicEndToEndTest, testEncryptionFailure) {
 TEST(BasicEndToEndTest, testEventTime) {
     ClientConfiguration config;
     Client client(lookupUrl, config);
-    std::string topicName = "prop/unit/ns1/topic";
+    std::string topicName = "persistent://prop/unit/ns1/topic";
     Producer producer;
     ProducerConfiguration producerConf;
     producerConf.setBatchingEnabled(true);
