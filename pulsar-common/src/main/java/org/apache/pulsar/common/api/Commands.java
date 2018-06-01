@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.common.api;
 
-import static org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFrom;
-import static org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.resumeChecksum;
+import static org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFrom;
+import static org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8;
 
 import com.google.common.annotations.VisibleForTesting;
 
@@ -980,6 +980,11 @@ public class Commands {
             singleMessageMetadataBuilder = singleMessageMetadataBuilder
                     .addAllProperties(msgBuilder.getPropertiesList());
         }
+
+        if (msgBuilder.hasEventTime()) {
+            singleMessageMetadataBuilder.setEventTime(msgBuilder.getEventTime());
+        }
+
         try {
             return serializeSingleMessageInBatchWithPayload(singleMessageMetadataBuilder, payload, batchBuffer);
         } finally {
@@ -997,6 +1002,7 @@ public class Commands {
         ByteBufCodedInputStream stream = ByteBufCodedInputStream.get(uncompressedPayload);
         PulsarApi.SingleMessageMetadata singleMessageMetadata = singleMessageMetadataBuilder.mergeFrom(stream, null)
                 .build();
+
         int singleMessagePayloadSize = singleMessageMetadata.getPayloadSize();
 
         uncompressedPayload.markReaderIndex();
