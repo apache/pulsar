@@ -27,7 +27,7 @@ data:
     dbStorage_writeCacheMaxSizeMb: "256" # Write cache size (direct memory)
     dbStorage_readAheadCacheMaxSizeMb: "256" # Read cache size (direct memory)
     zkServers: zk-0.zookeeper,zk-1.zookeeper,zk-2.zookeeper
-    statsProviderClass: org.apache.bookkeeper.stats.PrometheusMetricsProvider
+    statsProviderClass: org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider
 ---
 
 ## BookKeeper servers need to access the local disks and the pods

@@ -18,13 +18,13 @@
  */
 package org.apache.pulsar.client.admin;
 
+import java.util.List;
+
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
-import org.apache.pulsar.functions.shaded.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.shaded.proto.InstanceCommunication.FunctionStatusList;
-
-import java.util.List;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
 
 /**
  * Admin interface for function management.

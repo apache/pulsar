@@ -200,24 +200,9 @@ public class PulsarClusterUtils {
             .reduce(true, (accum, res) -> accum && res);
     }
 
-    public static boolean waitSupervisord(DockerClient docker, String containerId) {
-        int i = 50;
-        while (i > 0) {
-            try {
-                DockerUtils.runCommand(docker, containerId, "test", "-S", "/var/run/supervisor/supervisor.sock");
-                return true;
-            } catch (Exception e) {
-                // supervisord not running
-            }
-            try {
-                Thread.sleep(100);
-                i++;
-            } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
-                break;
-            }
-        }
-        return false;
+    public static void waitSupervisord(DockerClient docker, String containerId) {
+        DockerUtils.runCommand(docker, containerId, "timeout", "60", "bash", "-c",
+                               "until test -S /var/run/supervisor/supervisor.sock; do sleep 0.1; done");
     }
 
     public static boolean startAllBrokers(DockerClient docker, String cluster) {

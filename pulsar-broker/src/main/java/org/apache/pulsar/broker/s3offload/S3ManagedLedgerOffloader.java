@@ -33,6 +33,7 @@ import com.amazonaws.services.s3.model.UploadPartRequest;
 import com.amazonaws.services.s3.model.UploadPartResult;
 import com.google.common.base.Strings;
 import java.io.InputStream;
+import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +46,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.s3offload.impl.BlockAwareSegmentInputStreamImpl;
 import org.apache.pulsar.broker.s3offload.impl.S3BackedReadHandleImpl;
+import org.apache.pulsar.utils.PulsarBrokerVersionStringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,6 +54,20 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
     private static final Logger log = LoggerFactory.getLogger(S3ManagedLedgerOffloader.class);
 
     public static final String DRIVER_NAME = "S3";
+
+    static final String METADATA_FORMAT_VERSION_KEY = "S3ManagedLedgerOffloaderFormatVersion";
+    static final String METADATA_SOFTWARE_VERSION_KEY = "S3ManagedLedgerOffloaderSoftwareVersion";
+    static final String METADATA_SOFTWARE_GITSHA_KEY = "S3ManagedLedgerOffloaderSoftwareGitSha";
+    static final String CURRENT_VERSION = String.valueOf(1);
+
+    private final VersionCheck VERSION_CHECK = (key, metadata) -> {
+        String version = metadata.getUserMetadata().get(METADATA_FORMAT_VERSION_KEY);
+        if (version == null || !version.equals(CURRENT_VERSION)) {
+            throw new IOException(String.format("Invalid object version %s for %s, expect %s",
+                                                version, key, CURRENT_VERSION));
+        }
+    };
+
     private final OrderedScheduler scheduler;
     private final AmazonS3 s3client;
     private final String bucket;
@@ -75,6 +91,9 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
         }
         if (Strings.isNullOrEmpty(bucket)) {
             throw new PulsarServerException("s3ManagedLedgerOffloadBucket cannot be empty if s3 offload enabled");
+        }
+        if (maxBlockSize < 5*1024*1024) {
+            throw new PulsarServerException("s3ManagedLedgerOffloadMaxBlockSizeInBytes cannot be less than 5MB");
         }
 
         AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard();
@@ -111,11 +130,21 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
                                            Map<String, String> extraMetadata) {
         CompletableFuture<Void> promise = new CompletableFuture<>();
         scheduler.chooseThread(readHandle.getId()).submit(() -> {
+            if (readHandle.getLength() == 0 || !readHandle.isClosed() || readHandle.getLastAddConfirmed() < 0) {
+                promise.completeExceptionally(
+                        new IllegalArgumentException("An empty or open ledger should never be offloaded"));
+                return;
+            }
             OffloadIndexBlockBuilder indexBuilder = OffloadIndexBlockBuilder.create()
-                .withLedgerMetadata(readHandle.getLedgerMetadata());
+                .withLedgerMetadata(readHandle.getLedgerMetadata())
+                .withDataBlockHeaderLength(BlockAwareSegmentInputStreamImpl.getHeaderSize());
             String dataBlockKey = dataBlockOffloadKey(readHandle.getId(), uuid);
             String indexBlockKey = indexBlockOffloadKey(readHandle.getId(), uuid);
-            InitiateMultipartUploadRequest dataBlockReq = new InitiateMultipartUploadRequest(bucket, dataBlockKey);
+
+            ObjectMetadata dataMetadata = new ObjectMetadata();
+            addVersionInfo(dataMetadata);
+
+            InitiateMultipartUploadRequest dataBlockReq = new InitiateMultipartUploadRequest(bucket, dataBlockKey, dataMetadata);
             InitiateMultipartUploadResult dataBlockRes = null;
 
             // init multi part upload for data block.
@@ -169,18 +198,25 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
                     .withUploadId(dataBlockRes.getUploadId())
                     .withPartETags(etags));
             } catch (Throwable t) {
-                s3client.abortMultipartUpload(
-                    new AbortMultipartUploadRequest(bucket, dataBlockKey, dataBlockRes.getUploadId()));
+                try {
+                    s3client.abortMultipartUpload(
+                        new AbortMultipartUploadRequest(bucket, dataBlockKey, dataBlockRes.getUploadId()));
+                } catch (Throwable throwable) {
+                    log.error("Failed abortMultipartUpload in bucket - {} with key - {}, uploadId - {}.",
+                        bucket, dataBlockKey, dataBlockRes.getUploadId(), throwable);
+                }
                 promise.completeExceptionally(t);
                 return;
             }
 
             // upload index block
             try (OffloadIndexBlock index = indexBuilder.withDataObjectLength(dataObjectLength).build();
-                 InputStream indexStream = index.toStream()) {
+                 OffloadIndexBlock.IndexInputStream indexStream = index.toStream()) {
                 // write the index block
                 ObjectMetadata metadata = new ObjectMetadata();
-                metadata.setContentLength(indexStream.available());
+                metadata.setContentLength(indexStream.getStreamSize());
+                addVersionInfo(metadata);
+
                 s3client.putObject(new PutObjectRequest(
                     bucket,
                     indexBlockKey,
@@ -188,7 +224,12 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
                     metadata));
                 promise.complete(null);
             } catch (Throwable t) {
-                s3client.deleteObject(bucket, dataBlockKey);
+                try {
+                    s3client.deleteObject(bucket, dataBlockKey);
+                } catch (Throwable throwable) {
+                    log.error("Failed deleteObject in bucket - {} with key - {}.",
+                        bucket, dataBlockKey, throwable);
+                }
                 promise.completeExceptionally(t);
                 return;
             }
@@ -206,12 +247,20 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
                     promise.complete(S3BackedReadHandleImpl.open(scheduler.chooseThread(ledgerId),
                                                                  s3client,
                                                                  bucket, key, indexKey,
+                                                                 VERSION_CHECK,
                                                                  ledgerId, readBufferSize));
                 } catch (Throwable t) {
                     promise.completeExceptionally(t);
                 }
             });
         return promise;
+    }
+
+    private static void addVersionInfo(ObjectMetadata metadata) {
+        metadata.getUserMetadata().put(METADATA_FORMAT_VERSION_KEY, CURRENT_VERSION);
+        metadata.getUserMetadata().put(METADATA_SOFTWARE_VERSION_KEY,
+                                       PulsarBrokerVersionStringUtils.getNormalizedVersionString());
+        metadata.getUserMetadata().put(METADATA_SOFTWARE_GITSHA_KEY, PulsarBrokerVersionStringUtils.getGitSha());
     }
 
     @Override
@@ -229,6 +278,10 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
         });
 
         return promise;
+    }
+
+    public interface VersionCheck {
+        void check(String key, ObjectMetadata md) throws IOException;
     }
 }
 

@@ -251,6 +251,8 @@ OPTS="$OPTS -Dpulsar.functions.process.container.log.dir=$PULSAR_LOG_DIR"
 OPTS="$OPTS -Dpulsar.functions.java.instance.jar=${JAVA_INSTANCE_JAR}"
 OPTS="$OPTS -Dpulsar.functions.python.instance.file=${PY_INSTANCE_FILE}"
 
+ZK_OPTS=" -Dzookeeper.4lw.commands.whitelist=*"
+
 #Change to PULSAR_HOME to support relative paths
 cd "$PULSAR_HOME"
 if [ $COMMAND == "broker" ]; then
@@ -261,16 +263,16 @@ elif [ $COMMAND == "bookie" ]; then
     exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.bookkeeper.proto.BookieServer --conf $PULSAR_BOOKKEEPER_CONF $@
 elif [ $COMMAND == "zookeeper" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"zookeeper.log"}
-    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.zookeeper.ZooKeeperStarter $PULSAR_ZK_CONF $@
+    exec $JAVA ${ZK_OPTS} $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.zookeeper.ZooKeeperStarter $PULSAR_ZK_CONF $@
 elif [ $COMMAND == "global-zookeeper" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"global-zookeeper.log"}
     # Allow global ZK to turn into read-only mode when it cannot reach the quorum
-    OPTS="${OPTS} -Dreadonlymode.enabled=true"
+    OPTS="${OPTS} ${ZK_OPTS} -Dreadonlymode.enabled=true"
     exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.zookeeper.ConfigurationStoreStarter $PULSAR_GLOBAL_ZK_CONF $@
 elif [ $COMMAND == "configuration-store" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"configuration-store.log"}
     # Allow global ZK to turn into read-only mode when it cannot reach the quorum
-    OPTS="${OPTS} -Dreadonlymode.enabled=true"
+    OPTS="${OPTS} ${ZK_OPTS} -Dreadonlymode.enabled=true"
     exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.zookeeper.ConfigurationStoreStarter $PULSAR_CONFIGURATION_STORE_CONF $@
 elif [ $COMMAND == "discovery" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"discovery.log"}
@@ -286,7 +288,7 @@ elif [ $COMMAND == "functions-worker" ]; then
     exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.functions.worker.FunctionWorkerStarter -c $PULSAR_WORKER_CONF $@
 elif [ $COMMAND == "standalone" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"pulsar-standalone.log"}
-    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.PulsarStandaloneStarter --config $PULSAR_STANDALONE_CONF $@
+    exec $JAVA $OPTS ${ZK_OPTS} -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.PulsarStandaloneStarter --config $PULSAR_STANDALONE_CONF $@
 elif [ $COMMAND == "initialize-cluster-metadata" ]; then
     exec $JAVA $OPTS org.apache.pulsar.PulsarClusterMetadataSetup $@
 elif [ $COMMAND == "zookeeper-shell" ]; then

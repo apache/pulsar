@@ -111,12 +111,6 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-common</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-broker-common</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -146,12 +140,6 @@
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>aws-java-sdk-s3</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>io.findify</groupId>
-      <artifactId>s3mock_2.12</artifactId>
-      <scope>test</scope>
     </dependency>
 
     <!-- functions related dependencies (begin) -->

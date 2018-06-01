@@ -69,13 +69,31 @@ int pulsar_client_configuration_get_concurrent_lookup_request(pulsar_client_conf
     return conf->conf.getConcurrentLookupRequest();
 }
 
-void pulsar_client_configuration_set_log_conf_file_path(pulsar_client_configuration_t *conf,
-                                                        const char *logConfFilePath) {
-    conf->conf.setLogConfFilePath(logConfFilePath);
-}
+class PulsarCLogger : public pulsar::Logger {
+    std::string file_;
+    pulsar_logger logger_;
 
-const char *pulsar_client_configuration_get_log_conf_file_path(pulsar_client_configuration_t *conf) {
-    return conf->conf.getLogConfFilePath().c_str();
+   public:
+    PulsarCLogger(const std::string &file, pulsar_logger logger) : file_(file), logger_(logger) {}
+
+    bool isEnabled(Level level) { return level >= pulsar::Logger::INFO; }
+
+    void log(Level level, int line, const std::string &message) {
+        logger_((pulsar_logger_level_t)level, file_.c_str(), line, message.c_str());
+    }
+};
+
+class PulsarCLoggerFactory : public pulsar::LoggerFactory {
+    pulsar_logger logger_;
+
+   public:
+    PulsarCLoggerFactory(pulsar_logger logger) : logger_(logger) {}
+
+    pulsar::Logger *getLogger(const std::string &fileName) { return new PulsarCLogger(fileName, logger_); }
+};
+
+void pulsar_client_configuration_set_logger(pulsar_client_configuration_t *conf, pulsar_logger logger) {
+    conf->conf.setLogger(pulsar::LoggerFactoryPtr(new PulsarCLoggerFactory(logger)));
 }
 
 void pulsar_client_configuration_set_use_tls(pulsar_client_configuration_t *conf, int useTls) {

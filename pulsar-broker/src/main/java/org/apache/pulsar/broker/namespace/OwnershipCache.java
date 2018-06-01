@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.namespace;
 
-import static com.google.common.base.Preconditions.checkState;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -47,8 +45,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.AsyncCacheLoader;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.RemovalCause;
-import com.github.benmanes.caffeine.cache.RemovalListener;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.MoreExecutors;
 
@@ -163,7 +159,7 @@ public class OwnershipCache {
         this.localZkCache = pulsar.getLocalZkCache();
         this.ownershipReadOnlyCache = pulsar.getLocalZkCacheService().ownerInfoCache();
         // ownedBundlesCache contains all namespaces that are owned by the local broker
-        this.ownedBundlesCache = Caffeine.newBuilder().executor(MoreExecutors.sameThreadExecutor())
+        this.ownedBundlesCache = Caffeine.newBuilder().executor(MoreExecutors.directExecutor())
                 .buildAsync(new OwnedServiceUnitCacheLoader());
     }
 

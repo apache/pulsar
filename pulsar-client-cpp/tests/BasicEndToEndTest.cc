@@ -253,11 +253,11 @@ TEST(BasicEndToEndTest, testNonPersistentTopic) {
     Client client(lookupUrl);
     Producer producer;
     Result result = client.createProducer(topicName, producer);
-    ASSERT_EQ(ResultInvalidTopicName, result);
+    ASSERT_EQ(ResultOk, result);
 
     Consumer consumer;
     result = client.subscribe(topicName, "my-sub-name", consumer);
-    ASSERT_EQ(ResultInvalidTopicName, result);
+    ASSERT_EQ(ResultOk, result);
 }
 
 TEST(BasicEndToEndTest, testSingleClientMultipleSubscriptions) {
@@ -1302,4 +1302,30 @@ TEST(BasicEndToEndTest, testEncryptionFailure) {
 
     // Since messag is discarded, no message will be received.
     ASSERT_EQ(ResultTimeout, consumer.receive(msgReceived, 5000));
+}
+
+TEST(BasicEndToEndTest, testEventTime) {
+    ClientConfiguration config;
+    Client client(lookupUrl, config);
+    std::string topicName = "persistent://prop/unit/ns1/topic";
+    Producer producer;
+    ProducerConfiguration producerConf;
+    producerConf.setBatchingEnabled(true);
+    Result result = client.createProducer(topicName, producerConf, producer);
+    ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer;
+    result = client.subscribe(topicName, "sub", consumer);
+    ASSERT_EQ(ResultOk, result);
+
+    producer.send(MessageBuilder().setContent("test").setEventTimestamp(5).build());
+
+    Message msg;
+    result = consumer.receive(msg);
+    ASSERT_EQ(ResultOk, result);
+
+    ASSERT_EQ(msg.getEventTimestamp(), 5);
+
+    consumer.close();
+    producer.close();
 }
