@@ -23,6 +23,9 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
+import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isValidTopicName;
+import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.NotNull;
+import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isPositiveNumber;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -33,13 +36,21 @@ import java.util.Map;
 @EqualsAndHashCode
 @ToString
 public class SourceConfig {
+    @NotNull
     private String tenant;
+    @NotNull
     private String namespace;
+    @NotNull
     private String name;
+    @NotNull
     private String className;
+    @NotNull
+    @isValidTopicName
     private String topicName;
+    @isValidSerde
     private String serdeClassName;
     private Map<String, Object> configs = new HashMap<>();
+    @isPositiveNumber
     private int parallelism = 1;
     private FunctionConfig.ProcessingGuarantees processingGuarantees;
     private Resources resources;
