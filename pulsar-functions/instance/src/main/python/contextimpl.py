@@ -134,7 +134,7 @@ class ContextImpl(pulsar.Context):
       serde_klass = util.import_class(self.user_code_dir, serde_class_name)
       self.publish_serializers[serde_class_name] = serde_klass()
 
-    output_bytes = self.publish_serializers[serde_class_name].serialize(message)
+    output_bytes = bytes(self.publish_serializers[serde_class_name].serialize(message))
     self.publish_producers[topic_name].send_async(output_bytes, None)
 
   def ack(self, msgid, topic):

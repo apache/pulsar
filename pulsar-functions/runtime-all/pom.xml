@@ -207,10 +207,12 @@
                   <pattern>jersey</pattern>
                   <shadedPattern>org.apache.pulsar.functions.runtime.shaded.jersey</shadedPattern>
                 </relocation>
+                <!-- DONT ever shade log4j, otherwise logging won't work anymore in running functions in process mode
                 <relocation>
                   <pattern>org.apache.logging</pattern>
                   <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.apache.logging</shadedPattern>
                 </relocation>
+                -->
                 <relocation>
                   <pattern>javassist</pattern>
                   <shadedPattern>org.apache.pulsar.functions.runtime.shaded.javassist</shadedPattern>
