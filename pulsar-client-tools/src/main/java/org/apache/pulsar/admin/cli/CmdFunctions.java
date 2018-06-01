@@ -501,6 +501,9 @@ public class CmdFunctions extends CmdBase {
             if (typeArgs != null) {
                 sourceSpecBuilder.setTypeClassName(typeArgs[0].getName());
             }
+            if (functionConfig.getTimeoutMs() != null) {
+                sourceSpecBuilder.setTimeoutMs(functionConfig.getTimeoutMs());
+            }
             functionDetailsBuilder.setSource(sourceSpecBuilder);
 
             // Setup sink

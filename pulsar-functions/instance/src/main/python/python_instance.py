@@ -120,6 +120,7 @@ class PythonInstance(object):
     self.total_stats = Stats()
     self.current_stats = Stats()
     self.last_health_check_ts = time.time()
+    self.timeout_ms = function_details.source.timeoutMs if function_details.source.timeoutMs > 0 else None
 
   def health_check(self):
     self.last_health_check_ts = time.time()
@@ -154,7 +155,8 @@ class PythonInstance(object):
       self.consumers[topic] = self.pulsar_client.subscribe(
         str(topic), subscription_name,
         consumer_type=mode,
-        message_listener=partial(self.message_listener, topic, self.input_serdes[topic])
+        message_listener=partial(self.message_listener, topic, self.input_serdes[topic]),
+        unacked_messages_timeout_ms= self.timeout_ms
       )
 
     function_kclass = util.import_class(os.path.dirname(self.user_code), self.instance_config.function_details.className)
