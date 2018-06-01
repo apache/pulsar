@@ -3777,7 +3777,7 @@ of any number previously specified</td>
               
               <td>optional</td>
               <td></td>
-              <td>TODO - Remove original_principal, original_auth_data, original_auth_method 
+              <td>TODO - Remove original_principal, original_auth_data, original_auth_method
 Original principal that was verified by
 a Pulsar proxy.</td>
             </tr>
@@ -4019,7 +4019,7 @@ lookup has been completed.</td>
               
               <td>optional</td>
               <td></td>
-              <td>TODO - Remove original_principal, original_auth_data, original_auth_method 
+              <td>TODO - Remove original_principal, original_auth_data, original_auth_method
 Original principal that was verified by
 a Pulsar proxy.</td>
             </tr>
@@ -5466,6 +5466,17 @@ if this field is omitted, `publish_time` can be used for the purpose of `event_t
               <td>optional</td>
               <td>false</td>
               <td></td>
+            </tr>
+            
+            <tr>
+              <td class="wrap">event_time</td>
+              
+              <td class="wrap">uint64</td>
+              
+              <td>optional</td>
+              <td>0</td>
+              <td>the timestamp that this event occurs. it is typically set by applications.
+if this field is omitted, `publish_time` can be used for the purpose of `event_time`.</td>
             </tr>
              <!-- for field in fields -->
           </tbody>
