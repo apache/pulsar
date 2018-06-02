@@ -25,7 +25,6 @@ package pulsar
 import "C"
 
 import (
-	"errors"
 	"runtime"
 	"unsafe"
 	"context"
@@ -65,12 +64,12 @@ type readerAndCallback struct {
 
 func createReaderAsync(client *client, options ReaderOptions, callback func(Reader, error)) {
 	if options.Topic == "" {
-		callback(nil, errors.New("topic is required"))
+		go callback(nil, newError(C.pulsar_result_InvalidConfiguration, "topic is required"))
 		return
 	}
 
 	if options.StartMessageID == nil {
-		callback(nil, errors.New("start message id is required"))
+		go callback(nil, newError(C.pulsar_result_InvalidConfiguration, "start message id is required"))
 		return
 	}
 
@@ -121,7 +120,15 @@ type readerCallback struct {
 
 //export pulsarReaderListenerProxy
 func pulsarReaderListenerProxy(cReader *C.pulsar_reader_t, message *C.pulsar_message_t, ctx unsafe.Pointer) {
-	rc := restorePointer(ctx).(*readerCallback)
+	rc := restorePointerNoDelete(ctx).(*readerCallback)
+
+	defer func() {
+		ex := recover()
+		if ex != nil {
+			// There was an error when sending channel (eg: already closed)
+		}
+	}()
+
 	rc.channel <- ReaderMessage{rc.reader, newMessageWrapper(message)}
 }
 

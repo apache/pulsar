@@ -65,12 +65,12 @@ type subscribeContext struct {
 
 func subscribeAsync(client *client, options ConsumerOptions, callback func(Consumer, error)) {
 	if options.Topic == "" {
-		callback(nil, newError(C.pulsar_result_InvalidConfiguration, "topic is required"))
+		go callback(nil, newError(C.pulsar_result_InvalidConfiguration, "topic is required"))
 		return
 	}
 
 	if options.SubscriptionName == "" {
-		callback(nil, newError(C.pulsar_result_InvalidConfiguration, "subscription name is required"))
+		go callback(nil, newError(C.pulsar_result_InvalidConfiguration, "subscription name is required"))
 		return
 	}
 
@@ -136,6 +136,14 @@ type consumerCallback struct {
 //export pulsarMessageListenerProxy
 func pulsarMessageListenerProxy(cConsumer *C.pulsar_consumer_t, message *C.pulsar_message_t, ctx unsafe.Pointer) {
 	cc := restorePointerNoDelete(ctx).(*consumerCallback)
+
+	defer func() {
+		ex := recover()
+		if ex != nil {
+			// There was an error when sending channel (eg: already closed)
+		}
+	}()
+
 	cc.channel <- ConsumerMessage{cc.consumer, newMessageWrapper(message)}
 }
 
@@ -151,7 +159,8 @@ func (c *consumer) Subscription() string {
 
 func (c *consumer) Unsubscribe() error {
 	channel := make(chan error)
-	c.UnsubscribeAsync(func(err error) { channel <- err; close(channel) })
+	c.UnsubscribeAsync(func(err error) {
+		channel <- err; close(channel) })
 	return <-channel
 }
 
@@ -164,9 +173,9 @@ func pulsarConsumerUnsubscribeCallbackProxy(res C.pulsar_result, ctx unsafe.Poin
 	callback := restorePointer(ctx).(func(err error))
 
 	if res != C.pulsar_result_Ok {
-		callback(newError(res, "Failed to unsubscribe consumer"))
+		go callback(newError(res, "Failed to unsubscribe consumer"))
 	} else {
-		callback(nil)
+		go callback(nil)
 	}
 }
 
@@ -219,9 +228,9 @@ func pulsarConsumerCloseCallbackProxy(res C.pulsar_result, ctx unsafe.Pointer) {
 	callback := restorePointer(ctx).(func(err error))
 
 	if res != C.pulsar_result_Ok {
-		callback(newError(res, "Failed to close Consumer"))
+		go callback(newError(res, "Failed to close Consumer"))
 	} else {
-		callback(nil)
+		go callback(nil)
 	}
 }
 

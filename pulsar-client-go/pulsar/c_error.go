@@ -54,3 +54,7 @@ func (e *Error) Result() Result {
 func (e *Error) Error() string {
 	return e.msg
 }
+
+func (r Result) String() string {
+	return C.GoString(C.pulsar_result_str(C.pulsar_result(r)))
+}

@@ -52,7 +52,7 @@ func pulsarCreateProducerCallbackProxy(res C.pulsar_result, ptr *C.pulsar_produc
 
 func createProducerAsync(client *client, options ProducerOptions, callback func(producer Producer, err error)) {
 	if options.Topic == "" {
-		callback(nil, newError(C.pulsar_result_InvalidConfiguration, "topic is required when creating producer"))
+		go callback(nil, newError(C.pulsar_result_InvalidConfiguration, "topic is required when creating producer"))
 		return
 	}
 
@@ -108,7 +108,7 @@ func createProducerAsync(client *client, options ProducerOptions, callback func(
 	}
 
 	if options.MessageRouter != nil {
-		C._pulsar_producer_configuration_set_message_router(conf, unsafe.Pointer(&options.MessageRouter))
+		C._pulsar_producer_configuration_set_message_router(conf, savePointer(&options.MessageRouter))
 	}
 
 	if options.Batching {
@@ -136,13 +136,12 @@ type topicMetadata struct {
 }
 
 func (tm *topicMetadata) NumPartitions() int {
-	return tm.NumPartitions()
+	return tm.numPartitions
 }
 
 //export pulsarRouterCallbackProxy
 func pulsarRouterCallbackProxy(msg *C.pulsar_message_t, metadata *C.pulsar_topic_metadata_t, ctx unsafe.Pointer) C.int {
-	router := restorePointer(ctx).(*func(msg Message, metadata TopicMetadata) int)
-
+	router := restorePointerNoDelete(ctx).(*func(msg Message, metadata TopicMetadata) int)
 	partitionIdx := (*router)(&message{msg}, &topicMetadata{int(C.pulsar_topic_metadata_get_num_partitions(metadata))})
 	return C.int(partitionIdx)
 }
