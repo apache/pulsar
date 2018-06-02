@@ -23,9 +23,14 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
-import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isValidTopicName;
+import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.NotNull;
+import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isImplementationOfClass;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isPositiveNumber;
+import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isValidResources;
+import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isValidSourceConfig;
+import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isValidTopicName;
+import org.apache.pulsar.io.core.Source;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -35,6 +40,7 @@ import java.util.Map;
 @Data
 @EqualsAndHashCode
 @ToString
+@isValidSourceConfig
 public class SourceConfig {
     @NotNull
     private String tenant;
@@ -43,15 +49,17 @@ public class SourceConfig {
     @NotNull
     private String name;
     @NotNull
+    @isImplementationOfClass(implementsClass = Source.class)
     private String className;
     @NotNull
     @isValidTopicName
     private String topicName;
-    @isValidSerde
+    @isImplementationOfClass(implementsClass = SerDe.class)
     private String serdeClassName;
     private Map<String, Object> configs = new HashMap<>();
     @isPositiveNumber
     private int parallelism = 1;
     private FunctionConfig.ProcessingGuarantees processingGuarantees;
+    @isValidResources
     private Resources resources;
 }
