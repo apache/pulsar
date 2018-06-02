@@ -174,14 +174,12 @@ public class CmdSinks extends CmdBase {
 
             if (null != tenant) {
                 sinkConfig.setTenant(tenant);
-            } else if (sinkConfig.getTenant() == null) {
-                sinkConfig.setTenant(PUBLIC_TENANT);
             }
+            
             if (null != namespace) {
                 sinkConfig.setNamespace(namespace);
-            } else if (sinkConfig.getNamespace() == null) {
-                sinkConfig.setNamespace(DEFAULT_NAMESPACE);
             }
+
             if (null != name) {
                 sinkConfig.setName(name);
             }
@@ -220,6 +218,17 @@ public class CmdSinks extends CmdBase {
                 Type type = new TypeToken<Map<String, String>>(){}.getType();
                 Map<String, Object> sinkConfigMap = new Gson().fromJson(sinkConfigString, type);
                 sinkConfig.setConfigs(sinkConfigMap);
+            }
+
+            inferMissingArguments(sinkConfig);
+        }
+
+        private void inferMissingArguments(SinkConfig sinkConfig) {
+            if (sinkConfig.getTenant() == null) {
+                sinkConfig.setTenant(PUBLIC_TENANT);
+            }
+            if (sinkConfig.getNamespace() == null) {
+                sinkConfig.setNamespace(DEFAULT_NAMESPACE);
             }
         }
 
