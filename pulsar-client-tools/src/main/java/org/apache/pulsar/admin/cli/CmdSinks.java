@@ -223,7 +223,7 @@ public class CmdSinks extends CmdBase {
             }
         }
 
-        protected void validateSourceConfigs(SinkConfig sinkConfig) {
+        protected void validateSinkConfigs(SinkConfig sinkConfig) {
             File file = new File(jarFile);
             ClassLoader userJarLoader;
             try {
@@ -254,7 +254,7 @@ public class CmdSinks extends CmdBase {
         protected FunctionDetails createSinkConfig(SinkConfig sinkConfig) {
 
             // check if configs are valid
-            validateSourceConfigs(sinkConfig);
+            validateSinkConfigs(sinkConfig);
 
             Class<?> typeArg = getSinkType(sinkConfig.getClassName());
 

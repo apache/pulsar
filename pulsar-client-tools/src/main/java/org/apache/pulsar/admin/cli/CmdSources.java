@@ -106,8 +106,6 @@ public class CmdSources extends CmdBase {
     public class CreateSource extends SourceCommand {
         @Override
         void runCmd() throws Exception {
-            // check configs are valid
-            validateSourceConfigs(sourceConfig);
             admin.functions().createFunction(createSourceConfig(sourceConfig), jarFile);
             print("Created successfully");
         }
@@ -117,8 +115,6 @@ public class CmdSources extends CmdBase {
     public class UpdateSource extends SourceCommand {
         @Override
         void runCmd() throws Exception {
-            // check configs are valid
-            validateSourceConfigs(sourceConfig);
             admin.functions().updateFunction(createSourceConfig(sourceConfig), jarFile);
             print("Updated successfully");
         }
