@@ -48,8 +48,6 @@ public abstract class KafkaSource<V> extends PushSource<V> {
     private KafkaSourceConfig kafkaSourceConfig;
     Thread runnerThread;
 
-    private java.util.function.Consumer<Record<V>> consumeFunction;
-
     @Override
     public void open(Map<String, Object> config) throws Exception {
         kafkaSourceConfig = KafkaSourceConfig.load(config);
@@ -76,11 +74,6 @@ public abstract class KafkaSource<V> extends PushSource<V> {
 
         this.start();
 
-    }
-
-    @Override
-    public void setConsumer(java.util.function.Consumer<Record<V>> consumerFunction) {
-        this.consumeFunction = consumerFunction;
     }
 
     @Override
@@ -112,7 +105,7 @@ public abstract class KafkaSource<V> extends PushSource<V> {
                 for (ConsumerRecord<byte[], byte[]> consumerRecord : consumerRecords) {
                     LOG.debug("Record received from kafka, key: {}. value: {}", consumerRecord.key(), consumerRecord.value());
                     KafkaRecord<V> record = new KafkaRecord<>(consumerRecord, extractValue(consumerRecord));
-                    consumeFunction.accept(record);
+                    consume(record);
                     futures[index] = record.getCompletableFuture();
                     index++;
                 }
