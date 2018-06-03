@@ -357,7 +357,8 @@ class Client:
                   receiver_queue_size=1000,
                   consumer_name=None,
                   unacked_messages_timeout_ms=None,
-                  broker_consumer_stats_cache_time_ms=30000
+                  broker_consumer_stats_cache_time_ms=30000,
+                  is_read_compacted=False
                   ):
         """
         Subscribe to the given topic and subscription combination.
@@ -415,9 +416,11 @@ class Client:
         _check_type_or_none(str, consumer_name, 'consumer_name')
         _check_type_or_none(int, unacked_messages_timeout_ms, 'unacked_messages_timeout_ms')
         _check_type(int, broker_consumer_stats_cache_time_ms, 'broker_consumer_stats_cache_time_ms')
+        _check_type(bool, is_read_compacted, 'is_read_compacted')
 
         conf = _pulsar.ConsumerConfiguration()
         conf.consumer_type(consumer_type)
+        conf.read_compacted(is_read_compacted)
         if message_listener:
             conf.message_listener(message_listener)
         conf.receiver_queue_size(receiver_queue_size)

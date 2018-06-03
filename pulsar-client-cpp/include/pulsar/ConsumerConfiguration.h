@@ -150,7 +150,7 @@ class ConsumerConfiguration {
     ConsumerConfiguration& setCryptoFailureAction(ConsumerCryptoFailureAction action);
 
     bool isReadCompacted() const;
-    ConsumerConfiguration& setReadCompacted(bool compacted);
+    void setReadCompacted(bool compacted);
 
     friend class PulsarWrapper;
 

@@ -134,6 +134,8 @@ void export_config() {
             .def("unacked_messages_timeout_ms", &ConsumerConfiguration::setUnAckedMessagesTimeoutMs)
             .def("broker_consumer_stats_cache_time_ms", &ConsumerConfiguration::getBrokerConsumerStatsCacheTimeInMs)
             .def("broker_consumer_stats_cache_time_ms", &ConsumerConfiguration::setBrokerConsumerStatsCacheTimeInMs)
+            .def("read_compacted", &ConsumerConfiguration::isReadCompacted)
+            .def("read_compacted", &ConsumerConfiguration::setReadCompacted)
             ;
 
     class_<ReaderConfiguration>("ReaderConfiguration")
