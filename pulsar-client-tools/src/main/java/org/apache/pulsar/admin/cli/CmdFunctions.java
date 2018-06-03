@@ -22,8 +22,6 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.StringConverter;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -46,7 +44,6 @@ import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.proto.Function.ProcessingGuarantees;
 import org.apache.pulsar.functions.proto.Function.Resources;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
@@ -261,7 +258,7 @@ public class CmdFunctions extends CmdBase {
 
             // Initialize config builder either from a supplied YAML config file or from scratch
             if (null != fnConfigFile) {
-                functionConfig = loadConfig(new File(fnConfigFile));
+                functionConfig = Utils.loadConfig(fnConfigFile, FunctionConfig.class);
             } else {
                 functionConfig = new FunctionConfig();
             }
@@ -477,6 +474,9 @@ public class CmdFunctions extends CmdBase {
         protected FunctionDetails convert(FunctionConfig functionConfig)
                 throws IOException {
 
+            // check if configs are valid
+            validateFunctionConfigs(functionConfig);
+
             Class<?>[] typeArgs = null;
             if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
                 // Assuming any external jars are already loaded
@@ -544,11 +544,11 @@ public class CmdFunctions extends CmdBase {
                 functionDetailsBuilder.setLogTopic(functionConfig.getLogTopic());
             }
             if (functionConfig.getRuntime() != null) {
-                functionDetailsBuilder.setRuntime(convertRuntime(functionConfig.getRuntime()));
+                functionDetailsBuilder.setRuntime(Utils.convertRuntime(functionConfig.getRuntime()));
             }
             if (functionConfig.getProcessingGuarantees() != null) {
                 functionDetailsBuilder.setProcessingGuarantees(
-                        convertProcessingGuarantee(functionConfig.getProcessingGuarantees()));
+                        Utils.convertProcessingGuarantee(functionConfig.getProcessingGuarantees()));
             }
 
             Map<String, Object> configs = new HashMap<>();
@@ -609,8 +609,6 @@ public class CmdFunctions extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            // check if function configs are valid
-            validateFunctionConfigs(functionConfig);
             CmdFunctions.startLocalRun(convertProto2(functionConfig),
                     functionConfig.getParallelism(), brokerServiceUrl, userCodeFile, admin);
         }
@@ -620,8 +618,6 @@ public class CmdFunctions extends CmdBase {
     class CreateFunction extends FunctionDetailsCommand {
         @Override
         void runCmd() throws Exception {
-            // check if function configs are valid
-            validateFunctionConfigs(functionConfig);
             admin.functions().createFunction(convert(functionConfig), userCodeFile);
             print("Created successfully");
         }
@@ -660,8 +656,6 @@ public class CmdFunctions extends CmdBase {
     class UpdateFunction extends FunctionDetailsCommand {
         @Override
         void runCmd() throws Exception {
-            // check if function configs are valid
-            validateFunctionConfigs(functionConfig);
             admin.functions().updateFunction(convert(functionConfig), userCodeFile);
             print("Updated successfully");
         }
@@ -867,30 +861,6 @@ public class CmdFunctions extends CmdBase {
     @VisibleForTesting
     DownloadFunction getDownloader() {
         return downloader;
-    }
-
-    private static FunctionConfig loadConfig(File file) throws IOException {
-        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-        return mapper.readValue(file, FunctionConfig.class);
-    }
-
-    private static FunctionDetails.Runtime convertRuntime(FunctionConfig.Runtime runtime) {
-        for (FunctionDetails.Runtime type : FunctionDetails.Runtime.values()) {
-            if (type.name().equals(runtime.name())) {
-                return type;
-            }
-        }
-        throw new RuntimeException("Unrecognized runtime: " + runtime.name());
-    }
-
-    private static ProcessingGuarantees convertProcessingGuarantee(
-            FunctionConfig.ProcessingGuarantees processingGuarantees) {
-        for (ProcessingGuarantees type : ProcessingGuarantees.values()) {
-            if (type.name().equals(processingGuarantees.name())) {
-                return type;
-            }
-        }
-        throw new RuntimeException("Unrecognized processing guarantee: " + processingGuarantees.name());
     }
 
     private void parseFullyQualifiedFunctionName(String fqfn, FunctionConfig functionConfig) {
