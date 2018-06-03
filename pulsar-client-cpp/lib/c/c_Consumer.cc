@@ -122,3 +122,13 @@ pulsar_result resume_message_listener(pulsar_consumer_t *consumer) {
 void pulsar_consumer_redeliver_unacknowledged_messages(pulsar_consumer_t *consumer) {
     return consumer->consumer.redeliverUnacknowledgedMessages();
 }
+
+void pulsar_consumer_seek_async(pulsar_consumer_t *consumer, pulsar_message_id_t *messageId,
+                                pulsar_result_callback callback, void *ctx) {
+    consumer->consumer.seekAsync(messageId->messageId,
+                                 boost::bind(handle_result_callback, _1, callback, ctx));
+}
+
+pulsar_result pulsar_consumer_seek(pulsar_consumer_t *consumer, pulsar_message_id_t *messageId) {
+    return (pulsar_result)consumer->consumer.seek(messageId->messageId);
+}

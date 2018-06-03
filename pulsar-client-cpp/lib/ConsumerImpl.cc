@@ -881,7 +881,6 @@ void ConsumerImpl::brokerConsumerStatsListener(Result res, BrokerConsumerStatsIm
 
 void ConsumerImpl::handleSeek(Result result, ResultCallback callback) {
     if (result == ResultOk) {
-        Lock lock(mutex_);
         LOG_INFO(getName() << "Seek successfully");
     } else {
         LOG_ERROR(getName() << "Failed to seek: " << strResult(result));
