@@ -175,7 +175,7 @@ public class CmdSinks extends CmdBase {
             if (null != tenant) {
                 sinkConfig.setTenant(tenant);
             }
-            
+
             if (null != namespace) {
                 sinkConfig.setNamespace(namespace);
             }
@@ -208,8 +208,8 @@ public class CmdSinks extends CmdBase {
                 sinkConfig.setParallelism(parallelism);
             }
 
-            if (null == jarFile) {
-                throw new IllegalArgumentException("Connector JAR not specfied");
+            if (null != jarFile) {
+                sinkConfig.setJar(jarFile);
             }
 
             sinkConfig.setResources(new org.apache.pulsar.functions.utils.Resources(cpu, ram, disk));
@@ -233,7 +233,15 @@ public class CmdSinks extends CmdBase {
         }
 
         protected void validateSinkConfigs(SinkConfig sinkConfig) {
-            File file = new File(jarFile);
+            if (null == sinkConfig.getJar()) {
+                throw new ParameterException("Sink jar not specfied");
+            }
+
+            if (!new File(sinkConfig.getJar()).exists()) {
+                throw new ParameterException("Jar file " + sinkConfig.getJar() + " does not exist");
+            }
+
+            File file = new File(sinkConfig.getJar());
             ClassLoader userJarLoader;
             try {
                 userJarLoader = Reflections.loadJar(file);

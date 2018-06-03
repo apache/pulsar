@@ -33,6 +33,7 @@ import org.apache.pulsar.functions.utils.SourceConfig;
 import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.functions.utils.WindowConfig;
 
+import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.Collection;
@@ -747,9 +748,22 @@ public class ValidatorImpls {
         }
     }
 
+    public static class FileValidator extends Validator {
+        @Override
+        public void validateField(String name, Object o) {
+            if (o == null) {
+                return;
+            }
+            new StringValidator().validateField(name, o);
 
+            if (!new File((String) o).exists()) {
+                throw new IllegalArgumentException
+                        (String.format("File %s specified in field '%s' does not exist", o, name));
+            }
+        }
+    }
 
-        /**
+    /**
      * Validates basic types.
      */
     public static class SimpleTypeValidator extends Validator {
