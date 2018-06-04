@@ -47,6 +47,7 @@ import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.impl.RawBatchConverter;
 import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -314,7 +315,11 @@ public class TwoPhaseCompactor extends Compactor {
         MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
         try {
             if (msgMetadata.hasPartitionKey()) {
-                return Pair.of(msgMetadata.getPartitionKey(), headersAndPayload.readableBytes());
+                int size = headersAndPayload.readableBytes();
+                if (msgMetadata.hasUncompressedSize()) {
+                    size = msgMetadata.getUncompressedSize();
+                }
+                return Pair.of(msgMetadata.getPartitionKey(), size);
             } else {
                 return null;
             }
