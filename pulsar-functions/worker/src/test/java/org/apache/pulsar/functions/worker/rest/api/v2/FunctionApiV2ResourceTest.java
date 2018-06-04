@@ -294,6 +294,7 @@ public class FunctionApiV2ResourceTest {
                 function,
                 inputStream,
                 details,
+                null,
                 org.apache.pulsar.functions.utils.Utils.printJson(functionDetails));
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -321,6 +322,7 @@ public class FunctionApiV2ResourceTest {
             function,
             mockedInputStream,
             mockedFormData,
+            null,
             org.apache.pulsar.functions.utils.Utils.printJson(functionDetails));
     }
 

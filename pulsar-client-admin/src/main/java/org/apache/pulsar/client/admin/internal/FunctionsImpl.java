@@ -131,7 +131,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
             mp.bodyPart(new FormDataBodyPart("functionDetails",
                 printJson(functionDetails),
                 MediaType.APPLICATION_JSON_TYPE));
-            request(functions.path(functionDetails.getTenant()).path(functionDetails.getNamespace()).path(functionDetails.getName()).path("url"))
+            request(functions.path(functionDetails.getTenant()).path(functionDetails.getNamespace()).path(functionDetails.getName()))
                     .post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);

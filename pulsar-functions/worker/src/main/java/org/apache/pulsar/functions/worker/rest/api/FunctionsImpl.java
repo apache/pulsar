@@ -110,53 +110,6 @@ public class FunctionsImpl {
                                      final @PathParam("functionName") String functionName,
                                      final @FormDataParam("data") InputStream uploadedInputStream,
                                      final @FormDataParam("data") FormDataContentDisposition fileDetail,
-                                     final @FormDataParam("functionDetails") String functionDetailsJson) {
-
-        if (!isWorkerServiceAvailable()) {
-            return getUnavailableResponse();
-        }
-
-        FunctionDetails functionDetails;
-        // validate parameters
-        try {
-            functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
-                    uploadedInputStream, fileDetail, functionDetailsJson);
-        } catch (IllegalArgumentException e) {
-            log.error("Invalid register function request @ /{}/{}/{}",
-                tenant, namespace, functionName, e);
-            return Response.status(Status.BAD_REQUEST)
-                    .type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData(e.getMessage())).build();
-        }
-
-        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
-
-        if (functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
-            log.error("Function {}/{}/{} already exists", tenant, namespace, functionName);
-            return Response.status(Status.BAD_REQUEST)
-                    .type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData(String.format("Function %s already exists", functionName))).build();
-        }
-
-        // function state
-        FunctionMetaData.Builder functionMetaDataBuilder = FunctionMetaData.newBuilder()
-                .setFunctionDetails(functionDetails)
-                .setCreateTime(System.currentTimeMillis())
-                .setVersion(0);
-
-        PackageLocationMetaData.Builder packageLocationMetaDataBuilder = PackageLocationMetaData.newBuilder()
-                .setPackagePath(createPackagePath(tenant, namespace, functionName, fileDetail.getFileName()));
-        functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
-
-        return updateRequest(functionMetaDataBuilder.build(), uploadedInputStream);
-    }
-
-    @POST
-    @Path("/{tenant}/{namespace}/{functionName}/url")
-    @Consumes(MediaType.MULTIPART_FORM_DATA)
-    public Response registerFunction(final @PathParam("tenant") String tenant,
-                                     final @PathParam("namespace") String namespace,
-                                     final @PathParam("functionName") String functionName,
                                      final @FormDataParam("url") String functionPkgUrl,
                                      final @FormDataParam("functionDetails") String functionDetailsJson) {
 
@@ -165,11 +118,17 @@ public class FunctionsImpl {
         }
 
         FunctionDetails functionDetails;
+        boolean isPkgUrlProvided = StringUtils.isNotBlank(functionPkgUrl);
         // validate parameters
         try {
-            functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
-                    functionPkgUrl, functionDetailsJson);
-        } catch (IllegalArgumentException e) {
+            if(isPkgUrlProvided) {
+                functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
+                        functionPkgUrl, functionDetailsJson);
+            }else {
+                functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
+                        uploadedInputStream, fileDetail, functionDetailsJson);
+            }
+        } catch (Exception e) {
             log.error("Invalid register function request @ /{}/{}/{}",
                 tenant, namespace, functionName, e);
             return Response.status(Status.BAD_REQUEST)
@@ -193,12 +152,12 @@ public class FunctionsImpl {
                 .setVersion(0);
 
         PackageLocationMetaData.Builder packageLocationMetaDataBuilder = PackageLocationMetaData.newBuilder()
-                .setPackageUrl(functionPkgUrl);
+                .setPackagePath(isPkgUrlProvided ? functionPkgUrl : createPackagePath(tenant, namespace, functionName, fileDetail.getFileName()));
         functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
 
-        return updateRequest(functionMetaDataBuilder.build());
+        return isPkgUrlProvided ? updateRequest(functionMetaDataBuilder.build()) : updateRequest(functionMetaDataBuilder.build(), uploadedInputStream);
     }
-    
+
     @PUT
     @Path("/{tenant}/{namespace}/{functionName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
@@ -751,17 +710,21 @@ public class FunctionsImpl {
         }
     }
 
-    private FunctionDetails validateUpdateRequestParams(String tenant,
-            String namespace,
-            String functionName,
-            String functionPkgUrl,
-            String functionDetailsJson) throws IllegalArgumentException {
-        if (StringUtils.isBlank(functionPkgUrl) || !(functionPkgUrl.startsWith("http") || functionPkgUrl.startsWith("file"))) {
+    private FunctionDetails validateUpdateRequestParams(String tenant, String namespace, String functionName,
+            String functionPkgUrl, String functionDetailsJson)
+            throws IllegalArgumentException, IOException, URISyntaxException {
+        if (!isFunctionPackageUrlSupported(functionPkgUrl)) {
             throw new IllegalArgumentException("Function Package url is not valid. supported url (http/https/file)");
         }
+        Utils.validateFileUrl(functionPkgUrl, workerServiceSupplier.get().getWorkerConfig().getDownloadDirectory());
         return validateUpdateRequestParams(tenant, namespace, functionName, functionDetailsJson);
     }
-    
+
+    public static boolean isFunctionPackageUrlSupported(String functionPkgUrl) {
+        return StringUtils.isBlank(functionPkgUrl)
+                || !(functionPkgUrl.startsWith(Utils.HTTP) || functionPkgUrl.startsWith(Utils.FILE));
+    }
+
     private FunctionDetails validateUpdateRequestParams(String tenant,
             String namespace,
             String functionName,

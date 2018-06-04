@@ -76,7 +76,7 @@ public interface Functions {
     FunctionDetails getFunction(String tenant, String namespace, String function) throws PulsarAdminException;
 
     /**
-     * Create a new function.
+     * Create a new function. 
      *
      * @param functionDetails
      *            the function configuration object
