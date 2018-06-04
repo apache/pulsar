@@ -27,6 +27,7 @@ import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.utils.validation.ConfigValidation;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.NotNull;
+import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isFileExists;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isImplementationOfClass;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isImplementationOfClasses;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isListEntryCustom;
@@ -95,4 +96,8 @@ public class FunctionConfig {
     private WindowConfig windowConfig;
     @isPositiveNumber
     private Long timeoutMs;
+    @isFileExists
+    private String jar;
+    @isFileExists
+    private String py;
 }

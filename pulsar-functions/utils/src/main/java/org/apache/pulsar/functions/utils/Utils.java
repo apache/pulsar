@@ -205,4 +205,8 @@ public class Utils {
 
         return typeArg;
     }
+
+    public static boolean fileExists(String file) {
+        return new File(file).exists();
+    }
 }
