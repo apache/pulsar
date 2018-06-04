@@ -31,6 +31,7 @@ import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.utils.FunctionConfig;
+import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.io.core.Record;
 import org.apache.pulsar.io.core.Source;
 import org.jboss.util.Classes;
@@ -110,7 +111,7 @@ public class PulsarSource<T> implements Source<T> {
                 .value(input)
                 .messageId(message.getMessageId())
                 .partitionId(String.format("%s-%s", topicName, partitionId))
-                .sequenceId(message.getSequenceId())
+                .recordSequence(Utils.getSequenceId(message.getMessageId()))
                 .topicName(topicName)
                 .ackFunction(() -> {
                     if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
