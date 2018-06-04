@@ -28,6 +28,8 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
@@ -169,6 +171,10 @@ class ProcessRuntime implements Runtime {
         args.add(instanceConfig.getFunctionDetails().getSource().getSubscriptionType().toString());
         args.add("--source_topics_serde_classname");
         args.add(new Gson().toJson(instanceConfig.getFunctionDetails().getSource().getTopicsToSerDeClassNameMap()));
+        if (isNotBlank(instanceConfig.getFunctionDetails().getSource().getTopicsPattern())) {
+            args.add("--topics_pattern");
+            args.add(instanceConfig.getFunctionDetails().getSource().getTopicsPattern());
+        }
 
         // sink related configs
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {

@@ -137,6 +137,8 @@ public class CmdSinks extends CmdBase {
         protected String className;
         @Parameter(names = "--inputs", description = "The sink's input topic or topics (multiple topics can be specified as a comma-separated list)")
         protected String inputs;
+        @Parameter(names = "--topicsPattern", description = "TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. Add SerDe class name for a pattern in --customSerdeInputs  (supported for java fun only)")
+        protected String topicsPattern;
         @Parameter(names = "--customSerdeInputs", description = "The map of input topics to SerDe class names (as a JSON string)")
         protected String customSerdeInputString;
         @Parameter(names = "--processingGuarantees", description = "The processing guarantees (aka delivery semantics) applied to the Sink")
@@ -191,6 +193,7 @@ public class CmdSinks extends CmdBase {
             if (null != processingGuarantees) {
                 sinkConfig.setProcessingGuarantees(processingGuarantees);
             }
+
             Map<String, String> topicsToSerDeClassName = new HashMap<>();
             if (null != inputs) {
                 List<String> inputTopics = Arrays.asList(inputs.split(","));
@@ -204,6 +207,10 @@ public class CmdSinks extends CmdBase {
                 });
             }
             sinkConfig.setTopicToSerdeClassName(topicsToSerDeClassName);
+            
+            if (null != topicsPattern) {
+                sinkConfig.setTopicsPattern(topicsPattern);
+            }
 
             if (parallelism != null) {
                 sinkConfig.setParallelism(parallelism);
@@ -299,6 +306,7 @@ public class CmdSinks extends CmdBase {
             SourceSpec.Builder sourceSpecBuilder = SourceSpec.newBuilder();
             sourceSpecBuilder.setSubscriptionType(Function.SubscriptionType.SHARED);
             sourceSpecBuilder.putAllTopicsToSerDeClassName(sinkConfig.getTopicToSerdeClassName());
+            sourceSpecBuilder.setTopicsPattern(sinkConfig.getTopicsPattern());
             sourceSpecBuilder.setTypeClassName(typeArg.getName());
             functionDetailsBuilder.setAutoAck(true);
             functionDetailsBuilder.setSource(sourceSpecBuilder);

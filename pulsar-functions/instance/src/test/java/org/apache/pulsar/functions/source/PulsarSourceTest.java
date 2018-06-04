@@ -159,7 +159,7 @@ public class PulsarSourceTest {
      * Verify that Default Serializer works fine.
      */
     @Test
-    public void testDefaultSerDe() throws PulsarClientException {
+    public void testDefaultSerDe() throws Exception {
 
         PulsarSourceConfig pulsarConfig = getPulsarConfigs();
         // set type to void
@@ -168,20 +168,14 @@ public class PulsarSourceTest {
         pulsarConfig.setTopicSerdeClassNameMap(topicSerdeClassNameMap);
         PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig);
 
-        try {
-            pulsarSource.open(new HashMap<>());
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            assertEquals(ex, null);
-            assertTrue(false);
-        }
+        pulsarSource.open(new HashMap<>());
     }
 
     /**
      * Verify that Explicit setting of Default Serializer works fine.
      */
     @Test
-    public void testExplicitDefaultSerDe() throws PulsarClientException {
+    public void testExplicitDefaultSerDe() throws Exception {
         PulsarSourceConfig pulsarConfig = getPulsarConfigs();
         // set type to void
         pulsarConfig.setTypeClassName(String.class.getName());
@@ -189,13 +183,7 @@ public class PulsarSourceTest {
         pulsarConfig.setTopicSerdeClassNameMap(topicSerdeClassNameMap);
         PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig);
 
-        try {
-            pulsarSource.open(new HashMap<>());
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            assertEquals(ex, null);
-            assertTrue(false);
-        }
+        pulsarSource.open(new HashMap<>());
     }
 
     @Test
@@ -210,7 +198,6 @@ public class PulsarSourceTest {
         try {
             pulsarSource.setupSerDe();
         } catch (Exception ex) {
-            ex.printStackTrace();
             fail();
         }
     }

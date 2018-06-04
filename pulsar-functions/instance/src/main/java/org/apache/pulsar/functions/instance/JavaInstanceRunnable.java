@@ -465,6 +465,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         if (sourceSpec.getClassName().isEmpty()) {
             PulsarSourceConfig pulsarSourceConfig = new PulsarSourceConfig();
             pulsarSourceConfig.setTopicSerdeClassNameMap(sourceSpec.getTopicsToSerDeClassNameMap());
+            pulsarSourceConfig.setTopicsPattern(sourceSpec.getTopicsPattern());
             pulsarSourceConfig.setSubscriptionName(
                     FunctionDetailsUtils.getFullyQualifiedName(this.instanceConfig.getFunctionDetails()));
             pulsarSourceConfig.setProcessingGuarantees(
