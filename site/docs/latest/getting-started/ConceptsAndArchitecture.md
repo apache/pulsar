@@ -348,6 +348,42 @@ In BookKeeper, *journal* files contain BookKeeper transaction logs. Before makin
 
 A future version of BookKeeper will support *non-persistent messaging* and thus multiple durability modes at the topic level. This will enable you to set the durability mode at the topic level, replacing the `persistent` in topic names with a `non-persistent` indicator.
 
+## Tiered storage
+
+By default, Pulsar uses [Apache BookKeeper](https://bookkeeper.apache.org) for all [persistent message storage](#persistent-storage). BookKeeper is an ideal system to be used for this purpose for a [variety of reasons](https://streaml.io/blog/messaging-storage-or-both/), but BookKeeper storage can get expensive over time. Fortunately, Pulsar also offers a **tiered storage** capability that enables you to utilize multiple storage systems for Pulsar message data:
+
+* BookKeeper for more recent data
+* Another system for older data
+
+With tiered storage, you can determine what counts as "older" and "more recent" via configuration. Tiered storage in Pulsar works via a process called **ledger offloading** process. With ledger offloading, Pulsar {% popover brokers %}
+
+The following tiered storage offload targets are currently supported:
+
+* [Amazon's Simple Storage Service (S3)](https://aws.amazon.com/s3) (usage docs [here](../../cookbooks/tiered-storage))
+
+### Why tiered storage?
+
+BookKeeper storage can get expensive over time. Access patterns to BookKeeper ledgers:
+
+* Writes (low latency)
+* Tailing reads (low latency)
+* Catchup reads (latency is unimportant; throughput is important for some use cases)
+
+By default, BookKeeper provides all three forms of storage. Tiered storage enables you to use a non-BookKeeper system for catchup reads.
+
+* Sealed ledger --> entries are immutable. When a ledger has been sealed it no longer needs to be stored on SSDs and can be transferred to an object storage system like Amazon S3 or Google Cloud Storage
+* Each topic is stored on a single [managed ledger](#managed-ledgers) (list of log segments in a fixed order, oldest first; all segments except the most recent are sealed; the most recent still accepts writes)
+
+### How tiered storage works
+
+Implementation:
+
+* Pulsar copies ledger segments as a whole from BookKeeper to object storage
+* Once copying is complete, the segment gets **tagged** in the ML segment list; the tag identifies the segment
+* Once the tag is added, the segment is deleted from BookKeeper
+* `ReadHandle` implementation reads from object storage
+* Interface for offloading; change ML to use offloading; triggering mechanism; implementation for S3
+
 ## Message retention and expiry
 
 By default, Pulsar message {% popover brokers %}:
