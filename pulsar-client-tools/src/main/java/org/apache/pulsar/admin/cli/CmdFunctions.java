@@ -79,6 +79,7 @@ import static java.util.Objects.isNull;
 import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
+import static org.apache.pulsar.functions.utils.Utils.fileExists;
 
 @Slf4j
 @Parameters(commandDescription = "Interface for managing Pulsar Functions (lightweight, Lambda-style compute processes that work with Pulsar)")
@@ -361,15 +362,18 @@ public class CmdFunctions extends CmdBase {
                 functionConfig.setAutoAck(true);
             }
 
-
             if (null != jarFile) {
-                functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
-                userCodeFile = jarFile;
-            } else if (null != pyFile) {
-                functionConfig.setRuntime(FunctionConfig.Runtime.PYTHON);
-                userCodeFile = pyFile;
-            } else {
-                throw new ParameterException("Either a Java jar or a Python file needs to be specified for the function");
+                functionConfig.setJar(jarFile);
+            }
+
+            if (null != pyFile) {
+                functionConfig.setPy(pyFile);
+            }
+
+            if (functionConfig.getJar() != null) {
+                userCodeFile = functionConfig.getJar();
+            } else if (functionConfig.getPy() != null) {
+                userCodeFile = functionConfig.getPy();
             }
 
             // infer default vaues
@@ -378,8 +382,22 @@ public class CmdFunctions extends CmdBase {
 
         protected void validateFunctionConfigs(FunctionConfig functionConfig) {
 
+            if (functionConfig.getJar() != null && functionConfig.getPy() != null) {
+                throw new ParameterException("Either a Java jar or a Python file needs to"
+                        + " be specified for the function. Cannot specify both.");
+            }
+
+            if (functionConfig.getJar() == null && functionConfig.getPy() == null) {
+                throw new ParameterException("Either a Java jar or a Python file needs to"
+                        + " be specified for the function. Please specify one.");
+            }
+
+            if (!fileExists(userCodeFile)) {
+                throw new ParameterException("File " + userCodeFile + " does not exist");
+            }
+
             if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
-                File file = new File(jarFile);
+                File file = new File(functionConfig.getJar());
                 ClassLoader userJarLoader;
                 try {
                     userJarLoader = Reflections.loadJar(file);
@@ -394,6 +412,7 @@ public class CmdFunctions extends CmdBase {
                 // Need to load jar and set context class loader before calling
                 ConfigValidation.validateConfig(functionConfig, functionConfig.getRuntime().name());
             } catch (Exception e) {
+                log.info("ex: {}", e, e);
                 throw new ParameterException(e.getMessage());
             }
         }
@@ -414,6 +433,12 @@ public class CmdFunctions extends CmdBase {
 
             if (functionConfig.getParallelism() == 0) {
                 functionConfig.setParallelism(1);
+            }
+
+            if (functionConfig.getJar() != null) {
+                functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+            } else if (functionConfig.getPy() != null) {
+                functionConfig.setRuntime(FunctionConfig.Runtime.PYTHON);
             }
 
             WindowConfig windowConfig = functionConfig.getWindowConfig();

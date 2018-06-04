@@ -47,6 +47,7 @@ import java.util.Map;
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
+import static org.apache.pulsar.functions.utils.Utils.fileExists;
 import static org.apache.pulsar.functions.utils.Utils.getSourceType;
 import static org.apache.pulsar.functions.utils.Utils.loadConfig;
 
@@ -191,8 +192,8 @@ public class CmdSources extends CmdBase {
                 sourceConfig.setParallelism(parallelism);
             }
 
-            if (null == jarFile) {
-                throw new ParameterException("Source JAR not specfied");
+            if (jarFile != null) {
+                sourceConfig.setJar(jarFile);
             }
 
             sourceConfig.setResources(new org.apache.pulsar.functions.utils.Resources(cpu, ram, disk));
@@ -216,6 +217,14 @@ public class CmdSources extends CmdBase {
         }
 
         protected void validateSourceConfigs(SourceConfig sourceConfig) {
+            if (null == sourceConfig.getJar()) {
+                throw new ParameterException("Source jar not specfied");
+            }
+
+            if (!fileExists(sourceConfig.getJar())) {
+                throw new ParameterException("Jar file " + sourceConfig.getJar() + " does not exist");
+            }
+
             File file = new File(jarFile);
             ClassLoader userJarLoader;
             try {

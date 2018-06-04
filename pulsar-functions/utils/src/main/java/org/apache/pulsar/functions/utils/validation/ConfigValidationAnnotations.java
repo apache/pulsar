@@ -189,6 +189,15 @@ public class ConfigValidationAnnotations {
     }
 
     /**
+     * check if file exists
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.FIELD)
+    public @interface isFileExists {
+        Class<?> validatorClass() default ValidatorImpls.FileValidator.class;
+    }
+
+    /**
      * checks function config as a whole to make sure all fields are valid
      */
     @Retention(RetentionPolicy.RUNTIME)
