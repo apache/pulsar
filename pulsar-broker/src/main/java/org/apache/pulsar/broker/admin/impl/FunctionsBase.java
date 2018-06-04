@@ -79,6 +79,28 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
         return functions.registerFunction(
             tenant, namespace, functionName, uploadedInputStream, fileDetail, functionDetailsJson);
     }
+    
+    
+    @POST
+    @ApiOperation(value = "Creates a new Pulsar Function in cluster mode")
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 400, message = "Invalid request (function already exists, etc.)"),
+            @ApiResponse(code = 408, message = "Request timeout"),
+            @ApiResponse(code = 200, message = "Pulsar Function successfully created")
+    })
+    @Path("/{tenant}/{namespace}/{functionName}/url")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    public Response registerFunction(final @PathParam("tenant") String tenant,
+                                     final @PathParam("namespace") String namespace,
+                                     final @PathParam("functionName") String functionName,
+                                     final @FormDataParam("url") String functionPkgUrl,
+                                     final @FormDataParam("functionDetails") String functionDetailsJson) {
+
+        return functions.registerFunction(
+            tenant, namespace, functionName, functionPkgUrl, functionDetailsJson);
+
+    }
 
     @PUT
     @ApiOperation(value = "Updates a Pulsar Function currently running in cluster mode")

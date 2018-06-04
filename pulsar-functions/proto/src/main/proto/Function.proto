@@ -85,6 +85,7 @@ message SinkSpec {
 
 message PackageLocationMetaData {
     string packagePath = 1;
+    string packageUrl = 2;
 }
 
 message FunctionMetaData {

@@ -21,9 +21,15 @@ package org.apache.pulsar.functions.worker.rest.api;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.gson.Gson;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -42,6 +48,8 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -55,6 +63,7 @@ import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
+import org.apache.pulsar.functions.worker.FunctionActioner;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.MembershipManager;
@@ -142,6 +151,54 @@ public class FunctionsImpl {
         return updateRequest(functionMetaDataBuilder.build(), uploadedInputStream);
     }
 
+    @POST
+    @Path("/{tenant}/{namespace}/{functionName}/url")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    public Response registerFunction(final @PathParam("tenant") String tenant,
+                                     final @PathParam("namespace") String namespace,
+                                     final @PathParam("functionName") String functionName,
+                                     final @FormDataParam("url") String functionPkgUrl,
+                                     final @FormDataParam("functionDetails") String functionDetailsJson) {
+
+        if (!isWorkerServiceAvailable()) {
+            return getUnavailableResponse();
+        }
+
+        FunctionDetails functionDetails;
+        // validate parameters
+        try {
+            functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
+                    functionPkgUrl, functionDetailsJson);
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid register function request @ /{}/{}/{}",
+                tenant, namespace, functionName, e);
+            return Response.status(Status.BAD_REQUEST)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(e.getMessage())).build();
+        }
+
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
+
+        if (functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
+            log.error("Function {}/{}/{} already exists", tenant, namespace, functionName);
+            return Response.status(Status.BAD_REQUEST)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(String.format("Function %s already exists", functionName))).build();
+        }
+
+        // function state
+        FunctionMetaData.Builder functionMetaDataBuilder = FunctionMetaData.newBuilder()
+                .setFunctionDetails(functionDetails)
+                .setCreateTime(System.currentTimeMillis())
+                .setVersion(0);
+
+        PackageLocationMetaData.Builder packageLocationMetaDataBuilder = PackageLocationMetaData.newBuilder()
+                .setPackageUrl(functionPkgUrl);
+        functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
+
+        return updateRequest(functionMetaDataBuilder.build());
+    }
+    
     @PUT
     @Path("/{tenant}/{namespace}/{functionName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
@@ -408,23 +465,22 @@ public class FunctionsImpl {
         return Response.status(Status.OK).entity(new Gson().toJson(functionStateList.toArray())).build();
     }
 
-    private Response updateRequest(FunctionMetaData functionMetaData,
-                                   InputStream uploadedInputStream) {
+    private Response updateRequest(FunctionMetaData functionMetaData, InputStream uploadedInputStream) {
         // Upload to bookkeeper
         try {
             log.info("Uploading function package to {}", functionMetaData.getPackageLocation());
 
-            Utils.uploadToBookeeper(
-                worker().getDlogNamespace(),
-                uploadedInputStream,
-                functionMetaData.getPackageLocation().getPackagePath());
+            Utils.uploadToBookeeper(worker().getDlogNamespace(), uploadedInputStream,
+                    functionMetaData.getPackageLocation().getPackagePath());
         } catch (IOException e) {
             log.error("Error uploading file {}", functionMetaData.getPackageLocation(), e);
-            return Response.serverError()
-                    .type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData(e.getMessage()))
+            return Response.serverError().type(MediaType.APPLICATION_JSON).entity(new ErrorData(e.getMessage()))
                     .build();
         }
+        return updateRequest(functionMetaData);
+    }
+    
+    private Response updateRequest(FunctionMetaData functionMetaData) {
 
         // Submit to FMT
         FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
@@ -622,14 +678,26 @@ public class FunctionsImpl {
     @GET
     @Path("/download")
     public Response downloadFunction(final @QueryParam("path") String path) {
-        return Response.status(Status.OK).entity(
-                new StreamingOutput() {
-                    @Override
-                    public void write(final OutputStream output) throws IOException {
-                        Utils.downloadFromBookkeeper(worker().getDlogNamespace(),
-                                output, Codec.encode(path));
+        return Response.status(Status.OK).entity(new StreamingOutput() {
+            @Override
+            public void write(final OutputStream output) throws IOException {
+                if (path.startsWith(Utils.HTTP)) {
+                    URL url = new URL(path);
+                    IOUtils.copy(url.openStream(), output);
+                } else if (path.startsWith(Utils.FILE)) {
+                    URL url = new URL(path);
+                    File file;
+                    try {
+                        file = new File(url.toURI());
+                        IOUtils.copy(new FileInputStream(file), output);
+                    } catch (URISyntaxException e) {
+                        throw new IllegalArgumentException("invalid file url path: " + path);
                     }
-                }).build();
+                } else {
+                    Utils.downloadFromBookkeeper(worker().getDlogNamespace(), output, Codec.encode(path));
+                }
+            }
+        }).build();
     }
 
     private void validateListFunctionRequestParams(String tenant, String namespace) throws IllegalArgumentException {
@@ -684,10 +752,31 @@ public class FunctionsImpl {
     }
 
     private FunctionDetails validateUpdateRequestParams(String tenant,
+            String namespace,
+            String functionName,
+            String functionPkgUrl,
+            String functionDetailsJson) throws IllegalArgumentException {
+        if (StringUtils.isBlank(functionPkgUrl) || !(functionPkgUrl.startsWith("http") || functionPkgUrl.startsWith("file"))) {
+            throw new IllegalArgumentException("Function Package url is not valid. supported url (http/https/file)");
+        }
+        return validateUpdateRequestParams(tenant, namespace, functionName, functionDetailsJson);
+    }
+    
+    private FunctionDetails validateUpdateRequestParams(String tenant,
+            String namespace,
+            String functionName,
+            InputStream uploadedInputStream,
+            FormDataContentDisposition fileDetail,
+            String functionDetailsJson) throws IllegalArgumentException {
+        if (uploadedInputStream == null || fileDetail == null) {
+            throw new IllegalArgumentException("Function Package is not provided");
+        }
+        return validateUpdateRequestParams(tenant, namespace, functionName, functionDetailsJson);
+    }
+    
+    private FunctionDetails validateUpdateRequestParams(String tenant,
                                              String namespace,
                                              String functionName,
-                                             InputStream uploadedInputStream,
-                                             FormDataContentDisposition fileDetail,
                                              String functionDetailsJson) throws IllegalArgumentException {
         if (tenant == null) {
             throw new IllegalArgumentException("Tenant is not provided");
@@ -698,9 +787,7 @@ public class FunctionsImpl {
         if (functionName == null) {
             throw new IllegalArgumentException("Function Name is not provided");
         }
-        if (uploadedInputStream == null || fileDetail == null) {
-            throw new IllegalArgumentException("Function Package is not provided");
-        }
+        
         if (functionDetailsJson == null) {
             throw new IllegalArgumentException("FunctionDetails is not provided");
         }

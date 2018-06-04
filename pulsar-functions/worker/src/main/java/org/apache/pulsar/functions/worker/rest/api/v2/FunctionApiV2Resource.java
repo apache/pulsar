@@ -55,6 +55,20 @@ public class FunctionApiV2Resource extends FunctionApiResource {
 
     }
 
+    @POST
+    @Path("/{tenant}/{namespace}/{functionName}/url")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    public Response registerFunction(final @PathParam("tenant") String tenant,
+                                     final @PathParam("namespace") String namespace,
+                                     final @PathParam("functionName") String functionName,
+                                     final @FormDataParam("url") String functionPkgUrl,
+                                     final @FormDataParam("functionDetails") String functionDetailsJson) {
+
+        return functions.registerFunction(
+            tenant, namespace, functionName, functionPkgUrl, functionDetailsJson);
+
+    }
+    
     @PUT
     @Path("/{tenant}/{namespace}/{functionName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
