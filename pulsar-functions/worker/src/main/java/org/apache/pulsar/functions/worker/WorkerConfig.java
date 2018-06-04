@@ -69,7 +69,7 @@ public class WorkerConfig implements Serializable {
     @Getter
     @EqualsAndHashCode
     @ToString
-    static class ThreadContainerFactory {
+    public static class ThreadContainerFactory {
         private String threadGroupName;
     }
     private ThreadContainerFactory threadContainerFactory;
@@ -79,7 +79,7 @@ public class WorkerConfig implements Serializable {
     @Getter
     @EqualsAndHashCode
     @ToString
-    static class ProcessContainerFactory {
+    public static class ProcessContainerFactory {
         private String javaInstanceJarLocation;
         private String pythonInstanceLocation;
         private String logDirectory;
