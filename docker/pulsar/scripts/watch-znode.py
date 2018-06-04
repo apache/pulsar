@@ -80,7 +80,7 @@ if (not watch and not create and not exists):
     usage()
     sys.exit(5)
 
-zk = KazooClient(hosts=zookeeper, timeout=3600, connection_retry=KazooRetry(max_tries=-1))
+zk = KazooClient(hosts=zookeeper, timeout=1, connection_retry=KazooRetry(max_tries=-1))
 zk.start()
 
 if create:
