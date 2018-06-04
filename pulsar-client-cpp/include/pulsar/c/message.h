@@ -26,6 +26,8 @@ extern "C" {
 #include <stddef.h>
 #include <stdint.h>
 
+#include "string_map.h"
+
 #pragma GCC visibility push(default)
 
 typedef struct _pulsar_message pulsar_message_t;
@@ -102,7 +104,7 @@ void pulsar_message_disable_replication(pulsar_message_t *message, int flag);
  *
  * @return an unmodifiable view of the properties map
  */
-// const StringMap& getProperties() const;
+pulsar_string_map_t *pulsar_message_get_properties(pulsar_message_t *message);
 
 /**
  * Check whether the message has a specific property attached.
