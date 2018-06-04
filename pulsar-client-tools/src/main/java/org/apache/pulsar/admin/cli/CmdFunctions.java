@@ -39,6 +39,7 @@ import org.apache.bookkeeper.clients.StorageClientBuilder;
 import org.apache.bookkeeper.clients.config.StorageClientSettings;
 import org.apache.bookkeeper.clients.utils.NetUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -259,7 +260,7 @@ public class CmdFunctions extends CmdBase {
 
             // Initialize config builder either from a supplied YAML config file or from scratch
             if (null != fnConfigFile) {
-                functionConfig = Utils.loadConfig(fnConfigFile, FunctionConfig.class);
+                functionConfig = CmdUtils.loadConfig(fnConfigFile, FunctionConfig.class);
             } else {
                 functionConfig = new FunctionConfig();
             }

@@ -28,7 +28,7 @@ import java.io.File;
 import java.io.IOException;
 
 public class CmdUtils {
-    public static Object loadConfig(String file, Class<?> clazz) throws IOException {
+    public static <T> T loadConfig(String file, Class<T> clazz) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         try {
             return mapper.readValue(new File(file), clazz);

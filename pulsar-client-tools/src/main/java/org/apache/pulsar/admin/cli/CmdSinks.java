@@ -25,6 +25,7 @@ import com.beust.jcommander.converters.StringConverter;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import lombok.Getter;
+import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
@@ -53,7 +54,6 @@ import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
 import static org.apache.pulsar.functions.utils.Utils.fileExists;
 import static org.apache.pulsar.functions.utils.Utils.getSinkType;
-import static org.apache.pulsar.functions.utils.Utils.loadConfig;
 
 @Getter
 @Parameters(commandDescription = "Interface for managing Pulsar Sinks (Egress data from Pulsar)")
@@ -168,7 +168,7 @@ public class CmdSinks extends CmdBase {
             super.processArguments();
 
             if (null != sinkConfigFile) {
-                this.sinkConfig = loadConfig(sinkConfigFile, SinkConfig.class);
+                this.sinkConfig = CmdUtils.loadConfig(sinkConfigFile, SinkConfig.class);
             } else {
                 this.sinkConfig = new SinkConfig();
             }

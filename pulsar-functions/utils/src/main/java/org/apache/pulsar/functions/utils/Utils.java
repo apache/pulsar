@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.functions.utils;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.protobuf.AbstractMessage.Builder;
 import com.google.protobuf.MessageOrBuilder;
 import com.google.protobuf.util.JsonFormat;
@@ -34,7 +32,6 @@ import org.apache.pulsar.functions.proto.Function.FunctionDetails.Runtime;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.Source;
 
-import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -152,11 +149,6 @@ public class Utils {
         }
         return result;
 
-    }
-
-    public static <T> T loadConfig(String file, Class<T> clazz) throws IOException {
-        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-        return mapper.readValue(new File(file), clazz);
     }
 
     public static Runtime convertRuntime(FunctionConfig.Runtime runtime) {
