@@ -51,6 +51,7 @@ import java.util.Map;
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
+import static org.apache.pulsar.functions.utils.Utils.fileExists;
 import static org.apache.pulsar.functions.utils.Utils.getSinkType;
 import static org.apache.pulsar.functions.utils.Utils.loadConfig;
 
@@ -237,7 +238,7 @@ public class CmdSinks extends CmdBase {
                 throw new ParameterException("Sink jar not specfied");
             }
 
-            if (!new File(sinkConfig.getJar()).exists()) {
+            if (!fileExists(sinkConfig.getJar())) {
                 throw new ParameterException("Jar file " + sinkConfig.getJar() + " does not exist");
             }
 

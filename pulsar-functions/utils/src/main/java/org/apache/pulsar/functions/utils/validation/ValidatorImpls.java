@@ -40,6 +40,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
 
+import static org.apache.pulsar.functions.utils.Utils.fileExists;
 import static org.apache.pulsar.functions.utils.Utils.getSinkType;
 import static org.apache.pulsar.functions.utils.Utils.getSourceType;
 
@@ -756,7 +757,7 @@ public class ValidatorImpls {
             }
             new StringValidator().validateField(name, o);
 
-            if (!new File((String) o).exists()) {
+            if (!fileExists((String) o)) {
                 throw new IllegalArgumentException
                         (String.format("File %s specified in field '%s' does not exist", o, name));
             }

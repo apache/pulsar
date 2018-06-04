@@ -79,6 +79,7 @@ import static java.util.Objects.isNull;
 import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
+import static org.apache.pulsar.functions.utils.Utils.fileExists;
 
 @Slf4j
 @Parameters(commandDescription = "Interface for managing Pulsar Functions (lightweight, Lambda-style compute processes that work with Pulsar)")
@@ -383,15 +384,15 @@ public class CmdFunctions extends CmdBase {
 
             if (functionConfig.getJar() != null && functionConfig.getPy() != null) {
                 throw new ParameterException("Either a Java jar or a Python file needs to"
-                        +" be specified for the function. Cannot specify both.");
+                        + " be specified for the function. Cannot specify both.");
             }
 
             if (functionConfig.getJar() == null && functionConfig.getPy() == null) {
                 throw new ParameterException("Either a Java jar or a Python file needs to"
-                        +" be specified for the function. Please specify one.");
+                        + " be specified for the function. Please specify one.");
             }
 
-            if (!new File(userCodeFile).exists()) {
+            if (!fileExists(userCodeFile)) {
                 throw new ParameterException("File " + userCodeFile + " does not exist");
             }
 
@@ -411,6 +412,7 @@ public class CmdFunctions extends CmdBase {
                 // Need to load jar and set context class loader before calling
                 ConfigValidation.validateConfig(functionConfig, functionConfig.getRuntime().name());
             } catch (Exception e) {
+                log.info("ex: {}", e, e);
                 throw new ParameterException(e.getMessage());
             }
         }
