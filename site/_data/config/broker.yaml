@@ -314,3 +314,24 @@ configs:
 - name: loadManagerClassName
   default: org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl
   description: Name of load manager to use
+- name: managedLedgerOffloadDriver
+  default: ''
+  description: Driver to use to offload old data to long term storage (Possible values: S3)
+- name: managedLedgerOffloadMaxThreads
+  default: '2'
+  description: Maximum number of thread pool threads for ledger offloading
+- name: s3ManagedLedgerOffloadRegion
+  default: ''
+  description: For Amazon S3 ledger offload, AWS region
+- name: s3ManagedLedgerOffloadBucket
+  default: ''
+  description: For Amazon S3 ledger offload, Bucket to place offloaded ledger into
+- name: s3ManagedLedgerOffloadServiceEndpoint
+  default: ''
+  description: For Amazon S3 ledger offload, Alternative endpoint to connect to (useful for testing)
+- name: s3ManagedLedgerOffloadMaxBlockSizeInBytes
+  default: '67108864'
+  description: For Amazon S3 ledger offload, Max block size in bytes. (64MB by default, 5MB minimum)
+- name: s3ManagedLedgerOffloadReadBufferSizeInBytes
+  default: '1048576'
+  description: For Amazon S3 ledger offload, Read buffer size in bytes (1MB by default)
