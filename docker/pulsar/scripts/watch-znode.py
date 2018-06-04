@@ -18,8 +18,11 @@
 # under the License.
 #
 
-import sys, getopt, time
+import sys, getopt, time, logging
 from kazoo.client import KazooClient
+from kazoo.retry import KazooRetry
+
+logging.getLogger('kazoo.client').addHandler(logging.StreamHandler())
 
 def usage():
     print >> sys.stderr, "\n%s -z <zookeeper> -p <path> [-w|-c|-e]" % (sys.argv[0])
@@ -77,7 +80,7 @@ if (not watch and not create and not exists):
     usage()
     sys.exit(5)
 
-zk = KazooClient(hosts=zookeeper)
+zk = KazooClient(hosts=zookeeper, timeout=1, connection_retry=KazooRetry(max_tries=-1))
 zk.start()
 
 if create:
