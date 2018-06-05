@@ -37,7 +37,7 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> im
         this.schemaInfo = schemaInfo;
         try {
             T protoMessageInstance = (T) pojo.getMethod("getDefaultInstance").invoke(null);
-             tParser = (Parser<T>) protoMessageInstance.getParserForType();
+            tParser = (Parser<T>) protoMessageInstance.getParserForType();
         } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
             throw new IllegalArgumentException(e);
         }
