@@ -31,6 +31,7 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -79,6 +80,7 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.CompactorSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
@@ -115,6 +117,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -143,6 +146,7 @@ public class PersistentTopicTest {
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
         pulsar = spy(new PulsarService(svcConfig));
         doReturn(svcConfig).when(pulsar).getConfiguration();
+        doReturn(mock(Compactor.class)).when(pulsar).getCompactor();
 
         mlFactoryMock = mock(ManagedLedgerFactory.class);
         doReturn(mlFactoryMock).when(pulsar).getManagedLedgerFactory();
@@ -1263,5 +1267,84 @@ public class PersistentTopicTest {
         CompactedTopic compactedTopic = mock(CompactedTopic.class);
         new CompactorSubscription(topic, compactedTopic, Compactor.COMPACTION_SUBSCRIPTION, cursorMock);
         verify(compactedTopic, Mockito.times(1)).newCompactedLedger(position, ledgerId);
+    }
+
+    @Test
+    public void testCompactionTriggeredAfterThresholdFirstInvocation() throws Exception {
+        CompletableFuture<Long> compactPromise = new CompletableFuture<>();
+        Compactor compactor = pulsar.getCompactor();
+        doReturn(compactPromise).when(compactor).compact(anyString());
+
+        Policies policies = new Policies();
+        policies.compaction_threshold = 1;
+        when(pulsar.getConfigurationCache().policiesCache()
+                .get(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
+                .thenReturn(Optional.of(policies));
+
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+
+        topic.checkCompaction();
+
+        verify(compactor, times(0)).compact(anyString());
+
+        doReturn(10L).when(ledgerMock).getEstimatedBacklogSize();
+
+        topic.checkCompaction();
+        verify(compactor, times(1)).compact(anyString());
+
+        // run a second time, shouldn't run again because already running
+        topic.checkCompaction();
+        verify(compactor, times(1)).compact(anyString());
+    }
+
+    @Test
+    public void testCompactionTriggeredAfterThresholdSecondInvocation() throws Exception {
+        CompletableFuture<Long> compactPromise = new CompletableFuture<>();
+        Compactor compactor = pulsar.getCompactor();
+        doReturn(compactPromise).when(compactor).compact(anyString());
+
+        ManagedCursor subCursor = mock(ManagedCursor.class);
+        doReturn(Lists.newArrayList(subCursor)).when(ledgerMock).getCursors();
+        doReturn(Compactor.COMPACTION_SUBSCRIPTION).when(subCursor).getName();
+
+        Policies policies = new Policies();
+        policies.compaction_threshold = 1;
+        when(pulsar.getConfigurationCache().policiesCache()
+                .get(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
+                .thenReturn(Optional.of(policies));
+
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+
+        topic.checkCompaction();
+
+        verify(compactor, times(0)).compact(anyString());
+
+        doReturn(10L).when(subCursor).getEstimatedSizeSinceMarkDeletePosition();
+
+        topic.checkCompaction();
+        verify(compactor, times(1)).compact(anyString());
+
+        // run a second time, shouldn't run again because already running
+        topic.checkCompaction();
+        verify(compactor, times(1)).compact(anyString());
+    }
+
+    @Test
+    public void testCompactionDisabledWithZeroThreshold() throws Exception {
+        CompletableFuture<Long> compactPromise = new CompletableFuture<>();
+        Compactor compactor = pulsar.getCompactor();
+        doReturn(compactPromise).when(compactor).compact(anyString());
+
+        Policies policies = new Policies();
+        policies.compaction_threshold = 0;
+        when(pulsar.getConfigurationCache().policiesCache()
+                .get(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
+                .thenReturn(Optional.of(policies));
+
+        doReturn(1000L).when(ledgerMock).getEstimatedBacklogSize();
+
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        topic.checkCompaction();
+        verify(compactor, times(0)).compact(anyString());
     }
 }
