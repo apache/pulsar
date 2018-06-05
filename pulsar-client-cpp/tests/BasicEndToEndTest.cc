@@ -1329,3 +1329,68 @@ TEST(BasicEndToEndTest, testEventTime) {
     consumer.close();
     producer.close();
 }
+
+TEST(BasicEndToEndTest, testSeek) {
+    ClientConfiguration config;
+    Client client(lookupUrl);
+    std::string topicName = "persistent://prop/unit/ns1/testSeek";
+    std::string subName = "sub-testSeek";
+    Producer producer;
+
+    Promise<Result, Producer> producerPromise;
+    client.createProducerAsync(topicName, WaitForCallbackValue<Producer>(producerPromise));
+    Future<Result, Producer> producerFuture = producerPromise.getFuture();
+    Result result = producerFuture.get(producer);
+    ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer;
+    ConsumerConfiguration consConfig;
+    consConfig.setReceiverQueueSize(1);
+    Promise<Result, Consumer> consumerPromise;
+    client.subscribeAsync(topicName, subName, consConfig, WaitForCallbackValue<Consumer>(consumerPromise));
+    Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
+    result = consumerFuture.get(consumer);
+    ASSERT_EQ(ResultOk, result);
+    std::string temp = producer.getTopic();
+    ASSERT_EQ(temp, topicName);
+    temp = consumer.getTopic();
+    ASSERT_EQ(temp, topicName);
+    ASSERT_EQ(consumer.getSubscriptionName(), subName);
+
+    // Send 1000 messages synchronously
+    std::string msgContent = "msg-content";
+    LOG_INFO("Publishing 100 messages synchronously");
+    int msgNum = 0;
+    for (; msgNum < 100; msgNum++) {
+        std::stringstream stream;
+        stream << msgContent << msgNum;
+        Message msg = MessageBuilder().setContent(stream.str()).build();
+        ASSERT_EQ(ResultOk, producer.send(msg));
+    }
+
+    LOG_INFO("Trying to receive 100 messages");
+    Message msgReceived;
+    for (msgNum = 0; msgNum < 100; msgNum++) {
+        consumer.receive(msgReceived, 100);
+        LOG_DEBUG("Received message :" << msgReceived.getMessageId());
+        std::stringstream expected;
+        expected << msgContent << msgNum;
+        ASSERT_EQ(expected.str(), msgReceived.getDataAsString());
+        ASSERT_EQ(ResultOk, consumer.acknowledge(msgReceived));
+    }
+
+    // seek to earliest, expected receive first message.
+    result = consumer.seek(MessageId::earliest());
+    ASSERT_EQ(ResultOk, result);
+    consumer.receive(msgReceived, 100);
+    LOG_ERROR("Received message :" << msgReceived.getMessageId());
+    std::stringstream expected;
+    msgNum = 0;
+    expected << msgContent << msgNum;
+    ASSERT_EQ(expected.str(), msgReceived.getDataAsString());
+
+    ASSERT_EQ(ResultOk, consumer.unsubscribe());
+    ASSERT_EQ(ResultAlreadyClosed, consumer.close());
+    ASSERT_EQ(ResultOk, producer.close());
+    ASSERT_EQ(ResultOk, client.close());
+}
