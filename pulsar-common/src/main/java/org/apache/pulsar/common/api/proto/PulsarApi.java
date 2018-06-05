@@ -4755,7 +4755,7 @@ public final class PulsarApi {
           .computeBoolSize(4, compactedOut_);
       }
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
-        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+        size += com.google.protobuf.CodedOutputStream
           .computeUInt64Size(5, eventTime_);
       }
       memoizedSerializedSize = size;
