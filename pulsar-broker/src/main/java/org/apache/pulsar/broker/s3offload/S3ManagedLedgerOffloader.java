@@ -116,11 +116,11 @@ public class S3ManagedLedgerOffloader implements LedgerOffloader {
     }
 
     static String dataBlockOffloadKey(long ledgerId, UUID uuid) {
-        return String.format("ledger-%d-%s", ledgerId, uuid.toString());
+        return String.format("%s-ledger-%d", uuid.toString(), ledgerId);
     }
 
     static String indexBlockOffloadKey(long ledgerId, UUID uuid) {
-        return String.format("ledger-%d-%s-index", ledgerId, uuid.toString());
+        return String.format("%s-ledger-%d-index", uuid.toString(), ledgerId);
     }
 
     // upload DataBlock to s3 using MultiPartUpload, and indexBlock in a new Block,

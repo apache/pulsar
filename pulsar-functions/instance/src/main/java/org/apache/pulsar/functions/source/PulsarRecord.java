@@ -34,7 +34,7 @@ import org.apache.pulsar.io.core.Record;
 public class PulsarRecord<T> implements Record<T> {
 
     private String partitionId;
-    private Long sequenceId;
+    private long recordSequence;
     private T value;
     private MessageId messageId;
     private String topicName;

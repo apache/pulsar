@@ -313,8 +313,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
                     if (conf.getCompressionType() != CompressionType.NONE) {
                         msgMetadataBuilder.setCompression(convertCompressionType(conf.getCompressionType()));
-                        msgMetadataBuilder.setUncompressedSize(uncompressedSize);
                     }
+                    msgMetadataBuilder.setUncompressedSize(uncompressedSize);
                 }
 
                 if (isBatchMessagingEnabled()) {
