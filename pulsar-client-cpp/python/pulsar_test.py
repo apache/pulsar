@@ -438,6 +438,7 @@ class PulsarTest(TestCase):
                 print(s)
                 time.sleep(0.2)
             else:
+                self.assertTrue('SUCCESS' in s)
                 print("Compact Complete now")
                 print(s)
                 break
