@@ -930,6 +930,24 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
+    long estimateBacklogFromPosition(PositionImpl pos) {
+        synchronized (this) {
+            LedgerInfo ledgerInfo = ledgers.get(pos.getLedgerId());
+            if (ledgerInfo == null) {
+                return getTotalSize(); // position no longer in managed ledger, so return total size
+            }
+            long sizeBeforePosLedger = ledgers.values().stream().filter(li -> li.getLedgerId() < pos.getLedgerId())
+                .mapToLong(li -> li.getSize()).sum();
+            long size = getTotalSize() - sizeBeforePosLedger;
+
+            if (pos.getLedgerId() == currentLedger.getId()) {
+                return size - consumedLedgerSize(currentLedgerSize, currentLedgerEntries, pos.getEntryId());
+            } else {
+                return size - consumedLedgerSize(ledgerInfo.getSize(), ledgerInfo.getEntries(), pos.getEntryId());
+            }
+        }
+    }
+
     private long consumedLedgerSize(long ledgerSize, long ledgerEntries, long consumedEntries) {
         if (ledgerEntries <= 0) {
             return 0;

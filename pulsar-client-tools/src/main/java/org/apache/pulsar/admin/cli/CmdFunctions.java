@@ -22,8 +22,6 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.StringConverter;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -46,7 +44,6 @@ import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.proto.Function.ProcessingGuarantees;
 import org.apache.pulsar.functions.proto.Function.Resources;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
@@ -82,6 +79,7 @@ import static java.util.Objects.isNull;
 import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
+import static org.apache.pulsar.functions.utils.Utils.fileExists;
 
 @Slf4j
 @Parameters(commandDescription = "Interface for managing Pulsar Functions (lightweight, Lambda-style compute processes that work with Pulsar)")
@@ -261,7 +259,7 @@ public class CmdFunctions extends CmdBase {
 
             // Initialize config builder either from a supplied YAML config file or from scratch
             if (null != fnConfigFile) {
-                functionConfig = loadConfig(new File(fnConfigFile));
+                functionConfig = Utils.loadConfig(fnConfigFile, FunctionConfig.class);
             } else {
                 functionConfig = new FunctionConfig();
             }
@@ -364,15 +362,18 @@ public class CmdFunctions extends CmdBase {
                 functionConfig.setAutoAck(true);
             }
 
-
             if (null != jarFile) {
-                functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
-                userCodeFile = jarFile;
-            } else if (null != pyFile) {
-                functionConfig.setRuntime(FunctionConfig.Runtime.PYTHON);
-                userCodeFile = pyFile;
-            } else {
-                throw new ParameterException("Either a Java jar or a Python file needs to be specified for the function");
+                functionConfig.setJar(jarFile);
+            }
+
+            if (null != pyFile) {
+                functionConfig.setPy(pyFile);
+            }
+
+            if (functionConfig.getJar() != null) {
+                userCodeFile = functionConfig.getJar();
+            } else if (functionConfig.getPy() != null) {
+                userCodeFile = functionConfig.getPy();
             }
 
             // infer default vaues
@@ -381,8 +382,22 @@ public class CmdFunctions extends CmdBase {
 
         protected void validateFunctionConfigs(FunctionConfig functionConfig) {
 
+            if (functionConfig.getJar() != null && functionConfig.getPy() != null) {
+                throw new ParameterException("Either a Java jar or a Python file needs to"
+                        + " be specified for the function. Cannot specify both.");
+            }
+
+            if (functionConfig.getJar() == null && functionConfig.getPy() == null) {
+                throw new ParameterException("Either a Java jar or a Python file needs to"
+                        + " be specified for the function. Please specify one.");
+            }
+
+            if (!fileExists(userCodeFile)) {
+                throw new ParameterException("File " + userCodeFile + " does not exist");
+            }
+
             if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
-                File file = new File(jarFile);
+                File file = new File(functionConfig.getJar());
                 ClassLoader userJarLoader;
                 try {
                     userJarLoader = Reflections.loadJar(file);
@@ -397,6 +412,7 @@ public class CmdFunctions extends CmdBase {
                 // Need to load jar and set context class loader before calling
                 ConfigValidation.validateConfig(functionConfig, functionConfig.getRuntime().name());
             } catch (Exception e) {
+                log.info("ex: {}", e, e);
                 throw new ParameterException(e.getMessage());
             }
         }
@@ -417,6 +433,12 @@ public class CmdFunctions extends CmdBase {
 
             if (functionConfig.getParallelism() == 0) {
                 functionConfig.setParallelism(1);
+            }
+
+            if (functionConfig.getJar() != null) {
+                functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+            } else if (functionConfig.getPy() != null) {
+                functionConfig.setRuntime(FunctionConfig.Runtime.PYTHON);
             }
 
             WindowConfig windowConfig = functionConfig.getWindowConfig();
@@ -476,6 +498,9 @@ public class CmdFunctions extends CmdBase {
 
         protected FunctionDetails convert(FunctionConfig functionConfig)
                 throws IOException {
+
+            // check if configs are valid
+            validateFunctionConfigs(functionConfig);
 
             Class<?>[] typeArgs = null;
             if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
@@ -544,11 +569,11 @@ public class CmdFunctions extends CmdBase {
                 functionDetailsBuilder.setLogTopic(functionConfig.getLogTopic());
             }
             if (functionConfig.getRuntime() != null) {
-                functionDetailsBuilder.setRuntime(convertRuntime(functionConfig.getRuntime()));
+                functionDetailsBuilder.setRuntime(Utils.convertRuntime(functionConfig.getRuntime()));
             }
             if (functionConfig.getProcessingGuarantees() != null) {
                 functionDetailsBuilder.setProcessingGuarantees(
-                        convertProcessingGuarantee(functionConfig.getProcessingGuarantees()));
+                        Utils.convertProcessingGuarantee(functionConfig.getProcessingGuarantees()));
             }
 
             Map<String, Object> configs = new HashMap<>();
@@ -609,8 +634,6 @@ public class CmdFunctions extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            // check if function configs are valid
-            validateFunctionConfigs(functionConfig);
             CmdFunctions.startLocalRun(convertProto2(functionConfig),
                     functionConfig.getParallelism(), brokerServiceUrl, userCodeFile, admin);
         }
@@ -620,8 +643,6 @@ public class CmdFunctions extends CmdBase {
     class CreateFunction extends FunctionDetailsCommand {
         @Override
         void runCmd() throws Exception {
-            // check if function configs are valid
-            validateFunctionConfigs(functionConfig);
             admin.functions().createFunction(convert(functionConfig), userCodeFile);
             print("Created successfully");
         }
@@ -660,8 +681,6 @@ public class CmdFunctions extends CmdBase {
     class UpdateFunction extends FunctionDetailsCommand {
         @Override
         void runCmd() throws Exception {
-            // check if function configs are valid
-            validateFunctionConfigs(functionConfig);
             admin.functions().updateFunction(convert(functionConfig), userCodeFile);
             print("Updated successfully");
         }
@@ -867,30 +886,6 @@ public class CmdFunctions extends CmdBase {
     @VisibleForTesting
     DownloadFunction getDownloader() {
         return downloader;
-    }
-
-    private static FunctionConfig loadConfig(File file) throws IOException {
-        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-        return mapper.readValue(file, FunctionConfig.class);
-    }
-
-    private static FunctionDetails.Runtime convertRuntime(FunctionConfig.Runtime runtime) {
-        for (FunctionDetails.Runtime type : FunctionDetails.Runtime.values()) {
-            if (type.name().equals(runtime.name())) {
-                return type;
-            }
-        }
-        throw new RuntimeException("Unrecognized runtime: " + runtime.name());
-    }
-
-    private static ProcessingGuarantees convertProcessingGuarantee(
-            FunctionConfig.ProcessingGuarantees processingGuarantees) {
-        for (ProcessingGuarantees type : ProcessingGuarantees.values()) {
-            if (type.name().equals(processingGuarantees.name())) {
-                return type;
-            }
-        }
-        throw new RuntimeException("Unrecognized processing guarantee: " + processingGuarantees.name());
     }
 
     private void parseFullyQualifiedFunctionName(String fqfn, FunctionConfig functionConfig) {

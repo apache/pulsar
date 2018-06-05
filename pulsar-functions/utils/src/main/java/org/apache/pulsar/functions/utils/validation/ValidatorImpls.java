@@ -21,20 +21,28 @@ package org.apache.pulsar.functions.utils.validation;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
+import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.Resources;
+import org.apache.pulsar.functions.utils.SinkConfig;
+import org.apache.pulsar.functions.utils.SourceConfig;
 import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.functions.utils.WindowConfig;
 
+import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
+
+import static org.apache.pulsar.functions.utils.Utils.fileExists;
+import static org.apache.pulsar.functions.utils.Utils.getSinkType;
+import static org.apache.pulsar.functions.utils.Utils.getSourceType;
 
 @Slf4j
 public class ValidatorImpls {
@@ -181,16 +189,21 @@ public class ValidatorImpls {
             }
             SimpleTypeValidator.validateField(name, String.class, o);
             String className = (String) o;
+            if (StringUtils.isEmpty(className)) {
+                return;
+            }
+
+            Class<?> objectClass;
             try {
-                ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
-                Class<?> objectClass = clsLoader.loadClass(className);
-                if (!this.classImplements.isAssignableFrom(objectClass)) {
-                    throw new IllegalArgumentException(
-                            String.format("Field '%s' with value '%s' does not implement %s ",
-                                    name, o, this.classImplements.getName()));
-                }
+                objectClass = loadClass(className);
             } catch (ClassNotFoundException e) {
-                throw new RuntimeException(e);
+                throw new IllegalArgumentException("Cannot find/load class " + className);
+            }
+
+            if (!this.classImplements.isAssignableFrom(objectClass)) {
+                throw new IllegalArgumentException(
+                        String.format("Field '%s' with value '%s' does not implement %s ",
+                                name, o, this.classImplements.getName()));
             }
         }
     }
@@ -213,6 +226,9 @@ public class ValidatorImpls {
             }
             SimpleTypeValidator.validateField(name, String.class, o);
             String className = (String) o;
+            if (StringUtils.isEmpty(className)) {
+                return;
+            }
             int count = 0;
             for (Class<?> classImplements : classesImplements) {
                 Class<?> objectClass = null;
@@ -229,7 +245,7 @@ public class ValidatorImpls {
             if (count == 0) {
                 throw new IllegalArgumentException(
                         String.format("Field '%s' with value '%s' does not implement any of these classes %s",
-                                name, o, classesImplements));
+                                name, o, Arrays.asList(classesImplements)));
             }
         }
     }
@@ -606,6 +622,145 @@ public class ValidatorImpls {
             }
             WindowConfig windowConfig = (WindowConfig) o;
             validateWindowConfig(windowConfig);
+        }
+    }
+
+    public static class SourceConfigValidator extends Validator {
+        @Override
+        public void validateField(String name, Object o) {
+            SourceConfig sourceConfig = (SourceConfig) o;
+            Class<?> typeArg = getSourceType(sourceConfig.getClassName());
+            String serdeClassname = sourceConfig.getSerdeClassName();
+
+            ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
+
+            if (StringUtils.isEmpty(serdeClassname)) {
+                serdeClassname = DefaultSerDe.class.getName();
+            }
+
+            try {
+                loadClass(serdeClassname);
+            } catch (ClassNotFoundException e) {
+                throw new IllegalArgumentException(
+                        String.format("The input serialization/deserialization class %s does not exist", serdeClassname));
+
+            }
+
+            try {
+                new ValidatorImpls.ImplementsClassValidator(SerDe.class).validateField(name, serdeClassname);
+            } catch (IllegalArgumentException ex) {
+                throw new IllegalArgumentException(
+                        String.format("The input serialization/deserialization class %s does not not implement %s",
+                                serdeClassname, SerDe.class.getCanonicalName()));
+            }
+
+            if (serdeClassname.equals(DefaultSerDe.class.getName())) {
+                if (!DefaultSerDe.IsSupportedType(typeArg)) {
+                    throw new IllegalArgumentException("The default Serializer does not support type " + typeArg);
+                }
+            } else {
+                SerDe serDe = (SerDe) Reflections.createInstance(serdeClassname, clsLoader);
+                if (serDe == null) {
+                    throw new IllegalArgumentException(String.format("The SerDe class %s does not exist",
+                            serdeClassname));
+                }
+                Class<?>[] serDeTypes = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
+
+                // type inheritance information seems to be lost in generic type
+                // load the actual type class for verification
+                Class<?> fnInputClass;
+                Class<?> serdeInputClass;
+                try {
+                    fnInputClass = Class.forName(typeArg.getName(), true, clsLoader);
+                    // get output serde
+                    serdeInputClass = Class.forName(serDeTypes[1].getName(), true, clsLoader);
+                } catch (ClassNotFoundException e) {
+                    throw new IllegalArgumentException("Failed to load type class", e);
+                }
+
+                if (!fnInputClass.isAssignableFrom(serdeInputClass)) {
+                    throw new IllegalArgumentException("Serializer type mismatch " + typeArg + " vs " +
+                            serDeTypes[1]);
+                }
+            }
+        }
+    }
+
+    public static class SinkConfigValidator extends Validator {
+        @Override
+        public void validateField(String name, Object o) {
+            SinkConfig sinkConfig = (SinkConfig) o;
+            Class<?> typeArg = getSinkType(sinkConfig.getClassName());
+
+            ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
+
+            sinkConfig.getTopicToSerdeClassName().forEach((topicName, serdeClassname) -> {
+                if (StringUtils.isEmpty(serdeClassname)) {
+                    serdeClassname = DefaultSerDe.class.getName();
+                }
+
+                try {
+                    loadClass(serdeClassname);
+                } catch (ClassNotFoundException e) {
+                    throw new IllegalArgumentException(
+                            String.format("The input serialization/deserialization class %s does not exist", serdeClassname));
+                }
+
+                try {
+                    new ValidatorImpls.ImplementsClassValidator(SerDe.class).validateField(name, serdeClassname);
+                } catch (IllegalArgumentException ex) {
+                    throw new IllegalArgumentException(
+                            String.format("The input serialization/deserialization class %s does not not " +
+                                            "implement %s",
+                                    serdeClassname, SerDe.class.getCanonicalName()));
+                }
+
+                if (serdeClassname.equals(DefaultSerDe.class.getName())) {
+                    if (!DefaultSerDe.IsSupportedType(typeArg)) {
+                        throw new IllegalArgumentException("The default Serializer does not support type " +
+                                typeArg);
+                    }
+                } else {
+                    SerDe serDe = (SerDe) Reflections.createInstance(serdeClassname, clsLoader);
+                    if (serDe == null) {
+                        throw new IllegalArgumentException(String.format("The SerDe class %s does not exist",
+                                serdeClassname));
+                    }
+                    Class<?>[] serDeTypes = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
+
+                    // type inheritance information seems to be lost in generic type
+                    // load the actual type class for verification
+                    Class<?> fnInputClass;
+                    Class<?> serdeInputClass;
+                    try {
+                        fnInputClass = Class.forName(typeArg.getName(), true, clsLoader);
+                        // get input serde
+                        serdeInputClass = Class.forName(serDeTypes[0].getName(), true, clsLoader);
+                    } catch (ClassNotFoundException e) {
+                        throw new IllegalArgumentException("Failed to load type class", e);
+                    }
+
+                    if (!fnInputClass.isAssignableFrom(serdeInputClass)) {
+                        throw new IllegalArgumentException("Serializer type mismatch " + typeArg + " vs " +
+                                serDeTypes[0]);
+                    }
+                }
+            });
+        }
+    }
+
+    public static class FileValidator extends Validator {
+        @Override
+        public void validateField(String name, Object o) {
+            if (o == null) {
+                return;
+            }
+            new StringValidator().validateField(name, o);
+
+            if (!fileExists((String) o)) {
+                throw new IllegalArgumentException
+                        (String.format("File %s specified in field '%s' does not exist", o, name));
+            }
         }
     }
 

@@ -80,3 +80,7 @@ static void handle_result_callback(pulsar::Result result, pulsar_result_callback
         callback((pulsar_result)result, ctx);
     }
 }
+
+struct _pulsar_string_map {
+    std::map<std::string, std::string> map;
+};
