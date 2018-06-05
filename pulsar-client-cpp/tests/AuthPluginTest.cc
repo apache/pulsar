@@ -49,7 +49,7 @@ TEST(AuthPluginTest, testTls) {
     config.setTlsAllowInsecureConnection(false);
     AuthenticationPtr auth =
         pulsar::AuthTls::create("../../pulsar-broker/src/test/resources/authentication/tls/client-cert.pem",
-                                "../pulsar-broker/src/test/resources/authentication/tls/client-key.pem");
+                                "../../pulsar-broker/src/test/resources/authentication/tls/client-key.pem");
 
     ASSERT_TRUE(auth != NULL);
     ASSERT_EQ(auth->getAuthMethodName(), "tls");
