@@ -74,12 +74,13 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
                                      final @PathParam("functionName") String functionName,
                                      final @FormDataParam("data") InputStream uploadedInputStream,
                                      final @FormDataParam("data") FormDataContentDisposition fileDetail,
+                                     final @FormDataParam("url") String functionPkgUrl,
                                      final @FormDataParam("functionDetails") String functionDetailsJson) {
 
         return functions.registerFunction(
-            tenant, namespace, functionName, uploadedInputStream, fileDetail, functionDetailsJson);
+            tenant, namespace, functionName, uploadedInputStream, fileDetail, functionPkgUrl, functionDetailsJson);
     }
-
+    
     @PUT
     @ApiOperation(value = "Updates a Pulsar Function currently running in cluster mode")
     @ApiResponses(value = {

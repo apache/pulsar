@@ -20,16 +20,20 @@ package org.apache.pulsar.functions.worker;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
 import java.util.UUID;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.distributedlog.AppendOnlyStreamWriter;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.DistributedLogManager;
@@ -39,14 +43,17 @@ import org.apache.distributedlog.impl.metadata.BKDLConfig;
 import org.apache.distributedlog.metadata.DLMetadata;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.worker.dlog.DLInputStream;
 import org.apache.pulsar.functions.worker.dlog.DLOutputStream;
 import org.apache.zookeeper.KeeperException.Code;
+import org.apache.pulsar.functions.proto.Function;
 
 @Slf4j
 public final class Utils {
 
+    public static String HTTP = "http";
+    public static String FILE = "file";
+    
     private Utils(){}
 
     public static Object getObject(byte[] byteArr) throws IOException, ClassNotFoundException {
@@ -124,6 +131,34 @@ public final class Utils {
         }
     }
 
+    public static void validateFileUrl(String destPkgUrl, String downloadPkgDir) throws IOException, URISyntaxException {
+        if (destPkgUrl.startsWith(FILE)) {
+            URL url = new URL(destPkgUrl);
+            File file = new File(url.toURI());
+            if (!file.exists()) {
+                throw new IOException(destPkgUrl + " does not exists locally");
+            }
+        } else if (destPkgUrl.startsWith("http")) {
+            URL website = new URL(destPkgUrl);
+            File tempFile = new File(downloadPkgDir, website.getHost() + UUID.randomUUID().toString());
+            ReadableByteChannel rbc = Channels.newChannel(website.openStream());
+            try (FileOutputStream fos = new FileOutputStream(tempFile)) {
+                fos.getChannel().transferFrom(rbc, 0, 10);
+            }
+            if (tempFile.exists()) {
+                tempFile.delete();
+            }
+        } else {
+            throw new IllegalArgumentException("Unsupported url protocol "+ destPkgUrl +", supported url protocols: [file/http/https]");
+        }
+    }
+    
+    public static void downloadFromHttpUrl(String destPkgUrl, FileOutputStream outputStream) throws IOException {
+        URL website = new URL(destPkgUrl);
+        ReadableByteChannel rbc = Channels.newChannel(website.openStream());
+        outputStream.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
+    }
+    
     public static void downloadFromBookkeeper(Namespace namespace,
                                                  OutputStream outputStream,
                                                  String packagePath) throws IOException {

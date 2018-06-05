@@ -387,6 +387,12 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>commons-configuration</artifactId>
         <version>1.6</version>
       </dependency>
+      
+      <dependency>
+        <groupId>commons-io</groupId>
+        <artifactId>commons-io</artifactId>
+        <version>2.5</version>
+      </dependency>
 
       <dependency>
         <groupId>net.jpountz.lz4</groupId>
