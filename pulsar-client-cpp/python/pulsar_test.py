@@ -22,7 +22,7 @@
 from unittest import TestCase, main
 import time
 from pulsar import Client, MessageId, \
-            CompressionType, ConsumerType
+            CompressionType, ConsumerType, PartitionsRoutingMode
 
 from _pulsar import ProducerConfiguration, ConsumerConfiguration
 
@@ -323,6 +323,13 @@ class PulsarTest(TestCase):
         except:
             # Exception is expected
             pass
+
+    def test_producer_routing_mode(self):
+        client = Client(self.serviceUrl)
+        producer = client.create_producer('my-python-test-producer',
+                                          message_routing_mode=PartitionsRoutingMode.UseSinglePartition)
+        producer.send(b'test')
+        client.close()
 
     def test_message_argument_errors(self):
         client = Client(self.serviceUrl)
