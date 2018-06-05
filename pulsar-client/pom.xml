@@ -95,6 +95,7 @@
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
       <version>${protobuf3.version}</version>
+      <scope>provided</scope>
     </dependency>
     
     <!-- httpclient-hostname-verification depends on below dependencies  --> 
