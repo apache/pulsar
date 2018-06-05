@@ -102,6 +102,8 @@ class ConsumerImpl : public ConsumerImplBase,
     virtual Result resumeMessageListener();
     virtual void redeliverUnacknowledgedMessages();
     virtual void getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback);
+    void handleSeek(Result result, ResultCallback callback);
+    virtual void seekAsync(const MessageId& msgId, ResultCallback callback);
 
    protected:
     void connectionOpened(const ClientConnectionPtr& cnx);
