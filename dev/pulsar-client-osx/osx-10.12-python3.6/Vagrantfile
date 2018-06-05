@@ -1,0 +1,10 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "jhcook/macos-sierra"
+  config.vm.provision "shell", path: "build.sh", privileged: false
+  config.vm.provider :virtualbox do |vb|
+  	vb.name = "osx-10.12-python3.6"
+  end
+end

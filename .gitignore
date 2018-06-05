@@ -24,7 +24,7 @@ pulsar-broker/src/test/resources/log4j2.yaml
 *.iws
 
 # Mac
-.DS_Store
+**/.DS_Store
 
 # VisualStudioCode artifacts
 .vscode/
@@ -54,3 +54,11 @@ deployment/terraform-ansible/aws/terraform.tfstate.backup
 
 # Vagrant
 **/.vagrant
+
+
+dev/pulsar-client-osx/**/*.bak
+dev/pulsar-client-osx/**/build.sh
+dev/pulsar-client-osx/**/*.whl
+dev/pulsar-client-osx/**/*.template2
+
+

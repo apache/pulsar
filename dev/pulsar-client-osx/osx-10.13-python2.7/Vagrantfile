@@ -1,0 +1,11 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "burinkhazad/macos-high-sierra"
+  config.vm.provision "shell", path: "build.sh", privileged: false
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+  config.vm.provider :virtualbox do |vb|
+  	vb.name = "osx-10.13-python2.7"
+  end
+end

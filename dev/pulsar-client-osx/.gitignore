@@ -1,0 +1,6 @@
+**/.DS_Store
+**/.vagrant
+**/*.bak
+**/build.sh
+**/*.whl
+**/*.template2
