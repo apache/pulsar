@@ -1117,4 +1117,51 @@ public interface Namespaces {
      *             Unexpected error
      */
     void setMaxConsumersPerSubscription(String namespace, int maxConsumersPerSubscription) throws PulsarAdminException;
+
+    /**
+     * Get the compactionThreshold for a namespace. The maximum number of bytes topics in the namespace
+     * can have before compaction is triggered. 0 disables.
+     * <p>
+     * Response example:
+     *
+     * <pre>
+     * <code>10000000</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    long getCompactionThreshold(String namespace) throws PulsarAdminException;
+
+    /**
+     * Set the compactionThreshold for a namespace. The maximum number of bytes topics in the namespace
+     * can have before compaction is triggered. 0 disables.
+     * <p>
+     * Request example:
+     *
+     * <pre>
+     * <code>10000000</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param compactionThreshold
+     *            maximum number of backlog bytes before compaction is triggered
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setCompactionThreshold(String namespace, long compactionThreshold) throws PulsarAdminException;
+
 }
