@@ -86,7 +86,7 @@ class ReaderConfiguration {
     void setSubscriptionRolePrefix(const std::string& subscriptionRolePrefix);
     const std::string& getSubscriptionRolePrefix() const;
 
-    ReaderConfiguration& setReadCompacted(bool compacted);
+    void setReadCompacted(bool compacted);
     bool isReadCompacted() const;
 
    private:
