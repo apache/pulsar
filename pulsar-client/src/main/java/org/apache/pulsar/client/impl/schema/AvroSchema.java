@@ -52,7 +52,7 @@ public class AvroSchema<T> implements Schema<T> {
         this.schemaInfo = new SchemaInfo();
         this.schemaInfo.setName("");
         this.schemaInfo.setProperties(properties);
-        this.schemaInfo.setType(SchemaType.JSON);
+        this.schemaInfo.setType(SchemaType.AVRO);
         this.schemaInfo.setSchema(this.schema.toString().getBytes());
 
         this.byteArrayOutputStream = new ByteArrayOutputStream();
