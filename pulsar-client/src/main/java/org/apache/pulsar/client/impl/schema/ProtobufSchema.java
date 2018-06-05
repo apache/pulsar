@@ -18,26 +18,28 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import com.google.protobuf.Parser;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
-import java.lang.reflect.Method;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Collections;
 import java.util.Map;
 
 public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> implements Schema<T> {
 
-
-    private Method fromBytes;
     private SchemaInfo schemaInfo;
+    private Parser<T> tParser;
+
     private ProtobufSchema(SchemaInfo schemaInfo, Class<T> pojo) {
         this.schemaInfo = schemaInfo;
         try {
-            this.fromBytes = pojo.getMethod("parseFrom", byte[].class);
-        } catch (NoSuchMethodException e) {
-            throw new RuntimeException(e);
+            T protoMessageInstance = (T) pojo.getMethod("getDefaultInstance").invoke(null);
+             tParser = (Parser<T>) protoMessageInstance.getParserForType();
+        } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+            throw new IllegalArgumentException(e);
         }
     }
 
@@ -49,7 +51,7 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> im
     @Override
     public T decode(byte[] bytes) {
         try {
-            return (T) this.fromBytes.invoke(null, bytes);
+            return this.tParser.parseFrom(bytes);
         } catch (Exception e) {
             throw new RuntimeException(new SchemaSerializationException(e));
         }
