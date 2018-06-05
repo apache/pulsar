@@ -90,6 +90,13 @@
          </exclusion>
       </exclusions>
     </dependency>
+
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java</artifactId>
+      <version>${protobuf3.version}</version>
+      <scope>provided</scope>
+    </dependency>
     
     <!-- httpclient-hostname-verification depends on below dependencies  --> 
     <dependency>
@@ -108,6 +115,13 @@
       <artifactId>jackson-module-jsonSchema</artifactId>
     </dependency>
 
+    <!-- Testing dependencies -->
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-functions-proto</artifactId>
+      <version>${project.parent.version}</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>

@@ -16,26 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.schema;
+package org.apache.pulsar.client.schemas;
 
-/**
- * Types of supported schema for Pulsar messages
- */
-public enum SchemaType {
-    /**
-     * No schema defined
-     */
-    NONE,
+import org.apache.pulsar.client.impl.schema.ProtobufSchema;
+import org.apache.pulsar.functions.proto.Function;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
-    /**
-     * Simple String encoding with UTF-8
-     */
-    STRING,
+public class ProtobufSchemaTest {
 
-    /**
-     * JSON object encoding and validation
-     */
-    JSON,
+    private static final String NAME = "foo";
 
-    PROTOBUF
+    @Test
+    public void testEncodeAndDecode() {
+        Function.FunctionDetails functionDetails = Function.FunctionDetails.newBuilder().setName(NAME).build();
+
+        ProtobufSchema<Function.FunctionDetails> protobufSchema = ProtobufSchema.of(Function.FunctionDetails.class);
+
+        byte[] bytes = protobufSchema.encode(functionDetails);
+
+        Function.FunctionDetails message = protobufSchema.decode(bytes);
+
+        Assert.assertEquals(message.getName(), NAME);
+    }
 }
