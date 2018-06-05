@@ -35,8 +35,10 @@ import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
+import static org.apache.pulsar.functions.worker.rest.api.FunctionsImpl.isFunctionPackageUrlSupported;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.util.UUID;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -103,18 +105,44 @@ public class FunctionActioner implements AutoCloseable {
     }
 
     private void startFunction(FunctionRuntimeInfo functionRuntimeInfo) throws Exception {
-        Function.Instance instance = functionRuntimeInfo.getFunctionInstance();
-        FunctionMetaData functionMetaData = instance.getFunctionMetaData();
+        FunctionMetaData functionMetaData = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData();
+        int instanceId = functionRuntimeInfo.getFunctionInstance().getInstanceId();
         log.info("Starting function {} - {} ...",
-                functionMetaData.getFunctionDetails().getName(), instance.getInstanceId());
+                functionMetaData.getFunctionDetails().getName(), instanceId);
+        File pkgFile = null;
+        
+        String pkgLocation = functionMetaData.getPackageLocation().getPackagePath();
+        boolean isPkgUrlProvided = isFunctionPackageUrlSupported(pkgLocation);
+        
+        if(isPkgUrlProvided && pkgLocation.startsWith(Utils.FILE)) {
+            pkgFile = new File(pkgLocation);
+        } else {
+            downloadFile(pkgFile, isPkgUrlProvided, functionMetaData, instanceId);
+        }
+        
+        InstanceConfig instanceConfig = new InstanceConfig();
+        instanceConfig.setFunctionDetails(functionMetaData.getFunctionDetails());
+        // TODO: set correct function id and version when features implemented
+        instanceConfig.setFunctionId(UUID.randomUUID().toString());
+        instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
+        instanceConfig.setInstanceId(String.valueOf(instanceId));
+        instanceConfig.setMaxBufferedTuples(1024);
+        instanceConfig.setPort(org.apache.pulsar.functions.utils.Utils.findAvailablePort());
+        RuntimeSpawner runtimeSpawner = new RuntimeSpawner(instanceConfig, pkgFile.getAbsolutePath(),
+                runtimeFactory, workerConfig.getInstanceLivenessCheckFreqMs());
+
+        functionRuntimeInfo.setRuntimeSpawner(runtimeSpawner);
+        runtimeSpawner.start();
+    }
+
+    private void downloadFile(File pkgFile, boolean isPkgUrlProvided, FunctionMetaData functionMetaData, int instanceId) throws FileNotFoundException, IOException {
+        
         File pkgDir = new File(
                 workerConfig.getDownloadDirectory(),
-                getDownloadPackagePath(functionMetaData, instance.getInstanceId()));
+                getDownloadPackagePath(functionMetaData, instanceId));
         pkgDir.mkdirs();
 
-        int instanceId = functionRuntimeInfo.getFunctionInstance().getInstanceId();
-
-        File pkgFile = new File(
+        pkgFile = new File(
             pkgDir,
             new File(FunctionDetailsUtils.getDownloadFileName(functionMetaData.getFunctionDetails())).getName());
 
@@ -133,14 +161,21 @@ public class FunctionActioner implements AutoCloseable {
                 break;
             }
         }
-        try {
-            log.info("Function package file {} will be downloaded from {}",
-                    tempPkgFile, functionMetaData.getPackageLocation());
+        String pkgLocationPath = functionMetaData.getPackageLocation().getPackagePath();
+        boolean downloadFromHttp = isPkgUrlProvided && pkgLocationPath.startsWith(Utils.HTTP);
+        log.info("Function package file {} will be downloaded from {}", tempPkgFile,
+                downloadFromHttp ? pkgLocationPath : functionMetaData.getPackageLocation());
+        
+        if(downloadFromHttp) {
+            Utils.downloadFromHttpUrl(pkgLocationPath, new FileOutputStream(tempPkgFile));
+        } else {
             Utils.downloadFromBookkeeper(
                     dlogNamespace,
                     new FileOutputStream(tempPkgFile),
-                    functionMetaData.getPackageLocation().getPackagePath());
-
+                    pkgLocationPath);
+        }
+        
+        try {
             // create a hardlink, if there are two concurrent createLink operations, one will fail.
             // this ensures one instance will successfully download the package.
             try {
@@ -157,20 +192,6 @@ public class FunctionActioner implements AutoCloseable {
         } finally {
             tempPkgFile.delete();
         }
-
-        InstanceConfig instanceConfig = new InstanceConfig();
-        instanceConfig.setFunctionDetails(functionMetaData.getFunctionDetails());
-        // TODO: set correct function id and version when features implemented
-        instanceConfig.setFunctionId(UUID.randomUUID().toString());
-        instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
-        instanceConfig.setInstanceId(String.valueOf(instanceId));
-        instanceConfig.setMaxBufferedTuples(1024);
-        instanceConfig.setPort(org.apache.pulsar.functions.utils.Utils.findAvailablePort());
-        RuntimeSpawner runtimeSpawner = new RuntimeSpawner(instanceConfig, pkgFile.getAbsolutePath(),
-                runtimeFactory, workerConfig.getInstanceLivenessCheckFreqMs());
-
-        functionRuntimeInfo.setRuntimeSpawner(runtimeSpawner);
-        runtimeSpawner.start();
     }
 
     private void stopFunction(FunctionRuntimeInfo functionRuntimeInfo) {
