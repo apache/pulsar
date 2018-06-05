@@ -96,7 +96,7 @@
       <artifactId>avro</artifactId>
       <version>1.8.2</version>
     </dependency>
-    
+
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
