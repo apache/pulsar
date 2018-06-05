@@ -44,8 +44,7 @@ public class AvroSchema<T> implements Schema<T> {
     private ReflectDatumReader<T> reader;
     private BinaryEncoder encoder;
     private ByteArrayOutputStream byteArrayOutputStream;
-
-
+    
     public AvroSchema(Class<T> pojo, Map<String, String> properties) {
         this.schema = ReflectData.AllowNull.get().getSchema(pojo);
 

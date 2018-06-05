@@ -24,6 +24,7 @@ import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -54,7 +55,6 @@ public class AvroSchemaTest {
             "{\"name\":\"field3\",\"type\":\"int\"},{\"name\":\"field4\",\"type\":[\"null\",{\"type\":\"record\"," +
             "\"name\":\"Bar\",\"fields\":[{\"name\":\"field1\",\"type\":\"boolean\"}]}],\"default\":null}]}";
 
-
     private static String[] FOO_FIELDS = {
             "field1",
             "field2",
@@ -65,6 +65,7 @@ public class AvroSchemaTest {
     @Test
     public void testSchema() {
         AvroSchema<Foo> avroSchema = AvroSchema.of(Foo.class);
+        Assert.assertEquals(avroSchema.getSchemaInfo().getType(), SchemaType.AVRO);
         Schema.Parser parser = new Schema.Parser();
         String schemaJson = new String(avroSchema.getSchemaInfo().getSchema());
         Assert.assertEquals(schemaJson, SCHEMA_JSON);
