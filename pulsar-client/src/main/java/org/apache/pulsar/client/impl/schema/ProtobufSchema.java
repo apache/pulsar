@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.schema.SchemaInfo;
