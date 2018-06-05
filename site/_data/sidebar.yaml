@@ -172,3 +172,5 @@ groups:
     endpoint: CliTools
   - title: Pulsar configuration
     endpoint: Configuration
+  - title: Authn & Authz plugins
+    endpoint: CustomAuth
