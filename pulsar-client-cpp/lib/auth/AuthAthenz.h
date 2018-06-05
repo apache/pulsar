@@ -21,8 +21,6 @@
 
 #include <pulsar/Authentication.h>
 #include <lib/auth/athenz/ZTSClient.h>
-#include <lib/LogUtils.h>
-#include <iostream>
 #include <string>
 
 namespace pulsar {
@@ -40,17 +38,5 @@ class AuthDataAthenz : public AuthenticationDataProvider {
     boost::shared_ptr<ZTSClient> ztsClient_;
 };
 
-class AuthAthenz : public Authentication {
-   public:
-    AuthAthenz(AuthenticationDataPtr&);
-    ~AuthAthenz();
-    static AuthenticationPtr create(ParamMap& params);
-    static AuthenticationPtr create(const std::string& authParamsString);
-    const std::string getAuthMethodName() const;
-    Result getAuthData(AuthenticationDataPtr& authDataAthenz) const;
-
-   private:
-    AuthenticationDataPtr authDataAthenz_;
-};
 }  // namespace pulsar
 #endif /* PULSAR_AUTH_ATHENZ_H_ */
