@@ -432,7 +432,7 @@ MIT License
     - org.slf4j-jul-to-slf4j-1.7.25.jar
     - org.slf4j-slf4j-api-1.7.25.jar
     - org.slf4j-jcl-over-slf4j-1.7.25.jar
- * Lombok -- org.projectlombok-lombok-1.16.20.jar  -- licenses/LICENSE-Lombok.txt
+ * Lombok -- org.projectlombok-lombok-1.18.0.jar  -- licenses/LICENSE-Lombok.txt
 
 Protocol Buffers License
  * Protocol Buffers
