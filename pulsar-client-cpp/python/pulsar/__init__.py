@@ -190,7 +190,7 @@ class Authentication:
         _check_type(str, authParamsString, 'authParamsString')
         self.auth = _pulsar.Authentication(dynamicLibPath, authParamsString)
 
-class AuthenticationTLS:
+class AuthenticationTLS(Authentication):
     """
     TLS Authentication implementation
     """
@@ -207,7 +207,7 @@ class AuthenticationTLS:
         _check_type(str, private_key_path, 'private_key_path')
         self.auth = _pulsar.AuthenticationTLS(certificate_path, private_key_path)
 
-class AuthenticationAthenz:
+class AuthenticationAthenz(Authentication):
     """
     Athenz Authentication implementation
     """
