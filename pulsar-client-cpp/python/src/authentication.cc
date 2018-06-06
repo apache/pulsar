@@ -23,9 +23,31 @@ AuthenticationWrapper::AuthenticationWrapper(const std::string& dynamicLibPath,
     this->auth = AuthFactory::create(dynamicLibPath, authParamsString);
 }
 
+struct AuthenticationTlsWrapper {
+    AuthenticationPtr auth;
+
+    AuthenticationTlsWrapper(const std::string& certificatePath, const std::string& privateKeyPath) {
+        this->auth = AuthTls::create(certificatePath, privateKeyPath);
+    }
+};
+
+struct AuthenticationAthenzWrapper {
+    AuthenticationPtr auth;
+
+    AuthenticationAthenzWrapper(const std::string& authParamsString) {
+        this->auth = AuthAthenz::create(authParamsString);
+    }
+};
+
 void export_authentication() {
     using namespace boost::python;
 
     class_<AuthenticationWrapper>("Authentication", init<const std::string&, const std::string&>())
+            ;
+
+    class_<AuthenticationTlsWrapper>("AuthenticationTLS", init<const std::string&, const std::string&>())
+            ;
+
+    class_<AuthenticationAthenzWrapper>("AuthenticationAthenz", init<const std::string&>())
             ;
 }

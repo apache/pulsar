@@ -22,7 +22,8 @@
 from unittest import TestCase, main
 import time
 from pulsar import Client, MessageId, \
-            CompressionType, ConsumerType, PartitionsRoutingMode
+            CompressionType, ConsumerType, PartitionsRoutingMode, \
+            AuthenticationTLS
 
 from _pulsar import ProducerConfiguration, ConsumerConfiguration
 
@@ -44,6 +45,8 @@ class PulsarTest(TestCase):
 
     serviceUrl = 'pulsar://localhost:8885'
     adminUrl = 'http://localhost:8765'
+
+    serviceUrlTls = 'pulsar+ssl://localhost:8885'
 
     def test_producer_config(self):
         conf = ProducerConfiguration()
@@ -96,6 +99,31 @@ class PulsarTest(TestCase):
 
     def test_producer_consumer(self):
         client = Client(self.serviceUrl)
+        consumer = client.subscribe('persistent://sample/standalone/ns/my-python-topic-producer-consumer',
+                                    'my-sub',
+                                    consumer_type=ConsumerType.Shared)
+        producer = client.create_producer('persistent://sample/standalone/ns/my-python-topic-producer-consumer')
+        producer.send('hello')
+
+        msg = consumer.receive(1000)
+        self.assertTrue(msg)
+        self.assertEqual(msg.data(), b'hello')
+
+        try:
+            msg = consumer.receive(100)
+            self.assertTrue(False)  # Should not reach this point
+        except:
+            pass  # Exception is expected
+
+        client.close()
+
+    def test_tls_auth(self):
+        certs_dir = "../../../pulsar-broker/src/test/resources/authentication/tls/"
+        client = Client(self.serviceUrlTls,
+                        tls_trust_certs_file_path=certs_dir + 'cacert.pem',
+                        tls_allow_insecure_connection=False,
+                        authentication=AuthenticationTLS(certs_dir + 'client-cert.pem', certs_dir + 'client-key.pem'))
+
         consumer = client.subscribe('persistent://sample/standalone/ns/my-python-topic-producer-consumer',
                                     'my-sub',
                                     consumer_type=ConsumerType.Shared)
