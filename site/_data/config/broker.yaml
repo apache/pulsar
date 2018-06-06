@@ -93,6 +93,9 @@ configs:
 - name: messageExpiryCheckIntervalInMinutes
   default: '5'
   description: How frequently to proactively check and purge expired messages
+- name: brokerServiceCompactionMonitorIntervalInSeconds
+  default: '60'
+  description: Interval between checks to see if topics with compaction policies need to be compacted
 - name: activeConsumerFailoverDelayTimeMillis
   default: '1000'
   description: How long to delay rewinding cursor and dispatching messages when active consumer is changed.

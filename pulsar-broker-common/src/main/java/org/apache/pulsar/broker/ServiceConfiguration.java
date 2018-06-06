@@ -450,6 +450,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(dynamic = true)
     private boolean preferLaterVersions = false;
 
+    // Interval between checks to see if topics with compaction policies need to be compacted
+    private int brokerServiceCompactionMonitorIntervalInSeconds = 60;
+
     private String schemaRegistryStorageClassName = "org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory";
     private Set<String> schemaRegistryCompatibilityCheckers = Sets.newHashSet(
         "org.apache.pulsar.broker.service.schema.JsonSchemaCompatibilityCheck"
@@ -1719,4 +1722,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         return this.s3ManagedLedgerOffloadReadBufferSizeInBytes;
     }
 
+    public void setBrokerServiceCompactionMonitorIntervalInSeconds(int interval) {
+        this.brokerServiceCompactionMonitorIntervalInSeconds = interval;
+    }
+
+    public int getBrokerServiceCompactionMonitorIntervalInSeconds() {
+        return this.brokerServiceCompactionMonitorIntervalInSeconds;
+    }
 }
