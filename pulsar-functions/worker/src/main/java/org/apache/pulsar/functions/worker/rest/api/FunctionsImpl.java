@@ -721,8 +721,8 @@ public class FunctionsImpl {
     }
 
     public static boolean isFunctionPackageUrlSupported(String functionPkgUrl) {
-        return StringUtils.isBlank(functionPkgUrl)
-                || !(functionPkgUrl.startsWith(Utils.HTTP) || functionPkgUrl.startsWith(Utils.FILE));
+        return StringUtils.isNotBlank(functionPkgUrl)
+                && (functionPkgUrl.startsWith(Utils.HTTP) || functionPkgUrl.startsWith(Utils.FILE));
     }
 
     private FunctionDetails validateUpdateRequestParams(String tenant,
