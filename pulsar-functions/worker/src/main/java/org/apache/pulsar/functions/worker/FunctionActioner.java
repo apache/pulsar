@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.io.MoreFiles;
 import com.google.common.io.RecursiveDeleteOption;
 import java.io.IOException;
@@ -35,7 +36,6 @@ import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
-import static org.apache.pulsar.functions.worker.rest.api.FunctionsImpl.isFunctionPackageUrlSupported;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -104,7 +104,8 @@ public class FunctionActioner implements AutoCloseable {
         actioner.join();
     }
 
-    private void startFunction(FunctionRuntimeInfo functionRuntimeInfo) throws Exception {
+    @VisibleForTesting
+    protected void startFunction(FunctionRuntimeInfo functionRuntimeInfo) throws Exception {
         FunctionMetaData functionMetaData = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData();
         int instanceId = functionRuntimeInfo.getFunctionInstance().getInstanceId();
         log.info("Starting function {} - {} ...",
@@ -112,7 +113,7 @@ public class FunctionActioner implements AutoCloseable {
         File pkgFile = null;
         
         String pkgLocation = functionMetaData.getPackageLocation().getPackagePath();
-        boolean isPkgUrlProvided = isFunctionPackageUrlSupported(pkgLocation);
+        boolean isPkgUrlProvided = Utils.isFunctionPackageUrlSupported(pkgLocation);
         
         if(isPkgUrlProvided && pkgLocation.startsWith(Utils.FILE)) {
             pkgFile = new File(pkgLocation);
