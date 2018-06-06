@@ -452,7 +452,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     private String schemaRegistryStorageClassName = "org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory";
     private Set<String> schemaRegistryCompatibilityCheckers = Sets.newHashSet(
-        "org.apache.pulsar.broker.service.schema.JsonSchemaCompatibilityCheck"
+            "org.apache.pulsar.broker.service.schema.JsonSchemaCompatibilityCheck",
+            "org.apache.pulsar.broker.service.schema.AvroSchemaCompatibilityCheck"
     );
 
     /**** --- WebSocket --- ****/
