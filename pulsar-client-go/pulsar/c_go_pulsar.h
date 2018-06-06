@@ -20,6 +20,7 @@
 #pragma once
 
 #include <pulsar/c/client.h>
+#include <pulsar/c/authentication.h>
 #include <stdlib.h>
 
 // Callback proxy functions

@@ -26,7 +26,7 @@ class Libpulsar < Formula
   # TODO: Switch to official 2.1 version when available
   version "2.1.0-incubating-SNAPSHOT"
   url "https://s3-us-west-2.amazonaws.com/pulsar-preview/apache-pulsar-#{version}-src.tar.gz"
-  sha256 "d416fa89c971cf1b223530e0ce9dbd7e7ca81be3cf0c3e5fcfde1f781ff43762"
+  sha256 "b7ec66c64830f9a0890a145d40a2a28063c056c2d68e9a4e9bdb0cbe7de0bb39"
 
   option "with-python3", "Use Boost with Python-3.x"
   option "with-log4cxx", "Enable Log4cxx logger"
