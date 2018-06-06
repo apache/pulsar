@@ -42,28 +42,24 @@ static void sendCallBackTls(Result r, const Message& msg) {
     LOG_DEBUG("Received publish acknowledgement for " << msg.getDataAsString());
 }
 
-TEST(AuthPluginTest, testCreate) {
-    pulsar::AuthenticationDataPtr data;
+TEST(AuthPluginTest, testTls) {
+    ClientConfiguration config = ClientConfiguration();
+    config.setUseTls(true);
+    config.setTlsTrustCertsFilePath("../../pulsar-broker/src/test/resources/authentication/tls/cacert.pem");
+    config.setTlsAllowInsecureConnection(false);
+    AuthenticationPtr auth =
+        pulsar::AuthTls::create("../../pulsar-broker/src/test/resources/authentication/tls/client-cert.pem",
+                                "../../pulsar-broker/src/test/resources/authentication/tls/client-key.pem");
 
-    pulsar::AuthenticationPtr auth = pulsar::AuthFactory::create("../lib/auth/libauthtls.so");
     ASSERT_TRUE(auth != NULL);
     ASSERT_EQ(auth->getAuthMethodName(), "tls");
+
+    pulsar::AuthenticationDataPtr data;
     ASSERT_EQ(auth->getAuthData(data), pulsar::ResultOk);
     ASSERT_EQ(data->getCommandData(), "none");
     ASSERT_EQ(data->hasDataForTls(), true);
     ASSERT_EQ(auth.use_count(), 1);
-}
 
-TEST(AuthPluginTest, testTls) {
-    ClientConfiguration config = ClientConfiguration();
-    config.setUseTls(true);
-    std::string certfile = "../../pulsar-broker/src/test/resources/authentication/tls/cacert.pem";
-    std::string params =
-        "tlsCertFile:../../pulsar-broker/src/test/resources/authentication/tls/client-cert.pem,tlsKeyFile:../"
-        "../pulsar-broker/src/test/resources/authentication/tls/client-key.pem";
-    config.setTlsTrustCertsFilePath(certfile);
-    config.setTlsAllowInsecureConnection(false);
-    AuthenticationPtr auth = pulsar::AuthFactory::create("../lib/auth/libauthtls.so", params);
     config.setAuth(auth);
     Client client(lookupUrlTls, config);
 
@@ -164,7 +160,7 @@ TEST(AuthPluginTest, testAthenz) {
         "privateKey": "file:../../pulsar-broker/src/test/resources/authentication/tls/client-key.pem",
         "ztsUrl": "http://localhost:9999"
     })";
-    pulsar::AuthenticationPtr auth = pulsar::AuthFactory::create("../lib/auth/libauthathenz.so", params);
+    pulsar::AuthenticationPtr auth = pulsar::AuthAthenz::create(params);
     ASSERT_EQ(auth->getAuthMethodName(), "athenz");
     ASSERT_EQ(auth->getAuthData(data), pulsar::ResultOk);
     ASSERT_EQ(data->hasDataForHttp(), true);
