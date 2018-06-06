@@ -68,7 +68,7 @@ public interface Consumer<T> extends Closeable {
      * @throws PulsarClientException.InvalidConfigurationException
      *             if a message listener was defined in the configuration
      */
-    Message<T> receive() throws PulsarClientException;
+    Message<T>  receive() throws PulsarClientException;
 
     /**
      * Receive a single message
@@ -215,8 +215,6 @@ public interface Consumer<T> extends Closeable {
      * @return statistic for the consumer
      */
     ConsumerStats getStats();
-
-    Schema<T> getSchema();
 
     /**
      * Close the consumer and stop the broker to push more messages.

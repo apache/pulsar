@@ -132,11 +132,6 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
     }
 
     @Override
-    public Schema<T> getSchema() {
-        return schema;
-    }
-
-    @Override
     public String toString() {
         return "ProducerBase{" + "topic='" + topic + '\'' + '}';
     }

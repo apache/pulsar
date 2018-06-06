@@ -78,7 +78,7 @@ public class PulsarSource<T> implements Source<T>, MessageListener<T> {
         for (Map.Entry<String, SerDe<T>> entry : topicToSerDeMap.entrySet()) {
             ConsumerBuilder<T> consumerBuilder = this.pulsarClient.newConsumer(entry.getValue())
                 .subscriptionName(this.pulsarSourceConfig.getSubscriptionName())
-                .subscriptionType(this.pulsarSourceConfig.getSubscriptionType().get())
+                .subscriptionType(this.pulsarSourceConfig.getSubscriptionType())
                 .ackTimeout(1, TimeUnit.MINUTES)
                 .messageListener(this);
 

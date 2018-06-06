@@ -335,11 +335,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         return subscription;
     }
 
-    @Override
-    public Schema<T> getSchema() {
-        return schema;
-    }
-
     /**
      * Redelivers the given unacknowledged messages. In Failover mode, the request is ignored if the consumer is not
      * active for the given topic. In Shared mode, the consumers messages to be redelivered are distributed across all
