@@ -34,6 +34,8 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.AppendOnlyStreamWriter;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.DistributedLogManager;
@@ -230,5 +232,10 @@ public final class Utils {
     public static String getFullyQualifiedInstanceId(String tenant, String namespace,
                                                      String functionName, int instanceId) {
         return String.format("%s/%s/%s:%d", tenant, namespace, functionName, instanceId);
+    }
+    
+    public static boolean isFunctionPackageUrlSupported(String functionPkgUrl) {
+        return StringUtils.isNotBlank(functionPkgUrl)
+                && (functionPkgUrl.startsWith(Utils.HTTP) || functionPkgUrl.startsWith(Utils.FILE));
     }
 }
