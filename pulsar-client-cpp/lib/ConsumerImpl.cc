@@ -881,7 +881,6 @@ void ConsumerImpl::brokerConsumerStatsListener(Result res, BrokerConsumerStatsIm
     }
 }
 
-<<<<<<< HEAD
 void ConsumerImpl::handleSeek(Result result, ResultCallback callback) {
     if (result == ResultOk) {
         LOG_INFO(getName() << "Seek successfully");
@@ -910,7 +909,7 @@ void ConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback callback) {
         LOG_DEBUG(getName() << " Sending seek Command for Consumer - " << getConsumerId() << ", requestId - "
                             << requestId);
         Future<Result, ResponseData> future =
-                cnx->sendRequestWithId(Commands::newSeek(consumerId_, requestId, msgId), requestId);
+            cnx->sendRequestWithId(Commands::newSeek(consumerId_, requestId, msgId), requestId);
 
         if (!callback.empty()) {
             future.addListener(boost::bind(&ConsumerImpl::handleSeek, shared_from_this(), _1, callback));
@@ -920,11 +919,6 @@ void ConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback callback) {
 
     LOG_ERROR(getName() << " Client Connection not ready for Consumer");
     callback(ResultNotConnected);
-}
-
-bool ConsumerImpl::isReadCompacted() {
-    Lock lock(mutex_);
-    return readCompacted_;
 }
 
 bool ConsumerImpl::isReadCompacted() { return readCompacted_; }
