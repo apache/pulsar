@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.io.MoreFiles;
 import com.google.common.io.RecursiveDeleteOption;
 import java.io.IOException;
@@ -104,7 +105,8 @@ public class FunctionActioner implements AutoCloseable {
         actioner.join();
     }
 
-    private void startFunction(FunctionRuntimeInfo functionRuntimeInfo) throws Exception {
+    @VisibleForTesting
+    protected void startFunction(FunctionRuntimeInfo functionRuntimeInfo) throws Exception {
         FunctionMetaData functionMetaData = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData();
         int instanceId = functionRuntimeInfo.getFunctionInstance().getInstanceId();
         log.info("Starting function {} - {} ...",
