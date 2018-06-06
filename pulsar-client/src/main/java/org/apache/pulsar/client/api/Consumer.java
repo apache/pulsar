@@ -68,7 +68,7 @@ public interface Consumer<T> extends Closeable {
      * @throws PulsarClientException.InvalidConfigurationException
      *             if a message listener was defined in the configuration
      */
-    Message<T>  receive() throws PulsarClientException;
+    Message<T> receive() throws PulsarClientException;
 
     /**
      * Receive a single message
