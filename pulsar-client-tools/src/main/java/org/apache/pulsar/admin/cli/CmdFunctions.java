@@ -37,7 +37,6 @@ import org.apache.bookkeeper.api.kv.Table;
 import org.apache.bookkeeper.api.kv.result.KeyValue;
 import org.apache.bookkeeper.clients.StorageClientBuilder;
 import org.apache.bookkeeper.clients.config.StorageClientSettings;
-import org.apache.bookkeeper.clients.utils.NetUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -721,7 +720,7 @@ public class CmdFunctions extends CmdBase {
 
             try (StorageClient client = StorageClientBuilder.newBuilder()
                  .withSettings(StorageClientSettings.newBuilder()
-                     .addEndpoints(NetUtils.parseEndpoint(stateStorageServiceUrl))
+                     .serviceUri(stateStorageServiceUrl)
                      .clientName("functions-admin")
                      .build())
                  .withNamespace(tableNs)

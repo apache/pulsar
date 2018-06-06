@@ -43,7 +43,6 @@ import org.apache.bookkeeper.clients.admin.StorageAdminClient;
 import org.apache.bookkeeper.clients.config.StorageClientSettings;
 import org.apache.bookkeeper.clients.exceptions.NamespaceNotFoundException;
 import org.apache.bookkeeper.clients.exceptions.StreamNotFoundException;
-import org.apache.bookkeeper.clients.utils.NetUtils;
 import org.apache.bookkeeper.stream.proto.NamespaceConfiguration;
 import org.apache.logging.log4j.ThreadContext;
 import org.apache.logging.log4j.core.LoggerContext;
@@ -262,7 +261,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
         // TODO (sijie): use endpoint for now
         StorageClientSettings settings = StorageClientSettings.newBuilder()
-                .addEndpoints(NetUtils.parseEndpoint(stateStorageServiceUrl))
+                .serviceUri(stateStorageServiceUrl)
                 .clientName("function-" + tableNs + "/" + tableName)
                 .build();
 

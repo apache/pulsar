@@ -87,6 +87,9 @@ public class PulsarStandaloneStarter {
     @Parameter(names = {"-fwc", "--functions-worker-conf"}, description = "Configuration file for Functions Worker")
     private String fnWorkerConfigFile = Paths.get("").toAbsolutePath().normalize().toString() + "/conf/functions_worker.yml";
 
+    @Parameter(names = {"-nss", "--no-stream-storage"}, description = "Disable stream storage")
+    private boolean noStreamStorage = false;
+
     @Parameter(names = { "-a", "--advertised-address" }, description = "Standalone broker advertised address")
     private String advertisedAddress = null;
 
@@ -168,7 +171,7 @@ public class PulsarStandaloneStarter {
         if (!onlyBroker) {
             // Start LocalBookKeeper
             bkEnsemble = new LocalBookkeeperEnsemble(numOfBk, zkPort, bkPort, zkDir, bkDir, wipeData, config.getAdvertisedAddress());
-            bkEnsemble.startStandalone();
+            bkEnsemble.startStandalone(!noStreamStorage);
         }
 
         if (noBroker) {
