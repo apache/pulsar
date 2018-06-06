@@ -42,7 +42,8 @@ endif(NOT LIBRARY_VERSION)
 set_target_properties(pulsarStatic PROPERTIES OUTPUT_NAME ${LIB_NAME} VERSION ${LIBRARY_VERSION})
 set_target_properties(pulsarShared PROPERTIES OUTPUT_NAME ${LIB_NAME} VERSION ${LIBRARY_VERSION})
 
-target_link_libraries(pulsarStatic ${COMMON_LIBS})
-target_link_libraries(pulsarShared ${COMMON_LIBS})
-
 add_subdirectory(auth)
+
+target_link_libraries(pulsarStatic ${COMMON_LIBS} authTls authAthenz ztsClientStatic)
+target_link_libraries(pulsarShared ${COMMON_LIBS} authTls authAthenz ztsClientStatic)
+

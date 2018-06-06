@@ -661,6 +661,11 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     @Override
+    public long getEstimatedSizeSinceMarkDeletePosition() {
+        return ledger.estimateBacklogFromPosition(markDeletePosition);
+    }
+
+    @Override
     public long getNumberOfEntriesInBacklog() {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Consumer {} cursor ml-entries: {} -- deleted-counter: {} other counters: mdPos {} rdPos {}",

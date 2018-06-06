@@ -38,6 +38,22 @@ Pulsar's key features include:
 * Multiple [subscription modes](#subscription-modes) for {% popover topics %} ([exclusive](#exclusive), [shared](#shared), and [failover](#failover))
 * Guaranteed message delivery with [persistent message storage](#persistent-storage) provided by [Apache BookKeeper](http://bookkeeper.apache.org/)
 
+## Messages
+
+Messages are the basic "unit" of Pulsar. They're what {% popover producers %} publish to {% popover topics %} and what {% popover consumers %} then consume from topics (and {% popover acknowledge %} when the message has been processed). Messages are the analogue of letters in a postal service system.
+
+Component | Purpose
+:---------|:-------
+Value / data payload | The data carried by the message. All Pulsar messages carry raw bytes, although message data can also conform to data [schemas](#schema-registry)
+Key | Messages can optionally be tagged with keys, which can be useful for things like [topic compaction](#compaction)
+Properties | An optional key/value map of user-defined properties
+Producer name | The name of the {% popover producer %} that produced the message (producers are automatically given default names, but you can apply your own explicitly as well)
+Sequence ID | Each Pulsar message belongs to an ordered sequence on its {% popover topic %}. A message's sequence ID is its ordering in that sequence.
+Publish time | The timestamp of when the message was published (automatically applied by the {% popover producer %})
+Event time | An optional timestamp that applications can attach to the message representing when something happened, e.g. when the message was processed. The event time of a message is 0 if none is explicitly set.
+
+{% include admonition.html type="info" content="For a more in-depth breakdown of Pulsar message contents, see the documentation on Pulsar's [binary protocol](../../reference/BinaryProtocol)." %}
+
 ## Producers, consumers, topics, and subscriptions
 
 Pulsar is built on the [publish-subscribe](https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern) pattern, aka {% popover pub-sub %}. In this pattern, [producers](#producers) publish messages to [topics](#topics). [Consumers](#consumers) can then [subscribe](#subscription-modes) to those topics, process incoming messages, and send an {% popover acknowledgement %} when processing is complete.
@@ -492,11 +508,11 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Reader;
 
-String topic = "persistent://public/default/reader-api-test";
-MessageId id = MessageId.earliest;
-
 // Create a reader on a topic and for a specific message (and onward)
-Reader reader = pulsarClient.createReader(topic, id, new ReaderConfiguration());
+Reader<byte[]> reader = pulsarClient.newReader()
+    .topic("reader-api-test")
+    .startMessageId(MessageId.earliest)
+    .create();
 
 while (true) {
     Message message = reader.readNext();
@@ -508,8 +524,10 @@ while (true) {
 To create a reader that will read from the latest available message:
 
 ```java
-MessageId id = MessageId.latest;
-Reader reader = pulsarClient.createReader(topic, id, new ReaderConfiguration());
+Reader<byte[]> reader = pulsarClient.newReader()
+    .topic(topic)
+    .startMessageId(MessageId.latest)
+    .create();
 ```
 
 To create a reader that will read from some message between earliest and latest:
@@ -517,8 +535,43 @@ To create a reader that will read from some message between earliest and latest:
 ```java
 byte[] msgIdBytes = // Some byte array
 MessageId id = MessageId.fromByteArray(msgIdBytes);
-Reader reader = pulsarClient.createReader(topic, id, new ReaderConfiguration());
+Reader<byte[]> reader = pulsarClient.newReader()
+    .topic(topic)
+    .startMessageId(id)
+    .create();
 ```
+
+## Topic compaction {#compaction}
+
+Pulsar was built with highly scalable [persistent storage](#persistent-storage) of message data as a primary objective. Pulsar {% popover topics %} enable you to persistently store as many unacknowledged messages as you need while preserving message ordering. By default, Pulsar stores *all* unacknowledged/unprocessed messages produced on a topic. Accumulating many unacknowledged messages on a topic is necessary for many Pulsar use cases but it can also be very time intensive for Pulsar {% popover consumers %} to "rewind" through the entire log of messages.
+
+{% include admonition.html type="success" content="For a more practical guide to topic compaction, see the [Topic compaction cookbook](../../cookbooks/compaction)." %}
+
+For some use cases consumers don't need a complete "image" of the topic log. They may only need a few values to construct a more "shallow" image of the log, perhaps even just the most recent value. For these kinds of use cases Pulsar offers **topic compaction**. When you run compaction on a topic, Pulsar goes through a topic's backlog and removes messages that are *obscured* by later messages, i.e. it goes through the topic on a per-key basis and leaves only the most recent message associated with that key.
+
+Pulsar's topic compaction feature:
+
+* Allos for much more efficient "rewind" through topic logs
+* Applies only to [persistent topics](#persistent-storage)
+* Is triggered manually via the command line. See the [Topic compaction cookbook](../../cookbooks/compaction)
+* Is conceptually and operationally distinct from [retention and expiry](#message-retention-and-expiry). Topic compaction *does*, however, respect retention. If retention has removed a message from the message backlog of a topic, the message will also not be readable from the compacted topic ledger.
+
+{% include admonition.html type="info" title="Topic compaction example: the stock ticker"
+   content="An example use case for a compacted Pulsar topic would be a stock ticker topic. On a stock ticker topic, each message bears a timestamped dollar value for stocks for purchase (with the message key holding the stock symbol, e.g. `AAPL` or `GOOG`). With a stock ticker you may care only about the most recent value(s) of the stock and have no interest in historical data (i.e. you don't need to construct a complete image of the topic's sequence of messages per key). Compaction would be highly beneficial in this case because it would keep consumers from needing to rewind through obscured messages." %}
+
+### How topic compaction works
+
+When topic compaction is triggered [via the CLI](../../cookbooks/compaction), Pulsar will iterate over the entire topic from beginning to end. For each key that it encounters the {% popover broker %} responsible will keep a record of the latest occurrence of that key. When this iterative process is finished, the broker will create a [BookKeeper ledger](#ledgers) to store the compacted topic.
+
+After that, the broker will make a second iteration through each message on the topic. For each message, if the key matches the latest occurrence of that key, then the key's data payload, message ID, and metadata will be written to the new BookKeeper ledger (the one that was created when compaction was manually initiated). If the key doesn't match the latest then the message will be skipped and left alone. If any given message has an empty payload, it will be skipped and considered deleted (akin to the concept of [tombstones](https://en.wikipedia.org/wiki/Tombstone_(data_store)) in key-value databases). At the end of this second iteration through the topic, the newly created BookKeeper ledger is closed and two things are written to the topic's metadata: the ID of the BookKeeper ledger and the message ID of the last compacted message (this is known as the **compaction horizon** of the topic). Once this metadata is written compaction is complete.
+
+{% include admonition.html type="info" title="Compaction leaves the original topic intact" %}
+
+In addition to performing compaction, Pulsar {% popover brokers %} listen for changes on each topic's metadata. If the ledger for the topic changes:
+
+* Clients (consumers and readers) that have read compacted enabled will attempt to read messages from a topic and either:
+  * Read from the topic like normal (if the message ID is greater than or equal to the compaction horizon) or
+  * Read beginning at the compaction horizon (if the message ID is lower than the compaction horizon)
 
 ## Schema registry
 

@@ -45,8 +45,8 @@ struct ClientConfigurationImpl {
           logConfFilePath(),
           useTls(false),
           tlsAllowInsecureConnection(true),
-          statsIntervalInSeconds(600) {  // 10 minutes
-    }
+          statsIntervalInSeconds(600),  // 10 minutes
+          loggerFactory() {}
 };
 }  // namespace pulsar
 

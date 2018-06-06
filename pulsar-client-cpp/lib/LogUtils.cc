@@ -25,7 +25,7 @@
 
 namespace pulsar {
 
-void LogUtils::init(const std::string &logfilePath) {
+void LogUtils::init(const std::string& logfilePath) {
 // If this is called explicitely, we fallback to Log4cxx config, if enabled
 
 #ifdef USE_LOG4CXX
@@ -46,6 +46,13 @@ LoggerFactoryPtr LogUtils::getLoggerFactory() {
         s_loggerFactory.reset(new SimpleLoggerFactory());
     }
     return s_loggerFactory;
+}
+
+std::string LogUtils::getLoggerName(const std::string& path) {
+    // Remove all directories from filename
+    int startIdx = path.find_last_of("/");
+    int endIdx = path.find_last_of(".");
+    return path.substr(startIdx + 1, endIdx - startIdx - 1);
 }
 
 }  // namespace pulsar

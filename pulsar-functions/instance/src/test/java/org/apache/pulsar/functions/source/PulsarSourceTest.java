@@ -90,7 +90,6 @@ public class PulsarSourceTest {
     private static PulsarSourceConfig getPulsarConfigs() {
         PulsarSourceConfig pulsarConfig = new PulsarSourceConfig();
         pulsarConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
-        pulsarConfig.setSubscriptionType(FunctionConfig.SubscriptionType.FAILOVER);
         pulsarConfig.setTopicSerdeClassNameMap(topicSerdeClassNameMap);
         pulsarConfig.setTypeClassName(String.class.getName());
         return pulsarConfig;

@@ -298,6 +298,19 @@ SharedBuffer Commands::newRedeliverUnacknowledgedMessages(uint64_t consumerId) {
     return writeMessageWithSize(cmd);
 }
 
+SharedBuffer Commands::newSeek(uint64_t consumerId, uint64_t requestId, const MessageId& messageId) {
+    BaseCommand cmd;
+    cmd.set_type(BaseCommand::SEEK);
+    CommandSeek* commandSeek = cmd.mutable_seek();
+    commandSeek->set_consumer_id(consumerId);
+    commandSeek->set_request_id(requestId);
+
+    MessageIdData& messageIdData = *commandSeek->mutable_message_id();
+    messageIdData.set_ledgerid(messageId.ledgerId());
+    messageIdData.set_entryid(messageId.entryId());
+    return writeMessageWithSize(cmd);
+}
+
 std::string Commands::messageType(BaseCommand_Type type) {
     switch (type) {
         case BaseCommand::CONNECT:
@@ -414,6 +427,10 @@ void Commands::serializeSingleMessageInBatchWithPayload(const Message& msg, Shar
         keyValue->set_key(it->first);
         keyValue->set_value(it->second);
         metadata.mutable_properties()->AddAllocated(keyValue);
+    }
+
+    if (msg.impl_->getEventTimestamp() != 0) {
+        metadata.set_event_time(msg.impl_->getEventTimestamp());
     }
 
     // Format of batch message

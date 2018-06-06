@@ -26,7 +26,7 @@
 pulsar_client_t *pulsar_client_create(const char *serviceUrl,
                                       const pulsar_client_configuration_t *clientConfiguration) {
     pulsar_client_t *c_client = new pulsar_client_t;
-    c_client->client.reset(new pulsar::Client(std::string(serviceUrl)));
+    c_client->client.reset(new pulsar::Client(std::string(serviceUrl), clientConfiguration->conf));
     return c_client;
 }
 

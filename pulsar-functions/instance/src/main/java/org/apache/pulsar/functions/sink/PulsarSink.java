@@ -44,7 +44,6 @@ import org.jboss.util.Classes;
 
 import java.util.Base64;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 public class PulsarSink<T> implements Sink<T> {

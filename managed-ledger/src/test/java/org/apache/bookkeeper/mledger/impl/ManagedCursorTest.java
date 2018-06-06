@@ -2684,6 +2684,29 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(readPosition, cursor.getReadPosition());
         assertEquals(markDeletePosition, cursor.getMarkDeletedPosition());
     }
-    
+
+    @Test
+    public void testEstimatedUnackedSize() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig());
+
+        ManagedCursor cursor = ledger.openCursor("c1");
+
+        byte[] entryData = new byte[5];
+
+        // write 15 entries, saving position of 5th
+        for (int i = 0; i < 4; i++) { ledger.addEntry(entryData); }
+        Position deleteAt = ledger.addEntry(entryData);
+        for (int i = 0; i < 10; i++) { ledger.addEntry(entryData); }
+
+        assertEquals(cursor.getEstimatedSizeSinceMarkDeletePosition(), 15 * entryData.length);
+
+        cursor.markDelete(deleteAt);
+
+        // it's not an estimate if all entries are the same size
+        assertEquals(cursor.getEstimatedSizeSinceMarkDeletePosition(), 10 * entryData.length);
+    }
+
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);
 }

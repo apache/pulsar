@@ -37,6 +37,7 @@ import net.jodah.typetools.TypeResolver;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageListener;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -47,6 +48,7 @@ import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.utils.FunctionConfig;
+import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.io.core.Record;
 import org.apache.pulsar.io.core.Source;
 import org.jboss.util.Classes;
@@ -74,13 +76,17 @@ public class PulsarSource<T> implements Source<T>, MessageListener<T> {
 
         inputConsumers = Maps.newHashMap();
         for (Map.Entry<String, SerDe<T>> entry : topicToSerDeMap.entrySet()) {
-            inputConsumers.put(entry.getKey(),
-                this.pulsarClient.newConsumer(entry.getValue())
-                    .subscriptionName(this.pulsarSourceConfig.getSubscriptionName())
-                    .subscriptionType(this.pulsarSourceConfig.getSubscriptionType().get())
-                    .ackTimeout(1, TimeUnit.MINUTES)
-                    .messageListener(this)
-                    .subscribe());
+            ConsumerBuilder<T> consumerBuilder = this.pulsarClient.newConsumer(entry.getValue())
+                .subscriptionName(this.pulsarSourceConfig.getSubscriptionName())
+                .subscriptionType(this.pulsarSourceConfig.getSubscriptionType().get())
+                .ackTimeout(1, TimeUnit.MINUTES)
+                .messageListener(this);
+
+            if (pulsarSourceConfig.getTimeoutMs() != null) {
+                consumerBuilder.ackTimeout(pulsarSourceConfig.getTimeoutMs(), TimeUnit.MILLISECONDS);
+            }
+
+            inputConsumers.put(entry.getKey(),consumerBuilder.subscribe());
         }
 
     }
@@ -121,7 +127,7 @@ public class PulsarSource<T> implements Source<T>, MessageListener<T> {
             .value(input)
             .messageId(message.getMessageId())
             .partitionId(String.format("%s-%s", topicName, partitionId))
-            .sequenceId(message.getSequenceId())
+            .recordSequence(Utils.getSequenceId(message.getMessageId()))
             .topicName(topicName)
             .ackFunction(() -> {
                 if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {

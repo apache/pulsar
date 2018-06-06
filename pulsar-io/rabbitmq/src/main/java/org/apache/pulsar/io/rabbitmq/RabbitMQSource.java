@@ -41,7 +41,6 @@ public class RabbitMQSource extends PushSource<byte[]> {
 
     private static Logger logger = LoggerFactory.getLogger(RabbitMQSource.class);
 
-    private Consumer<Record<byte[]>> consumer;
     private Connection rabbitMQConnection;
     private Channel rabbitMQChannel;
     private RabbitMQConfig rabbitMQConfig;
@@ -62,14 +61,9 @@ public class RabbitMQSource extends PushSource<byte[]> {
         );
         rabbitMQChannel = rabbitMQConnection.createChannel();
         rabbitMQChannel.queueDeclare(rabbitMQConfig.getQueueName(), false, false, false, null);
-        com.rabbitmq.client.Consumer consumer = new RabbitMQConsumer(this.consumer, rabbitMQChannel);
+        com.rabbitmq.client.Consumer consumer = new RabbitMQConsumer(this, rabbitMQChannel);
         rabbitMQChannel.basicConsume(rabbitMQConfig.getQueueName(), consumer);
         logger.info("A consumer for queue {} has been successfully started.", rabbitMQConfig.getQueueName());
-    }
-
-    @Override
-    public void setConsumer(Consumer<Record<byte[]>> consumer) {
-        this.consumer = consumer;
     }
 
     @Override
@@ -79,16 +73,16 @@ public class RabbitMQSource extends PushSource<byte[]> {
     }
 
     private class RabbitMQConsumer extends DefaultConsumer {
-        private Consumer<Record<byte[]>> consumeFunction;
+        private RabbitMQSource source;
 
-        public RabbitMQConsumer(Consumer<Record<byte[]>> consumeFunction, Channel channel) {
+        public RabbitMQConsumer(RabbitMQSource source, Channel channel) {
             super(channel);
-            this.consumeFunction = consumeFunction;
+            this.source = source;
         }
 
         @Override
         public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
-            consumeFunction.accept(new RabbitMQRecord(body));
+            source.consume(new RabbitMQRecord(body));
         }
     }
 
