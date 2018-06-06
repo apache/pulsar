@@ -18,16 +18,27 @@
  */
 package org.apache.pulsar.functions.source;
 
+import static java.util.stream.Collectors.toList;
+
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
-import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
@@ -41,31 +52,15 @@ import org.apache.pulsar.io.core.Source;
 import org.jboss.util.Classes;
 
 @Slf4j
-public class PulsarSource<T> implements Source<T> {
+public class PulsarSource<T> implements Source<T>, MessageListener<T> {
 
     private PulsarClient pulsarClient;
     private PulsarSourceConfig pulsarSourceConfig;
     private Map<String, SerDe<T>> topicToSerDeMap = new HashMap<>();
 
-    private final Schema<T> emptySchema = new Schema<T>() {
-        @Override
-        public byte[] encode(T message) {
-            return new byte[0];
-        }
+    private Map<String, org.apache.pulsar.client.api.Consumer<T>> inputConsumers;
 
-        @Override
-        public T decode(byte[] bytes) {
-            return null;
-        }
-
-        @Override
-        public SchemaInfo getSchemaInfo() {
-            return null;
-        }
-    };
-
-    @Getter
-    private org.apache.pulsar.client.api.Consumer inputConsumer;
+    private ArrayBlockingQueue<Record<T>> recordsQueue = new ArrayBlockingQueue<>(1000);
 
     public PulsarSource(PulsarClient pulsarClient, PulsarSourceConfig pulsarConfig) {
         this.pulsarClient = pulsarClient;
@@ -77,24 +72,21 @@ public class PulsarSource<T> implements Source<T> {
         // Setup Serialization/Deserialization
         setupSerDe();
 
-        // Setup pulsar consumer
-        ConsumerBuilder<T> consumerBuilder =
-            this.pulsarClient.newConsumer(emptySchema)
-                .subscriptionName(this.pulsarSourceConfig.getSubscriptionName())
-                .subscriptionType(this.pulsarSourceConfig.getSubscriptionType().get())
-                .ackTimeout(1, TimeUnit.MINUTES);
-
-        topicToSerDeMap.forEach(consumerBuilder::addTopic);
-
-        this.inputConsumer = consumerBuilder.subscribe();
-
+        inputConsumers = Maps.newHashMap();
+        for (Map.Entry<String, SerDe<T>> entry : topicToSerDeMap.entrySet()) {
+            inputConsumers.put(entry.getKey(),
+                this.pulsarClient.newConsumer(entry.getValue())
+                    .subscriptionName(this.pulsarSourceConfig.getSubscriptionName())
+                    .subscriptionType(this.pulsarSourceConfig.getSubscriptionType().get())
+                    .ackTimeout(1, TimeUnit.MINUTES)
+                    .messageListener(this)
+                    .subscribe());
+        }
 
     }
 
     @Override
-    public Record<T> read() throws Exception {
-        org.apache.pulsar.client.api.Message<T> message = this.inputConsumer.receive();
-
+    public void received(Consumer<T> consumer, Message<T> message) {
         String topicName;
         String partitionId;
 
@@ -126,31 +118,52 @@ public class PulsarSource<T> implements Source<T> {
         }
 
         PulsarRecord<T> pulsarMessage = (PulsarRecord<T>) PulsarRecord.builder()
-                .value(input)
-                .messageId(message.getMessageId())
-                .partitionId(String.format("%s-%s", topicName, partitionId))
-                .sequenceId(message.getSequenceId())
-                .topicName(topicName)
-                .ackFunction(() -> {
-                    if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
-                        inputConsumer.acknowledgeCumulativeAsync(message);
-                    } else {
-                        inputConsumer.acknowledgeAsync(message);
-                    }
-                }).failFunction(() -> {
-                    if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
-                        throw new RuntimeException("Failed to process message: " + message.getMessageId());
-                    }
-                })
-                .build();
-        return pulsarMessage;
+            .value(input)
+            .messageId(message.getMessageId())
+            .partitionId(String.format("%s-%s", topicName, partitionId))
+            .sequenceId(message.getSequenceId())
+            .topicName(topicName)
+            .ackFunction(() -> {
+                if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+                    consumer.acknowledgeCumulativeAsync(message);
+                } else {
+                    consumer.acknowledgeAsync(message);
+                }
+            }).failFunction(() -> {
+                if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+                    throw new RuntimeException("Failed to process message: " + message.getMessageId());
+                }
+            })
+            .build();
+
+        try {
+            recordsQueue.put(pulsarMessage);
+        } catch (InterruptedException e) {
+        }
+    }
+
+    public Consumer<T> getConsumerForTopic(String topic) {
+        return inputConsumers.get(topic);
+    }
+
+    @Override
+    public void reachedEndOfTopic(Consumer<T> consumer) {
+        //No-op
+    }
+
+    @Override
+    public Record<T> read() throws Exception {
+        return recordsQueue.take();
     }
 
     @Override
     public void close() throws Exception {
-        if (this.inputConsumer != null) {
-            this.inputConsumer.close();
-        }
+        inputConsumers.forEach((ignored, consumer) -> {
+            try {
+                consumer.close();
+            } catch (PulsarClientException e) {
+            }
+        });
     }
 
     @VisibleForTesting

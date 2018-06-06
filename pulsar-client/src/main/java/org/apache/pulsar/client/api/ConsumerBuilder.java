@@ -95,11 +95,6 @@ public interface ConsumerBuilder<T> extends Serializable, Cloneable {
     ConsumerBuilder<T> topics(List<String> topicNames);
 
     /**
-     *
-     */
-    ConsumerBuilder<T> addTopic(String topicName, Schema<T> schema);
-
-    /**
      * Specify a pattern for topics that this consumer will subscribe on.
      * <p>
      *

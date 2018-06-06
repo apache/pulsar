@@ -22,26 +22,28 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import java.io.Serializable;
-import java.util.Map;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Pattern;
+
 import lombok.Data;
+
+import java.util.regex.Pattern;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.MessageListener;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 
 @Data
 public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private static final long serialVersionUID = 1L;
 
-    private Map<String, Schema<T>> topicNames = Maps.newHashMap();
+    private Set<String> topicNames = Sets.newTreeSet();
 
     private Pattern topicsPattern;
 
@@ -83,14 +85,14 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     @JsonIgnore
     public String getSingleTopic() {
         checkArgument(topicNames.size() == 1);
-        return topicNames.keySet().iterator().next();
+        return topicNames.iterator().next();
     }
 
     public ConsumerConfigurationData<T> clone() {
         try {
             @SuppressWarnings("unchecked")
             ConsumerConfigurationData<T> c = (ConsumerConfigurationData<T>) super.clone();
-            c.topicNames = Maps.newHashMap(this.topicNames);
+            c.topicNames = Sets.newTreeSet(this.topicNames);
             c.properties = Maps.newTreeMap(this.properties);
             return c;
         } catch (CloneNotSupportedException e) {

@@ -50,7 +50,7 @@ public class RawReaderImpl implements RawReader {
     public RawReaderImpl(PulsarClientImpl client, String topic, String subscription,
                          CompletableFuture<Consumer<byte[]>> consumerFuture) {
         consumerConfiguration = new ConsumerConfigurationData<>();
-        consumerConfiguration.getTopicNames().put(topic, Schema.BYTES);
+        consumerConfiguration.getTopicNames().add(topic);
         consumerConfiguration.setSubscriptionName(subscription);
         consumerConfiguration.setSubscriptionType(SubscriptionType.Exclusive);
         consumerConfiguration.setReceiverQueueSize(DEFAULT_RECEIVER_QUEUE_SIZE);
@@ -62,7 +62,7 @@ public class RawReaderImpl implements RawReader {
 
     @Override
     public String getTopic() {
-        return consumerConfiguration.getTopicNames().keySet().stream()
+        return consumerConfiguration.getTopicNames().stream()
             .findFirst().orElse(null);
     }
 

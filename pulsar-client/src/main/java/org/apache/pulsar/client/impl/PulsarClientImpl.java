@@ -302,7 +302,7 @@ public class PulsarClientImpl implements PulsarClient {
     @Override
     public CompletableFuture<Consumer<byte[]>> subscribeAsync(String topic, String subscription) {
         ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
-        conf.getTopicNames().put(topic, Schema.BYTES);
+        conf.getTopicNames().add(topic);
         conf.setSubscriptionName(subscription);
         return subscribeAsync(conf);
     }
@@ -316,7 +316,7 @@ public class PulsarClientImpl implements PulsarClient {
         }
 
         ConsumerConfigurationData<byte[]> confData = conf.getConfigurationData().clone();
-        confData.getTopicNames().put(topic, Schema.BYTES);
+        confData.getTopicNames().add(topic);
         confData.setSubscriptionName(subscription);
         return subscribeAsync(confData);
     }
@@ -335,7 +335,7 @@ public class PulsarClientImpl implements PulsarClient {
                     new PulsarClientException.InvalidConfigurationException("Consumer configuration undefined"));
         }
 
-        if (!conf.getTopicNames().keySet().stream().allMatch(TopicName::isValid)) {
+        if (!conf.getTopicNames().stream().allMatch(TopicName::isValid)) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidTopicNameException("Invalid topic name"));
         }
 
@@ -344,7 +344,7 @@ public class PulsarClientImpl implements PulsarClient {
                     .failedFuture(new PulsarClientException.InvalidConfigurationException("Empty subscription name"));
         }
 
-        if (conf.isReadCompacted() && (!conf.getTopicNames().keySet().stream()
+        if (conf.isReadCompacted() && (!conf.getTopicNames().stream()
                 .allMatch(topic -> TopicName.get(topic).getDomain() == TopicDomain.persistent)
                 || (conf.getSubscriptionType() != SubscriptionType.Exclusive
                         && conf.getSubscriptionType() != SubscriptionType.Failover))) {
@@ -436,9 +436,7 @@ public class PulsarClientImpl implements PulsarClient {
                 }
 
                 List<String> topicsList = topicsPatternFilter(topics, conf.getTopicsPattern());
-                topicsList.forEach(topicName ->
-                    conf.getTopicNames().put(topicName, schema)
-                );
+                conf.getTopicNames().addAll(topicsList);
                 ConsumerBase<T> consumer = new PatternMultiTopicsConsumerImpl<>(conf.getTopicsPattern(),
                     PulsarClientImpl.this,
                     conf,

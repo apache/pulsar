@@ -19,16 +19,14 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Strings.isNullOrEmpty;
 
-import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
-import lombok.NonNull;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -43,6 +41,10 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.util.FutureUtil;
+
+import com.google.common.collect.Lists;
+
+import lombok.NonNull;
 
 public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
@@ -104,25 +106,14 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     @Override
     public ConsumerBuilder<T> topic(String... topicNames) {
         checkArgument(topicNames.length > 0, "Passed in topicNames should not be empty.");
-        Lists.newArrayList(topicNames).forEach(topicName ->
-            conf.getTopicNames().put(topicName, schema)
-        );
+        conf.getTopicNames().addAll(Lists.newArrayList(topicNames));
         return this;
     }
 
     @Override
     public ConsumerBuilder<T> topics(List<String> topicNames) {
         checkArgument(topicNames != null && !topicNames.isEmpty(), "Passed in topicNames list should not be empty.");
-        Lists.newArrayList(topicNames).forEach(topicName ->
-            conf.getTopicNames().put(topicName, schema)
-        );
-        return this;
-    }
-
-    @Override
-    public ConsumerBuilder<T> addTopic(String topicName, Schema<T> schema) {
-        checkArgument(!isNullOrEmpty(topicName), "Passed in topicName should not be empty");
-        conf.getTopicNames().put(topicName, schema);
+        conf.getTopicNames().addAll(topicNames);
         return this;
     }
 

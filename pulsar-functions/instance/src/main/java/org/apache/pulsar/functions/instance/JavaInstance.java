@@ -38,9 +38,14 @@ import org.slf4j.LoggerFactory;
  */
 @Slf4j
 public class JavaInstance implements AutoCloseable {
+    private final InstanceConfig config;
+    private final Source source;
+    private final Logger instanceLog;
+    private final ClassLoader clsLoader;
+    private final PulsarClient pulsarClient;
 
     @Getter(AccessLevel.PACKAGE)
-    private final ContextImpl context;
+    private ContextImpl context;
     private Function function;
     private java.util.function.Function javaUtilFunction;
 
@@ -49,14 +54,11 @@ public class JavaInstance implements AutoCloseable {
                  PulsarClient pulsarClient,
                  Source source) {
         // TODO: cache logger instances by functions?
-        Logger instanceLog = LoggerFactory.getLogger("function-" + config.getFunctionDetails().getName());
-
-        if (source instanceof PulsarSource) {
-            this.context = new ContextImpl(config, instanceLog, pulsarClient, clsLoader,
-                    ((PulsarSource) source).getInputConsumer());
-        } else {
-            this.context = null;
-        }
+        this.config = config;
+        this.clsLoader = clsLoader;
+        this.pulsarClient = pulsarClient;
+        this.source = source;
+        this.instanceLog = LoggerFactory.getLogger("function-" + config.getFunctionDetails().getName());
 
         // create the functions
         if (userClassObject instanceof Function) {
@@ -67,6 +69,13 @@ public class JavaInstance implements AutoCloseable {
     }
 
     public JavaExecutionResult handleMessage(MessageId messageId, String topicName, Object input) {
+        if (source instanceof PulsarSource) {
+            this.context = new ContextImpl(config, instanceLog, pulsarClient, clsLoader,
+                ((PulsarSource) source).getConsumerForTopic(topicName));
+        } else {
+            this.context = null;
+        }
+
         if (context != null) {
             context.setCurrentMessageContext(messageId, topicName);
         }

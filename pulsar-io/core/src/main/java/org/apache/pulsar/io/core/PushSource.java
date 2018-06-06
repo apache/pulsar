@@ -41,14 +41,11 @@ public abstract class PushSource<T> implements Source<T> {
 
     public PushSource() {
         this.queue = new LinkedBlockingQueue<>(this.getQueueLength());
-        this.setConsumer(new Consumer<Record<T>>() {
-            @Override
-            public void accept(Record<T> record) {
-                try {
-                    queue.put(record);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
+        this.setConsumer(record -> {
+            try {
+                queue.put(record);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
             }
         });
     }
