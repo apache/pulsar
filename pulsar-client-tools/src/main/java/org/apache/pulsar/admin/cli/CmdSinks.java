@@ -305,9 +305,7 @@ public class CmdSinks extends CmdBase {
             // source spec classname should be empty so that the default pulsar source will be used
             SourceSpec.Builder sourceSpecBuilder = SourceSpec.newBuilder();
             sourceSpecBuilder.setSubscriptionType(Function.SubscriptionType.SHARED);
-            if (sinkConfig.getTopicToSerdeClassName() != null) {
-                sourceSpecBuilder.putAllTopicsToSerDeClassName(sinkConfig.getTopicToSerdeClassName());
-            }
+            sourceSpecBuilder.putAllTopicsToSerDeClassName(sinkConfig.getTopicToSerdeClassName());
             if (sinkConfig.getTopicsPattern() != null) {
                 sourceSpecBuilder.setTopicsPattern(sinkConfig.getTopicsPattern());
             }
