@@ -78,6 +78,8 @@ public class FunctionConfig {
     @isMapEntryCustom(keyValidatorClasses = { ValidatorImpls.TopicNameValidator.class }, targetRuntime = ConfigValidation.Runtime.PYTHON)
     private Map<String, String> customSerdeInputs;
     @isValidTopicName
+    private String topicsPattern;
+    @isValidTopicName
     private String output;
     @isImplementationOfClass(implementsClass = SerDe.class)
     private String outputSerdeClassName;
