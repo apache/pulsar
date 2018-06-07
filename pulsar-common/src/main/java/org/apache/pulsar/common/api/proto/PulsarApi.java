@@ -319,11 +319,15 @@ public final class PulsarApi {
       None(0, 0),
       String(1, 1),
       Json(2, 2),
+      Protobuf(3, 3),
+      Avro(4, 4),
       ;
       
       public static final int None_VALUE = 0;
       public static final int String_VALUE = 1;
       public static final int Json_VALUE = 2;
+      public static final int Protobuf_VALUE = 3;
+      public static final int Avro_VALUE = 4;
       
       
       public final int getNumber() { return value; }
@@ -333,6 +337,8 @@ public final class PulsarApi {
           case 0: return None;
           case 1: return String;
           case 2: return Json;
+          case 3: return Protobuf;
+          case 4: return Avro;
           default: return null;
         }
       }
