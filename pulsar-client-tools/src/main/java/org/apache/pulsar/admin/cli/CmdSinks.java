@@ -305,8 +305,12 @@ public class CmdSinks extends CmdBase {
             // source spec classname should be empty so that the default pulsar source will be used
             SourceSpec.Builder sourceSpecBuilder = SourceSpec.newBuilder();
             sourceSpecBuilder.setSubscriptionType(Function.SubscriptionType.SHARED);
-            sourceSpecBuilder.putAllTopicsToSerDeClassName(sinkConfig.getTopicToSerdeClassName());
-            sourceSpecBuilder.setTopicsPattern(sinkConfig.getTopicsPattern());
+            if (sinkConfig.getTopicToSerdeClassName() != null) {
+                sourceSpecBuilder.putAllTopicsToSerDeClassName(sinkConfig.getTopicToSerdeClassName());
+            }
+            if (sinkConfig.getTopicsPattern() != null) {
+                sourceSpecBuilder.setTopicsPattern(sinkConfig.getTopicsPattern());
+            }
             sourceSpecBuilder.setTypeClassName(typeArg.getName());
             functionDetailsBuilder.setAutoAck(true);
             functionDetailsBuilder.setSource(sourceSpecBuilder);
@@ -314,7 +318,9 @@ public class CmdSinks extends CmdBase {
             // set up sink spec
             SinkSpec.Builder sinkSpecBuilder = SinkSpec.newBuilder();
             sinkSpecBuilder.setClassName(sinkConfig.getClassName());
-            sinkSpecBuilder.setConfigs(new Gson().toJson(sinkConfig.getConfigs()));
+            if (sinkConfig.getConfigs() != null) {
+                sinkSpecBuilder.setConfigs(new Gson().toJson(sinkConfig.getConfigs()));
+            }
             sinkSpecBuilder.setTypeClassName(typeArg.getName());
             functionDetailsBuilder.setSink(sinkSpecBuilder);
 
