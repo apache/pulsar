@@ -80,7 +80,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
         return functions.registerFunction(
             tenant, namespace, functionName, uploadedInputStream, fileDetail, functionPkgUrl, functionDetailsJson);
     }
-    
+
     @PUT
     @ApiOperation(value = "Updates a Pulsar Function currently running in cluster mode")
     @ApiResponses(value = {
