@@ -23,8 +23,12 @@ import com.google.common.annotations.VisibleForTesting;
 
 import lombok.extern.slf4j.Slf4j;
 
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManagerImpl;
@@ -41,26 +45,37 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     private final String storageServiceUrl;
     private volatile boolean closed;
 
-    public ThreadRuntimeFactory(String threadGroupName,
-                                String pulsarServiceUrl,
-                                String storageServiceUrl)
-            throws Exception {
-        this(
-            threadGroupName,
-            pulsarServiceUrl != null ? PulsarClient.builder().serviceUrl(pulsarServiceUrl).build() : null,
-            storageServiceUrl);
+    public ThreadRuntimeFactory(String threadGroupName, String pulsarServiceUrl, String storageServiceUrl,
+            String clientAuthenticationPlugin, String clientAuthenticationParameters, boolean useTls,
+            boolean tlsAllowInsecureConnection) throws Exception {
+        this(threadGroupName, createPulsarClient(pulsarServiceUrl, clientAuthenticationPlugin,
+                clientAuthenticationParameters, useTls, tlsAllowInsecureConnection), storageServiceUrl);
     }
 
     @VisibleForTesting
-    ThreadRuntimeFactory(String threadGroupName,
-                         PulsarClient pulsarClient,
-                         String storageServiceUrl) {
+    ThreadRuntimeFactory(String threadGroupName, PulsarClient pulsarClient, String storageServiceUrl) {
         this.fnCache = new FunctionCacheManagerImpl();
         this.threadGroup = new ThreadGroup(threadGroupName);
         this.pulsarClient = pulsarClient;
         this.storageServiceUrl = storageServiceUrl;
     }
 
+    private static PulsarClient createPulsarClient(String pulsarServiceUrl, String clientAuthenticationPlugin,
+            String clientAuthenticationParameters, boolean useTls, boolean tlsAllowInsecureConnection)
+            throws PulsarClientException {
+        ClientBuilder clientBuilder = null;
+        if (isNotBlank(pulsarServiceUrl)) {
+            clientBuilder = PulsarClient.builder().serviceUrl(pulsarServiceUrl);
+            if (isNotBlank(clientAuthenticationPlugin) && isNotBlank(clientAuthenticationParameters)) {
+                clientBuilder.authentication(clientAuthenticationPlugin, clientAuthenticationParameters);
+            }
+            clientBuilder.enableTls(useTls);
+            clientBuilder.allowTlsInsecureConnection(tlsAllowInsecureConnection);
+            return clientBuilder.build();
+        }
+        return null;
+    }
+    
     @Override
     public ThreadRuntime createContainer(InstanceConfig instanceConfig, String jarFile) {
         return new ThreadRuntime(

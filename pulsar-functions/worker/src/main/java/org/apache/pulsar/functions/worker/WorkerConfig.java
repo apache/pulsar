@@ -63,6 +63,11 @@ public class WorkerConfig implements Serializable {
     private int initialBrokerReconnectMaxRetries;
     private int assignmentWriteMaxRetries;
     private long instanceLivenessCheckFreqMs;
+    private String clientAuthenticationPlugin;
+    private String clientAuthenticationParameters;
+    private boolean useTls = false;
+    private String tlsTrustCertsFilePath = "";
+    private boolean tlsAllowInsecureConnection = false;
 
     @Data
     @Setter

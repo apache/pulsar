@@ -51,6 +51,7 @@ import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.Resources;
@@ -642,11 +643,23 @@ public class CmdFunctions extends CmdBase {
 
         @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker")
         protected String brokerServiceUrl;
+        
+        @Parameter(names = "--clientAuthPlugin", description = "Client authentication plugin using which function-process can connect to broker")
+        protected String clientAuthPlugin;
+        
+        @Parameter(names = "--clientAuthParams", description = "Client authentication param")
+        protected String clientAuthParams;
+        
+        @Parameter(names = "--use_tls", description = "Use tls connection\n")
+        protected boolean useTls;
+
+        @Parameter(names = "--tls_allow_insecure", description = "Allow insecure tls connection\n")
+        protected boolean tlsAllowInsecureConnection;
 
         @Override
         void runCmd() throws Exception {
             CmdFunctions.startLocalRun(convertProto2(functionConfig),
-                    functionConfig.getParallelism(), brokerServiceUrl, userCodeFile, admin);
+                    functionConfig.getParallelism(), brokerServiceUrl, clientAuthPlugin, clientAuthParams, useTls, tlsAllowInsecureConnection, userCodeFile, admin);
         }
     }
 
@@ -911,7 +924,8 @@ public class CmdFunctions extends CmdBase {
     }
 
     protected static void startLocalRun(org.apache.pulsar.functions.proto.Function.FunctionDetails functionDetails,
-                                        int parallelism, String brokerServiceUrl, String userCodeFile, PulsarAdmin admin)
+            int parallelism, String brokerServiceUrl, String clientAuthPlugin, String clientAuthParam, boolean useTls, boolean allowInsecureConnection,
+            String userCodeFile, PulsarAdmin admin)
             throws Exception {
 
         String serviceUrl = admin.getServiceUrl();
@@ -922,7 +936,7 @@ public class CmdFunctions extends CmdBase {
             serviceUrl = DEFAULT_SERVICE_URL;
         }
         try (ProcessRuntimeFactory containerFactory = new ProcessRuntimeFactory(
-                serviceUrl, null, null, null)) {
+                serviceUrl, clientAuthPlugin, clientAuthParam, useTls, allowInsecureConnection, null, null, null)) {
             List<RuntimeSpawner> spawners = new LinkedList<>();
             for (int i = 0; i < parallelism; ++i) {
                 InstanceConfig instanceConfig = new InstanceConfig();
