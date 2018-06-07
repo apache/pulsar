@@ -38,6 +38,7 @@ public class PulsarSourceConfig {
     SubscriptionType subscriptionType;
     private String subscriptionName;
     private Map<String, String> topicSerdeClassNameMap;
+    private String topicsPattern;
     private String typeClassName;
     private Long timeoutMs;
 
