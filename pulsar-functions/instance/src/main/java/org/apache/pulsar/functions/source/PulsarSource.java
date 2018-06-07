@@ -18,21 +18,12 @@
  */
 package org.apache.pulsar.functions.source;
 
-import static java.util.stream.Collectors.toList;
-
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
 import org.apache.pulsar.client.api.Consumer;
@@ -46,18 +37,17 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
+import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.shade.org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.Utils;
-import org.apache.pulsar.io.core.Record;
-import org.apache.pulsar.io.core.Source;
 import org.jboss.util.Classes;
 
 @Slf4j
-public class PulsarSource<T> implements Source<T>, MessageListener<T> {
+public class PulsarSource<T> extends PushSource<T> implements MessageListener<T> {
 
     private PulsarClient pulsarClient;
     private PulsarSourceConfig pulsarSourceConfig;
@@ -65,8 +55,6 @@ public class PulsarSource<T> implements Source<T>, MessageListener<T> {
     private Map<String, SerDe<T>> topicToSerDeMap = new HashMap<>();
 
     private Map<String, org.apache.pulsar.client.api.Consumer<T>> inputConsumers;
-
-    private ArrayBlockingQueue<Record<T>> recordsQueue = new ArrayBlockingQueue<>(1000);
 
     public PulsarSource(PulsarClient pulsarClient, PulsarSourceConfig pulsarConfig) {
         this.pulsarClient = pulsarClient;
@@ -163,10 +151,7 @@ public class PulsarSource<T> implements Source<T>, MessageListener<T> {
             })
             .build();
 
-        try {
-            recordsQueue.put(pulsarMessage);
-        } catch (InterruptedException e) {
-        }
+        consume(pulsarMessage);
     }
 
     public Consumer<T> getConsumerForTopic(String topic) {
@@ -176,11 +161,6 @@ public class PulsarSource<T> implements Source<T>, MessageListener<T> {
     @Override
     public void reachedEndOfTopic(Consumer<T> consumer) {
         //No-op
-    }
-
-    @Override
-    public Record<T> read() throws Exception {
-        return recordsQueue.take();
     }
 
     @Override

@@ -18,16 +18,21 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.proto.InstanceCommunication;
-import org.apache.pulsar.io.core.Source;
-
+import org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData;
 import org.apache.pulsar.functions.source.PulsarSource;
+import org.apache.pulsar.io.core.Source;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,26 +43,20 @@ import org.slf4j.LoggerFactory;
  */
 @Slf4j
 public class JavaInstance implements AutoCloseable {
-    private final InstanceConfig config;
-    private final Source source;
     private final Logger instanceLog;
-    private final ClassLoader clsLoader;
-    private final PulsarClient pulsarClient;
+    private ContextImpl context;
 
     @Getter(AccessLevel.PACKAGE)
-    private ContextImpl context;
     private Function function;
     private java.util.function.Function javaUtilFunction;
+
+    private LoadingCache<String, ContextImpl> contextCache;
 
     public JavaInstance(InstanceConfig config, Object userClassObject,
                  ClassLoader clsLoader,
                  PulsarClient pulsarClient,
                  Source source) {
         // TODO: cache logger instances by functions?
-        this.config = config;
-        this.clsLoader = clsLoader;
-        this.pulsarClient = pulsarClient;
-        this.source = source;
         this.instanceLog = LoggerFactory.getLogger("function-" + config.getFunctionDetails().getName());
 
         // create the functions
@@ -66,18 +65,31 @@ public class JavaInstance implements AutoCloseable {
         } else {
             this.javaUtilFunction = (java.util.function.Function) userClassObject;
         }
+
+        this.contextCache = CacheBuilder.newBuilder().build(new CacheLoader<String, ContextImpl>() {
+            @Override
+            public ContextImpl load(String topicName) throws Exception {
+                if (source instanceof PulsarSource) {
+                    return new ContextImpl(config, instanceLog, pulsarClient, clsLoader,
+                        ((PulsarSource) source).getConsumerForTopic(topicName));
+                } else {
+                    return null;
+                }
+            }
+        });
+
     }
 
     public JavaExecutionResult handleMessage(MessageId messageId, String topicName, Object input) {
-        if (source instanceof PulsarSource) {
-            this.context = new ContextImpl(config, instanceLog, pulsarClient, clsLoader,
-                ((PulsarSource) source).getConsumerForTopic(topicName));
-        } else {
-            this.context = null;
+        this.context = null;
+        try {
+            this.context = contextCache.get(topicName);
+        } catch (ExecutionException e) {
+            log.warn("Problem creating context", e);
         }
 
-        if (context != null) {
-            context.setCurrentMessageContext(messageId, topicName);
+        if (this.context != null) {
+            this.context.setCurrentMessageContext(messageId, topicName);
         }
         JavaExecutionResult executionResult = new JavaExecutionResult();
         try {
@@ -94,11 +106,32 @@ public class JavaInstance implements AutoCloseable {
         return executionResult;
     }
 
-    @Override
-    public void close() {
+    public ContextImpl getContext() {
+        return this.context;
     }
 
-    public InstanceCommunication.MetricsData getAndResetMetrics() {
-        return context.getAndResetMetrics();
+    @Override
+    public void close() {
+        contextCache.invalidateAll();
+    }
+
+    public MetricsData getAndResetMetrics() {
+        Map<String, MetricsData.DataDigest> aggregated = new HashMap<>();
+        for (ContextImpl context : contextCache.asMap().values()) {
+            MetricsData metrics = context.getAndResetMetrics();
+            for (Map.Entry<String, MetricsData.DataDigest> metric : metrics.getMetricsMap().entrySet()) {
+                if (aggregated.containsKey(metric.getKey())) {
+                    MetricsData.DataDigest existing = aggregated.get(metric.getKey());
+                    aggregated.put(metric.getKey(), MetricsData.DataDigest.newBuilder()
+                        .setCount(existing.getCount() + metric.getValue().getCount())
+                        .setMax(existing.getMax() + metric.getValue().getMax())
+                        .setMin(existing.getMin() + metric.getValue().getMin())
+                        .setSum(existing.getSum() + metric.getValue().getSum())
+                        .build()
+                    );
+                }
+            }
+        }
+        return MetricsData.newBuilder().putAllMetrics(aggregated).build();
     }
 }
