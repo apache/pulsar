@@ -39,9 +39,9 @@ import java.util.concurrent.CompletableFuture;
  * A Simple abstract class for Cassandra sink
  * Users need to implement extractKeyValue function to use this sink
  */
-public abstract class CassandraSink<K, V> extends SimpleSink<byte[]> {
+public abstract class CassandraAbstractSink<K, V> extends SimpleSink<byte[]> {
 
-    private static final Logger LOG = LoggerFactory.getLogger(CassandraSink.class);
+    private static final Logger LOG = LoggerFactory.getLogger(CassandraAbstractSink.class);
 
     // ----- Runtime fields
     private Cluster cluster;
