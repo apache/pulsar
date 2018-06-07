@@ -280,7 +280,9 @@ public class CmdSources extends CmdBase {
             // set source spec
             SourceSpec.Builder sourceSpecBuilder = SourceSpec.newBuilder();
             sourceSpecBuilder.setClassName(sourceConfig.getClassName());
-            sourceSpecBuilder.setConfigs(new Gson().toJson(sourceConfig.getConfigs()));
+            if (sourceConfig.getConfigs() != null) {
+                sourceSpecBuilder.setConfigs(new Gson().toJson(sourceConfig.getConfigs()));
+            }
             sourceSpecBuilder.setTypeClassName(typeArg.getName());
             functionDetailsBuilder.setSource(sourceSpecBuilder);
 

@@ -23,6 +23,7 @@ import static java.util.stream.Collectors.toList;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +38,8 @@ import net.jodah.typetools.TypeResolver;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageListener;
+
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -58,6 +61,7 @@ public class PulsarSource<T> implements Source<T>, MessageListener<T> {
 
     private PulsarClient pulsarClient;
     private PulsarSourceConfig pulsarSourceConfig;
+    private boolean isTopicsPattern;
     private Map<String, SerDe<T>> topicToSerDeMap = new HashMap<>();
 
     private Map<String, org.apache.pulsar.client.api.Consumer<T>> inputConsumers;
@@ -86,6 +90,13 @@ public class PulsarSource<T> implements Source<T>, MessageListener<T> {
                 consumerBuilder.ackTimeout(pulsarSourceConfig.getTimeoutMs(), TimeUnit.MILLISECONDS);
             }
 
+            if(isNotBlank(this.pulsarSourceConfig.getTopicsPattern())) {
+                consumerBuilder.topicsPattern(this.pulsarSourceConfig.getTopicsPattern());
+                isTopicsPattern = true;
+            }else {
+                consumerBuilder.topics(new ArrayList<>(this.pulsarSourceConfig.getTopicSerdeClassNameMap().keySet()));
+            }
+
             inputConsumers.put(entry.getKey(),consumerBuilder.subscribe());
         }
 
@@ -110,9 +121,19 @@ public class PulsarSource<T> implements Source<T>, MessageListener<T> {
 
         Object object;
         try {
-            object = this.topicToSerDeMap.get(topicName).deserialize(message.getData());
+            SerDe deserializer = null;
+            if (this.topicToSerDeMap.containsKey(topicName)) {
+                deserializer = this.topicToSerDeMap.get(topicName);
+            } else if (isTopicsPattern) {
+                deserializer = this.topicToSerDeMap.get(this.pulsarSourceConfig.getTopicsPattern());
+            }
+            if (deserializer != null) {
+                object = deserializer.deserialize(message.getData());
+            } else {
+                throw new IllegalStateException("Topic deserializer not configured : " + topicName);
+            }
         } catch (Exception e) {
-            //TODO Add deserialization exception stats
+            // TODO Add deserialization exception stats
             throw new RuntimeException("Error occured when attempting to deserialize input:", e);
         }
 

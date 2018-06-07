@@ -38,6 +38,7 @@
     <module>aerospike</module>
     <module>kafka</module>
     <module>rabbitmq</module>
+    <module>kinesis</module>
   </modules>
 
 </project>

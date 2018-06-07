@@ -206,6 +206,31 @@ public class CmdFunctionsTest {
     }
 
     @Test
+    public void testCreateFunctionWithTopicPatterns() throws Exception {
+        String fnName = TEST_NAME + "-function";
+        String topicPatterns = "persistent://tenant/ns/topicPattern*";
+        String outputTopicName = TEST_NAME + "-output-topic";
+        cmd.run(new String[] {
+            "create",
+            "--name", fnName,
+            "--topicsPattern", topicPatterns,
+            "--output", outputTopicName,
+            "--jar", "SomeJar.jar",
+            "--tenant", "sample",
+            "--namespace", "ns1",
+            "--className", DummyFunction.class.getName(),
+        });
+
+        CreateFunction creater = cmd.getCreater();
+        assertEquals(fnName, creater.getFunctionName());
+        assertEquals(topicPatterns, creater.getTopicsPattern());
+        assertEquals(outputTopicName, creater.getOutput());
+
+        verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
+
+    }
+    
+    @Test
     public void testCreateWithoutTenant() throws Exception {
         String fnName = TEST_NAME + "-function";
         String inputTopicName = "persistent://tenant/standalone/namespace/input-topic";
