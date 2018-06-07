@@ -855,20 +855,17 @@ void ClientConnection::handleIncomingCommand() {
                         requestData.promise.setFailed(getResult(error.error()));
                         requestData.timer->cancel();
                     } else {
-                        lock.unlock();
-                    }
+                        PendingGetLastMessageIdRequestsMap::iterator it2 =
+                            pendingGetLastMessageIdRequests_.find(error.request_id());
+                        if (it2 != pendingGetLastMessageIdRequests_.end()) {
+                            Promise<Result, MessageId> getLastMessageIdPromise = it2->second;
+                            pendingGetLastMessageIdRequests_.erase(it2);
+                            lock.unlock();
 
-                    Lock lock2(mutex_);
-                    PendingGetLastMessageIdRequestsMap::iterator it2 =
-                        pendingGetLastMessageIdRequests_.find(error.request_id());
-                    if (it2 != pendingGetLastMessageIdRequests_.end()) {
-                        Promise<Result, MessageId> getLastMessageIdPromise = it2->second;
-                        pendingGetLastMessageIdRequests_.erase(it2);
-                        lock2.unlock();
-
-                        getLastMessageIdPromise.setFailed(getResult(error.error()));
-                    } else {
-                        lock2.unlock();
+                            getLastMessageIdPromise.setFailed(getResult(error.error()));
+                        } else {
+                            lock.unlock();
+                        }
                     }
 
                     break;
