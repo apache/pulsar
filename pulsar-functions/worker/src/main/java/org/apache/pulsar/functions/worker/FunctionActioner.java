@@ -118,6 +118,14 @@ public class FunctionActioner implements AutoCloseable {
         if(isPkgUrlProvided && pkgLocation.startsWith(Utils.FILE)) {
             pkgFile = new File(pkgLocation);
         } else {
+            File pkgDir = new File(
+                    workerConfig.getDownloadDirectory(),
+                    getDownloadPackagePath(functionMetaData, instanceId));
+            pkgDir.mkdirs();
+            
+            pkgFile = new File(
+                    pkgDir,
+                    new File(FunctionDetailsUtils.getDownloadFileName(functionMetaData.getFunctionDetails())).getName());
             downloadFile(pkgFile, isPkgUrlProvided, functionMetaData, instanceId);
         }
         
@@ -138,15 +146,8 @@ public class FunctionActioner implements AutoCloseable {
 
     private void downloadFile(File pkgFile, boolean isPkgUrlProvided, FunctionMetaData functionMetaData, int instanceId) throws FileNotFoundException, IOException {
         
-        File pkgDir = new File(
-                workerConfig.getDownloadDirectory(),
-                getDownloadPackagePath(functionMetaData, instanceId));
-        pkgDir.mkdirs();
-
-        pkgFile = new File(
-            pkgDir,
-            new File(FunctionDetailsUtils.getDownloadFileName(functionMetaData.getFunctionDetails())).getName());
-
+        File pkgDir = pkgFile.getParentFile();
+        
         if (pkgFile.exists()) {
             log.warn("Function package exists already {} deleting it",
                     pkgFile);

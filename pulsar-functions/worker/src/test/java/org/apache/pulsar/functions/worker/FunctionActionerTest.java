@@ -96,6 +96,8 @@ public class FunctionActionerTest {
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
         workerConfig.setFunctionAssignmentTopicName("assignments");
+        String downloadDir = this.getClass().getProtectionDomain().getCodeSource().getLocation().getPath();
+        workerConfig.setDownloadDirectory(downloadDir);
 
         RuntimeFactory factory = mock(RuntimeFactory.class);
         Runtime runtime = mock(Runtime.class);
