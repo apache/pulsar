@@ -99,10 +99,10 @@ def main():
   try:
     source_topics_serde_classname_dict = json.loads(args.source_topics_serde_classname)
   except ValueError:
-    log.critical("Cannot decode source_topics_serde_classname.  This argument must be specifed as a JSON")
+    Log.critical("Cannot decode source_topics_serde_classname.  This argument must be specifed as a JSON")
     sys.exit(1)
   if not source_topics_serde_classname_dict:
-    log.critical("source_topics_serde_classname cannot be empty")
+    Log.critical("source_topics_serde_classname cannot be empty")
   for topics, serde_classname in source_topics_serde_classname_dict.items():
     sourceSpec.topicsToSerDeClassName[topics] = serde_classname
   if args.source_timeout_ms:
