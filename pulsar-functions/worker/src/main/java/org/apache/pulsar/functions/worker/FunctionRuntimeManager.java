@@ -93,9 +93,12 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
         this.functionAssignmentTailer = new FunctionAssignmentTailer(this, reader);
 
-        AuthenticationConfig authConfig = AuthenticationConfig.builder().clientAuthenticationPlugin(workerConfig.getClientAuthenticationPlugin())
-        .clientAuthenticationParameters(workerConfig.getClientAuthenticationParameters()).useTls(workerConfig.isUseTls())
-        .tlsAllowInsecureConnection(workerConfig.isTlsAllowInsecureConnection()).build();
+        AuthenticationConfig authConfig = AuthenticationConfig.builder()
+                .clientAuthenticationPlugin(workerConfig.getClientAuthenticationPlugin())
+                .clientAuthenticationParameters(workerConfig.getClientAuthenticationParameters())
+                .tlsTrustCertsFilePath(workerConfig.getTlsTrustCertsFilePath())
+                .useTls(workerConfig.isUseTls()).tlsAllowInsecureConnection(workerConfig.isTlsAllowInsecureConnection())
+                .tlsHostnameVerificationEnable(workerConfig.isTlsHostnameVerificationEnable()).build();
         
         if (workerConfig.getThreadContainerFactory() != null) {
             this.runtimeFactory = new ThreadRuntimeFactory(

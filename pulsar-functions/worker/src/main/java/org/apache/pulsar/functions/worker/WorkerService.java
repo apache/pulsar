@@ -88,6 +88,8 @@ public class WorkerService {
             }
             clientBuilder.enableTls(workerConfig.isUseTls());
             clientBuilder.allowTlsInsecureConnection(workerConfig.isTlsAllowInsecureConnection());
+            clientBuilder.tlsTrustCertsFilePath(workerConfig.getTlsTrustCertsFilePath());
+            clientBuilder.enableTlsHostnameVerification(workerConfig.isTlsHostnameVerificationEnable());
             this.client = clientBuilder.build();
             log.info("Created Pulsar client");
 

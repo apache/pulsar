@@ -37,6 +37,8 @@ import lombok.ToString;
 public class AuthenticationConfig {
     private String clientAuthenticationPlugin;
     private String clientAuthenticationParameters;
+    private String tlsTrustCertsFilePath;
     private boolean useTls;
     private boolean tlsAllowInsecureConnection;
+    private boolean tlsHostnameVerificationEnable;
 }

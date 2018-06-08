@@ -72,6 +72,8 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
                 }
                 clientBuilder.enableTls(authConfig.isUseTls());
                 clientBuilder.allowTlsInsecureConnection(authConfig.isTlsAllowInsecureConnection());
+                clientBuilder.enableTlsHostnameVerification(authConfig.isTlsHostnameVerificationEnable());
+                clientBuilder.tlsTrustCertsFilePath(authConfig.getTlsTrustCertsFilePath());
             }
             return clientBuilder.build();
         }

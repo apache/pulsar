@@ -152,8 +152,14 @@ class ProcessRuntime implements Runtime {
             args.add("--use_tls");
             args.add(Boolean.toString(authConfig.isUseTls()));
             args.add("--tls_allow_insecure");
+            args.add(Boolean.toString(authConfig.isTlsAllowInsecureConnection()));
+            args.add("--hostname_verification_enabled");
+            args.add(Boolean.toString(authConfig.isTlsHostnameVerificationEnable()));
+            if(isNotBlank(authConfig.getTlsTrustCertsFilePath())) {
+                args.add("--tls_trust_cert_path");
+                args.add(authConfig.getTlsTrustCertsFilePath());
+            }
         }
-        args.add(Boolean.toString(authConfig.isTlsAllowInsecureConnection()));
         args.add("--max_buffered_tuples");
         args.add(String.valueOf(instanceConfig.getMaxBufferedTuples()));
         String userConfig = instanceConfig.getFunctionDetails().getUserConfig();
