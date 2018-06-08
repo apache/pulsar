@@ -31,3 +31,16 @@ pulsar_authentication_t *pulsar_authentication_create(const char *dynamicLibPath
 }
 
 void pulsar_authentication_free(pulsar_authentication_t *authentication) { delete authentication; }
+
+pulsar_authentication_t *pulsar_authentication_tls_create(const char *certificatePath,
+                                                          const char *privateKeyPath) {
+    pulsar_authentication_t *authentication = new pulsar_authentication_t;
+    authentication->auth = pulsar::AuthTls::create(certificatePath, privateKeyPath);
+    return authentication;
+}
+
+pulsar_authentication_t *pulsar_authentication_athenz_create(const char *authParamsString) {
+    pulsar_authentication_t *authentication = new pulsar_authentication_t;
+    authentication->auth = pulsar::AuthAthenz::create(authParamsString);
+    return authentication;
+}

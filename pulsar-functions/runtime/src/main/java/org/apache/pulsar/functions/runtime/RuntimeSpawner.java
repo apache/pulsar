@@ -31,10 +31,13 @@ import java.util.concurrent.ExecutionException;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.utils.Utils;
+import static org.apache.pulsar.functions.proto.Function.FunctionDetails.Runtime.PYTHON;
 
 @Slf4j
 public class RuntimeSpawner implements AutoCloseable {
@@ -64,6 +67,13 @@ public class RuntimeSpawner implements AutoCloseable {
     public void start() throws Exception {
         log.info("RuntimeSpawner starting function {} - {}", this.instanceConfig.getFunctionDetails().getName(),
                 this.instanceConfig.getInstanceId());
+        
+        if (instanceConfig.getFunctionDetails().getRuntime() == PYTHON
+                && instanceConfig.getFunctionDetails().getSource() != null
+                && StringUtils.isNotBlank(instanceConfig.getFunctionDetails().getSource().getTopicsPattern())) {
+            throw new IllegalArgumentException("topics-pattern is not supported for python function");
+        }
+
         runtime = runtimeFactory.createContainer(this.instanceConfig, codeFile);
         runtime.start();
 

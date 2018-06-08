@@ -39,16 +39,14 @@ import java.util.concurrent.ExecutionException;
 /**
  * Simple Kafka Source to transfer messages from a Kafka topic
  */
-public abstract class KafkaSource<V> extends PushSource<V> {
+public abstract class KafkaAbstractSource<V> extends PushSource<V> {
 
-    private static final Logger LOG = LoggerFactory.getLogger(KafkaSource.class);
+    private static final Logger LOG = LoggerFactory.getLogger(KafkaAbstractSource.class);
 
     private Consumer<byte[], byte[]> consumer;
     private Properties props;
     private KafkaSourceConfig kafkaSourceConfig;
     Thread runnerThread;
-
-    private java.util.function.Consumer<Record<V>> consumeFunction;
 
     @Override
     public void open(Map<String, Object> config) throws Exception {
@@ -69,17 +67,13 @@ public abstract class KafkaSource<V> extends PushSource<V> {
         props.put(ConsumerConfig.FETCH_MIN_BYTES_CONFIG, kafkaSourceConfig.getFetchMinBytes().toString());
         props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, kafkaSourceConfig.getAutoCommitIntervalMs().toString());
         props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, kafkaSourceConfig.getSessionTimeoutMs().toString());
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, kafkaSourceConfig.getKeyDeserializationClass());
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, kafkaSourceConfig.getValueDeserializationClass());
 
         this.start();
 
-    }
-
-    @Override
-    public void setConsumer(java.util.function.Consumer<Record<V>> consumerFunction) {
-        this.consumeFunction = consumerFunction;
     }
 
     @Override
@@ -111,7 +105,7 @@ public abstract class KafkaSource<V> extends PushSource<V> {
                 for (ConsumerRecord<byte[], byte[]> consumerRecord : consumerRecords) {
                     LOG.debug("Record received from kafka, key: {}. value: {}", consumerRecord.key(), consumerRecord.value());
                     KafkaRecord<V> record = new KafkaRecord<>(consumerRecord, extractValue(consumerRecord));
-                    consumeFunction.accept(record);
+                    consume(record);
                     futures[index] = record.getCompletableFuture();
                     index++;
                 }

@@ -282,7 +282,8 @@ class Client:
                         batching_enabled=False,
                         batching_max_messages=1000,
                         batching_max_allowed_size_in_bytes=128*1024,
-                        batching_max_publish_delay_ms=10
+                        batching_max_publish_delay_ms=10,
+                        message_routing_mode=PartitionsRoutingMode.RoundRobinDistribution
                         ):
         """
         Create a new producer on a given topic.
@@ -317,7 +318,8 @@ class Client:
         * `block_if_queue_full`: Set whether `send_async` operations should
           block when the outgoing message queue is full.
         * `message_routing_mode`:
-          Set the message routing mode for the partitioned producer.
+          Set the message routing mode for the partitioned producer. Default is `PartitionsRoutingMode.RoundRobinDistribution`,
+          other option is `PartitionsRoutingMode.UseSinglePartition`
         """
         _check_type(str, topic, 'topic')
         _check_type_or_none(str, producer_name, 'producer_name')
@@ -340,6 +342,7 @@ class Client:
         conf.batching_max_messages(batching_max_messages)
         conf.batching_max_allowed_size_in_bytes(batching_max_allowed_size_in_bytes)
         conf.batching_max_publish_delay_ms(batching_max_publish_delay_ms)
+        conf.partitions_routing_mode(message_routing_mode)
         if producer_name:
             conf.producer_name(producer_name)
         if initial_sequence_id:

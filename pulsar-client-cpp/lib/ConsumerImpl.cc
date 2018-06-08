@@ -879,4 +879,44 @@ void ConsumerImpl::brokerConsumerStatsListener(Result res, BrokerConsumerStatsIm
     }
 }
 
+void ConsumerImpl::handleSeek(Result result, ResultCallback callback) {
+    if (result == ResultOk) {
+        LOG_INFO(getName() << "Seek successfully");
+    } else {
+        LOG_ERROR(getName() << "Failed to seek: " << strResult(result));
+    }
+    callback(result);
+}
+
+void ConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback callback) {
+    Lock lock(mutex_);
+    if (state_ == Closed || state_ == Closing) {
+        lock.unlock();
+        LOG_ERROR(getName() << "Client connection already closed.");
+        if (!callback.empty()) {
+            callback(ResultAlreadyClosed);
+        }
+        return;
+    }
+    lock.unlock();
+
+    ClientConnectionPtr cnx = getCnx().lock();
+    if (cnx) {
+        ClientImplPtr client = client_.lock();
+        uint64_t requestId = client->newRequestId();
+        LOG_DEBUG(getName() << " Sending seek Command for Consumer - " << getConsumerId() << ", requestId - "
+                            << requestId);
+        Future<Result, ResponseData> future =
+            cnx->sendRequestWithId(Commands::newSeek(consumerId_, requestId, msgId), requestId);
+
+        if (!callback.empty()) {
+            future.addListener(boost::bind(&ConsumerImpl::handleSeek, shared_from_this(), _1, callback));
+        }
+        return;
+    }
+
+    LOG_ERROR(getName() << " Client Connection not ready for Consumer");
+    callback(ResultNotConnected);
+}
+
 } /* namespace pulsar */

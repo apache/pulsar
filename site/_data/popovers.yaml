@@ -63,7 +63,7 @@ ledger:
   def: An append-only data structure in BookKeeper that is used to persistently store messages in Pulsar topics.
 message:
   q: What is a message in Pulsar?
-  def: A 
+  def: Messages are the basic "unit" of Pulsar. They're what producers publish to topics and what consumers then consume from topics.
 multi-tenancy:
   q: What is multi-tenancy?
   def: The ability to isolate namespaces, specify quotas, and configure authentication and authorization on a per-property basis.

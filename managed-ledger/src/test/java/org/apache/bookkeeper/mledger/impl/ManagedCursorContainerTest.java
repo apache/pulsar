@@ -278,6 +278,11 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
+        public long getEstimatedSizeSinceMarkDeletePosition() {
+            return 0L;
+        }
+
+        @Override
         public void setThrottleMarkDelete(double throttleMarkDelete) {
         }
 

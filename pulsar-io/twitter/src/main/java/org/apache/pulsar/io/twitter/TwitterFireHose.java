@@ -50,24 +50,18 @@ public class TwitterFireHose extends PushSource<String> {
 
     // ----- Runtime fields
     private Object waitObject;
-    private Consumer<Record<String>> consumeFunction;
 
     @Override
     public void open(Map<String, Object> config) throws IOException {
         TwitterFireHoseConfig hoseConfig = TwitterFireHoseConfig.load(config);
         if (hoseConfig.getConsumerKey() == null
                 || hoseConfig.getConsumerSecret() == null
-                || hoseConfig.getToken() != null
+                || hoseConfig.getToken() == null
                 || hoseConfig.getTokenSecret() == null) {
             throw new IllegalArgumentException("Required property not set.");
         }
         waitObject = new Object();
         startThread(hoseConfig);
-    }
-
-    @Override
-    public void setConsumer(Consumer<Record<String>> consumeFunction) {
-        this.consumeFunction = consumeFunction;
     }
 
     @Override
@@ -125,7 +119,7 @@ public class TwitterFireHose extends PushSource<String> {
                             // We don't really care if the record succeeds or not.
                             // However might be in the future to count failures
                             // TODO:- Figure out the metrics story for connectors
-                            consumeFunction.accept(new TwitterRecord(line));
+                            consume(new TwitterRecord(line));
                         } catch (Exception e) {
                             LOG.error("Exception thrown");
                         }

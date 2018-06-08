@@ -35,5 +35,7 @@ public enum SchemaType {
     /**
      * JSON object encoding and validation
      */
-    JSON
+    JSON,
+
+    PROTOBUF
 }

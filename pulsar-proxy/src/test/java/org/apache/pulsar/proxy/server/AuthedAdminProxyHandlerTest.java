@@ -19,18 +19,23 @@
 package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Matchers.anyObject;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
 import javax.servlet.http.HttpServletRequest;
+
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
+import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
+import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -50,6 +55,7 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
     private final String configClusterName = "test";
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
     private WebServer webServer;
+    private BrokerDiscoveryProvider discoveryProvider;
     private AdminProxyWrapper adminProxyHandler;
 
     @BeforeMethod
@@ -109,12 +115,15 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
 
         webServer = new WebServer(proxyConfig);
 
-        adminProxyHandler = new AdminProxyWrapper(proxyConfig);
+        discoveryProvider = spy(new BrokerDiscoveryProvider(proxyConfig, mockZooKeeperClientFactory));
+        LoadManagerReport report = new LoadReport(brokerUrl.toString(), brokerUrlTls.toString(), null, null);
+        doReturn(report).when(discoveryProvider).nextBroker();
+
+        adminProxyHandler = new AdminProxyWrapper(proxyConfig, discoveryProvider);
         ServletHolder servletHolder = new ServletHolder(adminProxyHandler);
         servletHolder.setInitParameter("preserveHost", "true");
-        servletHolder.setInitParameter("proxyTo", brokerUrlTls.toString());
-        webServer.addServlet("/admin/*", servletHolder);
-        webServer.addServlet("/lookup/*", servletHolder);
+        webServer.addServlet("/admin", servletHolder);
+        webServer.addServlet("/lookup", servletHolder);
 
         // start web-service
         webServer.start();
@@ -142,20 +151,21 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
 
         List<String> activeBrokers = admin.brokers().getActiveBrokers(configClusterName);
         Assert.assertEquals(activeBrokers.size(), 1);
-        Assert.assertTrue(adminProxyHandler.rewriteCalled);
+        Assert.assertEquals(adminProxyHandler.rewrittenUrl, String.format("%s/admin/v2/brokers/%s",
+                brokerUrlTls.toString(), configClusterName));
     }
 
     static class AdminProxyWrapper extends AdminProxyHandler {
-        boolean rewriteCalled = false;
+        String rewrittenUrl;
 
-        AdminProxyWrapper(ProxyConfiguration config) {
-            super(config);
+        AdminProxyWrapper(ProxyConfiguration config, BrokerDiscoveryProvider discoveryProvider) {
+            super(config, discoveryProvider);
         }
 
         @Override
         protected String rewriteTarget(HttpServletRequest clientRequest) {
-            rewriteCalled = true;
-            return super.rewriteTarget(clientRequest);
+            rewrittenUrl = super.rewriteTarget(clientRequest);
+            return rewrittenUrl;
         }
 
     }

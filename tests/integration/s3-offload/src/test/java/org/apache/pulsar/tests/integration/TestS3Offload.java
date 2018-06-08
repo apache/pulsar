@@ -93,7 +93,7 @@ public class TestS3Offload extends Arquillian {
     }
 
     @Test
-    public void testPublishOffloadAndConsumeViaAdmin() throws Exception {
+    public void testPublishOffloadAndConsumeViaCLI() throws Exception {
         PulsarClusterUtils.runOnAnyBroker(docker, CLUSTER_NAME,
                 "/pulsar/bin/pulsar-admin", "tenants",
                 "create", "--allowed-clusters", CLUSTER_NAME,
@@ -102,8 +102,8 @@ public class TestS3Offload extends Arquillian {
                 "/pulsar/bin/pulsar-admin", "namespaces",
                 "create", "--clusters", CLUSTER_NAME, "s3-offload-test/ns1");
 
-        String brokerIp = PulsarClusterUtils.brokerSet(docker, CLUSTER_NAME)
-            .stream().map((c) -> DockerUtils.getContainerIP(docker, c)).findFirst().get();
+        String broker = PulsarClusterUtils.brokerSet(docker, CLUSTER_NAME).stream().findAny().get();
+        String brokerIp = DockerUtils.getContainerIP(docker, broker);
         String proxyIp  = PulsarClusterUtils.proxySet(docker, CLUSTER_NAME)
             .stream().map((c) -> DockerUtils.getContainerIP(docker, c)).findFirst().get();
         String serviceUrl = "pulsar://" + proxyIp + ":6650";
@@ -131,21 +131,27 @@ public class TestS3Offload extends Arquillian {
 
             firstLedger = info.ledgers.get(0).ledgerId;
 
-            // trigger offload
-            try (PulsarAdmin admin = new PulsarAdmin(new URL(adminUrl), "", "")) {
-                log.info("Trigger offload");
+            // first offload with a high threshold, nothing should offload
+            String output = DockerUtils.runCommand(docker, broker,
+                    "/pulsar/bin/pulsar-admin", "topics",
+                    "offload", "--size-threshold", String.valueOf(Long.MAX_VALUE),
+                    topic);
+            Assert.assertTrue(output.contains("Nothing to offload"));
 
-                admin.topics().triggerOffload(topic, latestMessage);
+            output = DockerUtils.runCommand(docker, broker,
+                    "/pulsar/bin/pulsar-admin", "topics", "offload-status", topic);
+            Assert.assertTrue(output.contains("Offload has not been run"));
 
-                LongRunningProcessStatus status = admin.topics().offloadStatus(topic);
-                while (status.status == LongRunningProcessStatus.Status.RUNNING) {
-                    Thread.sleep(100);
-                    status = admin.topics().offloadStatus(topic);
-                }
-                Assert.assertEquals(status.status, LongRunningProcessStatus.Status.SUCCESS);
+            // offload with a low threshold
+            output = DockerUtils.runCommand(docker, broker,
+                    "/pulsar/bin/pulsar-admin", "topics",
+                    "offload", "--size-threshold", "0",
+                    topic);
+            Assert.assertTrue(output.contains("Offload triggered"));
 
-                log.info("Offload complete");
-            }
+            output = DockerUtils.runCommand(docker, broker,
+                    "/pulsar/bin/pulsar-admin", "topics", "offload-status", "-w", topic);
+            Assert.assertTrue(output.contains("Offload was a success"));
         }
 
         log.info("Kill ledger");

@@ -122,6 +122,23 @@ public class FunctionsImpl extends BaseResource implements Functions {
     }
 
     @Override
+    public void createFunctionWithUrl(FunctionDetails functionDetails, String pkgUrl) throws PulsarAdminException {
+        try {
+            final FormDataMultiPart mp = new FormDataMultiPart();
+
+            mp.bodyPart(new FormDataBodyPart("url", pkgUrl, MediaType.TEXT_PLAIN_TYPE));
+
+            mp.bodyPart(new FormDataBodyPart("functionDetails",
+                printJson(functionDetails),
+                MediaType.APPLICATION_JSON_TYPE));
+            request(functions.path(functionDetails.getTenant()).path(functionDetails.getNamespace()).path(functionDetails.getName()))
+                    .post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+    
+    @Override
     public void deleteFunction(String cluster, String namespace, String function) throws PulsarAdminException {
         try {
             request(functions.path(cluster).path(namespace).path(function))

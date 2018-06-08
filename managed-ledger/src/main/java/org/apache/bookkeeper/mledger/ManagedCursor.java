@@ -529,6 +529,13 @@ public interface ManagedCursor {
     int getTotalNonContiguousDeletedMessagesRange();
 
     /**
+     * Returns the estimated size of the unacknowledged backlog for this cursor
+     *
+     * @return the estimated size from the mark delete position of the cursor
+     */
+    long getEstimatedSizeSinceMarkDeletePosition();
+
+    /**
      * Returns cursor throttle mark-delete rate.
      *
      * @return

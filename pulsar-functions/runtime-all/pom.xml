@@ -190,9 +190,14 @@
                   <pattern>org.eclipse</pattern>
                   <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.eclipse</shadedPattern>
                 </relocation>
+                <!-- 
+                    asynchttpclient can only be shaded to be under `org.apache.pulsar.shade`
+                    see {@link https://github.com/apache/incubator-pulsar/pull/390}
+                    and {@link https://github.com/apache/incubator-pulsar/blob/master/pulsar-client/src/main/resources/ahc.properties}
+                -->
                 <relocation>
                   <pattern>org.asynchttpclient</pattern>
-                  <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.asynchttpclient</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.asynchttpclient</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.bouncycastle</pattern>
@@ -202,10 +207,12 @@
                   <pattern>jersey</pattern>
                   <shadedPattern>org.apache.pulsar.functions.runtime.shaded.jersey</shadedPattern>
                 </relocation>
+                <!-- DONT ever shade log4j, otherwise logging won't work anymore in running functions in process mode
                 <relocation>
                   <pattern>org.apache.logging</pattern>
                   <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.apache.logging</shadedPattern>
                 </relocation>
+                -->
                 <relocation>
                   <pattern>javassist</pattern>
                   <shadedPattern>org.apache.pulsar.functions.runtime.shaded.javassist</shadedPattern>

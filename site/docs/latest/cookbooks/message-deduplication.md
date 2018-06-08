@@ -28,8 +28,6 @@ Parameter | Description | Default
 `brokerDeduplicationEntriesInterval` | The number of entries after which a deduplication informational snapshot is taken. A larger interval will lead to fewer snapshots being taken, though this would also lengthen the topic recovery time (the time required for entries published after the snapshot to be replayed). | `1000`
 `brokerDeduplicationProducerInactivityTimeoutMinutes` | The time of inactivity (in minutes) after which the broker will discard deduplication information related to a disconnected producer. | `360` (6 hours)
 
-Any configuration changes you make won't take effect until you re-start the broker.
-
 ### Setting the broker-level default {#default}
 
 By default, message deduplication is *disabled* on all Pulsar namespaces. To enable it by default on all namespaces, set the `brokerDeduplicationEnabled` parameter to `true` and re-start the broker.
@@ -98,7 +96,7 @@ producer = client.create_producer(
     send_timeout_millis=0)
 ```
 
-## C++ clients {#cpp}
+### C++ clients {#cpp}
 
 To enable message deduplication on a [C++ producer](../../clients/Cpp#producer), set the producer name using `producer_name` and the timeout to 0 using `send_timeout_millis`. Here's an example:
 
