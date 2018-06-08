@@ -644,7 +644,7 @@ public class CmdFunctions extends CmdBase {
         protected String brokerServiceUrl;
 
         @Parameter(names = "--instanceIdOffset", description = "Start the instanceIds from this offset")
-        protected Integer instanceIdOffset;
+        protected Integer instanceIdOffset = 0;
 
         @Override
         void runCmd() throws Exception {
