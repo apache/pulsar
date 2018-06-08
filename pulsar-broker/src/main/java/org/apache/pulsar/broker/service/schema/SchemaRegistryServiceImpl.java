@@ -136,6 +136,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     }
 
     private CompletableFuture<Boolean> checkCompatibilityWithLatest(String schemaId, SchemaData schema) {
+
         return getSchema(schemaId).thenApply(storedSchema ->
             (storedSchema == null) ||
                 compatibilityChecks.getOrDefault(

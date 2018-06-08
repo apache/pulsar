@@ -25,9 +25,20 @@ import org.apache.avro.SchemaValidatorBuilder;
 import org.apache.pulsar.common.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 
+
 import java.util.Arrays;
 
 public class AvroSchemaCompatibilityCheck implements SchemaCompatibilityCheck {
+
+    private final CompatibilityStrategy compatibilityStrategy;
+
+    public AvroSchemaCompatibilityCheck () {
+        this(CompatibilityStrategy.FULL);
+    }
+
+    public AvroSchemaCompatibilityCheck(CompatibilityStrategy compatibilityStrategy) {
+        this.compatibilityStrategy = compatibilityStrategy;
+    }
 
     @Override
     public SchemaType getSchemaType() {
@@ -37,11 +48,12 @@ public class AvroSchemaCompatibilityCheck implements SchemaCompatibilityCheck {
     @Override
     public boolean isCompatible(SchemaData from, SchemaData to) {
 
-        Schema.Parser parser = new Schema.Parser();
-        Schema fromSchema = parser.parse(new String(from.getData()));
-        Schema toSchema =  parser.parse(new String(to.getData()));
+        Schema.Parser fromParser = new Schema.Parser();
+        Schema fromSchema = fromParser.parse(new String(from.getData()));
+        Schema.Parser toParser = new Schema.Parser();
+        Schema toSchema =  toParser.parse(new String(to.getData()));
 
-        SchemaValidator schemaValidator = createSchemaValidator(CompatibilityStrategy.BACKWARD, true);
+        SchemaValidator schemaValidator = createSchemaValidator(this.compatibilityStrategy, true);
         try {
             schemaValidator.validate(toSchema, Arrays.asList(fromSchema));
         } catch (SchemaValidationException e) {
@@ -50,7 +62,7 @@ public class AvroSchemaCompatibilityCheck implements SchemaCompatibilityCheck {
         return true;
     }
 
-    private enum CompatibilityStrategy {
+    public enum CompatibilityStrategy {
         BACKWARD,
         FORWARD,
         FULL
