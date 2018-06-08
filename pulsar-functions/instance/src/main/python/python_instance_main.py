@@ -72,6 +72,7 @@ def main():
   parser.add_argument('--log_topic', required=False, help='Topic to send Log Messages')
   parser.add_argument('--source_subscription_type', required=True, help='Subscription Type')
   parser.add_argument('--source_topics_serde_classname', required=True, help='A mapping of Input topics to SerDe')
+  parser.add_argument('--topics_pattern', required=False, help='TopicsPattern to consume from list of topics under a namespace that match the pattern (not supported)')
   parser.add_argument('--source_timeout_ms', required=False, help='Source message timeout in milliseconds')
   parser.add_argument('--sink_topic', required=False, help='Sink Topic')
   parser.add_argument('--sink_serde_classname', required=False, help='Sink SerDe classname')
@@ -91,15 +92,17 @@ def main():
   function_details.name = args.name
   function_details.className = args.function_classname
 
+  if args.topics_pattern:
+    raise ValueError('topics_pattern is not supported by python client') 
   sourceSpec = Function_pb2.SourceSpec()
   sourceSpec.subscriptionType = Function_pb2.SubscriptionType.Value(args.source_subscription_type)
   try:
     source_topics_serde_classname_dict = json.loads(args.source_topics_serde_classname)
   except ValueError:
-    log.critical("Cannot decode source_topics_serde_classname.  This argument must be specifed as a JSON")
+    Log.critical("Cannot decode source_topics_serde_classname.  This argument must be specifed as a JSON")
     sys.exit(1)
   if not source_topics_serde_classname_dict:
-    log.critical("source_topics_serde_classname cannot be empty")
+    Log.critical("source_topics_serde_classname cannot be empty")
   for topics, serde_classname in source_topics_serde_classname_dict.items():
     sourceSpec.topicsToSerDeClassName[topics] = serde_classname
   if args.source_timeout_ms:

@@ -28,6 +28,8 @@ import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
 import lombok.extern.slf4j.Slf4j;
+
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.ProcessingGuarantees;
@@ -110,6 +112,9 @@ public class JavaInstanceMain implements AutoCloseable {
 
     @Parameter(names = "--source_topics_serde_classname", description = "A map of topics to SerDe for the source")
     protected String sourceTopicsSerdeClassName;
+    
+    @Parameter(names = "--topics_pattern", description = "TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. Add SerDe class name for a pattern in --customSerdeInputs")
+    protected String topicsPattern;
 
     @Parameter(names = "--source_timeout_ms", description = "Source message timeout in milliseconds")
     protected Long sourceTimeoutMs;
@@ -172,6 +177,9 @@ public class JavaInstanceMain implements AutoCloseable {
         }
         sourceDetailsBuilder.setSubscriptionType(Function.SubscriptionType.valueOf(sourceSubscriptionType));
         sourceDetailsBuilder.putAllTopicsToSerDeClassName(new Gson().fromJson(sourceTopicsSerdeClassName, Map.class));
+        if (isNotBlank(topicsPattern)) {
+            sourceDetailsBuilder.setTopicsPattern(topicsPattern);
+        }
         sourceDetailsBuilder.setTypeClassName(sourceTypeClassName);
         if (sourceTimeoutMs != null) {
             sourceDetailsBuilder.setTimeoutMs(sourceTimeoutMs);
