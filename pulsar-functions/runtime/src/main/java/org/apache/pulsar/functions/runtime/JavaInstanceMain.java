@@ -41,7 +41,6 @@ import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
 
-import java.lang.reflect.Type;
 import java.util.Map;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
@@ -92,13 +91,13 @@ public class JavaInstanceMain implements AutoCloseable {
     protected String clientAuthenticationParameters;
     
     @Parameter(names = "--use_tls", description = "Use tls connection\n")
-    protected boolean useTls;
+    protected String useTls = Boolean.FALSE.toString();
     
     @Parameter(names = "--tls_allow_insecure", description = "Allow insecure tls connection\n")
-    protected boolean tlsAllowInsecureConnection;
+    protected String tlsAllowInsecureConnection = Boolean.TRUE.toString();
     
     @Parameter(names = "--hostname_verification_enabled", description = "Enable hostname verification")
-    protected boolean tlsHostNameVerificationEnabled;
+    protected String tlsHostNameVerificationEnabled = Boolean.FALSE.toString();
     
     @Parameter(names = "--tls_trust_cert_path", description = "tls trust cert file path")
     protected String tlsTrustCertFilePath;
@@ -116,7 +115,7 @@ public class JavaInstanceMain implements AutoCloseable {
     protected String userConfig;
 
     @Parameter(names = "--auto_ack", description = "Enable Auto Acking?\n")
-    protected String autoAck = "true";
+    protected String autoAck = Boolean.TRUE.toString();
 
     @Parameter(names = "--source_classname", description = "The source classname")
     protected String sourceClassname;
@@ -178,11 +177,7 @@ public class JavaInstanceMain implements AutoCloseable {
             functionDetailsBuilder.setLogTopic(logTopic);
         }
         functionDetailsBuilder.setProcessingGuarantees(processingGuarantees);
-        if (autoAck.equals("true")) {
-            functionDetailsBuilder.setAutoAck(true);
-        } else {
-            functionDetailsBuilder.setAutoAck(false);
-        }
+        functionDetailsBuilder.setAutoAck(isTrue(autoAck));
         if (userConfig != null && !userConfig.isEmpty()) {
             functionDetailsBuilder.setUserConfig(userConfig);
         }
@@ -230,9 +225,9 @@ public class JavaInstanceMain implements AutoCloseable {
         ThreadRuntimeFactory containerFactory = new ThreadRuntimeFactory("LocalRunnerThreadGroup", pulsarServiceUrl,
                 stateStorageServiceUrl,
                 AuthenticationConfig.builder().clientAuthenticationPlugin(clientAuthenticationPlugin)
-                        .clientAuthenticationParameters(clientAuthenticationParameters).useTls(useTls)
-                        .tlsAllowInsecureConnection(tlsAllowInsecureConnection)
-                        .tlsHostnameVerificationEnable(tlsHostNameVerificationEnabled)
+                        .clientAuthenticationParameters(clientAuthenticationParameters).useTls(isTrue(useTls))
+                        .tlsAllowInsecureConnection(isTrue(tlsAllowInsecureConnection))
+                        .tlsHostnameVerificationEnable(isTrue(tlsHostNameVerificationEnabled))
                         .tlsTrustCertsFilePath(tlsTrustCertFilePath).build());
         runtimeSpawner = new RuntimeSpawner(
                 instanceConfig,
@@ -278,6 +273,10 @@ public class JavaInstanceMain implements AutoCloseable {
         runtimeSpawner.join();
         log.info("RuntimeSpawner quit, shutting down JavaInstance");
         close();
+    }
+
+    private static boolean isTrue(String param) {
+        return Boolean.TRUE.toString().equals(param);
     }
 
     public static void main(String[] args) throws Exception {
