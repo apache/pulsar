@@ -643,10 +643,13 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker")
         protected String brokerServiceUrl;
 
+        @Parameter(names = "--instanceIdOffset", description = "Start the instanceIds from this offset")
+        protected Integer instanceIdOffset;
+
         @Override
         void runCmd() throws Exception {
             CmdFunctions.startLocalRun(convertProto2(functionConfig),
-                    functionConfig.getParallelism(), brokerServiceUrl, userCodeFile, admin);
+                    functionConfig.getParallelism(), instanceIdOffset, brokerServiceUrl, userCodeFile, admin);
         }
     }
 
@@ -911,7 +914,7 @@ public class CmdFunctions extends CmdBase {
     }
 
     protected static void startLocalRun(org.apache.pulsar.functions.proto.Function.FunctionDetails functionDetails,
-                                        int parallelism, String brokerServiceUrl, String userCodeFile, PulsarAdmin admin)
+                                        int parallelism, int instanceIdOffset, String brokerServiceUrl, String userCodeFile, PulsarAdmin admin)
             throws Exception {
 
         String serviceUrl = admin.getServiceUrl();
@@ -930,7 +933,7 @@ public class CmdFunctions extends CmdBase {
                 // TODO: correctly implement function version and id
                 instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
                 instanceConfig.setFunctionId(UUID.randomUUID().toString());
-                instanceConfig.setInstanceId(Integer.toString(i));
+                instanceConfig.setInstanceId(Integer.toString(i + instanceIdOffset));
                 instanceConfig.setMaxBufferedTuples(1024);
                 instanceConfig.setPort(Utils.findAvailablePort());
                 RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
