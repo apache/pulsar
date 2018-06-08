@@ -122,7 +122,7 @@ public class CmdSinks extends CmdBase {
         @Override
         void runCmd() throws Exception {
             CmdFunctions.startLocalRun(createSinkConfigProto2(sinkConfig), sinkConfig.getParallelism(),
-                    brokerServiceUrl,
+                    0, brokerServiceUrl,
                     AuthenticationConfig.builder().clientAuthenticationPlugin(clientAuthPlugin)
                             .clientAuthenticationParameters(clientAuthParams).useTls(useTls)
                             .tlsAllowInsecureConnection(tlsAllowInsecureConnection)
