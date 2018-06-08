@@ -99,7 +99,7 @@ public class CmdSources extends CmdBase {
         @Override
         void runCmd() throws Exception {
             CmdFunctions.startLocalRun(createSourceConfigProto2(sourceConfig),
-                    sourceConfig.getParallelism(), brokerServiceUrl, jarFile, admin);
+                    sourceConfig.getParallelism(), 0, brokerServiceUrl, jarFile, admin);
         }
     }
 

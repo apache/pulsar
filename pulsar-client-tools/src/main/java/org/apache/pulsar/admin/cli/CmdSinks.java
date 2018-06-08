@@ -103,7 +103,7 @@ public class CmdSinks extends CmdBase {
         @Override
         void runCmd() throws Exception {
             CmdFunctions.startLocalRun(createSinkConfigProto2(sinkConfig),
-                    sinkConfig.getParallelism(), brokerServiceUrl, jarFile, admin);
+                    sinkConfig.getParallelism(), 0, brokerServiceUrl, jarFile, admin);
         }
     }
 
