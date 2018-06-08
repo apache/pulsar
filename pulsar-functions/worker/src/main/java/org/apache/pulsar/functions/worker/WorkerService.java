@@ -23,9 +23,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.distributedlog.api.namespace.NamespaceBuilder;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 
@@ -77,7 +80,17 @@ public class WorkerService {
         // initialize the function metadata manager
         try {
 
-            this.client = PulsarClient.builder().serviceUrl(this.workerConfig.getPulsarServiceUrl()).build();
+            ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(this.workerConfig.getPulsarServiceUrl());
+            if (isNotBlank(workerConfig.getClientAuthenticationPlugin())
+                    && isNotBlank(workerConfig.getClientAuthenticationParameters())) {
+                clientBuilder.authentication(workerConfig.getClientAuthenticationPlugin(),
+                        workerConfig.getClientAuthenticationParameters());
+            }
+            clientBuilder.enableTls(workerConfig.isUseTls());
+            clientBuilder.allowTlsInsecureConnection(workerConfig.isTlsAllowInsecureConnection());
+            clientBuilder.tlsTrustCertsFilePath(workerConfig.getTlsTrustCertsFilePath());
+            clientBuilder.enableTlsHostnameVerification(workerConfig.isTlsHostnameVerificationEnable());
+            this.client = clientBuilder.build();
             log.info("Created Pulsar client");
 
             //create scheduler manager

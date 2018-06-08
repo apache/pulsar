@@ -30,6 +30,7 @@ import signal
 import time
 import json
 
+from pulsar import Authentication
 import pulsar
 
 import Function_pb2
@@ -63,6 +64,12 @@ def main():
   parser.add_argument('--function_version', required=True, help='Function Version')
   parser.add_argument('--processing_guarantees', required=True, help='Processing Guarantees')
   parser.add_argument('--pulsar_serviceurl', required=True, help='Pulsar Service Url')
+  parser.add_argument('--client_auth_plugin', required=False, help='Client authentication plugin')
+  parser.add_argument('--client_auth_params', required=False, help='Client authentication params')
+  parser.add_argument('--use_tls', required=False, help='Use tls')
+  parser.add_argument('--tls_allow_insecure_connection', required=False, help='Tls allow insecure connection')
+  parser.add_argument('--hostname_verification_enabled', required=False, help='Enable hostname verification')
+  parser.add_argument('--tls_trust_cert_path', required=False, help='Tls trust cert file path')
   parser.add_argument('--port', required=True, help='Instance Port', type=int)
   parser.add_argument('--max_buffered_tuples', required=True, help='Maximum number of Buffered tuples')
   parser.add_argument('--user_config', required=False, help='User Config')
@@ -124,7 +131,19 @@ def main():
   if args.user_config != None and len(args.user_config) != 0:
     function_details.userConfig = args.user_config
 
-  pulsar_client = pulsar.Client(args.pulsar_serviceurl)
+  authentication = None
+  use_tls = False
+  tls_allow_insecure_connection = False
+  tls_trust_cert_path = None
+  if args.client_auth_plugin and args.client_auth_params:
+      authentication = pulsar.Authentication(args.client_auth_plugin, args.client_auth_params)
+  if args.use_tls == "true":
+    use_tls = True
+  if args.tls_allow_insecure_connection == "true":
+    tls_allow_insecure_connection = True
+  if args.tls_trust_cert_path:
+     tls_trust_cert_path =  args.tls_trust_cert_path
+  pulsar_client = pulsar.Client(args.pulsar_serviceurl, authentication, 30, 1, 1, 50000, None, use_tls, tls_trust_cert_path, tls_allow_insecure_connection)
   pyinstance = python_instance.PythonInstance(str(args.instance_id), str(args.function_id),
                                               str(args.function_version), function_details,
                                               int(args.max_buffered_tuples), str(args.py),
