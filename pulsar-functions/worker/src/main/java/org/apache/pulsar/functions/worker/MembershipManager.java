@@ -280,7 +280,9 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
 
     private PulsarAdmin getPulsarAdminClient() {
         if (this.pulsarAdminClient == null) {
-            this.pulsarAdminClient = Utils.getPulsarAdminClient(this.workerConfig.getPulsarWebServiceUrl());
+            this.pulsarAdminClient = Utils.getPulsarAdminClient(this.workerConfig.getPulsarWebServiceUrl(),
+                    workerConfig.getClientAuthenticationPlugin(), workerConfig.getClientAuthenticationParameters(),
+                    workerConfig.getTlsTrustCertsFilePath(), workerConfig.isTlsAllowInsecureConnection());
         }
         return this.pulsarAdminClient;
     }

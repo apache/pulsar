@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.io;
 
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 import static org.mockito.Mockito.spy;
 
@@ -27,6 +28,8 @@ import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -40,14 +43,17 @@ import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
+import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -87,7 +93,7 @@ public class PulsarSinkE2ETest {
 
     ServiceConfiguration config;
     WorkerConfig workerConfig;
-    URL url;
+    URL urlTls;
     PulsarService pulsar;
     PulsarAdmin admin;
     PulsarClient pulsarClient;
@@ -102,8 +108,16 @@ public class PulsarSinkE2ETest {
 
     private final int ZOOKEEPER_PORT = PortManager.nextFreePort();
     private final int brokerWebServicePort = PortManager.nextFreePort();
+    private final int brokerWebServiceTlsPort = PortManager.nextFreePort();
     private final int brokerServicePort = PortManager.nextFreePort();
+    private final int brokerServiceTlsPort = PortManager.nextFreePort();
     private final int workerServicePort = PortManager.nextFreePort();
+
+    private final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/authentication/tls/broker-cert.pem";
+    private final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/authentication/tls/broker-key.pem";
+    private final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/client-cert.pem";
+    private final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/client-key.pem";
+
     private static final Logger log = LoggerFactory.getLogger(PulsarSinkE2ETest.class);
 
     @BeforeMethod
@@ -118,31 +132,67 @@ public class PulsarSinkE2ETest {
         bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, PortManager.nextFreePort());
         bkEnsemble.start();
 
-        String hostHttpUrl = "http://127.0.0.1" + ":";
+        String brokerServiceUrl = "https://127.0.0.1:" + brokerWebServiceTlsPort;
 
         config = spy(new ServiceConfiguration());
         config.setClusterName("use");
+        Set<String> superUsers = Sets.newHashSet("superUser");
+        config.setSuperUserRoles(superUsers);
         config.setWebServicePort(brokerWebServicePort);
+        config.setWebServicePortTls(brokerWebServiceTlsPort);
         config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
         config.setBrokerServicePort(brokerServicePort);
+        config.setBrokerServicePortTls(brokerServiceTlsPort);
         config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
+
+
+        Set<String> providers = new HashSet<>();
+        providers.add(AuthenticationProviderTls.class.getName());
+        config.setAuthenticationEnabled(true);
+        config.setAuthenticationProviders(providers);
+        config.setTlsEnabled(true);
+        config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
+        config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        config.setTlsAllowInsecureConnection(true);
+    
+
         functionsWorkerService = createPulsarFunctionWorker(config);
-        url = new URL(hostHttpUrl + brokerWebServicePort);
+        urlTls = new URL(brokerServiceUrl);
         boolean isFunctionWebServerRequired = method.getName()
                 .equals("testExternalReplicatorRedirectionToWorkerService");
         Optional<WorkerService> functionWorkerService = isFunctionWebServerRequired ? Optional.ofNullable(null)
                 : Optional.of(functionsWorkerService);
         pulsar = new PulsarService(config, functionWorkerService);
         pulsar.start();
-        admin = new PulsarAdmin(url, (Authentication) null);
+
+        Map<String, String> authParams = new HashMap<>();
+        authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
+        authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
+        Authentication authTls = new AuthenticationTls();
+        authTls.configure(authParams);
+
+        admin = spy(
+                PulsarAdmin.builder().serviceHttpUrl(brokerServiceUrl).tlsTrustCertsFilePath(TLS_CLIENT_CERT_FILE_PATH)
+                        .allowTlsInsecureConnection(true).authentication(authTls).build());
+
         brokerStatsClient = admin.brokerStats();
         primaryHost = String.format("http://%s:%d", InetAddress.getLocalHost().getHostName(), brokerWebServicePort);
 
         // update cluster metadata
-        ClusterData clusterData = new ClusterData(url.toString());
+        ClusterData clusterData = new ClusterData(urlTls.toString());
         admin.clusters().updateCluster(config.getClusterName(), clusterData);
 
-        pulsarClient = PulsarClient.builder().serviceUrl(url.toString()).statsInterval(0, TimeUnit.SECONDS).build();
+        ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(this.workerConfig.getPulsarServiceUrl());
+        if (isNotBlank(workerConfig.getClientAuthenticationPlugin())
+                && isNotBlank(workerConfig.getClientAuthenticationParameters())) {
+            clientBuilder.enableTls(workerConfig.isUseTls());
+            clientBuilder.allowTlsInsecureConnection(workerConfig.isTlsAllowInsecureConnection());
+            clientBuilder.authentication(workerConfig.getClientAuthenticationPlugin(),
+                    workerConfig.getClientAuthenticationParameters());
+        }
+        pulsarClient = clientBuilder.build();
+        // pulsarClient = PulsarClient.builder().serviceUrl(urlTls.toString()).statsInterval(0,
+        // TimeUnit.SECONDS).build();
 
         TenantInfo propAdmin = new TenantInfo();
         propAdmin.setAllowedClusters(Sets.newHashSet(Lists.newArrayList("use")));
@@ -166,6 +216,7 @@ public class PulsarSinkE2ETest {
         if (workerExecutor != null) {
             workerExecutor.shutdown();
         }
+        pulsarClient.close();
         admin.close();
         pulsar.close();
         functionsWorkerService.stop();
@@ -179,8 +230,8 @@ public class PulsarSinkE2ETest {
                 org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
         workerConfig.setThreadContainerFactory(new WorkerConfig.ThreadContainerFactory().setThreadGroupName("use"));
         // worker talks to local broker
-        workerConfig.setPulsarServiceUrl("pulsar://127.0.0.1:" + config.getBrokerServicePort());
-        workerConfig.setPulsarWebServiceUrl("http://127.0.0.1:" + config.getWebServicePort());
+        workerConfig.setPulsarServiceUrl("pulsar://127.0.0.1:" + config.getBrokerServicePortTls());
+        workerConfig.setPulsarWebServiceUrl("https://127.0.0.1:" + config.getWebServicePortTls());
         workerConfig.setFailureCheckFreqMs(100);
         workerConfig.setNumFunctionPackageReplicas(1);
         workerConfig.setClusterCoordinationTopicName("coordinate");
@@ -193,11 +244,19 @@ public class PulsarSinkE2ETest {
         workerConfig.setWorkerHostname(hostname);
         workerConfig
                 .setWorkerId("c-" + config.getClusterName() + "-fw-" + hostname + "-" + workerConfig.getWorkerPort());
+
+        workerConfig.setClientAuthenticationPlugin(AuthenticationTls.class.getName());
+        workerConfig.setClientAuthenticationParameters(
+                String.format("tlsCertFile:%s,tlsKeyFile:%s", TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH));
+        workerConfig.setUseTls(true);
+        workerConfig.setTlsAllowInsecureConnection(true);
+        workerConfig.setTlsTrustCertsFilePath(TLS_CLIENT_CERT_FILE_PATH);
+
         return new WorkerService(workerConfig);
     }
 
     /**
-     * Validates pulsar sink e2e functionality on functions.  
+     * Validates pulsar sink e2e functionality on functions.
      * 
      * @throws Exception
      */
@@ -236,8 +295,8 @@ public class PulsarSinkE2ETest {
         }
         retryStrategically((test) -> {
             try {
-                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).subscriptions.values()
-                        .iterator().next();
+                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).subscriptions.values().iterator()
+                        .next();
                 return subStats.unackedMessages == 0;
             } catch (PulsarAdminException e) {
                 return false;
@@ -245,8 +304,8 @@ public class PulsarSinkE2ETest {
         }, 5, 150);
         // validate pulsar-sink consumer has consumed all messages and delivered to Pulsar sink but unacked messages
         // due to publish failure
-        Assert.assertEquals(admin.topics().getStats(sourceTopic).subscriptions.values().iterator()
-                .next().unackedMessages, 0);
+        Assert.assertEquals(
+                admin.topics().getStats(sourceTopic).subscriptions.values().iterator().next().unackedMessages, 0);
 
     }
 
@@ -281,7 +340,7 @@ public class PulsarSinkE2ETest {
 
         // set up sink spec
         SinkSpec.Builder sinkSpecBuilder = SinkSpec.newBuilder();
-        //sinkSpecBuilder.setClassName(PulsarSink.class.getName());
+        // sinkSpecBuilder.setClassName(PulsarSink.class.getName());
         sinkSpecBuilder.setTopic(String.format("persistent://%s/%s/%s", tenant, namespace, "output"));
         Map<String, Object> sinkConfigMap = Maps.newHashMap();
         sinkSpecBuilder.setConfigs(new Gson().toJson(sinkConfigMap));

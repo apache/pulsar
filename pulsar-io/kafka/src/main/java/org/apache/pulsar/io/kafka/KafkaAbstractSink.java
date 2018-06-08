@@ -39,9 +39,9 @@ import java.util.concurrent.Future;
  * A Simple abstract class for Kafka sink
  * Users need to implement extractKeyValue function to use this sink
  */
-public abstract class KafkaSink<K, V> extends SimpleSink<byte[]> {
+public abstract class KafkaAbstractSink<K, V> extends SimpleSink<byte[]> {
 
-    private static final Logger LOG = LoggerFactory.getLogger(KafkaSink.class);
+    private static final Logger LOG = LoggerFactory.getLogger(KafkaAbstractSink.class);
 
     private Producer<K, V> producer;
     private Properties props = new Properties();

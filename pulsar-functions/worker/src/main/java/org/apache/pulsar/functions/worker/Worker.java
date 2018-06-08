@@ -71,7 +71,9 @@ public class Worker extends AbstractService {
     private static URI initialize(WorkerConfig workerConfig)
             throws InterruptedException, PulsarAdminException, IOException {
         // initializing pulsar functions namespace
-        PulsarAdmin admin = Utils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl());
+        PulsarAdmin admin = Utils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl(),
+                workerConfig.getClientAuthenticationPlugin(), workerConfig.getClientAuthenticationParameters(),
+                workerConfig.getTlsTrustCertsFilePath(), workerConfig.isTlsAllowInsecureConnection());
         InternalConfigurationData internalConf;
         // make sure pulsar broker is up
         log.info("Checking if pulsar service at {} is up...", workerConfig.getPulsarWebServiceUrl());

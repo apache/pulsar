@@ -319,7 +319,7 @@ configs:
   description: Name of load manager to use
 - name: managedLedgerOffloadDriver
   default: ''
-  description: Driver to use to offload old data to long term storage (Possible values: S3)
+  description: "Driver to use to offload old data to long term storage (Possible values: S3)"
 - name: managedLedgerOffloadMaxThreads
   default: '2'
   description: Maximum number of thread pool threads for ledger offloading
