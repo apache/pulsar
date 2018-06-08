@@ -1381,6 +1381,9 @@ TEST(BasicEndToEndTest, testSeek) {
 
     // seek to earliest, expected receive first message.
     result = consumer.seek(MessageId::earliest());
+    // Sleeping for 500ms to wait for consumer re-connect
+    usleep(500 * 1000);
+
     ASSERT_EQ(ResultOk, result);
     consumer.receive(msgReceived, 100);
     LOG_ERROR("Received message :" << msgReceived.getMessageId());
@@ -1388,7 +1391,7 @@ TEST(BasicEndToEndTest, testSeek) {
     msgNum = 0;
     expected << msgContent << msgNum;
     ASSERT_EQ(expected.str(), msgReceived.getDataAsString());
-
+    ASSERT_EQ(ResultOk, consumer.acknowledge(msgReceived));
     ASSERT_EQ(ResultOk, consumer.unsubscribe());
     ASSERT_EQ(ResultAlreadyClosed, consumer.close());
     ASSERT_EQ(ResultOk, producer.close());
