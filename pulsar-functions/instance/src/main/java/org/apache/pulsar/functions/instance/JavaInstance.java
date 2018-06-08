@@ -18,12 +18,10 @@
  */
 package org.apache.pulsar.functions.instance;
 
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
+import java.util.Optional;
+import javax.swing.text.html.Option;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -49,8 +47,7 @@ public class JavaInstance implements AutoCloseable {
     @Getter(AccessLevel.PACKAGE)
     private Function function;
     private java.util.function.Function javaUtilFunction;
-
-    private LoadingCache<String, ContextImpl> contextCache;
+    private Optional<PulsarSource> optionalPulsarSource = Optional.empty();
 
     public JavaInstance(InstanceConfig config, Object userClassObject,
                  ClassLoader clsLoader,
@@ -59,6 +56,13 @@ public class JavaInstance implements AutoCloseable {
         // TODO: cache logger instances by functions?
         this.instanceLog = LoggerFactory.getLogger("function-" + config.getFunctionDetails().getName());
 
+        if (source instanceof PulsarSource) {
+            this.context = new ContextImpl(config, instanceLog, pulsarClient, clsLoader);
+            optionalPulsarSource = Optional.of((PulsarSource) source);
+        } else {
+            this.context = null;
+        }
+
         // create the functions
         if (userClassObject instanceof Function) {
             this.function = (Function) userClassObject;
@@ -66,32 +70,16 @@ public class JavaInstance implements AutoCloseable {
             this.javaUtilFunction = (java.util.function.Function) userClassObject;
         }
 
-        this.contextCache = CacheBuilder.newBuilder().build(new CacheLoader<String, ContextImpl>() {
-            @Override
-            public ContextImpl load(String topicName) throws Exception {
-                if (source instanceof PulsarSource) {
-                    return new ContextImpl(config, instanceLog, pulsarClient, clsLoader,
-                        ((PulsarSource) source).getConsumerForTopic(topicName));
-                } else {
-                    return null;
-                }
-            }
-        });
-
     }
 
     public JavaExecutionResult handleMessage(MessageId messageId, String topicName, Object input) {
-        this.context = null;
-        try {
-            this.context = contextCache.get(topicName);
-        } catch (ExecutionException e) {
-            log.warn("Problem creating context", e);
-        }
-
-        if (this.context != null) {
+        optionalPulsarSource.ifPresent((pulsarSource) -> {
+            this.context.setInputConsumer(pulsarSource.getConsumerForTopic(topicName));
             this.context.setCurrentMessageContext(messageId, topicName);
-        }
+        });
+
         JavaExecutionResult executionResult = new JavaExecutionResult();
+
         try {
             Object output;
             if (function != null) {
@@ -112,26 +100,9 @@ public class JavaInstance implements AutoCloseable {
 
     @Override
     public void close() {
-        contextCache.invalidateAll();
     }
 
     public MetricsData getAndResetMetrics() {
-        Map<String, MetricsData.DataDigest> aggregated = new HashMap<>();
-        for (ContextImpl context : contextCache.asMap().values()) {
-            MetricsData metrics = context.getAndResetMetrics();
-            for (Map.Entry<String, MetricsData.DataDigest> metric : metrics.getMetricsMap().entrySet()) {
-                if (aggregated.containsKey(metric.getKey())) {
-                    MetricsData.DataDigest existing = aggregated.get(metric.getKey());
-                    aggregated.put(metric.getKey(), MetricsData.DataDigest.newBuilder()
-                        .setCount(existing.getCount() + metric.getValue().getCount())
-                        .setMax(existing.getMax() + metric.getValue().getMax())
-                        .setMin(existing.getMin() + metric.getValue().getMin())
-                        .setSum(existing.getSum() + metric.getValue().getSum())
-                        .build()
-                    );
-                }
-            }
-        }
-        return MetricsData.newBuilder().putAllMetrics(aggregated).build();
+        return context.getAndResetMetrics();
     }
 }
