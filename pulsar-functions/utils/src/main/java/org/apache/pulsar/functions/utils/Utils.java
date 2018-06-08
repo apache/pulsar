@@ -18,20 +18,6 @@
  */
 package org.apache.pulsar.functions.utils;
 
-import com.google.protobuf.AbstractMessage.Builder;
-import com.google.protobuf.MessageOrBuilder;
-import com.google.protobuf.util.JsonFormat;
-import lombok.AccessLevel;
-import lombok.NoArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import net.jodah.typetools.TypeResolver;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails.Runtime;
-import org.apache.pulsar.io.core.Sink;
-import org.apache.pulsar.io.core.Source;
-
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -41,6 +27,23 @@ import java.lang.reflect.Type;
 import java.net.ServerSocket;
 import java.util.Collection;
 
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.TopicMessageIdImpl;
+import org.apache.pulsar.functions.api.Function;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails.Runtime;
+import org.apache.pulsar.io.core.Sink;
+import org.apache.pulsar.io.core.Source;
+
+import com.google.protobuf.AbstractMessage.Builder;
+import com.google.protobuf.MessageOrBuilder;
+import com.google.protobuf.util.JsonFormat;
+
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import net.jodah.typetools.TypeResolver;
+
 /**
  * Utils used for runtime.
  */
@@ -49,7 +52,9 @@ import java.util.Collection;
 public class Utils {
 
     public static final long getSequenceId(MessageId messageId) {
-        MessageIdImpl msgId = (MessageIdImpl) messageId;
+        MessageIdImpl msgId = (MessageIdImpl) ((messageId instanceof TopicMessageIdImpl)
+                ? ((TopicMessageIdImpl) messageId).getInnerMessageId()
+                : messageId);
         long ledgerId = msgId.getLedgerId();
         long entryId = msgId.getEntryId();
 

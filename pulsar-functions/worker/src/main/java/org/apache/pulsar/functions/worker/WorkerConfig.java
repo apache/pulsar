@@ -63,13 +63,19 @@ public class WorkerConfig implements Serializable {
     private int initialBrokerReconnectMaxRetries;
     private int assignmentWriteMaxRetries;
     private long instanceLivenessCheckFreqMs;
-
+    private String clientAuthenticationPlugin;
+    private String clientAuthenticationParameters;
+    private boolean useTls = false;
+    private String tlsTrustCertsFilePath = "";
+    private boolean tlsAllowInsecureConnection = false;
+    private boolean tlsHostnameVerificationEnable = false;
+    
     @Data
     @Setter
     @Getter
     @EqualsAndHashCode
     @ToString
-    static class ThreadContainerFactory {
+    public static class ThreadContainerFactory {
         private String threadGroupName;
     }
     private ThreadContainerFactory threadContainerFactory;
@@ -79,7 +85,7 @@ public class WorkerConfig implements Serializable {
     @Getter
     @EqualsAndHashCode
     @ToString
-    static class ProcessContainerFactory {
+    public static class ProcessContainerFactory {
         private String javaInstanceJarLocation;
         private String pythonInstanceLocation;
         private String logDirectory;

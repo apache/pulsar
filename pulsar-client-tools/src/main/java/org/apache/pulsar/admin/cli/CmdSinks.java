@@ -29,6 +29,7 @@ import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
+import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.Resources;
@@ -99,11 +100,35 @@ public class CmdSinks extends CmdBase {
 
         @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker")
         protected String brokerServiceUrl;
+        
+        @Parameter(names = "--clientAuthPlugin", description = "Client authentication plugin using which function-process can connect to broker")
+        protected String clientAuthPlugin;
+        
+        @Parameter(names = "--clientAuthParams", description = "Client authentication param")
+        protected String clientAuthParams;
+        
+        @Parameter(names = "--use_tls", description = "Use tls connection\n")
+        protected boolean useTls;
+
+        @Parameter(names = "--tls_allow_insecure", description = "Allow insecure tls connection\n")
+        protected boolean tlsAllowInsecureConnection;
+        
+        @Parameter(names = "--hostname_verification_enabled", description = "Enable hostname verification")
+        protected boolean tlsHostNameVerificationEnabled;
+        
+        @Parameter(names = "--tls_trust_cert_path", description = "tls trust cert file path")
+        protected String tlsTrustCertFilePath;
 
         @Override
         void runCmd() throws Exception {
-            CmdFunctions.startLocalRun(createSinkConfigProto2(sinkConfig),
-                    sinkConfig.getParallelism(), brokerServiceUrl, jarFile, admin);
+            CmdFunctions.startLocalRun(createSinkConfigProto2(sinkConfig), sinkConfig.getParallelism(),
+                    0, brokerServiceUrl,
+                    AuthenticationConfig.builder().clientAuthenticationPlugin(clientAuthPlugin)
+                            .clientAuthenticationParameters(clientAuthParams).useTls(useTls)
+                            .tlsAllowInsecureConnection(tlsAllowInsecureConnection)
+                            .tlsHostnameVerificationEnable(tlsHostNameVerificationEnabled)
+                            .tlsTrustCertsFilePath(tlsTrustCertFilePath).build(),
+                    jarFile, admin);
         }
     }
 
@@ -137,6 +162,8 @@ public class CmdSinks extends CmdBase {
         protected String className;
         @Parameter(names = "--inputs", description = "The sink's input topic or topics (multiple topics can be specified as a comma-separated list)")
         protected String inputs;
+        @Parameter(names = "--topicsPattern", description = "TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. Add SerDe class name for a pattern in --customSerdeInputs  (supported for java fun only)")
+        protected String topicsPattern;
         @Parameter(names = "--customSerdeInputs", description = "The map of input topics to SerDe class names (as a JSON string)")
         protected String customSerdeInputString;
         @Parameter(names = "--processingGuarantees", description = "The processing guarantees (aka delivery semantics) applied to the Sink")
@@ -191,6 +218,7 @@ public class CmdSinks extends CmdBase {
             if (null != processingGuarantees) {
                 sinkConfig.setProcessingGuarantees(processingGuarantees);
             }
+
             Map<String, String> topicsToSerDeClassName = new HashMap<>();
             if (null != inputs) {
                 List<String> inputTopics = Arrays.asList(inputs.split(","));
@@ -204,6 +232,10 @@ public class CmdSinks extends CmdBase {
                 });
             }
             sinkConfig.setTopicToSerdeClassName(topicsToSerDeClassName);
+            
+            if (null != topicsPattern) {
+                sinkConfig.setTopicsPattern(topicsPattern);
+            }
 
             if (parallelism != null) {
                 sinkConfig.setParallelism(parallelism);
@@ -299,6 +331,9 @@ public class CmdSinks extends CmdBase {
             SourceSpec.Builder sourceSpecBuilder = SourceSpec.newBuilder();
             sourceSpecBuilder.setSubscriptionType(Function.SubscriptionType.SHARED);
             sourceSpecBuilder.putAllTopicsToSerDeClassName(sinkConfig.getTopicToSerdeClassName());
+            if (sinkConfig.getTopicsPattern() != null) {
+                sourceSpecBuilder.setTopicsPattern(sinkConfig.getTopicsPattern());
+            }
             sourceSpecBuilder.setTypeClassName(typeArg.getName());
             functionDetailsBuilder.setAutoAck(true);
             functionDetailsBuilder.setSource(sourceSpecBuilder);
@@ -306,7 +341,9 @@ public class CmdSinks extends CmdBase {
             // set up sink spec
             SinkSpec.Builder sinkSpecBuilder = SinkSpec.newBuilder();
             sinkSpecBuilder.setClassName(sinkConfig.getClassName());
-            sinkSpecBuilder.setConfigs(new Gson().toJson(sinkConfig.getConfigs()));
+            if (sinkConfig.getConfigs() != null) {
+                sinkSpecBuilder.setConfigs(new Gson().toJson(sinkConfig.getConfigs()));
+            }
             sinkSpecBuilder.setTypeClassName(typeArg.getName());
             functionDetailsBuilder.setSink(sinkSpecBuilder);
 

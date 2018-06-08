@@ -25,6 +25,19 @@ func NewClient(options ClientOptions) (Client, error) {
 	return newClient(options)
 }
 
+// Opaque interface that represents the authentication credentials
+type Authentication interface {}
+
+// Create new Authentication provider with specified TLS certificate and private key
+func NewAuthenticationTLS(certificatePath string, privateKeyPath string) Authentication {
+	return newAuthenticationTLS(certificatePath, privateKeyPath)
+}
+
+// Create new Athenz Authentication provider with configuration in JSON form
+func NewAuthenticationAthenz(authParams string) Authentication {
+	return newAuthenticationAthenz(authParams)
+}
+
 // Builder interface that is used to construct a Pulsar Client instance.
 type ClientOptions struct {
 	// Configure the service URL for the Pulsar service.
@@ -53,14 +66,15 @@ type ClientOptions struct {
 	// to write any logs.
 	Logger func(level LoggerLevel, file string, line int, message string)
 
-	// Configure whether to use TLS encryption on the connection (default: false)
-	EnableTLS bool
-
 	// Set the path to the trusted TLS certificate file
 	TLSTrustCertsFilePath string
 
 	// Configure whether the Pulsar client accept untrusted TLS certificate from broker (default: false)
 	TLSAllowInsecureConnection bool
+
+	// Configure the authentication provider. (default: no authentication)
+	// Example: `Authentication: NewAuthenticationTLS("my-cert.pem", "my-key.pem")`
+	Authentication
 
 	// Set the interval between each stat info (default: 60 seconds). Stats will be activated with positive
 	// statsIntervalSeconds It should be set to at least 1 second

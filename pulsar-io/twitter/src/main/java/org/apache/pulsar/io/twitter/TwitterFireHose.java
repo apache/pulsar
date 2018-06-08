@@ -56,7 +56,7 @@ public class TwitterFireHose extends PushSource<String> {
         TwitterFireHoseConfig hoseConfig = TwitterFireHoseConfig.load(config);
         if (hoseConfig.getConsumerKey() == null
                 || hoseConfig.getConsumerSecret() == null
-                || hoseConfig.getToken() != null
+                || hoseConfig.getToken() == null
                 || hoseConfig.getTokenSecret() == null) {
             throw new IllegalArgumentException("Required property not set.");
         }

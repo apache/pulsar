@@ -165,6 +165,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     private final ScheduledExecutorService inactivityMonitor;
     private final ScheduledExecutorService messageExpiryMonitor;
+    private final ScheduledExecutorService compactionMonitor;
 
     private DistributedIdGenerator producerNameGenerator;
 
@@ -227,6 +228,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-inactivity-monitor"));
         this.messageExpiryMonitor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-msg-expiry-monitor"));
+        this.compactionMonitor =
+            Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-compaction-monitor"));
+
         this.backlogQuotaManager = new BacklogQuotaManager(pulsar);
         this.backlogQuotaChecker = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-backlog-quota-checker"));
@@ -309,6 +313,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.startStatsUpdater();
         this.startInactivityMonitor();
         this.startMessageExpiryMonitor();
+        this.startCompactionMonitor();
         this.startBacklogQuotaChecker();
         // register listener to capture zk-latency
         ClientCnxnAspect.addListener(zkStatsListener);
@@ -350,6 +355,14 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 TimeUnit.MINUTES);
     }
 
+    void startCompactionMonitor() {
+        int interval = pulsar().getConfiguration().getBrokerServiceCompactionMonitorIntervalInSeconds();
+        if (interval > 0) {
+            compactionMonitor.scheduleAtFixedRate(safeRun(() -> checkCompaction()),
+                                                  interval, interval, TimeUnit.SECONDS);
+        }
+    }
+
     void startBacklogQuotaChecker() {
         if (pulsar().getConfiguration().isBacklogQuotaCheckEnabled()) {
             final int interval = pulsar().getConfiguration().getBacklogQuotaCheckIntervalInSeconds();
@@ -387,6 +400,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         statsUpdater.shutdown();
         inactivityMonitor.shutdown();
         messageExpiryMonitor.shutdown();
+        compactionMonitor.shutdown();
         backlogQuotaChecker.shutdown();
         authenticationService.close();
         pulsarStats.close();
@@ -836,6 +850,14 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     public void checkMessageExpiry() {
         forEachTopic(Topic::checkMessageExpiry);
+    }
+
+    public void checkCompaction() {
+        forEachTopic((t) -> {
+                if (t instanceof PersistentTopic) {
+                    ((PersistentTopic) t).checkCompaction();
+                }
+            });
     }
 
     public void checkMessageDeduplicationInfo() {

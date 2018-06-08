@@ -713,16 +713,11 @@ public class FunctionsImpl {
     private FunctionDetails validateUpdateRequestParams(String tenant, String namespace, String functionName,
             String functionPkgUrl, String functionDetailsJson)
             throws IllegalArgumentException, IOException, URISyntaxException {
-        if (!isFunctionPackageUrlSupported(functionPkgUrl)) {
+        if (!Utils.isFunctionPackageUrlSupported(functionPkgUrl)) {
             throw new IllegalArgumentException("Function Package url is not valid. supported url (http/https/file)");
         }
         Utils.validateFileUrl(functionPkgUrl, workerServiceSupplier.get().getWorkerConfig().getDownloadDirectory());
         return validateUpdateRequestParams(tenant, namespace, functionName, functionDetailsJson);
-    }
-
-    public static boolean isFunctionPackageUrlSupported(String functionPkgUrl) {
-        return StringUtils.isBlank(functionPkgUrl)
-                || !(functionPkgUrl.startsWith(Utils.HTTP) || functionPkgUrl.startsWith(Utils.FILE));
     }
 
     private FunctionDetails validateUpdateRequestParams(String tenant,

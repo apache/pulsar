@@ -388,7 +388,7 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>commons-configuration</artifactId>
         <version>1.6</version>
       </dependency>
-      
+
       <dependency>
         <groupId>commons-io</groupId>
         <artifactId>commons-io</artifactId>
@@ -821,7 +821,7 @@ flexible messaging model and an intuitive client API.</description>
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
-      <version>1.16.20</version>
+      <version>1.18.0</version>
       <scope>provided</scope>
     </dependency>
 
