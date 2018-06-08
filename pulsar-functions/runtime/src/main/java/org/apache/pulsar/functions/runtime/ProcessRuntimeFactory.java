@@ -21,6 +21,8 @@ package org.apache.pulsar.functions.runtime;
 
 import com.google.common.annotations.VisibleForTesting;
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 
 import java.nio.file.Paths;
@@ -32,29 +34,20 @@ import java.nio.file.Paths;
 public class ProcessRuntimeFactory implements RuntimeFactory {
 
     private String pulsarServiceUrl;
-    private String clientAuthenticationPlugin;
-    private String clientAuthenticationParameters;
-    private boolean useTls;
-    private boolean tlsAllowInsecureConnection;
+    private AuthenticationConfig authConfig;
     private String javaInstanceJarFile;
     private String pythonInstanceFile;
     private String logDirectory;
 
     @VisibleForTesting
     public ProcessRuntimeFactory(String pulsarServiceUrl,
-                                 String clientAuthenticationPlugin,
-                                 String clientAuthenticationParameters,
-                                 boolean useTls,
-                                 boolean allowInsecureConnection,
+                                 AuthenticationConfig authConfig,
                                  String javaInstanceJarFile,
                                  String pythonInstanceFile,
                                  String logDirectory) {
 
         this.pulsarServiceUrl = pulsarServiceUrl;
-        this.clientAuthenticationPlugin = clientAuthenticationPlugin;
-        this.clientAuthenticationParameters = clientAuthenticationParameters;
-        this.useTls = useTls;
-        this.tlsAllowInsecureConnection = allowInsecureConnection;
+        this.authConfig = authConfig;
         this.javaInstanceJarFile = javaInstanceJarFile;
         this.pythonInstanceFile = pythonInstanceFile;
         this.logDirectory = logDirectory;
@@ -113,10 +106,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
             logDirectory,
             codeFile,
             pulsarServiceUrl,
-            clientAuthenticationPlugin,
-            clientAuthenticationParameters,
-            useTls,
-            tlsAllowInsecureConnection);
+            authConfig);
     }
 
     @Override

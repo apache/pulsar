@@ -26,6 +26,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.functions.proto.Function.Assignment;
+import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.Request.AssignmentsUpdate;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
@@ -92,22 +93,20 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
         this.functionAssignmentTailer = new FunctionAssignmentTailer(this, reader);
 
+        AuthenticationConfig authConfig = AuthenticationConfig.builder().clientAuthenticationPlugin(workerConfig.getClientAuthenticationPlugin())
+        .clientAuthenticationParameters(workerConfig.getClientAuthenticationParameters()).useTls(workerConfig.isUseTls())
+        .tlsAllowInsecureConnection(workerConfig.isTlsAllowInsecureConnection()).build();
+        
         if (workerConfig.getThreadContainerFactory() != null) {
             this.runtimeFactory = new ThreadRuntimeFactory(
                     workerConfig.getThreadContainerFactory().getThreadGroupName(),
                     workerConfig.getPulsarServiceUrl(),
                     workerConfig.getStateStorageServiceUrl(),
-                    workerConfig.getClientAuthenticationPlugin(),
-                    workerConfig.getClientAuthenticationParameters(),
-                    workerConfig.isUseTls(),
-                    workerConfig.isTlsAllowInsecureConnection());
+                    authConfig);
         } else if (workerConfig.getProcessContainerFactory() != null) {
             this.runtimeFactory = new ProcessRuntimeFactory(
                     workerConfig.getPulsarServiceUrl(),
-                    workerConfig.getClientAuthenticationPlugin(),
-                    workerConfig.getClientAuthenticationParameters(),
-                    workerConfig.isUseTls(),
-                    workerConfig.isTlsAllowInsecureConnection(),
+                    authConfig,
                     workerConfig.getProcessContainerFactory().getJavaInstanceJarLocation(),
                     workerConfig.getProcessContainerFactory().getPythonInstanceLocation(),
                     workerConfig.getProcessContainerFactory().getLogDirectory());

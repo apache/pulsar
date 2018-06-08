@@ -66,7 +66,7 @@ public class ProcessRuntimeTest {
         this.pulsarServiceUrl = "pulsar://localhost:6670";
         this.logDirectory = "Users/user/logs";
         this.factory = new ProcessRuntimeFactory(
-            pulsarServiceUrl, null, null, false, false, javaInstanceJarFile, pythonInstanceFile, logDirectory);
+            pulsarServiceUrl, null, javaInstanceJarFile, pythonInstanceFile, logDirectory);
     }
 
     @AfterMethod

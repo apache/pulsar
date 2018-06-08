@@ -29,6 +29,7 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
+import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManagerImpl;
@@ -46,10 +47,8 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     private volatile boolean closed;
 
     public ThreadRuntimeFactory(String threadGroupName, String pulsarServiceUrl, String storageServiceUrl,
-            String clientAuthenticationPlugin, String clientAuthenticationParameters, boolean useTls,
-            boolean tlsAllowInsecureConnection) throws Exception {
-        this(threadGroupName, createPulsarClient(pulsarServiceUrl, clientAuthenticationPlugin,
-                clientAuthenticationParameters, useTls, tlsAllowInsecureConnection), storageServiceUrl);
+            AuthenticationConfig authConfig) throws Exception {
+        this(threadGroupName, createPulsarClient(pulsarServiceUrl, authConfig), storageServiceUrl);
     }
 
     @VisibleForTesting
@@ -60,17 +59,20 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
         this.storageServiceUrl = storageServiceUrl;
     }
 
-    private static PulsarClient createPulsarClient(String pulsarServiceUrl, String clientAuthenticationPlugin,
-            String clientAuthenticationParameters, boolean useTls, boolean tlsAllowInsecureConnection)
+    private static PulsarClient createPulsarClient(String pulsarServiceUrl, AuthenticationConfig authConfig)
             throws PulsarClientException {
         ClientBuilder clientBuilder = null;
         if (isNotBlank(pulsarServiceUrl)) {
             clientBuilder = PulsarClient.builder().serviceUrl(pulsarServiceUrl);
-            if (isNotBlank(clientAuthenticationPlugin) && isNotBlank(clientAuthenticationParameters)) {
-                clientBuilder.authentication(clientAuthenticationPlugin, clientAuthenticationParameters);
+            if (authConfig != null) {
+                if (isNotBlank(authConfig.getClientAuthenticationPlugin())
+                        && isNotBlank(authConfig.getClientAuthenticationParameters())) {
+                    clientBuilder.authentication(authConfig.getClientAuthenticationPlugin(),
+                            authConfig.getClientAuthenticationParameters());
+                }
+                clientBuilder.enableTls(authConfig.isUseTls());
+                clientBuilder.allowTlsInsecureConnection(authConfig.isTlsAllowInsecureConnection());
             }
-            clientBuilder.enableTls(useTls);
-            clientBuilder.allowTlsInsecureConnection(tlsAllowInsecureConnection);
             return clientBuilder.build();
         }
         return null;

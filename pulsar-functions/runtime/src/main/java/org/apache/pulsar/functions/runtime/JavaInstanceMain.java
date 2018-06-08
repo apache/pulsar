@@ -30,6 +30,8 @@ import io.grpc.stub.StreamObserver;
 import lombok.extern.slf4j.Slf4j;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
+import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.ProcessingGuarantees;
@@ -219,14 +221,11 @@ public class JavaInstanceMain implements AutoCloseable {
         instanceConfig.setFunctionDetails(functionDetails);
         instanceConfig.setPort(port);
 
-        ThreadRuntimeFactory containerFactory = new ThreadRuntimeFactory(
-                "LocalRunnerThreadGroup",
-                pulsarServiceUrl,
+        ThreadRuntimeFactory containerFactory = new ThreadRuntimeFactory("LocalRunnerThreadGroup", pulsarServiceUrl,
                 stateStorageServiceUrl,
-                clientAuthenticationPlugin,
-                clientAuthenticationParameters,
-                useTls,
-                tlsAllowInsecureConnection);
+                AuthenticationConfig.builder().clientAuthenticationPlugin(clientAuthenticationPlugin)
+                        .clientAuthenticationParameters(clientAuthenticationParameters).useTls(useTls)
+                        .tlsAllowInsecureConnection(tlsAllowInsecureConnection).build());
         runtimeSpawner = new RuntimeSpawner(
                 instanceConfig,
                 jarFile,

@@ -52,6 +52,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.Resources;
@@ -659,7 +660,11 @@ public class CmdFunctions extends CmdBase {
         @Override
         void runCmd() throws Exception {
             CmdFunctions.startLocalRun(convertProto2(functionConfig),
-                    functionConfig.getParallelism(), brokerServiceUrl, clientAuthPlugin, clientAuthParams, useTls, tlsAllowInsecureConnection, userCodeFile, admin);
+                    functionConfig.getParallelism(), brokerServiceUrl,
+                    AuthenticationConfig.builder().clientAuthenticationPlugin(clientAuthPlugin)
+                            .clientAuthenticationParameters(clientAuthParams).useTls(useTls)
+                            .tlsAllowInsecureConnection(tlsAllowInsecureConnection).build(),
+                    userCodeFile, admin);
         }
     }
 
@@ -924,7 +929,7 @@ public class CmdFunctions extends CmdBase {
     }
 
     protected static void startLocalRun(org.apache.pulsar.functions.proto.Function.FunctionDetails functionDetails,
-            int parallelism, String brokerServiceUrl, String clientAuthPlugin, String clientAuthParam, boolean useTls, boolean allowInsecureConnection,
+            int parallelism, String brokerServiceUrl, AuthenticationConfig authConfig,
             String userCodeFile, PulsarAdmin admin)
             throws Exception {
 
@@ -935,8 +940,8 @@ public class CmdFunctions extends CmdBase {
         if (serviceUrl == null) {
             serviceUrl = DEFAULT_SERVICE_URL;
         }
-        try (ProcessRuntimeFactory containerFactory = new ProcessRuntimeFactory(
-                serviceUrl, clientAuthPlugin, clientAuthParam, useTls, allowInsecureConnection, null, null, null)) {
+        try (ProcessRuntimeFactory containerFactory = new ProcessRuntimeFactory(serviceUrl, authConfig, null, null,
+                null)) {
             List<RuntimeSpawner> spawners = new LinkedList<>();
             for (int i = 0; i < parallelism; ++i) {
                 InstanceConfig instanceConfig = new InstanceConfig();
