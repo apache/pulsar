@@ -447,6 +447,10 @@ public class ValidatorImpls {
             if (functionConfig.getWindowConfig() != null) {
                 throw new IllegalArgumentException("There is currently no support windowing in python");
             }
+            
+            if (StringUtils.isNotBlank(functionConfig.getTopicsPattern())) {
+                throw new IllegalArgumentException("Topic-patterns is not supported for python runtime");
+            }
         }
 
         private static void verifyNoTopicClash(Collection<String> inputTopics, String outputTopic) throws IllegalArgumentException {
@@ -458,7 +462,8 @@ public class ValidatorImpls {
         }
 
         private static void doCommonChecks(FunctionConfig functionConfig) {
-            if (functionConfig.getInputs().isEmpty() && functionConfig.getCustomSerdeInputs().isEmpty()) {
+            if ((functionConfig.getInputs().isEmpty() && StringUtils.isEmpty(functionConfig.getTopicsPattern()))
+                    && functionConfig.getCustomSerdeInputs().isEmpty()) {
                 throw new RuntimeException("No input topic(s) specified for the function");
             }
 

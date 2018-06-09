@@ -109,6 +109,8 @@ class Commands {
 
     static SharedBuffer newConsumerStats(uint64_t consumerId, uint64_t requestId);
 
+    static SharedBuffer newSeek(uint64_t consumerId, uint64_t requestId, const MessageId& messageId);
+
    private:
     Commands();
 

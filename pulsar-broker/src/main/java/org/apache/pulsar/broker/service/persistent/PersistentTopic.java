@@ -970,6 +970,42 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         messageDeduplication.purgeInactiveProducers();
     }
 
+    public void checkCompaction() {
+        TopicName name = TopicName.get(topic);
+        try {
+            Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                .get(AdminResource.path(POLICIES, name.getNamespace()))
+                .orElseThrow(() -> new KeeperException.NoNodeException());
+
+
+            if (policies.compaction_threshold != 0
+                && currentCompaction.isDone()) {
+
+                long backlogEstimate = 0;
+
+                PersistentSubscription compactionSub = subscriptions.get(Compactor.COMPACTION_SUBSCRIPTION);
+                if (compactionSub != null) {
+                    backlogEstimate = compactionSub.estimateBacklogSize();
+                } else {
+                    // compaction has never run, so take full backlog size
+                    backlogEstimate = ledger.getEstimatedBacklogSize();
+                }
+
+                if (backlogEstimate > policies.compaction_threshold) {
+                    try {
+                        triggerCompaction();
+                    } catch (AlreadyRunningException are) {
+                        log.debug("[{}] Compaction already running, so don't trigger again, "
+                                  + "even though backlog({}) is over threshold({})",
+                                  name, backlogEstimate, policies.compaction_threshold);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.debug("[{}] Error getting policies", topic);
+        }
+    }
+
     CompletableFuture<Void> startReplicator(String remoteCluster) {
         log.info("[{}] Starting replicator to remote: {}", topic, remoteCluster);
         final CompletableFuture<Void> future = new CompletableFuture<>();

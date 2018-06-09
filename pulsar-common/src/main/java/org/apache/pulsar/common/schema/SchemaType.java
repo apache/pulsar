@@ -40,5 +40,7 @@ public enum SchemaType {
     /**
      * Byte buffer schema
      */
-    BYTE_BUFFER
+    BYTE_BUFFER,
+
+    PROTOBUF
 }

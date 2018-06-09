@@ -16,39 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#ifndef PULSAR_AUTH_TLS_H_
-#define PULSAR_AUTH_TLS_H_
+
+#pragma once
 
 #include <pulsar/Authentication.h>
-#include <lib/LogUtils.h>
-#include <iostream>
 #include <string>
 
 namespace pulsar {
 
 class AuthDataTls : public AuthenticationDataProvider {
    public:
-    AuthDataTls(ParamMap& params);
+    AuthDataTls(const std::string& certificatePath, const std::string& privateKeyPath);
     ~AuthDataTls();
+
     bool hasDataForTls();
     std::string getTlsCertificates();
     std::string getTlsPrivateKey();
 
    private:
-    std::string tlsCertificates_;
+    std::string tlsCertificate_;
     std::string tlsPrivateKey_;
 };
 
-class AuthTls : public Authentication {
-   public:
-    AuthTls(AuthenticationDataPtr&);
-    ~AuthTls();
-    static AuthenticationPtr create(ParamMap& params);
-    const std::string getAuthMethodName() const;
-    Result getAuthData(AuthenticationDataPtr& authDataTls) const;
-
-   private:
-    AuthenticationDataPtr authDataTls_;
-};
 }  // namespace pulsar
-#endif /* PULSAR_AUTH_TLS_H_ */

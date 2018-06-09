@@ -28,6 +28,7 @@ import (
 	"runtime"
 	"unsafe"
 	"log"
+	"strings"
 )
 
 //export pulsarClientLoggerProxy
@@ -69,8 +70,13 @@ func newClient(options ClientOptions) (Client, error) {
 
 	C._pulsar_client_configuration_set_logger(conf, savePointer(options.Logger))
 
-	if options.EnableTLS {
-		C.pulsar_client_configuration_set_use_tls(conf, cBool(options.EnableTLS))
+	// If service url is on encrypted protocol, enable TLS
+	if strings.HasPrefix(options.URL, "pulsar+ssl://") || strings.HasPrefix(options.URL, "https://") {
+		C.pulsar_client_configuration_set_use_tls(conf, cBool(true))
+	}
+
+	if options.Authentication != nil {
+		C.pulsar_client_configuration_set_auth(conf, options.Authentication.(*authentication).ptr)
 	}
 
 	if options.TLSTrustCertsFilePath != "" {
@@ -87,8 +93,15 @@ func newClient(options ClientOptions) (Client, error) {
 		C.pulsar_client_configuration_set_stats_interval_in_seconds(conf, C.uint(options.StatsIntervalInSeconds))
 	}
 
+	url := C.CString(options.URL)
+	defer C.free(unsafe.Pointer(url))
+
 	client := &client{
-		ptr: C.pulsar_client_create(C.CString(options.URL), conf),
+		ptr: C.pulsar_client_create(url, conf),
+	}
+
+	if options.Authentication != nil {
+		client.auth = options.Authentication.(*authentication)
 	}
 
 	C.pulsar_client_configuration_free(conf)
@@ -96,8 +109,43 @@ func newClient(options ClientOptions) (Client, error) {
 	return client, nil
 }
 
+type authentication struct {
+	ptr *C.pulsar_authentication_t
+}
+
+func newAuthenticationTLS(certificatePath string, privateKeyPath string) Authentication {
+	cCertificatePath := C.CString(certificatePath)
+	cPrivateKeyPath := C.CString(privateKeyPath)
+	defer C.free(unsafe.Pointer(cCertificatePath))
+	defer C.free(unsafe.Pointer(cPrivateKeyPath))
+
+	auth := &authentication{
+		ptr: C.pulsar_authentication_tls_create(cCertificatePath, cPrivateKeyPath),
+	}
+
+	runtime.SetFinalizer(auth, authenticationFinalizer)
+	return auth
+}
+
+func newAuthenticationAthenz(authParams string) Authentication {
+	cAuthParams := C.CString(authParams)
+	defer C.free(unsafe.Pointer(cAuthParams))
+
+	auth := &authentication{
+		ptr: C.pulsar_authentication_athenz_create(cAuthParams),
+	}
+
+	runtime.SetFinalizer(auth, authenticationFinalizer)
+	return auth
+}
+
+func authenticationFinalizer(authentication *authentication) {
+	C.pulsar_authentication_free(authentication.ptr)
+}
+
 type client struct {
 	ptr *C.pulsar_client_t
+	auth *authentication
 }
 
 func clientFinalizer(client *client) {

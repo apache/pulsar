@@ -30,6 +30,11 @@ typedef struct _pulsar_authentication pulsar_authentication_t;
 pulsar_authentication_t *pulsar_authentication_create(const char *dynamicLibPath,
                                                       const char *authParamsString);
 
+pulsar_authentication_t *pulsar_authentication_tls_create(const char *certificatePath,
+                                                          const char *privateKeyPath);
+
+pulsar_authentication_t *pulsar_authentication_athenz_create(const char *authParamsString);
+
 void pulsar_authentication_free(pulsar_authentication_t *authentication);
 
 #pragma GCC visibility pop

@@ -30,9 +30,11 @@ if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
   set(CMAKE_SHARED_LIBRARY_CREATE_CXX_FLAGS "${CMAKE_SHARED_LIBRARY_CREATE_CXX_FLAGS} -undefined dynamic_lookup")
 endif()
 
+set(PYTHON_WRAPPER_LIBS ${Boost_PYTHON_LIBRARY} ${Boost_PYTHON3_LIBRARY} authTls authAthenz)
+
 if (APPLE)
-    target_link_libraries(_pulsar -Wl,-all_load pulsarStatic ${Boost_PYTHON_LIBRARY} ${Boost_PYTHON3_LIBRARY})
+    target_link_libraries(_pulsar -Wl,-all_load pulsarStatic ${PYTHON_WRAPPER_LIBS})
 else ()
     set (CMAKE_SHARED_LINKER_FLAGS " -static-libgcc  -static-libstdc++")
-    target_link_libraries(_pulsar pulsarStatic ${Boost_PYTHON_LIBRARY} ${Boost_PYTHON3_LIBRARY})
+    target_link_libraries(_pulsar pulsarStatic ${PYTHON_WRAPPER_LIBS})
 endif ()

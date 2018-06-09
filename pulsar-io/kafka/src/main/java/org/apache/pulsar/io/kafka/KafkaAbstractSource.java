@@ -39,9 +39,9 @@ import java.util.concurrent.ExecutionException;
 /**
  * Simple Kafka Source to transfer messages from a Kafka topic
  */
-public abstract class KafkaSource<V> extends PushSource<V> {
+public abstract class KafkaAbstractSource<V> extends PushSource<V> {
 
-    private static final Logger LOG = LoggerFactory.getLogger(KafkaSource.class);
+    private static final Logger LOG = LoggerFactory.getLogger(KafkaAbstractSource.class);
 
     private Consumer<byte[], byte[]> consumer;
     private Properties props;

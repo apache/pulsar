@@ -17,5 +17,4 @@
 # under the License.
 #
 
-add_library(ztsClient SHARED ZTSClient.cc)
-target_link_libraries(ztsClient ${CLIENT_LIBS})
+add_library(ztsClientStatic STATIC ZTSClient.cc)

@@ -76,7 +76,7 @@ public interface Functions {
     FunctionDetails getFunction(String tenant, String namespace, String function) throws PulsarAdminException;
 
     /**
-     * Create a new function.
+     * Create a new function. 
      *
      * @param functionDetails
      *            the function configuration object
@@ -85,6 +85,22 @@ public interface Functions {
      *             Unexpected error
      */
     void createFunction(FunctionDetails functionDetails, String fileName) throws PulsarAdminException;
+    
+    /**
+     * <pre>
+     * Create a new function by providing url from which fun-pkg can be downloaded. supported url: http/file
+     * eg:
+     * File: file:/dir/fileName.jar
+     * Http: http://www.repo.com/fileName.jar
+     * </pre>
+     * 
+     * @param functionDetails
+     *            the function configuration object
+     * @param pkgUrl
+     *            url from which pkg can be downloaded
+     * @throws PulsarAdminException
+     */
+    void createFunctionWithUrl(FunctionDetails functionDetails, String pkgUrl) throws PulsarAdminException;
 
     /**
      * Update the configuration for a function.

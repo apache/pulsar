@@ -25,9 +25,11 @@ import com.beust.jcommander.converters.StringConverter;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import lombok.Getter;
+import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
+import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.Resources;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
@@ -49,7 +51,6 @@ import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
 import static org.apache.pulsar.functions.utils.Utils.fileExists;
 import static org.apache.pulsar.functions.utils.Utils.getSourceType;
-import static org.apache.pulsar.functions.utils.Utils.loadConfig;
 
 @Getter
 @Parameters(commandDescription = "Interface for managing Pulsar Source (Ingress data to Pulsar)")
@@ -95,11 +96,35 @@ public class CmdSources extends CmdBase {
 
         @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker")
         protected String brokerServiceUrl;
+        
+        @Parameter(names = "--clientAuthPlugin", description = "Client authentication plugin using which function-process can connect to broker")
+        protected String clientAuthPlugin;
+        
+        @Parameter(names = "--clientAuthParams", description = "Client authentication param")
+        protected String clientAuthParams;
+        
+        @Parameter(names = "--use_tls", description = "Use tls connection\n")
+        protected boolean useTls;
+
+        @Parameter(names = "--tls_allow_insecure", description = "Allow insecure tls connection\n")
+        protected boolean tlsAllowInsecureConnection;
+        
+        @Parameter(names = "--hostname_verification_enabled", description = "Enable hostname verification")
+        protected boolean tlsHostNameVerificationEnabled;
+        
+        @Parameter(names = "--tls_trust_cert_path", description = "tls trust cert file path")
+        protected String tlsTrustCertFilePath;
 
         @Override
         void runCmd() throws Exception {
-            CmdFunctions.startLocalRun(createSourceConfigProto2(sourceConfig),
-                    sourceConfig.getParallelism(), brokerServiceUrl, jarFile, admin);
+            CmdFunctions.startLocalRun(createSourceConfigProto2(sourceConfig), sourceConfig.getParallelism(),
+                    0, brokerServiceUrl,
+                    AuthenticationConfig.builder().clientAuthenticationPlugin(clientAuthPlugin)
+                            .clientAuthenticationParameters(clientAuthParams).useTls(useTls)
+                            .tlsAllowInsecureConnection(tlsAllowInsecureConnection)
+                            .tlsHostnameVerificationEnable(tlsHostNameVerificationEnabled)
+                            .tlsTrustCertsFilePath(tlsTrustCertFilePath).build(),
+                    jarFile, admin);
         }
     }
 
@@ -163,7 +188,7 @@ public class CmdSources extends CmdBase {
             super.processArguments();
 
             if (null != sourceConfigFile) {
-                this.sourceConfig = loadConfig(sourceConfigFile, SourceConfig.class);
+                this.sourceConfig = CmdUtils.loadConfig(sourceConfigFile, SourceConfig.class);
             } else {
                 this.sourceConfig = new SourceConfig();
             }
@@ -280,7 +305,9 @@ public class CmdSources extends CmdBase {
             // set source spec
             SourceSpec.Builder sourceSpecBuilder = SourceSpec.newBuilder();
             sourceSpecBuilder.setClassName(sourceConfig.getClassName());
-            sourceSpecBuilder.setConfigs(new Gson().toJson(sourceConfig.getConfigs()));
+            if (sourceConfig.getConfigs() != null) {
+                sourceSpecBuilder.setConfigs(new Gson().toJson(sourceConfig.getConfigs()));
+            }
             sourceSpecBuilder.setTypeClassName(typeArg.getName());
             functionDetailsBuilder.setSource(sourceSpecBuilder);
 
