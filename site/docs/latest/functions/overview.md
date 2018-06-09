@@ -194,9 +194,10 @@ Pulsar Functions can currently be written in [Java](../../functions/api#java) an
 
 ## The Pulsar Functions API {#api}
 
-* Type safe (bytes versus specific types)
-* SerDe (built-in vs. custom)
-* Pulsar messages are always just bytes, but Pulsar Functions handles data types for you *unless* you need custom types
+The Pulsar Functions API enables you to create processing logic that is:
+
+* Type safe. Pulsar Functions can process raw bytes or more complex, application-specific types.
+* Based on SerDe (**Ser**ialization/**De**serialization). A variety of types are supported "out of the box" but you can also create your own custom SerDe logic.
 
 ### Function context {#context}
 
@@ -316,6 +317,29 @@ $ bin/pulsar-admin functions create \
   --className func.ParallelFunction \
   --parallelism 5
 ```
+
+### Function instance resources {#resources}
+
+When you run Pulsar Functions in [cluster run](#cluster-run) mode, you can specify the resources that are assigned to each function [instance](#parallelism):
+
+Resource | Specified as... | Runtimes
+:--------|:----------------|:--------
+CPU | The number of cores | Docker (coming soon)
+RAM | The number of bytes | Process, Docker
+Disk space | The number of bytes | Docker
+
+Here's an example function creation command that allocates 8 cores, 8 GB of RAM, and 10 GB of disk space to a function:
+
+```bash
+$ bin/pulsar-admin functions create \
+  --jar target/my-functions.jar \
+  --className org.example.functions.MyFunction \
+  --cpu 8 \
+  --ram 8589934592 \
+  --disk 10737418240
+```
+
+For more information on resources, see the [Deploying and Managing Pulsar Functions](../deployment#resources) documentation.
 
 ### Logging
 
