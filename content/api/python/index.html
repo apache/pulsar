@@ -1065,6 +1065,11 @@ table {
       </ul>
     </li>
 
+    <li class="set"><h3><a href="#header-submodules">Sub-modules</a></h3>
+      <ul>
+        <li class="mono"><a href="functions/index.html">pulsar.functions</a></li>
+      </ul>
+    </li>
     </ul>
   </div>
 
@@ -1430,7 +1435,8 @@ class Client:
                         batching_enabled=False,
                         batching_max_messages=1000,
                         batching_max_allowed_size_in_bytes=128*1024,
-                        batching_max_publish_delay_ms=10
+                        batching_max_publish_delay_ms=10,
+                        message_routing_mode=PartitionsRoutingMode.RoundRobinDistribution
                         ):
         """
         Create a new producer on a given topic.
@@ -1465,7 +1471,8 @@ class Client:
         * `block_if_queue_full`: Set whether `send_async` operations should
           block when the outgoing message queue is full.
         * `message_routing_mode`:
-          Set the message routing mode for the partitioned producer.
+          Set the message routing mode for the partitioned producer. Default is `PartitionsRoutingMode.RoundRobinDistribution`,
+          other option is `PartitionsRoutingMode.UseSinglePartition`
         """
         _check_type(str, topic, 'topic')
         _check_type_or_none(str, producer_name, 'producer_name')
@@ -1488,6 +1495,7 @@ class Client:
         conf.batching_max_messages(batching_max_messages)
         conf.batching_max_allowed_size_in_bytes(batching_max_allowed_size_in_bytes)
         conf.batching_max_publish_delay_ms(batching_max_publish_delay_ms)
+        conf.partitions_routing_mode(message_routing_mode)
         if producer_name:
             conf.producer_name(producer_name)
         if initial_sequence_id:
@@ -2163,7 +2171,8 @@ producers and consumers.</p></div>
                         batching_enabled=False,
                         batching_max_messages=1000,
                         batching_max_allowed_size_in_bytes=128*1024,
-                        batching_max_publish_delay_ms=10
+                        batching_max_publish_delay_ms=10,
+                        message_routing_mode=PartitionsRoutingMode.RoundRobinDistribution
                         ):
         """
         Create a new producer on a given topic.
@@ -2198,7 +2207,8 @@ producers and consumers.</p></div>
         * `block_if_queue_full`: Set whether `send_async` operations should
           block when the outgoing message queue is full.
         * `message_routing_mode`:
-          Set the message routing mode for the partitioned producer.
+          Set the message routing mode for the partitioned producer. Default is `PartitionsRoutingMode.RoundRobinDistribution`,
+          other option is `PartitionsRoutingMode.UseSinglePartition`
         """
         _check_type(str, topic, 'topic')
         _check_type_or_none(str, producer_name, 'producer_name')
@@ -2221,6 +2231,7 @@ producers and consumers.</p></div>
         conf.batching_max_messages(batching_max_messages)
         conf.batching_max_allowed_size_in_bytes(batching_max_allowed_size_in_bytes)
         conf.batching_max_publish_delay_ms(batching_max_publish_delay_ms)
+        conf.partitions_routing_mode(message_routing_mode)
         if producer_name:
             conf.producer_name(producer_name)
         if initial_sequence_id:
@@ -2542,7 +2553,7 @@ producers and consumers.</p></div>
             
   <div class="item">
     <div class="name def" id="pulsar.Client.create_producer">
-    <p>def <span class="ident">create_producer</span>(</p><p>self, topic, producer_name=None, initial_sequence_id=None, send_timeout_millis=30000, compression_type=_pulsar.CompressionType.NONE, max_pending_messages=1000, block_if_queue_full=False, batching_enabled=False, batching_max_messages=1000, batching_max_allowed_size_in_bytes=131072, batching_max_publish_delay_ms=10)</p>
+    <p>def <span class="ident">create_producer</span>(</p><p>self, topic, producer_name=None, initial_sequence_id=None, send_timeout_millis=30000, compression_type=_pulsar.CompressionType.NONE, max_pending_messages=1000, block_if_queue_full=False, batching_enabled=False, batching_max_messages=1000, batching_max_allowed_size_in_bytes=131072, batching_max_publish_delay_ms=10, message_routing_mode=_pulsar.PartitionsRoutingMode.RoundRobinDistribution)</p>
     </div>
     
 
@@ -2576,8 +2587,9 @@ producers and consumers.</p></div>
   an acknowledgment from the broker.
 *</code>block_if_queue_full<code>: Set whether</code>send_async<code>operations should
   block when the outgoing message queue is full.
-*</code>message_routing_mode`:
-  Set the message routing mode for the partitioned producer.</p></div>
+*</code>message_routing_mode<code>:
+  Set the message routing mode for the partitioned producer. Default is</code>PartitionsRoutingMode.RoundRobinDistribution<code>,
+  other option is</code>PartitionsRoutingMode.UseSinglePartition`</p></div>
   <div class="source_cont">
   <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Client.create_producer', this);">Show source &equiv;</a></p>
   <div id="source-pulsar.Client.create_producer" class="source">
@@ -2591,7 +2603,8 @@ producers and consumers.</p></div>
                     batching_enabled=False,
                     batching_max_messages=1000,
                     batching_max_allowed_size_in_bytes=128*1024,
-                    batching_max_publish_delay_ms=10
+                    batching_max_publish_delay_ms=10,
+                    message_routing_mode=PartitionsRoutingMode.RoundRobinDistribution
                     ):
     """
     Create a new producer on a given topic.
@@ -2623,7 +2636,8 @@ producers and consumers.</p></div>
     * `block_if_queue_full`: Set whether `send_async` operations should
       block when the outgoing message queue is full.
     * `message_routing_mode`:
-      Set the message routing mode for the partitioned producer.
+      Set the message routing mode for the partitioned producer. Default is `PartitionsRoutingMode.RoundRobinDistribution`,
+      other option is `PartitionsRoutingMode.UseSinglePartition`
     """
     _check_type(str, topic, 'topic')
     _check_type_or_none(str, producer_name, 'producer_name')
@@ -2645,6 +2659,7 @@ producers and consumers.</p></div>
     conf.batching_max_messages(batching_max_messages)
     conf.batching_max_allowed_size_in_bytes(batching_max_allowed_size_in_bytes)
     conf.batching_max_publish_delay_ms(batching_max_publish_delay_ms)
+    conf.partitions_routing_mode(message_routing_mode)
     if producer_name:
         conf.producer_name(producer_name)
     if initial_sequence_id:
@@ -4265,6 +4280,13 @@ a new message is available.</p>
       </div>
       </div>
 
+    <h2 class="section-title" id="header-submodules">Sub-modules</h2>
+      <div class="item">
+      <p class="name"><a href="functions/index.html">pulsar.functions</a></p>
+      
+  
+
+      </div>
   </section>
 
     </article>

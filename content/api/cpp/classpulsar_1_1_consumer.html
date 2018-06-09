@@ -151,6 +151,10 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>closeAsync</b> (<a cl
 <tr class="separator:a617639e11e05ecba3d013d831578d19d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a01e55f7906b6922fa069d84f5459af4b"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer.html#a01e55f7906b6922fa069d84f5459af4b">getBrokerConsumerStatsAsync</a> (BrokerConsumerStatsCallback callback)</td></tr>
 <tr class="separator:a01e55f7906b6922fa069d84f5459af4b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a949eda4ed6de3ecc2e4f793cce1dc06c"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer.html#a949eda4ed6de3ecc2e4f793cce1dc06c">seek</a> (const <a class="el" href="classpulsar_1_1_message_id.html">MessageId</a> &amp;msgId)</td></tr>
+<tr class="separator:a949eda4ed6de3ecc2e4f793cce1dc06c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a52bb7deeca9c8376de61c88bb5db24e5"><td class="memItemLeft" align="right" valign="top">virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer.html#a52bb7deeca9c8376de61c88bb5db24e5">seekAsync</a> (const <a class="el" href="classpulsar_1_1_message_id.html">MessageId</a> &amp;msgId, <a class="el" href="namespacepulsar.html#a471fb397a128f0e2891d5979f2282e2d">ResultCallback</a> callback)</td></tr>
+<tr class="separator:a52bb7deeca9c8376de61c88bb5db24e5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="friends"></a>
 Friends</h2></td></tr>
@@ -475,6 +479,72 @@ ResultInvalidConfiguration if a message listener had been set in the configurati
       </table>
 </div><div class="memdoc">
 <p>Redelivers all the unacknowledged messages. In Failover mode, the request is ignored if the consumer is not active for the given topic. In Shared mode, the consumers messages to be redelivered are distributed across all the connected consumers. This is a non blocking call and doesn't throw an exception. In case the connection breaks, the messages are redelivered after reconnect. </p>
+
+</div>
+</div>
+<a class="anchor" id="a949eda4ed6de3ecc2e4f793cce1dc06c"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a> pulsar::Consumer::seek </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classpulsar_1_1_message_id.html">MessageId</a> &amp;&#160;</td>
+          <td class="paramname"><em>msgId</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Reset the subscription associated with this consumer to a specific message id. The message id can either be a specific message or represent the first or last messages in the topic.</p>
+<p>Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the <a class="el" href="classpulsar_1_1_consumer.html#a949eda4ed6de3ecc2e4f793cce1dc06c">seek()</a> on the individual partitions.</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">messageId</td><td>the message id where to reposition the subscription </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a class="anchor" id="a52bb7deeca9c8376de61c88bb5db24e5"></a>
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">virtual void pulsar::Consumer::seekAsync </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classpulsar_1_1_message_id.html">MessageId</a> &amp;&#160;</td>
+          <td class="paramname"><em>msgId</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="namespacepulsar.html#a471fb397a128f0e2891d5979f2282e2d">ResultCallback</a>&#160;</td>
+          <td class="paramname"><em>callback</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">virtual</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<p>Asynchronously reset the subscription associated with this consumer to a specific message id. The message id can either be a specific message or represent the first or last messages in the topic.</p>
+<p>Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the <a class="el" href="classpulsar_1_1_consumer.html#a949eda4ed6de3ecc2e4f793cce1dc06c">seek()</a> on the individual partitions.</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">messageId</td><td>the message id where to reposition the subscription </td></tr>
+  </table>
+  </dd>
+</dl>
 
 </div>
 </div>

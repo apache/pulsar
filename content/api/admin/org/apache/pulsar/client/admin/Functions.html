@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -128,20 +128,28 @@ var activeTableTab = "activeTableTab";
 </tr>
 <tr id="i1" class="rowColor">
 <td class="colFirst"><code>void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#createFunctionWithUrl-FunctionDetails-java.lang.String-">createFunctionWithUrl</a></span>(FunctionDetails&nbsp;functionDetails,
+                     String&nbsp;pkgUrl)</code>
+<div class="block">
+ Create a new function by providing url from which fun-pkg can be downloaded.</div>
+</td>
+</tr>
+<tr id="i2" class="altColor">
+<td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#deleteFunction-java.lang.String-java.lang.String-java.lang.String-">deleteFunction</a></span>(String&nbsp;tenant,
               String&nbsp;namespace,
               String&nbsp;function)</code>
 <div class="block">Delete an existing function</div>
 </td>
 </tr>
-<tr id="i2" class="altColor">
+<tr id="i3" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#downloadFunction-java.lang.String-java.lang.String-">downloadFunction</a></span>(String&nbsp;destinationFile,
                 String&nbsp;path)</code>
 <div class="block">Download Function Code.</div>
 </td>
 </tr>
-<tr id="i3" class="rowColor">
+<tr id="i4" class="altColor">
 <td class="colFirst"><code>FunctionDetails</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#getFunction-java.lang.String-java.lang.String-java.lang.String-">getFunction</a></span>(String&nbsp;tenant,
            String&nbsp;namespace,
@@ -149,14 +157,14 @@ var activeTableTab = "activeTableTab";
 <div class="block">Get the configuration for the specified function.</div>
 </td>
 </tr>
-<tr id="i4" class="altColor">
+<tr id="i5" class="rowColor">
 <td class="colFirst"><code>List&lt;String&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#getFunctions-java.lang.String-java.lang.String-">getFunctions</a></span>(String&nbsp;tenant,
             String&nbsp;namespace)</code>
 <div class="block">Get the list of functions.</div>
 </td>
 </tr>
-<tr id="i5" class="rowColor">
+<tr id="i6" class="altColor">
 <td class="colFirst"><code>FunctionStatusList</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#getFunctionStatus-java.lang.String-java.lang.String-java.lang.String-">getFunctionStatus</a></span>(String&nbsp;tenant,
                  String&nbsp;namespace,
@@ -164,7 +172,7 @@ var activeTableTab = "activeTableTab";
 <div class="block">Gets the current status of a function.</div>
 </td>
 </tr>
-<tr id="i6" class="altColor">
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code>String</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#triggerFunction-java.lang.String-java.lang.String-java.lang.String-java.lang.String-java.lang.String-java.lang.String-">triggerFunction</a></span>(String&nbsp;tenant,
                String&nbsp;namespace,
@@ -175,14 +183,14 @@ var activeTableTab = "activeTableTab";
 <div class="block">Triggers the function by writing to the input topic.</div>
 </td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i8" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#updateFunction-FunctionDetails-java.lang.String-">updateFunction</a></span>(FunctionDetails&nbsp;functionDetails,
               String&nbsp;fileName)</code>
 <div class="block">Update the configuration for a function.</div>
 </td>
 </tr>
-<tr id="i8" class="altColor">
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#uploadFunction-java.lang.String-java.lang.String-">uploadFunction</a></span>(String&nbsp;sourceFile,
               String&nbsp;path)</code>
@@ -275,6 +283,30 @@ var activeTableTab = "activeTableTab";
 <dd><code>functionDetails</code> - the function configuration object</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code> - Unexpected error</dd>
+</dl>
+</li>
+</ul>
+<a name="createFunctionWithUrl-FunctionDetails-java.lang.String-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>createFunctionWithUrl</h4>
+<pre>void&nbsp;createFunctionWithUrl(FunctionDetails&nbsp;functionDetails,
+                           String&nbsp;pkgUrl)
+                    throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<div class="block"><pre>
+ Create a new function by providing url from which fun-pkg can be downloaded. supported url: http/file
+ eg:
+ File: file:/dir/fileName.jar
+ Http: http://www.repo.com/fileName.jar
+ </pre></div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>functionDetails</code> - the function configuration object</dd>
+<dd><code>pkgUrl</code> - url from which pkg can be downloaded</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code></dd>
 </dl>
 </li>
 </ul>

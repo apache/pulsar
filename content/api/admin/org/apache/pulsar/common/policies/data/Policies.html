@@ -148,62 +148,66 @@ extends Object</pre>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/Policies.html#clusterDispatchRate">clusterDispatchRate</a></span></code>&nbsp;</td>
 </tr>
 <tr class="rowColor">
+<td class="colFirst"><code>long</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/Policies.html#compaction_threshold">compaction_threshold</a></span></code>&nbsp;</td>
+</tr>
+<tr class="altColor">
 <td class="colFirst"><code>Boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/Policies.html#deduplicationEnabled">deduplicationEnabled</a></span></code>&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/Policies.html#deleted">deleted</a></span></code>&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/Policies.html#encryption_required">encryption_required</a></span></code>&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>static String</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/Policies.html#FIRST_BOUNDARY">FIRST_BOUNDARY</a></span></code>&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>static String</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/Policies.html#LAST_BOUNDARY">LAST_BOUNDARY</a></span></code>&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>Map&lt;String,Integer&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/Policies.html#latency_stats_sample_rate">latency_stats_sample_rate</a></span></code>&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>int</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/Policies.html#max_consumers_per_subscription">max_consumers_per_subscription</a></span></code>&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>int</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/Policies.html#max_consumers_per_topic">max_consumers_per_topic</a></span></code>&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>int</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/Policies.html#max_producers_per_topic">max_producers_per_topic</a></span></code>&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>int</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/Policies.html#message_ttl_in_seconds">message_ttl_in_seconds</a></span></code>&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code><a href="../../../../../../org/apache/pulsar/common/policies/data/PersistencePolicies.html" title="class in org.apache.pulsar.common.policies.data">PersistencePolicies</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/Policies.html#persistence">persistence</a></span></code>&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code>Set&lt;String&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/Policies.html#replication_clusters">replication_clusters</a></span></code>&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code><a href="../../../../../../org/apache/pulsar/common/policies/data/RetentionPolicies.html" title="class in org.apache.pulsar.common.policies.data">RetentionPolicies</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/Policies.html#retention_policies">retention_policies</a></span></code>&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><code><a href="../../../../../../org/apache/pulsar/common/policies/data/SubscriptionAuthMode.html" title="enum in org.apache.pulsar.common.policies.data">SubscriptionAuthMode</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/Policies.html#subscription_auth_mode">subscription_auth_mode</a></span></code>&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><code>Map&lt;String,<a href="../../../../../../org/apache/pulsar/common/policies/data/DispatchRate.html" title="class in org.apache.pulsar.common.policies.data">DispatchRate</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../../org/apache/pulsar/common/policies/data/Policies.html#subscriptionDispatchRate">subscriptionDispatchRate</a></span></code>&nbsp;</td>
 </tr>
@@ -455,10 +459,19 @@ extends Object</pre>
 <a name="max_consumers_per_subscription">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>max_consumers_per_subscription</h4>
 <pre>public&nbsp;int max_consumers_per_subscription</pre>
+</li>
+</ul>
+<a name="compaction_threshold">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>compaction_threshold</h4>
+<pre>public&nbsp;long compaction_threshold</pre>
 </li>
 </ul>
 </li>

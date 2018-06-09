@@ -4,7 +4,7 @@
 <meta http-equiv="Content-Type" content="text/xhtml;charset=UTF-8"/>
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.11"/>
-<title>pulsar-client-cpp: pulsar::Authentication Class Reference</title>
+<title>pulsar-client-cpp: pulsar::AuthAthenz Class Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -84,52 +84,61 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 
 <div id="nav-path" class="navpath">
   <ul>
-<li class="navelem"><a class="el" href="namespacepulsar.html">pulsar</a></li><li class="navelem"><a class="el" href="classpulsar_1_1_authentication.html">Authentication</a></li>  </ul>
+<li class="navelem"><a class="el" href="namespacepulsar.html">pulsar</a></li><li class="navelem"><a class="el" href="classpulsar_1_1_auth_athenz.html">AuthAthenz</a></li>  </ul>
 </div>
 </div><!-- top -->
 <div class="header">
   <div class="summary">
 <a href="#pub-methods">Public Member Functions</a> &#124;
-<a href="#pro-attribs">Protected Attributes</a> &#124;
-<a href="#friends">Friends</a> &#124;
-<a href="classpulsar_1_1_authentication-members.html">List of all members</a>  </div>
+<a href="#pub-static-methods">Static Public Member Functions</a> &#124;
+<a href="classpulsar_1_1_auth_athenz-members.html">List of all members</a>  </div>
   <div class="headertitle">
-<div class="title">pulsar::Authentication Class Reference<span class="mlabels"><span class="mlabel">abstract</span></span></div>  </div>
+<div class="title">pulsar::AuthAthenz Class Reference</div>  </div>
 </div><!--header-->
 <div class="contents">
+
+<p><code>#include &lt;<a class="el" href="_authentication_8h_source.html">Authentication.h</a>&gt;</code></p>
 <div class="dynheader">
-Inheritance diagram for pulsar::Authentication:</div>
+Inheritance diagram for pulsar::AuthAthenz:</div>
 <div class="dyncontent">
  <div class="center">
-  <img src="classpulsar_1_1_authentication.png" usemap="#pulsar::Authentication_map" alt=""/>
-  <map id="pulsar::Authentication_map" name="pulsar::Authentication_map">
-<area href="classpulsar_1_1_auth_athenz.html" alt="pulsar::AuthAthenz" shape="rect" coords="0,56,133,80"/>
-<area href="classpulsar_1_1_auth_tls.html" alt="pulsar::AuthTls" shape="rect" coords="143,56,276,80"/>
+  <img src="classpulsar_1_1_auth_athenz.png" usemap="#pulsar::AuthAthenz_map" alt=""/>
+  <map id="pulsar::AuthAthenz_map" name="pulsar::AuthAthenz_map">
+<area href="classpulsar_1_1_authentication.html" alt="pulsar::Authentication" shape="rect" coords="0,0,133,24"/>
 </map>
  </div></div>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:aafe5c68d220ae0926a2c66953eafed57"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="aafe5c68d220ae0926a2c66953eafed57"></a>
-virtual const std::string&#160;</td><td class="memItemRight" valign="bottom"><b>getAuthMethodName</b> () const =0</td></tr>
-<tr class="separator:aafe5c68d220ae0926a2c66953eafed57"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a8f2c6c29a3cb293c5c5dbd6e43b5634e"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a8f2c6c29a3cb293c5c5dbd6e43b5634e"></a>
-virtual <a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a>&#160;</td><td class="memItemRight" valign="bottom"><b>getAuthData</b> (AuthenticationDataPtr &amp;authDataContent) const </td></tr>
-<tr class="separator:a8f2c6c29a3cb293c5c5dbd6e43b5634e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab4ed3eadbc72cabc8ff942e0ebdc053d"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ab4ed3eadbc72cabc8ff942e0ebdc053d"></a>
+&#160;</td><td class="memItemRight" valign="bottom"><b>AuthAthenz</b> (AuthenticationDataPtr &amp;)</td></tr>
+<tr class="separator:ab4ed3eadbc72cabc8ff942e0ebdc053d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a26aa4be56fd20b15823ce94250762ba6"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a26aa4be56fd20b15823ce94250762ba6"></a>
+const std::string&#160;</td><td class="memItemRight" valign="bottom"><b>getAuthMethodName</b> () const </td></tr>
+<tr class="separator:a26aa4be56fd20b15823ce94250762ba6"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8a55e4f046f70abf3d5647ef0ffdd733"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a8a55e4f046f70abf3d5647ef0ffdd733"></a>
+<a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a>&#160;</td><td class="memItemRight" valign="bottom"><b>getAuthData</b> (AuthenticationDataPtr &amp;authDataAthenz) const </td></tr>
+<tr class="separator:a8a55e4f046f70abf3d5647ef0ffdd733"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
-<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pro-attribs"></a>
-Protected Attributes</h2></td></tr>
-<tr class="memitem:abac33d5c492826fb8a4bea05512c9f7c"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="abac33d5c492826fb8a4bea05512c9f7c"></a>
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-static-methods"></a>
+Static Public Member Functions</h2></td></tr>
+<tr class="memitem:acde69fc41668a27d12d558023aaed0d9"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="acde69fc41668a27d12d558023aaed0d9"></a>
+static AuthenticationPtr&#160;</td><td class="memItemRight" valign="bottom"><b>create</b> (ParamMap &amp;params)</td></tr>
+<tr class="separator:acde69fc41668a27d12d558023aaed0d9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afd40a525e1d8d61fc97880c2c8a958fe"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="afd40a525e1d8d61fc97880c2c8a958fe"></a>
+static AuthenticationPtr&#160;</td><td class="memItemRight" valign="bottom"><b>create</b> (const std::string &amp;authParamsString)</td></tr>
+<tr class="separator:afd40a525e1d8d61fc97880c2c8a958fe"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="inherited"></a>
+Additional Inherited Members</h2></td></tr>
+<tr class="inherit_header pro_attribs_classpulsar_1_1_authentication"><td colspan="2" onclick="javascript:toggleInherit('pro_attribs_classpulsar_1_1_authentication')"><img src="closed.png" alt="-"/>&#160;Protected Attributes inherited from <a class="el" href="classpulsar_1_1_authentication.html">pulsar::Authentication</a></td></tr>
+<tr class="memitem:abac33d5c492826fb8a4bea05512c9f7c inherit pro_attribs_classpulsar_1_1_authentication"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="abac33d5c492826fb8a4bea05512c9f7c"></a>
 AuthenticationDataPtr&#160;</td><td class="memItemRight" valign="bottom"><b>authData_</b></td></tr>
-<tr class="separator:abac33d5c492826fb8a4bea05512c9f7c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-</table><table class="memberdecls">
-<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="friends"></a>
-Friends</h2></td></tr>
-<tr class="memitem:abea2ee50c7ded8ed569f7cedfbecd6f5"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="abea2ee50c7ded8ed569f7cedfbecd6f5"></a>
-class&#160;</td><td class="memItemRight" valign="bottom"><b>ClientConfiguration</b></td></tr>
-<tr class="separator:abea2ee50c7ded8ed569f7cedfbecd6f5"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="separator:abac33d5c492826fb8a4bea05512c9f7c inherit pro_attribs_classpulsar_1_1_authentication"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
-<hr/>The documentation for this class was generated from the following file:<ul>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>Athenz implementation of Pulsar client authentication </p>
+</div><hr/>The documentation for this class was generated from the following file:<ul>
 <li>include/pulsar/<a class="el" href="_authentication_8h_source.html">Authentication.h</a></li>
 </ul>
 </div><!-- contents -->

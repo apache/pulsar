@@ -1387,6 +1387,13 @@ Ideally, ledger dirs and the journal dir are each in a different device, which r
       <td>5</td>
     </tr>
     
+    <tr id="broker-brokerServiceCompactionMonitorIntervalInSeconds">
+      <td>brokerServiceCompactionMonitorIntervalInSeconds</td>
+      <td>Interval between checks to see if topics with compaction policies need to be compacted
+</td>
+      <td>60</td>
+    </tr>
+    
     <tr id="broker-activeConsumerFailoverDelayTimeMillis">
       <td>activeConsumerFailoverDelayTimeMillis</td>
       <td>How long to delay rewinding cursor and dispatching messages when active consumer is changed.
@@ -1900,6 +1907,55 @@ Ideally, ledger dirs and the journal dir are each in a different device, which r
       <td>Name of load manager to use
 </td>
       <td>org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl</td>
+    </tr>
+    
+    <tr id="broker-managedLedgerOffloadDriver">
+      <td>managedLedgerOffloadDriver</td>
+      <td>Driver to use to offload old data to long term storage (Possible values: S3)
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="broker-managedLedgerOffloadMaxThreads">
+      <td>managedLedgerOffloadMaxThreads</td>
+      <td>Maximum number of thread pool threads for ledger offloading
+</td>
+      <td>2</td>
+    </tr>
+    
+    <tr id="broker-s3ManagedLedgerOffloadRegion">
+      <td>s3ManagedLedgerOffloadRegion</td>
+      <td>For Amazon S3 ledger offload, AWS region
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="broker-s3ManagedLedgerOffloadBucket">
+      <td>s3ManagedLedgerOffloadBucket</td>
+      <td>For Amazon S3 ledger offload, Bucket to place offloaded ledger into
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="broker-s3ManagedLedgerOffloadServiceEndpoint">
+      <td>s3ManagedLedgerOffloadServiceEndpoint</td>
+      <td>For Amazon S3 ledger offload, Alternative endpoint to connect to (useful for testing)
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="broker-s3ManagedLedgerOffloadMaxBlockSizeInBytes">
+      <td>s3ManagedLedgerOffloadMaxBlockSizeInBytes</td>
+      <td>For Amazon S3 ledger offload, Max block size in bytes. (64MB by default, 5MB minimum)
+</td>
+      <td>67108864</td>
+    </tr>
+    
+    <tr id="broker-s3ManagedLedgerOffloadReadBufferSizeInBytes">
+      <td>s3ManagedLedgerOffloadReadBufferSizeInBytes</td>
+      <td>For Amazon S3 ledger offload, Read buffer size in bytes (1MB by default)
+</td>
+      <td>1048576</td>
     </tr>
     
   </tbody>
