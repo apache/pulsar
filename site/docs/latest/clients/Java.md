@@ -383,25 +383,36 @@ The following schema formats are currently available for Java:
 
   ```java
   Producer<byte[]> bytesProducer = client.newProducer(Schema.BYTES)
-        .topic("some-raw-bytes-topic")
-        .create();
+          .topic("some-raw-bytes-topic")
+          .create();
   ```
 
   Or, equivalently:
 
   ```java
   Producer<byte[]> bytesProducer = client.newProducer()
-        .topic("some-raw-bytes-topic")
-        .create();
+          .topic("some-raw-bytes-topic")
+          .create();
   ```
 
 * `String` for normal UTF-8-encoded string data. This schema can be applied using `Schema.STRING`:
 
   ```java
   Producer<String> stringProducer = client.newProducer(Schema.STRING)
-        .topic("some-string-topic")
-        .create();
+          .topic("some-string-topic")
+          .create();
   ```
+
+* Java NIO [`ByteBuffer`](https://docs.oracle.com/javase/8/docs/api/java/nio/ByteBuffer.html)s, which can be applied using `Schema.BYTE_BUFFER`:
+
+  ```java
+  import java.nio.ByteBuffer;
+
+  Producer<ByteBuffer> byteBufProducer = client.newProducer(Schema.BYTE_BUFFER)
+          .topic("some-byte-buf-topic")
+          .create();
+  ```
+
 * JSON schemas can be created for POJOs using the `JSONSchema` class. Here's an example:
 
   ```java

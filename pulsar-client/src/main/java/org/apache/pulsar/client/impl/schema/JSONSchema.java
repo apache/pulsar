@@ -23,10 +23,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.Map;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
+import org.apache.pulsar.client.util.ByteUtils;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -43,18 +45,18 @@ public class JSONSchema<T> implements Schema<T> {
     }
 
     @Override
-    public byte[] encode(T message) throws SchemaSerializationException {
+    public ByteBuffer encode(T message) throws SchemaSerializationException {
         try {
-            return objectMapper.writeValueAsBytes(message);
+            return ByteBuffer.wrap(objectMapper.writeValueAsBytes(message));
         } catch (JsonProcessingException e) {
             throw new SchemaSerializationException(e);
         }
     }
 
     @Override
-    public T decode(byte[] bytes) {
+    public T decode(ByteBuffer buf) {
         try {
-            return objectMapper.readValue(new String(bytes), pojo);
+            return objectMapper.readValue(ByteUtils.bufferToBytes(buf), pojo);
         } catch (IOException e) {
             throw new RuntimeException(new SchemaSerializationException(e));
         }

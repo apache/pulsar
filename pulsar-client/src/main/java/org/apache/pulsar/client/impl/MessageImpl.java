@@ -209,7 +209,7 @@ public class MessageImpl<T> extends MessageRecordImpl<T, MessageId> {
 
     @Override
     public T getValue() {
-        return schema.decode(getData());
+        return schema.decode(ByteBuffer.wrap(getData()));
     }
 
     public long getSequenceId() {

@@ -18,9 +18,12 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.client.impl.schema.ByteBufferSchema;
 import org.apache.pulsar.client.impl.schema.BytesSchema;
 import org.apache.pulsar.client.impl.schema.StringSchema;
 import org.apache.pulsar.common.schema.SchemaInfo;
+
+import java.nio.ByteBuffer;
 
 /**
  * Message schema definition
@@ -28,24 +31,24 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 public interface Schema<T> {
 
     /**
-     * Encode an object representing the message content into a byte array.
+     * Encode an object representing the message content into a ByteBuffer.
      *
      * @param message
      *            the message object
-     * @return a byte array with the serialized content
+     * @return a ByteBuffer with the serialized content
      * @throws SchemaSerializationException
      *             if the serialization fails
      */
-    byte[] encode(T message);
+    ByteBuffer encode(T message);
 
     /**
-     * Decode a byte array into an object using the schema definition and deserializer implementation
+     * Decode a ByteBuffer into an object using the schema definition and deserializer implementation
      *
-     * @param bytes
-     *            the byte array to decode
+     * @param buf
+     *            the ByteBuffer to decode
      * @return the deserialized object
      */
-    T decode(byte[] bytes);
+    T decode(ByteBuffer buf);
 
     /**
      * @return an object that represents the Schema associated metadata
@@ -61,4 +64,9 @@ public interface Schema<T> {
      * Schema that can be used to encode/decode messages whose values are String. The payload is encoded with UTF-8.
      */
     Schema<String> STRING = new StringSchema();
+
+    /**
+     * Schema that uses Java's ByteBuffer class rather than raw byte arrays.
+     */
+    Schema<ByteBuffer> BYTE_BUFFER = new ByteBufferSchema();
 }

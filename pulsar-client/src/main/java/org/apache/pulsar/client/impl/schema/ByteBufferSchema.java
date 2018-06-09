@@ -16,31 +16,31 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.schema;
+package org.apache.pulsar.client.impl.schema;
 
-/**
- * Types of supported schema for Pulsar messages
- */
-public enum SchemaType {
-    /**
-     * No schema defined
-     */
-    NONE,
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 
-    /**
-     * Simple String encoding with UTF-8
-     */
-    STRING,
+import java.nio.ByteBuffer;
 
-    /**
-     * JSON object encoding and validation
-     */
-    JSON,
+public class ByteBufferSchema implements Schema<ByteBuffer> {
+    @Override
+    public ByteBuffer encode(ByteBuffer message) {
+        return message;
+    }
 
-    /**
-     * Byte buffer schema
-     */
-    BYTE_BUFFER,
+    @Override
+    public ByteBuffer decode(ByteBuffer buf) {
+        return buf;
+    }
 
-    PROTOBUF
+    @Override
+    public SchemaInfo getSchemaInfo() {
+        SchemaInfo info = new SchemaInfo();
+        info.setName("ByteBuffer");
+        info.setType(SchemaType.BYTE_BUFFER);
+        info.setSchema(new byte[0]);
+        return info;
+    }
 }

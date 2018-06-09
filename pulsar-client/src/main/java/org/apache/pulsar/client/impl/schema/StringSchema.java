@@ -19,9 +19,11 @@
 package org.apache.pulsar.client.impl.schema;
 
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.util.ByteUtils;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
+import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
@@ -37,19 +39,19 @@ public class StringSchema implements Schema<String> {
         this.charset = charset;
     }
 
-    public byte[] encode(String message) {
-        return message.getBytes(charset);
+    public ByteBuffer encode(String message) {
+        return ByteBuffer.wrap(message.getBytes(charset));
     }
 
-    public String decode(byte[] bytes) {
-        return new String(bytes, charset);
+    public String decode(ByteBuffer buf) {
+        return new String(ByteUtils.bufferToBytes(buf), charset);
     }
 
     public SchemaInfo getSchemaInfo() {
-        SchemaInfo schemaInfo = new SchemaInfo();
-        schemaInfo.setName("String");
-        schemaInfo.setType(SchemaType.STRING);
-        schemaInfo.setSchema(new byte[0]);
-        return schemaInfo;
+        SchemaInfo info = new SchemaInfo();
+        info.setName("String");
+        info.setType(SchemaType.STRING);
+        info.setSchema(new byte[0]);
+        return info;
     }
 }
