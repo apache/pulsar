@@ -657,5 +657,34 @@ public class Namespaces extends NamespacesBase {
         return policies;
     }
 
+    @GET
+    @Path("/{property}/{namespace}/compactionThreshold")
+    @ApiOperation(value = "Maximum number of uncompacted bytes in topics before compaction is triggered.",
+                  notes = "The backlog size is compared to the threshold periodically. "
+                          + "A threshold of 0 disabled automatic compaction")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 404, message = "Namespace doesn't exist") })
+    public long getCompactionThreshold(@PathParam("property") String property,
+                                       @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, namespace);
+        return internalGetCompactionThreshold();
+    }
+
+    @PUT
+    @Path("/{property}/{namespace}/compactionThreshold")
+    @ApiOperation(value = "Set maximum number of uncompacted bytes in a topic before compaction is triggered.",
+                  notes = "The backlog size is compared to the threshold periodically. "
+                          + "A threshold of 0 disabled automatic compaction")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+                            @ApiResponse(code = 409, message = "Concurrent modification"),
+                            @ApiResponse(code = 412, message = "compactionThreshold value is not valid") })
+    public void setCompactionThreshold(@PathParam("property") String property,
+                                       @PathParam("namespace") String namespace,
+                                       long newThreshold) {
+        validateNamespaceName(property, namespace);
+        internalSetCompactionThreshold(newThreshold);
+    }
+
     private static final Logger log = LoggerFactory.getLogger(Namespaces.class);
 }
