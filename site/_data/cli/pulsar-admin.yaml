@@ -120,6 +120,12 @@ commands:
   - name: localrun
     description: Run a Pulsar Function locally
     options:
+    - flags: --cpu
+      description: The CPU to allocate to each function instance (in number of cores)
+    - flags: --ram
+      description: The RAM to allocate to each function instance (in bytes)
+    - flags: --disk
+      description: The disk space to allocate to each function instance (in bytes)
     - flags: --brokerServiceUrl
       description: The URL of the Pulsar broker
     - flags: --className
@@ -163,6 +169,12 @@ commands:
   - name: create
     description: Creates a new Pulsar Function on the target infrastructure
     options:
+    - flags: --cpu
+      description: The CPU to allocate to each function instance (in number of cores)
+    - flags: --ram
+      description: The RAM to allocate to each function instance (in bytes)
+    - flags: --disk
+      description: The disk space to allocate to each function instance (in bytes)
     - flags: --className
       description: The name of the function's class
     - flags: --customSerdeInputs
