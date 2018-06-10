@@ -154,6 +154,11 @@ public class KubernetesController {
 
     private List<String> getLocalRunCommand(FunctionConfig functionConfig, String userCodeFilePath) {
         List<String> retval = new LinkedList<>();
+        retval.add(kubernetesConfig.getPulsarRootDir() + "/bin/pulsar-admin");
+        retval.add("functions");
+        retval.add("localrun");
+        retval.add("--brokerServiceUrl");
+        retval.add(kubernetesConfig.getPulsarServiceUri());
         retval.add("--name");
         retval.add(functionConfig.getName());
         retval.add("--namespace");
