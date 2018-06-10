@@ -191,7 +191,7 @@ public class KubernetesController {
             retval.add("--logTopic");
             retval.add(functionConfig.getLogTopic());
         }
-        if (functionConfig.getCustomSerdeInputs() != null) {
+        if (functionConfig.getCustomSerdeInputs() != null && !functionConfig.getCustomSerdeInputs().isEmpty()) {
             retval.add("--customSerdeInputs");
             retval.add(new Gson().toJson(functionConfig.getCustomSerdeInputs()));
         }
@@ -199,9 +199,11 @@ public class KubernetesController {
             retval.add("--outputSerdeClassName");
             retval.add(functionConfig.getOutputSerdeClassName());
         }
-        retval.add("--processingGuarantees");
-        retval.add(String.valueOf(functionConfig.getProcessingGuarantees()));
-        if (functionConfig.getUserConfig() != null) {
+        if (functionConfig.getProcessingGuarantees() != null) {
+            retval.add("--processingGuarantees");
+            retval.add(String.valueOf(functionConfig.getProcessingGuarantees()));
+        }
+        if (functionConfig.getUserConfig() != null && !functionConfig.getUserConfig().isEmpty()) {
             retval.add("--userConfig");
             retval.add(new Gson().toJson(functionConfig.getUserConfig()));
         }
