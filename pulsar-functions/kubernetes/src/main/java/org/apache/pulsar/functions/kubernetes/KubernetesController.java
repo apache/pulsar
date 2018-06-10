@@ -19,16 +19,12 @@
 package org.apache.pulsar.functions.kubernetes;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 
+import com.google.gson.Gson;
 import com.squareup.okhttp.Response;
 
 import io.kubernetes.client.ApiClient;
@@ -39,9 +35,9 @@ import io.kubernetes.client.custom.Quantity;
 import io.kubernetes.client.models.*;
 import io.kubernetes.client.util.Config;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.runtime.ProcessRuntime;
+import org.apache.pulsar.functions.utils.FunctionConfig;
+import org.apache.pulsar.functions.utils.Resources;
+import org.apache.pulsar.functions.utils.WindowConfig;
 
 @Slf4j
 public class KubernetesController {
@@ -60,10 +56,6 @@ public class KubernetesController {
                     "node.alpha.kubernetes.io/unreachable"
             )
     );
-    static final int instancePort = 7000;
-    static final String logDirectory = "/logs";
-    static final String javaInstanceFile = "/instances/java-instance.jar";
-    static final String pythonInstanceFile = "/instances/python-instance/python_instance_main.py";
 
     public KubernetesController(String yamlFile) throws IOException {
         if (yamlFile != null) {
@@ -85,16 +77,9 @@ public class KubernetesController {
         client = new AppsV1beta2Api();
     }
 
-    public void create(InstanceConfig instanceConfig, String bkPath, String fileBaseName) {
-        instanceConfig.setInstanceId("$" + ENV_SHARD_ID);
-        instanceConfig.setPort(instancePort);
-        String instanceCodeFile;
-        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
-            instanceCodeFile = javaInstanceFile;
-        } else {
-            instanceCodeFile = pythonInstanceFile;
-        }
-        final String jobName = createJobName(instanceConfig.getFunctionDetails());
+    public void create(FunctionConfig functionConfig, String bkPath, String fileBaseName) {
+        // "$" + ENV_SHARD_ID);
+        final String jobName = createJobName(functionConfig);
         if (!jobName.equals(jobName.toLowerCase())) {
             throw new RuntimeException("K8S scheduler does not allow upper case jobNames.");
         }
@@ -103,8 +88,7 @@ public class KubernetesController {
             throw new RuntimeException("K8S scheduler only admits lower case and numbers.");
         }
 
-        final V1beta2StatefulSet statefulSet = createStatefulSet(instanceConfig, instanceCodeFile,
-                bkPath, fileBaseName);
+        final V1beta2StatefulSet statefulSet = createStatefulSet(functionConfig, bkPath, fileBaseName);
 
         log.info("Submitting the following spec to k8 " + client.getApiClient().getJSON().serialize(statefulSet));
 
@@ -142,22 +126,16 @@ public class KubernetesController {
 
     }
 
-    protected List<String> getExecutorCommand(InstanceConfig instanceConfig,
-                                              String instanceCodeFile,
+    protected List<String> getExecutorCommand(FunctionConfig functionConfig,
                                               String bkPath,
                                               String fileBaseName) {
         String userCodeFilePath = fileBaseName;
-        final List<String> executorCommand =
-                ProcessRuntime.composeArgs(instanceConfig,
-                        kubernetesConfig.getPulsarRootDir() + instanceCodeFile,
-                        logDirectory,
-                        userCodeFilePath, kubernetesConfig.getPulsarServiceUri());
         return Arrays.asList(
                 "sh",
                 "-c",
                 String.join(" ", getDownloadCommand(bkPath, userCodeFilePath))
                 + " && " + setShardIdEnvironmentVariableCommand()
-                + " && " + String.join(" ", executorCommand)
+                + " && " + String.join(" ", getLocalRunCommand(functionConfig, userCodeFilePath))
         );
     }
 
@@ -174,16 +152,113 @@ public class KubernetesController {
                 userCodeFilePath);
     }
 
+    private List<String> getLocalRunCommand(FunctionConfig functionConfig, String userCodeFilePath) {
+        List<String> retval = new LinkedList<>();
+        retval.add("--name");
+        retval.add(functionConfig.getName());
+        retval.add("--namespace");
+        retval.add(functionConfig.getNamespace());
+        retval.add("--tenant");
+        retval.add(functionConfig.getTenant());
+        retval.add("--className");
+        retval.add(functionConfig.getClassName());
+        switch (functionConfig.getRuntime()) {
+            case JAVA:
+                retval.add("--jar");
+                break;
+            case PYTHON:
+                retval.add("--py");
+        }
+        retval.add(userCodeFilePath);
+        if (functionConfig.getInputs() != null) {
+            retval.add("--inputs");
+            retval.add(String.join(",", functionConfig.getInputs()));
+        }
+        if (functionConfig.getTopicsPattern() != null) {
+            retval.add("--topicsPattern");
+            retval.add(functionConfig.getTopicsPattern());
+        }
+        if (functionConfig.getOutput() != null) {
+            retval.add("--output");
+            retval.add(functionConfig.getOutput());
+        }
+        if (functionConfig.getLogTopic() != null) {
+            retval.add("--logTopic");
+            retval.add(functionConfig.getLogTopic());
+        }
+        if (functionConfig.getCustomSerdeInputs() != null) {
+            retval.add("--customSerdeInputs");
+            retval.add(new Gson().toJson(functionConfig.getCustomSerdeInputs()));
+        }
+        if (functionConfig.getOutputSerdeClassName() != null) {
+            retval.add("--outputSerdeClassName");
+            retval.add(functionConfig.getOutputSerdeClassName());
+        }
+        retval.add("--processingGuarantees");
+        retval.add(String.valueOf(functionConfig.getProcessingGuarantees()));
+        if (functionConfig.getUserConfig() != null) {
+            retval.add("--userConfig");
+            retval.add(new Gson().toJson(functionConfig.getUserConfig()));
+        }
+
+        // The parallelism is always one since each container runs only one instance
+        retval.add("--parallelism");
+        retval.add("1");
+        if (functionConfig.getParallelism() > 1) {
+            retval.add("--instanceIdOffset");
+            retval.add("$" + ENV_SHARD_ID);
+        }
+        if (functionConfig.getResources().getCpu() != null) {
+            retval.add("--cpu");
+            retval.add(String.valueOf(functionConfig.getResources().getCpu()));
+        }
+        if (functionConfig.getResources().getRam() != null) {
+            retval.add("--ram");
+            retval.add(String.valueOf(functionConfig.getResources().getRam()));
+        }
+        if (functionConfig.getResources().getDisk() != null) {
+            retval.add("--disk");
+            retval.add(String.valueOf(functionConfig.getResources().getDisk()));
+        }
+        if (functionConfig.getWindowConfig() != null) {
+            WindowConfig windowConfig = functionConfig.getWindowConfig();
+            if (windowConfig.getWindowLengthCount() != null) {
+                retval.add("--windowLengthCount");
+                retval.add(String.valueOf(windowConfig.getWindowLengthCount()));
+            }
+            if (windowConfig.getWindowLengthDurationMs() != null) {
+                retval.add("--windowLengthDurationMs");
+                retval.add(String.valueOf(windowConfig.getWindowLengthDurationMs()));
+            }
+            if (windowConfig.getSlidingIntervalCount() != null) {
+                retval.add("--slidingIntervalCount");
+                retval.add(String.valueOf(windowConfig.getSlidingIntervalCount()));
+            }
+            if (windowConfig.getSlidingIntervalDurationMs() != null) {
+                retval.add("--slidingIntervalDurationMs");
+                retval.add(String.valueOf(windowConfig.getSlidingIntervalDurationMs()));
+            }
+        }
+        if (!functionConfig.isAutoAck()) {
+            retval.add("--autoAck");
+            retval.add("false");
+        }
+        if (functionConfig.getTimeoutMs() != null) {
+            retval.add("--timeoutMs");
+            retval.add(String.valueOf(functionConfig.getTimeoutMs()));
+        }
+        return retval;
+    }
+
     private static String setShardIdEnvironmentVariableCommand() {
         return String.format("%s=${POD_NAME##*-} && echo shardId=${%s}", ENV_SHARD_ID, ENV_SHARD_ID);
     }
 
 
-    private V1beta2StatefulSet createStatefulSet(InstanceConfig instanceConfig,
-                                                 String instanceCodeFile,
+    private V1beta2StatefulSet createStatefulSet(FunctionConfig functionConfig,
                                                  String bkPath,
                                                  String fileBaseName) {
-        final String jobName = createJobName(instanceConfig.getFunctionDetails());
+        final String jobName = createJobName(functionConfig);
 
         final V1beta2StatefulSet statefulSet = new V1beta2StatefulSet();
 
@@ -195,7 +270,7 @@ public class KubernetesController {
         // create the stateful set spec
         final V1beta2StatefulSetSpec statefulSetSpec = new V1beta2StatefulSetSpec();
         statefulSetSpec.serviceName(jobName);
-        statefulSetSpec.setReplicas(instanceConfig.getFunctionDetails().getParallelism());
+        statefulSetSpec.setReplicas(functionConfig.getParallelism());
 
         // Parallel pod management tells the StatefulSet controller to launch or terminate
         // all Pods in parallel, and not to wait for Pods to become Running and Ready or completely
@@ -205,19 +280,19 @@ public class KubernetesController {
         // add selector match labels
         // so the we know which pods to manage
         final V1LabelSelector selector = new V1LabelSelector();
-        selector.matchLabels(getLabels(instanceConfig.getFunctionDetails()));
+        selector.matchLabels(getLabels(functionConfig));
         statefulSetSpec.selector(selector);
 
         // create a pod template
         final V1PodTemplateSpec podTemplateSpec = new V1PodTemplateSpec();
 
         // set up pod meta
-        final V1ObjectMeta templateMetaData = new V1ObjectMeta().labels(getLabels(instanceConfig.getFunctionDetails()));
+        final V1ObjectMeta templateMetaData = new V1ObjectMeta().labels(getLabels(functionConfig));
         templateMetaData.annotations(getPrometheusAnnotations());
         podTemplateSpec.setMetadata(templateMetaData);
 
-        final List<String> command = getExecutorCommand(instanceConfig, instanceCodeFile, bkPath, fileBaseName);
-        podTemplateSpec.spec(getPodSpec(command, instanceConfig.getFunctionDetails().getResources()));
+        final List<String> command = getExecutorCommand(functionConfig, bkPath, fileBaseName);
+        podTemplateSpec.spec(getPodSpec(command, functionConfig.getResources()));
 
         statefulSetSpec.setTemplate(podTemplateSpec);
 
@@ -233,16 +308,16 @@ public class KubernetesController {
         return annotations;
     }
 
-    private Map<String, String> getLabels(Function.FunctionDetails functionDetails) {
+    private Map<String, String> getLabels(FunctionConfig functionConfig) {
         final Map<String, String> labels = new HashMap<>();
         labels.put("app", "pulsarfunction");
-        labels.put("name", functionDetails.getName());
-        labels.put("namespace", functionDetails.getNamespace());
-        labels.put("tenant", functionDetails.getTenant());
+        labels.put("name", functionConfig.getName());
+        labels.put("namespace", functionConfig.getNamespace());
+        labels.put("tenant", functionConfig.getTenant());
         return labels;
     }
 
-    private V1PodSpec getPodSpec(List<String> executorCommand, Function.Resources resource) {
+    private V1PodSpec getPodSpec(List<String> executorCommand, Resources resource) {
         final V1PodSpec podSpec = new V1PodSpec();
 
         // set the termination period to 0 so pods can be deleted quickly
@@ -288,7 +363,7 @@ public class KubernetesController {
     }
     */
 
-    private V1Container getContainer(List<String> executorCommand, Function.Resources resource) {
+    private V1Container getContainer(List<String> executorCommand, Resources resource) {
         final V1Container container = new V1Container().name("executor");
 
         // set up the container images
@@ -332,19 +407,13 @@ public class KubernetesController {
     }
 
     private List<V1ContainerPort> getContainerPorts() {
-        List<V1ContainerPort> ports = new ArrayList<>();
-        final V1ContainerPort port = new V1ContainerPort();
-        port.setName("grpc");
-        port.setContainerPort(instancePort);
-        ports.add(port);
-
-        return ports;
+        return new ArrayList<>();
     }
 
-    private String createJobName(Function.FunctionDetails functionDetails) {
-        return createJobName(functionDetails.getTenant(),
-                functionDetails.getNamespace(),
-                functionDetails.getName());
+    private String createJobName(FunctionConfig functionConfig) {
+        return createJobName(functionConfig.getTenant(),
+                functionConfig.getNamespace(),
+                functionConfig.getName());
     }
 
     private String createJobName(String tenant, String namespace, String functionName) {

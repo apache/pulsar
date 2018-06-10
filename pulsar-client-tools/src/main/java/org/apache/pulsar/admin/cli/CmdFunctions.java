@@ -66,7 +66,6 @@ import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.Utils;
-import org.apache.pulsar.functions.kubernetes.KubernetesConfig;
 import org.apache.pulsar.functions.kubernetes.KubernetesController;
 import org.apache.pulsar.functions.utils.WindowConfig;
 import org.apache.pulsar.functions.utils.validation.ConfigValidation;
@@ -866,8 +865,6 @@ public class CmdFunctions extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            checkRequiredFields(functionConfig);
-
             String serviceUrl = admin.getServiceUrl();
             if (brokerServiceUrl != null) {
                 serviceUrl = brokerServiceUrl;
@@ -888,14 +885,7 @@ public class CmdFunctions extends CmdBase {
 
             admin.functions().uploadFunction(userCodeFile, bkPath);
 
-            // Now that we have uploaded, launch it via kubernetes
-            InstanceConfig instanceConfig = new InstanceConfig();
-            instanceConfig.setFunctionDetails(convertProto2(functionConfig));
-            // TODO: correctly implement function version and id
-            instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
-            instanceConfig.setFunctionId(UUID.randomUUID().toString());
-            instanceConfig.setMaxBufferedTuples(1024);
-            k8Controller.create(instanceConfig, bkPath, Paths.get(userCodeFile).getFileName().toString());
+            k8Controller.create(functionConfig, bkPath, Paths.get(userCodeFile).getFileName().toString());
         }
     }
 
