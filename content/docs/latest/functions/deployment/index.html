@@ -973,7 +973,7 @@
   <tbody>
     <tr>
       <td style="text-align: left">Function name</td>
-      <td style="text-align: left">Whichever value is specified for the class name. For example, <code class="highlighter-rouge">--className org.example.MyFunction</code> would give the function a name of <code class="highlighter-rouge">MyFunction</code></td>
+      <td style="text-align: left">Whichever value is specified for the class name (minus org, library, etc.). The flag <code class="highlighter-rouge">--className org.example.MyFunction</code>, for example, would give the function a name of <code class="highlighter-rouge">MyFunction</code>.</td>
     </tr>
     <tr>
       <td style="text-align: left">Tenant</td>
@@ -1087,6 +1087,76 @@
 <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions update <span class="se">\</span>
   <span class="nt">--functionConfigFile</span> <span class="k">function</span><span class="nt">-config</span>.yaml
 </code></pre></div></div>
+
+<h3 id="resources">Function instance resources</h3>
+
+<p>When you run Pulsar Functions in <a href="#cluster-run">cluster run</a> mode, you can specify the resources that are assigned to each function <a href="#parallelism">instance</a>:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Resource</th>
+      <th style="text-align: left">Specified as…</th>
+      <th style="text-align: left">Runtimes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">CPU</td>
+      <td style="text-align: left">The number of cores</td>
+      <td style="text-align: left">Docker (coming soon)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">RAM</td>
+      <td style="text-align: left">The number of bytes</td>
+      <td style="text-align: left">Process, Docker</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">Disk space</td>
+      <td style="text-align: left">The number of bytes</td>
+      <td style="text-align: left">Docker</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Here’s an example function creation command that allocates 8 cores, 8 GB of RAM, and 10 GB of disk space to a function:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions create <span class="se">\</span>
+  <span class="nt">--jar</span> target/my-functions.jar <span class="se">\</span>
+  <span class="nt">--className</span> org.example.functions.MyFunction <span class="se">\</span>
+  <span class="nt">--cpu</span> 8 <span class="se">\</span>
+  <span class="nt">--ram</span> 8589934592 <span class="se">\</span>
+  <span class="nt">--disk</span> 10737418240
+</code></pre></div></div>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="warning">
+    <span class="admonition-title"><p>Resources are <em>per instance</em></p>
+</span>
+    <p>The resources that you apply to a given Pulsar Function are applied to each <a href="#parallelism">instance</a> of the function. If you apply 8 GB of RAM to a function with a paralellism of 5, for example, then you are applying 40 GB of RAM total for the function. You should always make sure to factor paralellism—i.e. the number of instances—into your resource calculations.</p>
+
+  </div>
+</div>
 
 <h2 id="triggering">Triggering Pulsar Functions</h2>
 

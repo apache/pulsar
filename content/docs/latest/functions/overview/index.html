@@ -1086,10 +1086,11 @@
 
 <h2 id="api">The Pulsar Functions API</h2>
 
+<p>The Pulsar Functions API enables you to create processing logic that is:</p>
+
 <ul>
-  <li>Type safe (bytes versus specific types)</li>
-  <li>SerDe (built-in vs. custom)</li>
-  <li>Pulsar messages are always just bytes, but Pulsar Functions handles data types for you <em>unless</em> you need custom types</li>
+  <li>Type safe. Pulsar Functions can process raw bytes or more complex, application-specific types.</li>
+  <li>Based on SerDe (<strong>Ser</strong>ialization/<strong>De</strong>serialization). A variety of types are supported “out of the box” but you can also create your own custom SerDe logic.</li>
 </ul>
 
 <h3 id="context">Function context</h3>
@@ -1226,6 +1227,49 @@
   <span class="nt">--className</span> func.ParallelFunction <span class="se">\</span>
   <span class="nt">--parallelism</span> 5
 </code></pre></div></div>
+
+<h3 id="resources">Function instance resources</h3>
+
+<p>When you run Pulsar Functions in <a href="#cluster-run">cluster run</a> mode, you can specify the resources that are assigned to each function <a href="#parallelism">instance</a>:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Resource</th>
+      <th style="text-align: left">Specified as…</th>
+      <th style="text-align: left">Runtimes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">CPU</td>
+      <td style="text-align: left">The number of cores</td>
+      <td style="text-align: left">Docker (coming soon)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">RAM</td>
+      <td style="text-align: left">The number of bytes</td>
+      <td style="text-align: left">Process, Docker</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">Disk space</td>
+      <td style="text-align: left">The number of bytes</td>
+      <td style="text-align: left">Docker</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Here’s an example function creation command that allocates 8 cores, 8 GB of RAM, and 10 GB of disk space to a function:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions create <span class="se">\</span>
+  <span class="nt">--jar</span> target/my-functions.jar <span class="se">\</span>
+  <span class="nt">--className</span> org.example.functions.MyFunction <span class="se">\</span>
+  <span class="nt">--cpu</span> 8 <span class="se">\</span>
+  <span class="nt">--ram</span> 8589934592 <span class="se">\</span>
+  <span class="nt">--disk</span> 10737418240
+</code></pre></div></div>
+
+<p>For more information on resources, see the <a href="../deployment#resources">Deploying and Managing Pulsar Functions</a> documentation.</p>
 
 <h3 id="logging">Logging</h3>
 

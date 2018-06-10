@@ -1046,6 +1046,10 @@
         
         
         
+        <li><a href="/admin/namespaces/:property/:cluster/:namespace/compactionThreshold"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>compactionThreshold</code></a></li>
+        
+        
+        
         <li><a href="/admin/namespaces/:property/:cluster/:namespace/maxConsumersPerSubscription"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>maxConsumersPerSubscription</code></a></li>
         
         
@@ -1063,6 +1067,10 @@
         
         
         <li><a href="/admin/namespaces/:property/:cluster/:namespace/subscriptionDispatchRate"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>subscriptionDispatchRate</code></a></li>
+        
+        
+        
+        <li><a href="/admin/namespaces/:property/:namespace/compactionThreshold"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>compactionThreshold</code></a></li>
         
         
         
@@ -4201,7 +4209,7 @@
           <h5>
             <code class="highlighter-rouge get">GET</code>
           </h5>
-          <p>Get all namespaces that are grouped by given anti-affinity group in a given cluster. api can be only accessed by admin of any of the existing tenant</p>
+          <p>Get all namespaces that are grouped by given anti-affinity group in a given cluster. api can be only accessed by admin of any of the existing property</p>
           
           <h5>URL parameters</h5>
           <table>
@@ -4230,7 +4238,7 @@
               </tr>
               
               <tr>
-                <td><code class="highlighter-rouge">tenant</code></td>
+                <td><code class="highlighter-rouge">property</code></td>
                 <td>query</td>
                 <td>false</td>
                 <td>string</td>
@@ -4563,6 +4571,168 @@
               <tr>
                 <td>409</td>
                 <td>Concurrent modification</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/namespaces/:property/:cluster/:namespace/compactionThreshold">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>compactionThreshold</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge get">GET</code>
+          </h5>
+          <p>Maximum number of uncompacted bytes in topics before compaction is triggered.</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>200</td>
+                <td>successful operation</td>
+              </tr>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Namespace doesn't exist</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge put">PUT</code>
+          </h5>
+          <p>Set maximum number of uncompacted bytes in a topic before compaction is triggered.</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Namespace doesn't exist</td>
+              </tr>
+              
+              <tr>
+                <td>409</td>
+                <td>Concurrent modification</td>
+              </tr>
+              
+              <tr>
+                <td>412</td>
+                <td>compactionThreshold value is not valid</td>
               </tr>
                <!-- for param in parameters -->
             </tbody>
@@ -5280,6 +5450,154 @@
               <tr>
                 <td>403</td>
                 <td>Don't have admin permission</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/namespaces/:property/:namespace/compactionThreshold">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>compactionThreshold</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge get">GET</code>
+          </h5>
+          <p>Maximum number of uncompacted bytes in topics before compaction is triggered.</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>200</td>
+                <td>successful operation</td>
+              </tr>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Namespace doesn't exist</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge put">PUT</code>
+          </h5>
+          <p>Set maximum number of uncompacted bytes in a topic before compaction is triggered.</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Namespace doesn't exist</td>
+              </tr>
+              
+              <tr>
+                <td>409</td>
+                <td>Concurrent modification</td>
+              </tr>
+              
+              <tr>
+                <td>412</td>
+                <td>compactionThreshold value is not valid</td>
               </tr>
                <!-- for param in parameters -->
             </tbody>
