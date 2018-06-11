@@ -134,6 +134,8 @@ void export_config() {
             .def("unacked_messages_timeout_ms", &ConsumerConfiguration::setUnAckedMessagesTimeoutMs)
             .def("broker_consumer_stats_cache_time_ms", &ConsumerConfiguration::getBrokerConsumerStatsCacheTimeInMs)
             .def("broker_consumer_stats_cache_time_ms", &ConsumerConfiguration::setBrokerConsumerStatsCacheTimeInMs)
+            .def("read_compacted", &ConsumerConfiguration::isReadCompacted)
+            .def("read_compacted", &ConsumerConfiguration::setReadCompacted)
             ;
 
     class_<ReaderConfiguration>("ReaderConfiguration")
@@ -144,5 +146,7 @@ void export_config() {
             .def("reader_name", &ReaderConfiguration::setReaderName)
             .def("subscription_role_prefix", &ReaderConfiguration::getSubscriptionRolePrefix, return_value_policy<copy_const_reference>())
             .def("subscription_role_prefix", &ReaderConfiguration::setSubscriptionRolePrefix)
+            .def("read_compacted", &ReaderConfiguration::isReadCompacted)
+            .def("read_compacted", &ReaderConfiguration::setReadCompacted)
             ;
 }

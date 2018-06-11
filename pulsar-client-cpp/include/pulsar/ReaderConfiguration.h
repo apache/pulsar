@@ -86,6 +86,9 @@ class ReaderConfiguration {
     void setSubscriptionRolePrefix(const std::string& subscriptionRolePrefix);
     const std::string& getSubscriptionRolePrefix() const;
 
+    void setReadCompacted(bool compacted);
+    bool isReadCompacted() const;
+
    private:
     boost::shared_ptr<ReaderConfigurationImpl> impl_;
 };
