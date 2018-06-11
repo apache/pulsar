@@ -568,7 +568,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>com.fasterxml.jackson.module</groupId>
         <artifactId>jackson-module-jsonSchema</artifactId>
-        <version>2.9.0</version>
+        <version>${jackson.version}</version>
       </dependency>
 
       <dependency>
