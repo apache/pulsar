@@ -9538,9 +9538,7 @@ span.popover-term {
       .rest-api-container article section.content table.config td, .docs-container article section.content table.config td {
         padding: 5px 0; }
         .rest-api-container article section.content table.config td:nth-child(1), .rest-api-container article section.content table.config td:nth-child(2), .docs-container article section.content table.config td:nth-child(1), .docs-container article section.content table.config td:nth-child(2) {
-          max-width: 225px;
-          overflow: auto;
-          white-space: nowrap; }
+          overflow: auto; }
         .rest-api-container article section.content table.config td:nth-child(2), .rest-api-container article section.content table.config td:nth-child(3), .docs-container article section.content table.config td:nth-child(2), .docs-container article section.content table.config td:nth-child(3) {
           padding-left: 10px; }
         .rest-api-container article section.content table.config td + td, .docs-container article section.content table.config td + td {
