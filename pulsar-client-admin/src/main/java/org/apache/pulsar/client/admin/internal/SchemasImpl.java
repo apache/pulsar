@@ -78,7 +78,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
     }
 
     @Override
-    public void postSchema(String tennant, String namespace, String topic, SchemaInfo info) throws PulsarAdminException {
+    public void createSchema(String tennant, String namespace, String topic, SchemaInfo info) throws PulsarAdminException {
         try {
             PostSchemaPayload payload = new PostSchemaPayload();
             request(schemaPath(tennant, namespace, topic))

@@ -20,7 +20,6 @@ package org.apache.pulsar.admin.cli;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -38,13 +37,13 @@ public class CmdSchemas extends CmdBase {
 
     @Parameters(commandDescription = "Get the latest schema")
     private class GetSchema extends CliCommand {
-        @Parameter(description = "tenant-name", required = true)
+        @Parameter(description = "tenant", required = true)
         private String tennant;
 
-        @Parameter(description = "namespace-name", required = true)
+        @Parameter(description = "namespace", required = true)
         private String namespace;
 
-        @Parameter(description = "topic-name", required = true)
+        @Parameter(description = "schema", required = true)
         private String topic;
 
         @Parameter(description = "version", required = false)
@@ -62,13 +61,13 @@ public class CmdSchemas extends CmdBase {
 
     @Parameters(commandDescription = "Delete the latest schema")
     private class DeleteSchema extends CliCommand {
-        @Parameter(description = "tenant-name", required = true)
+        @Parameter(description = "tenant", required = true)
         private String tennant;
 
-        @Parameter(description = "namespace-name", required = true)
+        @Parameter(description = "namespace", required = true)
         private String namespace;
 
-        @Parameter(description = "topic-name", required = true)
+        @Parameter(description = "schema", required = true)
         private String topic;
 
         @Override
@@ -78,13 +77,13 @@ public class CmdSchemas extends CmdBase {
     }
 
     private class UploadSchema extends CliCommand {
-        @Parameter(description = "tenant-name", required = true)
+        @Parameter(description = "tenant", required = true)
         private String tennant;
 
-        @Parameter(description = "namespace-name", required = true)
+        @Parameter(description = "namespace", required = true)
         private String namespace;
 
-        @Parameter(description = "topic-name", required = true)
+        @Parameter(description = "schema", required = true)
         private String topic;
 
         @Parameter(description = "filename", required = true)
@@ -97,7 +96,7 @@ public class CmdSchemas extends CmdBase {
             info.setProperties(input.getProperties());
             info.setType(SchemaType.valueOf(input.getType()));
             info.setSchema(input.getSchema().getBytes());
-            admin.getSchemas().postSchema(tennant, namespace, topic, info);
+            admin.getSchemas().createSchema(tennant, namespace, topic, info);
         }
     }
 

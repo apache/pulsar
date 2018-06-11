@@ -28,6 +28,6 @@ public interface Schemas {
 
     void deleteSchema(String tennant, String namespace, String topic) throws PulsarAdminException;
 
-    void postSchema(String tennant, String namespace, String topic, SchemaInfo info) throws PulsarAdminException;
+    void createSchema(String tennant, String namespace, String topic, SchemaInfo info) throws PulsarAdminException;
 
 }
