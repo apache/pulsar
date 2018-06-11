@@ -51,6 +51,8 @@ import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.Resources;
@@ -642,11 +644,38 @@ public class CmdFunctions extends CmdBase {
 
         @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker")
         protected String brokerServiceUrl;
+        
+        @Parameter(names = "--clientAuthPlugin", description = "Client authentication plugin using which function-process can connect to broker")
+        protected String clientAuthPlugin;
+        
+        @Parameter(names = "--clientAuthParams", description = "Client authentication param")
+        protected String clientAuthParams;
+        
+        @Parameter(names = "--use_tls", description = "Use tls connection\n")
+        protected boolean useTls;
+
+        @Parameter(names = "--tls_allow_insecure", description = "Allow insecure tls connection\n")
+        protected boolean tlsAllowInsecureConnection;
+        
+        @Parameter(names = "--hostname_verification_enabled", description = "Enable hostname verification")
+        protected boolean tlsHostNameVerificationEnabled;
+        
+        @Parameter(names = "--tls_trust_cert_path", description = "tls trust cert file path")
+        protected String tlsTrustCertFilePath;
+
+        @Parameter(names = "--instanceIdOffset", description = "Start the instanceIds from this offset")
+        protected Integer instanceIdOffset = 0;
 
         @Override
         void runCmd() throws Exception {
-            CmdFunctions.startLocalRun(convertProto2(functionConfig),
-                    functionConfig.getParallelism(), brokerServiceUrl, userCodeFile, admin);
+            CmdFunctions.startLocalRun(convertProto2(functionConfig), functionConfig.getParallelism(),
+                    instanceIdOffset, brokerServiceUrl,
+                    AuthenticationConfig.builder().clientAuthenticationPlugin(clientAuthPlugin)
+                            .clientAuthenticationParameters(clientAuthParams).useTls(useTls)
+                            .tlsAllowInsecureConnection(tlsAllowInsecureConnection)
+                            .tlsHostnameVerificationEnable(tlsHostNameVerificationEnabled)
+                            .tlsTrustCertsFilePath(tlsTrustCertFilePath).build(),
+                    userCodeFile, admin);
         }
     }
 
@@ -911,7 +940,8 @@ public class CmdFunctions extends CmdBase {
     }
 
     protected static void startLocalRun(org.apache.pulsar.functions.proto.Function.FunctionDetails functionDetails,
-                                        int parallelism, String brokerServiceUrl, String userCodeFile, PulsarAdmin admin)
+            int parallelism, int instanceIdOffset, String brokerServiceUrl, AuthenticationConfig authConfig,
+            String userCodeFile, PulsarAdmin admin)
             throws Exception {
 
         String serviceUrl = admin.getServiceUrl();
@@ -921,8 +951,8 @@ public class CmdFunctions extends CmdBase {
         if (serviceUrl == null) {
             serviceUrl = DEFAULT_SERVICE_URL;
         }
-        try (ProcessRuntimeFactory containerFactory = new ProcessRuntimeFactory(
-                serviceUrl, null, null, null)) {
+        try (ProcessRuntimeFactory containerFactory = new ProcessRuntimeFactory(serviceUrl, authConfig, null, null,
+                null)) {
             List<RuntimeSpawner> spawners = new LinkedList<>();
             for (int i = 0; i < parallelism; ++i) {
                 InstanceConfig instanceConfig = new InstanceConfig();
@@ -930,7 +960,7 @@ public class CmdFunctions extends CmdBase {
                 // TODO: correctly implement function version and id
                 instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
                 instanceConfig.setFunctionId(UUID.randomUUID().toString());
-                instanceConfig.setInstanceId(Integer.toString(i));
+                instanceConfig.setInstanceId(Integer.toString(i + instanceIdOffset));
                 instanceConfig.setMaxBufferedTuples(1024);
                 instanceConfig.setPort(Utils.findAvailablePort());
                 RuntimeSpawner runtimeSpawner = new RuntimeSpawner(

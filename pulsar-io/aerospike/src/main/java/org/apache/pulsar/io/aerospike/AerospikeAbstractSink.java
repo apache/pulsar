@@ -45,9 +45,9 @@ import java.util.concurrent.LinkedBlockingDeque;
  * A Simple abstract class for Aerospike sink
  * Users need to implement extractKeyValue function to use this sink
  */
-public abstract class AerospikeSink<K, V> extends SimpleSink<byte[]> {
+public abstract class AerospikeAbstractSink<K, V> extends SimpleSink<byte[]> {
 
-    private static final Logger LOG = LoggerFactory.getLogger(AerospikeSink.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AerospikeAbstractSink.class);
 
     // ----- Runtime fields
     private AerospikeSinkConfig aerospikeSinkConfig;

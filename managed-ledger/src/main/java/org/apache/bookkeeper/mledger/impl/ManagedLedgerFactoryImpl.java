@@ -272,6 +272,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         for (CompletableFuture<ManagedLedgerImpl> ledgerFuture : ledgers.values()) {
             ManagedLedgerImpl ledger = ledgerFuture.getNow(null);
             if (ledger == null) {
+                latch.countDown();
                 continue;
             }
 
