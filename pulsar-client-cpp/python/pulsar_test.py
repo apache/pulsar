@@ -46,7 +46,7 @@ class PulsarTest(TestCase):
     serviceUrl = 'pulsar://localhost:8885'
     adminUrl = 'http://localhost:8765'
 
-    serviceUrlTls = 'pulsar+ssl://localhost:8885'
+    serviceUrlTls = 'pulsar+ssl://localhost:9886'
 
     def test_producer_config(self):
         conf = ProducerConfiguration()

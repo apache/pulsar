@@ -18,23 +18,27 @@
  */
 #include "utils.h"
 
+AuthenticationWrapper::AuthenticationWrapper() {}
+
 AuthenticationWrapper::AuthenticationWrapper(const std::string& dynamicLibPath,
                                              const std::string& authParamsString) {
     this->auth = AuthFactory::create(dynamicLibPath, authParamsString);
 }
 
-struct AuthenticationTlsWrapper {
+struct AuthenticationTlsWrapper : public AuthenticationWrapper {
     AuthenticationPtr auth;
 
-    AuthenticationTlsWrapper(const std::string& certificatePath, const std::string& privateKeyPath) {
+    AuthenticationTlsWrapper(const std::string& certificatePath, const std::string& privateKeyPath) :
+            AuthenticationWrapper() {
         this->auth = AuthTls::create(certificatePath, privateKeyPath);
     }
 };
 
-struct AuthenticationAthenzWrapper {
+struct AuthenticationAthenzWrapper : public AuthenticationWrapper {
     AuthenticationPtr auth;
 
-    AuthenticationAthenzWrapper(const std::string& authParamsString) {
+    AuthenticationAthenzWrapper(const std::string& authParamsString) :
+            AuthenticationWrapper() {
         this->auth = AuthAthenz::create(authParamsString);
     }
 };
@@ -45,9 +49,11 @@ void export_authentication() {
     class_<AuthenticationWrapper>("Authentication", init<const std::string&, const std::string&>())
             ;
 
-    class_<AuthenticationTlsWrapper>("AuthenticationTLS", init<const std::string&, const std::string&>())
+    class_<AuthenticationTlsWrapper, bases<AuthenticationWrapper> >("AuthenticationTLS",
+                                                                    init<const std::string&, const std::string&>())
             ;
 
-    class_<AuthenticationAthenzWrapper>("AuthenticationAthenz", init<const std::string&>())
+    class_<AuthenticationAthenzWrapper, bases<AuthenticationWrapper> >("AuthenticationAthenz",
+                                                                       init<const std::string&>())
             ;
 }
