@@ -131,6 +131,7 @@ pulsar-broker1*:
     - zookeeperServers=zookeeper
     - configurationStoreServers=configuration-store:2184
     - clusterName=test
+    - brokerServiceCompactionMonitorIntervalInSeconds=1
   labels:
     cluster: test
     service: pulsar-broker
@@ -150,6 +151,7 @@ pulsar-broker2*:
     - zookeeperServers=zookeeper
     - configurationStoreServers=configuration-store:2184
     - clusterName=test
+    - brokerServiceCompactionMonitorIntervalInSeconds=1
   labels:
     cluster: test
     service: pulsar-broker

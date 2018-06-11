@@ -663,9 +663,13 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--tls_trust_cert_path", description = "tls trust cert file path")
         protected String tlsTrustCertFilePath;
 
+        @Parameter(names = "--instanceIdOffset", description = "Start the instanceIds from this offset")
+        protected Integer instanceIdOffset = 0;
+
         @Override
         void runCmd() throws Exception {
-            CmdFunctions.startLocalRun(convertProto2(functionConfig), functionConfig.getParallelism(), brokerServiceUrl,
+            CmdFunctions.startLocalRun(convertProto2(functionConfig), functionConfig.getParallelism(),
+                    instanceIdOffset, brokerServiceUrl,
                     AuthenticationConfig.builder().clientAuthenticationPlugin(clientAuthPlugin)
                             .clientAuthenticationParameters(clientAuthParams).useTls(useTls)
                             .tlsAllowInsecureConnection(tlsAllowInsecureConnection)
@@ -936,7 +940,7 @@ public class CmdFunctions extends CmdBase {
     }
 
     protected static void startLocalRun(org.apache.pulsar.functions.proto.Function.FunctionDetails functionDetails,
-            int parallelism, String brokerServiceUrl, AuthenticationConfig authConfig,
+            int parallelism, int instanceIdOffset, String brokerServiceUrl, AuthenticationConfig authConfig,
             String userCodeFile, PulsarAdmin admin)
             throws Exception {
 
@@ -956,7 +960,7 @@ public class CmdFunctions extends CmdBase {
                 // TODO: correctly implement function version and id
                 instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
                 instanceConfig.setFunctionId(UUID.randomUUID().toString());
-                instanceConfig.setInstanceId(Integer.toString(i));
+                instanceConfig.setInstanceId(Integer.toString(i + instanceIdOffset));
                 instanceConfig.setMaxBufferedTuples(1024);
                 instanceConfig.setPort(Utils.findAvailablePort());
                 RuntimeSpawner runtimeSpawner = new RuntimeSpawner(

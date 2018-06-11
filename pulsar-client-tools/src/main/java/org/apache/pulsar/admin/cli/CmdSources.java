@@ -118,7 +118,7 @@ public class CmdSources extends CmdBase {
         @Override
         void runCmd() throws Exception {
             CmdFunctions.startLocalRun(createSourceConfigProto2(sourceConfig), sourceConfig.getParallelism(),
-                    brokerServiceUrl,
+                    0, brokerServiceUrl,
                     AuthenticationConfig.builder().clientAuthenticationPlugin(clientAuthPlugin)
                             .clientAuthenticationParameters(clientAuthParams).useTls(useTls)
                             .tlsAllowInsecureConnection(tlsAllowInsecureConnection)
