@@ -27,6 +27,8 @@ message SchemaInfo {
         NONE = 1;
         STRING = 2;
         JSON = 3;
+        PROTOBUF = 4;
+        AVRO = 5;
     }
     message KeyValuePair {
         required string key = 1;
