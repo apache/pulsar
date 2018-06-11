@@ -309,14 +309,12 @@ public class KubernetesController {
         return statefulSet;
     }
 
-    /*
     private Map<String, String> getPrometheusAnnotations() {
         final Map<String, String> annotations = new HashMap<>();
         annotations.put("prometheus.io/scrape", "true");
         annotations.put("prometheus.io/port", "8080");
         return annotations;
     }
-    */
 
     private Map<String, String> getLabels(FunctionConfig functionConfig) {
         final Map<String, String> labels = new HashMap<>();
