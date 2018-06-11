@@ -50,7 +50,6 @@ public class SourceConfig {
     @NotNull
     private String name;
     @NotNull
-    @isImplementationOfClass(implementsClass = Source.class)
     private String className;
     @NotNull
     @isValidTopicName
@@ -65,4 +64,5 @@ public class SourceConfig {
     private Resources resources;
     @isFileExists
     private String jar;
+    private String classNameArgType;
 }

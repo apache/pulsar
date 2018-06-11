@@ -25,6 +25,8 @@ import com.beust.jcommander.converters.StringConverter;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import lombok.Getter;
+
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.internal.FunctionsImpl;
@@ -39,18 +41,26 @@ import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.SourceConfig;
 import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.functions.utils.validation.ConfigValidation;
+import org.apache.pulsar.functions.utils.validation.ValidatorImpls.ImplementsClassValidator;
+import org.apache.pulsar.io.core.Sink;
+import org.apache.pulsar.io.core.Source;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
 import java.util.Map;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
 import static org.apache.pulsar.functions.utils.Utils.fileExists;
+import static org.apache.pulsar.functions.utils.Utils.getSinkType;
 import static org.apache.pulsar.functions.utils.Utils.getSourceType;
+import static org.apache.pulsar.functions.worker.Utils.downloadFromHttpUrl;
 
 @Getter
 @Parameters(commandDescription = "Interface for managing Pulsar Source (Ingress data to Pulsar)")
@@ -163,11 +173,10 @@ public class CmdSources extends CmdBase {
         protected String deserializationClassName;
         @Parameter(names = "--parallelism", description = "The source's parallelism factor (i.e. the number of source instances to run)")
         protected Integer parallelism;
-        @Parameter(
-                names = "--jar",
-                description = "Path to the jar file for the Source",
-                listConverter = StringConverter.class)
+        @Parameter(names = "--jar", description = "Path to the jar file for the Source. It also supports url-path (http/https/file) from which worker can download the package.", listConverter = StringConverter.class)
         protected String jarFile;
+        @Parameter(names = "--classNameArgType", description = "Source impl class's argument type if jar-file path is url")
+        protected String classNameArgType;
 
         @Parameter(names = "--sourceConfigFile", description = "The path to a YAML config file specifying the "
                 + "source's configuration")
@@ -220,6 +229,8 @@ public class CmdSources extends CmdBase {
             if (jarFile != null) {
                 sourceConfig.setJar(jarFile);
             }
+            
+            sourceConfig.setClassNameArgType(classNameArgType);
 
             sourceConfig.setResources(new org.apache.pulsar.functions.utils.Resources(cpu, ram, disk));
 
@@ -242,26 +253,61 @@ public class CmdSources extends CmdBase {
         }
 
         protected void validateSourceConfigs(SourceConfig sourceConfig) {
-            if (null == sourceConfig.getJar()) {
+            if (StringUtils.isBlank(sourceConfig.getJar())) {
                 throw new ParameterException("Source jar not specfied");
             }
 
-            if (!fileExists(sourceConfig.getJar())) {
-                throw new ParameterException("Jar file " + sourceConfig.getJar() + " does not exist");
+            boolean isJarPathUrl = Utils.isFunctionPackageUrlSupported(sourceConfig.getJar());
+            
+            String jarFilePath = null;
+            if (isJarPathUrl) {
+                // jar can't be loaded from file-url so, arg class-name must be present
+                if (sourceConfig.getJar().startsWith(Utils.FILE) && isBlank(sourceConfig.getClassNameArgType())) {
+                    throw new ParameterException("Source class arg-type must be present for a package uploaded at : "
+                            + sourceConfig.getJar());
+                }
+                // download jar file if url is http
+                if(sourceConfig.getJar().startsWith(Utils.HTTP)) {
+                    File tempPkgFile = null;
+                    try {
+                        tempPkgFile = File.createTempFile(sourceConfig.getName(), "source");
+                        downloadFromHttpUrl(sourceConfig.getJar(), new FileOutputStream(tempPkgFile));
+                        jarFilePath = tempPkgFile.getAbsolutePath();
+                    } catch(Exception e) {
+                        if(tempPkgFile!=null ) {
+                            tempPkgFile.deleteOnExit();
+                        }
+                        throw new ParameterException("Failed to download jar from " + sourceConfig.getJar()
+                                + ", due to =" + e.getMessage());
+                    }
+                }
+            } else {
+                jarFilePath = sourceConfig.getJar();
+            }
+            
+            
+            // if jar file is present locally then load jar and validate SinkClass in it
+            if (jarFilePath != null) {
+                if (!fileExists(jarFilePath)) {
+                    throw new ParameterException("Jar file " + jarFilePath + " does not exist");
+                }
+
+                File file = new File(jarFilePath);
+                ClassLoader userJarLoader;
+                try {
+                    userJarLoader = Reflections.loadJar(file);
+                } catch (MalformedURLException e) {
+                    throw new ParameterException("Failed to load user jar " + file + " with error " + e.getMessage());
+                }
+                // make sure the function class loader is accessible thread-locally
+                Thread.currentThread().setContextClassLoader(userJarLoader);
+
+                // jar is already loaded, validate against Source-Class name
+                (new ImplementsClassValidator(Source.class)).validateField("className", sourceConfig.getClassName());
             }
 
-            File file = new File(jarFile);
-            ClassLoader userJarLoader;
             try {
-                userJarLoader = Reflections.loadJar(file);
-            } catch (MalformedURLException e) {
-                throw new ParameterException("Failed to load user jar " + file + " with error " + e.getMessage());
-            }
-            // make sure the function class loader is accessible thread-locally
-            Thread.currentThread().setContextClassLoader(userJarLoader);
-
-            try {
-                // Need to load jar and set context class loader before calling
+             // Need to load jar and set context class loader before calling
                 ConfigValidation.validateConfig(sourceConfig, FunctionConfig.Runtime.JAVA.name());
             } catch (Exception e) {
                 throw new ParameterException(e.getMessage());
@@ -281,7 +327,8 @@ public class CmdSources extends CmdBase {
             // check if source configs are valid
             validateSourceConfigs(sourceConfig);
 
-            Class<?> typeArg = getSourceType(sourceConfig.getClassName());
+            String typeArg = isNotBlank(sourceConfig.getClassNameArgType()) ? sourceConfig.getClassNameArgType()
+                    : getSourceType(sourceConfig.getClassName()).getName();
 
             FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
             if (sourceConfig.getTenant() != null) {
@@ -308,7 +355,7 @@ public class CmdSources extends CmdBase {
             if (sourceConfig.getConfigs() != null) {
                 sourceSpecBuilder.setConfigs(new Gson().toJson(sourceConfig.getConfigs()));
             }
-            sourceSpecBuilder.setTypeClassName(typeArg.getName());
+            sourceSpecBuilder.setTypeClassName(typeArg);
             functionDetailsBuilder.setSource(sourceSpecBuilder);
 
             // set up sink spec.
@@ -318,7 +365,7 @@ public class CmdSources extends CmdBase {
                 sinkSpecBuilder.setSerDeClassName(sourceConfig.getSerdeClassName());
             }
             sinkSpecBuilder.setTopic(sourceConfig.getTopicName());
-            sinkSpecBuilder.setTypeClassName(typeArg.getName());
+            sinkSpecBuilder.setTypeClassName(typeArg);
 
             functionDetailsBuilder.setSink(sinkSpecBuilder);
 

@@ -102,4 +102,7 @@ public class FunctionConfig {
     private String jar;
     @isFileExists
     private String py;
+    private String classNameArgType;
+    private String classNameResultType;
+
 }

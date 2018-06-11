@@ -26,6 +26,7 @@ import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
@@ -47,11 +48,15 @@ import org.apache.bookkeeper.clients.StorageClientBuilder;
 import org.apache.bookkeeper.clients.config.StorageClientSettings;
 import org.apache.bookkeeper.clients.utils.NetUtils;
 import org.apache.commons.lang.StringUtils;
+import static org.apache.commons.lang.StringUtils.isNotBlank;
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.commons.lang.StringUtils.isBlank;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
@@ -66,6 +71,7 @@ import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.functions.utils.WindowConfig;
 import org.apache.pulsar.functions.utils.validation.ConfigValidation;
+import org.apache.pulsar.functions.utils.validation.ValidatorImpls.ImplementsClassesValidator;
 import org.apache.pulsar.functions.windowing.WindowFunctionExecutor;
 import org.apache.pulsar.functions.windowing.WindowUtils;
 
@@ -80,6 +86,9 @@ import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 
 import static org.apache.pulsar.functions.utils.Utils.fileExists;
+import static org.apache.pulsar.functions.utils.Utils.getSinkType;
+import static org.apache.pulsar.functions.worker.Utils.downloadFromHttpUrl;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
@@ -209,11 +218,14 @@ public class CmdFunctions extends CmdBase {
         protected String functionName;
         @Parameter(names = "--className", description = "The function's class name")
         protected String className;
-        @Parameter(
-                names = "--jar",
-                description = "Path to the jar file for the function (if the function is written in Java)",
-                listConverter = StringConverter.class)
+        @Parameter(names = "--jar", description = "Path to the jar file for the function (if the function is written in Java). It also supports url-path (http/https/file) from which worker can download the package.", listConverter = StringConverter.class)
         protected String jarFile;
+        
+        @Parameter(names = "--classNameArgType", description = "Function impl class's argument class-name if jar path is url.")
+        protected String classNameArgType;
+        @Parameter(names = "--classNameResultType", description = "Function impl class's result/return class-name if jar path is url.")
+        protected String classNameResultType;
+        
         @Parameter(
                 names = "--py",
                 description = "Path to the main Python file for the function (if the function is written in Python)",
@@ -379,9 +391,11 @@ public class CmdFunctions extends CmdBase {
             if (null != pyFile) {
                 functionConfig.setPy(pyFile);
             }
-
+            
             if (functionConfig.getJar() != null) {
                 userCodeFile = functionConfig.getJar();
+                functionConfig.setClassNameArgType(classNameArgType);
+                functionConfig.setClassNameResultType(classNameResultType);
             } else if (functionConfig.getPy() != null) {
                 userCodeFile = functionConfig.getPy();
             }
@@ -392,30 +406,69 @@ public class CmdFunctions extends CmdBase {
 
         protected void validateFunctionConfigs(FunctionConfig functionConfig) {
 
-            if (functionConfig.getJar() != null && functionConfig.getPy() != null) {
+            if (isNotBlank(functionConfig.getJar()) && isNotBlank(functionConfig.getPy())) {
                 throw new ParameterException("Either a Java jar or a Python file needs to"
                         + " be specified for the function. Cannot specify both.");
             }
 
-            if (functionConfig.getJar() == null && functionConfig.getPy() == null) {
+            if (isBlank(functionConfig.getJar()) && isBlank(functionConfig.getPy())) {
                 throw new ParameterException("Either a Java jar or a Python file needs to"
                         + " be specified for the function. Please specify one.");
             }
 
-            if (!fileExists(userCodeFile)) {
-                throw new ParameterException("File " + userCodeFile + " does not exist");
+            boolean isJarPathUrl = isNotBlank(functionConfig.getJar()) && Utils.isFunctionPackageUrlSupported(functionConfig.getJar());
+            String jarFilePath = null;
+            if (isJarPathUrl) {
+                // file-url can't load jar so, check arg/result classname present
+                if (functionConfig.getJar().startsWith(Utils.FILE) && (isBlank(functionConfig.getClassNameArgType())
+                        || isBlank(functionConfig.getClassNameResultType()))) {
+                    throw new ParameterException(
+                            "Function class arg and result classname must be present for a package uploaded at : "
+                                    + functionConfig.getJar());
+                }
+                
+                if (functionConfig.getJar().startsWith(Utils.HTTP)) {
+                    // download jar file if url is http or file is downloadable
+                    if (isJarPathUrl && functionConfig.getJar().startsWith(Utils.HTTP)) {
+                        File tempPkgFile = null;
+                        try {
+                            tempPkgFile = File.createTempFile(functionConfig.getName(), "function");
+                            downloadFromHttpUrl(functionConfig.getJar(), new FileOutputStream(tempPkgFile));
+                            jarFilePath = tempPkgFile.getAbsolutePath();
+                        } catch (Exception e) {
+                            if (tempPkgFile != null) {
+                                tempPkgFile.deleteOnExit();
+                            }
+                            throw new ParameterException("Failed to download jar from " + functionConfig.getJar()
+                                    + ", due to =" + e.getMessage());
+                        }
+                    }
+                }
+                
+            } else {
+                if (!fileExists(userCodeFile)) {
+                    throw new ParameterException("File " + userCodeFile + " does not exist");    
+                }
+                jarFilePath = userCodeFile;
             }
 
             if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
-                File file = new File(functionConfig.getJar());
-                ClassLoader userJarLoader;
-                try {
-                    userJarLoader = Reflections.loadJar(file);
-                } catch (MalformedURLException e) {
-                    throw new ParameterException("Failed to load user jar " + file + " with error " + e.getMessage());
+                
+                if (jarFilePath != null) {
+                    File file = new File(jarFilePath);
+                    ClassLoader userJarLoader;
+                    try {
+                        userJarLoader = Reflections.loadJar(file);
+                    } catch (MalformedURLException e) {
+                        throw new ParameterException(
+                                "Failed to load user jar " + file + " with error " + e.getMessage());
+                    }
+                    // make sure the function class loader is accessible thread-locally
+                    Thread.currentThread().setContextClassLoader(userJarLoader);
+
+                    (new ImplementsClassesValidator(Function.class, java.util.function.Function.class))
+                            .validateField("className", functionConfig.getClassName());
                 }
-                // make sure the function class loader is accessible thread-locally
-                Thread.currentThread().setContextClassLoader(userJarLoader);
             }
 
             try {
@@ -512,10 +565,18 @@ public class CmdFunctions extends CmdBase {
             // check if configs are valid
             validateFunctionConfigs(functionConfig);
 
-            Class<?>[] typeArgs = null;
+            String sourceTypeArgs = null;
+            String sinkTypeArgs = null;
             if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
-                // Assuming any external jars are already loaded
-                typeArgs = Utils.getFunctionTypes(functionConfig);
+                if (isNotBlank(sourceTypeArgs) && isNotBlank(sinkTypeArgs)) {
+                    sourceTypeArgs = classNameArgType;
+                    sinkTypeArgs = classNameResultType;
+                } else {
+                    // Assuming any external jars are already loaded
+                    Class<?>[] typeArgs = Utils.getFunctionTypes(functionConfig);
+                    sourceTypeArgs = typeArgs[0].getName();
+                    sinkTypeArgs = typeArgs[1].getName();
+                }
             }
 
             FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
@@ -548,8 +609,8 @@ public class CmdFunctions extends CmdBase {
                 }
             }
 
-            if (typeArgs != null) {
-                sourceSpecBuilder.setTypeClassName(typeArgs[0].getName());
+            if (sourceTypeArgs != null) {
+                sourceSpecBuilder.setTypeClassName(sourceTypeArgs);
             }
             if (functionConfig.getTimeoutMs() != null) {
                 sourceSpecBuilder.setTimeoutMs(functionConfig.getTimeoutMs());
@@ -564,8 +625,8 @@ public class CmdFunctions extends CmdBase {
             if (functionConfig.getOutputSerdeClassName() != null) {
                 sinkSpecBuilder.setSerDeClassName(functionConfig.getOutputSerdeClassName());
             }
-            if (typeArgs != null) {
-                sinkSpecBuilder.setTypeClassName(typeArgs[1].getName());
+            if (sinkTypeArgs != null) {
+                sinkSpecBuilder.setTypeClassName(sinkTypeArgs);
             }
             functionDetailsBuilder.setSink(sinkSpecBuilder);
 
@@ -683,7 +744,12 @@ public class CmdFunctions extends CmdBase {
     class CreateFunction extends FunctionDetailsCommand {
         @Override
         void runCmd() throws Exception {
-            admin.functions().createFunction(convert(functionConfig), userCodeFile);
+            if (Utils.isFunctionPackageUrlSupported(jarFile)) {
+                admin.functions().createFunctionWithUrl(convert(functionConfig), jarFile);
+            } else {
+                admin.functions().createFunction(convert(functionConfig), userCodeFile);
+            }
+
             print("Created successfully");
         }
     }

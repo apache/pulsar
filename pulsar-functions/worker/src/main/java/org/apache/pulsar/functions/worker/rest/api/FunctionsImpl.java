@@ -63,11 +63,13 @@ import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
-import org.apache.pulsar.functions.worker.FunctionActioner;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.MembershipManager;
 import org.apache.pulsar.functions.worker.Utils;
+import static org.apache.pulsar.functions.utils.Utils.HTTP;
+import static org.apache.pulsar.functions.utils.Utils.FILE;
+import static org.apache.pulsar.functions.utils.Utils.isFunctionPackageUrlSupported;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
@@ -640,10 +642,10 @@ public class FunctionsImpl {
         return Response.status(Status.OK).entity(new StreamingOutput() {
             @Override
             public void write(final OutputStream output) throws IOException {
-                if (path.startsWith(Utils.HTTP)) {
+                if (path.startsWith(HTTP)) {
                     URL url = new URL(path);
                     IOUtils.copy(url.openStream(), output);
-                } else if (path.startsWith(Utils.FILE)) {
+                } else if (path.startsWith(FILE)) {
                     URL url = new URL(path);
                     File file;
                     try {
@@ -713,7 +715,7 @@ public class FunctionsImpl {
     private FunctionDetails validateUpdateRequestParams(String tenant, String namespace, String functionName,
             String functionPkgUrl, String functionDetailsJson)
             throws IllegalArgumentException, IOException, URISyntaxException {
-        if (!Utils.isFunctionPackageUrlSupported(functionPkgUrl)) {
+        if (!isFunctionPackageUrlSupported(functionPkgUrl)) {
             throw new IllegalArgumentException("Function Package url is not valid. supported url (http/https/file)");
         }
         Utils.validateFileUrl(functionPkgUrl, workerServiceSupplier.get().getWorkerConfig().getDownloadDirectory());
