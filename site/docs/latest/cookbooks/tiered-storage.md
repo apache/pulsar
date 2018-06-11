@@ -3,7 +3,7 @@ title: Tiered Storage
 tags: [admin, tiered-storage]
 ---
 
-Pulsar's Tiered Storage feature allows older backlog data to be offloaded to long term storage, thereby freeing up space in BookKeeper and reducing storage costs. 
+Pulsar's **Tiered Storage** feature allows older backlog data to be offloaded to long term storage, thereby freeing up space in BookKeeper and reducing storage costs. This cookbook walks you through using tiered storage in your Pulsar cluster.
 
 ## When should I use Tiered Storage?
 
@@ -37,7 +37,7 @@ s3ManagedLedgerOffloadRegion=eu-west-3
 s3ManagedLedgerOffloadBucket=pulsar-topic-offload
 ```
 
-It is also possible to specify the s3 endpoint directly, using ```s3ManagedLedgerOffloadServiceEndpoint```. This is useful if you are using a none AWS storage service which provides an S3 compatible API. 
+It is also possible to specify the s3 endpoint directly, using ```s3ManagedLedgerOffloadServiceEndpoint```. This is useful if you are using a non-AWS storage service which provides an S3 compatible API. 
 
 {% include admonition.html type="warning" content="If the endpoint is specified directly, then the region must not be set." %}
 
@@ -45,8 +45,8 @@ It is also possible to specify the s3 endpoint directly, using ```s3ManagedLedge
 
 Pulsar also provides some knobs to configure they size of requests sent to S3. 
 
-- ```s3ManagedLedgerOffloadMaxBlockSizeInBytes``` configures the maximum size of a "part" sent during a multipart upload.
-- ```s3ManagedLedgerOffloadReadBufferSizeInBytes``` configures the block size for each individual read when reading back data from S3.
+- ```s3ManagedLedgerOffloadMaxBlockSizeInBytes``` configures the maximum size of a "part" sent during a multipart upload. Default is 64MB.
+- ```s3ManagedLedgerOffloadReadBufferSizeInBytes``` configures the block size for each individual read when reading back data from S3. Default is 1MB.
 
 In both cases, these should not be touched unless you know what you are doing.
 
