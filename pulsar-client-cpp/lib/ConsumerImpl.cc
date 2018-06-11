@@ -57,7 +57,8 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
       batchAcknowledgementTracker_(topic_, subscription, (long)consumerId_),
       brokerConsumerStats_(),
       consumerStatsBasePtr_(),
-      msgCrypto_() {
+      msgCrypto_(),
+      readCompacted_(conf.isReadCompacted()) {
     std::stringstream consumerStrStream;
     consumerStrStream << "[" << topic_ << ", " << subscription_ << ", " << consumerId_ << "] ";
     consumerStr_ = consumerStrStream.str();
@@ -135,8 +136,9 @@ void ConsumerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
 
     ClientImplPtr client = client_.lock();
     uint64_t requestId = client->newRequestId();
-    SharedBuffer cmd = Commands::newSubscribe(topic_, subscription_, consumerId_, requestId, getSubType(),
-                                              consumerName_, subscriptionMode_, startMessageId_);
+    SharedBuffer cmd =
+        Commands::newSubscribe(topic_, subscription_, consumerId_, requestId, getSubType(), consumerName_,
+                               subscriptionMode_, startMessageId_, readCompacted_);
     cnx->sendRequestWithId(cmd, requestId)
         .addListener(boost::bind(&ConsumerImpl::handleCreateConsumer, shared_from_this(), cnx, _1));
 }
@@ -918,5 +920,7 @@ void ConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback callback) {
     LOG_ERROR(getName() << " Client Connection not ready for Consumer");
     callback(ResultNotConnected);
 }
+
+bool ConsumerImpl::isReadCompacted() { return readCompacted_; }
 
 } /* namespace pulsar */

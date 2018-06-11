@@ -39,6 +39,13 @@ def doHttpPost(url, data):
     req.add_header('Content-Type', 'application/json')
     urlopen(req)
 
+import urllib2
+def doHttpPut(url, data):
+    opener = urllib2.build_opener(urllib2.HTTPHandler)
+    request = urllib2.Request(url, data=data.encode())
+    request.add_header('Content-Type', 'application/json')
+    request.get_method = lambda: 'PUT'
+    opener.open(request)
 
 class PulsarTest(TestCase):
 
@@ -403,6 +410,54 @@ class PulsarTest(TestCase):
         self._check_value_error(lambda: client.create_reader(topic, None))
         self._check_value_error(lambda: client.create_reader(topic, MessageId.earliest, receiver_queue_size='test'))
         self._check_value_error(lambda: client.create_reader(topic, MessageId.earliest, reader_name=5))
+        client.close()
+
+    def test_publish_compact_and_consume(self):
+        client = Client(self.serviceUrl)
+        topic = 'persistent://sample/standalone/ns1/my-python-test_publish_compact_and_consume'
+        producer = client.create_producer(topic, producer_name='my-producer-name', batching_enabled=False)
+        self.assertEqual(producer.last_sequence_id(), -1)
+        consumer = client.subscribe(topic, 'my-sub1', is_read_compacted=True)
+        consumer.close()
+        consumer2 = client.subscribe(topic, 'my-sub2', is_read_compacted=False)
+
+        # producer create 2 messages with same key.
+        producer.send('hello-0', partition_key='key0')
+        producer.send('hello-1', partition_key='key0')
+        producer.close()
+
+        # issue compact command, and wait success
+        url=self.adminUrl + '/admin/persistent/sample/standalone/ns1/my-python-test_publish_compact_and_consume/compaction'
+        doHttpPut(url, '')
+        while True:
+            req = urllib2.Request(url)
+            response = urllib2.urlopen(req)
+            s=response.read()
+            if 'RUNNING' in s:
+                print("Compact still running")
+                print(s)
+                time.sleep(0.2)
+            else:
+                self.assertTrue('SUCCESS' in s)
+                print("Compact Complete now")
+                print(s)
+                break
+
+        # after compact, consumer with `is_read_compacted=True`, expected read only the second message for same key.
+        consumer1 = client.subscribe(topic, 'my-sub1', is_read_compacted=True)
+        msg0 = consumer1.receive()
+        self.assertEqual(msg0.data(), b'hello-1')
+        consumer1.acknowledge(msg0)
+        consumer1.close()
+
+        # after compact, consumer with `is_read_compacted=False`, expected read 2 messages for same key.
+        msg0 = consumer2.receive()
+        self.assertEqual(msg0.data(), b'hello-0')
+        consumer2.acknowledge(msg0)
+        msg1 = consumer2.receive()
+        self.assertEqual(msg1.data(), b'hello-1')
+        consumer2.acknowledge(msg1)
+        consumer2.close()
         client.close()
 
     def _check_value_error(self, fun):
