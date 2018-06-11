@@ -116,7 +116,7 @@ public interface AuthenticationProvider extends Closeable {
 
 Example for Broker authentication plugins:
 
- * Mutual TLS -- https://github.com/apache/incubator-pulsar/blob/ac94698df6c66c4b84faa9f96db71f0019bf955e/pulsar-broker-common/src/main/java/org/apache/pulsar/broker/authentication/AuthenticationProviderTls.java
+ * Mutual TLS -- https://github.com/apache/incubator-pulsar/blob/master/pulsar-broker-common/src/main/java/org/apache/pulsar/broker/authentication/AuthenticationProviderTls.java
  * Athenz -- https://github.com/apache/incubator-pulsar/blob/master/pulsar-broker-auth-athenz/src/main/java/org/apache/pulsar/broker/authentication/AuthenticationProviderAthenz.java
 
 ## Authorization
