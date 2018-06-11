@@ -453,6 +453,10 @@ public class Commands {
                 return PulsarApi.Schema.Type.String;
             case JSON:
                 return PulsarApi.Schema.Type.Json;
+            case PROTOBUF:
+                return PulsarApi.Schema.Type.Protobuf;
+            case AVRO:
+                return PulsarApi.Schema.Type.Avro;
             default:
                 return PulsarApi.Schema.Type.None;
         }

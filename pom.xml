@@ -152,6 +152,7 @@ flexible messaging model and an intuitive client API.</description>
     <kafka-client.version>0.10.2.1</kafka-client.version>
     <rabbitmq-client.version>5.1.1</rabbitmq-client.version>
     <aws-sdk.version>1.11.297</aws-sdk.version>
+    <avro.version>1.8.2</avro.version>
 
     <!-- test dependencies -->
     <disruptor.version>3.4.0</disruptor.version>
