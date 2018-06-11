@@ -66,19 +66,17 @@ public class KubernetesController {
         if (!kubernetesConfig.areAllFieldsPresent()) {
             throw new RuntimeException("Missing arguments");
         }
-        /*
-        final ApiClient apiClient = new ApiClient().setBasePath(kubernetesConfig.getK8Uri());
-        client = new AppsV1beta1Api(apiClient);
-        */
-        ApiClient cli = Config.defaultClient();
-        Configuration.setDefaultApiClient(cli);
-
-
-        client = new AppsV1beta2Api();
+        if (kubernetesConfig.getK8Uri() == null) {
+            ApiClient cli = Config.defaultClient();
+            Configuration.setDefaultApiClient(cli);
+            client = new AppsV1beta2Api();
+        } else {
+            final ApiClient apiClient = new ApiClient().setBasePath(kubernetesConfig.getK8Uri());
+            client = new AppsV1beta2Api(apiClient);
+        }
     }
 
     public void create(FunctionConfig functionConfig, String bkPath, String fileBaseName) {
-        // "$" + ENV_SHARD_ID);
         final String jobName = createJobName(functionConfig);
         if (!jobName.equals(jobName.toLowerCase())) {
             throw new RuntimeException("K8S scheduler does not allow upper case jobNames.");
@@ -295,7 +293,10 @@ public class KubernetesController {
 
         // set up pod meta
         final V1ObjectMeta templateMetaData = new V1ObjectMeta().labels(getLabels(functionConfig));
+        /*
+        TODO:- Figure out the metrics collection later.
         templateMetaData.annotations(getPrometheusAnnotations());
+        */
         podTemplateSpec.setMetadata(templateMetaData);
 
         final List<String> command = getExecutorCommand(functionConfig, bkPath, fileBaseName);
@@ -308,12 +309,14 @@ public class KubernetesController {
         return statefulSet;
     }
 
+    /*
     private Map<String, String> getPrometheusAnnotations() {
         final Map<String, String> annotations = new HashMap<>();
         annotations.put("prometheus.io/scrape", "true");
         annotations.put("prometheus.io/port", "8080");
         return annotations;
     }
+    */
 
     private Map<String, String> getLabels(FunctionConfig functionConfig) {
         final Map<String, String> labels = new HashMap<>();
@@ -337,8 +340,6 @@ public class KubernetesController {
         podSpec.containers(Collections.singletonList(
                 getContainer(executorCommand, resource)));
 
-        // addVolumesIfPresent(podSpec);
-
         return podSpec;
     }
 
@@ -357,19 +358,6 @@ public class KubernetesController {
         return tolerations;
     }
 
-    /*
-    private void addVolumesIfPresent(V1PodSpec spec) {
-        final Config config = getConfiguration();
-        if (KubernetesContext.hasVolume(config)) {
-            final V1Volume volume = Volumes.get().create(config);
-            if (volume != null) {
-                LOG.fine("Adding volume: " + volume.toString());
-                spec.volumes(Collections.singletonList(volume));
-            }
-        }
-    }
-    */
-
     private V1Container getContainer(List<String> executorCommand, Resources resource) {
         final V1Container container = new V1Container().name("executor");
 
@@ -380,14 +368,6 @@ public class KubernetesController {
         container.setCommand(executorCommand);
 
         // setup the environment variables for the container
-        /*
-        final V1EnvVar envVarHost = new V1EnvVar();
-        envVarHost.name(KubernetesConstants.ENV_HOST)
-                .valueFrom(new V1EnvVarSource()
-                        .fieldRef(new V1ObjectFieldSelector()
-                                .fieldPath(KubernetesConstants.POD_IP)));
-        */
-
         final V1EnvVar envVarPodName = new V1EnvVar();
         envVarPodName.name("POD_NAME")
                 .valueFrom(new V1EnvVarSource()
@@ -407,9 +387,6 @@ public class KubernetesController {
         // set container ports
         container.setPorts(getContainerPorts());
 
-        // setup volume mounts
-        // mountVolumeIfPresent(container);
-
         return container;
     }
 
@@ -426,17 +403,4 @@ public class KubernetesController {
     private String createJobName(String tenant, String namespace, String functionName) {
         return functionName;
     }
-
-    /*
-    private void mountVolumeIfPresent(V1Container container) {
-        final Config config = getConfiguration();
-        if (KubernetesContext.hasContainerVolume(config)) {
-            final V1VolumeMount mount =
-                    new V1VolumeMount()
-                            .name(KubernetesContext.getContainerVolumeName(config))
-                            .mountPath(KubernetesContext.getContainerVolumeMountPath(config));
-            container.volumeMounts(Collections.singletonList(mount));
-        }
-    }
-    */
 }
