@@ -172,7 +172,8 @@ class Message:
 
 class Authentication:
     """
-    Authentication provider object.
+    Authentication provider object. Used to load authentication from an external
+    shared library.
     """
     def __init__(self, dynamicLibPath, authParamsString):
         """
@@ -188,6 +189,38 @@ class Authentication:
         _check_type(str, dynamicLibPath, 'dynamicLibPath')
         _check_type(str, authParamsString, 'authParamsString')
         self.auth = _pulsar.Authentication(dynamicLibPath, authParamsString)
+
+class AuthenticationTLS(Authentication):
+    """
+    TLS Authentication implementation
+    """
+    def __init__(self, certificate_path, private_key_path):
+        """
+        Create the TLS authentication provider instance.
+
+        **Args**
+
+        * `certificatePath`: Path to the public certificate
+        * `privateKeyPath`: Path to private TLS key
+        """
+        _check_type(str, certificate_path, 'certificate_path')
+        _check_type(str, private_key_path, 'private_key_path')
+        self.auth = _pulsar.AuthenticationTLS(certificate_path, private_key_path)
+
+class AuthenticationAthenz(Authentication):
+    """
+    Athenz Authentication implementation
+    """
+    def __init__(self, auth_params_string):
+        """
+        Create the Athenz authentication provider instance.
+
+        **Args**
+
+        * `auth_params_string`: JSON encoded configuration for Athenz client
+        """
+        _check_type(str, auth_params_string, 'auth_params_string')
+        self.auth = _pulsar.AuthenticationAthenz(auth_params_string)
 
 
 class Client:
@@ -220,7 +253,8 @@ class Client:
         **Options**
 
         * `authentication`:
-          Set the authentication provider to be used with the broker.
+          Set the authentication provider to be used with the broker. For example:
+          `AuthenticationTls` or `AuthenticationAthenz`
         * `operation_timeout_seconds`:
           Set timeout on client operations (subscribe, create producer, close,
           unsubscribe).
@@ -238,7 +272,9 @@ class Client:
         * `log_conf_file_path`:
           Initialize log4cxx from a configuration file.
         * `use_tls`:
-          Configure whether to use TLS encryption on the connection.
+          Configure whether to use TLS encryption on the connection. This setting
+          is deprecated. TLS will be automatically enabled if the `serviceUrl` is
+          set to `pulsar+ssl://` or `https://`
         * `tls_trust_certs_file_path`:
           Set the path to the trusted TLS certificate file.
         * `tls_allow_insecure_connection`:
@@ -265,7 +301,8 @@ class Client:
         conf.concurrent_lookup_requests(concurrent_lookup_requests)
         if log_conf_file_path:
             conf.log_conf_file_path(log_conf_file_path)
-        conf.use_tls(use_tls)
+        if use_tls or service_url.startswith('pulsar+ssl://') or service_url.startswith('https://'):
+            conf.use_tls(True)
         if tls_trust_certs_file_path:
             conf.tls_trust_certs_file_path(tls_trust_certs_file_path)
         conf.tls_allow_insecure_connection(tls_allow_insecure_connection)
