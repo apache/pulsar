@@ -2989,7 +2989,7 @@
 <ul>
   <li>Allos for much more efficient “rewind” through topic logs</li>
   <li>Applies only to <a href="#persistent-storage">persistent topics</a></li>
-  <li>Is triggered manually via the command line. See the <a href="../../cookbooks/compaction">Topic compaction cookbook</a></li>
+  <li>Triggered automatically when the backlog reaches a certain size or can be triggered manually via the command line. See the <a href="../../cookbooks/compaction">Topic compaction cookbook</a></li>
   <li>Is conceptually and operationally distinct from <a href="#message-retention-and-expiry">retention and expiry</a>. Topic compaction <em>does</em>, however, respect retention. If retention has removed a message from the message backlog of a topic, the message will also not be readable from the compacted topic ledger.</li>
 </ul>
 

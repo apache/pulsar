@@ -1568,7 +1568,7 @@
 
 <ul>
   <li>You need to give messages keys, as topic compaction in Pulsar takes place on a <em>per-key basis</em> (i.e. messages are compacted based on their key). For a stock ticker use case, the stock symbol—e.g. <code class="highlighter-rouge">AAPL</code> or <code class="highlighter-rouge">GOOG</code>—could serve as the key (more on this <a href="#when">below</a>). Messages without keys will be left alone by the compaction process.</li>
-  <li>You must manually <a href="#trigger">trigger</a> compaction using the Pulsar administrative API. This will both run a compaction operation <em>and</em> mark the topic as a compacted topic.</li>
+  <li>Compaction can be configured to run <a href="#automatic">automatically</a>, or you can manually <a href="#trigger">trigger</a> compaction using the Pulsar administrative API.</li>
   <li>Your <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumers</span> must be <a href="#config">configured</a> to read from compacted topics (<a href="#java">Java consumers</a>, for example, have a <code class="highlighter-rouge">readCompacted</code> setting that must be set to <code class="highlighter-rouge">true</code>). If this configuration is not set, consumers will still be able to read from the non-compacted topic.</li>
 </ul>
 
@@ -1632,7 +1632,19 @@
   </div>
 </div>
 
-<h2 id="trigger">Triggering compaction</h2>
+<h2 id="automatic">Configuring compaction to run automatically</h2>
+
+<p>Tenant administrators can configure a policy for compaction at the namespace level. The policy specifies how large the topic backlog can grow before compaction is triggered.</p>
+
+<p>For example, to trigger compaction when the backlog reaches 100MB:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin namespaces set-compaction-threshold <span class="se">\</span>
+  <span class="nt">--threshold</span> 100M my-tenant/my-namespace
+</code></pre></div></div>
+
+<p>Configuring the compaction threshold on a namespace will apply to all topics within that namespace.</p>
+
+<h2 id="trigger">Triggering compaction manually</h2>
 
 <p>In order to run compaction on a topic, you need to use the <a href="../../CliTools#pulsar-admin-topics-compact"><code class="highlighter-rouge">topics compact</code></a> command for the <a href="../../CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> CLI tool. Here’s an example:</p>
 
@@ -1660,35 +1672,6 @@
 <h4 id="when-should-i-trigger-compaction">When should I trigger compaction?</h4>
 
 <p>How often you <a href="#trigger">trigger compaction</a> will vary widely based on the use case. If you want a compacted topic to be extremely speedy on read, then you should run compaction fairly frequently.</p>
-
-<!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<div class="admonition">
-  <div class="warning">
-    <span class="admonition-title"><p>No automatic compaction</p>
-</span>
-    <p>Currently, all topic compaction in Pulsar must be initiated manually via the <a href="#trigger">CLI</a> or <a href="../../reference/RestApi">REST API</a>.</p>
-
-  </div>
-</div>
 
 <h2 id="config">Consumer configuration</h2>
 

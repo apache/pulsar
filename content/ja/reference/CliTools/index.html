@@ -5715,6 +5715,18 @@
               <code class="highlighter-rouge">unsubscribe</code>
             </a>
           </li>
+          
+          <li>
+            <a href="#pulsar-admin-namespaces-get-compaction-threshold">
+              <code class="highlighter-rouge">get-compaction-threshold</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-namespaces-set-compaction-threshold">
+              <code class="highlighter-rouge">set-compaction-threshold</code>
+            </a>
+          </li>
            <!-- for subcommand in subcommands -->
         </ul>
 
@@ -6546,6 +6558,61 @@
 </td>
                     <td>
                       
+                    </td>
+                  </tr>
+                   <!-- for option in options -->
+                </tbody>
+              </thead>
+            </table>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-namespaces-get-compaction-threshold"><code class="highlighter-rouge">get-compaction-threshold</code></h4>
+          <div class="card-content">
+            <p>Get compactionThreshold for a namespace</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces get-compaction-threshold <span class="command">tenant/namespace</span></code></pre></div>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-namespaces-set-compaction-threshold"><code class="highlighter-rouge">set-compaction-threshold</code></h4>
+          <div class="card-content">
+            <p>Set compactionThreshold for a namespace</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces set-compaction-threshold <span class="command">tenant/namespace</span> <span class="options">options</span></code></pre></div>
+            
+            <h5>Options</h5>
+            <table class="options-table">
+              <thead>
+                <tr>
+                  <th>Flag</th>
+                  <th>Description</th>
+                  <th>Default</th>
+                </tr>
+                <tbody>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">-t</code>
+                      , 
+                      
+                      <code class="highlighter-rouge">--threshold</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>Maximum number of bytes in a topic backlog before compaction is triggered (eg: 10M, 16G, 3T). 0 disables automatic compaction</p>
+</td>
+                    <td>
+                      <p>0</p>
+
                     </td>
                   </tr>
                    <!-- for option in options -->
