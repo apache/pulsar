@@ -885,7 +885,7 @@ public class CmdFunctions extends CmdBase {
 
             admin.functions().uploadFunction(userCodeFile, bkPath);
 
-            k8Controller.create(functionConfig, bkPath, Paths.get(userCodeFile).getFileName().toString());
+            k8Controller.create(functionConfig, functionConfig.getParallelism(), bkPath, Paths.get(userCodeFile).getFileName().toString());
         }
     }
 

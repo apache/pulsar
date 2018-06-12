@@ -37,7 +37,6 @@ import io.kubernetes.client.util.Config;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.Resources;
-import org.apache.pulsar.functions.utils.WindowConfig;
 
 @Slf4j
 public class KubernetesController {
@@ -76,7 +75,7 @@ public class KubernetesController {
         }
     }
 
-    public void create(FunctionConfig functionConfig, String bkPath, String fileBaseName) {
+    public void create(FunctionConfig functionConfig, int parallelism, String bkPath, String fileBaseName) {
         final String jobName = createJobName(functionConfig);
         if (!jobName.equals(jobName.toLowerCase())) {
             throw new RuntimeException("K8S scheduler does not allow upper case jobNames.");
@@ -86,7 +85,7 @@ public class KubernetesController {
             throw new RuntimeException("K8S scheduler only admits lower case and numbers.");
         }
 
-        final V1beta2StatefulSet statefulSet = createStatefulSet(functionConfig, bkPath, fileBaseName);
+        final V1beta2StatefulSet statefulSet = createStatefulSet(functionConfig, parallelism, bkPath, fileBaseName);
 
         log.info("Submitting the following spec to k8 " + client.getApiClient().getJSON().serialize(statefulSet));
 
@@ -98,6 +97,8 @@ public class KubernetesController {
                 log.error("Error creating k8 job:- : " + response.message());
                 // construct a message based on the k8s api server response
                 throw new RuntimeException(response.message());
+            } else {
+                System.out.println("Job Submitted Successfully");
             }
         } catch (IOException | ApiException e) {
             log.error("Error creating k8 job", e);
@@ -117,6 +118,8 @@ public class KubernetesController {
 
             if (!response.isSuccessful()) {
                 throw new RuntimeException("Error killing k8 job " + response.message());
+            } else {
+                System.out.println("Killed Successfully");
             }
         } catch (IOException | ApiException e) {
             throw new RuntimeException(e);
@@ -126,15 +129,34 @@ public class KubernetesController {
 
     protected List<String> getExecutorCommand(FunctionConfig functionConfig,
                                               String bkPath,
-                                              String fileBaseName) {
-        String userCodeFilePath = fileBaseName;
+                                              String userCodeFilePath) {
+        adjustFunctionConfig(functionConfig);
+        String functionConfigFileName = "functionConfig.yml";
         return Arrays.asList(
                 "sh",
                 "-c",
                 String.join(" ", getDownloadCommand(bkPath, userCodeFilePath))
                 + " && " + setShardIdEnvironmentVariableCommand()
-                + " && " + String.join(" ", getLocalRunCommand(functionConfig, userCodeFilePath))
+                + " && " + String.join(" ", getWriteFunctionConfigToFileCommand(functionConfig, functionConfigFileName))
+                + " && " + String.join(" ", getLocalRunCommand(functionConfig, userCodeFilePath, functionConfigFileName))
         );
+    }
+
+    private void adjustFunctionConfig(FunctionConfig functionConfig) {
+        functionConfig.setParallelism(1);
+        functionConfig.setJar(null);
+        functionConfig.setPy(null);
+    }
+
+    private List<String> getWriteFunctionConfigToFileCommand(FunctionConfig functionConfig,
+                                                             String functionConfigFileName) {
+        List<String> retval = new LinkedList<>();
+        retval.add("echo");
+        String functionConfigString = "'" + new Gson().toJson(functionConfig) + "'";
+        retval.add(functionConfigString);
+        retval.add(">>");
+        retval.add(functionConfigFileName);
+        return retval;
     }
 
     private List<String> getDownloadCommand(String bkPath, String userCodeFilePath) {
@@ -150,21 +172,14 @@ public class KubernetesController {
                 userCodeFilePath);
     }
 
-    private List<String> getLocalRunCommand(FunctionConfig functionConfig, String userCodeFilePath) {
+    private List<String> getLocalRunCommand(FunctionConfig functionConfig,
+                                            String userCodeFilePath, String functionConfigFileName) {
         List<String> retval = new LinkedList<>();
         retval.add(kubernetesConfig.getPulsarRootDir() + "/bin/pulsar-admin");
         retval.add("functions");
         retval.add("localrun");
         retval.add("--brokerServiceUrl");
         retval.add(kubernetesConfig.getPulsarServiceUri());
-        retval.add("--name");
-        retval.add(functionConfig.getName());
-        retval.add("--namespace");
-        retval.add(functionConfig.getNamespace());
-        retval.add("--tenant");
-        retval.add(functionConfig.getTenant());
-        retval.add("--className");
-        retval.add(functionConfig.getClassName());
         switch (functionConfig.getRuntime()) {
             case JAVA:
                 retval.add("--jar");
@@ -173,85 +188,13 @@ public class KubernetesController {
                 retval.add("--py");
         }
         retval.add(userCodeFilePath);
-        if (functionConfig.getInputs() != null) {
-            retval.add("--inputs");
-            retval.add(String.join(",", functionConfig.getInputs()));
-        }
-        if (functionConfig.getTopicsPattern() != null) {
-            retval.add("--topicsPattern");
-            retval.add(functionConfig.getTopicsPattern());
-        }
-        if (functionConfig.getOutput() != null) {
-            retval.add("--output");
-            retval.add(functionConfig.getOutput());
-        }
-        if (functionConfig.getLogTopic() != null) {
-            retval.add("--logTopic");
-            retval.add(functionConfig.getLogTopic());
-        }
-        if (functionConfig.getCustomSerdeInputs() != null && !functionConfig.getCustomSerdeInputs().isEmpty()) {
-            retval.add("--customSerdeInputs");
-            retval.add(new Gson().toJson(functionConfig.getCustomSerdeInputs()));
-        }
-        if (functionConfig.getOutputSerdeClassName() != null) {
-            retval.add("--outputSerdeClassName");
-            retval.add(functionConfig.getOutputSerdeClassName());
-        }
-        if (functionConfig.getProcessingGuarantees() != null) {
-            retval.add("--processingGuarantees");
-            retval.add(String.valueOf(functionConfig.getProcessingGuarantees()));
-        }
-        if (functionConfig.getUserConfig() != null && !functionConfig.getUserConfig().isEmpty()) {
-            retval.add("--userConfig");
-            retval.add(new Gson().toJson(functionConfig.getUserConfig()));
-        }
-
         // The parallelism is always one since each container runs only one instance
         retval.add("--parallelism");
         retval.add("1");
-        if (functionConfig.getParallelism() > 1) {
-            retval.add("--instanceIdOffset");
-            retval.add("$" + ENV_SHARD_ID);
-        }
-        if (functionConfig.getResources().getCpu() != null) {
-            retval.add("--cpu");
-            retval.add(String.valueOf(functionConfig.getResources().getCpu()));
-        }
-        if (functionConfig.getResources().getRam() != null) {
-            retval.add("--ram");
-            retval.add(String.valueOf(functionConfig.getResources().getRam()));
-        }
-        if (functionConfig.getResources().getDisk() != null) {
-            retval.add("--disk");
-            retval.add(String.valueOf(functionConfig.getResources().getDisk()));
-        }
-        if (functionConfig.getWindowConfig() != null) {
-            WindowConfig windowConfig = functionConfig.getWindowConfig();
-            if (windowConfig.getWindowLengthCount() != null) {
-                retval.add("--windowLengthCount");
-                retval.add(String.valueOf(windowConfig.getWindowLengthCount()));
-            }
-            if (windowConfig.getWindowLengthDurationMs() != null) {
-                retval.add("--windowLengthDurationMs");
-                retval.add(String.valueOf(windowConfig.getWindowLengthDurationMs()));
-            }
-            if (windowConfig.getSlidingIntervalCount() != null) {
-                retval.add("--slidingIntervalCount");
-                retval.add(String.valueOf(windowConfig.getSlidingIntervalCount()));
-            }
-            if (windowConfig.getSlidingIntervalDurationMs() != null) {
-                retval.add("--slidingIntervalDurationMs");
-                retval.add(String.valueOf(windowConfig.getSlidingIntervalDurationMs()));
-            }
-        }
-        if (!functionConfig.isAutoAck()) {
-            retval.add("--autoAck");
-            retval.add("false");
-        }
-        if (functionConfig.getTimeoutMs() != null) {
-            retval.add("--timeoutMs");
-            retval.add(String.valueOf(functionConfig.getTimeoutMs()));
-        }
+        retval.add("--instanceIdOffset");
+        retval.add("$" + ENV_SHARD_ID);
+        retval.add("--functionConfigFile");
+        retval.add(functionConfigFileName);
         return retval;
     }
 
@@ -261,6 +204,7 @@ public class KubernetesController {
 
 
     private V1beta2StatefulSet createStatefulSet(FunctionConfig functionConfig,
+                                                 int parallelism,
                                                  String bkPath,
                                                  String fileBaseName) {
         final String jobName = createJobName(functionConfig);
@@ -275,7 +219,7 @@ public class KubernetesController {
         // create the stateful set spec
         final V1beta2StatefulSetSpec statefulSetSpec = new V1beta2StatefulSetSpec();
         statefulSetSpec.serviceName(jobName);
-        statefulSetSpec.setReplicas(functionConfig.getParallelism());
+        statefulSetSpec.setReplicas(parallelism);
 
         // Parallel pod management tells the StatefulSet controller to launch or terminate
         // all Pods in parallel, and not to wait for Pods to become Running and Ready or completely
