@@ -74,7 +74,7 @@ public class AvroSchemaCompatibilityCheckTest {
     public void testBackwardCompatibility() {
 
         AvroSchemaCompatibilityCheck avroSchemaCompatibilityCheck = new AvroSchemaCompatibilityCheck(
-            AvroSchemaCompatibilityCheck.CompatibilityStrategy.BACKWARD
+            SchemaCompatibilityStrategy.BACKWARD
         );
 
         // adding a field with default is backwards compatible
@@ -107,7 +107,7 @@ public class AvroSchemaCompatibilityCheckTest {
     public void testForwardCompatibility() {
 
         AvroSchemaCompatibilityCheck avroSchemaCompatibilityCheck = new AvroSchemaCompatibilityCheck(
-                AvroSchemaCompatibilityCheck.CompatibilityStrategy.FORWARD
+                SchemaCompatibilityStrategy.FORWARD
         );
 
         Assert.assertTrue(avroSchemaCompatibilityCheck.isCompatible(schemaData1, schemaData2),
@@ -132,7 +132,7 @@ public class AvroSchemaCompatibilityCheckTest {
     @Test
     public void testFullCompatibility() {
         AvroSchemaCompatibilityCheck avroSchemaCompatibilityCheck = new AvroSchemaCompatibilityCheck(
-                AvroSchemaCompatibilityCheck.CompatibilityStrategy.FULL
+                SchemaCompatibilityStrategy.FULL
         );
         Assert.assertTrue(avroSchemaCompatibilityCheck.isCompatible(schemaData1, schemaData2),
                 "adding a field with default fully compatible");

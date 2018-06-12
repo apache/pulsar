@@ -28,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
+import org.apache.pulsar.client.impl.schema.ProtobufSchema;
 import org.apache.pulsar.common.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.slf4j.Logger;
@@ -190,6 +191,84 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
             .topic("persistent://my-property/use/my-ns/my-topic1")
             .create();
 
+
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+
+    @Test
+    public void testProtobufProducerAndConsumer() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        ProtobufSchema<org.apache.pulsar.client.api.schema.proto.Test.TestMessage> protobufSchema =
+                ProtobufSchema.of(org.apache.pulsar.client.api.schema.proto.Test.TestMessage.class);
+
+        Consumer<org.apache.pulsar.client.api.schema.proto.Test.TestMessage> consumer = pulsarClient
+                .newConsumer(protobufSchema)
+                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .subscriptionName("my-subscriber-name")
+                .subscribe();
+
+        Producer<org.apache.pulsar.client.api.schema.proto.Test.TestMessage> producer = pulsarClient
+                .newProducer(protobufSchema)
+                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .create();
+
+        for (int i = 0; i < 10; i++) {
+            String message = "my-message-" + i;
+            producer.send(org.apache.pulsar.client.api.schema.proto.Test.TestMessage.newBuilder()
+                    .setStringField(message).build());
+        }
+
+        Message<org.apache.pulsar.client.api.schema.proto.Test.TestMessage> msg = null;
+        Set<org.apache.pulsar.client.api.schema.proto.Test.TestMessage> messageSet = Sets.newHashSet();
+        for (int i = 0; i < 10; i++) {
+            msg = consumer.receive(5, TimeUnit.SECONDS);
+            org.apache.pulsar.client.api.schema.proto.Test.TestMessage receivedMessage = msg.getValue();
+            log.debug("Received message: [{}]", receivedMessage);
+            org.apache.pulsar.client.api.schema.proto.Test.TestMessage expectedMessage
+                    = org.apache.pulsar.client.api.schema.proto.Test.TestMessage.newBuilder()
+                    .setStringField("my-message-" + i).build();
+
+            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
+        }
+        // Acknowledge the consumption of all messages at once
+        consumer.acknowledgeCumulative(msg);
+        consumer.close();
+
+        SchemaRegistry.SchemaAndMetadata storedSchema = pulsar.getSchemaRegistryService()
+                .getSchema("my-property/my-ns/my-topic1")
+                .get();
+
+        Assert.assertEquals(storedSchema.schema.getData(), protobufSchema.getSchemaInfo().getSchema());
+
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test(expectedExceptions = {PulsarClientException.class})
+    public void testProtobufConsumerWithWrongPrestoredSchema() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        ProtobufSchema<org.apache.pulsar.client.api.schema.proto.Test.TestMessage> schema
+                = ProtobufSchema.of(org.apache.pulsar.client.api.schema.proto.Test.TestMessage.class);
+
+        pulsar.getSchemaRegistryService()
+                .putSchemaIfAbsent("my-property/my-ns/my-topic1",
+                        SchemaData.builder()
+                                .type(SchemaType.PROTOBUF)
+                                .isDeleted(false)
+                                .timestamp(Clock.systemUTC().millis())
+                                .user("me")
+                                .data(schema.getSchemaInfo().getSchema())
+                                .props(Collections.emptyMap())
+                                .build()
+                ).get();
+
+        Consumer<org.apache.pulsar.client.api.schema.proto.Test.TestMessageWrong> consumer = pulsarClient
+                .newConsumer(AvroSchema.of(org.apache.pulsar.client.api.schema.proto.Test.TestMessageWrong.class))
+                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .subscriptionName("my-subscriber-name")
+                .subscribe();
 
         log.info("-- Exiting {} test --", methodName);
     }
