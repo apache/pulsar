@@ -118,16 +118,16 @@ class PulsarTest(TestCase):
         client.close()
 
     def test_tls_auth(self):
-        certs_dir = "../../../pulsar-broker/src/test/resources/authentication/tls/"
+        certs_dir = "../../pulsar-broker/src/test/resources/authentication/tls/"
         client = Client(self.serviceUrlTls,
                         tls_trust_certs_file_path=certs_dir + 'cacert.pem',
                         tls_allow_insecure_connection=False,
                         authentication=AuthenticationTLS(certs_dir + 'client-cert.pem', certs_dir + 'client-key.pem'))
 
-        consumer = client.subscribe('persistent://sample/standalone/ns/my-python-topic-producer-consumer',
+        consumer = client.subscribe('persistent://property/cluster/namespace/my-python-topic-producer-consumer',
                                     'my-sub',
                                     consumer_type=ConsumerType.Shared)
-        producer = client.create_producer('persistent://sample/standalone/ns/my-python-topic-producer-consumer')
+        producer = client.create_producer('persistent://property/cluster/namespace/my-python-topic-producer-consumer')
         producer.send('hello')
 
         msg = consumer.receive(1000)

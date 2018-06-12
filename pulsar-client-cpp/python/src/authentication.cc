@@ -26,8 +26,6 @@ AuthenticationWrapper::AuthenticationWrapper(const std::string& dynamicLibPath,
 }
 
 struct AuthenticationTlsWrapper : public AuthenticationWrapper {
-    AuthenticationPtr auth;
-
     AuthenticationTlsWrapper(const std::string& certificatePath, const std::string& privateKeyPath) :
             AuthenticationWrapper() {
         this->auth = AuthTls::create(certificatePath, privateKeyPath);
@@ -35,8 +33,6 @@ struct AuthenticationTlsWrapper : public AuthenticationWrapper {
 };
 
 struct AuthenticationAthenzWrapper : public AuthenticationWrapper {
-    AuthenticationPtr auth;
-
     AuthenticationAthenzWrapper(const std::string& authParamsString) :
             AuthenticationWrapper() {
         this->auth = AuthAthenz::create(authParamsString);
