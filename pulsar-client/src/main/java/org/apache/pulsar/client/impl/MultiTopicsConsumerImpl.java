@@ -502,12 +502,15 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     public void redeliverUnacknowledgedMessages() {
-        synchronized (this) {
+        lock.writeLock().lock();
+        try {
             consumers.values().stream().forEach(consumer -> consumer.redeliverUnacknowledgedMessages());
             incomingMessages.clear();
             unAckedMessageTracker.clear();
-            resumeReceivingFromPausedConsumersIfNeeded();
+        } finally {
+            lock.writeLock().unlock();
         }
+        resumeReceivingFromPausedConsumersIfNeeded();
     }
 
     @Override
