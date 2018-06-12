@@ -27,6 +27,7 @@ import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.utils.validation.ConfigValidation;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.NotNull;
+import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isFileExists;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isImplementationOfClass;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isImplementationOfClasses;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isListEntryCustom;
@@ -55,20 +56,6 @@ public class FunctionConfig {
         EFFECTIVELY_ONCE
     }
 
-    public enum SubscriptionType {
-        SHARED,
-        FAILOVER;
-
-        public org.apache.pulsar.client.api.SubscriptionType get() {
-            switch (this) {
-                case FAILOVER:
-                    return org.apache.pulsar.client.api.SubscriptionType.Failover;
-                default:
-                    return org.apache.pulsar.client.api.SubscriptionType.Shared;
-            }
-        }
-    }
-
     public enum Runtime {
         JAVA,
         PYTHON
@@ -91,6 +78,8 @@ public class FunctionConfig {
     @isMapEntryCustom(keyValidatorClasses = { ValidatorImpls.TopicNameValidator.class }, targetRuntime = ConfigValidation.Runtime.PYTHON)
     private Map<String, String> customSerdeInputs;
     @isValidTopicName
+    private String topicsPattern;
+    @isValidTopicName
     private String output;
     @isImplementationOfClass(implementsClass = SerDe.class)
     private String outputSerdeClassName;
@@ -98,7 +87,6 @@ public class FunctionConfig {
     private String logTopic;
     private ProcessingGuarantees processingGuarantees;
     private Map<String, Object> userConfig;
-    private SubscriptionType subscriptionType;
     private Runtime runtime;
     private boolean autoAck;
     @isPositiveNumber
@@ -108,4 +96,10 @@ public class FunctionConfig {
     private String fqfn;
     @isValidWindowConfig
     private WindowConfig windowConfig;
+    @isPositiveNumber
+    private Long timeoutMs;
+    @isFileExists
+    private String jar;
+    @isFileExists
+    private String py;
 }

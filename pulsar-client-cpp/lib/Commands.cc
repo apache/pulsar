@@ -185,7 +185,7 @@ SharedBuffer Commands::newConnect(const AuthenticationPtr& authentication, const
 SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string& subscription,
                                     uint64_t consumerId, uint64_t requestId, CommandSubscribe_SubType subType,
                                     const std::string& consumerName, SubscriptionMode subscriptionMode,
-                                    Optional<MessageId> startMessageId) {
+                                    Optional<MessageId> startMessageId, bool readCompacted) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::SUBSCRIBE);
     CommandSubscribe* subscribe = cmd.mutable_subscribe();
@@ -196,6 +196,7 @@ SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&
     subscribe->set_request_id(requestId);
     subscribe->set_consumer_name(consumerName);
     subscribe->set_durable(subscriptionMode == SubscriptionModeDurable);
+    subscribe->set_read_compacted(readCompacted);
     if (startMessageId.is_present()) {
         MessageIdData& messageIdData = *subscribe->mutable_start_message_id();
         messageIdData.set_ledgerid(startMessageId.value().ledgerId());
@@ -295,6 +296,19 @@ SharedBuffer Commands::newRedeliverUnacknowledgedMessages(uint64_t consumerId) {
     cmd.set_type(BaseCommand::REDELIVER_UNACKNOWLEDGED_MESSAGES);
     CommandRedeliverUnacknowledgedMessages* command = cmd.mutable_redeliverunacknowledgedmessages();
     command->set_consumer_id(consumerId);
+    return writeMessageWithSize(cmd);
+}
+
+SharedBuffer Commands::newSeek(uint64_t consumerId, uint64_t requestId, const MessageId& messageId) {
+    BaseCommand cmd;
+    cmd.set_type(BaseCommand::SEEK);
+    CommandSeek* commandSeek = cmd.mutable_seek();
+    commandSeek->set_consumer_id(consumerId);
+    commandSeek->set_request_id(requestId);
+
+    MessageIdData& messageIdData = *commandSeek->mutable_message_id();
+    messageIdData.set_ledgerid(messageId.ledgerId());
+    messageIdData.set_entryid(messageId.entryId());
     return writeMessageWithSize(cmd);
 }
 
@@ -414,6 +428,10 @@ void Commands::serializeSingleMessageInBatchWithPayload(const Message& msg, Shar
         keyValue->set_key(it->first);
         keyValue->set_value(it->second);
         metadata.mutable_properties()->AddAllocated(keyValue);
+    }
+
+    if (msg.impl_->getEventTimestamp() != 0) {
+        metadata.set_event_time(msg.impl_->getEventTimestamp());
     }
 
     // Format of batch message

@@ -104,3 +104,12 @@ long pulsar_consumer_get_unacked_messages_timeout_ms(
 int pulsar_consumer_is_encryption_enabled(pulsar_consumer_configuration_t *consumer_configuration) {
     return consumer_configuration->consumerConfiguration.isEncryptionEnabled();
 }
+
+int pulsar_consumer_is_read_compacted(pulsar_consumer_configuration_t *consumer_configuration) {
+    return consumer_configuration->consumerConfiguration.isReadCompacted();
+}
+
+void pulsar_consumer_set_read_compacted(pulsar_consumer_configuration_t *consumer_configuration,
+                                        int compacted) {
+    consumer_configuration->consumerConfiguration.setReadCompacted(compacted);
+}

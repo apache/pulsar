@@ -41,16 +41,6 @@ public abstract class PushSource<T> implements Source<T> {
 
     public PushSource() {
         this.queue = new LinkedBlockingQueue<>(this.getQueueLength());
-        this.setConsumer(new Consumer<Record<T>>() {
-            @Override
-            public void accept(Record<T> record) {
-                try {
-                    queue.put(record);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        });
     }
 
     @Override
@@ -71,7 +61,13 @@ public abstract class PushSource<T> implements Source<T> {
      * to pass messages whenever there is data to be pushed to Pulsar.
      * @param consumer
      */
-    abstract public void setConsumer(Consumer<Record<T>> consumer);
+    public void consume(Record<T> record) {
+        try {
+            queue.put(record);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     /**
      * Get length of the queue that records are push onto

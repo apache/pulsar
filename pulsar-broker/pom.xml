@@ -247,6 +247,12 @@
       <artifactId>java-semver</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>org.apache.avro</groupId>
+      <artifactId>avro</artifactId>
+      <version>${avro.version}</version>
+    </dependency>
+
     <!-- aspectJ dependencies -->
     <dependency>
       <groupId>org.aspectj</groupId>
@@ -319,7 +325,7 @@
         <artifactId>protobuf-maven-plugin</artifactId>
         <version>${protobuf-maven-plugin.version}</version>
         <configuration>
-          <protocArtifact>com.google.protobuf:protoc:${protobuf3.version}:exe:${os.detected.classifier}</protocArtifact>
+          <protocArtifact>com.google.protobuf:protoc:${protoc3.version}:exe:${os.detected.classifier}</protocArtifact>
           <checkStaleness>true</checkStaleness>
         </configuration>
         <executions>

@@ -150,4 +150,61 @@ public class TestCompaction extends Arquillian {
         }
     }
 
+    private static void waitAndVerifyCompacted(PulsarClient client, String topic,
+                                               String sub, String expectedKey, String expectedValue) throws Exception {
+        for (int i = 0; i < 60; i++) {
+            try (Consumer<byte[]> consumer = client.newConsumer().topic(topic)
+                 .readCompacted(true).subscriptionName(sub).subscribe()) {
+                Message<byte[]> m = consumer.receive();
+                Assert.assertEquals(m.getKey(), expectedKey);
+                if (new String(m.getData()).equals(expectedValue)) {
+                    break;
+                }
+            }
+            Thread.sleep(1000);
+        }
+        try (Consumer<byte[]> consumer = client.newConsumer().topic(topic)
+                .readCompacted(true).subscriptionName(sub).subscribe()) {
+            Message<byte[]> m = consumer.receive();
+            Assert.assertEquals(m.getKey(), expectedKey);
+            Assert.assertEquals(new String(m.getData()), expectedValue);
+        }
+    }
+
+    @Test
+    public void testPublishWithAutoCompaction() throws Exception {
+        PulsarClusterUtils.runOnAnyBroker(docker, clusterName,
+                                          PulsarClusterUtils.PULSAR_ADMIN, "tenants",
+                                          "create", "compaction-test-auto",
+                                          "--allowed-clusters", clusterName,
+                                          "--admin-roles", "admin");
+        PulsarClusterUtils.runOnAnyBroker(docker, clusterName,
+                PulsarClusterUtils.PULSAR_ADMIN, "namespaces",
+                "create", "--clusters", "test", "compaction-test-auto/ns1");
+        PulsarClusterUtils.runOnAnyBroker(docker, clusterName,
+                PulsarClusterUtils.PULSAR_ADMIN, "namespaces",
+                "set-compaction-threshold", "--threshold", "1", "compaction-test-auto/ns1");
+
+        String brokerIp = DockerUtils.getContainerIP(
+                docker, PulsarClusterUtils.proxySet(docker, clusterName).stream().findAny().get());
+        String serviceUrl = "pulsar://" + brokerIp + ":6650";
+        String topic = "persistent://compaction-test-auto/ns1/topic1";
+
+        try (PulsarClient client = PulsarClient.create(serviceUrl)) {
+            client.newConsumer().topic(topic).subscriptionName("sub1").subscribe().close();
+
+            try(Producer<byte[]> producer = client.newProducer().topic(topic).create()) {
+                producer.send(MessageBuilder.create().setKey("key0").setContent("content0".getBytes()).build());
+                producer.send(MessageBuilder.create().setKey("key0").setContent("content1".getBytes()).build());
+            }
+
+            waitAndVerifyCompacted(client, topic, "sub1", "key0", "content1");
+
+            try(Producer<byte[]> producer = client.newProducer().topic(topic).create()) {
+                producer.send(MessageBuilder.create().setKey("key0").setContent("content2".getBytes()).build());
+            }
+            waitAndVerifyCompacted(client, topic, "sub1", "key0", "content2");
+        }
+    }
+
 }

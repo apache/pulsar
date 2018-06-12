@@ -189,6 +189,15 @@ public class ConfigValidationAnnotations {
     }
 
     /**
+     * check if file exists
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.FIELD)
+    public @interface isFileExists {
+        Class<?> validatorClass() default ValidatorImpls.FileValidator.class;
+    }
+
+    /**
      * checks function config as a whole to make sure all fields are valid
      */
     @Retention(RetentionPolicy.RUNTIME)
@@ -197,6 +206,17 @@ public class ConfigValidationAnnotations {
         Class<?> validatorClass() default ValidatorImpls.FunctionConfigValidator.class;
     }
 
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ElementType.TYPE})
+    public @interface isValidSourceConfig {
+        Class<?> validatorClass() default ValidatorImpls.SourceConfigValidator.class;
+    }
+
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ElementType.TYPE})
+    public @interface isValidSinkConfig {
+        Class<?> validatorClass() default ValidatorImpls.SinkConfigValidator.class;
+    }
     /**
      * Field names for annotations
      */

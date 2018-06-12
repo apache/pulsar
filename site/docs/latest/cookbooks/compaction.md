@@ -8,7 +8,7 @@ Pulsar's [topic compaction](../../getting-started/ConceptsAndArchitecture#compac
 To use compaction:
 
 * You need to give messages keys, as topic compaction in Pulsar takes place on a *per-key basis* (i.e. messages are compacted based on their key). For a stock ticker use case, the stock symbol---e.g. `AAPL` or `GOOG`---could serve as the key (more on this [below](#when)). Messages without keys will be left alone by the compaction process.
-* You must manually [trigger](#trigger) compaction using the Pulsar administrative API. This will both run a compaction operation *and* mark the topic as a compacted topic.
+* Compaction can be configured to run [automatically](#automatic), or you can manually [trigger](#trigger) compaction using the Pulsar administrative API.
 * Your {% popover consumers %} must be [configured](#config) to read from compacted topics ([Java consumers](#java), for example, have a `readCompacted` setting that must be set to `true`). If this configuration is not set, consumers will still be able to read from the non-compacted topic.
 
 {% include admonition.html type="warning" content="Compaction only works on messages that have keys (as in the stock ticker example the stock symbol serves as the key for each message). Keys can thus be thought of as the axis along which compaction is applied. Messages that don't have keys are simply ignored by compaction." %}
@@ -24,7 +24,20 @@ Thus, if you're using a Pulsar topic called `stock-values`, some consumers could
 
 {% include admonition.html type="success" content="One of the benefits of compaction in Pulsar is that you aren't forced to choose between compacted and non-compacted topics, as the compaction process leaves the original topic as-is and essentially adds an alternate topic. In other words, you can run compaction on a topic and consumers that need access to the non-compacted version of the topic will not be adversely affected." %}
 
-## Triggering compaction {#trigger}
+## Configuring compaction to run automatically {#automatic}
+
+Tenant administrators can configure a policy for compaction at the namespace level. The policy specifies how large the topic backlog can grow before compaction is triggered.
+
+For example, to trigger compaction when the backlog reaches 100MB:
+
+```bash
+$ bin/pulsar-admin namespaces set-compaction-threshold \
+  --threshold 100M my-tenant/my-namespace
+```
+
+Configuring the compaction threshold on a namespace will apply to all topics within that namespace.
+
+## Triggering compaction manually {#trigger}
 
 In order to run compaction on a topic, you need to use the [`topics compact`](../../CliTools#pulsar-admin-topics-compact) command for the [`pulsar-admin`](../../CliTools#pulsar-admin) CLI tool. Here's an example:
 
@@ -57,8 +70,6 @@ $ bin/pulsar compact-topic \
 #### When should I trigger compaction?
 
 How often you [trigger compaction](#trigger) will vary widely based on the use case. If you want a compacted topic to be extremely speedy on read, then you should run compaction fairly frequently.
-
-{% include admonition.html type="warning" title="No automatic compaction" content="Currently, all topic compaction in Pulsar must be initiated manually via the [CLI](#trigger) or [REST API](../../reference/RestApi)." %}
 
 ## Consumer configuration {#config}
 

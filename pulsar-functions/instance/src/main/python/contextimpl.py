@@ -121,6 +121,9 @@ class ContextImpl(pulsar.Context):
     return self.publish(topic_name, message, "serde.IdentitySerDe")
 
   def publish(self, topic_name, message, serde_class_name):
+    # Just make sure that user supplied values are properly typed
+    topic_name = str(topic_name)
+    serde_class_name = str(serde_class_name)
     if topic_name not in self.publish_producers:
       self.publish_producers[topic_name] = self.pulsar_client.create_producer(
         topic_name,
@@ -134,7 +137,7 @@ class ContextImpl(pulsar.Context):
       serde_klass = util.import_class(self.user_code_dir, serde_class_name)
       self.publish_serializers[serde_class_name] = serde_klass()
 
-    output_bytes = self.publish_serializers[serde_class_name].serialize(message)
+    output_bytes = bytes(self.publish_serializers[serde_class_name].serialize(message))
     self.publish_producers[topic_name].send_async(output_bytes, None)
 
   def ack(self, msgid, topic):

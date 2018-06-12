@@ -27,6 +27,8 @@ message Schema {
 		None = 0;
 		String = 1;
 		Json = 2;
+		Protobuf = 3;
+		Avro = 4;
 	}
 
     required string name = 1;
@@ -103,7 +105,11 @@ message SingleMessageMetadata {
 	repeated KeyValue properties    = 1;
 	optional string partition_key   = 2;
 	required int32 payload_size	= 3;
-        optional bool compacted_out     = 4 [default = false];
+	optional bool compacted_out     = 4 [default = false];
+
+	// the timestamp that this event occurs. it is typically set by applications.
+	// if this field is omitted, `publish_time` can be used for the purpose of `event_time`.
+	optional uint64 event_time = 5 [default = 0];
 }
 
 enum ServerError {
@@ -227,7 +233,7 @@ message CommandSubscribe {
 message CommandPartitionedTopicMetadata {
 	required string topic            = 1;
 	required uint64 request_id       = 2;
-	// TODO - Remove original_principal, original_auth_data, original_auth_method 
+	// TODO - Remove original_principal, original_auth_data, original_auth_method
 	// Original principal that was verified by
 	// a Pulsar proxy.
 	optional string original_principal = 3;
@@ -255,7 +261,7 @@ message CommandLookupTopic {
 	required uint64 request_id       = 2;
 	optional bool authoritative      = 3 [default = false];
 
-	// TODO - Remove original_principal, original_auth_data, original_auth_method 
+	// TODO - Remove original_principal, original_auth_data, original_auth_method
 	// Original principal that was verified by
 	// a Pulsar proxy.
 	optional string original_principal = 4;

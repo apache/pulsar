@@ -247,9 +247,7 @@
             padding: 5px 0;
 
             &:nth-child(1), &:nth-child(2) {
-              max-width: 225px;
               overflow: auto;
-              white-space: nowrap;
             }
 
             &:nth-child(2), &:nth-child(3)  {

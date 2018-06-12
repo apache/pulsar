@@ -35,5 +35,15 @@ public enum SchemaType {
     /**
      * JSON object encoding and validation
      */
-    JSON
+    JSON,
+
+    /**
+     * Protobuf message encoding and decoding
+     */
+    PROTOBUF,
+
+    /**
+     * Serialize and deserialize via avro
+     */
+    AVRO
 }

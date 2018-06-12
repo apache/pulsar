@@ -29,15 +29,16 @@ namespace pulsar {
 
 #define PULSAR_UNLIKELY(expr) __builtin_expect(expr, 0)
 
-#define DECLARE_LOG_OBJECT()                                                                       \
-    static pulsar::Logger* logger() {                                                              \
-        static boost::thread_specific_ptr<pulsar::Logger> threadSpecificLogPtr;                    \
-        pulsar::Logger* ptr = threadSpecificLogPtr.get();                                          \
-        if (PULSAR_UNLIKELY(!ptr)) {                                                               \
-            threadSpecificLogPtr.reset(pulsar::LogUtils::getLoggerFactory()->getLogger(__FILE__)); \
-            ptr = threadSpecificLogPtr.get();                                                      \
-        }                                                                                          \
-        return ptr;                                                                                \
+#define DECLARE_LOG_OBJECT()                                                                     \
+    static pulsar::Logger* logger() {                                                            \
+        static boost::thread_specific_ptr<pulsar::Logger> threadSpecificLogPtr;                  \
+        pulsar::Logger* ptr = threadSpecificLogPtr.get();                                        \
+        if (PULSAR_UNLIKELY(!ptr)) {                                                             \
+            std::string logger = pulsar::LogUtils::getLoggerName(__FILE__);                      \
+            threadSpecificLogPtr.reset(pulsar::LogUtils::getLoggerFactory()->getLogger(logger)); \
+            ptr = threadSpecificLogPtr.get();                                                    \
+        }                                                                                        \
+        return ptr;                                                                              \
     }
 
 #define LOG_DEBUG(message)                                                 \
@@ -85,6 +86,8 @@ class LogUtils {
     static void setLoggerFactory(LoggerFactoryPtr loggerFactory);
 
     static LoggerFactoryPtr getLoggerFactory();
+
+    static std::string getLoggerName(const std::string& path);
 };
 
 #pragma GCC visibility pop

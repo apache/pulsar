@@ -22,6 +22,9 @@ import com.google.common.annotations.VisibleForTesting;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
+
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
@@ -30,6 +33,7 @@ import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.utils.FunctionConfig;
+import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.io.core.Record;
 import org.apache.pulsar.io.core.Source;
 import org.jboss.util.Classes;
@@ -45,6 +49,7 @@ public class PulsarSource<T> implements Source<T> {
     private PulsarClient pulsarClient;
     private PulsarSourceConfig pulsarSourceConfig;
     private Map<String, SerDe> topicToSerDeMap = new HashMap<>();
+    private boolean isTopicsPattern;
 
     @Getter
     private org.apache.pulsar.client.api.Consumer inputConsumer;
@@ -60,12 +65,21 @@ public class PulsarSource<T> implements Source<T> {
         setupSerDe();
 
         // Setup pulsar consumer
-        this.inputConsumer = this.pulsarClient.newConsumer()
-                .topics(new ArrayList<>(this.pulsarSourceConfig.getTopicSerdeClassNameMap().keySet()))
+        ConsumerBuilder<byte[]> consumerBuilder = this.pulsarClient.newConsumer()
                 .subscriptionName(this.pulsarSourceConfig.getSubscriptionName())
-                .subscriptionType(this.pulsarSourceConfig.getSubscriptionType().get())
-                .ackTimeout(1, TimeUnit.MINUTES)
-                .subscribe();
+                .subscriptionType(this.pulsarSourceConfig.getSubscriptionType());
+
+        if(isNotBlank(this.pulsarSourceConfig.getTopicsPattern())) {
+            consumerBuilder.topicsPattern(this.pulsarSourceConfig.getTopicsPattern());    
+            isTopicsPattern = true;
+        }else {
+            consumerBuilder.topics(new ArrayList<>(this.pulsarSourceConfig.getTopicSerdeClassNameMap().keySet()));    
+        }
+        
+        if (pulsarSourceConfig.getTimeoutMs() != null) {
+            consumerBuilder.ackTimeout(pulsarSourceConfig.getTimeoutMs(), TimeUnit.MILLISECONDS);
+        }
+        this.inputConsumer = consumerBuilder.subscribe();
     }
 
     @Override
@@ -89,9 +103,19 @@ public class PulsarSource<T> implements Source<T> {
 
         Object object;
         try {
-            object = this.topicToSerDeMap.get(topicName).deserialize(message.getData());
+            SerDe deserializer = null;
+            if (this.topicToSerDeMap.containsKey(topicName)) {
+                deserializer = this.topicToSerDeMap.get(topicName);
+            } else if (isTopicsPattern) {
+                deserializer = this.topicToSerDeMap.get(this.pulsarSourceConfig.getTopicsPattern());
+            }
+            if (deserializer != null) {
+                object = deserializer.deserialize(message.getData());
+            } else {
+                throw new IllegalStateException("Topic deserializer not configured : " + topicName);
+            }
         } catch (Exception e) {
-            //TODO Add deserialization exception stats
+            // TODO Add deserialization exception stats
             throw new RuntimeException("Error occured when attempting to deserialize input:", e);
         }
 
@@ -106,7 +130,7 @@ public class PulsarSource<T> implements Source<T> {
                 .value(input)
                 .messageId(message.getMessageId())
                 .partitionId(String.format("%s-%s", topicName, partitionId))
-                .sequenceId(message.getSequenceId())
+                .recordSequence(Utils.getSequenceId(message.getMessageId()))
                 .topicName(topicName)
                 .ackFunction(() -> {
                     if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {

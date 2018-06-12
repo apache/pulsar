@@ -58,7 +58,7 @@ init*:
   await:
     strategy: org.apache.pulsar.tests.NoopAwaitStrategy
   env:
-    - cluster=test
+    - clusterName=test
     - zkServers=zookeeper
     - configurationStore=configuration-store:2184
     - pulsarNode=pulsar-broker1
@@ -76,6 +76,7 @@ bookkeeper1*:
   await:
     strategy: org.apache.pulsar.tests.NoopAwaitStrategy
   env:
+    - clusterName=test
     - zkServers=zookeeper
     - useHostNameAsBookieID=true
   labels:
@@ -92,6 +93,7 @@ bookkeeper2*:
   await:
     strategy: org.apache.pulsar.tests.NoopAwaitStrategy
   env:
+    - clusterName=test
     - zkServers=zookeeper
     - useHostNameAsBookieID=true
   labels:
