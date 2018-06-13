@@ -221,7 +221,7 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--jar", description = "Path to the jar file for the function (if the function is written in Java). It also supports url-path (http/https/file) from which worker can download the package.", listConverter = StringConverter.class)
         protected String jarFile;
         
-        @Parameter(names = "--classNameArgType", description = "Function impl class's argument class-name if jar path is url.")
+        @Parameter(names = "--classNameArgType", description = "Function impl class's argument class-name if jar path is file-url.")
         protected String classNameArgType;
         @Parameter(names = "--classNameResultType", description = "Function impl class's result/return class-name if jar path is url.")
         protected String classNameResultType;

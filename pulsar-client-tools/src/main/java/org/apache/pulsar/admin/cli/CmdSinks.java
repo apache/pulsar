@@ -185,7 +185,7 @@ public class CmdSinks extends CmdBase {
         @Parameter(names = "--jar", description = "Path to the jar file for the sink. It also supports url-path (http/https/file) from which worker can download the package.", listConverter = StringConverter.class)
         protected String jarFile;
         
-        @Parameter(names = "--classNameArgType", description = "Sink impl class's argument type if jar-file path is url")
+        @Parameter(names = "--classNameArgType", description = "Sink impl class's argument type if jar-file path is file-url")
         protected String classNameArgType;
 
         @Parameter(names = "--sinkConfigFile", description = "The path to a YAML config file specifying the "
