@@ -2053,11 +2053,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                             }
                             Optional<Throwable> errorToReport = firstError;
                             synchronized (ManagedLedgerImpl.this) {
-                                ledgersListMutex.lock();
+                                // if the ledger doesn't exist anymore, ignore the error
                                 if (ledgers.containsKey(ledgerId)) {
                                     errorToReport = Optional.of(firstError.orElse(exception));
                                 }
-                                ledgersListMutex.unlock();
                             }
 
                             offloadLoop(promise, ledgersToOffload,
@@ -2086,43 +2085,60 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private CompletableFuture<Void> transformLedgerInfo(long ledgerId, LedgerInfoTransformation transformation) {
-        CompletableFuture<Void> promise = new CompletableFuture<>();
+        CompletableFuture<Void> promise = new CompletableFuture<Void>();
+
+        tryTransformLedgerInfo(ledgerId, transformation, promise);
+
+        return promise;
+    }
+
+    private void tryTransformLedgerInfo(long ledgerId, LedgerInfoTransformation transformation,
+                                        CompletableFuture<Void> finalPromise) {
         synchronized (this) {
-            ledgersListMutex.lock();
+            if (!ledgersListMutex.tryLock()) {
+                // retry in 100 milliseconds
+                scheduledExecutor.schedule(safeRun(() -> tryTransformLedgerInfo(ledgerId, transformation,
+                                                                                finalPromise)),
+                                           100, TimeUnit.MILLISECONDS);
+            } else { // lock acquired
+                CompletableFuture<Void> unlockingPromise = new CompletableFuture<>();
+                unlockingPromise.whenComplete((res, ex) -> {
+                        ledgersListMutex.unlock();
+                        if (ex != null) {
+                            finalPromise.completeExceptionally(ex);
+                        } else {
+                            finalPromise.complete(res);
+                        }
+                    });
 
-            promise.whenComplete((ignore, exception) -> {
-                    ledgersListMutex.unlock();
-                });
+                LedgerInfo oldInfo = ledgers.get(ledgerId);
+                if (oldInfo == null) {
+                    unlockingPromise.completeExceptionally(
+                            new OffloadConflict(
+                                    "Ledger " + ledgerId + " no longer exists in ManagedLedger, likely trimmed"));
+                } else {
+                    try {
+                        LedgerInfo newInfo = transformation.transform(oldInfo);
+                        ledgers.put(ledgerId, newInfo);
+                        store.asyncUpdateLedgerIds(name, getManagedLedgerInfo(), ledgersStat,
+                                new MetaStoreCallback<Void>() {
+                                    @Override
+                                    public void operationComplete(Void result, Stat stat) {
+                                        ledgersStat = stat;
+                                        unlockingPromise.complete(null);
+                                    }
 
-            LedgerInfo oldInfo = ledgers.get(ledgerId);
-            if (oldInfo == null) {
-                promise.completeExceptionally(
-                        new OffloadConflict(
-                                "Ledger " + ledgerId + " no longer exists in ManagedLedger, likely trimmed"));
-            } else {
-                try {
-                    LedgerInfo newInfo = transformation.transform(oldInfo);
-                    ledgers.put(ledgerId, newInfo);
-                    store.asyncUpdateLedgerIds(name, getManagedLedgerInfo(), ledgersStat,
-                            new MetaStoreCallback<Void>() {
-                                @Override
-                                public void operationComplete(Void result, Stat stat) {
-                                    ledgersStat = stat;
-                                    promise.complete(null);
-                                }
-
-                                @Override
-                                public void operationFailed(MetaStoreException e) {
-                                    promise.completeExceptionally(e);
-                                }
-                            });
-                } catch (ManagedLedgerException mle) {
-                    promise.completeExceptionally(mle);
+                                    @Override
+                                    public void operationFailed(MetaStoreException e) {
+                                        unlockingPromise.completeExceptionally(e);
+                                    }
+                                });
+                    } catch (ManagedLedgerException mle) {
+                        unlockingPromise.completeExceptionally(mle);
+                    }
                 }
             }
-
         }
-        return promise;
     }
 
     private CompletableFuture<Void> prepareLedgerInfoForOffloaded(long ledgerId, UUID uuid) {
