@@ -60,16 +60,28 @@ First, install all of the necessary dependencies:
 
 ```shell
 $ apt-get install cmake libssl-dev libcurl4-openssl-dev liblog4cxx-dev \
-  libprotobuf-dev libboost-all-dev libgtest-dev libjsoncpp-dev
+  libprotobuf-dev libboost-all-dev google-mock libgtest-dev libjsoncpp-dev
 ```
 
 Then compile and install [Google Test](https://github.com/google/googletest):
 
 ```shell
-$ git clone https://github.com/google/googletest.git && cd googletest
+# libgtest-dev version is 1.18.0 or above
+$ cd /usr/src/googletest
 $ sudo cmake .
 $ sudo make
-$ sudo cp *.a /usr/lib
+$ sudo cp ./googlemock/libgmock.a ./googletest/libgtest.a /usr/lib/
+
+# less than 1.18.0
+$ cd /usr/src/gtest
+$ sudo cmake .
+$ sudo make
+$ sudo cp libgtest.a /usr/lib
+
+$ cd /usr/src/gmock
+$ sudo cmake .
+$ sudo make
+$ sudo cp libgmock.a /usr/lib
 ```
 
 Finally, compile the Pulsar client library for C++ inside the Pulsar repo:
