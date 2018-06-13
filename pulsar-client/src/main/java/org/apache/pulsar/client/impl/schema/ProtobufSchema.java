@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl.schema;
 
 import com.google.protobuf.Parser;
+import org.apache.avro.protobuf.ProtobufDatumReader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -73,9 +74,9 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> im
         info.setName("");
         info.setProperties(properties);
         info.setType(SchemaType.PROTOBUF);
-
-        //TODO determine best method to extract schema from a protobuf message
-        info.setSchema(null);
+        ProtobufDatumReader<T> datumReader = new ProtobufDatumReader<>(pojo);
+        org.apache.avro.Schema schema = datumReader.getSchema();
+        info.setSchema(schema.toString().getBytes());
         return new ProtobufSchema<>(info, pojo);
     }
 }

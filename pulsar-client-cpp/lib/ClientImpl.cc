@@ -222,6 +222,12 @@ void ClientImpl::subscribeAsync(const std::string& topic, const std::string& con
             lock.unlock();
             callback(ResultInvalidTopicName, Consumer());
             return;
+        } else if (conf.isReadCompacted() && (topicName->getDomain().compare("persistent") != 0 ||
+                                              (conf.getConsumerType() != ConsumerExclusive &&
+                                               conf.getConsumerType() != ConsumerFailover))) {
+            lock.unlock();
+            callback(ResultInvalidConfiguration, Consumer());
+            return;
         }
     }
 

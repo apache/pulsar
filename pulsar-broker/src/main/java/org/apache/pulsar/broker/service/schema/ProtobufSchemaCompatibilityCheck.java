@@ -16,29 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include <boost/python.hpp>
+package org.apache.pulsar.broker.service.schema;
 
-#include <pulsar/Client.h>
+import org.apache.pulsar.common.schema.SchemaType;
 
-using namespace pulsar;
+public class ProtobufSchemaCompatibilityCheck extends AvroSchemaCompatibilityCheck {
 
-namespace py = boost::python;
+    public ProtobufSchemaCompatibilityCheck () {
+        this(SchemaCompatibilityStrategy.FULL);
+    }
 
-struct PulsarException {
-    Result _result;
-    PulsarException(Result res) :
-            _result(res) {}
-};
+    public ProtobufSchemaCompatibilityCheck (SchemaCompatibilityStrategy compatibilityStrategy) {
+        super(compatibilityStrategy);
+    }
 
-inline void CHECK_RESULT(Result res) {
-    if (res != ResultOk) {
-        throw PulsarException(res);
+    @Override
+    public SchemaType getSchemaType() {
+        return SchemaType.PROTOBUF;
     }
 }
-
-struct AuthenticationWrapper {
-    AuthenticationPtr auth;
-
-    AuthenticationWrapper();
-    AuthenticationWrapper(const std::string& dynamicLibPath, const std::string& authParamsString);
-};

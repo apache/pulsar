@@ -76,3 +76,12 @@ const char *pulsar_reader_configuration_get_subscription_role_prefix(
     pulsar_reader_configuration_t *configuration) {
     return configuration->conf.getSubscriptionRolePrefix().c_str();
 }
+
+void pulsar_reader_configuration_set_read_compacted(pulsar_reader_configuration_t *configuration,
+                                                    int readCompacted) {
+    configuration->conf.setReadCompacted(readCompacted);
+}
+
+int pulsar_reader_configuration_is_read_compacted(pulsar_reader_configuration_t *configuration) {
+    return configuration->conf.isReadCompacted();
+}

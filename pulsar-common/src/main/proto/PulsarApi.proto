@@ -27,6 +27,8 @@ message Schema {
 		None = 0;
 		String = 1;
 		Json = 2;
+		Protobuf = 3;
+		Avro = 4;
 	}
 
     required string name = 1;

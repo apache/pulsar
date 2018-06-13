@@ -79,6 +79,11 @@ void pulsar_reader_configuration_set_subscription_role_prefix(pulsar_reader_conf
 const char *pulsar_reader_configuration_get_subscription_role_prefix(
     pulsar_reader_configuration_t *configuration);
 
+void pulsar_reader_configuration_set_read_compacted(pulsar_reader_configuration_t *configuration,
+                                                    int readCompacted);
+
+int pulsar_reader_configuration_is_read_compacted(pulsar_reader_configuration_t *configuration);
+
 #pragma GCC visibility pop
 
 #ifdef __cplusplus
