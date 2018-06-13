@@ -71,7 +71,6 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
             ConsumerBuilder<T> consumerBuilder = this.pulsarClient.newConsumer(entry.getValue())
                 .subscriptionName(this.pulsarSourceConfig.getSubscriptionName())
                 .subscriptionType(this.pulsarSourceConfig.getSubscriptionType())
-                .ackTimeout(1, TimeUnit.MINUTES)
                 .messageListener(this);
 
             if (pulsarSourceConfig.getTimeoutMs() != null) {

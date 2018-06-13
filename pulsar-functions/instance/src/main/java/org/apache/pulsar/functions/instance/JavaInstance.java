@@ -41,7 +41,6 @@ import org.slf4j.LoggerFactory;
  */
 @Slf4j
 public class JavaInstance implements AutoCloseable {
-    private final Logger instanceLog;
     private ContextImpl context;
 
     @Getter(AccessLevel.PACKAGE)
@@ -54,7 +53,7 @@ public class JavaInstance implements AutoCloseable {
                  PulsarClient pulsarClient,
                  Source source) {
         // TODO: cache logger instances by functions?
-        this.instanceLog = LoggerFactory.getLogger("function-" + config.getFunctionDetails().getName());
+        Logger instanceLog = LoggerFactory.getLogger("function-" + config.getFunctionDetails().getName());
 
         if (source instanceof PulsarSource) {
             this.context = new ContextImpl(config, instanceLog, pulsarClient, clsLoader);
