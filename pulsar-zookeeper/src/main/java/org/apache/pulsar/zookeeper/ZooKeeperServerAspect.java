@@ -18,13 +18,18 @@
  */
 package org.apache.pulsar.zookeeper;
 
+import io.prometheus.client.Gauge;
+
+import java.util.Arrays;
+
 import org.apache.zookeeper.server.ZooKeeperServer;
+import org.apache.zookeeper.server.persistence.FileTxnSnapLog;
 import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.After;
+import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
-
-import io.prometheus.client.Gauge;
 
 /**
  * Instruments ZooKeeperServer to enable stats reporting on data set and z-node sizess
@@ -35,6 +40,17 @@ public class ZooKeeperServerAspect {
 
     @Pointcut("execution(org.apache.zookeeper.server.ZooKeeperServer.new(..))")
     public void zkServerConstructorPointCut() {
+    }
+
+    @Around("zkServerConstructorPointCut()")
+    public void zkServerConstructorBefore(ProceedingJoinPoint joinPoint) throws Throwable {
+        Object[] args = joinPoint.getArgs();
+        if (args[0] instanceof FileTxnSnapLog) {
+            // Wrap FileTxnSnapLog argument
+            args[0] = new FileTxnSnapLogWrapper((FileTxnSnapLog)args[0]);
+        }
+
+        joinPoint.proceed(args);
     }
 
     @After("zkServerConstructorPointCut()")
