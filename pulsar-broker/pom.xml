@@ -247,6 +247,12 @@
       <artifactId>java-semver</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>org.apache.avro</groupId>
+      <artifactId>avro</artifactId>
+      <version>${avro.version}</version>
+    </dependency>
+
     <!-- aspectJ dependencies -->
     <dependency>
       <groupId>org.aspectj</groupId>
@@ -326,6 +332,7 @@
           <execution>
             <goals>
               <goal>compile</goal>
+              <goal>test-compile</goal>
             </goals>
           </execution>
         </executions>

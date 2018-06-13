@@ -682,6 +682,10 @@ public class ServerCnx extends PulsarHandler {
             return SchemaType.STRING;
         case Json:
             return SchemaType.JSON;
+        case Protobuf:
+            return SchemaType.PROTOBUF;
+        case Avro:
+            return SchemaType.AVRO;
         default:
             return SchemaType.NONE;
         }

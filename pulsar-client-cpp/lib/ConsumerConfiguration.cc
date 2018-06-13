@@ -101,4 +101,8 @@ ConsumerConfiguration& ConsumerConfiguration::setCryptoFailureAction(ConsumerCry
     return *this;
 }
 
+bool ConsumerConfiguration::isReadCompacted() const { return impl_->readCompacted; }
+
+void ConsumerConfiguration::setReadCompacted(bool compacted) { impl_->readCompacted = compacted; }
+
 }  // namespace pulsar

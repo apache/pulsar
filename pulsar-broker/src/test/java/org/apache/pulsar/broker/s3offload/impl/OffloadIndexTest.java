@@ -165,8 +165,8 @@ public class OffloadIndexTest {
         int indexBlockLength = wrapper.readInt();
         long dataObjectLength = wrapper.readLong();
         long dataHeaderLength = wrapper.readLong();
-        int segmentMetadataLength = wrapper.readInt();
         int indexEntryCount = wrapper.readInt();
+        int segmentMetadataLength = wrapper.readInt();
 
         // verify counter
         assertEquals(magic, OffloadIndexBlockImpl.getIndexMagicWord());
