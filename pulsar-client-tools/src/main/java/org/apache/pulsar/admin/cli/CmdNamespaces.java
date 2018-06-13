@@ -796,56 +796,6 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    private static long validateSizeString(String s) {
-        char last = s.charAt(s.length() - 1);
-        String subStr = s.substring(0, s.length() - 1);
-        switch (last) {
-        case 'k':
-        case 'K':
-            return Long.parseLong(subStr) * 1024;
-
-        case 'm':
-        case 'M':
-            return Long.parseLong(subStr) * 1024 * 1024;
-
-        case 'g':
-        case 'G':
-            return Long.parseLong(subStr) * 1024 * 1024 * 1024;
-
-        case 't':
-        case 'T':
-            return Long.parseLong(subStr) * 1024 * 1024 * 1024 * 1024;
-
-        default:
-            return Long.parseLong(s);
-        }
-    }
-
-    private static int validateTimeString(String s) {
-        char last = s.charAt(s.length() - 1);
-        String subStr = s.substring(0, s.length() - 1);
-        switch (last) {
-        case 'm':
-        case 'M':
-            return Integer.parseInt(subStr);
-
-        case 'h':
-        case 'H':
-            return Integer.parseInt(subStr) * 60;
-
-        case 'd':
-        case 'D':
-            return Integer.parseInt(subStr) * 24 * 60;
-
-        case 'w':
-        case 'W':
-            return Integer.parseInt(subStr) * 7 * 24 * 60;
-
-        default:
-            return Integer.parseInt(s);
-        }
-    }
-
     public CmdNamespaces(PulsarAdmin admin) {
         super("namespaces", admin);
         jcommander.addCommand("list", new GetNamespacesPerProperty());

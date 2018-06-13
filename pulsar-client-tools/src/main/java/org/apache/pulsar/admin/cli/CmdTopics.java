@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import com.beust.jcommander.Parameter;
@@ -703,42 +702,6 @@ public class CmdTopics extends CmdBase {
             } catch (InterruptedException e) {
                 throw new PulsarAdminException(e);
             }
-        }
-    }
-
-    private static int validateTimeString(String s) {
-        char last = s.charAt(s.length() - 1);
-        String subStr = s.substring(0, s.length() - 1);
-        switch (last) {
-        case 'm':
-        case 'M':
-            return Integer.parseInt(subStr);
-
-        case 'h':
-        case 'H':
-            return Integer.parseInt(subStr) * 60;
-
-        case 'd':
-        case 'D':
-            return Integer.parseInt(subStr) * 24 * 60;
-
-        case 'w':
-        case 'W':
-            return Integer.parseInt(subStr) * 7 * 24 * 60;
-
-        default:
-            return Integer.parseInt(s);
-        }
-    }
-
-    private MessageId validateMessageIdString(String resetMessageIdStr) throws PulsarAdminException {
-        String[] messageId = resetMessageIdStr.split(":");
-        try {
-            checkArgument(messageId.length == 2);
-            return new MessageIdImpl(Long.parseLong(messageId[0]), Long.parseLong(messageId[1]), -1);
-        } catch (Exception e) {
-            throw new PulsarAdminException(
-                    "Invalid reset-position (must be in format: ledgerId:entryId) value " + resetMessageIdStr);
         }
     }
 }
