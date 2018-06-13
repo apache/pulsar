@@ -92,7 +92,7 @@ public class WebSocketWebResource {
     /**
      * Checks whether the user has Pulsar Super-User access to the system.
      *
-     * @throws WebApplicationException
+     * @throws RestException
      *             if not authorized
      */
     protected void validateSuperUserAccess() {
@@ -112,18 +112,24 @@ public class WebSocketWebResource {
      * Checks if user has super-user access or user is authorized to produce/consume on a given topic
      *
      * @param topic
-     * @return
+     * @throws RestException
      */
-    protected boolean validateUserAccess(TopicName topic) {
+    protected void validateUserAccess(TopicName topic) {
+        boolean isAuthorized = false;
+
         try {
             validateSuperUserAccess();
-            return true;
+            isAuthorized = true;
         } catch (Exception e) {
             try {
-                return isAuthorized(topic);
+                isAuthorized = isAuthorized(topic);
             } catch (Exception ne) {
                 throw new RestException(ne);
             }
+        }
+
+        if (!isAuthorized) {
+            throw new RestException(Status.UNAUTHORIZED, "Don't have permission to access this topic");
         }
     }
 
