@@ -984,6 +984,24 @@ table {
 
         </li>
         <li class="mono">
+        <span class="class_name"><a href="#pulsar.AuthenticationAthenz">AuthenticationAthenz</a></span>
+        
+          
+  <ul>
+    <li class="mono"><a href="#pulsar.AuthenticationAthenz.__init__">__init__</a></li>
+  </ul>
+
+        </li>
+        <li class="mono">
+        <span class="class_name"><a href="#pulsar.AuthenticationTLS">AuthenticationTLS</a></span>
+        
+          
+  <ul>
+    <li class="mono"><a href="#pulsar.AuthenticationTLS.__init__">__init__</a></li>
+  </ul>
+
+        </li>
+        <li class="mono">
         <span class="class_name"><a href="#pulsar.Client">Client</a></span>
         
           
@@ -1325,7 +1343,8 @@ class Message:
 
 class Authentication:
     """
-    Authentication provider object.
+    Authentication provider object. Used to load authentication from an external
+    shared library.
     """
     def __init__(self, dynamicLibPath, authParamsString):
         """
@@ -1341,6 +1360,38 @@ class Authentication:
         _check_type(str, dynamicLibPath, 'dynamicLibPath')
         _check_type(str, authParamsString, 'authParamsString')
         self.auth = _pulsar.Authentication(dynamicLibPath, authParamsString)
+
+class AuthenticationTLS(Authentication):
+    """
+    TLS Authentication implementation
+    """
+    def __init__(self, certificate_path, private_key_path):
+        """
+        Create the TLS authentication provider instance.
+
+        **Args**
+
+        * `certificatePath`: Path to the public certificate
+        * `privateKeyPath`: Path to private TLS key
+        """
+        _check_type(str, certificate_path, 'certificate_path')
+        _check_type(str, private_key_path, 'private_key_path')
+        self.auth = _pulsar.AuthenticationTLS(certificate_path, private_key_path)
+
+class AuthenticationAthenz(Authentication):
+    """
+    Athenz Authentication implementation
+    """
+    def __init__(self, auth_params_string):
+        """
+        Create the Athenz authentication provider instance.
+
+        **Args**
+
+        * `auth_params_string`: JSON encoded configuration for Athenz client
+        """
+        _check_type(str, auth_params_string, 'auth_params_string')
+        self.auth = _pulsar.AuthenticationAthenz(auth_params_string)
 
 
 class Client:
@@ -1373,7 +1424,8 @@ class Client:
         **Options**
 
         * `authentication`:
-          Set the authentication provider to be used with the broker.
+          Set the authentication provider to be used with the broker. For example:
+          `AuthenticationTls` or `AuthenticationAthenz`
         * `operation_timeout_seconds`:
           Set timeout on client operations (subscribe, create producer, close,
           unsubscribe).
@@ -1391,7 +1443,9 @@ class Client:
         * `log_conf_file_path`:
           Initialize log4cxx from a configuration file.
         * `use_tls`:
-          Configure whether to use TLS encryption on the connection.
+          Configure whether to use TLS encryption on the connection. This setting
+          is deprecated. TLS will be automatically enabled if the `serviceUrl` is
+          set to `pulsar+ssl://` or `https://`
         * `tls_trust_certs_file_path`:
           Set the path to the trusted TLS certificate file.
         * `tls_allow_insecure_connection`:
@@ -1418,7 +1472,8 @@ class Client:
         conf.concurrent_lookup_requests(concurrent_lookup_requests)
         if log_conf_file_path:
             conf.log_conf_file_path(log_conf_file_path)
-        conf.use_tls(use_tls)
+        if use_tls or service_url.startswith('pulsar+ssl://') or service_url.startswith('https://'):
+            conf.use_tls(True)
         if tls_trust_certs_file_path:
             conf.tls_trust_certs_file_path(tls_trust_certs_file_path)
         conf.tls_allow_insecure_connection(tls_allow_insecure_connection)
@@ -1986,13 +2041,15 @@ def _check_type_or_none(var_type, var, name):
       <p id="pulsar.Authentication" class="name">class <span class="ident">Authentication</span></p>
       
   
-    <div class="desc"><p>Authentication provider object.</p></div>
+    <div class="desc"><p>Authentication provider object. Used to load authentication from an external
+shared library.</p></div>
   <div class="source_cont">
   <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Authentication', this);">Show source &equiv;</a></p>
   <div id="source-pulsar.Authentication" class="source">
     <pre><code>class Authentication:
     """
-    Authentication provider object.
+    Authentication provider object. Used to load authentication from an external
+    shared library.
     """
     def __init__(self, dynamicLibPath, authParamsString):
         """
@@ -2072,6 +2129,185 @@ def _check_type_or_none(var_type, var, name):
       </div>
       
       <div class="item">
+      <p id="pulsar.AuthenticationAthenz" class="name">class <span class="ident">AuthenticationAthenz</span></p>
+      
+  
+    <div class="desc"><p>Athenz Authentication implementation</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.AuthenticationAthenz', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.AuthenticationAthenz" class="source">
+    <pre><code>class AuthenticationAthenz(Authentication):
+    """
+    Athenz Authentication implementation
+    """
+    def __init__(self, auth_params_string):
+        """
+        Create the Athenz authentication provider instance.
+
+        **Args**
+
+        * `auth_params_string`: JSON encoded configuration for Athenz client
+        """
+        _check_type(str, auth_params_string, 'auth_params_string')
+        self.auth = _pulsar.AuthenticationAthenz(auth_params_string)
+</code></pre>
+  </div>
+</div>
+
+
+      <div class="class">
+          <h3>Ancestors (in MRO)</h3>
+          <ul class="class_list">
+          <li><a href="#pulsar.AuthenticationAthenz">AuthenticationAthenz</a></li>
+          <li><a href="#pulsar.Authentication">Authentication</a></li>
+          </ul>
+          <h3>Instance variables</h3>
+            <div class="item">
+            <p id="pulsar.AuthenticationAthenz.auth" class="name">var <span class="ident">auth</span></p>
+            
+    <p class="inheritance">
+     <strong>Inheritance:</strong>
+       <code><a href="#pulsar.Authentication">Authentication</a></code>.<code><a href="#pulsar.Authentication.auth">auth</a></code>
+    </p>
+
+            
+  
+  <div class="source_cont">
+</div>
+
+            </div>
+          <h3>Methods</h3>
+            
+  <div class="item">
+    <div class="name def" id="pulsar.AuthenticationAthenz.__init__">
+    <p>def <span class="ident">__init__</span>(</p><p>self, auth_params_string)</p>
+    </div>
+    
+    <p class="inheritance">
+     <strong>Inheritance:</strong>
+       <code><a href="#pulsar.Authentication">Authentication</a></code>.<code><a href="#pulsar.Authentication.__init__">__init__</a></code>
+    </p>
+
+    
+  
+    <div class="desc"><p>Create the Athenz authentication provider instance.</p>
+<p><strong>Args</strong></p>
+<ul>
+<li><code>auth_params_string</code>: JSON encoded configuration for Athenz client</li>
+</ul></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.AuthenticationAthenz.__init__', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.AuthenticationAthenz.__init__" class="source">
+    <pre><code>def __init__(self, auth_params_string):
+    """
+    Create the Athenz authentication provider instance.
+    **Args**
+    * `auth_params_string`: JSON encoded configuration for Athenz client
+    """
+    _check_type(str, auth_params_string, 'auth_params_string')
+    self.auth = _pulsar.AuthenticationAthenz(auth_params_string)
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+      </div>
+      </div>
+      
+      <div class="item">
+      <p id="pulsar.AuthenticationTLS" class="name">class <span class="ident">AuthenticationTLS</span></p>
+      
+  
+    <div class="desc"><p>TLS Authentication implementation</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.AuthenticationTLS', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.AuthenticationTLS" class="source">
+    <pre><code>class AuthenticationTLS(Authentication):
+    """
+    TLS Authentication implementation
+    """
+    def __init__(self, certificate_path, private_key_path):
+        """
+        Create the TLS authentication provider instance.
+
+        **Args**
+
+        * `certificatePath`: Path to the public certificate
+        * `privateKeyPath`: Path to private TLS key
+        """
+        _check_type(str, certificate_path, 'certificate_path')
+        _check_type(str, private_key_path, 'private_key_path')
+        self.auth = _pulsar.AuthenticationTLS(certificate_path, private_key_path)
+</code></pre>
+  </div>
+</div>
+
+
+      <div class="class">
+          <h3>Ancestors (in MRO)</h3>
+          <ul class="class_list">
+          <li><a href="#pulsar.AuthenticationTLS">AuthenticationTLS</a></li>
+          <li><a href="#pulsar.Authentication">Authentication</a></li>
+          </ul>
+          <h3>Instance variables</h3>
+            <div class="item">
+            <p id="pulsar.AuthenticationTLS.auth" class="name">var <span class="ident">auth</span></p>
+            
+    <p class="inheritance">
+     <strong>Inheritance:</strong>
+       <code><a href="#pulsar.Authentication">Authentication</a></code>.<code><a href="#pulsar.Authentication.auth">auth</a></code>
+    </p>
+
+            
+  
+  <div class="source_cont">
+</div>
+
+            </div>
+          <h3>Methods</h3>
+            
+  <div class="item">
+    <div class="name def" id="pulsar.AuthenticationTLS.__init__">
+    <p>def <span class="ident">__init__</span>(</p><p>self, certificate_path, private_key_path)</p>
+    </div>
+    
+    <p class="inheritance">
+     <strong>Inheritance:</strong>
+       <code><a href="#pulsar.Authentication">Authentication</a></code>.<code><a href="#pulsar.Authentication.__init__">__init__</a></code>
+    </p>
+
+    
+  
+    <div class="desc"><p>Create the TLS authentication provider instance.</p>
+<p><strong>Args</strong></p>
+<ul>
+<li><code>certificatePath</code>: Path to the public certificate</li>
+<li><code>privateKeyPath</code>: Path to private TLS key</li>
+</ul></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.AuthenticationTLS.__init__', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.AuthenticationTLS.__init__" class="source">
+    <pre><code>def __init__(self, certificate_path, private_key_path):
+    """
+    Create the TLS authentication provider instance.
+    **Args**
+    * `certificatePath`: Path to the public certificate
+    * `privateKeyPath`: Path to private TLS key
+    """
+    _check_type(str, certificate_path, 'certificate_path')
+    _check_type(str, private_key_path, 'private_key_path')
+    self.auth = _pulsar.AuthenticationTLS(certificate_path, private_key_path)
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+      </div>
+      </div>
+      
+      <div class="item">
       <p id="pulsar.Client" class="name">class <span class="ident">Client</span></p>
       
   
@@ -2112,7 +2348,8 @@ producers and consumers.</p></div>
         **Options**
 
         * `authentication`:
-          Set the authentication provider to be used with the broker.
+          Set the authentication provider to be used with the broker. For example:
+          `AuthenticationTls` or `AuthenticationAthenz`
         * `operation_timeout_seconds`:
           Set timeout on client operations (subscribe, create producer, close,
           unsubscribe).
@@ -2130,7 +2367,9 @@ producers and consumers.</p></div>
         * `log_conf_file_path`:
           Initialize log4cxx from a configuration file.
         * `use_tls`:
-          Configure whether to use TLS encryption on the connection.
+          Configure whether to use TLS encryption on the connection. This setting
+          is deprecated. TLS will be automatically enabled if the `serviceUrl` is
+          set to `pulsar+ssl://` or `https://`
         * `tls_trust_certs_file_path`:
           Set the path to the trusted TLS certificate file.
         * `tls_allow_insecure_connection`:
@@ -2157,7 +2396,8 @@ producers and consumers.</p></div>
         conf.concurrent_lookup_requests(concurrent_lookup_requests)
         if log_conf_file_path:
             conf.log_conf_file_path(log_conf_file_path)
-        conf.use_tls(use_tls)
+        if use_tls or service_url.startswith('pulsar+ssl://') or service_url.startswith('https://'):
+            conf.use_tls(True)
         if tls_trust_certs_file_path:
             conf.tls_trust_certs_file_path(tls_trust_certs_file_path)
         conf.tls_allow_insecure_connection(tls_allow_insecure_connection)
@@ -2431,7 +2671,8 @@ producers and consumers.</p></div>
 <p><strong>Options</strong></p>
 <ul>
 <li><code>authentication</code>:
-  Set the authentication provider to be used with the broker.</li>
+  Set the authentication provider to be used with the broker. For example:
+  <code>AuthenticationTls</code> or <code>AuthenticationAthenz</code></li>
 <li><code>operation_timeout_seconds</code>:
   Set timeout on client operations (subscribe, create producer, close,
   unsubscribe).</li>
@@ -2449,7 +2690,9 @@ producers and consumers.</p></div>
 <li><code>log_conf_file_path</code>:
   Initialize log4cxx from a configuration file.</li>
 <li><code>use_tls</code>:
-  Configure whether to use TLS encryption on the connection.</li>
+  Configure whether to use TLS encryption on the connection. This setting
+  is deprecated. TLS will be automatically enabled if the <code>serviceUrl</code> is
+  set to <code>pulsar+ssl://</code> or <code>https://</code></li>
 <li><code>tls_trust_certs_file_path</code>:
   Set the path to the trusted TLS certificate file.</li>
 <li><code>tls_allow_insecure_connection</code>:
@@ -2476,7 +2719,8 @@ producers and consumers.</p></div>
     * `service_url`: The Pulsar service url eg: pulsar://my-broker.com:6650/
     **Options**
     * `authentication`:
-      Set the authentication provider to be used with the broker.
+      Set the authentication provider to be used with the broker. For example:
+      `AuthenticationTls` or `AuthenticationAthenz`
     * `operation_timeout_seconds`:
       Set timeout on client operations (subscribe, create producer, close,
       unsubscribe).
@@ -2494,7 +2738,9 @@ producers and consumers.</p></div>
     * `log_conf_file_path`:
       Initialize log4cxx from a configuration file.
     * `use_tls`:
-      Configure whether to use TLS encryption on the connection.
+      Configure whether to use TLS encryption on the connection. This setting
+      is deprecated. TLS will be automatically enabled if the `serviceUrl` is
+      set to `pulsar+ssl://` or `https://`
     * `tls_trust_certs_file_path`:
       Set the path to the trusted TLS certificate file.
     * `tls_allow_insecure_connection`:
@@ -2520,7 +2766,8 @@ producers and consumers.</p></div>
     conf.concurrent_lookup_requests(concurrent_lookup_requests)
     if log_conf_file_path:
         conf.log_conf_file_path(log_conf_file_path)
-    conf.use_tls(use_tls)
+    if use_tls or service_url.startswith('pulsar+ssl://') or service_url.startswith('https://'):
+        conf.use_tls(True)
     if tls_trust_certs_file_path:
         conf.tls_trust_certs_file_path(tls_trust_certs_file_path)
     conf.tls_allow_insecure_connection(tls_allow_insecure_connection)

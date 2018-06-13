@@ -838,6 +838,13 @@
             </a>
           </li>
           
+          
+          <li>
+            <a href="../../reference/CustomAuth">
+              Authn & Authz plugins
+            </a>
+          </li>
+          
         </ul>
       </div>
     </div>
@@ -900,6 +907,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
           
           
@@ -925,6 +934,8 @@
           
           
           <li><a href="/docs/latest/clients/Cpp/">The Pulsar C++ client</a></li>
+          
+          
           
           
           
@@ -987,8 +998,6 @@
           
           
           <li><a href="/docs/latest/clients/Python/">The Pulsar Python client</a></li>
-          
-          
           
           
           
@@ -1210,6 +1219,10 @@
           
           
           
+          
+          
+          
+          
           <li><a href="/docs/latest/clients/Python/">The Pulsar Python client</a></li>
           
           
@@ -1233,8 +1246,6 @@
           
           
           <li><a href="/docs/latest/clients/WebSocket/">Pulsar's WebSocket API</a></li>
-          
-          
           
           
           
@@ -1420,7 +1431,7 @@
 
 <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
     <span class="n">msg</span> <span class="o">=</span> <span class="n">consumer</span><span class="o">.</span><span class="n">receive</span><span class="p">()</span>
-    <span class="k">print</span><span class="p">(</span><span class="s">"Received message '</span><span class="si">%</span><span class="s">s' id='</span><span class="si">%</span><span class="s">s'"</span><span class="p">,</span> <span class="n">msg</span><span class="o">.</span><span class="n">data</span><span class="p">(),</span> <span class="n">msg</span><span class="o">.</span><span class="n">message_id</span><span class="p">())</span>
+    <span class="k">print</span><span class="p">(</span><span class="s">"Received message '{}' id='{}'"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">data</span><span class="p">(),</span> <span class="n">msg</span><span class="o">.</span><span class="n">message_id</span><span class="p">()))</span>
     <span class="n">consumer</span><span class="o">.</span><span class="n">acknowledge</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
 
 <span class="n">client</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
@@ -1437,7 +1448,7 @@
 
 <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
     <span class="n">msg</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">receive</span><span class="p">()</span>
-    <span class="k">print</span><span class="p">(</span><span class="s">"Received message '</span><span class="si">%</span><span class="s">s' id='</span><span class="si">%</span><span class="s">s'"</span><span class="p">,</span> <span class="n">msg</span><span class="o">.</span><span class="n">data</span><span class="p">(),</span> <span class="n">msg</span><span class="o">.</span><span class="n">message_id</span><span class="p">())</span>
+    <span class="k">print</span><span class="p">(</span><span class="s">"Received message '{}' id='{}'"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">data</span><span class="p">(),</span> <span class="n">msg</span><span class="o">.</span><span class="n">message_id</span><span class="p">()))</span>
     <span class="c"># No acknowledgment</span>
 </code></pre></div></div>
 
