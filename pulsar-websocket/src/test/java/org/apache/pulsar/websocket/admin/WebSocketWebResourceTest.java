@@ -127,7 +127,7 @@ public class WebSocketWebResourceTest {
     }
 
     @AfterMethod
-    protected void cleanup() throws Exception {
+    public void cleanup() throws Exception {
         this.webResource = null;
     }
 
