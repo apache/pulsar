@@ -121,7 +121,7 @@ flexible messaging model and an intuitive client API.</description>
     <testRealAWS>false</testRealAWS>
     <testRetryCount>1</testRetryCount>
 
-    <bookkeeper.version>4.8.0-SNAPSHOT</bookkeeper.version>
+    <bookkeeper.version>4.7.1</bookkeeper.version>
     <zookeeper.version>3.5.4-beta</zookeeper.version>
     <netty.version>4.1.22.Final</netty.version>
     <storm.version>1.0.5</storm.version>
