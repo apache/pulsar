@@ -21,17 +21,11 @@ package org.apache.pulsar.tests.integration;
 import com.github.dockerjava.api.DockerClient;
 import com.google.common.collect.ImmutableMap;
 
-import java.net.URL;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 
-import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
-import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
-
-import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -91,7 +85,6 @@ public class TestS3Offload extends Arquillian {
     public void teardownBrokers() throws Exception {
         PulsarClusterUtils.stopAllProxies(docker, CLUSTER_NAME);
         Assert.assertTrue(PulsarClusterUtils.stopAllBrokers(docker, CLUSTER_NAME));
-
     }
 
     private static byte[] buildEntry(String pattern) {
@@ -106,30 +99,30 @@ public class TestS3Offload extends Arquillian {
 
     @Test
     public void testPublishOffloadAndConsumeViaCLI() throws Exception {
+        final String TENANT = "s3-offload-test-cli";
+        final String NAMESPACE = "s3-offload-test-cli/ns1";
+        final String TOPIC = "persistent://s3-offload-test-cli/ns1/topic1";
+
         PulsarClusterUtils.runOnAnyBroker(docker, CLUSTER_NAME,
                 "/pulsar/bin/pulsar-admin", "tenants",
                 "create", "--allowed-clusters", CLUSTER_NAME,
-                "--admin-roles", "offload-admin", "s3-offload-test");
+                "--admin-roles", "offload-admin", TENANT);
         PulsarClusterUtils.runOnAnyBroker(docker, CLUSTER_NAME,
                 "/pulsar/bin/pulsar-admin", "namespaces",
-                "create", "--clusters", CLUSTER_NAME, "s3-offload-test/ns1");
+                "create", "--clusters", CLUSTER_NAME, NAMESPACE);
 
-        String broker = PulsarClusterUtils.brokerSet(docker, CLUSTER_NAME).stream().findAny().get();
-        String brokerIp = DockerUtils.getContainerIP(docker, broker);
-        String proxyIp  = PulsarClusterUtils.proxySet(docker, CLUSTER_NAME)
+        String broker = PulsarClusterUtils.brokerSet(docker, CLUSTER_NAME).stream().findFirst().get();
+        String proxyIp = PulsarClusterUtils.proxySet(docker, CLUSTER_NAME)
             .stream().map((c) -> DockerUtils.getContainerIP(docker, c)).findFirst().get();
         String serviceUrl = "pulsar://" + proxyIp + ":6650";
-        String adminUrl = "http://" + brokerIp + ":8080";
-        String topic = "persistent://s3-offload-test/ns1/topic1";
-
-        ClientConfiguration bkConf = new ClientConfiguration();
-        bkConf.setZkServers(PulsarClusterUtils.zookeeperConnectString(docker, CLUSTER_NAME));
+        String adminUrl = "http://" + proxyIp + ":8080";
 
         long firstLedger = -1;
         try(PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
-            Producer producer = client.newProducer().topic(topic)
-                .blockIfQueueFull(true).enableBatching(false).create()) {
-            client.subscribe(topic, "my-sub").close();
+            Producer producer = client.newProducer().topic(TOPIC)
+                .blockIfQueueFull(true).enableBatching(false).create();
+            PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl).build()) {
+            client.newConsumer().topic(TOPIC).subscriptionName("my-sub").subscribe().close();
 
             // write enough to topic to make it roll
             int i = 0;
@@ -139,40 +132,35 @@ public class TestS3Offload extends Arquillian {
             MessageId latestMessage = producer.send(buildEntry("offload-message"+i));
 
             // read managed ledger info, check ledgers exist
-            ManagedLedgerFactory mlf = new ManagedLedgerFactoryImpl(bkConf);
-            ManagedLedgerInfo info = mlf.getManagedLedgerInfo("s3-offload-test/ns1/persistent/topic1");
-            Assert.assertEquals(info.ledgers.size(), 2);
-
-            firstLedger = info.ledgers.get(0).ledgerId;
+            firstLedger = admin.topics().getInternalStats(TOPIC).ledgers.get(0).ledgerId;
 
             // first offload with a high threshold, nothing should offload
             String output = DockerUtils.runCommand(docker, broker,
                     "/pulsar/bin/pulsar-admin", "topics",
-                    "offload", "--size-threshold", "100G",
-                    topic);
+                    "offload", "--size-threshold", "100G", TOPIC);
             Assert.assertTrue(output.contains("Nothing to offload"));
 
             output = DockerUtils.runCommand(docker, broker,
-                    "/pulsar/bin/pulsar-admin", "topics", "offload-status", topic);
+                    "/pulsar/bin/pulsar-admin", "topics", "offload-status", TOPIC);
             Assert.assertTrue(output.contains("Offload has not been run"));
 
             // offload with a low threshold
             output = DockerUtils.runCommand(docker, broker,
                     "/pulsar/bin/pulsar-admin", "topics",
-                    "offload", "--size-threshold", "1M",
-                    topic);
+                    "offload", "--size-threshold", "1M", TOPIC);
             Assert.assertTrue(output.contains("Offload triggered"));
 
             output = DockerUtils.runCommand(docker, broker,
-                    "/pulsar/bin/pulsar-admin", "topics", "offload-status", "-w", topic);
+                    "/pulsar/bin/pulsar-admin", "topics", "offload-status", "-w", TOPIC);
             Assert.assertTrue(output.contains("Offload was a success"));
         }
 
-        log.info("Kill ledger");
         // stop brokers to clear all caches, open handles, etc
         Assert.assertTrue(PulsarClusterUtils.stopAllBrokers(docker, CLUSTER_NAME));
 
         // delete the first ledger, so that we cannot possibly read from it
+        ClientConfiguration bkConf = new ClientConfiguration();
+        bkConf.setZkServers(PulsarClusterUtils.zookeeperConnectString(docker, CLUSTER_NAME));
         try (BookKeeper bk = new BookKeeper(bkConf)) {
             bk.deleteLedger(firstLedger);
         }
@@ -182,12 +170,92 @@ public class TestS3Offload extends Arquillian {
 
         log.info("Read back the data (which would be in that first ledger)");
         try(PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
-            Consumer consumer = client.newConsumer().topic(topic).subscriptionName("my-sub").subscribe()) {
+            Consumer consumer = client.newConsumer().topic(TOPIC).subscriptionName("my-sub").subscribe()) {
             // read back from topic
             for (int i = 0; i < ENTRIES_PER_LEDGER*1.5; i++) {
                 Message m = consumer.receive(1, TimeUnit.MINUTES);
                 Assert.assertEquals(buildEntry("offload-message"+i), m.getData());
             }
+        }
+    }
+
+    @Test
+    public void testPublishOffloadAndConsumeViaThreshold() throws Exception {
+        final String TENANT = "s3-offload-test-threshold";
+        final String NAMESPACE = "s3-offload-test-threshold/ns1";
+        final String TOPIC = "persistent://s3-offload-test-threshold/ns1/topic1";
+
+        PulsarClusterUtils.runOnAnyBroker(docker, CLUSTER_NAME,
+                "/pulsar/bin/pulsar-admin", "tenants",
+                "create", "--allowed-clusters", CLUSTER_NAME,
+                "--admin-roles", "offload-admin", TENANT);
+        PulsarClusterUtils.runOnAnyBroker(docker, CLUSTER_NAME,
+                "/pulsar/bin/pulsar-admin", "namespaces",
+                "create", "--clusters", CLUSTER_NAME, NAMESPACE);
+        PulsarClusterUtils.runOnAnyBroker(docker, CLUSTER_NAME,
+                "/pulsar/bin/pulsar-admin", "namespaces",
+                "set-offload-threshold", "--size", "1M", NAMESPACE);
+
+        String proxyIp  = PulsarClusterUtils.proxySet(docker, CLUSTER_NAME)
+            .stream().map((c) -> DockerUtils.getContainerIP(docker, c)).findFirst().get();
+        String serviceUrl = "pulsar://" + proxyIp + ":6650";
+        String adminUrl = "http://" + proxyIp + ":8080";
+
+        long firstLedger = 0;
+        try(PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
+            Producer producer = client.newProducer().topic(TOPIC)
+                .blockIfQueueFull(true).enableBatching(false).create();
+            PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl).build()) {
+
+            client.newConsumer().topic(TOPIC).subscriptionName("my-sub").subscribe().close();
+
+            // write enough to topic to make it roll twice
+            for (int i = 0; i < ENTRIES_PER_LEDGER*2.5; i++) {
+                producer.sendAsync(buildEntry("offload-message"+i));
+            }
+            producer.send(buildEntry("final-offload-message"));
+
+            firstLedger = admin.topics().getInternalStats(TOPIC).ledgers.get(0).ledgerId;
+
+            // wait up to 30 seconds for offload to occur
+            for (int i = 0; i < 300 && !admin.topics().getInternalStats(TOPIC).ledgers.get(0).offloaded; i++) {
+                Thread.sleep(100);
+            }
+            Assert.assertTrue(admin.topics().getInternalStats(TOPIC).ledgers.get(0).offloaded);
+        }
+
+        // stop brokers to clear all caches, open handles, etc
+        Assert.assertTrue(PulsarClusterUtils.stopAllBrokers(docker, CLUSTER_NAME));
+
+        // delete the first ledger, so that we cannot possibly read from it
+        ClientConfiguration bkConf = new ClientConfiguration();
+        bkConf.setZkServers(PulsarClusterUtils.zookeeperConnectString(docker, CLUSTER_NAME));
+        try (BookKeeper bk = new BookKeeper(bkConf)) {
+            bk.deleteLedger(firstLedger);
+        }
+
+        // start all brokers again
+        Assert.assertTrue(PulsarClusterUtils.startAllBrokers(docker, CLUSTER_NAME));
+
+        log.info("Read back the data (which would be in that first ledger)");
+        try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
+             Consumer consumer = client.newConsumer().topic(TOPIC).subscriptionName("my-sub").subscribe()) {
+            // read back from topic
+            for (int i = 0; i < ENTRIES_PER_LEDGER*2.5; i++) {
+                Message m = consumer.receive(1, TimeUnit.MINUTES);
+                Assert.assertEquals(buildEntry("offload-message"+i), m.getData());
+            }
+        }
+
+        // try disabling
+        PulsarClusterUtils.runOnAnyBroker(docker, CLUSTER_NAME,
+                "/pulsar/bin/pulsar-admin", "namespaces",
+                "set-offload-threshold", "--size", "-1", NAMESPACE);
+
+        // hard to validate that it has been disabled as we'd be waiting for
+        // something _not_ to happen (i.e. waiting for ages), so just check
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl).build()) {
+            Assert.assertEquals(admin.namespaces().getOffloadThreshold(NAMESPACE), -1L);
         }
     }
 }
