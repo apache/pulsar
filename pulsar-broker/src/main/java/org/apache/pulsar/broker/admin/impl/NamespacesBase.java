@@ -1558,7 +1558,7 @@ public abstract class NamespacesBase extends AdminResource {
                      clientAppId(), namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
-            log.warn("[{}] Failed to update maxConsumersPerSubscription configuration for namespace {}: concurrent modification",
+            log.warn("[{}] Failed to update compactionThreshold configuration for namespace {}: concurrent modification",
                      clientAppId(), namespaceName);
             throw new RestException(Status.CONFLICT, "Concurrent modification");
         } catch (RestException pfe) {
