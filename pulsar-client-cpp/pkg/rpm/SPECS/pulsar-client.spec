@@ -19,11 +19,11 @@
 
 %define name        pulsar-client
 %define release     1
-
 %define buildroot   %{_topdir}/%{name}-%{version}-root
 
-BuildRoot:  %{buildroot}
+BuildRoot:      %{buildroot}
 Summary:        Apache Pulsar client library
+URL:            https://pulsar.incubator.apache.org/
 License:        Apache License v2
 Name:           %{name}
 Version:        %{version}
@@ -31,9 +31,20 @@ Release:        %{release}
 Source:         apache-pulsar-%{pom_version}-src.tar.gz
 Prefix:         /usr
 
+%package devel
+Summary:        Apache Pulsar client library
+Provides:       pulsar-client-devel
+
 %description
 The Apache Pulsar client contains a C++ and C APIs to interact
 with Apache Pulsar brokers.
+
+%description devel
+The Apache Pulsar client contains a C++ and C APIs to interact
+with Apache Pulsar brokers.
+
+The devel package contains C++ and C API headers and `libpulsar.a`
+static library.
 
 %prep
 %setup -q -n apache-pulsar-%{pom_version}
@@ -48,14 +59,19 @@ cd pulsar-client-cpp
 INCLUDE_DIR=$RPM_BUILD_ROOT/usr/include
 LIB_DIR=$RPM_BUILD_ROOT/usr/lib
 mkdir -p $INCLUDE_DIR $LIB_DIR
+
 cp -ar include/pulsar $INCLUDE_DIR
-cp lib/libpulsar* $LIB_DIR
+cp lib/libpulsar.a $LIB_DIR
+cp lib/libpulsar.so.%{pom_version} $LIB_DIR
+cd $LIB_DIR
+ln -s libpulsar.so.%{pom_version} libpulsar.so
 
 %files
 %defattr(-,root,root)
-/usr/lib/libpulsar.a
 /usr/lib/libpulsar.so
 /usr/lib/libpulsar.so.%{pom_version}
-/usr/include/pulsar
 
-# doc %attr(0444,root,root) /usr/local/share/man/man1/wget.1
+%files devel
+%defattr(-,root,root)
+/usr/lib/libpulsar.a
+/usr/include/pulsar
