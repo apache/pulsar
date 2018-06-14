@@ -20,16 +20,24 @@
 
 set -e
 
-FILES=$*
+cd /pulsar
+ROOT_DIR=$(git rev-parse --show-toplevel)
+cd $ROOT_DIR/pulsar-client-cpp/pkg/rpm
 
-for FILE in $FILES
-do
-   echo "Signing $FILE"
-   gpg --armor --output $FILE.asc --detach-sig $FILE
+POM_VERSION=`cat ../../../pom.xml | xmllint --format - | sed "s/xmlns=\".*\"//g" | xmllint --stream --pattern /project/version --debug - |  grep -A 2 "matches pattern" |  grep text |  sed "s/.* [0-9] //g"`
 
-   # SHA-1 signature
-   shasum -a 1 $FILE > $FILE.sha1
+# Sanitize VERSION by removing `-incubating` since it's not legal in RPM
+VERSION=`echo $POM_VERSION | awk -F-  '{print $1}'`
 
-   # SHA-512 signature
-   shasum -a 512 $FILE > $FILE.sha512
-done
+mkdir -p BUILD RPMS SOURCES SPECS SRPMS
+
+cp $ROOT_DIR/all/target/apache-pulsar-$POM_VERSION-src.tar.gz SOURCES
+
+rpmbuild -v -bb --clean \
+        --define "version $VERSION" \
+        --define "pom_version $POM_VERSION" \
+        --define "_topdir $PWD" \
+        SPECS/pulsar-client.spec
+
+cd RPMS/x86_64
+createrepo .

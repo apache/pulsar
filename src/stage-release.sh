@@ -18,18 +18,26 @@
 # under the License.
 #
 
-set -e
+set -e -x
 
-FILES=$*
+if [ $# -eq 0 ]; then
+    echo "Required argument with destination directory"
+    exit 1
+fi
 
-for FILE in $FILES
-do
-   echo "Signing $FILE"
-   gpg --armor --output $FILE.asc --detach-sig $FILE
+DEST_PATH=$1
 
-   # SHA-1 signature
-   shasum -a 1 $FILE > $FILE.sha1
+pushd $(dirname "$0")/..
+PULSAR_PATH=$(git rev-parse --show-toplevel)
+VERSION=`cat pom.xml | xmllint --format - | sed "s/xmlns=\".*\"//g" | xmllint --stream --pattern /project/version --debug - |  grep -A 2 "matches pattern" |  grep text |  sed "s/.* [0-9] //g"`
+popd
 
-   # SHA-512 signature
-   shasum -a 512 $FILE > $FILE.sha512
-done
+cp $PULSAR_PATH/all/target/apache-pulsar-$VERSION-src.tar.gz $DEST_PATH
+cp $PULSAR_PATH/all/target/apache-pulsar-$VERSION-bin.tar.gz $DEST_PATH
+
+mkdir $DEST_PATH/RPMS
+cp -r $PULSAR_PATH/pulsar-client-cpp/pkg/rpm/RPMS/x86_64/* $DEST_PATH/RPMS
+
+# Sign all files
+cd $DEST_PATH
+find . -type f | xargs $PULSAR_PATH/src/sign-release.sh

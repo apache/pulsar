@@ -20,16 +20,9 @@
 
 set -e
 
-FILES=$*
+ROOT_DIR=$(git rev-parse --show-toplevel)
 
-for FILE in $FILES
-do
-   echo "Signing $FILE"
-   gpg --armor --output $FILE.asc --detach-sig $FILE
+docker pull apachepulsar/pulsar-build:centos-7
 
-   # SHA-1 signature
-   shasum -a 1 $FILE > $FILE.sha1
-
-   # SHA-512 signature
-   shasum -a 512 $FILE > $FILE.sha512
-done
+docker run -it -v $ROOT_DIR:/pulsar apachepulsar/pulsar-build:centos-7 \
+        /build-rpm.sh
