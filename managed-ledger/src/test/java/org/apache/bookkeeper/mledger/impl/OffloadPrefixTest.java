@@ -865,6 +865,37 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                                             ledger.getLedgersInfoAsList().get(2).getLedgerId()));
     }
 
+    @Test
+    public void offloadAsSoonAsClosed() throws Exception {
+
+        MockLedgerOffloader offloader = new MockLedgerOffloader();
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setOffloadAutoTriggerSizeThresholdBytes(0);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setLedgerOffloader(offloader);
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open("my_test_ledger", config);
+
+        for (int i = 0; i < 11; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+
+        assertEventuallyTrue(() -> offloader.offloadedLedgers().size() == 1);
+        Assert.assertEquals(offloader.offloadedLedgers(),
+                            ImmutableSet.of(ledger.getLedgersInfoAsList().get(0).getLedgerId()));
+
+        for (int i = 0; i < 10; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+
+        assertEventuallyTrue(() -> offloader.offloadedLedgers().size() == 2);
+        Assert.assertEquals(offloader.offloadedLedgers(),
+                            ImmutableSet.of(ledger.getLedgersInfoAsList().get(0).getLedgerId(),
+                                            ledger.getLedgersInfoAsList().get(1).getLedgerId()));
+    }
+
+
     static void assertEventuallyTrue(BooleanSupplier predicate) throws Exception {
         // wait up to 3 seconds
         for (int i = 0; i < 30 && !predicate.getAsBoolean(); i++) {
