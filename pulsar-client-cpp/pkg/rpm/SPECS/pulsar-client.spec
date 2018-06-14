@@ -65,8 +65,6 @@ mkdir -p $INCLUDE_DIR $LIB_DIR $DOC_DIR $DOC_DEVEL_DIR
 cp -ar include/pulsar $INCLUDE_DIR
 cp lib/libpulsar.a $LIB_DIR
 cp lib/libpulsar.so.%{pom_version} $LIB_DIR
-cd $LIB_DIR
-ln -s libpulsar.so.%{pom_version} libpulsar.so
 
 # Copy LICENSE files
 cp ../DISCLAIMER $DOC_DIR
@@ -74,6 +72,9 @@ cp ../NOTICE $DOC_DIR
 cp pkg/licenses/* $DOC_DIR
 
 cp $DOC_DIR/* $DOC_DEVEL_DIR/
+
+cd  $LIB_DIR
+ln -s libpulsar.so.%{pom_version} libpulsar.so
 
 %files
 %defattr(-,root,root)
