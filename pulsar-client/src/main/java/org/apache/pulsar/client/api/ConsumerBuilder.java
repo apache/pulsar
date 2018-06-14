@@ -263,7 +263,8 @@ public interface ConsumerBuilder<T> extends Serializable, Cloneable {
      * The period is in minute, and default and minimum value is 1 minute.
      *
      * @param periodInMinutes
-     *            whether to read from the compacted topic
+     *            number of minutes between checks for
+     *            new topics matching pattern set with {@link #topicsPattern(String)}
      */
     ConsumerBuilder<T> patternAutoDiscoveryPeriod(int periodInMinutes);
 
