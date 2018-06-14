@@ -19,9 +19,9 @@ The Tiered Storage offloading mechanism takes advantage of this segment oriented
 
 ## Amazon S3
 
-Tiered storage currently supports S3 for long term storage. The broker must be configured with the S3 bucket into which the offloaded data will be placed and the AWS region where that bucket exists.
+Tiered storage currently supports S3 for long term storage. On the broker, the administrator must configure a S3 bucket and the AWS region where the bucket exists. Offloaded data will be placed into this bucket.
 
-The configured S3 bucket must exist before attempting to offload. If it does not offload, will fail.
+The configured S3 bucket must exist before attempting to offload. If it does not exist, the offload operation will fail.
 
 Pulsar users multipart objects to update the segment data. It is possible that a broker could crash while uploading the data. We recommend you add a lifecycle rule your S3 bucket to expire incomplete multipart upload after a day or two to avoid getting charged for incomplete uploads.
 
@@ -39,18 +39,18 @@ s3ManagedLedgerOffloadBucket=pulsar-topic-offload
 
 It is also possible to specify the s3 endpoint directly, using ```s3ManagedLedgerOffloadServiceEndpoint```. This is useful if you are using a non-AWS storage service which provides an S3 compatible API. 
 
-{% include admonition.html type="warning" content="If the endpoint is specified directly, then the region must not be set." %}
+{% include admonition.html type="warning" content="If the endpoint is specified directly, then the region must _not_ be set." %}
 
 {% include admonition.html type="warning" content="The broker.conf of all brokers must have the same configuration for driver, region and bucket for offload to avoid data becoming unavailable as topics move from one broker to another." %}
 
-Pulsar also provides some knobs to configure they size of requests sent to S3. 
+Pulsar also provides some knobs to configure the size of requests sent to S3.
 
-- ```s3ManagedLedgerOffloadMaxBlockSizeInBytes``` configures the maximum size of a "part" sent during a multipart upload. Default is 64MB.
+- ```s3ManagedLedgerOffloadMaxBlockSizeInBytes``` configures the maximum size of a "part" sent during a multipart upload. This cannot be smaller than 5MB. Default is 64MB.
 - ```s3ManagedLedgerOffloadReadBufferSizeInBytes``` configures the block size for each individual read when reading back data from S3. Default is 1MB.
 
 In both cases, these should not be touched unless you know what you are doing.
 
-{% include admonition.html type="warning" content="the broker must be rebooted for any changes in the configuration to take effect." %}
+{% include admonition.html type="warning" content="The broker must be rebooted for any changes in the configuration to take effect." %}
 
 ### Authenticating with S3
 
@@ -61,9 +61,12 @@ Once you have created a set of credentials in the AWS IAM console, they can be c
 1. Set the environment variables **AWS_ACCESS_KEY_ID** and **AWS_SECRET_ACCESS_KEY** in ```conf/pulsar_env.sh```.
 
 ```bash
-AWS_ACCESS_KEY_ID=ABC123456789
-AWS_SECRET_ACCESS_KEY=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c
+export AWS_ACCESS_KEY_ID=ABC123456789
+export AWS_SECRET_ACCESS_KEY=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c
 ```
+
+{% include admonition.html type="info" content="\"export\" is important so that the variables are made available in the environment of spawned processes." %}
+
 
 2. Add the Java system properties *aws.accessKeyId* and *aws.secretKey* to **PULSAR_EXTRA_OPTS** in ```conf/pulsar_env.sh```.
 
@@ -83,28 +86,38 @@ If you are running in EC2 you can also use instance profile credentials, provide
 
 {% include admonition.html type="warning" content="The broker must be rebooted for credentials specified in pulsar_env to take effect." %}
 
-### Triggering offload
+## Configuring offload to run automatically
 
-Offloading is triggered through a REST endpoint on the Pulsar broker. We provide a CLI which will call this rest endpoint for you.
+Namespace policies can be configured to offload data automatically once a threshold is reached. The threshold is based on the size of data that the topic has stored on the pulsar cluster. Once the topic reaches the threshold, an offload operation will be triggered. Setting a negative value to the threshold will disable automatic offloading. Setting the threshold to 0 will cause the broker to offload data as soon as it possiby can.
+
+```bash
+$ bin/pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-namespace
+```
+
+{% include admonition.html type="warning" content="Automatic offload runs when a new segment is added to a topic log. If you set the threshold on a namespace, but few messages are being produced to the topic, offload will not until the current segment is full." %}
+
+## Triggering offload manually
+
+Offloading can manually triggered through a REST endpoint on the Pulsar broker. We provide a CLI which will call this rest endpoint for you.
 
 When triggering offload, you must specify the maximum size, in bytes, of backlog which will be retained locally on the bookkeeper. The offload mechanism will offload segments from the start of the topic backlog until this condition is met.
 
 ```bash
-$ bin/pulsar-admin topics offload ---size-threshold 10000000 persistent://public/default/topic1
-Offload triggered for persistent://public/default/topic1 for messages before 2:0:-1
+$ bin/pulsar-admin topics offload --size-threshold 10M my-tenant/my-namespace/topic1
+Offload triggered for persistent://my-tenant/my-namespace/topic1 for messages before 2:0:-1
 ```
 
-The command to triggers an offload will not wait until the offload has completed. To check the status of the offload, use offload-status.
+The command to triggers an offload will not wait until the offload operation has completed. To check the status of the offload, use offload-status.
 
 ```bash
-$ bin/pulsar-admin topics offload-status persistent://public/default/topic1
+$ bin/pulsar-admin topics offload-status my-tenant/my-namespace/topic1
 Offload is currently running
 ```
 
 To wait for offload to complete, add the -w flag.
 
 ```bash
-$ bin/pulsar-admin topics offload-status -w persistent://public/default/topic1
+$ bin/pulsar-admin topics offload-status -w my-tenant/my-namespace/topic1
 Offload was a success
 ```
 
