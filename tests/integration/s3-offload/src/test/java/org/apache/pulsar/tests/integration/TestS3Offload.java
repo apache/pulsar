@@ -22,6 +22,7 @@ import com.github.dockerjava.api.DockerClient;
 import com.google.common.collect.ImmutableMap;
 
 import java.net.URL;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.conf.ClientConfiguration;
@@ -55,7 +56,8 @@ public class TestS3Offload extends Arquillian {
     private static final Logger log = LoggerFactory.getLogger(TestS3Offload.class);
 
     private static final String CLUSTER_NAME = "test";
-    private static final int ENTRIES_PER_LEDGER = 10;
+    private static final int ENTRY_SIZE = 1024;
+    private static final int ENTRIES_PER_LEDGER = 1024;
 
     @ArquillianResource
     DockerClient docker;
@@ -92,6 +94,16 @@ public class TestS3Offload extends Arquillian {
 
     }
 
+    private static byte[] buildEntry(String pattern) {
+        byte[] entry = new byte[ENTRY_SIZE];
+        byte[] patternBytes = pattern.getBytes();
+
+        for (int i = 0; i < entry.length; i++) {
+            entry[i] = patternBytes[i % patternBytes.length];
+        }
+        return entry;
+    }
+
     @Test
     public void testPublishOffloadAndConsumeViaCLI() throws Exception {
         PulsarClusterUtils.runOnAnyBroker(docker, CLUSTER_NAME,
@@ -114,15 +126,17 @@ public class TestS3Offload extends Arquillian {
         bkConf.setZkServers(PulsarClusterUtils.zookeeperConnectString(docker, CLUSTER_NAME));
 
         long firstLedger = -1;
-        try(PulsarClient client = PulsarClient.create(serviceUrl);
-            Producer producer = client.createProducer(topic)) {
+        try(PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
+            Producer producer = client.newProducer().topic(topic)
+                .blockIfQueueFull(true).enableBatching(false).create()) {
             client.subscribe(topic, "my-sub").close();
+
             // write enough to topic to make it roll
             int i = 0;
             for (; i < ENTRIES_PER_LEDGER*1.5; i++) {
-                producer.send(("offload-message"+i).getBytes());
+                producer.sendAsync(buildEntry("offload-message"+i));
             }
-            MessageId latestMessage = producer.send(("offload-message"+i).getBytes());
+            MessageId latestMessage = producer.send(buildEntry("offload-message"+i));
 
             // read managed ledger info, check ledgers exist
             ManagedLedgerFactory mlf = new ManagedLedgerFactoryImpl(bkConf);
@@ -134,7 +148,7 @@ public class TestS3Offload extends Arquillian {
             // first offload with a high threshold, nothing should offload
             String output = DockerUtils.runCommand(docker, broker,
                     "/pulsar/bin/pulsar-admin", "topics",
-                    "offload", "--size-threshold", String.valueOf(Long.MAX_VALUE),
+                    "offload", "--size-threshold", "100G",
                     topic);
             Assert.assertTrue(output.contains("Nothing to offload"));
 
@@ -145,7 +159,7 @@ public class TestS3Offload extends Arquillian {
             // offload with a low threshold
             output = DockerUtils.runCommand(docker, broker,
                     "/pulsar/bin/pulsar-admin", "topics",
-                    "offload", "--size-threshold", "0",
+                    "offload", "--size-threshold", "1M",
                     topic);
             Assert.assertTrue(output.contains("Offload triggered"));
 
@@ -167,12 +181,12 @@ public class TestS3Offload extends Arquillian {
         Assert.assertTrue(PulsarClusterUtils.startAllBrokers(docker, CLUSTER_NAME));
 
         log.info("Read back the data (which would be in that first ledger)");
-        try(PulsarClient client = PulsarClient.create(serviceUrl);
-            Consumer consumer = client.subscribe(topic, "my-sub")) {
+        try(PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
+            Consumer consumer = client.newConsumer().topic(topic).subscriptionName("my-sub").subscribe()) {
             // read back from topic
             for (int i = 0; i < ENTRIES_PER_LEDGER*1.5; i++) {
-                Message m = consumer.receive();
-                Assert.assertEquals("offload-message"+i, new String(m.getData()));
+                Message m = consumer.receive(1, TimeUnit.MINUTES);
+                Assert.assertEquals(buildEntry("offload-message"+i), m.getData());
             }
         }
     }
