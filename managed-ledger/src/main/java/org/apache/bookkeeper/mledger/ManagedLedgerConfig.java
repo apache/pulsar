@@ -412,7 +412,7 @@ public class ManagedLedgerConfig {
 
     /**
      * Size, in bytes, at which the managed ledger will start to automatically offload ledgers to longterm storage.
-     * A negative value disables autotriggering.
+     * A negative value disables autotriggering. A threshold of 0 offloads data as soon as possible.
      * Offloading will not occur if no offloader has been set {@link #setLedgerOffloader(LedgerOffloader)}.
      * Automatical offloading occurs when the ledger is rolled, and the ledgers up to that point exceed the threshold.
      *
