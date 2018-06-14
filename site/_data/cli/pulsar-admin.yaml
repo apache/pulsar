@@ -469,6 +469,17 @@ commands:
       - flags: -t, --threshold
         description: "Maximum number of bytes in a topic backlog before compaction is triggered (eg: 10M, 16G, 3T). 0 disables automatic compaction"
         default: '0'
+  - name: get-offload-threshold
+    description: Get offloadThreshold for a namespace
+    argument: tenant/namespace
+  - name: set-offload-threshold
+    description: Set offloadThreshold for a namespace
+    argument: tenant/namespace
+    options:
+      - flags: -s, --size
+        description: "Maximum number of bytes stored in the pulsar cluster for a topic before data will start being automatically offloaded to longterm storage (eg: 10M, 16G, 3T, 100). Negative values disable automatic offload. 0 triggers offloading as soon as possible."
+        default: '-1'
+
 - name: ns-isolation-policy
   description: Operations for managing namespace isolation policies.
   subcommands:
