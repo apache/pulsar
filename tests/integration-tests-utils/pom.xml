@@ -35,10 +35,10 @@
   <artifactId>integration-tests-utils</artifactId>
   <packaging>jar</packaging>
 
-  <name>Apache Pulsar :: Tests :: Utility module for Arquillian based integration tests</name>
+  <name>Apache Pulsar :: Tests :: Utility module for Container based integration tests</name>
 
   <properties>
-    <arquillian-cube.version>1.15.1</arquillian-cube.version>
+    <testcontainers.version>1.7.3</testcontainers.version>
     <commons-compress.version>1.15</commons-compress.version>
   </properties>
 
@@ -75,10 +75,15 @@
     </dependency>
 
     <dependency>
-      <groupId>org.arquillian.cube</groupId>
-      <artifactId>arquillian-cube-docker</artifactId>
-      <version>${arquillian-cube.version}</version>
+        <groupId>com.google.guava</groupId>
+        <artifactId>guava</artifactId>
+        <version>21.0</version>
     </dependency>
 
+    <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>testcontainers</artifactId>
+        <version>${testcontainers.version}</version>
+    </dependency>
   </dependencies>
 </project>

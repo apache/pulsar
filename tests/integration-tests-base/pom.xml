@@ -34,7 +34,11 @@
   <artifactId>integration-tests-base</artifactId>
   <packaging>pom</packaging>
 
-  <name>Apache Pulsar :: Tests :: Base module for Arquillian based integration tests</name>
+  <properties>
+      <testcontainers.version>1.8.0</testcontainers.version>
+  </properties>
+
+  <name>Apache Pulsar :: Tests :: Base module for Container based integration tests</name>
 
   <dependencies>
 
@@ -51,16 +55,15 @@
     </dependency>
 
     <dependency>
-      <groupId>org.jboss.arquillian.testng</groupId>
-      <artifactId>arquillian-testng-standalone</artifactId>
-      <version>1.1.14.Final</version>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
       <groupId>org.testng</groupId>
       <artifactId>testng</artifactId>
     </dependency>
+
+     <dependency>
+         <groupId>org.testcontainers</groupId>
+         <artifactId>testcontainers</artifactId>
+         <version>${testcontainers.version}</version>
+     </dependency>
   </dependencies>
 
   <build>

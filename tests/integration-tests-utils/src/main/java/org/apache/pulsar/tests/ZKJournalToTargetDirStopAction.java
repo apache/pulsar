@@ -16,27 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.tests;
-
-import org.arquillian.cube.docker.impl.docker.DockerClientExecutor;
-import org.arquillian.cube.impl.model.CubeId;
-import org.arquillian.cube.spi.beforeStop.BeforeStopAction;
-
-public class ZKJournalToTargetDirStopAction implements BeforeStopAction {
-    private DockerClientExecutor dockerClientExecutor;
-    private CubeId containerID;
-
-    public void setDockerClientExecutor(DockerClientExecutor executor) {
-        this.dockerClientExecutor = executor;
-    }
-
-    public void setContainerID(CubeId containerID) {
-        this.containerID = containerID;
-    }
-
-    @Override
-    public void doBeforeStop() {
-        DockerUtils.dumpContainerDirToTargetCompressed(dockerClientExecutor.getDockerClient(),
-                                                       containerID.getId(), "/pulsar/data/zookeeper");
-    }
-}
+//package org.apache.pulsar.tests;
+//
+//import org.arquillian.cube.docker.impl.docker.DockerClientExecutor;
+//import org.arquillian.cube.impl.model.CubeId;
+//import org.arquillian.cube.spi.beforeStop.BeforeStopAction;
+//
+//public class ZKJournalToTargetDirStopAction implements BeforeStopAction {
+//    private DockerClientExecutor dockerClientExecutor;
+//    private CubeId containerID;
+//
+//    public void setDockerClientExecutor(DockerClientExecutor executor) {
+//        this.dockerClientExecutor = executor;
+//    }
+//
+//    public void setContainerID(CubeId containerID) {
+//        this.containerID = containerID;
+//    }
+//
+//    @Override
+//    public void doBeforeStop() {
+//        DockerUtils.dumpContainerDirToTargetCompressed(dockerClientExecutor.getDockerClient(),
+//                                                       containerID.getId(), "/pulsar/data/zookeeper");
+//    }
+//}

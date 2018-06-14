@@ -18,24 +18,24 @@
  */
 package org.apache.pulsar.tests;
 
-import org.arquillian.cube.docker.impl.docker.DockerClientExecutor;
-import org.arquillian.cube.impl.model.CubeId;
-import org.arquillian.cube.spi.beforeStop.BeforeStopAction;
+//import org.arquillian.cube.docker.impl.docker.DockerClientExecutor;
+//import org.arquillian.cube.impl.model.CubeId;
+//import org.arquillian.cube.spi.beforeStop.BeforeStopAction;
 
-public class LogToTargetDirStopAction implements BeforeStopAction {
-    private DockerClientExecutor dockerClientExecutor;
-    private CubeId containerID;
-
-    public void setDockerClientExecutor(DockerClientExecutor executor) {
-        this.dockerClientExecutor = executor;
-    }
-
-    public void setContainerID(CubeId containerID) {
-        this.containerID = containerID;
-    }
-
-    @Override
-    public void doBeforeStop() {
-        DockerUtils.dumpContainerLogToTarget(dockerClientExecutor.getDockerClient(), containerID.getId());
-    }
-}
+//public class LogToTargetDirStopAction implements BeforeStopAction {
+//    private DockerClientExecutor dockerClientExecutor;
+//    private CubeId containerID;
+//
+//    public void setDockerClientExecutor(DockerClientExecutor executor) {
+//        this.dockerClientExecutor = executor;
+//    }
+//
+//    public void setContainerID(CubeId containerID) {
+//        this.containerID = containerID;
+//    }
+//
+//    @Override
+//    public void doBeforeStop() {
+//        DockerUtils.dumpContainerLogToTarget(dockerClientExecutor.getDockerClient(), containerID.getId());
+//    }
+//}

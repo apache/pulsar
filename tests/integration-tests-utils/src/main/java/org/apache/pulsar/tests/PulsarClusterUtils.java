@@ -250,6 +250,28 @@ public class PulsarClusterUtils {
         return false;
     }
 
+    public static boolean waitSocketAvaialble(String containerIp, int port,
+                                      int timeout, TimeUnit timeoutUnit) {
+        long timeoutMillis = timeoutUnit.toMillis(timeout);
+        long pollMillis = 100;
+
+        while (timeoutMillis > 0) {
+            try (Socket socket = new Socket(containerIp, port)) {
+                return true;
+            } catch (Exception e) {
+                // couldn't connect, try again after sleep
+            }
+            try {
+                Thread.sleep(pollMillis);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+            timeoutMillis -= pollMillis;
+        }
+        return false;
+    }
+
     public static boolean waitAllProxiesUp(DockerClient docker, String cluster) {
         return proxySet(docker, cluster).stream()
             .map((b) -> waitProxyUp(docker, b, 60, TimeUnit.SECONDS))
