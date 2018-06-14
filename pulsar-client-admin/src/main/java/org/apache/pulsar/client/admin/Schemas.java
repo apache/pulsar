@@ -18,16 +18,48 @@
  */
 package org.apache.pulsar.client.admin;
 
+import org.apache.pulsar.common.schema.PostSchemaPayload;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
+/**
+ * Admin interface on interacting with schemas.
+ */
 public interface Schemas {
 
-    SchemaInfo getSchemaInfo(String tennant, String namespace, String topic) throws PulsarAdminException;
+    /**
+     * Retrieve the latest schema of a topic.
+     *
+     * @param topic topic name, in fully qualified format
+     * @return latest schema
+     * @throws PulsarAdminException
+     */
+    SchemaInfo getSchemaInfo(String topic) throws PulsarAdminException;
 
-    SchemaInfo getSchemaInfo(String tennant, String namespace, String topic, long version) throws PulsarAdminException;
+    /**
+     * Retrieve the schema of a topic at a given <tt>version</tt>.
+     *
+     * @param topic topic name, in fully qualified format
+     * @param version schema version
+     * @return the schema info at a given <tt>version</tt>
+     * @throws PulsarAdminException
+     */
+    SchemaInfo getSchemaInfo(String topic, long version) throws PulsarAdminException;
 
-    void deleteSchema(String tennant, String namespace, String topic) throws PulsarAdminException;
+    /**
+     * Delete the schema associated with a given <tt>topic</tt>.
+     *
+     * @param topic topic name, in fully qualified format
+     * @throws PulsarAdminException
+     */
+    void deleteSchema(String topic) throws PulsarAdminException;
 
-    void createSchema(String tennant, String namespace, String topic, SchemaInfo info) throws PulsarAdminException;
+    /**
+     * Create a schema for a given <tt>topic</tt>.
+     *
+     * @param topic topic name, in fully qualified format
+     * @param schemaPayload schema payload
+     * @throws PulsarAdminException
+     */
+    void createSchema(String topic, PostSchemaPayload schemaPayload) throws PulsarAdminException;
 
 }

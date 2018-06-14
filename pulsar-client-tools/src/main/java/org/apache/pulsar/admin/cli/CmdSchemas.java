@@ -24,8 +24,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.schema.PostSchemaPayload;
-import org.apache.pulsar.common.schema.SchemaInfo;
-import org.apache.pulsar.common.schema.SchemaType;
 
 @Parameters(commandDescription = "Operations about schemas")
 public class CmdSchemas extends CmdBase {
@@ -33,70 +31,55 @@ public class CmdSchemas extends CmdBase {
 
     public CmdSchemas(PulsarAdmin admin) {
         super("schemas", admin);
+        jcommander.addCommand("get", new GetSchema());
+        jcommander.addCommand("delete", new DeleteSchema());
+        jcommander.addCommand("upload", new UploadSchema());
     }
 
-    @Parameters(commandDescription = "Get the latest schema")
+    @Parameters(commandDescription = "Get the schema for a topic")
     private class GetSchema extends CliCommand {
-        @Parameter(description = "tenant", required = true)
-        private String tennant;
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
 
-        @Parameter(description = "namespace", required = true)
-        private String namespace;
-
-        @Parameter(description = "schema", required = true)
-        private String topic;
-
-        @Parameter(description = "version", required = false)
+        @Parameter(names = { "--version" }, description = "version", required = false)
         private Long version;
 
         @Override
         void run() throws Exception {
+            String topic = validateTopicName(params);
             if (version == null) {
-                print(admin.getSchemas().getSchemaInfo(tennant, namespace, topic));
+                print(admin.schemas().getSchemaInfo(topic));
             } else {
-                print(admin.getSchemas().getSchemaInfo(tennant, namespace, topic, version));
+                print(admin.schemas().getSchemaInfo(topic, version));
             }
         }
     }
 
-    @Parameters(commandDescription = "Delete the latest schema")
+    @Parameters(commandDescription = "Delete the latest schema for a topic")
     private class DeleteSchema extends CliCommand {
-        @Parameter(description = "tenant", required = true)
-        private String tennant;
-
-        @Parameter(description = "namespace", required = true)
-        private String namespace;
-
-        @Parameter(description = "schema", required = true)
-        private String topic;
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
 
         @Override
         void run() throws Exception {
-            admin.getSchemas().deleteSchema(tennant, namespace, topic);
+            String topic = validateTopicName(params);
+            admin.schemas().deleteSchema(topic);
         }
     }
 
+    @Parameters(commandDescription = "Update the schema for a topic")
     private class UploadSchema extends CliCommand {
-        @Parameter(description = "tenant", required = true)
-        private String tennant;
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
 
-        @Parameter(description = "namespace", required = true)
-        private String namespace;
-
-        @Parameter(description = "schema", required = true)
-        private String topic;
-
-        @Parameter(description = "filename", required = true)
+        @Parameter(names = { "-f", "--filename" }, description = "filename", required = true)
         private String schemaFileName;
 
         @Override
         void run() throws Exception {
+            String topic = validateTopicName(params);
             PostSchemaPayload input = MAPPER.readValue(new File(schemaFileName), PostSchemaPayload.class);
-            SchemaInfo info = new SchemaInfo();
-            info.setProperties(input.getProperties());
-            info.setType(SchemaType.valueOf(input.getType()));
-            info.setSchema(input.getSchema().getBytes());
-            admin.getSchemas().createSchema(tennant, namespace, topic, info);
+            admin.schemas().createSchema(topic, input);
         }
     }
 

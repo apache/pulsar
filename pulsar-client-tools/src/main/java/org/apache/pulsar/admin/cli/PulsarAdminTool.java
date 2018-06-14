@@ -22,6 +22,7 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 
 import java.io.FileInputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -110,7 +111,13 @@ public class PulsarAdminTool {
                 jcommander.addCommand(c.getKey(), c.getValue().getConstructor(PulsarAdmin.class).newInstance(admin));
             }
         } catch (Exception e) {
-            System.err.println(e.getClass() + ": " + e.getMessage());
+            Throwable cause;
+            if (e instanceof InvocationTargetException && null != e.getCause()) {
+                cause = e.getCause();
+            } else {
+                cause = e;
+            }
+            System.err.println(cause.getClass() + ": " + cause.getMessage());
             System.exit(1);
         }
     }

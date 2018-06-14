@@ -368,7 +368,7 @@ public class PulsarAdmin implements Closeable {
     /**
      * @return the schemas
      */
-    public Schemas getSchemas() {
+    public Schemas schemas() {
         return schemas;
     }
 

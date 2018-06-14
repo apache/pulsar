@@ -23,30 +23,32 @@ import javax.ws.rs.client.WebTarget;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.schema.DeleteSchemaResponse;
 import org.apache.pulsar.common.schema.GetSchemaResponse;
 import org.apache.pulsar.common.schema.PostSchemaPayload;
-import org.apache.pulsar.common.schema.PostSchemaResponse;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 public class SchemasImpl extends BaseResource implements Schemas {
 
     private final WebTarget target;
 
-    public SchemasImpl(WebTarget target, Authentication auth) {
+    public SchemasImpl(WebTarget web, Authentication auth) {
         super(auth);
-        this.target = target;
+        this.target = web.path("/admin/v2/schemas");
     }
 
     @Override
-    public SchemaInfo getSchemaInfo(String tennant, String namespace, String topic) throws PulsarAdminException {
+    public SchemaInfo getSchemaInfo(String topic) throws PulsarAdminException {
         try {
-            GetSchemaResponse response = request(schemaPath(tennant, namespace, topic)).get(GetSchemaResponse.class);
+            TopicName tn = TopicName.get(topic);
+            GetSchemaResponse response = request(schemaPath(tn)).get(GetSchemaResponse.class);
             SchemaInfo info = new SchemaInfo();
             info.setSchema(response.getData().getBytes());
             info.setType(response.getType());
             info.setProperties(response.getProperties());
-            info.setName(topic);
+            info.setName(tn.getLocalName());
             return info;
         } catch (Exception e) {
             throw getApiException(e);
@@ -54,14 +56,15 @@ public class SchemasImpl extends BaseResource implements Schemas {
     }
 
     @Override
-    public SchemaInfo getSchemaInfo(String tennant, String namespace, String topic, long version) throws PulsarAdminException {
+    public SchemaInfo getSchemaInfo(String topic, long version) throws PulsarAdminException {
         try {
-            GetSchemaResponse response = request(schemaPath(tennant, namespace, topic).path(Long.toString(version))).get(GetSchemaResponse.class);
+            TopicName tn = TopicName.get(topic);
+            GetSchemaResponse response = request(schemaPath(tn).path(Long.toString(version))).get(GetSchemaResponse.class);
             SchemaInfo info = new SchemaInfo();
             info.setSchema(response.getData().getBytes());
             info.setType(response.getType());
             info.setProperties(response.getProperties());
-            info.setName(topic);
+            info.setName(tn.getLocalName());
             return info;
         } catch (Exception e) {
             throw getApiException(e);
@@ -69,27 +72,31 @@ public class SchemasImpl extends BaseResource implements Schemas {
     }
 
     @Override
-    public void deleteSchema(String tennant, String namespace, String topic) throws PulsarAdminException {
+    public void deleteSchema(String topic) throws PulsarAdminException {
         try {
-            request(schemaPath(tennant, namespace, topic)).delete(DeleteSchemaResponse.class);
+            TopicName tn = TopicName.get(topic);
+            request(schemaPath(tn)).delete(DeleteSchemaResponse.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
     }
 
     @Override
-    public void createSchema(String tennant, String namespace, String topic, SchemaInfo info) throws PulsarAdminException {
+    public void createSchema(String topic, PostSchemaPayload payload) throws PulsarAdminException {
         try {
-            PostSchemaPayload payload = new PostSchemaPayload();
-            request(schemaPath(tennant, namespace, topic))
-                .post(Entity.json(payload))
-                .readEntity(PostSchemaResponse.class);
+            TopicName tn = TopicName.get(topic);
+            request(schemaPath(tn))
+                .post(Entity.json(payload), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
     }
 
-    private WebTarget schemaPath(String tennant, String namespace, String topic) {
-        return target.path(tennant).path(namespace).path(topic).path("schema");
+    private WebTarget schemaPath(TopicName topicName) {
+        return target
+            .path(topicName.getTenant())
+            .path(topicName.getNamespacePortion())
+            .path(topicName.getEncodedLocalName())
+            .path("schema");
     }
 }
