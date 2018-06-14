@@ -553,7 +553,7 @@ Pulsar's topic compaction feature:
 
 * Allos for much more efficient "rewind" through topic logs
 * Applies only to [persistent topics](#persistent-storage)
-* Is triggered manually via the command line. See the [Topic compaction cookbook](../../cookbooks/compaction)
+* Triggered automatically when the backlog reaches a certain size or can be triggered manually via the command line. See the [Topic compaction cookbook](../../cookbooks/compaction)
 * Is conceptually and operationally distinct from [retention and expiry](#message-retention-and-expiry). Topic compaction *does*, however, respect retention. If retention has removed a message from the message backlog of a topic, the message will also not be readable from the compacted topic ledger.
 
 {% include admonition.html type="info" title="Topic compaction example: the stock ticker"

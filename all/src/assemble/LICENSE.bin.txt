@@ -467,8 +467,8 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
 
 Eclipse Public License 1.0 -- licenses/LICENSE-AspectJ.txt
  * AspectJ
-    - org.aspectj-aspectjrt-1.8.9.jar
-    - org.aspectj-aspectjweaver-1.8.9.jar
+    - org.aspectj-aspectjrt-1.9.1.jar
+    - org.aspectj-aspectjweaver-1.9.1.jar
 
 Public Domain (CC0) -- licenses/LICENSE-CC0.txt
  * Reactive Streams -- org.reactivestreams-reactive-streams-1.0.0.jar

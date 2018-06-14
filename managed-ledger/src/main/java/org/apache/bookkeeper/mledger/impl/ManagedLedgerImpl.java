@@ -45,6 +45,7 @@ import java.util.Queue;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
@@ -164,6 +165,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private final CallbackMutex ledgersListMutex = new CallbackMutex();
     private final CallbackMutex trimmerMutex = new CallbackMutex();
 
+    private final CallbackMutex offloadMutex = new CallbackMutex();
+    private final static CompletableFuture<PositionImpl> NULL_OFFLOAD_PROMISE
+        = CompletableFuture.completedFuture(PositionImpl.latest);
     private volatile LedgerHandle currentLedger;
     private long currentLedgerEntries = 0;
     private long currentLedgerSize = 0;
@@ -1305,6 +1309,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         trimConsumedLedgersInBackground();
 
+        maybeOffloadInBackground(NULL_OFFLOAD_PROMISE);
+
         if (!pendingAddEntries.isEmpty()) {
             // Need to create a new ledger to write pending entries
             if (log.isDebugEnabled()) {
@@ -1573,6 +1579,63 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private void scheduleDeferredTrimming(CompletableFuture<?> promise) {
         scheduledExecutor.schedule(safeRun(() -> trimConsumedLedgersInBackground(promise)), 100, TimeUnit.MILLISECONDS);
+    }
+
+    private void maybeOffloadInBackground(CompletableFuture<PositionImpl> promise) {
+        if (config.getOffloadAutoTriggerSizeThresholdBytes() > 0) {
+            executor.executeOrdered(name, safeRun(() -> maybeOffload(promise)));
+        }
+    }
+
+    private void maybeOffload(CompletableFuture<PositionImpl> finalPromise) {
+        if (!offloadMutex.tryLock()) {
+            scheduledExecutor.schedule(safeRun(() -> maybeOffloadInBackground(finalPromise)),
+                                       100, TimeUnit.MILLISECONDS);
+        } else {
+            CompletableFuture<PositionImpl> unlockingPromise = new CompletableFuture<>();
+            unlockingPromise.whenComplete((res, ex) -> {
+                    offloadMutex.unlock();
+                    if (ex != null) {
+                        finalPromise.completeExceptionally(ex);
+                    } else {
+                        finalPromise.complete(res);
+                    }
+                });
+
+            long threshold = config.getOffloadAutoTriggerSizeThresholdBytes();
+            long sizeSummed = 0;
+            long alreadyOffloadedSize = 0;
+            long toOffloadSize = 0;
+
+            ConcurrentLinkedDeque<LedgerInfo> toOffload = new ConcurrentLinkedDeque();
+
+            // go through ledger list from newest to oldest and build a list to offload in oldest to newest order
+            for (Map.Entry<Long, LedgerInfo> e : ledgers.descendingMap().entrySet()) {
+                long size = e.getValue().getSize();
+                sizeSummed += size;
+                boolean alreadyOffloaded = e.getValue().hasOffloadContext()
+                    && e.getValue().getOffloadContext().getComplete();
+                if (alreadyOffloaded) {
+                    alreadyOffloadedSize += size;
+                } else if (sizeSummed > threshold) {
+                    toOffloadSize += size;
+                    toOffload.addFirst(e.getValue());
+                }
+            }
+
+            if (toOffload.size() > 0) {
+                log.info("[{}] Going to automatically offload ledgers {}"
+                         + ", total size = {}, already offloaded = {}, to offload = {}",
+                         name, toOffload.stream().map(l -> l.getLedgerId()).collect(Collectors.toList()),
+                         sizeSummed, alreadyOffloadedSize, toOffloadSize);
+            } else {
+                // offloadLoop will complete immediately with an empty list to offload
+                log.debug("[{}] Nothing to offload, total size = {}, already offloaded = {}, threshold = {}",
+                          name, sizeSummed, alreadyOffloadedSize, threshold);
+            }
+
+            offloadLoop(unlockingPromise, toOffload, PositionImpl.latest, Optional.empty());
+        }
     }
 
     private boolean hasLedgerRetentionExpired(long ledgerTimestamp) {
@@ -2002,18 +2065,25 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
 
-        log.info("[{}] Going to offload ledgers {}", name,
-                 ledgersToOffload.stream().map(l -> l.getLedgerId()).collect(Collectors.toList()));
+        if (offloadMutex.tryLock()) {
+            log.info("[{}] Going to offload ledgers {}", name,
+                     ledgersToOffload.stream().map(l -> l.getLedgerId()).collect(Collectors.toList()));
 
-        CompletableFuture<PositionImpl> promise = new CompletableFuture<>();
-        offloadLoop(promise, ledgersToOffload, firstUnoffloaded, Optional.empty());
-        promise.whenComplete((result, exception) -> {
-                if (exception != null) {
-                    callback.offloadFailed(new ManagedLedgerException(exception), ctx);
-                } else {
-                    callback.offloadComplete(result, ctx);
-                }
-            });
+            CompletableFuture<PositionImpl> promise = new CompletableFuture<>();
+            promise.whenComplete((result, exception) -> {
+                    offloadMutex.unlock();
+                    if (exception != null) {
+                        callback.offloadFailed(new ManagedLedgerException(exception), ctx);
+                    } else {
+                        callback.offloadComplete(result, ctx);
+                    }
+                });
+            offloadLoop(promise, ledgersToOffload, firstUnoffloaded, Optional.empty());
+        } else {
+            callback.offloadFailed(
+                    new ManagedLedgerException.OffloadInProgressException("Offload operation already running"),
+                    ctx);
+        }
     }
 
     private void offloadLoop(CompletableFuture<PositionImpl> promise, Queue<LedgerInfo> ledgersToOffload,
@@ -2053,11 +2123,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                             }
                             Optional<Throwable> errorToReport = firstError;
                             synchronized (ManagedLedgerImpl.this) {
-                                ledgersListMutex.lock();
+                                // if the ledger doesn't exist anymore, ignore the error
                                 if (ledgers.containsKey(ledgerId)) {
                                     errorToReport = Optional.of(firstError.orElse(exception));
                                 }
-                                ledgersListMutex.unlock();
                             }
 
                             offloadLoop(promise, ledgersToOffload,
@@ -2086,43 +2155,60 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private CompletableFuture<Void> transformLedgerInfo(long ledgerId, LedgerInfoTransformation transformation) {
-        CompletableFuture<Void> promise = new CompletableFuture<>();
+        CompletableFuture<Void> promise = new CompletableFuture<Void>();
+
+        tryTransformLedgerInfo(ledgerId, transformation, promise);
+
+        return promise;
+    }
+
+    private void tryTransformLedgerInfo(long ledgerId, LedgerInfoTransformation transformation,
+                                        CompletableFuture<Void> finalPromise) {
         synchronized (this) {
-            ledgersListMutex.lock();
+            if (!ledgersListMutex.tryLock()) {
+                // retry in 100 milliseconds
+                scheduledExecutor.schedule(safeRun(() -> tryTransformLedgerInfo(ledgerId, transformation,
+                                                                                finalPromise)),
+                                           100, TimeUnit.MILLISECONDS);
+            } else { // lock acquired
+                CompletableFuture<Void> unlockingPromise = new CompletableFuture<>();
+                unlockingPromise.whenComplete((res, ex) -> {
+                        ledgersListMutex.unlock();
+                        if (ex != null) {
+                            finalPromise.completeExceptionally(ex);
+                        } else {
+                            finalPromise.complete(res);
+                        }
+                    });
 
-            promise.whenComplete((ignore, exception) -> {
-                    ledgersListMutex.unlock();
-                });
+                LedgerInfo oldInfo = ledgers.get(ledgerId);
+                if (oldInfo == null) {
+                    unlockingPromise.completeExceptionally(
+                            new OffloadConflict(
+                                    "Ledger " + ledgerId + " no longer exists in ManagedLedger, likely trimmed"));
+                } else {
+                    try {
+                        LedgerInfo newInfo = transformation.transform(oldInfo);
+                        ledgers.put(ledgerId, newInfo);
+                        store.asyncUpdateLedgerIds(name, getManagedLedgerInfo(), ledgersStat,
+                                new MetaStoreCallback<Void>() {
+                                    @Override
+                                    public void operationComplete(Void result, Stat stat) {
+                                        ledgersStat = stat;
+                                        unlockingPromise.complete(null);
+                                    }
 
-            LedgerInfo oldInfo = ledgers.get(ledgerId);
-            if (oldInfo == null) {
-                promise.completeExceptionally(
-                        new OffloadConflict(
-                                "Ledger " + ledgerId + " no longer exists in ManagedLedger, likely trimmed"));
-            } else {
-                try {
-                    LedgerInfo newInfo = transformation.transform(oldInfo);
-                    ledgers.put(ledgerId, newInfo);
-                    store.asyncUpdateLedgerIds(name, getManagedLedgerInfo(), ledgersStat,
-                            new MetaStoreCallback<Void>() {
-                                @Override
-                                public void operationComplete(Void result, Stat stat) {
-                                    ledgersStat = stat;
-                                    promise.complete(null);
-                                }
-
-                                @Override
-                                public void operationFailed(MetaStoreException e) {
-                                    promise.completeExceptionally(e);
-                                }
-                            });
-                } catch (ManagedLedgerException mle) {
-                    promise.completeExceptionally(mle);
+                                    @Override
+                                    public void operationFailed(MetaStoreException e) {
+                                        unlockingPromise.completeExceptionally(e);
+                                    }
+                                });
+                    } catch (ManagedLedgerException mle) {
+                        unlockingPromise.completeExceptionally(mle);
+                    }
                 }
             }
-
         }
-        return promise;
     }
 
     private CompletableFuture<Void> prepareLedgerInfoForOffloaded(long ledgerId, UUID uuid) {

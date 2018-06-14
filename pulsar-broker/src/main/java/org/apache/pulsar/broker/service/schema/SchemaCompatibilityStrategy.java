@@ -16,29 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include <boost/python.hpp>
+package org.apache.pulsar.broker.service.schema;
 
-#include <pulsar/Client.h>
-
-using namespace pulsar;
-
-namespace py = boost::python;
-
-struct PulsarException {
-    Result _result;
-    PulsarException(Result res) :
-            _result(res) {}
-};
-
-inline void CHECK_RESULT(Result res) {
-    if (res != ResultOk) {
-        throw PulsarException(res);
-    }
+public enum SchemaCompatibilityStrategy {
+    BACKWARD,
+    FORWARD,
+    FULL
 }
-
-struct AuthenticationWrapper {
-    AuthenticationPtr auth;
-
-    AuthenticationWrapper();
-    AuthenticationWrapper(const std::string& dynamicLibPath, const std::string& authParamsString);
-};

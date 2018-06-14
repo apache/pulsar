@@ -18,14 +18,28 @@
  */
 package org.apache.pulsar.client.schemas;
 
+import lombok.extern.slf4j.Slf4j;
+import org.apache.avro.Schema;
 import org.apache.pulsar.client.impl.schema.ProtobufSchema;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.proto.Function;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+@Slf4j
 public class ProtobufSchemaTest {
 
     private static final String NAME = "foo";
+
+    private static final String EXPECTED_SCHEMA_JSON = "{\"type\":\"record\",\"name\":\"TestMessage\"," +
+            "\"namespace\":\"org.apache.pulsar.client.schemas.proto.Test$\",\"fields\":[{\"name\":\"stringField\"," +
+            "\"type\":{\"type\":\"string\",\"avro.java.string\":\"String\"},\"default\":\"\"}," +
+            "{\"name\":\"doubleField\",\"type\":\"double\",\"default\":0},{\"name\":\"intField\",\"type\":\"int\"," +
+            "\"default\":0},{\"name\":\"testEnum\",\"type\":{\"type\":\"enum\",\"name\":\"TestEnum\"," +
+            "\"symbols\":[\"SHARED\",\"FAILOVER\"]},\"default\":\"SHARED\"},{\"name\":\"nestedField\"," +
+            "\"type\":[\"null\",{\"type\":\"record\",\"name\":\"SubMessage\",\"fields\":[{\"name\":\"foo\"," +
+            "\"type\":{\"type\":\"string\",\"avro.java.string\":\"String\"},\"default\":\"\"},{\"name\":\"bar\"," +
+            "\"type\":\"double\",\"default\":0}]}],\"default\":null}]}";
 
     @Test
     public void testEncodeAndDecode() {
@@ -38,5 +52,19 @@ public class ProtobufSchemaTest {
         Function.FunctionDetails message = protobufSchema.decode(bytes);
 
         Assert.assertEquals(message.getName(), NAME);
+    }
+
+    @Test
+    public void testSchema() {
+        ProtobufSchema<org.apache.pulsar.client.schemas.proto.Test.TestMessage> protobufSchema
+                = ProtobufSchema.of(org.apache.pulsar.client.schemas.proto.Test.TestMessage.class);
+
+        Assert.assertEquals(protobufSchema.getSchemaInfo().getType(), SchemaType.PROTOBUF);
+
+        String schemaJson = new String(protobufSchema.getSchemaInfo().getSchema());
+        Schema.Parser parser = new Schema.Parser();
+        Schema schema = parser.parse(schemaJson);
+
+        Assert.assertEquals(schema.toString(), EXPECTED_SCHEMA_JSON);
     }
 }

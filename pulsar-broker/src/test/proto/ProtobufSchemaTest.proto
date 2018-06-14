@@ -16,29 +16,30 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include <boost/python.hpp>
+syntax = "proto3";
+package proto;
 
-#include <pulsar/Client.h>
+option java_package = "org.apache.pulsar.client.api.schema.proto";
+option java_outer_classname = "Test";
 
-using namespace pulsar;
-
-namespace py = boost::python;
-
-struct PulsarException {
-    Result _result;
-    PulsarException(Result res) :
-            _result(res) {}
-};
-
-inline void CHECK_RESULT(Result res) {
-    if (res != ResultOk) {
-        throw PulsarException(res);
-    }
+enum TestEnum {
+    SHARED = 0;
+    FAILOVER = 1;
 }
 
-struct AuthenticationWrapper {
-    AuthenticationPtr auth;
+message SubMessage {
+    string foo = 1;
+    double bar = 2;
+}
 
-    AuthenticationWrapper();
-    AuthenticationWrapper(const std::string& dynamicLibPath, const std::string& authParamsString);
-};
+message TestMessage {
+    string stringField = 1;
+    double doubleField = 2;
+    int32 intField = 3;
+    TestEnum testEnum = 4;
+    SubMessage nestedField = 5;
+}
+
+message TestMessageWrong {
+    float foo = 1;
+}
