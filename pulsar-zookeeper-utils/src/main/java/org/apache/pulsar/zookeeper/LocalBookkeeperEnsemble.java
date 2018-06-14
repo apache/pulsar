@@ -138,12 +138,18 @@ public class LocalBookkeeperEnsemble {
         try {
             // Allow all commands on ZK control port
             System.setProperty("zookeeper.4lw.commands.whitelist", "*");
-            zks = new ZooKeeperServer(zkDataDir, zkDataDir, ZooKeeperServer.DEFAULT_TICK_TIME);
+            zks = new ZooKeeperServer(new FileTxnSnapLogWrapper(zkDataDir, zkDataDir));
+
             serverFactory = new NIOServerCnxnFactory();
             serverFactory.configure(new InetSocketAddress(ZooKeeperDefaultPort), maxCC);
             serverFactory.startup(zks);
         } catch (Exception e) {
             LOG.error("Exception while instantiating ZooKeeper", e);
+
+            if (serverFactory != null) {
+                serverFactory.shutdown();
+            }
+            throw new IOException(e);
         }
 
         boolean b = waitForServerUp(HOSTPORT, CONNECTION_TIMEOUT);

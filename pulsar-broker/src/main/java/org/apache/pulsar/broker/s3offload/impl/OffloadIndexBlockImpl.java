@@ -167,8 +167,8 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
     /**
      * Get the content of the index block as InputStream.
      * Read out in format:
-     *   | index_magic_header | index_block_len | index_entry_count |
-     *   |segment_metadata_len | segment metadata | index entries |
+     *   | index_magic_header | index_block_len | data_object_len | data_header_len |
+     *   | index_entry_count  | segment_metadata_len | segment metadata | index entries... |
      */
     @Override
     public OffloadIndexBlock.IndexInputStream toStream() throws IOException {
@@ -180,8 +180,8 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
             + 4 /* index block length */
             + 8 /* data object length */
             + 8 /* data header length */
-            + 4 /* segment metadata length */
             + 4 /* index entry count */
+            + 4 /* segment metadata length */
             + segmentMetadataLength
             + indexEntryCount * (8 + 4 + 8); /* messageEntryId + blockPartId + blockOffset */
 
@@ -191,9 +191,8 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
             .writeInt(indexBlockLength)
             .writeLong(dataObjectLength)
             .writeLong(dataHeaderLength)
-            .writeInt(segmentMetadataLength)
-            .writeInt(indexEntryCount);
-
+            .writeInt(indexEntryCount)
+            .writeInt(segmentMetadataLength);
         // write metadata
         out.writeBytes(ledgerMetadataByte);
 
@@ -331,8 +330,8 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         int indexBlockLength = dis.readInt();
         this.dataObjectLength = dis.readLong();
         this.dataHeaderLength = dis.readLong();
-        int segmentMetadataLength = dis.readInt();
         int indexEntryCount = dis.readInt();
+        int segmentMetadataLength = dis.readInt();
 
         byte[] metadataBytes = new byte[segmentMetadataLength];
 

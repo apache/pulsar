@@ -120,6 +120,12 @@ commands:
   - name: localrun
     description: Run a Pulsar Function locally
     options:
+    - flags: --cpu
+      description: The CPU to allocate to each function instance (in number of cores)
+    - flags: --ram
+      description: The RAM to allocate to each function instance (in bytes)
+    - flags: --disk
+      description: The disk space to allocate to each function instance (in bytes)
     - flags: --brokerServiceUrl
       description: The URL of the Pulsar broker
     - flags: --className
@@ -163,6 +169,12 @@ commands:
   - name: create
     description: Creates a new Pulsar Function on the target infrastructure
     options:
+    - flags: --cpu
+      description: The CPU to allocate to each function instance (in number of cores)
+    - flags: --ram
+      description: The RAM to allocate to each function instance (in bytes)
+    - flags: --disk
+      description: The disk space to allocate to each function instance (in bytes)
     - flags: --className
       description: The name of the function's class
     - flags: --customSerdeInputs
@@ -447,6 +459,16 @@ commands:
       description: # `{start_boundary}_{end_boundary}`
     - flags: -s, --sub
       description: The subscription name
+  - name: get-compaction-threshold
+    description: Get compactionThreshold for a namespace
+    argument: tenant/namespace
+  - name: set-compaction-threshold
+    description: Set compactionThreshold for a namespace
+    argument: tenant/namespace
+    options:
+      - flags: -t, --threshold
+        description: "Maximum number of bytes in a topic backlog before compaction is triggered (eg: 10M, 16G, 3T). 0 disables automatic compaction"
+        default: '0'
 - name: ns-isolation-policy
   description: Operations for managing namespace isolation policies.
   subcommands:

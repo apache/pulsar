@@ -766,53 +766,33 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    private static long validateSizeString(String s) {
-        char last = s.charAt(s.length() - 1);
-        String subStr = s.substring(0, s.length() - 1);
-        switch (last) {
-        case 'k':
-        case 'K':
-            return Long.parseLong(subStr) * 1024;
+    @Parameters(commandDescription = "Get compactionThreshold for a namespace")
+    private class GetCompactionThreshold extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
 
-        case 'm':
-        case 'M':
-            return Long.parseLong(subStr) * 1024 * 1024;
-
-        case 'g':
-        case 'G':
-            return Long.parseLong(subStr) * 1024 * 1024 * 1024;
-
-        case 't':
-        case 'T':
-            return Long.parseLong(subStr) * 1024 * 1024 * 1024 * 1024;
-
-        default:
-            return Long.parseLong(s);
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(admin.namespaces().getCompactionThreshold(namespace));
         }
     }
 
-    private static int validateTimeString(String s) {
-        char last = s.charAt(s.length() - 1);
-        String subStr = s.substring(0, s.length() - 1);
-        switch (last) {
-        case 'm':
-        case 'M':
-            return Integer.parseInt(subStr);
+    @Parameters(commandDescription = "Set compactionThreshold for a namespace")
+    private class SetCompactionThreshold extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
 
-        case 'h':
-        case 'H':
-            return Integer.parseInt(subStr) * 60;
+        @Parameter(names = { "--threshold", "-t" },
+                   description = "Maximum number of bytes in a topic backlog before compaction is triggered "
+                                 + "(eg: 10M, 16G, 3T). 0 disables automatic compaction",
+                   required = true)
+        private String threshold = "0";
 
-        case 'd':
-        case 'D':
-            return Integer.parseInt(subStr) * 24 * 60;
-
-        case 'w':
-        case 'W':
-            return Integer.parseInt(subStr) * 7 * 24 * 60;
-
-        default:
-            return Integer.parseInt(s);
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().setCompactionThreshold(namespace, validateSizeString(threshold));
         }
     }
 
@@ -874,5 +854,8 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("set-max-consumers-per-topic", new SetMaxConsumersPerTopic());
         jcommander.addCommand("get-max-consumers-per-subscription", new GetMaxConsumersPerSubscription());
         jcommander.addCommand("set-max-consumers-per-subscription", new SetMaxConsumersPerSubscription());
+
+        jcommander.addCommand("get-compaction-threshold", new GetCompactionThreshold());
+        jcommander.addCommand("set-compaction-threshold", new SetCompactionThreshold());
     }
 }

@@ -104,6 +104,7 @@ class ConsumerImpl : public ConsumerImplBase,
     virtual void getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback);
     void handleSeek(Result result, ResultCallback callback);
     virtual void seekAsync(const MessageId& msgId, ResultCallback callback);
+    virtual bool isReadCompacted();
 
    protected:
     void connectionOpened(const ClientConnectionPtr& cnx);
@@ -165,6 +166,7 @@ class ConsumerImpl : public ConsumerImplBase,
     BrokerConsumerStatsImpl brokerConsumerStats_;
 
     MessageCryptoPtr msgCrypto_;
+    const bool readCompacted_;
 
     friend class PulsarFriend;
 };
