@@ -58,7 +58,9 @@ make pulsarShared pulsarStatic -j 3
 cd pulsar-client-cpp
 INCLUDE_DIR=$RPM_BUILD_ROOT/usr/include
 LIB_DIR=$RPM_BUILD_ROOT/usr/lib
-mkdir -p $INCLUDE_DIR $LIB_DIR
+DOC_DIR=$RPM_BUILD_ROOT/usr/share/doc/pulsar-client-%{version}
+DOC_DEVEL_DIR=$RPM_BUILD_ROOT/usr/share/doc/pulsar-client-devel-%{version}
+mkdir -p $INCLUDE_DIR $LIB_DIR $DOC_DIR $DOC_DEVEL_DIR
 
 cp -ar include/pulsar $INCLUDE_DIR
 cp lib/libpulsar.a $LIB_DIR
@@ -66,12 +68,21 @@ cp lib/libpulsar.so.%{pom_version} $LIB_DIR
 cd $LIB_DIR
 ln -s libpulsar.so.%{pom_version} libpulsar.so
 
+# Copy LICENSE files
+cp ../DISCLAIMER $DOC_DIR
+cp ../NOTICE $DOC_DIR
+cp pkg/licenses/* $DOC_DIR
+
+cp $DOC_DIR/* $DOC_DEVEL_DIR/
+
 %files
 %defattr(-,root,root)
 /usr/lib/libpulsar.so
 /usr/lib/libpulsar.so.%{pom_version}
+/usr/share/doc/pulsar-client-%{version}
 
 %files devel
 %defattr(-,root,root)
 /usr/lib/libpulsar.a
 /usr/include/pulsar
+/usr/share/doc/pulsar-client-devel-%{version}
