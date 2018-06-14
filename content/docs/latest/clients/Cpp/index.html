@@ -907,8 +907,6 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
           
           
@@ -1090,6 +1088,8 @@
           
           
           
+          
+          
         </ul>
       </div>
     </div>
@@ -1131,8 +1131,6 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
           
           
@@ -1166,6 +1164,8 @@
           
           
           <li><a href="/docs/latest/clients/Cpp/">The Pulsar C++ client</a></li>
+          
+          
           
           
           
@@ -1413,15 +1413,27 @@
 <p>First, install all of the necessary dependencies:</p>
 
 <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>apt-get <span class="nb">install </span>cmake libssl-dev libcurl4-openssl-dev liblog4cxx-dev <span class="se">\</span>
-  libprotobuf-dev libboost-all-dev libgtest-dev libjsoncpp-dev
+  libprotobuf-dev libboost-all-dev google-mock libgtest-dev libjsoncpp-dev
 </code></pre></div></div>
 
 <p>Then compile and install <a href="https://github.com/google/googletest">Google Test</a>:</p>
 
-<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>git clone https://github.com/google/googletest.git <span class="o">&amp;&amp;</span> <span class="nb">cd </span>googletest
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># libgtest-dev version is 1.18.0 or above</span>
+<span class="nv">$ </span><span class="nb">cd</span> /usr/src/googletest
 <span class="nv">$ </span><span class="nb">sudo </span>cmake <span class="nb">.</span>
 <span class="nv">$ </span><span class="nb">sudo </span>make
-<span class="nv">$ </span><span class="nb">sudo cp</span> <span class="k">*</span>.a /usr/lib
+<span class="nv">$ </span><span class="nb">sudo cp</span> ./googlemock/libgmock.a ./googletest/libgtest.a /usr/lib/
+
+<span class="c"># less than 1.18.0</span>
+<span class="nv">$ </span><span class="nb">cd</span> /usr/src/gtest
+<span class="nv">$ </span><span class="nb">sudo </span>cmake <span class="nb">.</span>
+<span class="nv">$ </span><span class="nb">sudo </span>make
+<span class="nv">$ </span><span class="nb">sudo cp </span>libgtest.a /usr/lib
+
+<span class="nv">$ </span><span class="nb">cd</span> /usr/src/gmock
+<span class="nv">$ </span><span class="nb">sudo </span>cmake <span class="nb">.</span>
+<span class="nv">$ </span><span class="nb">sudo </span>make
+<span class="nv">$ </span><span class="nb">sudo cp </span>libgmock.a /usr/lib
 </code></pre></div></div>
 
 <p>Finally, compile the Pulsar client library for C++ inside the Pulsar repo:</p>
