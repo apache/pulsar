@@ -1053,6 +1053,9 @@ flexible messaging model and an intuitive client API.</description>
 
             <!-- Python requirements files -->
             <exclude>**/requirements.txt</exclude>
+
+            <!-- Configuration Templates -->
+            <exclude>conf/schema_example.conf</exclude>
           </excludes>
         </configuration>
       </plugin>
