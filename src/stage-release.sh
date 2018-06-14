@@ -18,11 +18,26 @@
 # under the License.
 #
 
-set -e
+set -e -x
 
-ROOT_DIR=$(git rev-parse --show-toplevel)
+if [ $# -eq 0 ]; then
+    echo "Required argument with destination directory"
+    exit 1
+fi
 
-docker pull apachepulsar/pulsar-build:centos-7
+DEST_PATH=$1
 
-docker run -it -v $ROOT_DIR:/pulsar apachepulsar/pulsar-build:centos-7 \
-        /build-rpm.sh
+pushd $(dirname "$0")/..
+PULSAR_PATH=$(git rev-parse --show-toplevel)
+VERSION=`cat pom.xml | xmllint --format - | sed "s/xmlns=\".*\"//g" | xmllint --stream --pattern /project/version --debug - |  grep -A 2 "matches pattern" |  grep text |  sed "s/.* [0-9] //g"`
+popd
+
+cp $PULSAR_PATH/all/target/apache-pulsar-$VERSION-src.tar.gz $DEST_PATH
+cp $PULSAR_PATH/all/target/apache-pulsar-$VERSION-bin.tar.gz $DEST_PATH
+
+mkdir $DEST_PATH/RPMS
+cp -r $PULSAR_PATH/pulsar-client-cpp/pkg/rpm/RPMS/x86_64/* $DEST_PATH/RPMS
+
+# Sign all files
+cd $DEST_PATH
+find . -type f | xargs $PULSAR_PATH/src/sign-release.sh

@@ -73,3 +73,5 @@ RUN curl -O -L  https://github.com/curl/curl/releases/download/curl-7_54_0/curl-
     rm -rf /curl-7.54.0.tar.gz /curl-7.54.0
 
 ADD build-rpm.sh /
+
+RUN yum install -y createrepo

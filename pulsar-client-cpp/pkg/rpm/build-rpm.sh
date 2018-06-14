@@ -29,8 +29,6 @@ POM_VERSION=`cat ../../../pom.xml | xmllint --format - | sed "s/xmlns=\".*\"//g"
 # Sanitize VERSION by removing `-incubating` since it's not legal in RPM
 VERSION=`echo $POM_VERSION | awk -F-  '{print $1}'`
 
-echo "RPM Version: $VERSION"
-
 mkdir -p BUILD RPMS SOURCES SPECS SRPMS
 
 cp $ROOT_DIR/all/target/apache-pulsar-$POM_VERSION-src.tar.gz SOURCES
@@ -40,3 +38,6 @@ rpmbuild -v -bb --clean \
         --define "pom_version $POM_VERSION" \
         --define "_topdir $PWD" \
         SPECS/pulsar-client.spec
+
+cd RPMS/x86_64
+createrepo .
