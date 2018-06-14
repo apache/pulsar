@@ -925,6 +925,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>src/main/java/org/apache/pulsar/common/api/proto/PulsarApi.java</exclude>
             <exclude>bin/proto/*</exclude>
             <exclude>**/*.patch</exclude>
+            <exclude>conf/schema_example.conf</exclude>
             <exclude>data/**</exclude>
             <exclude>logs/**</exclude>
             <exclude>**/*.versionsBackup</exclude>
