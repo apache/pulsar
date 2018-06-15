@@ -38,6 +38,9 @@ cp $PULSAR_PATH/all/target/apache-pulsar-$VERSION-bin.tar.gz $DEST_PATH
 mkdir $DEST_PATH/RPMS
 cp -r $PULSAR_PATH/pulsar-client-cpp/pkg/rpm/RPMS/x86_64/* $DEST_PATH/RPMS
 
+mkdir $DEST_PATH/DEB
+cp -r $PULSAR_PATH/pulsar-client-cpp/pkg/deb/BUILD/DEB/* $DEST_PATH/DEB
+
 # Sign all files
 cd $DEST_PATH
 find . -type f | xargs $PULSAR_PATH/src/sign-release.sh
