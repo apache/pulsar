@@ -485,7 +485,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     AVAILABLE_PERMITS_UPDATER.set(this, 0);
                     // For zerosize queue : If the connection is reset and someone is waiting for the messages
                     // or queue was not empty: send a flow command
-                    if (waitingOnReceiveForZeroQueueSize || (conf.getReceiverQueueSize() == 0 && currentSize > 0)) {
+                    if (waitingOnReceiveForZeroQueueSize
+                            || (conf.getReceiverQueueSize() == 0 && (currentSize > 0 || listener != null))) {
                         sendFlowPermitsToBroker(cnx, 1);
                     }
                 } else {
@@ -678,6 +679,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 log.debug("[{}][{}] Ignoring message as it was already being acked earlier by same consumer {}/{}",
                         topic, subscription, msgId);
             }
+            if (listener != null && conf.getReceiverQueueSize() == 0) {
+                increaseAvailablePermits(cnx);
+            }
             return;
         }
 
@@ -722,12 +726,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 // if the conf.getReceiverQueueSize() is 0 then discard message if no one is waiting for it.
                 // if asyncReceive is waiting then notify callback without adding to incomingMessages queue
                 unAckedMessageTracker.add((MessageIdImpl) message.getMessageId());
-                boolean asyncReceivedWaiting = !pendingReceives.isEmpty();
-                if ((conf.getReceiverQueueSize() != 0 || waitingOnReceiveForZeroQueueSize) && !asyncReceivedWaiting) {
-                    incomingMessages.add(message);
-                }
-                if (asyncReceivedWaiting) {
+                if (!pendingReceives.isEmpty()) {
                     notifyPendingReceivedCallback(message, null);
+                } else if (conf.getReceiverQueueSize() != 0 || waitingOnReceiveForZeroQueueSize) {
+                    incomingMessages.add(message);
+                } else if (conf.getReceiverQueueSize() == 0 && listener != null) {
+                    triggerZeroQueueSizeListener(message);
                 }
             } finally {
                 lock.readLock().unlock();
@@ -754,7 +758,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             msgMetadata.recycle();
         }
 
-        if (listener != null) {
+        if (listener != null && conf.getReceiverQueueSize() != 0) {
             // Trigger the notification on the message listener in a separate thread to avoid blocking the networking
             // thread while the message processing happens
             listenerExecutor.execute(() -> {
@@ -814,6 +818,27 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 listenerExecutor.execute(() -> receivedFuture.completeExceptionally(exception));
             }
         }
+    }
+
+    private void triggerZeroQueueSizeListener(final Message<T> message) {
+        checkArgument(conf.getReceiverQueueSize() == 0);
+        checkNotNull(listener, "listener can't be null");
+        checkNotNull(message, "unqueued message can't be null");
+
+        listenerExecutor.execute(() -> {
+            stats.updateNumMsgsReceived(message);
+            try {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}][{}] Calling message listener for unqueued message {}", topic, subscription,
+                            message.getMessageId());
+                }
+                listener.received(ConsumerImpl.this, message);
+            } catch (Throwable t) {
+                log.error("[{}][{}] Message listener error in processing unqueued message: {}", topic, subscription,
+                        message.getMessageId(), t);
+            }
+            increaseAvailablePermits(cnx());
+        });
     }
 
     void receiveIndividualMessagesFromBatch(MessageMetadata msgMetadata, ByteBuf uncompressedPayload,
