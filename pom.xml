@@ -923,6 +923,8 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>src/main/java/org/apache/bookkeeper/mledger/proto/MLDataFormats.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/broker/service/schema/proto/SchemaRegistryFormat.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/common/api/proto/PulsarApi.java</exclude>
+            <exclude>**/ByteBufCodedInputStream.java</exclude>
+            <exclude>**/ByteBufCodedOutputStream.java</exclude>
             <exclude>bin/proto/*</exclude>
             <exclude>**/*.patch</exclude>
             <exclude>data/**</exclude>
@@ -1013,6 +1015,7 @@ flexible messaging model and an intuitive client API.</description>
           <excludes>
             <!-- Other license files -->
             <exclude>licenses/LICENSE-*.txt</exclude>
+            <exclude>pulsar-client-cpp/pkg/licenses/LICENSE-*.txt</exclude>
             <exclude>src/assemble/README.bin.txt</exclude>
             <exclude>src/assemble/LICENSE.bin.txt</exclude>
             <exclude>src/assemble/NOTICE.bin.txt</exclude>
