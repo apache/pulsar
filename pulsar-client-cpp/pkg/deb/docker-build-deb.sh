@@ -22,7 +22,7 @@ set -e
 
 ROOT_DIR=$(git rev-parse --show-toplevel)
 
-docker pull apachepulsar/pulsar-build:centos-7
+docker pull apachepulsar/pulsar-build:debian-9
 
-docker run -it -v $ROOT_DIR:/pulsar apachepulsar/pulsar-build:centos-7 \
-        /pulsar/pulsar-client-cpp/pkg/rpm/build-rpm.sh
+docker run -it -v $ROOT_DIR:/pulsar apachepulsar/pulsar-build:debian-9 \
+        /pulsar/pulsar-client-cpp/pkg/deb/build-deb.sh
