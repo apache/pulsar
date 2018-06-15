@@ -125,4 +125,62 @@ public class TestCLI extends Arquillian {
             // expected
         }
     }
+
+    @Test
+    public void testSchemaCLI() throws Exception {
+        String broker = PulsarClusterUtils.brokerSet(docker, clusterName).stream().findAny().get();
+
+        Assert.assertTrue(DockerUtils.runCommand(
+            docker, broker,
+            "/pulsar/bin/pulsar-client",
+            "produce",
+            "-m",
+            "\"test topic schema\"",
+            "-n",
+            "1",
+            "persistent://public/default/test-schema-cli"
+        ).contains("1 messages successfully produced"));
+
+        Assert.assertTrue(DockerUtils.runCommand(
+            docker, broker,
+            "/pulsar/bin/pulsar-admin",
+            "schemas",
+            "upload",
+            "persistent://public/default/test-schema-cli",
+            "-f",
+            "/pulsar/conf/schema_example.conf"
+        ).isEmpty());
+
+        // get schema
+        Assert.assertTrue(DockerUtils.runCommand(
+            docker, broker,
+            "/pulsar/bin/pulsar-admin",
+            "schemas",
+            "get",
+            "persistent://public/default/test-schema-cli"
+        ).contains("\"type\" : \"STRING\""));
+
+        // delete the schema
+        Assert.assertTrue(DockerUtils.runCommand(
+            docker, broker,
+            "/pulsar/bin/pulsar-admin",
+            "schemas",
+            "delete",
+            "persistent://public/default/test-schema-cli"
+        ).isEmpty());
+
+        // get schema again
+        try {
+            DockerUtils.runCommand(
+                docker, broker,
+                "/pulsar/bin/pulsar-admin",
+                "schemas",
+                "get",
+                "persistent://public/default/test-schema-cli"
+            );
+            fail("Should fail to get schema if the schema is deleted");
+        } catch (RuntimeException re) {
+            // expected
+        }
+    }
 }
