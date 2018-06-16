@@ -386,6 +386,10 @@
 <div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Create a new property.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Schemas.html#createSchema-java.lang.String-PostSchemaPayload-">createSchema(String, PostSchemaPayload)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Schemas.html" title="interface in org.apache.pulsar.client.admin">Schemas</a></dt>
+<dd>
+<div class="block">Create a schema for a given <tt>topic</tt>.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#createSubscription-java.lang.String-java.lang.String-MessageId-">createSubscription(String, String, MessageId)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
 <div class="block">Create a new subscription on a topic</div>
@@ -498,6 +502,10 @@
 <dd>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Delete an existing property.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Schemas.html#deleteSchema-java.lang.String-">deleteSchema(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Schemas.html" title="interface in org.apache.pulsar.client.admin">Schemas</a></dt>
+<dd>
+<div class="block">Delete the schema associated with a given <tt>topic</tt>.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Topics.html#deleteSubscription-java.lang.String-java.lang.String-">deleteSubscription(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Topics.html" title="interface in org.apache.pulsar.client.admin">Topics</a></dt>
 <dd>
@@ -1023,6 +1031,14 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/RetentionPolicies.html#getRetentionTimeInMinutes--">getRetentionTimeInMinutes()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/RetentionPolicies.html" title="class in org.apache.pulsar.common.policies.data">RetentionPolicies</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Schemas.html#getSchemaInfo-java.lang.String-">getSchemaInfo(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Schemas.html" title="interface in org.apache.pulsar.client.admin">Schemas</a></dt>
+<dd>
+<div class="block">Retrieve the latest schema of a topic.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Schemas.html#getSchemaInfo-java.lang.String-long-">getSchemaInfo(String, long)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Schemas.html" title="interface in org.apache.pulsar.client.admin">Schemas</a></dt>
+<dd>
+<div class="block">Retrieve the schema of a topic at a given <tt>version</tt>.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/impl/NamespaceIsolationPolicyImpl.html#getSecondaryBrokers--">getSecondaryBrokers()</a></span> - Method in class org.apache.pulsar.common.policies.impl.<a href="org/apache/pulsar/common/policies/impl/NamespaceIsolationPolicyImpl.html" title="class in org.apache.pulsar.common.policies.impl">NamespaceIsolationPolicyImpl</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/NamespaceIsolationPolicy.html#getSecondaryBrokers--">getSecondaryBrokers()</a></span> - Method in interface org.apache.pulsar.common.policies.<a href="org/apache/pulsar/common/policies/NamespaceIsolationPolicy.html" title="interface in org.apache.pulsar.common.policies">NamespaceIsolationPolicy</a></dt>
@@ -1742,6 +1758,12 @@
 </a>
 <h2 class="title">S</h2>
 <dl>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdmin.html#schemas--">schemas()</a></span> - Method in class org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin">PulsarAdmin</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/client/admin/Schemas.html" title="interface in org.apache.pulsar.client.admin"><span class="typeNameLink">Schemas</span></a> - Interface in <a href="org/apache/pulsar/client/admin/package-summary.html">org.apache.pulsar.client.admin</a></dt>
+<dd>
+<div class="block">Admin interface on interacting with schemas.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NamespaceIsolationData.html#secondary">secondary</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NamespaceIsolationData.html" title="class in org.apache.pulsar.common.policies.data">NamespaceIsolationData</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdminException.ServerSideErrorException.html#ServerSideErrorException-ServerErrorException-">ServerSideErrorException(ServerErrorException)</a></span> - Constructor for exception org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdminException.ServerSideErrorException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.ServerSideErrorException</a></dt>
