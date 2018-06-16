@@ -162,6 +162,8 @@ groups:
     endpoint: schema-storage
   - title: Modular load manager
     endpoint: ModularLoadManager
+  - title: Building Pulsar C++ client
+    endpoint: CompileCpp
 
 - title: Reference
   dir: reference
