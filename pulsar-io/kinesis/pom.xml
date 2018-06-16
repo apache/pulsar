@@ -108,6 +108,12 @@
                   <include>com.fasterxml.jackson*:*</include>
                 </includes>
               </artifactSet>
+              <relocations>
+                <relocation>
+                  <pattern>com.google.protobuf</pattern>
+                  <shadedPattern>org.apache.pulsar.replicator.com.google.protobuf</shadedPattern>
+                </relocation>
+              </relocations>
             </configuration>
           </execution>
         </executions>
