@@ -57,6 +57,7 @@
 
               <artifactSet>
                 <includes>
+                  <include>org.apache.pulsar:pulsar-functions-proto</include>
                   <include>org.apache.pulsar:pulsar-io-core</include>
                   <include>org.apache.pulsar:pulsar-client-original</include>
                   <include>org.apache.pulsar:pulsar-client-admin-original</include>
@@ -84,7 +85,19 @@
                   <include>javax.annotation:*</include>
                   <include>org.glassfish.hk2*:*</include>
                   <include>com.fasterxml.jackson.*:*</include>
-                  <include>org.apache.avro:avro</include>
+                  <include>io.grpc:*</include>
+                  <include>com.yahoo.datasketches:*</include>
+                  <include>io.netty:*</include>
+                  <include>com.squareup.*:*</include>
+                  <include>com.google.*:*</include>
+                  <include>commons-*:*</include>
+                  <include>org.apache.httpcomponents:*</include>
+                  <include>org.eclipse.jetty:*</include>
+                  <include>com.google.auth:*</include>
+                  <include>org.jvnet.mimepull:*</include>
+                  <include>io.opencensus:*</include>
+
+                  <include>org.apache.avro:*</include>
                   <!-- Avro transitive dependencies-->
                   <include>org.codehaus.jackson:jackson-core-asl</include>
                   <include>org.codehaus.jackson:jackson-mapper-asl</include>
@@ -215,6 +228,30 @@
                   <relocation>
                       <pattern>org.tukaani</pattern>
                       <shadedPattern>org.apache.pulsar.shade.org.tukaani</shadedPattern>
+                  </relocation>
+                  <relocation>
+                      <pattern>io.grpc</pattern>
+                      <shadedPattern>org.apache.pulsar.shade.io.grpc</shadedPattern>
+                  </relocation>
+                  <relocation>
+                      <pattern>okio</pattern>
+                      <shadedPattern>org.apache.pulsar.shade.okio</shadedPattern>
+                  </relocation>
+                  <relocation>
+                      <pattern>com.squareup</pattern>
+                      <shadedPattern>org.apache.pulsar.shade.com.squareup</shadedPattern>
+                  </relocation>
+                  <relocation>
+                      <pattern>io.opencensus</pattern>
+                      <shadedPattern>org.apache.pulsar.shade.io.opencensus</shadedPattern>
+                  </relocation>
+                  <relocation>
+                      <pattern>org.eclipse.jetty</pattern>
+                      <shadedPattern>org.apache.pulsar.shade.org.eclipse.jetty</shadedPattern>
+                  </relocation>
+                  <relocation>
+                      <pattern>org.apache.http</pattern>
+                      <shadedPattern>org.apache.pulsar.shade.org.apache.http</shadedPattern>
                   </relocation>
               </relocations>
               <transformers>

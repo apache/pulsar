@@ -78,7 +78,10 @@
                   <include>io.netty:netty</include>
                   <include>io.netty:netty-all</include>
                   <include>io.netty:netty-tcnative-boringssl-static</include>
-                  
+                  <include>org.eclipse.jetty:*</include>
+                  <include>com.yahoo.datasketches:*</include>
+                  <include>commons-*:*</include>
+
                   <include>org.apache.pulsar:pulsar-common</include>
                   <include>org.apache.bookkeeper:circe-checksum</include>
                   <include>net.jpountz.lz4:lz4</include>
@@ -86,7 +89,7 @@
                   <include>org.apache.httpcomponents:httpclient</include>
                   <include>commons-logging:commons-logging</include>
                   <include>org.apache.httpcomponents:httpcore</include>
-                  <include>org.apache.avro:avro</include>
+                  <include>org.apache.avro:*</include>
                   <!-- Avro transitive dependencies-->
                   <include>org.codehaus.jackson:jackson-core-asl</include>
                   <include>org.codehaus.jackson:jackson-mapper-asl</include>
@@ -195,6 +198,22 @@
                 <relocation>
                   <pattern>org.tukaani</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.tukaani</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.eclipse.jetty</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.eclipse</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.reactivestreams</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.reactivestreams</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.typesafe</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.typesafe</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.yahoo.memory</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.yahoo.memory</shadedPattern>
                 </relocation>
               </relocations>
               <transformers>
