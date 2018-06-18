@@ -679,7 +679,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 log.debug("[{}][{}] Ignoring message as it was already being acked earlier by same consumer {}/{}",
                         topic, subscription, msgId);
             }
-            if (listener != null && conf.getReceiverQueueSize() == 0) {
+            if (conf.getReceiverQueueSize() == 0) {
                 increaseAvailablePermits(cnx);
             }
             return;
