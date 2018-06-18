@@ -116,6 +116,8 @@
               <h3 class="dropdown-header">Other releases</h3>
 
               
+                  <a class="dropdown-item" href="/docs/v1.22.1-incubating/getting-started/LocalCluster">1.22.1-incubating</a>
+              
                   <a class="dropdown-item" href="/docs/v1.22.0-incubating/getting-started/LocalCluster">1.22.0-incubating</a>
               
                   <a class="dropdown-item" href="/docs/v1.21.0-incubating/getting-started/LocalCluster">1.21.0-incubating</a>
@@ -701,6 +703,13 @@
           
           
           <li>
+            <a href="../../cookbooks/tiered-storage">
+              Tiered Storage
+            </a>
+          </li>
+          
+          
+          <li>
             <a href="../../cookbooks/compaction">
               Topic compaction
             </a>
@@ -797,6 +806,13 @@
           <li>
             <a href="../../project/ModularLoadManager">
               Modular load manager
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../project/CompileCpp">
+              Building Pulsar C++ client
             </a>
           </li>
           
@@ -920,6 +936,10 @@
           
           
           
+          
+          
+          
+          <li><a href="/docs/latest/project/CompileCpp/">Building Pulsar C++ client</a></li>
           
           
           
@@ -1090,6 +1110,8 @@
           
           
           
+          
+          
         </ul>
       </div>
     </div>
@@ -1155,6 +1177,10 @@
           
           
           
+          <li><a href="/docs/latest/project/CompileCpp/">Building Pulsar C++ client</a></li>
+          
+          
+          
           
           
           
@@ -1164,6 +1190,8 @@
           
           
           <li><a href="/docs/latest/clients/Cpp/">The Pulsar C++ client</a></li>
+          
+          
           
           
           
@@ -1352,127 +1380,91 @@
 
 -->
 
-<!-- source: https://github.com/apache/incubator-Âpulsar/tree/master/pulsar-client-cpp -->
-
-<!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<div class="admonition">
-  <div class="info">
-    
-    
-<p>We welcome contributions from the open source community, kindly make sure your changes are backward compatible with gcc-4.4.7 and Boost 1.41.</p>
-
-  </div>
-</div>
-
 <h2 id="supported-platforms">Supported platforms</h2>
 
 <p>The Pulsar C++ client has been successfully tested on <strong>MacOS</strong> and <strong>Linux</strong>.</p>
 
-<h2 id="system-requirements">System requirements</h2>
+<h2 id="linux">Linux</h2>
 
-<p>You need to have the following installed to use the C++ client:</p>
+<p>There are recipes that build RPM and Debian packages containing a
+statically linked <code class="highlighter-rouge">libpulsar.so</code> / <code class="highlighter-rouge">libpulsar.a</code> with all the required
+dependencies.</p>
 
-<ul>
-  <li><a href="https://cmake.org/">CMake</a></li>
-  <li><a href="http://www.boost.org/">Boost</a></li>
-  <li><a href="https://developers.google.com/protocol-buffers/">Protocol Buffers</a> 2.6</li>
-  <li><a href="https://logging.apache.org/log4cxx">Log4CXX</a></li>
-  <li><a href="https://curl.haxx.se/libcurl/">libcurl</a></li>
-  <li><a href="https://github.com/google/googletest">Google Test</a></li>
-  <li><a href="https://github.com/open-source-parsers/jsoncpp">JsonCpp</a></li>
-</ul>
+<p>To build the C++ library packages, first build the Java packages:</p>
 
-<h2 id="compilation">Compilation</h2>
-
-<p>There are separate compilation instructions for <a href="#macos">MacOS</a> and <a href="#linux">Linux</a>. For both systems, start by cloning the Pulsar repository:</p>
-
-<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>git clone https://github.com/apache/incubator-pulsar/tree/master
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>mvn <span class="nb">install</span> <span class="nt">-DskipTests</span>
 </code></pre></div></div>
 
-<h3 id="linux">Linux</h3>
+<h4 id="rpm">RPM</h4>
 
-<p>First, install all of the necessary dependencies:</p>
-
-<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>apt-get <span class="nb">install </span>cmake libssl-dev libcurl4-openssl-dev liblog4cxx-dev <span class="se">\</span>
-  libprotobuf-dev libboost-all-dev google-mock libgtest-dev libjsoncpp-dev
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pulsar-client-cpp/pkg/rpm/docker-build-rpm.sh
 </code></pre></div></div>
 
-<p>Then compile and install <a href="https://github.com/google/googletest">Google Test</a>:</p>
+<p>This will build the RPM inside a Docker container and it will leave the RPMs
+in <code class="highlighter-rouge">pulsar-client-cpp/pkg/rpm/RPMS/x86_64/</code>.</p>
 
-<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># libgtest-dev version is 1.18.0 or above</span>
-<span class="nv">$ </span><span class="nb">cd</span> /usr/src/googletest
-<span class="nv">$ </span><span class="nb">sudo </span>cmake <span class="nb">.</span>
-<span class="nv">$ </span><span class="nb">sudo </span>make
-<span class="nv">$ </span><span class="nb">sudo cp</span> ./googlemock/libgmock.a ./googletest/libgtest.a /usr/lib/
+<table>
+  <thead>
+    <tr>
+      <th>Package name</th>
+      <th>Content</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>pulsar-client</td>
+      <td>Shared library <code class="highlighter-rouge">libpulsar.so</code></td>
+    </tr>
+    <tr>
+      <td>pulsar-client-devel</td>
+      <td>Static library <code class="highlighter-rouge">libpulsar.a</code> and C++ and C headers</td>
+    </tr>
+    <tr>
+      <td>pulsar-client-debuginfo</td>
+      <td>Debug symbols for <code class="highlighter-rouge">libpulsar.so</code></td>
+    </tr>
+  </tbody>
+</table>
 
-<span class="c"># less than 1.18.0</span>
-<span class="nv">$ </span><span class="nb">cd</span> /usr/src/gtest
-<span class="nv">$ </span><span class="nb">sudo </span>cmake <span class="nb">.</span>
-<span class="nv">$ </span><span class="nb">sudo </span>make
-<span class="nv">$ </span><span class="nb">sudo cp </span>libgtest.a /usr/lib
+<h4 id="deb">Deb</h4>
 
-<span class="nv">$ </span><span class="nb">cd</span> /usr/src/gmock
-<span class="nv">$ </span><span class="nb">sudo </span>cmake <span class="nb">.</span>
-<span class="nv">$ </span><span class="nb">sudo </span>make
-<span class="nv">$ </span><span class="nb">sudo cp </span>libgmock.a /usr/lib
+<p>To build Debian packages:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pulsar-client-cpp/pkg/deb/docker-build-deb.sh
 </code></pre></div></div>
 
-<p>Finally, compile the Pulsar client library for C++ inside the Pulsar repo:</p>
+<p>Debian packages will be created at <code class="highlighter-rouge">pulsar-client-cpp/pkg/deb/BUILD/DEB/</code></p>
 
-<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span><span class="nb">cd </span>pulsar-client-cpp
-<span class="nv">$ </span>cmake <span class="nb">.</span>
-<span class="nv">$ </span>make
+<table>
+  <thead>
+    <tr>
+      <th>Package name</th>
+      <th>Content</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>pulsar-client</td>
+      <td>Shared library <code class="highlighter-rouge">libpulsar.so</code></td>
+    </tr>
+    <tr>
+      <td>pulsar-client-dev</td>
+      <td>Static library <code class="highlighter-rouge">libpulsar.a</code> and C++ and C headers</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="macos">MacOS</h2>
+
+<p>Use the <a href="https://brew.sh/">Homebrew</a> supplied recipe to build the Pulsar
+client lib on MacOS.</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>brew <span class="nb">install </span>https://raw.githubusercontent.com/apache/incubator-pulsar/master/pulsar-client-cpp/homebrew/libpulsar.rb
 </code></pre></div></div>
 
-<p>The resulting files, <code class="highlighter-rouge">libpulsar.so</code> and <code class="highlighter-rouge">libpulsar.a</code>, will be placed in the <code class="highlighter-rouge">lib</code> folder of the repo while two tools, <code class="highlighter-rouge">perfProducer</code> and <code class="highlighter-rouge">perfConsumer</code>, will be placed in the <code class="highlighter-rouge">perf</code> directory.</p>
+<p>If using Python 3 on MacOS, add the flag <code class="highlighter-rouge">--with-python3</code> to the above command.</p>
 
-<h3 id="macos">MacOS</h3>
-
-<p>First, install all of the necessary dependencies:</p>
-
-<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># OpenSSL installation</span>
-<span class="nv">$ </span>brew <span class="nb">install </span>openssl
-<span class="nv">$ </span><span class="nb">export </span><span class="nv">OPENSSL_INCLUDE_DIR</span><span class="o">=</span>/usr/local/opt/openssl/include/
-<span class="nv">$ </span><span class="nb">export </span><span class="nv">OPENSSL_ROOT_DIR</span><span class="o">=</span>/usr/local/opt/openssl/
-
-<span class="c"># Protocol Buffers installation</span>
-<span class="nv">$ </span>brew tap homebrew/versions
-<span class="nv">$ </span>brew <span class="nb">install </span>protobuf260
-<span class="nv">$ </span>brew <span class="nb">install </span>boost
-<span class="nv">$ </span>brew <span class="nb">install </span>log4cxx
-
-<span class="c"># Google Test installation</span>
-<span class="nv">$ </span>git clone https://github.com/google/googletest.git
-<span class="nv">$ </span><span class="nb">cd </span>googletest
-<span class="nv">$ </span>cmake <span class="nb">.</span>
-<span class="nv">$ </span>make <span class="nb">install</span>
-</code></pre></div></div>
-
-<p>Then compile the Pulsar client library in the repo that you cloned:</p>
-
-<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span><span class="nb">cd </span>pulsar-client-cpp
-<span class="nv">$ </span>cmake <span class="nb">.</span>
-<span class="nv">$ </span>make
-</code></pre></div></div>
+<p>This will install the package with the library and headers.</p>
 
 <h2 id="connection-urls">Connection URLs</h2>
 
@@ -1519,7 +1511,7 @@
 <div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Client</span> <span class="n">client</span><span class="p">(</span><span class="s">"pulsar://localhost:6650"</span><span class="p">);</span>
 
 <span class="n">Consumer</span> <span class="n">consumer</span><span class="p">;</span>
-<span class="n">Result</span> <span class="n">result</span> <span class="o">=</span> <span class="n">client</span><span class="p">.</span><span class="n">subscribe</span><span class="p">(</span><span class="s">"persistent://public/default/my-topic"</span><span class="p">,</span> <span class="s">"my-subscribtion-name"</span><span class="p">,</span> <span class="n">consumer</span><span class="p">);</span>
+<span class="n">Result</span> <span class="n">result</span> <span class="o">=</span> <span class="n">client</span><span class="p">.</span><span class="n">subscribe</span><span class="p">(</span><span class="s">"my-topic"</span><span class="p">,</span> <span class="s">"my-subscribtion-name"</span><span class="p">,</span> <span class="n">consumer</span><span class="p">);</span>
 <span class="k">if</span> <span class="p">(</span><span class="n">result</span> <span class="o">!=</span> <span class="n">ResultOk</span><span class="p">)</span> <span class="p">{</span>
     <span class="n">LOG_ERROR</span><span class="p">(</span><span class="s">"Failed to subscribe: "</span> <span class="o">&lt;&lt;</span> <span class="n">result</span><span class="p">);</span>
     <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
@@ -1529,7 +1521,8 @@
 
 <span class="k">while</span> <span class="p">(</span><span class="nb">true</span><span class="p">)</span> <span class="p">{</span>
     <span class="n">consumer</span><span class="p">.</span><span class="n">receive</span><span class="p">(</span><span class="n">msg</span><span class="p">);</span>
-    <span class="n">LOG_INFO</span><span class="p">(</span><span class="s">"Received: "</span> <span class="o">&lt;&lt;</span> <span class="n">msg</span> <span class="o">&lt;&lt;</span> <span class="s">"  with payload '"</span> <span class="o">&lt;&lt;</span> <span class="n">msg</span><span class="p">.</span><span class="n">getDataAsString</span><span class="p">()</span> <span class="o">&lt;&lt;</span> <span class="s">"'"</span><span class="p">);</span>
+    <span class="n">LOG_INFO</span><span class="p">(</span><span class="s">"Received: "</span> <span class="o">&lt;&lt;</span> <span class="n">msg</span>
+            <span class="o">&lt;&lt;</span> <span class="s">"  with payload '"</span> <span class="o">&lt;&lt;</span> <span class="n">msg</span><span class="p">.</span><span class="n">getDataAsString</span><span class="p">()</span> <span class="o">&lt;&lt;</span> <span class="s">"'"</span><span class="p">);</span>
 
     <span class="n">consumer</span><span class="p">.</span><span class="n">acknowledge</span><span class="p">(</span><span class="n">msg</span><span class="p">);</span>
 <span class="p">}</span>
@@ -1539,17 +1532,17 @@
 
 <h2 id="producer">Producer</h2>
 
-<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Client</span> <span class="n">client</span><span class="p">(</span><span class="s">"pulsar://localhost:6650"</span><span class="p">);</span>
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Client</span> <span class="n">client</span><span class="p">(</span><span class="s">"pulsar://localhost:6650"</span><span class="p">);</span>
 
 <span class="n">Producer</span> <span class="n">producer</span><span class="p">;</span>
-<span class="n">Result</span> <span class="n">result</span> <span class="o">=</span> <span class="n">client</span><span class="p">.</span><span class="n">createProducer</span><span class="p">(</span><span class="s">"persistent://public/default/my-topic"</span><span class="p">,</span> <span class="n">producer</span><span class="p">);</span>
+<span class="n">Result</span> <span class="n">result</span> <span class="o">=</span> <span class="n">client</span><span class="p">.</span><span class="n">createProducer</span><span class="p">(</span><span class="s">"my-topic"</span><span class="p">,</span> <span class="n">producer</span><span class="p">);</span>
 <span class="k">if</span> <span class="p">(</span><span class="n">result</span> <span class="o">!=</span> <span class="n">ResultOk</span><span class="p">)</span> <span class="p">{</span>
     <span class="n">LOG_ERROR</span><span class="p">(</span><span class="s">"Error creating producer: "</span> <span class="o">&lt;&lt;</span> <span class="n">result</span><span class="p">);</span>
     <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
 <span class="p">}</span>
 
 <span class="c1">// Publish 10 messages to the topic</span>
-<span class="k">for</span><span class="p">(</span><span class="kt">int</span> <span class="n">i</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="n">i</span><span class="o">&lt;</span><span class="mi">10</span><span class="p">;</span><span class="n">i</span><span class="o">++</span><span class="p">){</span>
+<span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">){</span>
     <span class="n">Message</span> <span class="n">msg</span> <span class="o">=</span> <span class="n">MessageBuilder</span><span class="p">().</span><span class="n">setContent</span><span class="p">(</span><span class="s">"my-message"</span><span class="p">).</span><span class="n">build</span><span class="p">();</span>
     <span class="n">Result</span> <span class="n">res</span> <span class="o">=</span> <span class="n">producer</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="n">msg</span><span class="p">);</span>
     <span class="n">LOG_INFO</span><span class="p">(</span><span class="s">"Message sent: "</span> <span class="o">&lt;&lt;</span> <span class="n">res</span><span class="p">);</span>
@@ -1561,17 +1554,12 @@
 
 <div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">ClientConfiguration</span> <span class="n">config</span> <span class="o">=</span> <span class="n">ClientConfiguration</span><span class="p">();</span>
 <span class="n">config</span><span class="p">.</span><span class="n">setUseTls</span><span class="p">(</span><span class="nb">true</span><span class="p">);</span>
-<span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">certfile</span> <span class="o">=</span> <span class="s">"/path/to/cacert.pem"</span><span class="p">;</span>
-
-<span class="n">ParamMap</span> <span class="n">params</span><span class="p">;</span>
-<span class="n">params</span><span class="p">[</span><span class="s">"tlsCertFile"</span><span class="p">]</span> <span class="o">=</span> <span class="s">"/path/to/client-cert.pem"</span><span class="p">;</span>
-<span class="n">params</span><span class="p">[</span><span class="s">"tlsKeyFile"</span><span class="p">]</span>  <span class="o">=</span> <span class="s">"/path/to/client-key.pem"</span><span class="p">;</span>
-<span class="n">config</span><span class="p">.</span><span class="n">setTlsTrustCertsFilePath</span><span class="p">(</span><span class="n">certfile</span><span class="p">);</span>
+<span class="n">config</span><span class="p">.</span><span class="n">setTlsTrustCertsFilePath</span><span class="p">(</span><span class="s">"/path/to/cacert.pem"</span><span class="p">);</span>
 <span class="n">config</span><span class="p">.</span><span class="n">setTlsAllowInsecureConnection</span><span class="p">(</span><span class="nb">false</span><span class="p">);</span>
-<span class="n">AuthenticationPtr</span> <span class="n">auth</span> <span class="o">=</span> <span class="n">pulsar</span><span class="o">::</span><span class="n">AuthFactory</span><span class="o">::</span><span class="n">create</span><span class="p">(</span><span class="s">"/path/to/libauthtls.so"</span><span class="p">,</span> <span class="n">params</span><span class="p">);</span>
-<span class="n">config</span><span class="p">.</span><span class="n">setAuth</span><span class="p">(</span><span class="n">auth</span><span class="p">);</span>
+<span class="n">config</span><span class="p">.</span><span class="n">setAuth</span><span class="p">(</span><span class="n">pulsar</span><span class="o">::</span><span class="n">AuthTls</span><span class="o">::</span><span class="n">create</span><span class="p">(</span>
+            <span class="s">"/path/to/client-cert.pem"</span><span class="p">,</span> <span class="s">"/path/to/client-key.pem"</span><span class="p">););</span>
 
-<span class="n">Client</span> <span class="n">client</span><span class="p">(</span><span class="s">"pulsar+ssl://my-broker.com:6651"</span><span class="p">,</span><span class="n">config</span><span class="p">);</span>
+<span class="n">Client</span> <span class="n">client</span><span class="p">(</span><span class="s">"pulsar+ssl://my-broker.com:6651"</span><span class="p">,</span> <span class="n">config</span><span class="p">);</span>
 </code></pre></div></div>
 
       </section>

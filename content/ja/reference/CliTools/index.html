@@ -116,6 +116,8 @@
               <h3 class="dropdown-header">Other releases</h3>
 
               
+                  <a class="dropdown-item" href="/docs/v1.22.1-incubating/getting-started/LocalCluster">1.22.1-incubating</a>
+              
                   <a class="dropdown-item" href="/docs/v1.22.0-incubating/getting-started/LocalCluster">1.22.0-incubating</a>
               
                   <a class="dropdown-item" href="/docs/v1.21.0-incubating/getting-started/LocalCluster">1.21.0-incubating</a>
@@ -726,6 +728,8 @@
           
           
           
+          
+          
           <li><a href="/ja/deployment/InstanceSetup/">Pulsarインスタンスのデプロイ</a></li>
           
           
@@ -787,6 +791,8 @@
           
           
           <li><a href="/ja/advanced/RetentionExpiry/">メッセージの保存と有効期限</a></li>
+          
+          
           
           
           
@@ -1099,6 +1105,10 @@
           
           
           
+          
+          
+          
+          
         </ul>
       </div>
     </div>
@@ -1151,6 +1161,8 @@
           
           
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
+          
+          
           
           
           
@@ -1331,6 +1343,8 @@
           
           
           
+          
+          
         </ul>
       </div>
     </div>
@@ -1383,6 +1397,10 @@
           
           
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
+          
+          
+          
+          
           
           
           
@@ -1783,6 +1801,10 @@
           
           
           
+          
+          
+          
+          
         </ul>
       </div>
     </div>
@@ -1835,6 +1857,10 @@
           
           
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
+          
+          
+          
+          
           
           
           
@@ -5739,6 +5765,18 @@
               <code class="highlighter-rouge">set-compaction-threshold</code>
             </a>
           </li>
+          
+          <li>
+            <a href="#pulsar-admin-namespaces-get-offload-threshold">
+              <code class="highlighter-rouge">get-offload-threshold</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-namespaces-set-offload-threshold">
+              <code class="highlighter-rouge">set-offload-threshold</code>
+            </a>
+          </li>
            <!-- for subcommand in subcommands -->
         </ul>
 
@@ -6635,6 +6673,61 @@
              <!-- if command.example -->
           </div>
         </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-namespaces-get-offload-threshold"><code class="highlighter-rouge">get-offload-threshold</code></h4>
+          <div class="card-content">
+            <p>Get offloadThreshold for a namespace</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces get-offload-threshold <span class="command">tenant/namespace</span></code></pre></div>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-namespaces-set-offload-threshold"><code class="highlighter-rouge">set-offload-threshold</code></h4>
+          <div class="card-content">
+            <p>Set offloadThreshold for a namespace</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin namespaces set-offload-threshold <span class="command">tenant/namespace</span> <span class="options">options</span></code></pre></div>
+            
+            <h5>Options</h5>
+            <table class="options-table">
+              <thead>
+                <tr>
+                  <th>Flag</th>
+                  <th>Description</th>
+                  <th>Default</th>
+                </tr>
+                <tbody>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">-s</code>
+                      , 
+                      
+                      <code class="highlighter-rouge">--size</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>Maximum number of bytes stored in the pulsar cluster for a topic before data will start being automatically offloaded to longterm storage (eg: 10M, 16G, 3T, 100). Negative values disable automatic offload. 0 triggers offloading as soon as possible.</p>
+</td>
+                    <td>
+                      <p>-1</p>
+
+                    </td>
+                  </tr>
+                   <!-- for option in options -->
+                </tbody>
+              </thead>
+            </table>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
        <!-- for subcommand in subcommands -->
       
       </div>
@@ -6854,6 +6947,18 @@
           </li>
           
           <li>
+            <a href="#pulsar-admin-topics-offload">
+              <code class="highlighter-rouge">offload</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-topics-offload-status">
+              <code class="highlighter-rouge">offload-status</code>
+            </a>
+          </li>
+          
+          <li>
             <a href="#pulsar-admin-topics-create-partitioned-topic">
               <code class="highlighter-rouge">create-partitioned-topic</code>
             </a>
@@ -7050,6 +7155,92 @@
                     <td>
                       <p>false</p>
 
+                    </td>
+                  </tr>
+                   <!-- for option in options -->
+                </tbody>
+              </thead>
+            </table>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-topics-offload"><code class="highlighter-rouge">offload</code></h4>
+          <div class="card-content">
+            <p>Trigger offload of data from a topic to long-term storage (e.g. Amazon S3)</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin topics offload <span class="command">persistent://tenant/namespace/topic</span> <span class="options">options</span></code></pre></div>
+            
+            <h5>Options</h5>
+            <table class="options-table">
+              <thead>
+                <tr>
+                  <th>Flag</th>
+                  <th>Description</th>
+                  <th>Default</th>
+                </tr>
+                <tbody>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">-s</code>
+                      , 
+                      
+                      <code class="highlighter-rouge">--size-threshold</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The maximum amount of data to keep in BookKeeper for the specific topic</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                   <!-- for option in options -->
+                </tbody>
+              </thead>
+            </table>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-topics-offload-status"><code class="highlighter-rouge">offload-status</code></h4>
+          <div class="card-content">
+            <p>Check the status of data offloading from a topic to long-term storage</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin topics offload-status <span class="command">persistent://tenant/namespace/topic</span> <span class="options">options</span></code></pre></div>
+            
+            <h5>Options</h5>
+            <table class="options-table">
+              <thead>
+                <tr>
+                  <th>Flag</th>
+                  <th>Description</th>
+                  <th>Default</th>
+                </tr>
+                <tbody>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">-w</code>
+                      , 
+                      
+                      <code class="highlighter-rouge">--wait-complete</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>Wait for offloading to complete</p>
+</td>
+                    <td>
+                      
                     </td>
                   </tr>
                    <!-- for option in options -->

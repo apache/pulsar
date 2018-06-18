@@ -116,6 +116,8 @@
               <h3 class="dropdown-header">Other releases</h3>
 
               
+                  <a class="dropdown-item" href="/docs/v1.22.1-incubating/getting-started/LocalCluster">1.22.1-incubating</a>
+              
                   <a class="dropdown-item" href="/docs/v1.22.0-incubating/getting-started/LocalCluster">1.22.0-incubating</a>
               
                   <a class="dropdown-item" href="/docs/v1.21.0-incubating/getting-started/LocalCluster">1.21.0-incubating</a>
@@ -848,6 +850,10 @@
         
         
         
+        <li><a href="/admin/namespaces/:property/:cluster/:namespace/offloadThreshold"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>offloadThreshold</code></a></li>
+        
+        
+        
         <li><a href="/admin/namespaces/:property/:cluster/:namespace/subscriptionAuthMode"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>subscriptionAuthMode</code></a></li>
         
         
@@ -857,6 +863,10 @@
         
         
         <li><a href="/admin/namespaces/:property/:namespace/compactionThreshold"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>compactionThreshold</code></a></li>
+        
+        
+        
+        <li><a href="/admin/namespaces/:property/:namespace/offloadThreshold"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>offloadThreshold</code></a></li>
         
         
         
@@ -3995,7 +4005,7 @@
           <h5>
             <code class="highlighter-rouge get">GET</code>
           </h5>
-          <p>Get all namespaces that are grouped by given anti-affinity group in a given cluster. api can be only accessed by admin of any of the existing tenant</p>
+          <p>Get all namespaces that are grouped by given anti-affinity group in a given cluster. api can be only accessed by admin of any of the existing property</p>
           
           <h5>URL parameters</h5>
           <table>
@@ -4024,7 +4034,7 @@
               </tr>
               
               <tr>
-                <td><code class="highlighter-rouge">tenant</code></td>
+                <td><code class="highlighter-rouge">property</code></td>
                 <td>query</td>
                 <td>false</td>
                 <td>string</td>
@@ -5017,6 +5027,168 @@
   
   
   
+  <div class="card" id="/admin/namespaces/:property/:cluster/:namespace/offloadThreshold">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>offloadThreshold</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge get">GET</code>
+          </h5>
+          <p>Maximum number of bytes stored on the pulsar cluster for a topic, before the broker will start offloading to longterm storage</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>200</td>
+                <td>successful operation</td>
+              </tr>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Namespace doesn't exist</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge put">PUT</code>
+          </h5>
+          <p>Set maximum number of bytes stored on the pulsar cluster for a topic, before the broker will start offloading to longterm storage</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">cluster</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Namespace doesn't exist</td>
+              </tr>
+              
+              <tr>
+                <td>409</td>
+                <td>Concurrent modification</td>
+              </tr>
+              
+              <tr>
+                <td>412</td>
+                <td>offloadThreshold value is not valid</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
   <div class="card" id="/admin/namespaces/:property/:cluster/:namespace/subscriptionAuthMode">
     <div class="card-title">
       <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:cluster</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>subscriptionAuthMode</code></h5>
@@ -5384,6 +5556,154 @@
               <tr>
                 <td>412</td>
                 <td>compactionThreshold value is not valid</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/namespaces/:property/:namespace/offloadThreshold">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>namespaces<span class="slash">/</span><span class="endpoint">:property</span><span class="slash">/</span><span class="endpoint">:namespace</span><span class="slash">/</span>offloadThreshold</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge get">GET</code>
+          </h5>
+          <p>Maximum number of bytes stored on the pulsar cluster for a topic, before the broker will start offloading to longterm storage</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>200</td>
+                <td>successful operation</td>
+              </tr>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Namespace doesn't exist</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge put">PUT</code>
+          </h5>
+          <p>Set maximum number of bytes stored on the pulsar cluster for a topic, before the broker will start offloading to longterm storage</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">property</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">namespace</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+              
+              <tr>
+                <td>404</td>
+                <td>Namespace doesn't exist</td>
+              </tr>
+              
+              <tr>
+                <td>409</td>
+                <td>Concurrent modification</td>
+              </tr>
+              
+              <tr>
+                <td>412</td>
+                <td>offloadThreshold value is not valid</td>
               </tr>
                <!-- for param in parameters -->
             </tbody>

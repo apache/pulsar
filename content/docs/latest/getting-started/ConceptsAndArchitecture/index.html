@@ -116,6 +116,8 @@
               <h3 class="dropdown-header">Other releases</h3>
 
               
+                  <a class="dropdown-item" href="/docs/v1.22.1-incubating/getting-started/LocalCluster">1.22.1-incubating</a>
+              
                   <a class="dropdown-item" href="/docs/v1.22.0-incubating/getting-started/LocalCluster">1.22.0-incubating</a>
               
                   <a class="dropdown-item" href="/docs/v1.21.0-incubating/getting-started/LocalCluster">1.21.0-incubating</a>
@@ -701,6 +703,13 @@
           
           
           <li>
+            <a href="../../cookbooks/tiered-storage">
+              Tiered Storage
+            </a>
+          </li>
+          
+          
+          <li>
             <a href="../../cookbooks/compaction">
               Topic compaction
             </a>
@@ -797,6 +806,13 @@
           <li>
             <a href="../../project/ModularLoadManager">
               Modular load manager
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../project/CompileCpp">
+              Building Pulsar C++ client
             </a>
           </li>
           
@@ -921,7 +937,11 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/getting-started/ConceptsAndArchitecture/">Pulsar concepts and architecture</a></li>
+          
+          
           
           
           
@@ -1147,6 +1167,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/getting-started/ConceptsAndArchitecture/">Pulsar concepts and architecture</a></li>
           
           
@@ -1276,6 +1298,8 @@
           
           
           <li><a href="/docs/latest/cookbooks/message-deduplication/">Message deduplication</a></li>
+          
+          
           
           
           
@@ -3077,6 +3101,92 @@
     </ul>
   </li>
 </ul>
+
+<h2 id="tiered-storage">Tiered Storage</h2>
+
+<p>Pulsar’s segment oriented architecture allows for topic backlogs to grow very large, effectively without limit. However, this can become expensive over time.</p>
+
+<p>One way to alleviate this cost is to use Tiered Storage. With tiered storage, older messages in the backlog can be moved from bookkeeper to a cheaper storage mechanism, while still allowing clients to access the backlog as if nothing had changed.</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<p><img src="/img/pulsar-tiered-storage.png" width="80%" alt="Tiered Storage" /></p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    
+    <p>Data written to bookkeeper is replicated to 3 physical machines by default. However, once a segment is sealed in bookkeeper is becomes immutable and can be copied to long term storage. Long term storage can achieve cost savings by using mechanisms such as <a href="https://en.wikipedia.org/wiki/Reed%E2%80%93Solomon_error_correction">Reed-Solomon error correction</a> to require fewer physical copies of data.</p>
+
+  </div>
+</div>
+
+<p>Pulsar currently supports S3 as a long term store. Offloading to S3 triggered via a Rest API or command line interface. The user passes in the amount of topic data they wish to retain on bookkeeper, and the broker will copy the backlog data to S3. The original data will then be deleted from bookkeeper after a configured delay (4 hours by default).</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    
+    <p>For a guide for setting up tiered storage, see the <a href="../../cookbooks/tiered-storage">Tiered storage cookbook</a>.</p>
+
+  </div>
+</div>
 
 <h2 id="schema-registry">Schema registry</h2>
 
