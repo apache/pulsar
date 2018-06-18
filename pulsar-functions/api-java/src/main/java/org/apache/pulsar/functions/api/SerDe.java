@@ -18,9 +18,10 @@
  */
 package org.apache.pulsar.functions.api;
 
+import java.util.Collections;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.shade.org.apache.pulsar.common.schema.SchemaInfo;
-import org.apache.pulsar.shade.org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 
 /**
  * An interface for serializer/deserializer.
@@ -33,7 +34,10 @@ public interface SerDe<T> extends Schema<T> {
     @Override
     default SchemaInfo getSchemaInfo() {
         SchemaInfo info = new SchemaInfo();
+        info.setName("");
         info.setType(SchemaType.NONE);
+        info.setSchema(new byte[0]);
+        info.setProperties(Collections.emptyMap());
         return info;
     }
 
