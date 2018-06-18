@@ -134,6 +134,8 @@ groups:
 - title: Cookbooks
   dir: cookbooks
   docs:
+  - title: Tiered Storage
+    endpoint: tiered-storage
   - title: Topic compaction
     endpoint: compaction
   - title: Managing message deduplication
@@ -162,6 +164,8 @@ groups:
     endpoint: schema-storage
   - title: Modular load manager
     endpoint: ModularLoadManager
+  - title: Building Pulsar C++ client
+    endpoint: CompileCpp
 
 - title: Reference
   dir: reference

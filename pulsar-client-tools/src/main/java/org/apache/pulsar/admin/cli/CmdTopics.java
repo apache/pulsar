@@ -622,11 +622,13 @@ public class CmdTopics extends CmdBase {
         long suffixSize = 0L;
 
         ledgers = Lists.reverse(ledgers);
+        long previousLedger = ledgers.get(0).ledgerId;
         for (PersistentTopicInternalStats.LedgerInfo l : ledgers) {
             suffixSize += l.size;
-            if (suffixSize >= sizeThreshold) {
-                return new MessageIdImpl(l.ledgerId, 0L, -1);
+            if (suffixSize > sizeThreshold) {
+                return new MessageIdImpl(previousLedger, 0L, -1);
             }
+            previousLedger = l.ledgerId;
         }
         return null;
     }
@@ -634,15 +636,16 @@ public class CmdTopics extends CmdBase {
     @Parameters(commandDescription = "Trigger offload of data from a topic to long-term storage (e.g. Amazon S3)")
     private class Offload extends CliCommand {
         @Parameter(names = { "-s", "--size-threshold" },
-                   description = "Maximum amount of data to keep in BookKeeper for the specified topic",
+                   description = "Maximum amount of data to keep in BookKeeper for the specified topic (e.g. 10M, 5G).",
                    required = true)
-        private Long sizeThreshold;
+        private String sizeThresholdStr;
 
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
         @Override
         void run() throws PulsarAdminException {
+            long sizeThreshold = validateSizeString(sizeThresholdStr);
             String persistentTopic = validatePersistentTopic(params);
 
             PersistentTopicInternalStats stats = topics.getInternalStats(persistentTopic);

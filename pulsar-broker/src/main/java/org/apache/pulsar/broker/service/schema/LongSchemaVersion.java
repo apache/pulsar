@@ -23,10 +23,10 @@ import java.nio.ByteBuffer;
 import java.util.Objects;
 import org.apache.pulsar.common.schema.SchemaVersion;
 
-class LongSchemaVersion implements SchemaVersion {
+public class LongSchemaVersion implements SchemaVersion {
     private final long version;
 
-    LongSchemaVersion(long version) {
+    public LongSchemaVersion(long version) {
         this.version = version;
     }
 

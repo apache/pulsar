@@ -573,6 +573,20 @@ In addition to performing compaction, Pulsar {% popover brokers %} listen for ch
   * Read from the topic like normal (if the message ID is greater than or equal to the compaction horizon) or
   * Read beginning at the compaction horizon (if the message ID is lower than the compaction horizon)
 
+## Tiered Storage
+
+Pulsar's segment oriented architecture allows for topic backlogs to grow very large, effectively without limit. However, this can become expensive over time.
+
+One way to alleviate this cost is to use Tiered Storage. With tiered storage, older messages in the backlog can be moved from bookkeeper to a cheaper storage mechanism, while still allowing clients to access the backlog as if nothing had changed. 
+
+{% include figure.html src="/img/pulsar-tiered-storage.png" alt="Tiered Storage" width="80" %}
+
+{% include admonition.html type="info" content="Data written to bookkeeper is replicated to 3 physical machines by default. However, once a segment is sealed in bookkeeper is becomes immutable and can be copied to long term storage. Long term storage can achieve cost savings by using mechanisms such as [Reed-Solomon error correction](https://en.wikipedia.org/wiki/Reed%E2%80%93Solomon_error_correction) to require fewer physical copies of data." %}
+
+Pulsar currently supports S3 as a long term store. Offloading to S3 triggered via a Rest API or command line interface. The user passes in the amount of topic data they wish to retain on bookkeeper, and the broker will copy the backlog data to S3. The original data will then be deleted from bookkeeper after a configured delay (4 hours by default).
+
+{% include admonition.html type="info" content="For a guide for setting up tiered storage, see the [Tiered storage cookbook](../../cookbooks/tiered-storage)." %}
+
 ## Schema registry
 
 Type safety is extremely important in any application built around a message bus like Pulsar. {% popover Producers %} and {% popover consumers %} need some kind of mechanism for coordinating types at the {% popover topic %} level lest a wide variety of potential problems arise (for example serialization and deserialization issues). Applications typically adopt one of two basic approaches to type safety in messaging:

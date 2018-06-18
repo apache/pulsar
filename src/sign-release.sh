@@ -18,6 +18,8 @@
 # under the License.
 #
 
+set -e
+
 FILES=$*
 
 for FILE in $FILES

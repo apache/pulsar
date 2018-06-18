@@ -1582,7 +1582,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private void maybeOffloadInBackground(CompletableFuture<PositionImpl> promise) {
-        if (config.getOffloadAutoTriggerSizeThresholdBytes() > 0) {
+        if (config.getOffloadAutoTriggerSizeThresholdBytes() >= 0) {
             executor.executeOrdered(name, safeRun(() -> maybeOffload(promise)));
         }
     }
