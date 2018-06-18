@@ -22,14 +22,16 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.gson.Gson;
 
+
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -48,6 +50,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
 import lombok.extern.slf4j.Slf4j;
+import net.jodah.typetools.TypeResolver;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -63,6 +66,9 @@ import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
+import static org.apache.pulsar.functions.utils.Reflections.createInstance;
+import org.apache.pulsar.functions.utils.functioncache.FunctionClassLoaders;
+import static org.apache.pulsar.functions.utils.functioncache.FunctionClassLoaders.create;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.MembershipManager;
@@ -72,6 +78,8 @@ import static org.apache.pulsar.functions.utils.Utils.FILE;
 import static org.apache.pulsar.functions.utils.Utils.isFunctionPackageUrlSupported;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.request.RequestResult;
+import org.apache.pulsar.io.core.Sink;
+import org.apache.pulsar.io.core.Source;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
 
@@ -124,8 +132,8 @@ public class FunctionsImpl {
         // validate parameters
         try {
             if(isPkgUrlProvided) {
-                functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
-                        functionPkgUrl, functionDetailsJson);
+                functionDetails = validateUpdateRequestParamsWithPkgUrl(tenant, namespace, functionName, functionPkgUrl,
+                        functionDetailsJson);
             }else {
                 functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
                         uploadedInputStream, fileDetail, functionDetailsJson);
@@ -712,14 +720,17 @@ public class FunctionsImpl {
         }
     }
 
-    private FunctionDetails validateUpdateRequestParams(String tenant, String namespace, String functionName,
+    private FunctionDetails validateUpdateRequestParamsWithPkgUrl(String tenant, String namespace, String functionName,
             String functionPkgUrl, String functionDetailsJson)
             throws IllegalArgumentException, IOException, URISyntaxException {
         if (!isFunctionPackageUrlSupported(functionPkgUrl)) {
             throw new IllegalArgumentException("Function Package url is not valid. supported url (http/https/file)");
         }
         Utils.validateFileUrl(functionPkgUrl, workerServiceSupplier.get().getWorkerConfig().getDownloadDirectory());
-        return validateUpdateRequestParams(tenant, namespace, functionName, functionDetailsJson);
+        File jarWithFileUrl = functionPkgUrl.startsWith(FILE) ? (new File((new URL(functionPkgUrl)).toURI())) : null;
+        FunctionDetails functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
+                functionDetailsJson, jarWithFileUrl);
+        return functionDetails;
     }
 
     private FunctionDetails validateUpdateRequestParams(String tenant,
@@ -731,13 +742,14 @@ public class FunctionsImpl {
         if (uploadedInputStream == null || fileDetail == null) {
             throw new IllegalArgumentException("Function Package is not provided");
         }
-        return validateUpdateRequestParams(tenant, namespace, functionName, functionDetailsJson);
+        return validateUpdateRequestParams(tenant, namespace, functionName, functionDetailsJson, null);
     }
     
     private FunctionDetails validateUpdateRequestParams(String tenant,
                                              String namespace,
                                              String functionName,
-                                             String functionDetailsJson) throws IllegalArgumentException {
+                                             String functionDetailsJson,
+                                             File jarWithFileUrl) throws IllegalArgumentException {
         if (tenant == null) {
             throw new IllegalArgumentException("Tenant is not provided");
         }
@@ -754,6 +766,7 @@ public class FunctionsImpl {
         try {
             FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
             org.apache.pulsar.functions.utils.Utils.mergeJson(functionDetailsJson, functionDetailsBuilder);
+            validateFunctionClassTypes(jarWithFileUrl, functionDetailsBuilder);
             FunctionDetails functionDetails = functionDetailsBuilder.build();
 
             List<String> missingFields = new LinkedList<>();
@@ -790,6 +803,85 @@ public class FunctionsImpl {
         } catch (Exception ex) {
             throw new IllegalArgumentException("Invalid FunctionDetails");
         }
+    }
+
+    private void validateFunctionClassTypes(File jarFile, FunctionDetails.Builder functionDetailsBuilder)
+            throws MalformedURLException {
+
+        // validate only if jar-file is provided
+        if(jarFile == null) {
+            return;
+        }
+        
+        if (StringUtils.isBlank(functionDetailsBuilder.getClassName())) {
+            throw new IllegalArgumentException("function class-name can't be empty");
+        }
+
+        URL[] urls = new URL[1];
+        urls[0] = jarFile.toURI().toURL();
+        URLClassLoader classLoader = create(urls, FunctionClassLoaders.class.getClassLoader());
+
+        // validate function class-type
+        Object functionObject = createInstance(functionDetailsBuilder.getClassName(), classLoader);
+        if (!(functionObject instanceof org.apache.pulsar.functions.api.Function) && !(functionObject instanceof java.util.function.Function)) {
+            throw new RuntimeException("User class must either be Function or java.util.Function");
+        }
+
+        if (functionDetailsBuilder.hasSource() && functionDetailsBuilder.getSource() != null
+                && StringUtils.isNotBlank(functionDetailsBuilder.getSource().getClassName())) {
+            try {
+                String sourceClassName = functionDetailsBuilder.getSource().getClassName();
+                String argClassName = getTypeArg(sourceClassName, Source.class, classLoader).getName();
+                functionDetailsBuilder.setSource(functionDetailsBuilder.getSourceBuilder()
+                        .setTypeClassName(argClassName));
+                
+                // if sink-class not present then set same arg as source
+                if (!functionDetailsBuilder.hasSink()
+                        || StringUtils.isBlank(functionDetailsBuilder.getSink().getClassName())) {
+                    functionDetailsBuilder
+                            .setSink(functionDetailsBuilder.getSinkBuilder().setTypeClassName(argClassName));
+                }
+                
+            } catch (IllegalArgumentException ie) {
+                throw ie;
+            } catch (Exception e) {
+                log.error("Failed to validate source class", e);
+                throw new IllegalArgumentException("Failed to validate source class-name", e);
+            }
+        }
+
+        if (functionDetailsBuilder.hasSink() && functionDetailsBuilder.getSink() != null
+                && StringUtils.isNotBlank(functionDetailsBuilder.getSink().getClassName())) {
+            try {
+                String sinkClassName = functionDetailsBuilder.getSink().getClassName();
+                String argClassName = getTypeArg(sinkClassName, Sink.class, classLoader).getName();
+                functionDetailsBuilder.setSink(functionDetailsBuilder.getSinkBuilder()
+                        .setTypeClassName(argClassName));
+                
+                // if source-class not present then set same arg as sink
+                if (!functionDetailsBuilder.hasSource()
+                        || StringUtils.isBlank(functionDetailsBuilder.getSource().getClassName())) {
+                    functionDetailsBuilder
+                            .setSource(functionDetailsBuilder.getSourceBuilder().setTypeClassName(argClassName));
+                }
+                
+            } catch (IllegalArgumentException ie) {
+                throw ie;
+            } catch (Exception e) {
+                log.error("Failed to validate sink class", e);
+                throw new IllegalArgumentException("Failed to validate sink class-name", e);
+            }
+        }
+    }
+
+    private Class<?> getTypeArg(String className, Class<?> funClass, URLClassLoader classLoader)
+            throws ClassNotFoundException {
+        Class<?> loadedClass = classLoader.loadClass(className);
+        if (!funClass.isAssignableFrom(loadedClass)) {
+            throw new IllegalArgumentException(
+                    String.format("class %s is not type of %s", className, funClass.getName()));
+        }
+        return TypeResolver.resolveRawArgument(funClass, loadedClass);
     }
 
     private void validateTriggerRequestParams(String tenant,

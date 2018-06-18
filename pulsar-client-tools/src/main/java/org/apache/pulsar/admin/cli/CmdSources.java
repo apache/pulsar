@@ -173,10 +173,8 @@ public class CmdSources extends CmdBase {
         protected String deserializationClassName;
         @Parameter(names = "--parallelism", description = "The source's parallelism factor (i.e. the number of source instances to run)")
         protected Integer parallelism;
-        @Parameter(names = "--jar", description = "Path to the jar file for the Source. It also supports url-path (http/https/file) from which worker can download the package.", listConverter = StringConverter.class)
+        @Parameter(names = "--jar", description = "Path to the jar file for the Source. It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.", listConverter = StringConverter.class)
         protected String jarFile;
-        @Parameter(names = "--classNameArgType", description = "Source impl class's argument type if jar-file path is file-url")
-        protected String classNameArgType;
 
         @Parameter(names = "--sourceConfigFile", description = "The path to a YAML config file specifying the "
                 + "source's configuration")
@@ -230,8 +228,6 @@ public class CmdSources extends CmdBase {
                 sourceConfig.setJar(jarFile);
             }
             
-            sourceConfig.setClassNameArgType(classNameArgType);
-
             sourceConfig.setResources(new org.apache.pulsar.functions.utils.Resources(cpu, ram, disk));
 
             if (null != sourceConfigString) {
@@ -261,11 +257,6 @@ public class CmdSources extends CmdBase {
             
             String jarFilePath = null;
             if (isJarPathUrl) {
-                // jar can't be loaded from file-url so, arg class-name must be present
-                if (sourceConfig.getJar().startsWith(Utils.FILE) && isBlank(sourceConfig.getClassNameArgType())) {
-                    throw new ParameterException("Source class arg-type must be present for a package uploaded at : "
-                            + sourceConfig.getJar());
-                }
                 // download jar file if url is http
                 if(sourceConfig.getJar().startsWith(Utils.HTTP)) {
                     File tempPkgFile = null;
@@ -327,7 +318,7 @@ public class CmdSources extends CmdBase {
             // check if source configs are valid
             validateSourceConfigs(sourceConfig);
 
-            String typeArg = isNotBlank(sourceConfig.getClassNameArgType()) ? sourceConfig.getClassNameArgType()
+            String typeArg = sourceConfig.getJar().startsWith(Utils.FILE) ? null
                     : getSourceType(sourceConfig.getClassName()).getName();
 
             FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
@@ -355,7 +346,9 @@ public class CmdSources extends CmdBase {
             if (sourceConfig.getConfigs() != null) {
                 sourceSpecBuilder.setConfigs(new Gson().toJson(sourceConfig.getConfigs()));
             }
-            sourceSpecBuilder.setTypeClassName(typeArg);
+            if (typeArg != null) {
+                sourceSpecBuilder.setTypeClassName(typeArg);
+            }
             functionDetailsBuilder.setSource(sourceSpecBuilder);
 
             // set up sink spec.
@@ -365,7 +358,10 @@ public class CmdSources extends CmdBase {
                 sinkSpecBuilder.setSerDeClassName(sourceConfig.getSerdeClassName());
             }
             sinkSpecBuilder.setTopic(sourceConfig.getTopicName());
-            sinkSpecBuilder.setTypeClassName(typeArg);
+            
+            if (typeArg != null) {
+                sinkSpecBuilder.setTypeClassName(typeArg);
+            }
 
             functionDetailsBuilder.setSink(sinkSpecBuilder);
 

@@ -64,5 +64,4 @@ public class SourceConfig {
     private Resources resources;
     @isFileExists
     private String jar;
-    private String classNameArgType;
 }

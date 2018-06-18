@@ -218,14 +218,8 @@ public class CmdFunctions extends CmdBase {
         protected String functionName;
         @Parameter(names = "--className", description = "The function's class name")
         protected String className;
-        @Parameter(names = "--jar", description = "Path to the jar file for the function (if the function is written in Java). It also supports url-path (http/https/file) from which worker can download the package.", listConverter = StringConverter.class)
+        @Parameter(names = "--jar", description = "Path to the jar file for the function (if the function is written in Java). It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.", listConverter = StringConverter.class)
         protected String jarFile;
-        
-        @Parameter(names = "--classNameArgType", description = "Function impl class's argument class-name if jar path is file-url.")
-        protected String classNameArgType;
-        @Parameter(names = "--classNameResultType", description = "Function impl class's result/return class-name if jar path is url.")
-        protected String classNameResultType;
-        
         @Parameter(
                 names = "--py",
                 description = "Path to the main Python file for the function (if the function is written in Python)",
@@ -394,8 +388,6 @@ public class CmdFunctions extends CmdBase {
             
             if (functionConfig.getJar() != null) {
                 userCodeFile = functionConfig.getJar();
-                functionConfig.setClassNameArgType(classNameArgType);
-                functionConfig.setClassNameResultType(classNameResultType);
             } else if (functionConfig.getPy() != null) {
                 userCodeFile = functionConfig.getPy();
             }
@@ -419,32 +411,21 @@ public class CmdFunctions extends CmdBase {
             boolean isJarPathUrl = isNotBlank(functionConfig.getJar()) && Utils.isFunctionPackageUrlSupported(functionConfig.getJar());
             String jarFilePath = null;
             if (isJarPathUrl) {
-                // file-url can't load jar so, check arg/result classname present
-                if (functionConfig.getJar().startsWith(Utils.FILE) && (isBlank(functionConfig.getClassNameArgType())
-                        || isBlank(functionConfig.getClassNameResultType()))) {
-                    throw new ParameterException(
-                            "Function class arg and result classname must be present for a package uploaded at : "
-                                    + functionConfig.getJar());
-                }
-                
                 if (functionConfig.getJar().startsWith(Utils.HTTP)) {
                     // download jar file if url is http or file is downloadable
-                    if (isJarPathUrl && functionConfig.getJar().startsWith(Utils.HTTP)) {
-                        File tempPkgFile = null;
-                        try {
-                            tempPkgFile = File.createTempFile(functionConfig.getName(), "function");
-                            downloadFromHttpUrl(functionConfig.getJar(), new FileOutputStream(tempPkgFile));
-                            jarFilePath = tempPkgFile.getAbsolutePath();
-                        } catch (Exception e) {
-                            if (tempPkgFile != null) {
-                                tempPkgFile.deleteOnExit();
-                            }
-                            throw new ParameterException("Failed to download jar from " + functionConfig.getJar()
-                                    + ", due to =" + e.getMessage());
+                    File tempPkgFile = null;
+                    try {
+                        tempPkgFile = File.createTempFile(functionConfig.getName(), "function");
+                        downloadFromHttpUrl(functionConfig.getJar(), new FileOutputStream(tempPkgFile));
+                        jarFilePath = tempPkgFile.getAbsolutePath();
+                    } catch (Exception e) {
+                        if (tempPkgFile != null) {
+                            tempPkgFile.deleteOnExit();
                         }
+                        throw new ParameterException("Failed to download jar from " + functionConfig.getJar()
+                                + ", due to =" + e.getMessage());
                     }
                 }
-                
             } else {
                 if (!fileExists(userCodeFile)) {
                     throw new ParameterException("File " + userCodeFile + " does not exist");    
@@ -565,18 +546,9 @@ public class CmdFunctions extends CmdBase {
             // check if configs are valid
             validateFunctionConfigs(functionConfig);
 
-            String sourceTypeArgs = null;
-            String sinkTypeArgs = null;
+            Class<?>[] typeArgs = null;
             if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
-                if (isNotBlank(sourceTypeArgs) && isNotBlank(sinkTypeArgs)) {
-                    sourceTypeArgs = classNameArgType;
-                    sinkTypeArgs = classNameResultType;
-                } else {
-                    // Assuming any external jars are already loaded
-                    Class<?>[] typeArgs = Utils.getFunctionTypes(functionConfig);
-                    sourceTypeArgs = typeArgs[0].getName();
-                    sinkTypeArgs = typeArgs[1].getName();
-                }
+                typeArgs = Utils.getFunctionTypes(functionConfig);
             }
 
             FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
@@ -609,8 +581,8 @@ public class CmdFunctions extends CmdBase {
                 }
             }
 
-            if (sourceTypeArgs != null) {
-                sourceSpecBuilder.setTypeClassName(sourceTypeArgs);
+            if (typeArgs != null) {
+                sourceSpecBuilder.setTypeClassName(typeArgs[0].getName());
             }
             if (functionConfig.getTimeoutMs() != null) {
                 sourceSpecBuilder.setTimeoutMs(functionConfig.getTimeoutMs());
@@ -625,8 +597,8 @@ public class CmdFunctions extends CmdBase {
             if (functionConfig.getOutputSerdeClassName() != null) {
                 sinkSpecBuilder.setSerDeClassName(functionConfig.getOutputSerdeClassName());
             }
-            if (sinkTypeArgs != null) {
-                sinkSpecBuilder.setTypeClassName(sinkTypeArgs);
+            if (typeArgs != null) {
+                sinkSpecBuilder.setTypeClassName(typeArgs[1].getName());
             }
             functionDetailsBuilder.setSink(sinkSpecBuilder);
 

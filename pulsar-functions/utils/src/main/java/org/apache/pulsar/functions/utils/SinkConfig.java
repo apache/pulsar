@@ -63,5 +63,4 @@ public class SinkConfig {
     private Resources resources;
     @isFileExists
     private String jar;
-    protected String classNameArgType;
 }

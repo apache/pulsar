@@ -65,6 +65,8 @@ import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
+import org.apache.pulsar.io.core.RecordContext;
+import org.apache.pulsar.io.core.Sink;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -95,6 +97,22 @@ public class FunctionApiV2ResourceTest {
             return input;
         }
     }
+    
+    public static final class TestSink implements Sink<byte[]> {
+
+        @Override
+        public void close() throws Exception {
+        }
+
+        @Override
+        public void open(Map config) throws Exception {
+        }
+
+        @Override
+        public void write(RecordContext inputRecordContext, byte[] value) throws Exception {
+        }
+    }
+
 
     private static final String tenant = "test-tenant";
     private static final String namespace = "test-namespace";
@@ -963,5 +981,55 @@ public class FunctionApiV2ResourceTest {
         if (pkgFile.exists()) {
             pkgFile.delete();
         }
+    }
+    
+    @Test
+    public void testRegisterFunctionFileUrlWithValidSinkClass() throws IOException {
+        Configurator.setRootLevel(Level.DEBUG);
+
+        String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+        String filePackageUrl = "file://" + fileLocation;
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+
+        RequestResult rr = new RequestResult().setSuccess(true).setMessage("function registered");
+        CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
+        when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+
+        SinkSpec sinkSpec = SinkSpec.newBuilder().setClassName(TestSink.class.getName()).setTopic(outputTopic)
+                .setSerDeClassName(outputSerdeClassName).build();
+        FunctionDetails functionDetails = FunctionDetails
+                .newBuilder().setTenant(tenant).setNamespace(namespace).setName(function).setSink(sinkSpec)
+                .setClassName(className).setParallelism(parallelism).setSource(SourceSpec.newBuilder()
+                        .setSubscriptionType(subscriptionType).putAllTopicsToSerDeClassName(topicsToSerDeClassName))
+                .build();
+        Response response = resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl,
+                org.apache.pulsar.functions.utils.Utils.printJson(functionDetails));
+
+        assertEquals(Status.OK.getStatusCode(), response.getStatus());
+    }
+
+    @Test
+    public void testRegisterFunctionFileUrlWithInValidSinkClass() throws IOException {
+        Configurator.setRootLevel(Level.DEBUG);
+
+        String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+        String filePackageUrl = "file://" + fileLocation;
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+
+        RequestResult rr = new RequestResult().setSuccess(true).setMessage("function registered");
+        CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
+        when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+
+        SinkSpec sinkSpec = SinkSpec.newBuilder().setClassName(className).setTopic(outputTopic)
+                .setSerDeClassName(outputSerdeClassName).build();
+        FunctionDetails functionDetails = FunctionDetails
+                .newBuilder().setTenant(tenant).setNamespace(namespace).setName(function).setSink(sinkSpec)
+                .setClassName(className).setParallelism(parallelism).setSource(SourceSpec.newBuilder()
+                        .setSubscriptionType(subscriptionType).putAllTopicsToSerDeClassName(topicsToSerDeClassName))
+                .build();
+        Response response = resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl,
+                org.apache.pulsar.functions.utils.Utils.printJson(functionDetails));
+
+        assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
     }
 }

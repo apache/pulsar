@@ -230,7 +230,6 @@ public class CmdFunctionsTest {
             "--inputs", inputTopicName,
             "--output", outputTopicName,
             "--jar", url,
-            "--classNameArgType", byte[].class.getName(),
             "--tenant", "sample",
             "--namespace", "ns1",
             "--className", DummyFunction.class.getName(),
@@ -260,8 +259,6 @@ public class CmdFunctionsTest {
             "--inputs", inputTopicName,
             "--output", outputTopicName,
             "--jar", url,
-            "--classNameArgType", byte[].class.getName(),
-            "--classNameResultType", byte[].class.getName(),
             "--tenant", "sample",
             "--namespace", "ns1",
             "--className", DummyFunction.class.getName(),
@@ -290,7 +287,6 @@ public class CmdFunctionsTest {
             "--name", fnName,
             "--inputs", inputTopicName,
             "--jar", url,
-            "--classNameArgType", byte[].class.getName(),
             "--tenant", "sample",
             "--namespace", "ns1",
             "--className", "DummySink"
@@ -309,7 +305,6 @@ public class CmdFunctionsTest {
     @Test
     public void testCreateSource() throws Exception {
         String fnName = TEST_NAME + "-function";
-        String inputTopicName = TEST_NAME + "-input-topic";
         
         ConsoleOutputCapturer consoleOutputCapturer = new ConsoleOutputCapturer();
         consoleOutputCapturer.start();
@@ -319,7 +314,6 @@ public class CmdFunctionsTest {
             "create",
             "--name", fnName,
             "--jar", url,
-            "--classNameArgType", byte[].class.getName(),
             "--tenant", "sample",
             "--namespace", "ns1",
             "--className", "DummySink"

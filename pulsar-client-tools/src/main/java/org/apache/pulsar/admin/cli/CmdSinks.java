@@ -26,7 +26,6 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import lombok.Getter;
 
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
@@ -182,12 +181,9 @@ public class CmdSinks extends CmdBase {
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
         @Parameter(names = "--parallelism", description = "The sink's parallelism factor (i.e. the number of sink instances to run)")
         protected Integer parallelism;
-        @Parameter(names = "--jar", description = "Path to the jar file for the sink. It also supports url-path (http/https/file) from which worker can download the package.", listConverter = StringConverter.class)
+        @Parameter(names = "--jar", description = "Path to the jar file for the sink. It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.", listConverter = StringConverter.class)
         protected String jarFile;
         
-        @Parameter(names = "--classNameArgType", description = "Sink impl class's argument type if jar-file path is file-url")
-        protected String classNameArgType;
-
         @Parameter(names = "--sinkConfigFile", description = "The path to a YAML config file specifying the "
                 + "sink's configuration")
         protected String sinkConfigFile;
@@ -257,8 +253,6 @@ public class CmdSinks extends CmdBase {
                 sinkConfig.setJar(jarFile);
             }
             
-            sinkConfig.setClassNameArgType(classNameArgType);
-            
             sinkConfig.setResources(new org.apache.pulsar.functions.utils.Resources(cpu, ram, disk));
 
             if (null != sinkConfigString) {
@@ -289,11 +283,6 @@ public class CmdSinks extends CmdBase {
 
             String jarFilePath = null;
             if (isJarPathUrl) {
-                // jar can't be loaded from file-url so, arg class-name must be present
-                if (sinkConfig.getJar().startsWith(Utils.FILE) && isBlank(sinkConfig.getClassNameArgType())) {
-                    throw new ParameterException(
-                            "Sink class arg-type must be present for a package uploaded at : " + sinkConfig.getJar());
-                }
                 // download jar file if url is http
                 if(sinkConfig.getJar().startsWith(Utils.HTTP)) {
                     File tempPkgFile = null;
@@ -355,7 +344,7 @@ public class CmdSinks extends CmdBase {
             // check if configs are valid
             validateSinkConfigs(sinkConfig);
 
-            String typeArg = isNotBlank(sinkConfig.getClassNameArgType()) ? sinkConfig.getClassNameArgType()
+            String typeArg = sinkConfig.getJar().startsWith(Utils.FILE) ? null
                     : getSinkType(sinkConfig.getClassName()).getName();
 
             FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
@@ -384,7 +373,9 @@ public class CmdSinks extends CmdBase {
             if (sinkConfig.getTopicsPattern() != null) {
                 sourceSpecBuilder.setTopicsPattern(sinkConfig.getTopicsPattern());
             }
-            sourceSpecBuilder.setTypeClassName(typeArg);
+            if (typeArg != null) {
+                sourceSpecBuilder.setTypeClassName(typeArg);
+            }
             functionDetailsBuilder.setAutoAck(true);
             functionDetailsBuilder.setSource(sourceSpecBuilder);
 
@@ -394,7 +385,9 @@ public class CmdSinks extends CmdBase {
             if (sinkConfig.getConfigs() != null) {
                 sinkSpecBuilder.setConfigs(new Gson().toJson(sinkConfig.getConfigs()));
             }
-            sinkSpecBuilder.setTypeClassName(typeArg);
+            if (typeArg != null) {
+                sinkSpecBuilder.setTypeClassName(typeArg);
+            }
             functionDetailsBuilder.setSink(sinkSpecBuilder);
 
             if (sinkConfig.getResources() != null) {
