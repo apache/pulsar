@@ -1,0 +1,1841 @@
+<!DOCTYPE html>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<html>
+  <head>
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<script type="text/javascript">
+  var shiftWindow = function() { scrollBy(0, -108) };
+  window.addEventListener("hashchange", shiftWindow);
+  window.addEventListener("pageshow", shiftWindow);
+  function load() { if (window.location.hash) shiftWindow(); }
+</script>
+
+<title>The Pulsar admin interface</title>
+
+<meta charset="utf-8">
+
+<link rel="stylesheet" href="/css/style.css">
+<link rel="shortcut icon" href="/img/favicon.ico">
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script src="/js/jquery.tocify.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+
+<script src="/js/jquery.scrollTo.min.js"></script>
+<script async src="/js/main.js"></script>
+
+  </head>
+  <body class="body">
+    <main class="main">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<nav class="navbar navbar-toggleable-md navbar-light sticky-top">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  
+  <a class="navbar-brand" href="/">
+    <img class="main-logo" src="/img/pulsar-logo.png" alt="Pulsar logo">
+  </a>
+  
+
+  <a class="navbar-nav"></a>
+
+  <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
+    <ul class="navbar-nav">
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
+
+        <div class="dropdown-menu" aria-labelledby="documentationDropdown">
+          <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
+
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Stable release</h3>
+          <a class="dropdown-item" href="/docs/v1.21.0-incubating/getting-started/LocalCluster">1.21.0-incubating</a>
+
+          
+              <div class="dropdown-divider"></div>
+              <h3 class="dropdown-header">Other releases</h3>
+
+              
+                  <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+              
+          
+        </div>
+      </li>
+
+      <li class="nav-item">
+          <a class="nav-link" href="/download">Download</a>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Client libraries
+        </a>
+        <div class="dropdown-menu" aria-labelledby="clientLibsDropdown">
+          <a class="dropdown-item" href="/docs/latest/clients/Java">
+            Java
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Python">
+            Python
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Cpp">
+            C++
+          </a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="/api/client">
+            Java client Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/admin">
+            Java admin Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/python">
+            Python API docs
+          </a>
+          <a class="dropdown-item" href="/api/cpp">
+            C++ API docs
+          </a>
+        </div>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Community
+        </a>
+        <div class="dropdown-menu dropdown-left" aria-labelledby="versionsDropdown">
+          <h3 class="dropdown-header">Get in touch</h3>
+          <a class="dropdown-item" href="/contact">Contact</a>
+          <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Resources</h3>
+          <a class="dropdown-item" href="/resources">Resources</a>
+          <a class="dropdown-item" href="/team">Team</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Apache</h3>
+          <a class="dropdown-item" href="https://www.apache.org/">The Apache Software Foundation</a>
+          <a class="dropdown-item" href="https://www.apache.org/licenses/">License</a>
+          <a class="dropdown-item" href="https://www.apache.org/foundation/sponsorship.html">Sponsorship</a>
+          <a class="dropdown-item" href="https://www.apache.org/foundation/thanks.html">Thanks</a>
+          <a class="dropdown-item" href="https://www.apache.org/security">Security</a>
+        </div>
+      </li>
+    </ul>
+  </div>
+  <a class="hidden-md-down" href="http://www.apache.org/">
+    <img class="asf-logo" title="Apache Software Foundation" src="/img/feather.png" />
+  </a>
+</nav>
+
+<!--
+<nav class="navbar navbar-toggleable-md navbar-light" style="border: 1px solid red;">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <a class="navbar-brand" href="/">
+    <img src="/img/pulsar-logo.png" class="d-inline-block align-top" alt="Pulsar logo" height="40" width="60">
+  </a>
+
+  <div class="collapse navbar-collapse" id="navbarSupportedContent">
+    <ul class="navbar-nav mr-auto">
+      <li class="nav-item active">
+        <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#">Link</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link disabled" href="#">Disabled</a>
+      </li>
+    </ul>
+  </div>
+</nav>-->
+
+
+      <main>
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<div class="docs-container container-fluid">
+  <div class="row">
+    <nav class="sidebar-nav hidden-md-down col-lg-3">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<aside class="sidebar-nav">
+  <div id="sidebar-accordion" role="tablist" aria-multiselectable="true">
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-getting-started">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-getting-started" aria-controls="collapse-getting-started">
+            Getting started
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-getting-started" role="tabpanel" aria-labelledby="heading-getting-started">
+        <ul>
+          
+          
+          <li>
+            <a href="../../getting-started/LocalCluster">
+              Run Pulsar locally
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../getting-started/docker">
+              Pulsar in Docker
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../getting-started/Clients">
+              Client libraries
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../getting-started/ConceptsAndArchitecture">
+              Concepts and architecture
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-deployment">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-deployment" aria-controls="collapse-deployment">
+            Deployment
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-deployment" role="tabpanel" aria-labelledby="heading-deployment">
+        <ul>
+          
+          
+          <li>
+            <a href="../../deployment/aws-cluster">
+              Deploy on Amazon Web Services
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/cluster">
+              Single cluster on bare metal
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/instance">
+              Multi-cluster instance on bare metal
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/Kubernetes">
+              Pulsar on Kubernetes
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/Kubernetes/#pulsar-on-google-kubernetes-engine">
+              Pulsar on Google Kubernetes Engine
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/Kubernetes/#pulsar-on-amazon-web-services">
+              Pulsar on AWS
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/dcos">
+              Pulsar on DC/OS
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/Monitoring">
+              Monitoring
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-pulsar-administration">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-pulsar-administration" aria-controls="collapse-pulsar-administration">
+            Pulsar administration
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-pulsar-administration" role="tabpanel" aria-labelledby="heading-pulsar-administration">
+        <ul>
+          
+          
+          <li>
+            <a href="../../admin/ZooKeeperBookKeeper">
+              ZooKeeper and BookKeeper
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/GeoReplication">
+              Geo-replication
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/Authz">
+              Authentication and authorization
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/Dashboard">
+              Dashboard
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/Stats">
+              Pulsar statistics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/ModularLoadManager">
+              Modular load manager
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/Proxy">
+              Pulsar proxy
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-client-libraries">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-client-libraries" aria-controls="collapse-client-libraries">
+            Client libraries
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-client-libraries" role="tabpanel" aria-labelledby="heading-client-libraries">
+        <ul>
+          
+          
+          <li>
+            <a href="../../clients/Java">
+              Java client
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../clients/Cpp">
+              C++ client
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../clients/Python">
+              Python client
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../clients/WebSocket">
+              WebSocket API
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-admin-api">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-admin-api" aria-controls="collapse-admin-api">
+            Admin API
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-admin-api" role="tabpanel" aria-labelledby="heading-admin-api">
+        <ul>
+          
+          
+          <li>
+            <a href="../../admin-api/overview">
+              Overview
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/clusters">
+              Clusters
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/properties">
+              Properties
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/brokers">
+              Brokers
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/namespaces">
+              Namespaces
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/permissions">
+              Permissions
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/persistent-topics">
+              Persistent topics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/non-persistent-topics">
+              Non-Persistent topics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/partitioned-topics">
+              Partitioned topics
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-adaptors">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-adaptors" aria-controls="collapse-adaptors">
+            Adaptors
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-adaptors" role="tabpanel" aria-labelledby="heading-adaptors">
+        <ul>
+          
+          
+          <li>
+            <a href="../../adaptors/KafkaWrapper">
+              Apache Kafka client wrapper
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../adaptors/PulsarSpark">
+              Spark Streaming
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../adaptors/PulsarStorm">
+              Apache Storm
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-advanced">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-advanced" aria-controls="collapse-advanced">
+            Advanced
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-advanced" role="tabpanel" aria-labelledby="heading-advanced">
+        <ul>
+          
+          
+          <li>
+            <a href="../../advanced/PartitionedTopics">
+              Partitioned topics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../advanced/RetentionExpiry">
+              Retention and expiry
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../advanced/Encryption">
+              Encryption
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-developing-pulsar">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-developing-pulsar" aria-controls="collapse-developing-pulsar">
+            Developing Pulsar
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-developing-pulsar" role="tabpanel" aria-labelledby="heading-developing-pulsar">
+        <ul>
+          
+          
+          <li>
+            <a href="../../project/SimulationTools">
+              Simulation tools
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../project/BinaryProtocol">
+              Pulsar binary protocol
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../project/Codebase">
+              Codebase
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-reference">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-reference" aria-controls="collapse-reference">
+            Reference
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-reference" role="tabpanel" aria-labelledby="heading-reference">
+        <ul>
+          
+          
+          <li>
+            <a href="../../reference/RestApi">
+              Pulsar REST API
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../reference/CliTools">
+              Command-line tools
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../reference/Configuration">
+              Pulsar configuration
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+  </div>
+</aside>
+
+
+    </nav>
+
+    <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">The Pulsar admin interface</h1>
+        
+        <section class="tags">
+          
+          <!-- <span class="badge badge-pill badge-primary">admin</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-admin">admin</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-admin">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>admin</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/advanced/PartitionedTopics/">Partitioned topics</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/advanced/RetentionExpiry/">Message retention and expiry</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/deployment/aws-cluster/">Deploying a Pulsar cluster on AWS using Terraform and Ansible</a></li>
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/deployment/cluster/">Deploying a Pulsar cluster on bare metal</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/deployment/instance/">Deploying a Pulsar instance on bare metal</a></li>
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/admin-api/overview/">The Pulsar admin interface</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">cli</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-cli">cli</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-cli">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>cli</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/admin-api/overview/">The Pulsar admin interface</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">rest</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-rest">rest</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-rest">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>rest</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/admin-api/overview/">The Pulsar admin interface</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">java</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-java">java</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-java">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>java</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/clients/Java/">The Pulsar Java client</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/adaptors/PulsarSpark/">Spark Streaming Pulsar receiver</a></li>
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/adaptors/PulsarStorm/">Pulsar adaptor for Apache Storm</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/admin-api/overview/">The Pulsar admin interface</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+        </section>
+
+        <hr class="hr">
+      </section>
+
+      <section class="content">
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<p>The Pulsar admin interface enables you to manage all of the important entities in a Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span>, such as <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">properties</span>, <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span>, and <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespaces</span>.</p>
+
+<p>You can currently interact with the admin interface via:</p>
+
+<ol>
+  <li>Making HTTP calls against the admin <a href="../../reference/RestApi">REST API</a> provided by Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span>.</li>
+  <li>
+    <p>The <code class="highlighter-rouge">pulsar-admin</code> CLI tool, which is available in the <code class="highlighter-rouge">bin</code> folder of your <a href="../../getting-started/LocalCluster">Pulsar installation</a>:</p>
+
+    <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code> <span class="nv">$ </span>bin/pulsar-admin
+</code></pre></div>    </div>
+
+    <p>Full documentation for this tool can be found in the <a href="../../reference/CliTools#pulsar-admin">Pulsar command-line tools</a> doc.</p>
+  </li>
+  <li>A Java client interface.</li>
+</ol>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<div class="admonition">
+  <div class="info">
+    <span class="admonition-title"><p>The REST API is <em>the</em> admin interface</p>
+</span>
+    <p>Under the hood, both the <code class="highlighter-rouge">pulsar-admin</code> CLI tool and the Java client both use the REST API. If you’d like to implement your own admin interface client, you should use the REST API as well. Full documentation can be found <a href="../../reference/RestApi">here</a>.</p>
+
+  </div>
+</div>
+
+<p>In this document, examples from each of the three available interfaces will be shown.</p>
+
+<h2 id="admin-setup">Admin setup</h2>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<p>Each of Pulsar’s three admin interfaces—the <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> CLI tool, the <a href="/api/admin">Java admin API</a>, and the <a href="../../reference/RestApi">REST API</a>—requires some special setup if you have <a href="../../admin/Authz#authentication-providers">authentication</a> enabled in your Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span>.</p>
+
+<h3 id="pulsar-admin">pulsar-admin</h3>
+
+<p>If you have <a href="../../admin/Authz#authentication-providers">authentication</a> enabled, you will need to provide an auth configuration to use the <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> tool. By default, the configuration for the <code class="highlighter-rouge">pulsar-admin</code> tool is found in the <a href="../../reference/Configuration#client"><code class="highlighter-rouge">conf/client.conf</code></a> file. Here are the available parameters:</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<table class="config">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Description</th>
+      <th>Default</th>
+    </tr>
+  </thead>
+  <tbody>
+    
+    <tr id="client-webServiceUrl">
+      <td>webServiceUrl</td>
+      <td>The web URL for the cluster.
+</td>
+      <td>http://localhost:8080/</td>
+    </tr>
+    
+    <tr id="client-brokerServiceUrl">
+      <td>brokerServiceUrl</td>
+      <td>The Pulsar protocol URL for the cluster.
+</td>
+      <td>pulsar://localhost:6650/</td>
+    </tr>
+    
+    <tr id="client-authPlugin">
+      <td>authPlugin</td>
+      <td>The authentication plugin.
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="client-authParams">
+      <td>authParams</td>
+      <td>The authentication parameters for the cluster, as a comma-separated string.
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="client-useTls">
+      <td>useTls</td>
+      <td>Whether or not TLS authentication will be enforced in the cluster.
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="client-tlsAllowInsecureConnection">
+      <td>tlsAllowInsecureConnection</td>
+      <td>
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="client-tlsTrustCertsFilePath">
+      <td>tlsTrustCertsFilePath</td>
+      <td>
+</td>
+      <td></td>
+    </tr>
+    
+  </tbody>
+</table>
+
+<h3 id="rest-api">REST API</h3>
+
+<p>You can find documentation for the REST API exposed by Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span> in <a href="../../reference/RestApi">this reference document</a>.</p>
+
+<h3 id="java-admin-client">Java admin client</h3>
+
+<p>To use the Java admin API, instantiate a <a target="_blank" href="/api/admin/org/apache/pulsar/client/admin/PulsarAdmin.html"><code class="highlighter-rouge">PulsarAdmin</code></a> object, specifying a URL for a Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> and a <a target="_blank" href="/api/admin/org/apache/pulsar/client/admin/ClientConfiguration.html"><code class="highlighter-rouge">ClientConfiguration</code></a>. Here’s a minimal example using <code class="highlighter-rouge">localhost</code>:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">URL</span> <span class="n">url</span> <span class="o">=</span> <span class="k">new</span> <span class="n">URL</span><span class="o">(</span><span class="s">"http://localhost:8080"</span><span class="o">);</span>
+<span class="n">String</span> <span class="n">authPluginClassName</span> <span class="o">=</span> <span class="s">"com.org.MyAuthPluginClass"</span><span class="o">;</span> <span class="c1">//Pass auth-plugin class fully-qualified name if Pulsar-security enabled</span>
+<span class="n">String</span> <span class="n">authParams</span> <span class="o">=</span> <span class="s">"param1=value1"</span><span class="o">;</span><span class="c1">//Pass auth-param if auth-plugin class requires it</span>
+<span class="kt">boolean</span> <span class="n">useTls</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
+<span class="kt">boolean</span> <span class="n">tlsAllowInsecureConnection</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
+<span class="n">String</span> <span class="n">tlsTrustCertsFilePath</span> <span class="o">=</span> <span class="kc">null</span><span class="o">;</span>
+
+<span class="n">ClientConfiguration</span> <span class="n">config</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClientConfiguration</span><span class="o">();</span>
+<span class="n">config</span><span class="o">.</span><span class="na">setAuthentication</span><span class="o">(</span><span class="n">authPluginClassName</span><span class="o">,</span> <span class="n">authParams</span><span class="o">);</span>
+<span class="n">config</span><span class="o">.</span><span class="na">setUseTls</span><span class="o">(</span><span class="n">useTls</span><span class="o">);</span>
+<span class="n">config</span><span class="o">.</span><span class="na">setTlsAllowInsecureConnection</span><span class="o">(</span><span class="n">tlsAllowInsecureConnection</span><span class="o">);</span>
+<span class="n">config</span><span class="o">.</span><span class="na">setTlsTrustCertsFilePath</span><span class="o">(</span><span class="n">tlsTrustCertsFilePath</span><span class="o">);</span>
+
+<span class="n">PulsarAdmin</span> <span class="n">admin</span> <span class="o">=</span> <span class="k">new</span> <span class="n">PulsarAdmin</span><span class="o">(</span><span class="n">url</span><span class="o">,</span> <span class="n">config</span><span class="o">);</span>
+</code></pre></div></div>
+
+
+      </section>
+    </article>
+
+    <nav class="toc-bar hidden-md-down col-lg-2">
+      
+      <div id="toc">
+        <h4>The Pulsar admin interface</h4>
+      </div>
+      
+    </nav>
+  </div>
+</div>
+
+      </main>
+    </main>
+
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<footer class="footer">
+  <div class="container">
+    <p class="text-center">Copyright 2018 The Apache Software Foundation. All Rights Reserved.</p>
+    <p class="text-center">Apache and the Apache feather logo are trademarks of The Apache Software Foundation.</p>
+  </div>
+</footer>
+
+
+    
+
+    
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-102219959-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+    
+  </body>
+</html>

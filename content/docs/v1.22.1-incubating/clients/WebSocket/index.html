@@ -1,0 +1,2175 @@
+<!DOCTYPE html>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<html>
+  <head>
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<script type="text/javascript">
+  var shiftWindow = function() { scrollBy(0, -108) };
+  window.addEventListener("hashchange", shiftWindow);
+  window.addEventListener("pageshow", shiftWindow);
+  function load() { if (window.location.hash) shiftWindow(); }
+</script>
+
+<title>Pulsar's WebSocket API</title>
+
+<meta charset="utf-8">
+
+<link rel="stylesheet" href="/css/style.css">
+<link rel="shortcut icon" href="/img/favicon.ico">
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script src="/js/jquery.tocify.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+
+<script src="/js/jquery.scrollTo.min.js"></script>
+<script async src="/js/main.js"></script>
+
+  </head>
+  <body class="body">
+    <main class="main">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<nav class="navbar navbar-toggleable-md navbar-light sticky-top">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  
+  <a class="navbar-brand" href="/">
+    <img class="main-logo" src="/img/pulsar-logo.png" alt="Pulsar logo">
+  </a>
+  
+
+  <a class="navbar-nav"></a>
+
+  <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
+    <ul class="navbar-nav">
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
+
+        <div class="dropdown-menu" aria-labelledby="documentationDropdown">
+          <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
+
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Stable release</h3>
+          <a class="dropdown-item" href="/docs/v1.21.0-incubating/getting-started/LocalCluster">1.21.0-incubating</a>
+
+          
+              <div class="dropdown-divider"></div>
+              <h3 class="dropdown-header">Other releases</h3>
+
+              
+                  <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+              
+          
+        </div>
+      </li>
+
+      <li class="nav-item">
+          <a class="nav-link" href="/download">Download</a>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Client libraries
+        </a>
+        <div class="dropdown-menu" aria-labelledby="clientLibsDropdown">
+          <a class="dropdown-item" href="/docs/latest/clients/Java">
+            Java
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Python">
+            Python
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Cpp">
+            C++
+          </a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="/api/client">
+            Java client Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/admin">
+            Java admin Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/python">
+            Python API docs
+          </a>
+          <a class="dropdown-item" href="/api/cpp">
+            C++ API docs
+          </a>
+        </div>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Community
+        </a>
+        <div class="dropdown-menu dropdown-left" aria-labelledby="versionsDropdown">
+          <h3 class="dropdown-header">Get in touch</h3>
+          <a class="dropdown-item" href="/contact">Contact</a>
+          <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Resources</h3>
+          <a class="dropdown-item" href="/resources">Resources</a>
+          <a class="dropdown-item" href="/team">Team</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Apache</h3>
+          <a class="dropdown-item" href="https://www.apache.org/">The Apache Software Foundation</a>
+          <a class="dropdown-item" href="https://www.apache.org/licenses/">License</a>
+          <a class="dropdown-item" href="https://www.apache.org/foundation/sponsorship.html">Sponsorship</a>
+          <a class="dropdown-item" href="https://www.apache.org/foundation/thanks.html">Thanks</a>
+          <a class="dropdown-item" href="https://www.apache.org/security">Security</a>
+        </div>
+      </li>
+    </ul>
+  </div>
+  <a class="hidden-md-down" href="http://www.apache.org/">
+    <img class="asf-logo" title="Apache Software Foundation" src="/img/feather.png" />
+  </a>
+</nav>
+
+<!--
+<nav class="navbar navbar-toggleable-md navbar-light" style="border: 1px solid red;">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <a class="navbar-brand" href="/">
+    <img src="/img/pulsar-logo.png" class="d-inline-block align-top" alt="Pulsar logo" height="40" width="60">
+  </a>
+
+  <div class="collapse navbar-collapse" id="navbarSupportedContent">
+    <ul class="navbar-nav mr-auto">
+      <li class="nav-item active">
+        <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#">Link</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link disabled" href="#">Disabled</a>
+      </li>
+    </ul>
+  </div>
+</nav>-->
+
+
+      <main>
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<div class="docs-container container-fluid">
+  <div class="row">
+    <nav class="sidebar-nav hidden-md-down col-lg-3">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<aside class="sidebar-nav">
+  <div id="sidebar-accordion" role="tablist" aria-multiselectable="true">
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-getting-started">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-getting-started" aria-controls="collapse-getting-started">
+            Getting started
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-getting-started" role="tabpanel" aria-labelledby="heading-getting-started">
+        <ul>
+          
+          
+          <li>
+            <a href="../../getting-started/LocalCluster">
+              Run Pulsar locally
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../getting-started/docker">
+              Pulsar in Docker
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../getting-started/Clients">
+              Client libraries
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../getting-started/ConceptsAndArchitecture">
+              Concepts and architecture
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-deployment">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-deployment" aria-controls="collapse-deployment">
+            Deployment
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-deployment" role="tabpanel" aria-labelledby="heading-deployment">
+        <ul>
+          
+          
+          <li>
+            <a href="../../deployment/aws-cluster">
+              Deploy on Amazon Web Services
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/cluster">
+              Single cluster on bare metal
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/instance">
+              Multi-cluster instance on bare metal
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/Kubernetes">
+              Pulsar on Kubernetes
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/Kubernetes/#pulsar-on-google-kubernetes-engine">
+              Pulsar on Google Kubernetes Engine
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/Kubernetes/#pulsar-on-amazon-web-services">
+              Pulsar on AWS
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/dcos">
+              Pulsar on DC/OS
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/Monitoring">
+              Monitoring
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-pulsar-administration">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-pulsar-administration" aria-controls="collapse-pulsar-administration">
+            Pulsar administration
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-pulsar-administration" role="tabpanel" aria-labelledby="heading-pulsar-administration">
+        <ul>
+          
+          
+          <li>
+            <a href="../../admin/ZooKeeperBookKeeper">
+              ZooKeeper and BookKeeper
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/GeoReplication">
+              Geo-replication
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/Authz">
+              Authentication and authorization
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/Dashboard">
+              Dashboard
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/Stats">
+              Pulsar statistics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/ModularLoadManager">
+              Modular load manager
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/Proxy">
+              Pulsar proxy
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-client-libraries">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-client-libraries" aria-controls="collapse-client-libraries">
+            Client libraries
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-client-libraries" role="tabpanel" aria-labelledby="heading-client-libraries">
+        <ul>
+          
+          
+          <li>
+            <a href="../../clients/Java">
+              Java client
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../clients/Cpp">
+              C++ client
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../clients/Python">
+              Python client
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../clients/WebSocket">
+              WebSocket API
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-admin-api">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-admin-api" aria-controls="collapse-admin-api">
+            Admin API
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-admin-api" role="tabpanel" aria-labelledby="heading-admin-api">
+        <ul>
+          
+          
+          <li>
+            <a href="../../admin-api/overview">
+              Overview
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/clusters">
+              Clusters
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/properties">
+              Properties
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/brokers">
+              Brokers
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/namespaces">
+              Namespaces
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/permissions">
+              Permissions
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/persistent-topics">
+              Persistent topics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/non-persistent-topics">
+              Non-Persistent topics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/partitioned-topics">
+              Partitioned topics
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-adaptors">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-adaptors" aria-controls="collapse-adaptors">
+            Adaptors
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-adaptors" role="tabpanel" aria-labelledby="heading-adaptors">
+        <ul>
+          
+          
+          <li>
+            <a href="../../adaptors/KafkaWrapper">
+              Apache Kafka client wrapper
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../adaptors/PulsarSpark">
+              Spark Streaming
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../adaptors/PulsarStorm">
+              Apache Storm
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-advanced">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-advanced" aria-controls="collapse-advanced">
+            Advanced
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-advanced" role="tabpanel" aria-labelledby="heading-advanced">
+        <ul>
+          
+          
+          <li>
+            <a href="../../advanced/PartitionedTopics">
+              Partitioned topics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../advanced/RetentionExpiry">
+              Retention and expiry
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../advanced/Encryption">
+              Encryption
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-developing-pulsar">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-developing-pulsar" aria-controls="collapse-developing-pulsar">
+            Developing Pulsar
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-developing-pulsar" role="tabpanel" aria-labelledby="heading-developing-pulsar">
+        <ul>
+          
+          
+          <li>
+            <a href="../../project/SimulationTools">
+              Simulation tools
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../project/BinaryProtocol">
+              Pulsar binary protocol
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../project/Codebase">
+              Codebase
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-reference">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-reference" aria-controls="collapse-reference">
+            Reference
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-reference" role="tabpanel" aria-labelledby="heading-reference">
+        <ul>
+          
+          
+          <li>
+            <a href="../../reference/RestApi">
+              Pulsar REST API
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../reference/CliTools">
+              Command-line tools
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../reference/Configuration">
+              Pulsar configuration
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+  </div>
+</aside>
+
+
+    </nav>
+
+    <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">Pulsar's WebSocket API</h1>
+        
+        <section class="tags">
+          
+          <!-- <span class="badge badge-pill badge-primary">websocket</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-websocket">websocket</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-websocket">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>websocket</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/clients/WebSocket/">Pulsar's WebSocket API</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">nodejs</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-nodejs">nodejs</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-nodejs">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>nodejs</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/clients/WebSocket/">Pulsar's WebSocket API</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">python</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-python">python</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-python">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>python</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/clients/Python/">The Pulsar Python client</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/clients/WebSocket/">Pulsar's WebSocket API</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+        </section>
+
+        <hr class="hr">
+      </section>
+
+      <section class="content">
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<p>Pulsar’s <a href="https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API">WebSocket</a> API is meant to provide a simple way to interact with Pulsar using languages that do not have an official <a href="../../getting-started/Clients">client library</a>. Through WebSockets you can publish and consume messages and use all the features available in the <a href="../Java">Java</a>, <a href="../Python">Python</a>, and <a href="../Cpp">C++</a> client libraries.</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="success">
+    
+    <p>You can use Pulsar’s WebSocket API with any WebSocket client library. See examples for Python and Node.js <a href="#client-examples">below</a>.</p>
+
+  </div>
+</div>
+
+<h2 id="running-the-websocket-service">Running the WebSocket service</h2>
+
+<p>The <span class="popover-term" tabindex="0" title="What is a standalone Pulsar broker?" data-placement="top" data-content="A lightweight Pulsar broker in which all components run in a single Java Virtual Machine (JVM) process. Standalone clusters can be run on a single machine and are useful for development purposes." data-toggle="popover" data-trigger="focus">standalone</span> variant of Pulsar that we recommend using for <a href="../../getting-started/LocalCluster">local development</a> already has the WebSocket service enabled.</p>
+
+<p>In non-standalone mode, there are two ways to deploy the WebSocket service:</p>
+
+<ul>
+  <li><a href="#embedded-with-a-pulsar-broker">embedded</a> with a Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span></li>
+  <li>as a <a href="#as-a-separate-component">separate component</a></li>
+</ul>
+
+<h3 id="embedded-with-a-pulsar-broker">Embedded with a Pulsar broker</h3>
+
+<p>In this mode, the WebSocket service will run within the same HTTP service that’s already running in the broker. To enable this mode, set the <a href="../../reference/Configuration#broker-webSocketServiceEnabled"><code class="highlighter-rouge">webSocketServiceEnabled</code></a> parameter in the <a href="../../reference/Configuration#broker"><code class="highlighter-rouge">conf/broker.conf</code></a> configuration file in your installation.</p>
+
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">webSocketServiceEnabled</span><span class="p">=</span><span class="s">true</span>
+</code></pre></div></div>
+
+<h3 id="as-a-separate-component">As a separate component</h3>
+
+<p>In this mode, the WebSocket service will be run from a Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> as a separate service. Configuration for this mode is handled in the <a href="../../reference/Configuration#websocket"><code class="highlighter-rouge">conf/websocket.conf</code></a> configuration file. You’ll need to set <em>at least</em> the following parameters:</p>
+
+<ul>
+  <li><a href="../../reference/Configuration#websocket-globalZookeeperServers"><code class="highlighter-rouge">globalZookeeperServers</code></a></li>
+  <li><a href="../../reference/Configuration#websocket-webServicePort"><code class="highlighter-rouge">webServicePort</code></a></li>
+  <li><a href="../../reference/Configuration#websocket-clusterName"><code class="highlighter-rouge">clusterName</code></a></li>
+</ul>
+
+<p>Here’s an example:</p>
+
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">globalZookeeperServers</span><span class="p">=</span><span class="s">zk1:2181,zk2:2181,zk3:2181</span>
+<span class="py">webServicePort</span><span class="p">=</span><span class="s">8080</span>
+<span class="py">clusterName</span><span class="p">=</span><span class="s">my-cluster</span>
+</code></pre></div></div>
+
+<h3 id="starting-the-broker">Starting the broker</h3>
+
+<p>When the configuration is set, you can start the service using the <a href="../../reference/CliTools#pulsar-daemon"><code class="highlighter-rouge">pulsar-daemon</code></a> tool:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-daemon start websocket
+</code></pre></div></div>
+
+<h2 id="api-reference">API Reference</h2>
+
+<p>Pulsar’s WebSocket API offers three endpoints for <a href="#producer-endpoint">producing</a> messages, <a href="#consumer-endpoint">consuming</a> messages and <a href="#reader-endpoint">reading</a> messages.</p>
+
+<p>All exchanges via the WebSocket API use JSON.</p>
+
+<h3 id="producer-endpoint">Producer endpoint</h3>
+
+<p>The producer endpoint requires you to specify a <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">property</span>, <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span>, <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span>, and <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span> in the URL:</p>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method "></code><code class="url">ws://broker-service-url<span class="endpoint">:8080</span>/ws/producer/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span></code></pre></div>
+
+<h5 id="query-param">Query param</h5>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Key</th>
+      <th style="text-align: left">Type</th>
+      <th style="text-align: left">Required?</th>
+      <th style="text-align: left">Explanation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">sendTimeoutMillis</code></td>
+      <td style="text-align: left">long</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Send timeout (default: 30 secs)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">batchingEnabled</code></td>
+      <td style="text-align: left">boolean</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Enable batching of messages (default: false)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">batchingMaxMessages</code></td>
+      <td style="text-align: left">int</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Maximum number of messages permitted in a batch (default: 1000)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">maxPendingMessages</code></td>
+      <td style="text-align: left">int</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Set the max size of the internal-queue holding the messages (default: 1000)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">batchingMaxPublishDelay</code></td>
+      <td style="text-align: left">long</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Time period within which the messages will be batched (default: 10ms)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">messageRoutingMode</code></td>
+      <td style="text-align: left">string</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Message <a href="https://pulsar.incubator.apache.org/api/client/index.html?org/apache/pulsar/client/api/ProducerConfiguration.MessageRoutingMode.html">routing mode</a> for the partitioned producer: <code class="highlighter-rouge">SinglePartition</code>, <code class="highlighter-rouge">RoundRobinPartition</code></td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">compressionType</code></td>
+      <td style="text-align: left">string</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Compression <a href="https://pulsar.incubator.apache.org/api/client/index.html?org/apache/pulsar/client/api/CompressionType.html">type</a>: <code class="highlighter-rouge">LZ4</code>, <code class="highlighter-rouge">ZLIB</code></td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">producerName</code></td>
+      <td style="text-align: left">string</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Specify the name for the producer. Pulsar will enforce only one producer with same name can be publishing on a topic</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">initialSequenceId</code></td>
+      <td style="text-align: left">long</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Set the baseline for the sequence ids for messages published by the producer.</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">hashingScheme</code></td>
+      <td style="text-align: left">string</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left"><a href="http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ProducerConfiguration.HashingScheme.html">Hashing function</a> to use when publishing on a partitioned topic: <code class="highlighter-rouge">JavaStringHash</code>, <code class="highlighter-rouge">Murmur3_32Hash</code></td>
+    </tr>
+  </tbody>
+</table>
+
+<h4 id="publishing-a-message">Publishing a message</h4>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="s2">"payload"</span><span class="p">:</span><span class="w"> </span><span class="s2">"SGVsbG8gV29ybGQ="</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"properties"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="s2">"key1"</span><span class="p">:</span><span class="w"> </span><span class="s2">"value1"</span><span class="p">,</span><span class="w"> </span><span class="s2">"key2"</span><span class="p">:</span><span class="w"> </span><span class="s2">"value2"</span><span class="p">},</span><span class="w">
+  </span><span class="s2">"context"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1"</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Key</th>
+      <th style="text-align: left">Type</th>
+      <th style="text-align: left">Required?</th>
+      <th style="text-align: left">Explanation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">payload</code></td>
+      <td style="text-align: left">string</td>
+      <td style="text-align: left">yes</td>
+      <td style="text-align: left">Base-64 encoded payload</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">properties</code></td>
+      <td style="text-align: left">key-value pairs</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Application-defined properties</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">context</code></td>
+      <td style="text-align: left">string</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Application-defined request identifier</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">key</code></td>
+      <td style="text-align: left">string</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">For partitioned topics, decides which partition to use</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">replicationClusters</code></td>
+      <td style="text-align: left">array</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Restrict replication to this list of <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">clusters</span>, specified by name</td>
+    </tr>
+  </tbody>
+</table>
+
+<h5 id="example-success-response">Example success response</h5>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+   </span><span class="s2">"result"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ok"</span><span class="p">,</span><span class="w">
+   </span><span class="s2">"messageId"</span><span class="p">:</span><span class="w"> </span><span class="s2">"CAAQAw=="</span><span class="p">,</span><span class="w">
+   </span><span class="s2">"context"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1"</span><span class="w">
+ </span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+<h5 id="example-failure-response">Example failure response</h5>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="w"> </span><span class="p">{</span><span class="w">
+   </span><span class="s2">"result"</span><span class="p">:</span><span class="w"> </span><span class="s2">"send-error:3"</span><span class="p">,</span><span class="w">
+   </span><span class="s2">"errorMsg"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Failed to de-serialize from JSON"</span><span class="p">,</span><span class="w">
+   </span><span class="s2">"context"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1"</span><span class="w">
+ </span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Key</th>
+      <th style="text-align: left">Type</th>
+      <th style="text-align: left">Required?</th>
+      <th style="text-align: left">Explanation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">result</code></td>
+      <td style="text-align: left">string</td>
+      <td style="text-align: left">yes</td>
+      <td style="text-align: left"><code class="highlighter-rouge">ok</code> if successful or an error message if unsuccessful</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">messageId</code></td>
+      <td style="text-align: left">string</td>
+      <td style="text-align: left">yes</td>
+      <td style="text-align: left">Message ID assigned to the published message</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">context</code></td>
+      <td style="text-align: left">string</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Application-defined request identifier</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="consumer-endpoint">Consumer endpoint</h3>
+
+<p>The consumer endpoint requires you to specify a <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">property</span>, <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span>, <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span>, and <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span>, as well as a <span class="popover-term" tabindex="0" title="What is a subscription?" data-placement="top" data-content="A lease on a topic established by a consumer. Pulsar has three subscription modes (exclusive, shared, and failover)." data-toggle="popover" data-trigger="focus">subscription</span>, in the URL:</p>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method "></code><code class="url">ws://broker-service-url<span class="endpoint">:8080</span>/ws/consumer/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span>/<span class="endpoint">:subscription</span></code></pre></div>
+
+<h5 id="query-param-1">Query param</h5>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Key</th>
+      <th style="text-align: left">Type</th>
+      <th style="text-align: left">Required?</th>
+      <th style="text-align: left">Explanation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">ackTimeoutMillis</code></td>
+      <td style="text-align: left">long</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Set the timeout for unacked messages (default: 0)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">subscriptionType</code></td>
+      <td style="text-align: left">string</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left"><a href="https://pulsar.incubator.apache.org/api/client/index.html?org/apache/pulsar/client/api/SubscriptionType.html">Subscription type</a>: <code class="highlighter-rouge">Exclusive</code>, <code class="highlighter-rouge">Failover</code>, <code class="highlighter-rouge">Shared</code></td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">receiverQueueSize</code></td>
+      <td style="text-align: left">int</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Size of the consumer receive queue (default: 1000)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">consumerName</code></td>
+      <td style="text-align: left">string</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Consumer name</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">priorityLevel</code></td>
+      <td style="text-align: left">int</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Define a <a href="http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ConsumerConfiguration.html#setPriorityLevel-int-">priority</a> for the consumer</td>
+    </tr>
+  </tbody>
+</table>
+
+<h5 id="receiving-messages">Receiving messages</h5>
+
+<p>Server will push messages on the WebSocket session:</p>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="s2">"messageId"</span><span class="p">:</span><span class="w"> </span><span class="s2">"CAAQAw=="</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"payload"</span><span class="p">:</span><span class="w"> </span><span class="s2">"SGVsbG8gV29ybGQ="</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"properties"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="s2">"key1"</span><span class="p">:</span><span class="w"> </span><span class="s2">"value1"</span><span class="p">,</span><span class="w"> </span><span class="s2">"key2"</span><span class="p">:</span><span class="w"> </span><span class="s2">"value2"</span><span class="p">},</span><span class="w">
+  </span><span class="s2">"publishTime"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2016-08-30 16:45:57.785"</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Key</th>
+      <th style="text-align: left">Type</th>
+      <th style="text-align: left">Required?</th>
+      <th style="text-align: left">Explanation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">messageId</code></td>
+      <td style="text-align: left">string</td>
+      <td style="text-align: left">yes</td>
+      <td style="text-align: left">Message ID</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">payload</code></td>
+      <td style="text-align: left">string</td>
+      <td style="text-align: left">yes</td>
+      <td style="text-align: left">Base-64 encoded payload</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">publishTime</code></td>
+      <td style="text-align: left">string</td>
+      <td style="text-align: left">yes</td>
+      <td style="text-align: left">Publish timestamp</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">properties</code></td>
+      <td style="text-align: left">key-value pairs</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Application-defined properties</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">key</code></td>
+      <td style="text-align: left">string</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Original routing key set by producer</td>
+    </tr>
+  </tbody>
+</table>
+
+<h4 id="acknowledging-the-message">Acknowledging the message</h4>
+
+<p>Consumer needs to acknowledge the successful processing of the message to
+have the Pulsar broker delete it.</p>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="s2">"messageId"</span><span class="p">:</span><span class="w"> </span><span class="s2">"CAAQAw=="</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Key</th>
+      <th style="text-align: left">Type</th>
+      <th style="text-align: left">Required?</th>
+      <th style="text-align: left">Explanation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">messageId</code></td>
+      <td style="text-align: left">string</td>
+      <td style="text-align: left">yes</td>
+      <td style="text-align: left">Message ID of the processed message</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="reader-endpoint">Reader endpoint</h3>
+
+<p>The reader endpoint requires you to specify a <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">property</span>, <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span>, <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span>, and <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span> in the URL:</p>
+
+<div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method "></code><code class="url">ws://broker-service-url<span class="endpoint">:8080</span>/ws/reader/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span></code></pre></div>
+
+<h5 id="query-param-2">Query param</h5>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Key</th>
+      <th style="text-align: left">Type</th>
+      <th style="text-align: left">Required?</th>
+      <th style="text-align: left">Explanation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">readerName</code></td>
+      <td style="text-align: left">string</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Reader name</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">receiverQueueSize</code></td>
+      <td style="text-align: left">int</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Size of the consumer receive queue (default: 1000)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h5 id="receiving-messages-1">Receiving messages</h5>
+
+<p>Server will push messages on the WebSocket session:</p>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="s2">"messageId"</span><span class="p">:</span><span class="w"> </span><span class="s2">"CAAQAw=="</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"payload"</span><span class="p">:</span><span class="w"> </span><span class="s2">"SGVsbG8gV29ybGQ="</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"properties"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="s2">"key1"</span><span class="p">:</span><span class="w"> </span><span class="s2">"value1"</span><span class="p">,</span><span class="w"> </span><span class="s2">"key2"</span><span class="p">:</span><span class="w"> </span><span class="s2">"value2"</span><span class="p">},</span><span class="w">
+  </span><span class="s2">"publishTime"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2016-08-30 16:45:57.785"</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Key</th>
+      <th style="text-align: left">Type</th>
+      <th style="text-align: left">Required?</th>
+      <th style="text-align: left">Explanation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">messageId</code></td>
+      <td style="text-align: left">string</td>
+      <td style="text-align: left">yes</td>
+      <td style="text-align: left">Message ID</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">payload</code></td>
+      <td style="text-align: left">string</td>
+      <td style="text-align: left">yes</td>
+      <td style="text-align: left">Base-64 encoded payload</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">publishTime</code></td>
+      <td style="text-align: left">string</td>
+      <td style="text-align: left">yes</td>
+      <td style="text-align: left">Publish timestamp</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">properties</code></td>
+      <td style="text-align: left">key-value pairs</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Application-defined properties</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">key</code></td>
+      <td style="text-align: left">string</td>
+      <td style="text-align: left">no</td>
+      <td style="text-align: left">Original routing key set by producer</td>
+    </tr>
+  </tbody>
+</table>
+
+<h4 id="acknowledging-the-message-1">Acknowledging the message</h4>
+
+<p><strong>In WebSocket</strong>, Reader needs to acknowledge the successful processing of the message to
+have the Pulsar WebSocket service update the number of pending messages.
+If you don’t send acknowledgements, Pulsar WebSocket service will stop sending messages after reaching the pendingMessages limit.</p>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="s2">"messageId"</span><span class="p">:</span><span class="w"> </span><span class="s2">"CAAQAw=="</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Key</th>
+      <th style="text-align: left">Type</th>
+      <th style="text-align: left">Required?</th>
+      <th style="text-align: left">Explanation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">messageId</code></td>
+      <td style="text-align: left">string</td>
+      <td style="text-align: left">yes</td>
+      <td style="text-align: left">Message ID of the processed message</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="error-codes">Error codes</h3>
+
+<p>In case of error the server will close the WebSocket session using the
+following error codes:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Error Code</th>
+      <th style="text-align: left">Error Message</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">1</td>
+      <td style="text-align: left">Failed to create producer</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">2</td>
+      <td style="text-align: left">Failed to subscribe</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">3</td>
+      <td style="text-align: left">Failed to deserialize from JSON</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">4</td>
+      <td style="text-align: left">Failed to serialize to JSON</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">5</td>
+      <td style="text-align: left">Failed to authenticate client</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">6</td>
+      <td style="text-align: left">Client is not authorized</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">7</td>
+      <td style="text-align: left">Invalid payload encoding</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">8</td>
+      <td style="text-align: left">Unknown error</td>
+    </tr>
+  </tbody>
+</table>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="warning">
+    
+    <p>The application is responsible for re-establishing a new WebSocket session after a backoff period.</p>
+
+  </div>
+</div>
+
+<h2 id="client-examples">Client examples</h2>
+
+<p>Below you’ll find code examples for the Pulsar WebSocket API in <a href="#python">Python</a> and <a href="#nodejs">Node.js</a>.</p>
+
+<h3 id="python">Python</h3>
+
+<p>This example uses the <a href="https://pypi.python.org/pypi/websocket-client"><code class="highlighter-rouge">websocket-client</code></a> package. You can install it using <a href="https://pypi.python.org/pypi/pip">pip</a>:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pip <span class="nb">install </span>websocket-client
+</code></pre></div></div>
+
+<p>You can also download it from <a href="https://pypi.python.org/pypi/websocket-client">PyPI</a>.</p>
+
+<h4 id="python-producer">Python producer</h4>
+
+<p>Here’s an example Python <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producer</span> that sends a simple message to a Pulsar <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span>:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">websocket</span><span class="p">,</span> <span class="n">base64</span><span class="p">,</span> <span class="n">json</span>
+
+<span class="n">TOPIC</span> <span class="o">=</span> <span class="s">'ws://localhost:8080/ws/producer/persistent/sample/standalone/ns1/my-topic'</span>
+
+<span class="n">ws</span> <span class="o">=</span> <span class="n">websocket</span><span class="o">.</span><span class="n">create_connection</span><span class="p">(</span><span class="n">TOPIC</span><span class="p">)</span>
+
+<span class="c"># Send one message as JSON</span>
+<span class="n">ws</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span>
+    <span class="s">'payload'</span> <span class="p">:</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="s">'Hello World'</span><span class="p">),</span>
+    <span class="s">'properties'</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s">'key1'</span> <span class="p">:</span> <span class="s">'value1'</span><span class="p">,</span>
+        <span class="s">'key2'</span> <span class="p">:</span> <span class="s">'value2'</span>
+    <span class="p">},</span>
+    <span class="s">'context'</span> <span class="p">:</span> <span class="mi">5</span>
+<span class="p">}))</span>
+
+<span class="n">response</span> <span class="o">=</span>  <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">ws</span><span class="o">.</span><span class="n">recv</span><span class="p">())</span>
+<span class="k">if</span> <span class="n">response</span><span class="p">[</span><span class="s">'result'</span><span class="p">]</span> <span class="o">==</span> <span class="s">'ok'</span><span class="p">:</span>
+    <span class="k">print</span> <span class="s">'Message published successfully'</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="k">print</span> <span class="s">'Failed to publish message:'</span><span class="p">,</span> <span class="n">response</span>
+<span class="n">ws</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</code></pre></div></div>
+
+<h4 id="python-consumer">Python consumer</h4>
+
+<p>Here’s an example Python <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span> that listens on a Pulsar <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span> and prints the message ID whenever a message arrives:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">websocket</span><span class="p">,</span> <span class="n">base64</span><span class="p">,</span> <span class="n">json</span>
+
+<span class="n">TOPIC</span> <span class="o">=</span> <span class="s">'ws://localhost:8080/ws/consumer/persistent/sample/standalone/ns1/my-topic/my-sub'</span>
+
+<span class="n">ws</span> <span class="o">=</span> <span class="n">websocket</span><span class="o">.</span><span class="n">create_connection</span><span class="p">(</span><span class="n">TOPIC</span><span class="p">)</span>
+
+<span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+    <span class="n">msg</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">ws</span><span class="o">.</span><span class="n">recv</span><span class="p">())</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">msg</span><span class="p">:</span> <span class="k">break</span>
+
+    <span class="k">print</span> <span class="s">"Received: {} - payload: {}"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64decode</span><span class="p">(</span><span class="n">msg</span><span class="p">[</span><span class="s">'payload'</span><span class="p">]))</span>
+
+    <span class="c"># Acknowledge successful processing</span>
+    <span class="n">ws</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span><span class="s">'messageId'</span> <span class="p">:</span> <span class="n">msg</span><span class="p">[</span><span class="s">'messageId'</span><span class="p">]}))</span>
+
+<span class="n">ws</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</code></pre></div></div>
+
+<h4 id="python-reader">Python reader</h4>
+
+<p>Here’s an example Python reader that listens on a Pulsar <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span> and prints the message ID whenever a message arrives:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">websocket</span><span class="p">,</span> <span class="n">base64</span><span class="p">,</span> <span class="n">json</span>
+
+<span class="n">TOPIC</span> <span class="o">=</span> <span class="s">'ws://localhost:8080/ws/reader/persistent/sample/standalone/ns1/my-topic'</span>
+
+<span class="n">ws</span> <span class="o">=</span> <span class="n">websocket</span><span class="o">.</span><span class="n">create_connection</span><span class="p">(</span><span class="n">TOPIC</span><span class="p">)</span>
+
+<span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+    <span class="n">msg</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">ws</span><span class="o">.</span><span class="n">recv</span><span class="p">())</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">msg</span><span class="p">:</span> <span class="k">break</span>
+
+    <span class="k">print</span> <span class="s">"Received: {} - payload: {}"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">msg</span><span class="p">,</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64decode</span><span class="p">(</span><span class="n">msg</span><span class="p">[</span><span class="s">'payload'</span><span class="p">]))</span>
+
+    <span class="c"># Acknowledge successful processing</span>
+    <span class="n">ws</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span><span class="s">'messageId'</span> <span class="p">:</span> <span class="n">msg</span><span class="p">[</span><span class="s">'messageId'</span><span class="p">]}))</span>
+
+<span class="n">ws</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</code></pre></div></div>
+
+<h3 id="nodejs">Node.js</h3>
+
+<p>This example uses the <a href="https://websockets.github.io/ws/"><code class="highlighter-rouge">ws</code></a> package. You can install it using <a href="https://www.npmjs.com/">npm</a>:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>npm <span class="nb">install </span>ws
+</code></pre></div></div>
+
+<h4 id="nodejs-producer">Node.js producer</h4>
+
+<p>Here’s an example Node.js <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producer</span> that sends a simple message to a Pulsar <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span>:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">var</span> <span class="nx">WebSocket</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'ws'</span><span class="p">),</span>
+    <span class="nx">topic</span> <span class="o">=</span> <span class="s2">"ws://localhost:8080/ws/producer/persistent/my-property/us-west/my-ns/my-topic1"</span><span class="p">,</span>
+    <span class="nx">ws</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">WebSocket</span><span class="p">(</span><span class="nx">topic</span><span class="p">);</span>
+
+<span class="kd">var</span> <span class="nx">message</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="s2">"payload"</span> <span class="p">:</span> <span class="k">new</span> <span class="nx">Buffer</span><span class="p">(</span><span class="s2">"Hello World"</span><span class="p">).</span><span class="nx">toString</span><span class="p">(</span><span class="s1">'base64'</span><span class="p">),</span>
+  <span class="s2">"properties"</span><span class="p">:</span> <span class="p">{</span>
+    <span class="s2">"key1"</span> <span class="p">:</span> <span class="s2">"value1"</span><span class="p">,</span>
+    <span class="s2">"key2"</span> <span class="p">:</span> <span class="s2">"value2"</span>
+  <span class="p">},</span>
+  <span class="s2">"context"</span> <span class="p">:</span> <span class="s2">"1"</span>
+<span class="p">};</span>
+
+<span class="nx">ws</span><span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="s1">'open'</span><span class="p">,</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+  <span class="c1">// Send one message</span>
+  <span class="nx">ws</span><span class="p">.</span><span class="nx">send</span><span class="p">(</span><span class="nx">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">(</span><span class="nx">message</span><span class="p">));</span>
+<span class="p">});</span>
+
+<span class="nx">ws</span><span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="s1">'message'</span><span class="p">,</span> <span class="kd">function</span><span class="p">(</span><span class="nx">message</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">'received ack: %s'</span><span class="p">,</span> <span class="nx">message</span><span class="p">);</span>
+<span class="p">});</span>
+</code></pre></div></div>
+
+<h4 id="nodejs-consumer">Node.js consumer</h4>
+
+<p>Here’s an example Node.js <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span> that listens on the same topic used by the producer above:</p>
+
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">var</span> <span class="nx">WebSocket</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'ws'</span><span class="p">),</span>
+    <span class="nx">topic</span> <span class="o">=</span> <span class="s2">"ws://localhost:8080/ws/consumer/persistent/my-property/us-west/my-ns/my-topic1/my-sub"</span><span class="p">,</span>
+    <span class="nx">ws</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">WebSocket</span><span class="p">(</span><span class="nx">topic</span><span class="p">);</span>
+
+<span class="nx">ws</span><span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="s1">'message'</span><span class="p">,</span> <span class="kd">function</span><span class="p">(</span><span class="nx">message</span><span class="p">)</span> <span class="p">{</span>
+    <span class="kd">var</span> <span class="nx">receiveMsg</span> <span class="o">=</span> <span class="nx">JSON</span><span class="p">.</span><span class="nx">parse</span><span class="p">(</span><span class="nx">message</span><span class="p">);</span>
+    <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">'Received: %s - payload: %s'</span><span class="p">,</span> <span class="nx">message</span><span class="p">,</span> <span class="k">new</span> <span class="nx">Buffer</span><span class="p">(</span><span class="nx">receiveMsg</span><span class="p">.</span><span class="nx">payload</span><span class="p">,</span> <span class="s1">'base64'</span><span class="p">).</span><span class="nx">toString</span><span class="p">());</span>
+    <span class="kd">var</span> <span class="nx">ackMsg</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"messageId"</span> <span class="p">:</span> <span class="nx">receiveMsg</span><span class="p">.</span><span class="nx">messageId</span><span class="p">};</span>
+    <span class="nx">ws</span><span class="p">.</span><span class="nx">send</span><span class="p">(</span><span class="nx">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">(</span><span class="nx">ackMsg</span><span class="p">));</span>
+<span class="p">});</span>
+</code></pre></div></div>
+
+<h4 id="nodejs-reader">NodeJS reader</h4>
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">var</span> <span class="nx">WebSocket</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'ws'</span><span class="p">),</span>
+    <span class="nx">topic</span> <span class="o">=</span> <span class="s2">"ws://localhost:8080/ws/reader/persistent/my-property/us-west/my-ns/my-topic1"</span><span class="p">,</span>
+    <span class="nx">ws</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">WebSocket</span><span class="p">(</span><span class="nx">topic</span><span class="p">);</span>
+
+<span class="nx">ws</span><span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="s1">'message'</span><span class="p">,</span> <span class="kd">function</span><span class="p">(</span><span class="nx">message</span><span class="p">)</span> <span class="p">{</span>
+    <span class="kd">var</span> <span class="nx">receiveMsg</span> <span class="o">=</span> <span class="nx">JSON</span><span class="p">.</span><span class="nx">parse</span><span class="p">(</span><span class="nx">message</span><span class="p">);</span>
+    <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">'Received: %s - payload: %s'</span><span class="p">,</span> <span class="nx">message</span><span class="p">,</span> <span class="k">new</span> <span class="nx">Buffer</span><span class="p">(</span><span class="nx">receiveMsg</span><span class="p">.</span><span class="nx">payload</span><span class="p">,</span> <span class="s1">'base64'</span><span class="p">).</span><span class="nx">toString</span><span class="p">());</span>
+    <span class="kd">var</span> <span class="nx">ackMsg</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"messageId"</span> <span class="p">:</span> <span class="nx">receiveMsg</span><span class="p">.</span><span class="nx">messageId</span><span class="p">};</span>
+    <span class="nx">ws</span><span class="p">.</span><span class="nx">send</span><span class="p">(</span><span class="nx">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">(</span><span class="nx">ackMsg</span><span class="p">));</span>
+<span class="p">});</span>
+</code></pre></div></div>
+
+      </section>
+    </article>
+
+    <nav class="toc-bar hidden-md-down col-lg-2">
+      
+      <div id="toc">
+        <h4>Pulsar's WebSocket API</h4>
+      </div>
+      
+    </nav>
+  </div>
+</div>
+
+      </main>
+    </main>
+
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<footer class="footer">
+  <div class="container">
+    <p class="text-center">Copyright 2018 The Apache Software Foundation. All Rights Reserved.</p>
+    <p class="text-center">Apache and the Apache feather logo are trademarks of The Apache Software Foundation.</p>
+  </div>
+</footer>
+
+
+    
+
+    
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-102219959-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+    
+  </body>
+</html>
