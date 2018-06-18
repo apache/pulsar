@@ -1405,6 +1405,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             info.ledgerId = li.getLedgerId();
             info.entries = li.getEntries();
             info.size = li.getSize();
+            info.offloaded = li.hasOffloadContext() && li.getOffloadContext().getComplete();
             stats.ledgers.add(info);
         });
 
