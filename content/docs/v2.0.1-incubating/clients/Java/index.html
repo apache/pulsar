@@ -1,0 +1,2533 @@
+<!DOCTYPE html>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<html>
+  <head>
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<title>The Pulsar Java client</title>
+
+<meta charset="utf-8">
+
+<link rel="stylesheet" href="/css/style.css">
+<link rel="shortcut icon" href="/img/favicon.ico">
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+<script src="/js/jquery.tocify.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+
+<script src="/js/jquery.scrollTo.min.js"></script>
+<script async src="/js/main.js"></script>
+
+  </head>
+  <body class="body">
+    <main class="main">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<nav class="navbar navbar-toggleable-md navbar-light sticky-top">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  
+  <a class="navbar-brand" href="/">
+    <img class="main-logo" src="/img/pulsar-logo.png" alt="Pulsar logo">
+  </a>
+  
+
+  <a class="navbar-nav"></a>
+
+  <div class="collapse navbar-collapse justify-content-end" id="navbarNavDropdown">
+    <ul class="navbar-nav">
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
+
+        <div class="dropdown-menu" aria-labelledby="documentationDropdown">
+          <a class="dropdown-item" href="/docs/latest/getting-started/LocalCluster">Latest</a>
+
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Stable release</h3>
+          <a class="dropdown-item" href="/docs/v2.0.0-rc1-incubating/getting-started/LocalCluster">2.0.0-rc1-incubating</a>
+
+          
+              <div class="dropdown-divider"></div>
+              <h3 class="dropdown-header">Other releases</h3>
+
+              
+                  <a class="dropdown-item" href="/docs/v1.22.1-incubating/getting-started/LocalCluster">1.22.1-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.22.0-incubating/getting-started/LocalCluster">1.22.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.21.0-incubating/getting-started/LocalCluster">1.21.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.20.0-incubating/getting-started/LocalCluster">1.20.0-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v1.19.0-incubating/getting-started/LocalCluster">1.19.0-incubating</a>
+              
+          
+        </div>
+      </li>
+
+      <li class="nav-item">
+          <a class="nav-link" href="/download">Download</a>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="clientLibsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Client libraries
+        </a>
+        <div class="dropdown-menu" aria-labelledby="clientLibsDropdown">
+          <a class="dropdown-item" href="/docs/latest/clients/Java">
+            Java
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Python">
+            Python
+          </a>
+          <a class="dropdown-item" href="/docs/latest/clients/Cpp">
+            C++
+          </a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="/api/client">
+            Java client Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/admin">
+            Java admin Javadoc
+          </a>
+          <a class="dropdown-item" href="/api/pulsar-functions">
+            Pulsar Functions Java SDK
+          </a>
+          <a class="dropdown-item" href="/api/python">
+            Python API docs
+          </a>
+          <a class="dropdown-item" href="/api/cpp">
+            C++ API docs
+          </a>
+        </div>
+      </li>
+
+      <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="versionsDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          Community
+        </a>
+        <div class="dropdown-menu dropdown-left" aria-labelledby="versionsDropdown">
+          <h3 class="dropdown-header">Get in touch</h3>
+          <a class="dropdown-item" href="/contact">Contact</a>
+          <a class="dropdown-item" href="/events/current-event">Events</a>
+          <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
+          <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Resources</h3>
+          <a class="dropdown-item" href="/resources">Resources</a>
+          <a class="dropdown-item" href="/team">Team</a>
+          <div class="dropdown-divider"></div>
+          <h3 class="dropdown-header">Apache</h3>
+          <a class="dropdown-item" href="https://www.apache.org/">The Apache Software Foundation</a>
+          <a class="dropdown-item" href="https://www.apache.org/licenses/">License</a>
+          <a class="dropdown-item" href="https://www.apache.org/foundation/sponsorship.html">Sponsorship</a>
+          <a class="dropdown-item" href="https://www.apache.org/foundation/thanks.html">Thanks</a>
+          <a class="dropdown-item" href="https://www.apache.org/security">Security</a>
+        </div>
+      </li>
+    </ul>
+  </div>
+  <a class="hidden-md-down" href="http://www.apache.org/">
+    <img class="asf-logo" title="Apache Software Foundation" src="/img/feather.png" />
+  </a>
+</nav>
+
+<!--
+<nav class="navbar navbar-toggleable-md navbar-light" style="border: 1px solid red;">
+  <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <a class="navbar-brand" href="/">
+    <img src="/img/pulsar-logo.png" class="d-inline-block align-top" alt="Pulsar logo" height="40" width="60">
+  </a>
+
+  <div class="collapse navbar-collapse" id="navbarSupportedContent">
+    <ul class="navbar-nav mr-auto">
+      <li class="nav-item active">
+        <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#">Link</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link disabled" href="#">Disabled</a>
+      </li>
+    </ul>
+  </div>
+</nav>-->
+
+
+      <main>
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<div class="docs-container container-fluid">
+  <div class="row">
+    <nav class="sidebar-nav hidden-md-down col-lg-3">
+      <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+
+<aside class="sidebar-nav">
+  <div id="sidebar-accordion" role="tablist" aria-multiselectable="true">
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-getting-started">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-getting-started" aria-controls="collapse-getting-started">
+            Getting started
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-getting-started" role="tabpanel" aria-labelledby="heading-getting-started">
+        <ul>
+          
+          
+          <li>
+            <a href="../../getting-started/Pulsar-2.0">
+              Pulsar 2.0
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../getting-started/LocalCluster">
+              Run Pulsar locally
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../getting-started/docker">
+              Pulsar in Docker
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../getting-started/Clients">
+              Client libraries
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../getting-started/ConceptsAndArchitecture">
+              Concepts and architecture
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-pulsar-functions">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-pulsar-functions" aria-controls="collapse-pulsar-functions">
+            Pulsar Functions
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-pulsar-functions" role="tabpanel" aria-labelledby="heading-pulsar-functions">
+        <ul>
+          
+          
+          <li>
+            <a href="../../functions/overview">
+              Pulsar Functions overview
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../functions/quickstart">
+              Getting started with Pulsar Functions
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../functions/api">
+              The Pulsar Functions API
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../functions/deployment">
+              Deploying Pulsar Functions
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../functions/guarantees">
+              Processing guarantees
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../functions/metrics">
+              Metrics for Pulsar Functions
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-deployment">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-deployment" aria-controls="collapse-deployment">
+            Deployment
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-deployment" role="tabpanel" aria-labelledby="heading-deployment">
+        <ul>
+          
+          
+          <li>
+            <a href="../../deployment/aws-cluster">
+              Deploy on Amazon Web Services
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/cluster">
+              Single cluster on bare metal
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/instance">
+              Multi-cluster instance on bare metal
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/Kubernetes">
+              Pulsar on Kubernetes
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/Kubernetes/#pulsar-on-google-kubernetes-engine">
+              Pulsar on Google Kubernetes Engine
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/Kubernetes/#pulsar-on-amazon-web-services">
+              Pulsar on AWS
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/dcos">
+              Pulsar on DC/OS
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../deployment/Monitoring">
+              Monitoring
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-pulsar-administration">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-pulsar-administration" aria-controls="collapse-pulsar-administration">
+            Pulsar administration
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-pulsar-administration" role="tabpanel" aria-labelledby="heading-pulsar-administration">
+        <ul>
+          
+          
+          <li>
+            <a href="../../admin/ZooKeeperBookKeeper">
+              ZooKeeper and BookKeeper
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/GeoReplication">
+              Geo-replication
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/Authz">
+              Authentication and authorization
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/Dashboard">
+              Dashboard
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/Stats">
+              Pulsar statistics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/LoadDistribution">
+              Load distribution
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin/Proxy">
+              Pulsar proxy
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-client-libraries">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-client-libraries" aria-controls="collapse-client-libraries">
+            Client libraries
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-client-libraries" role="tabpanel" aria-labelledby="heading-client-libraries">
+        <ul>
+          
+          
+          <li>
+            <a href="../../clients/Java">
+              Java client
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../clients/Cpp">
+              C++ client
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../clients/Python">
+              Python client
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../clients/WebSocket">
+              WebSocket API
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-admin-api">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-admin-api" aria-controls="collapse-admin-api">
+            Admin API
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-admin-api" role="tabpanel" aria-labelledby="heading-admin-api">
+        <ul>
+          
+          
+          <li>
+            <a href="../../admin-api/overview">
+              Overview
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/clusters">
+              Clusters
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/tenants">
+              Tenants
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/brokers">
+              Brokers
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/namespaces">
+              Namespaces
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/permissions">
+              Permissions
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/persistent-topics">
+              Persistent topics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/non-persistent-topics">
+              Non-Persistent topics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../admin-api/partitioned-topics">
+              Partitioned topics
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-adaptors">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-adaptors" aria-controls="collapse-adaptors">
+            Adaptors
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-adaptors" role="tabpanel" aria-labelledby="heading-adaptors">
+        <ul>
+          
+          
+          <li>
+            <a href="../../adaptors/KafkaWrapper">
+              Apache Kafka client wrapper
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../adaptors/PulsarSpark">
+              Spark Streaming
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../adaptors/PulsarStorm">
+              Apache Storm
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-cookbooks">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-cookbooks" aria-controls="collapse-cookbooks">
+            Cookbooks
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-cookbooks" role="tabpanel" aria-labelledby="heading-cookbooks">
+        <ul>
+          
+          
+          <li>
+            <a href="../../cookbooks/tiered-storage">
+              Tiered Storage
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../cookbooks/compaction">
+              Topic compaction
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../cookbooks/message-deduplication">
+              Managing message deduplication
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../cookbooks/non-persistent-messaging">
+              Non-persistent messaging
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../cookbooks/PartitionedTopics">
+              Partitioned topics
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../cookbooks/RetentionExpiry">
+              Retention and expiry
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../cookbooks/Encryption">
+              Encryption
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../cookbooks/message-queue">
+              Using Pulsar as a message queue
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-developing-pulsar">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-developing-pulsar" aria-controls="collapse-developing-pulsar">
+            Developing Pulsar
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-developing-pulsar" role="tabpanel" aria-labelledby="heading-developing-pulsar">
+        <ul>
+          
+          
+          <li>
+            <a href="../../project/SimulationTools">
+              Simulation tools
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../project/BinaryProtocol">
+              Pulsar binary protocol
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../project/Codebase">
+              Codebase
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../project/schema-storage">
+              Custom schema storage
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../project/ModularLoadManager">
+              Modular load manager
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../project/CompileCpp">
+              Building Pulsar C++ client
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-reference">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-reference" aria-controls="collapse-reference">
+            Reference
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-reference" role="tabpanel" aria-labelledby="heading-reference">
+        <ul>
+          
+          
+          <li>
+            <a href="../../reference/RestApi">
+              Pulsar REST API
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../reference/CliTools">
+              Command-line tools
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../reference/Configuration">
+              Pulsar configuration
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../reference/CustomAuth">
+              Authn & Authz plugins
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+  </div>
+</aside>
+
+
+    </nav>
+
+    <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
+      <section class="docs-header">
+        <h1 class="docs-title">
+          The Pulsar Java client
+          
+          
+        </h1>
+        
+        <section class="tags">
+          
+          <!-- <span class="badge badge-pill badge-primary">client</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-client">client</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-client">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>client</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/project/CompileCpp/">Building Pulsar C++ client</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/clients/Cpp/">The Pulsar C++ client</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/clients/Java/">The Pulsar Java client</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/clients/Python/">The Pulsar Python client</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">java</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-java">java</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-java">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>java</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/clients/Java/">The Pulsar Java client</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/adaptors/PulsarSpark/">Spark Streaming Pulsar receiver</a></li>
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/adaptors/PulsarStorm/">Pulsar adaptor for Apache Storm</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/cookbooks/message-queue/">Using Pulsar as a message queue</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/admin-api/overview/">The Pulsar admin interface</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">schema</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-schema">schema</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-schema">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>schema</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/clients/Java/">The Pulsar Java client</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/project/schema-storage/">Custom schema storage</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">schema registry</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-schema-registry">schema registry</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-schema-registry">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>schema registry</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/clients/Java/">The Pulsar Java client</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/project/schema-storage/">Custom schema storage</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+        </section>
+
+        <hr class="hr">
+      </section>
+
+      <section class="content">
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<p>The Pulsar Java client can be used both to create Java <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producers</span>, <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumers</span>, and <a href="#readers">readers</a> of messages and to perform <a href="../../admin-api/overview">administrative tasks</a>. The current version of the Java client is <strong>2.0.0-rc1-incubating</strong>.</p>
+
+<p>Javadoc for the Pulsar client is divided up into two domains, by package:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Package</th>
+      <th style="text-align: left">Description</th>
+      <th style="text-align: left">Maven Artifact</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><a href="/api/client"><code class="highlighter-rouge">org.apache.pulsar.client.api</code></a></td>
+      <td style="text-align: left">The <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producer</span> and <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span> API</td>
+      <td style="text-align: left"><a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C2.0.0-rc1-incubating%7Cjar">org.apache.pulsar:pulsar-client:2.0.0-rc1-incubating</a></td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><a href="/api/admin"><code class="highlighter-rouge">org.apache.pulsar.client.admin</code></a></td>
+      <td style="text-align: left">The Java <a href="../../admin-api/overview">admin API</a></td>
+      <td style="text-align: left"><a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-admin%7C2.0.0-rc1-incubating%7Cjar">org.apache.pulsar:pulsar-client-admin:2.0.0-rc1-incubating</a></td>
+    </tr>
+  </tbody>
+</table>
+
+<p>This document will focus only on the client API for producing and consuming messages on Pulsar <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span>. For a guide to using the Java admin client, see <a href="../../admin-api/overview">The Pulsar admin interface</a>.</p>
+
+<h2 id="installation">Installation</h2>
+
+<p>The latest version of the Pulsar Java client library is available via <a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C2.0.0-rc1-incubating%7Cjar">Maven Central</a>. To use the latest version, add the <code class="highlighter-rouge">pulsar-client</code> library to your build configuration.</p>
+
+<h3 id="maven">Maven</h3>
+
+<p>If you’re using Maven, add this to your <code class="highlighter-rouge">pom.xml</code>:</p>
+
+<div class="language-xml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">&lt;!-- in your &lt;properties&gt; block --&gt;</span>
+<span class="nt">&lt;pulsar.version&gt;</span>2.0.0-rc1-incubating<span class="nt">&lt;/pulsar.version&gt;</span>
+
+<span class="c">&lt;!-- in your &lt;dependencies&gt; block --&gt;</span>
+<span class="nt">&lt;dependency&gt;</span>
+  <span class="nt">&lt;groupId&gt;</span>org.apache.pulsar<span class="nt">&lt;/groupId&gt;</span>
+  <span class="nt">&lt;artifactId&gt;</span>pulsar-client<span class="nt">&lt;/artifactId&gt;</span>
+  <span class="nt">&lt;version&gt;</span>${pulsar.version}<span class="nt">&lt;/version&gt;</span>
+<span class="nt">&lt;/dependency&gt;</span>
+</code></pre></div></div>
+
+<h3 id="gradle">Gradle</h3>
+
+<p>If you’re using Gradle, add this to your <code class="highlighter-rouge">build.gradle</code> file:</p>
+
+<div class="language-groovy highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">def</span> <span class="n">pulsarVersion</span> <span class="o">=</span> <span class="s1">'2.0.0-rc1-incubating'</span>
+
+<span class="n">dependencies</span> <span class="o">{</span>
+    <span class="n">compile</span> <span class="nl">group:</span> <span class="s1">'org.apache.pulsar'</span><span class="o">,</span> <span class="nl">name:</span> <span class="s1">'pulsar-client'</span><span class="o">,</span> <span class="nl">version:</span> <span class="n">pulsarVersion</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<h2 id="connection-urls">Connection URLs</h2>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<p>To connect to Pulsar using client libraries, you need to specify a <a href="../../project/BinaryProtocol">Pulsar protocol</a> URL.</p>
+
+<p>Pulsar protocol URLs are assigned to specific <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">clusters</span>, use the <code class="highlighter-rouge">pulsar</code> scheme and have a default port of 6650. Here’s an example for <code class="highlighter-rouge">localhost</code>:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pulsar://localhost:6650
+</code></pre></div></div>
+
+<p>A URL for a production Pulsar cluster may look something like this:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pulsar://pulsar.us-west.example.com:6650
+</code></pre></div></div>
+
+<p>If you’re using <a href="../../admin/Authz#tls-client-auth">TLS</a> authentication, the URL will look like something like this:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pulsar+ssl://pulsar.us-west.example.com:6651
+</code></pre></div></div>
+
+<h2 id="client-configuration">Client configuration</h2>
+
+<p>You can instantiate a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/PulsarClient.html"><code class="highlighter-rouge">PulsarClient</code></a> object using just a URL for the target Pulsar <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span>, like this:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">builder</span><span class="o">()</span>
+        <span class="o">.</span><span class="na">serviceUrl</span><span class="o">(</span><span class="s">"pulsar://localhost:6650"</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">build</span><span class="o">();</span>
+</code></pre></div></div>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    <span class="admonition-title"><p>Default broker URLs for standalone clusters</p>
+</span>
+    
+<p>If you’re running a cluster in <a href="../../getting-started/LocalCluster">standalone mode</a>, the broker will be available at the <code class="highlighter-rouge">pulsar://localhost:6650</code> URL by default.</p>
+
+  </div>
+</div>
+
+<p>Check out the Javadoc for the <a target="_blank" href="/api/client/org/apache/pulsar/client/api/PulsarClient.html"><code class="highlighter-rouge">PulsarClient</code></a> class for a full listing of configurable parameters.</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    
+    
+<p>In addition to client-level configuration, you can also apply <a href="#configuring-producers">producer</a>- and <a href="#configuring-consumers">consumer</a>-specific configuration, as you’ll see in the sections below.</p>
+
+  </div>
+</div>
+
+<h2 id="producers">Producers</h2>
+
+<p>In Pulsar, <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producers</span> write &lt;span class=”popover-term” tabindex=”0” title=”What is a message in Pulsar?” data-placement=”top” data-content=”Messages are the basic “unit” of Pulsar. They’re what producers publish to topics and what consumers then consume from topics.” data-toggle=”popover” data-trigger=”focus”&gt;messages&lt;/span&gt; to <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span>. Once you’ve instantiated a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/PulsarClient.html"><code class="highlighter-rouge">PulsarClient</code></a> object (as in the section <a href="#client-configuration">above</a>), you can create a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/Producer.html"><code class="highlighter-rouge">Producer</code></a> for a specific Pulsar <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span>.</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Producer</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">newProducer</span><span class="o">()</span>
+        <span class="o">.</span><span class="na">topic</span><span class="o">(</span><span class="s">"my-topic"</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">create</span><span class="o">();</span>
+
+<span class="c1">// You can then send messages to the broker and topic you specified:</span>
+<span class="n">producer</span><span class="o">.</span><span class="na">send</span><span class="o">(</span><span class="s">"My message"</span><span class="o">.</span><span class="na">getBytes</span><span class="o">());</span>
+</code></pre></div></div>
+
+<p>By default, producers produce messages that consist of byte arrays. You can produce different types, however, by specifying a message <a href="#schemas">schema</a>.</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Producer</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">stringProducer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">newProducer</span><span class="o">(</span><span class="n">Schema</span><span class="o">.</span><span class="na">STRING</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">topic</span><span class="o">(</span><span class="s">"my-topic"</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">create</span><span class="o">();</span>
+<span class="n">stringProducer</span><span class="o">.</span><span class="na">send</span><span class="o">(</span><span class="s">"My message"</span><span class="o">);</span>
+</code></pre></div></div>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="warning">
+    
+    
+<p>You should always make sure to close your producers, consumers, and clients when they are no longer needed:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">producer</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
+<span class="n">consumer</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
+<span class="n">client</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
+</code></pre></div></div>
+
+<p>Close operations can also be asynchronous:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">producer</span><span class="o">.</span><span class="na">closeAsync</span><span class="o">()</span>
+    <span class="o">.</span><span class="na">thenRun</span><span class="o">(()</span> <span class="o">-&gt;</span> <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">"Producer closed"</span><span class="o">));</span>
+    <span class="o">.</span><span class="na">exceptionally</span><span class="o">((</span><span class="n">ex</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="o">{</span>
+        <span class="n">System</span><span class="o">.</span><span class="na">err</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">"Failed to close producer: "</span> <span class="o">+</span> <span class="n">ex</span><span class="o">);</span>
+        <span class="k">return</span> <span class="n">ex</span><span class="o">;</span>
+    <span class="o">});</span>
+</code></pre></div></div>
+
+  </div>
+</div>
+
+<h3 id="configuring-producers">Configuring producers</h3>
+
+<p>If you instantiate a <code class="highlighter-rouge">Producer</code> object specifying only a topic name, as in the example above, the producer will use the default configuration. To use a non-default configuration, there’s a variety of configurable parameters that you can set. For a full listing, see the Javadoc for the <a target="_blank" href="/api/client/org/apache/pulsar/client/api/ProducerBuilder.html"><code class="highlighter-rouge">ProducerBuilder</code></a> class. Here’s an example:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Producer</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">newProducer</span><span class="o">()</span>
+    <span class="o">.</span><span class="na">topic</span><span class="o">(</span><span class="s">"my-topic"</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">batchingMaxPublishDelay</span><span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="n">TimeUnit</span><span class="o">.</span><span class="na">MILLISECONDS</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">sendTimeout</span><span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="n">TimeUnit</span><span class="o">.</span><span class="na">SECONDS</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">blockIfQueueFull</span><span class="o">(</span><span class="kc">true</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">create</span><span class="o">();</span>
+</code></pre></div></div>
+
+<h3 id="message-routing">Message routing</h3>
+
+<p>When using <span class="popover-term" tabindex="0" title="What is a partitioned topic?" data-placement="top" data-content="A topic that is served by multiple Pulsar brokers, which enables higher throughput." data-toggle="popover" data-trigger="focus">partitioned topics</span>, you can specify the routing mode whenever you publish messages using a <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producer</span>. For more on specifying a routing mode using the Java client, see the <a href="../../cookbooks/PartitionedTopics">Partitioned Topics</a> cookbook.</p>
+
+<h3 id="async-send">Async send</h3>
+
+<p>You can also publish messages <a href="../../getting-started/ConceptsAndArchitecture#send-modes">asynchronously</a> using the Java client. With async send, the producer will put the message in a blocking queue and return immediately. The client library will then send the message to the <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> in the background. If the queue is full (max size configurable), the producer could be blocked or fail immediately when calling the API, depending on arguments passed to the producer.</p>
+
+<p>Here’s an example async send operation:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">producer</span><span class="o">.</span><span class="na">sendAsync</span><span class="o">(</span><span class="s">"my-async-message"</span><span class="o">.</span><span class="na">getBytes</span><span class="o">()).</span><span class="na">thenAccept</span><span class="o">(</span><span class="n">msgId</span> <span class="o">-&gt;</span> <span class="o">{</span>
+    <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">printf</span><span class="o">(</span><span class="s">"Message with ID %s successfully sent"</span><span class="o">,</span> <span class="n">msgId</span><span class="o">);</span>
+<span class="o">});</span>
+</code></pre></div></div>
+
+<p>As you can see from the example above, async send operations return a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/MessageId.html"><code class="highlighter-rouge">MessageId</code></a> wrapped in a <a href="http://www.baeldung.com/java-completablefuture"><code class="highlighter-rouge">CompletableFuture</code></a>.</p>
+
+<h3 id="configuring-messages">Configuring messages</h3>
+
+<p>In addition to a value, it’s possible to set additional items on a given message:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">producer</span><span class="o">.</span><span class="na">newMessage</span><span class="o">()</span>
+    <span class="o">.</span><span class="na">key</span><span class="o">(</span><span class="s">"my-message-key"</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">value</span><span class="o">(</span><span class="s">"my-async-message"</span><span class="o">.</span><span class="na">getBytes</span><span class="o">())</span>
+    <span class="o">.</span><span class="na">property</span><span class="o">(</span><span class="s">"my-key"</span><span class="o">,</span> <span class="s">"my-value"</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">property</span><span class="o">(</span><span class="s">"my-other-key"</span><span class="o">,</span> <span class="s">"my-other-value"</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">send</span><span class="o">();</span>
+</code></pre></div></div>
+
+<p>As for the previous case, it’s also possible to terminate the builder chain with <code class="highlighter-rouge">sendAsync()</code> and
+get a future returned.</p>
+
+<h2 id="consumers">Consumers</h2>
+
+<p>In Pulsar, <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumers</span> subscribe to <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span> and handle &lt;span class=”popover-term” tabindex=”0” title=”What is a message in Pulsar?” data-placement=”top” data-content=”Messages are the basic “unit” of Pulsar. They’re what producers publish to topics and what consumers then consume from topics.” data-toggle=”popover” data-trigger=”focus”&gt;messages&lt;/span&gt; that <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producers</span> publish to those topics. You can instantiate a new <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span> by first instantiating a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/PulsarClient.html"><code class="highlighter-rouge">PulsarClient</code></a> object and passing it a URL for a Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> (as <a href="#client-configuration">above</a>).</p>
+
+<p>Once you’ve instantiated a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/PulsarClient.html"><code class="highlighter-rouge">PulsarClient</code></a> object, you can create a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/Consumer.html"><code class="highlighter-rouge">Consumer</code></a> by specifying a <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span> and a <a href="../../getting-started/ConceptsAndArchitecture#subscription-modes">subscription</a>.</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Consumer</span> <span class="n">consumer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">newConsumer</span><span class="o">()</span>
+        <span class="o">.</span><span class="na">topic</span><span class="o">(</span><span class="s">"my-topic"</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">subscriptionName</span><span class="o">(</span><span class="s">"my-subscription"</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">subscribe</span><span class="o">();</span>
+</code></pre></div></div>
+
+<p>The <code class="highlighter-rouge">subscribe</code> method will automatically subscribe the consumer to the specified topic and subscription. One way to make the consumer listen on the topic is to set up a <code class="highlighter-rouge">while</code> loop. In this example loop, the consumer listens for messages, prints the contents of any message that’s received, and then <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledges</span> that the message has been processed:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">do</span> <span class="o">{</span>
+  <span class="c1">// Wait for a message</span>
+  <span class="n">Message</span> <span class="n">msg</span> <span class="o">=</span> <span class="n">consumer</span><span class="o">.</span><span class="na">receive</span><span class="o">();</span>
+
+  <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">printf</span><span class="o">(</span><span class="s">"Message received: %s"</span><span class="o">,</span> <span class="k">new</span> <span class="n">String</span><span class="o">(</span><span class="n">msg</span><span class="o">.</span><span class="na">getData</span><span class="o">()));</span>
+
+  <span class="c1">// Acknowledge the message so that it can be deleted by the message broker</span>
+  <span class="n">consumer</span><span class="o">.</span><span class="na">acknowledge</span><span class="o">(</span><span class="n">msg</span><span class="o">);</span>
+<span class="o">}</span> <span class="k">while</span> <span class="o">(</span><span class="kc">true</span><span class="o">);</span>
+</code></pre></div></div>
+
+<h3 id="configuring-consumers">Configuring consumers</h3>
+
+<p>If you instantiate a <code class="highlighter-rouge">Consumer</code> object specifying only a topic and subscription name, as in the example above, the consumer will use the default configuration. To use a non-default configuration, there’s a variety of configurable parameters that you can set. For a full listing, see the Javadoc for the <a target="_blank" href="/api/client/org/apache/pulsar/client/api/ConsumerBuilder.html"><code class="highlighter-rouge">ConsumerBuilder</code></a> class. Here’s an example:</p>
+
+<p>Here’s an example configuration:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Consumer</span> <span class="n">consumer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">newConsumer</span><span class="o">()</span>
+        <span class="o">.</span><span class="na">topic</span><span class="o">(</span><span class="s">"my-topic"</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">subscriptionName</span><span class="o">(</span><span class="s">"my-subscription"</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">ackTimeout</span><span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="n">TimeUnit</span><span class="o">.</span><span class="na">SECONDS</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">subscriptionType</span><span class="o">(</span><span class="n">SubscriptionType</span><span class="o">.</span><span class="na">Exclusive</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">subscribe</span><span class="o">();</span>
+</code></pre></div></div>
+
+<h3 id="async-receive">Async receive</h3>
+
+<p>The <code class="highlighter-rouge">receive</code> method will receive messages synchronously (the consumer process will be blocked until a message is available). You can also use <a href="../../getting-started/ConceptsAndArchitecture#receive-modes">async receive</a>, which will return immediately with a <a href="http://www.baeldung.com/java-completablefuture"><code class="highlighter-rouge">CompletableFuture</code></a> object that completes once a new message is available.</p>
+
+<p>Here’s an example:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">CompletableFuture</span><span class="o">&lt;</span><span class="n">Message</span><span class="o">&gt;</span> <span class="n">asyncMessage</span> <span class="o">=</span> <span class="n">consumer</span><span class="o">.</span><span class="na">receiveAsync</span><span class="o">();</span>
+</code></pre></div></div>
+
+<p>Async receive operations return a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/Message.html"><code class="highlighter-rouge">Message</code></a> wrapped inside of a <a href="http://www.baeldung.com/java-completablefuture"><code class="highlighter-rouge">CompletableFuture</code></a>.</p>
+
+<h3 id="multi-topic-subscriptions">Multi-topic subscriptions</h3>
+
+<p>In addition to subscribing a consumer to a single Pulsar topic, you can also subscribe to multiple topics simultaneously using <a href="../../getting-started/ConceptsAndArchitecture#multi-topic-subscriptions">multi-topic subscriptions</a>. To use multi-topic subscriptions you can supply either a regular expression (regex) or a <code class="highlighter-rouge">List</code> of topics. If you select topics via regex, all topics must be within the same Pulsar <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span>.</p>
+
+<p>Here are some examples:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">org.apache.pulsar.client.api.Consumer</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">org.apache.pulsar.client.api.PulsarClient</span><span class="o">;</span>
+
+<span class="kn">import</span> <span class="nn">java.util.Arrays</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">java.util.List</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">java.util.regex.Pattern</span><span class="o">;</span>
+
+<span class="n">ConsumerBuilder</span> <span class="n">consumerBuilder</span> <span class="o">=</span> <span class="n">pulsarClient</span><span class="o">.</span><span class="na">newConsumer</span><span class="o">()</span>
+        <span class="o">.</span><span class="na">subscriptionName</span><span class="o">(</span><span class="n">subscription</span><span class="o">);</span>
+
+<span class="c1">// Subscribe to all topics in a namespace</span>
+<span class="n">Pattern</span> <span class="n">allTopicsInNamespace</span> <span class="o">=</span> <span class="n">Pattern</span><span class="o">.</span><span class="na">compile</span><span class="o">(</span><span class="s">"persistent://public/default/.*"</span><span class="o">);</span>
+<span class="n">Consumer</span> <span class="n">allTopicsConsumer</span> <span class="o">=</span> <span class="n">consumerBuilder</span>
+        <span class="o">.</span><span class="na">topicsPattern</span><span class="o">(</span><span class="n">allTopicsInNamespace</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">subscribe</span><span class="o">();</span>
+
+<span class="c1">// Subscribe to a subsets of topics in a namespace, based on regex</span>
+<span class="n">Pattern</span> <span class="n">someTopicsInNamespace</span> <span class="o">=</span> <span class="n">Pattern</span><span class="o">.</span><span class="na">compile</span><span class="o">(</span><span class="s">"persistent://public/default/foo.*"</span><span class="o">);</span>
+<span class="n">Consumer</span> <span class="n">allTopicsConsumer</span> <span class="o">=</span> <span class="n">consumerBuilder</span>
+        <span class="o">.</span><span class="na">topicsPattern</span><span class="o">(</span><span class="n">someTopicsInNamespace</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">subscribe</span><span class="o">();</span>
+</code></pre></div></div>
+
+<p>You can also subscribe to an explicit list of topics (across namespaces if you wish):</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">List</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">topics</span> <span class="o">=</span> <span class="n">Arrays</span><span class="o">.</span><span class="na">asList</span><span class="o">(</span>
+        <span class="s">"topic-1"</span><span class="o">,</span>
+        <span class="s">"topic-2"</span><span class="o">,</span>
+        <span class="s">"topic-3"</span>
+<span class="o">);</span>
+
+<span class="n">Consumer</span> <span class="n">multiTopicConsumer</span> <span class="o">=</span> <span class="n">consumerBuilder</span>
+        <span class="o">.</span><span class="na">topics</span><span class="o">(</span><span class="n">topics</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">subscribe</span><span class="o">();</span>
+
+<span class="c1">// Alternatively:</span>
+<span class="n">Consumer</span> <span class="n">multiTopicConsumer</span> <span class="o">=</span> <span class="n">consumerBuilder</span>
+        <span class="o">.</span><span class="na">topics</span><span class="o">(</span>
+            <span class="s">"topic-1"</span><span class="o">,</span>
+            <span class="s">"topic-2"</span><span class="o">,</span>
+            <span class="s">"topic-3"</span>
+        <span class="o">)</span>
+        <span class="o">.</span><span class="na">subscribe</span><span class="o">();</span>
+</code></pre></div></div>
+
+<p>You can also subscribe to multiple topics asynchronously using the <code class="highlighter-rouge">subscribeAsync</code> method rather than the synchronous <code class="highlighter-rouge">subscribe</code> method. Here’s an example:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Pattern</span> <span class="n">allTopicsInNamespace</span> <span class="o">=</span> <span class="n">Pattern</span><span class="o">.</span><span class="na">compile</span><span class="o">(</span><span class="s">"persistent://public/default.*"</span><span class="o">);</span>
+<span class="n">consumerBuilder</span>
+        <span class="o">.</span><span class="na">topics</span><span class="o">(</span><span class="n">topics</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">subscribeAsync</span><span class="o">()</span>
+        <span class="o">.</span><span class="na">thenAccept</span><span class="o">(</span><span class="n">consumer</span> <span class="o">-&gt;</span> <span class="o">{</span>
+            <span class="k">do</span> <span class="o">{</span>
+                <span class="k">try</span> <span class="o">{</span>
+                    <span class="n">Message</span> <span class="n">msg</span> <span class="o">=</span> <span class="n">consumer</span><span class="o">.</span><span class="na">receive</span><span class="o">();</span>
+                    <span class="c1">// Do something with the received message</span>
+                <span class="o">}</span> <span class="k">catch</span> <span class="o">(</span><span class="n">PulsarClientException</span> <span class="n">e</span><span class="o">)</span> <span class="o">{</span>
+                    <span class="n">e</span><span class="o">.</span><span class="na">printStackTrace</span><span class="o">();</span>
+                <span class="o">}</span>
+            <span class="o">}</span> <span class="k">while</span> <span class="o">(</span><span class="kc">true</span><span class="o">);</span>
+        <span class="o">});</span>
+</code></pre></div></div>
+
+<h2 id="readers">Reader interface</h2>
+
+<p>With the <a href="../../getting-started/ConceptsAndArchitecture#reader-interface">reader interface</a>, Pulsar clients can “manually position” themselves within a topic, reading all messages from a specified message onward. The Pulsar API for Java enables you to create  <a target="_blank" href="/api/client/org/apache/pulsar/client/api/Reader.html"><code class="highlighter-rouge">Reader</code></a> objects by specifying a <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span>, a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/MessageId.html"><code class="highlighter-rouge">MessageId</code></a>, and <a target="_blank" href="/api/client/org/apache/pulsar/client/api/ReaderConfiguration.html"><code class="highlighter-rouge">ReaderConfiguration</code></a>.</p>
+
+<p>Here’s an example:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">ReaderConfiguration</span> <span class="n">conf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ReaderConfiguration</span><span class="o">();</span>
+<span class="kt">byte</span><span class="o">[]</span> <span class="n">msgIdBytes</span> <span class="o">=</span> <span class="c1">// Some message ID byte array</span>
+<span class="n">MessageId</span> <span class="n">id</span> <span class="o">=</span> <span class="n">MessageId</span><span class="o">.</span><span class="na">fromByteArray</span><span class="o">(</span><span class="n">msgIdBytes</span><span class="o">);</span>
+<span class="n">Reader</span> <span class="n">reader</span> <span class="o">=</span> <span class="n">pulsarClient</span><span class="o">.</span><span class="na">newReader</span><span class="o">()</span>
+        <span class="o">.</span><span class="na">topic</span><span class="o">(</span><span class="n">topic</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">startMessageId</span><span class="o">(</span><span class="n">id</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">create</span><span class="o">();</span>
+
+<span class="k">while</span> <span class="o">(</span><span class="kc">true</span><span class="o">)</span> <span class="o">{</span>
+    <span class="n">Message</span> <span class="n">message</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="na">readNext</span><span class="o">();</span>
+    <span class="c1">// Process message</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>In the example above, a <code class="highlighter-rouge">Reader</code> object is instantiated for a specific topic and message (by ID); the reader then iterates over each message in the topic after the message identified by <code class="highlighter-rouge">msgIdBytes</code> (how that value is obtained depends on the application).</p>
+
+<p>The code sample above shows pointing the <code class="highlighter-rouge">Reader</code> object to a specific message (by ID), but you can also use <code class="highlighter-rouge">MessageId.earliest</code> to point to the earliest available message on the topic of <code class="highlighter-rouge">MessageId.latest</code> to point to the most recent available message.</p>
+
+<h2 id="schemas">Schemas</h2>
+
+<p>In Pulsar, all message data consists of byte arrays “under the hood.” <a href="../../getting-started/ConceptsAndArchitecture#schema-registry">Message schemas</a> enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a <a href="#producers">producer</a> without specifying a schema, then the producer can only produce messages of type <code class="highlighter-rouge">byte[]</code>. Here’s an example:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Producer</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">newProducer</span><span class="o">()</span>
+        <span class="o">.</span><span class="na">topic</span><span class="o">(</span><span class="n">topic</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">create</span><span class="o">();</span>
+</code></pre></div></div>
+
+<p>The producer above is equivalent to a <code class="highlighter-rouge">Producer&lt;byte[]&gt;</code> (in fact, you should <em>always</em> explicitly specify the type). If you’d like to use a producer for a different type of data, you’ll need to specify a <strong>schema</strong> that informs Pulsar which data type will be transmitted over the <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span>.</p>
+
+<h3 id="schema-example">Schema example</h3>
+
+<p>Let’s say that you have a <code class="highlighter-rouge">SensorReading</code> class that you’d like to transmit over a Pulsar topic:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">class</span> <span class="nc">SensorReading</span> <span class="o">{</span>
+    <span class="kd">public</span> <span class="kt">float</span> <span class="n">temperature</span><span class="o">;</span>
+
+    <span class="kd">public</span> <span class="nf">SensorReading</span><span class="o">(</span><span class="kt">float</span> <span class="n">temperature</span><span class="o">)</span> <span class="o">{</span>
+        <span class="k">this</span><span class="o">.</span><span class="na">temperature</span> <span class="o">=</span> <span class="n">temperature</span><span class="o">;</span>
+    <span class="o">}</span>
+
+    <span class="c1">// A no-arg constructor is required</span>
+    <span class="kd">public</span> <span class="nf">SensorReading</span><span class="o">()</span> <span class="o">{</span>
+    <span class="o">}</span>
+
+    <span class="kd">public</span> <span class="kt">float</span> <span class="nf">getTemperature</span><span class="o">()</span> <span class="o">{</span>
+        <span class="k">return</span> <span class="n">temperature</span><span class="o">;</span>
+    <span class="o">}</span>
+
+    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">setTemperature</span><span class="o">(</span><span class="kt">float</span> <span class="n">temperature</span><span class="o">)</span> <span class="o">{</span>
+        <span class="k">this</span><span class="o">.</span><span class="na">temperature</span> <span class="o">=</span> <span class="n">temperature</span><span class="o">;</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>You could then create a <code class="highlighter-rouge">Producer&lt;SensorReading&gt;</code> (or <code class="highlighter-rouge">Consumer&lt;SensorReading&gt;</code>) like so:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Producer</span><span class="o">&lt;</span><span class="n">SensorReading</span><span class="o">&gt;</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">newProducer</span><span class="o">(</span><span class="n">JSONSchema</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">SensorReading</span><span class="o">.</span><span class="na">class</span><span class="o">))</span>
+        <span class="o">.</span><span class="na">topic</span><span class="o">(</span><span class="s">"sensor-readings"</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">create</span><span class="o">();</span>
+</code></pre></div></div>
+
+<p>The following schema formats are currently available for Java:</p>
+
+<ul>
+  <li>
+    <p>No schema or the byte array schema (which can be applied using <code class="highlighter-rouge">Schema.BYTES</code>):</p>
+
+    <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Producer</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="n">bytesProducer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">newProducer</span><span class="o">(</span><span class="n">Schema</span><span class="o">.</span><span class="na">BYTES</span><span class="o">)</span>
+      <span class="o">.</span><span class="na">topic</span><span class="o">(</span><span class="s">"some-raw-bytes-topic"</span><span class="o">)</span>
+      <span class="o">.</span><span class="na">create</span><span class="o">();</span>
+</code></pre></div>    </div>
+
+    <p>Or, equivalently:</p>
+
+    <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Producer</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="n">bytesProducer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">newProducer</span><span class="o">()</span>
+      <span class="o">.</span><span class="na">topic</span><span class="o">(</span><span class="s">"some-raw-bytes-topic"</span><span class="o">)</span>
+      <span class="o">.</span><span class="na">create</span><span class="o">();</span>
+</code></pre></div>    </div>
+  </li>
+  <li>
+    <p><code class="highlighter-rouge">String</code> for normal UTF-8-encoded string data. This schema can be applied using <code class="highlighter-rouge">Schema.STRING</code>:</p>
+
+    <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Producer</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">stringProducer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">newProducer</span><span class="o">(</span><span class="n">Schema</span><span class="o">.</span><span class="na">STRING</span><span class="o">)</span>
+      <span class="o">.</span><span class="na">topic</span><span class="o">(</span><span class="s">"some-string-topic"</span><span class="o">)</span>
+      <span class="o">.</span><span class="na">create</span><span class="o">();</span>
+</code></pre></div>    </div>
+  </li>
+  <li>
+    <p>JSON schemas can be created for POJOs using the <code class="highlighter-rouge">JSONSchema</code> class. Here’s an example:</p>
+
+    <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Schema</span><span class="o">&lt;</span><span class="n">MyPojo</span><span class="o">&gt;</span> <span class="n">pojoSchema</span> <span class="o">=</span> <span class="n">JSONSchema</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">MyPojo</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+<span class="n">Producer</span><span class="o">&lt;</span><span class="n">MyPojo</span><span class="o">&gt;</span> <span class="n">pojoProducer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">newProducer</span><span class="o">(</span><span class="n">pojoSchema</span><span class="o">)</span>
+      <span class="o">.</span><span class="na">topic</span><span class="o">(</span><span class="s">"some-pojo-topic"</span><span class="o">)</span>
+      <span class="o">.</span><span class="na">create</span><span class="o">();</span>
+</code></pre></div>    </div>
+  </li>
+</ul>
+
+<h2 id="authentication">Authentication</h2>
+
+<p>Pulsar currently supports two authentication schemes: <a href="../../admin/Authz#tls-client-auth">TLS</a> and <a href="../../admin/Authz#athenz">Athenz</a>. The Pulsar Java client can be used with both.</p>
+
+<h3 id="tls-authentication">TLS Authentication</h3>
+
+<p>To use <a href="../../admin/Authz#tls-client-auth">TLS</a>, you need to set TLS to <code class="highlighter-rouge">true</code> using the <code class="highlighter-rouge">setUseTls</code> method, point your Pulsar client to a TLS cert path, and provide paths to cert and key files.</p>
+
+<p>Here’s an example configuration:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="n">authParams</span> <span class="o">=</span> <span class="k">new</span> <span class="n">HashMap</span><span class="o">&lt;&gt;();</span>
+<span class="n">authParams</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">"tlsCertFile"</span><span class="o">,</span> <span class="s">"/path/to/client-cert.pem"</span><span class="o">);</span>
+<span class="n">authParams</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">"tlsKeyFile"</span><span class="o">,</span> <span class="s">"/path/to/client-key.pem"</span><span class="o">);</span>
+
+<span class="n">Authentication</span> <span class="n">tlsAuth</span> <span class="o">=</span> <span class="n">AuthenticationFactory</span>
+        <span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">AuthenticationTls</span><span class="o">.</span><span class="na">class</span><span class="o">.</span><span class="na">getName</span><span class="o">(),</span> <span class="n">authParams</span><span class="o">);</span>
+
+<span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">builder</span><span class="o">()</span>
+        <span class="o">.</span><span class="na">serviceUrl</span><span class="o">(</span><span class="s">"pulsar+ssl://my-broker.com:6651"</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">enableTls</span><span class="o">(</span><span class="kc">true</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">tlsTrustCertsFilePath</span><span class="o">(</span><span class="s">"/path/to/cacert.pem"</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">authentication</span><span class="o">(</span><span class="n">tlsAuth</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">build</span><span class="o">();</span>
+</code></pre></div></div>
+
+<h3 id="athenz">Athenz</h3>
+
+<p>To use <a href="../../admin/Authz#athenz">Athenz</a> as an authentication provider, you need to <a href="#tls-authentication">use TLS</a> and provide values for four parameters in a hash:</p>
+
+<ul>
+  <li><code class="highlighter-rouge">tenantDomain</code></li>
+  <li><code class="highlighter-rouge">tenantService</code></li>
+  <li><code class="highlighter-rouge">providerDomain</code></li>
+  <li><code class="highlighter-rouge">privateKey</code></li>
+</ul>
+
+<p>You can also set an optional <code class="highlighter-rouge">keyId</code>. Here’s an example configuration:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="n">authParams</span> <span class="o">=</span> <span class="k">new</span> <span class="n">HashMap</span><span class="o">&lt;&gt;();</span>
+<span class="n">authParams</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">"tenantDomain"</span><span class="o">,</span> <span class="s">"shopping"</span><span class="o">);</span> <span class="c1">// Tenant domain name</span>
+<span class="n">authParams</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">"tenantService"</span><span class="o">,</span> <span class="s">"some_app"</span><span class="o">);</span> <span class="c1">// Tenant service name</span>
+<span class="n">authParams</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">"providerDomain"</span><span class="o">,</span> <span class="s">"pulsar"</span><span class="o">);</span> <span class="c1">// Provider domain name</span>
+<span class="n">authParams</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">"privateKey"</span><span class="o">,</span> <span class="s">"file:///path/to/private.pem"</span><span class="o">);</span> <span class="c1">// Tenant private key path</span>
+<span class="n">authParams</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">"keyId"</span><span class="o">,</span> <span class="s">"v1"</span><span class="o">);</span> <span class="c1">// Key id for the tenant private key (optional, default: "0")</span>
+
+<span class="n">Authentication</span> <span class="n">athenzAuth</span> <span class="o">=</span> <span class="n">AuthenticationFactory</span>
+        <span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">AuthenticationAthenz</span><span class="o">.</span><span class="na">class</span><span class="o">.</span><span class="na">getName</span><span class="o">(),</span> <span class="n">authParams</span><span class="o">);</span>
+
+<span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">builder</span><span class="o">()</span>
+        <span class="o">.</span><span class="na">serviceUrl</span><span class="o">(</span><span class="s">"pulsar+ssl://my-broker.com:6651"</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">enableTls</span><span class="o">(</span><span class="kc">true</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">tlsTrustCertsFilePath</span><span class="o">(</span><span class="s">"/path/to/cacert.pem"</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">authentication</span><span class="o">(</span><span class="n">athenzAuth</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">build</span><span class="o">();</span>
+</code></pre></div></div>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    <span class="admonition-title"><p>Supported pattern formats</p>
+</span>
+    
+<p>The <code class="highlighter-rouge">privateKey</code> parameter supports the following three pattern formats:</p>
+
+<ul>
+  <li><code class="highlighter-rouge">file:///path/to/file</code></li>
+  <li><code class="highlighter-rouge">file:/path/to/file</code></li>
+  <li><code class="highlighter-rouge">data:application/x-pem-file;base64,&lt;base64-encoded value&gt;</code></li>
+</ul>
+
+  </div>
+</div>
+
+
+      </section>
+    </article>
+
+    <nav class="toc-bar hidden-md-down col-lg-2">
+      
+      <div id="toc">
+        <h4>The Pulsar Java client</h4>
+      </div>
+      
+    </nav>
+  </div>
+</div>
+
+      </main>
+    </main>
+
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<footer class="footer">
+  <div class="container">
+    <p class="text-center">Copyright 2018 The Apache Software Foundation. All Rights Reserved.</p>
+    <p class="text-center">Apache and the Apache feather logo are trademarks of The Apache Software Foundation.</p>
+  </div>
+</footer>
+
+
+    
+
+    
+    <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-102219959-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+    
+
+    <script type="text/javascript">
+      var navbarOffset = -1 * (document.getElementsByClassName("navbar")[0].offsetHeight);
+      var shiftWindow = function() { scrollBy(0, navbarOffset) };
+      window.addEventListener("hashchange", shiftWindow);
+      window.addEventListener("pageshow", shiftWindow);
+      function load() { if (window.location.hash) shiftWindow(); }
+    </script>
+  </body>
+</html>
