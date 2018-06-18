@@ -686,5 +686,34 @@ public class Namespaces extends NamespacesBase {
         internalSetCompactionThreshold(newThreshold);
     }
 
+    @GET
+    @Path("/{property}/{namespace}/offloadThreshold")
+    @ApiOperation(value = "Maximum number of bytes stored on the pulsar cluster for a topic,"
+                          + " before the broker will start offloading to longterm storage",
+                  notes = "A negative value disables automatic offloading")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 404, message = "Namespace doesn't exist") })
+    public long getOffloadThreshold(@PathParam("property") String property,
+                                       @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, namespace);
+        return internalGetOffloadThreshold();
+    }
+
+    @PUT
+    @Path("/{property}/{namespace}/offloadThreshold")
+    @ApiOperation(value = "Set maximum number of bytes stored on the pulsar cluster for a topic,"
+                          + " before the broker will start offloading to longterm storage",
+                  notes = "A negative value disables automatic offloading")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+                            @ApiResponse(code = 409, message = "Concurrent modification"),
+                            @ApiResponse(code = 412, message = "offloadThreshold value is not valid") })
+    public void setOffloadThreshold(@PathParam("property") String property,
+                                    @PathParam("namespace") String namespace,
+                                    long newThreshold) {
+        validateNamespaceName(property, namespace);
+        internalSetOffloadThreshold(newThreshold);
+    }
+
     private static final Logger log = LoggerFactory.getLogger(Namespaces.class);
 }
