@@ -50,9 +50,6 @@ A few things to note about this command:
  * `-v $PWD/data:/pulsar/data`: This will make the process inside the container to store the
    data and metadata in the filesystem outside the container, in order to not start "fresh" every
    time the container is restarted.
- * `--advertised-address 127.0.0.1`: This is needed so that the Pulsar broker can advertise an IP
-   address that is reachable from outside the Docker container. You can also use the host machine IP,
-   if you want to make Pulsar standalone accessible from other machines.
 
 If Pulsar has been successfully started, you should see `INFO`-level log messages like this:
 

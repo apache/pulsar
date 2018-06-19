@@ -47,13 +47,16 @@
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
-      <version>${jackson.version}</version>
     </dependency>
 
     <dependency>
       <groupId>com.fasterxml.jackson.dataformat</groupId>
       <artifactId>jackson-dataformat-yaml</artifactId>
-      <version>${jackson.version}</version>
+    </dependency>
+    
+    <dependency>
+      <groupId>com.google.code.gson</groupId>
+      <artifactId>gson</artifactId>
     </dependency>
 
     <!-- kinesis dependencies -->
@@ -109,10 +112,6 @@
                 <relocation>
                   <pattern>com.google.protobuf</pattern>
                   <shadedPattern>org.apache.pulsar.replicator.com.google.protobuf</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>com.amazonaws</pattern>
-                  <shadedPattern>org.apache.pulsar.com.amazonaws</shadedPattern>
                 </relocation>
               </relocations>
             </configuration>

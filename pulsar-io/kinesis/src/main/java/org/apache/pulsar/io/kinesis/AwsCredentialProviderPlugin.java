@@ -19,42 +19,32 @@
 
 package org.apache.pulsar.io.kinesis;
 
+import java.io.Closeable;
+
+import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.auth.BasicSessionCredentials;
+
 /**
  * Kinesis source/sink calls credential-provider while refreshing aws accessKey and secreKey. So, implementation
  * AwsCredentialProviderPlugin needs to makes sure to return non-expired keys when it requires.
  *
  */
-public interface AwsCredentialProviderPlugin {
-    
+public interface AwsCredentialProviderPlugin extends Closeable {
+
     /**
      * accepts aws-account related param and initialize credential provider.
-     *  
+     * 
      * @param param
      */
     void init(String param);
-    
-    /**
-     * Returns the AWS access key ID for this credentials object.
-     * 
-     * @return The AWS access key ID for this credentials object.
-     */
-    String getAWSAccessKeyId();
 
     /**
-     * Returns the AWS secret access key for this credentials object.
+     * Returned {@link AWSCredentialsProvider} can give {@link AWSCredentials} in case credential belongs to IAM user or
+     * it can return {@link BasicSessionCredentials} if user wants to generate temporary credential for a given IAM
+     * role.
      * 
-     * @return The AWS secret access key for this credentials object.
+     * @return
      */
-    String getAWSSecretKey();
-    
-    /**
-     * Forces this credentials provider to refresh its credentials. For many
-     * implementations of credentials provider, this method may simply be a
-     * no-op, such as any credentials provider implementation that vends
-     * static/non-changing credentials. For other implementations that vend
-     * different credentials through out their lifetime, this method should
-     * force the credentials provider to refresh its credentials.
-     */
-    void refresh();
+    AWSCredentialsProvider getCredentialProvider();
 
 }

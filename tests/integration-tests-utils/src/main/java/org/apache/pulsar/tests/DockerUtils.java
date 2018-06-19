@@ -27,6 +27,7 @@ import com.github.dockerjava.api.model.ContainerNetwork;
 import java.io.Closeable;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.OutputStream;
 import java.io.InputStream;
 import java.io.IOException;
 import java.util.Arrays;
@@ -37,6 +38,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.zip.GZIPOutputStream;
 
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
@@ -99,7 +101,27 @@ public class DockerUtils {
         }
     }
 
-    public static void dumpContainerLogDirToTarget(DockerClient docker, String containerId, String path) {
+    public static void dumpContainerDirToTargetCompressed(DockerClient docker, String containerId,
+                                                          String path) {
+        final int READ_BLOCK_SIZE = 10000;
+
+        File output = new File(getTargetDirectory(containerId),
+                               (path.replace("/", "-") + ".tar.gz").replaceAll("^-", ""));
+        try (InputStream dockerStream = docker.copyArchiveFromContainerCmd(containerId, path).exec();
+             OutputStream os = new GZIPOutputStream(new FileOutputStream(output))) {
+            byte[] block = new byte[READ_BLOCK_SIZE];
+            int read = dockerStream.read(block, 0, READ_BLOCK_SIZE);
+            while (read > -1) {
+                os.write(block, 0, read);
+                read = dockerStream.read(block, 0, READ_BLOCK_SIZE);
+            }
+        } catch (RuntimeException|IOException e) {
+            LOG.error("Error reading dir from container {}", containerId, e);
+        }
+    }
+
+    public static void dumpContainerLogDirToTarget(DockerClient docker, String containerId,
+                                                   String path) {
         final int READ_BLOCK_SIZE = 10000;
 
         try (InputStream dockerStream = docker.copyArchiveFromContainerCmd(containerId, path).exec();

@@ -35,6 +35,8 @@ zookeeper*:
   beforeStop:
     - customBeforeStopAction:
         strategy: org.apache.pulsar.tests.PulsarLogsToTargetDirStopAction
+    - customBeforeStopAction:
+        strategy: org.apache.pulsar.tests.ZKJournalToTargetDirStopAction
   networkMode: pulsarnet*
 
 configuration-store*:
@@ -51,6 +53,8 @@ configuration-store*:
   beforeStop:
     - customBeforeStopAction:
         strategy: org.apache.pulsar.tests.PulsarLogsToTargetDirStopAction
+    - customBeforeStopAction:
+        strategy: org.apache.pulsar.tests.ZKJournalToTargetDirStopAction
   networkMode: pulsarnet*
 
 init*:

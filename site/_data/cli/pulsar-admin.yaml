@@ -469,6 +469,17 @@ commands:
       - flags: -t, --threshold
         description: "Maximum number of bytes in a topic backlog before compaction is triggered (eg: 10M, 16G, 3T). 0 disables automatic compaction"
         default: '0'
+  - name: get-offload-threshold
+    description: Get offloadThreshold for a namespace
+    argument: tenant/namespace
+  - name: set-offload-threshold
+    description: Set offloadThreshold for a namespace
+    argument: tenant/namespace
+    options:
+      - flags: -s, --size
+        description: "Maximum number of bytes stored in the pulsar cluster for a topic before data will start being automatically offloaded to longterm storage (eg: 10M, 16G, 3T, 100). Negative values disable automatic offload. 0 triggers offloading as soon as possible."
+        default: '-1'
+
 - name: ns-isolation-policy
   description: Operations for managing namespace isolation policies.
   subcommands:
@@ -512,6 +523,19 @@ commands:
     - flags: -w, --wait-complete
       description: Wait for compaction to complete
       default: 'false'
+  - name: offload
+    description: Trigger offload of data from a topic to long-term storage (e.g. Amazon S3)
+    argument: "persistent://tenant/namespace/topic"
+    options:
+    - flags: -s, --size-threshold
+      description: The maximum amount of data to keep in BookKeeper for the specific topic
+  - name: offload-status
+    description: Check the status of data offloading from a topic to long-term storage
+    argument: "persistent://tenant/namespace/topic"
+    options:
+    - flags: -w, --wait-complete
+      description: Wait for offloading to complete
+      default: false
   - name: create-partitioned-topic
     description: Create a partitioned topic. A partitioned topic must be created before producers can publish to it.
     argument: "{persistent|non-persistent}://tenant/namespace/topic"
@@ -706,9 +730,22 @@ commands:
       description: A bundle of the form `{start-boundary}_{end_boundary}`.
     - flags: -n, --namespace
       description: The namespace as `property/cluster/namespace`, for example `my-prop/my-cluster/my-ns`.
-- name: topics
-  description: Operations related to Pulsar topics of all kinds (both persistent and non-persistent)
+- name: schemas
+  description: Operations related to Schemas associated with Pulsar topics.
   subcommands:
-  - name: compact
-    description: Runs a compaction operation on the specified topic
-    argument: topic-name
+  - name: upload
+    description: Upload the schema definition for a topic
+    argument: persistent://tenant/namespace/topic
+    options:
+    - flags: --filename
+      description: The path to the schema definition file. An example schema file is available under `conf` directory.
+  - name: delete
+    description: Delete the schema definition associated with a topic
+    argument: persistent://tenant/namespace/topic
+  - name: get
+    description: Retrieve the schema definition assoicated with a topic (at a given version if version is supplied).
+    argument: persistent://tenant/namespace/topic
+    options:
+    - flags: --version
+      description: The version of the schema definition to retrive for a topic.
+

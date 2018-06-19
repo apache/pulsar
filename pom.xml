@@ -349,6 +349,12 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
+        <groupId>org.eclipse.jetty</groupId>
+        <artifactId>jetty-util</artifactId>
+        <version>${jetty.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>io.netty</groupId>
         <artifactId>netty-all</artifactId>
         <version>${netty.version}</version>
@@ -923,8 +929,11 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>src/main/java/org/apache/bookkeeper/mledger/proto/MLDataFormats.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/broker/service/schema/proto/SchemaRegistryFormat.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/common/api/proto/PulsarApi.java</exclude>
+            <exclude>**/ByteBufCodedInputStream.java</exclude>
+            <exclude>**/ByteBufCodedOutputStream.java</exclude>
             <exclude>bin/proto/*</exclude>
             <exclude>**/*.patch</exclude>
+            <exclude>conf/schema_example.conf</exclude>
             <exclude>data/**</exclude>
             <exclude>logs/**</exclude>
             <exclude>**/*.versionsBackup</exclude>
@@ -1013,6 +1022,7 @@ flexible messaging model and an intuitive client API.</description>
           <excludes>
             <!-- Other license files -->
             <exclude>licenses/LICENSE-*.txt</exclude>
+            <exclude>pulsar-client-cpp/pkg/licenses/LICENSE-*.txt</exclude>
             <exclude>src/assemble/README.bin.txt</exclude>
             <exclude>src/assemble/LICENSE.bin.txt</exclude>
             <exclude>src/assemble/NOTICE.bin.txt</exclude>
@@ -1052,6 +1062,9 @@ flexible messaging model and an intuitive client API.</description>
 
             <!-- Python requirements files -->
             <exclude>**/requirements.txt</exclude>
+
+            <!-- Configuration Templates -->
+            <exclude>conf/schema_example.conf</exclude>
           </excludes>
         </configuration>
       </plugin>

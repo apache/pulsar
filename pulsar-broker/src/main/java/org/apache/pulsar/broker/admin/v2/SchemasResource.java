@@ -27,7 +27,6 @@ import com.google.common.base.Charsets;
 import io.swagger.annotations.ApiOperation;
 import java.nio.ByteBuffer;
 import java.time.Clock;
-import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.Encoded;
@@ -42,6 +41,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.schema.IncompatibleSchemaException;
+import org.apache.pulsar.broker.service.schema.LongSchemaVersion;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.DeleteSchemaResponse;
@@ -51,9 +51,13 @@ import org.apache.pulsar.common.schema.PostSchemaResponse;
 import org.apache.pulsar.common.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.schema.SchemaVersion;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Path("/schemas")
 public class SchemasResource extends AdminResource {
+
+    private static final Logger log = LoggerFactory.getLogger(SchemasResource.class);
 
     private final Clock clock;
 
@@ -65,6 +69,14 @@ public class SchemasResource extends AdminResource {
     public SchemasResource(Clock clock) {
         super();
         this.clock = clock;
+    }
+
+    private long getLongSchemaVersion(SchemaVersion schemaVersion) {
+        if (schemaVersion instanceof LongSchemaVersion) {
+            return ((LongSchemaVersion) schemaVersion).getVersion();
+        } else {
+            return -1L;
+        }
     }
 
     @GET
@@ -86,13 +98,13 @@ public class SchemasResource extends AdminResource {
                     if (isNull(schema)) {
                         response.resume(Response.status(Response.Status.NOT_FOUND).build());
                     } else if (schema.schema.isDeleted()) {
-                        response.resume(Response.noContent().build());
+                        response.resume(Response.status(Response.Status.NOT_FOUND).build());
                     } else {
                         response.resume(
                             Response.ok()
                                 .encoding(MediaType.APPLICATION_JSON)
                                 .entity(GetSchemaResponse.builder()
-                                    .version(schema.version)
+                                    .version(getLongSchemaVersion(schema.version))
                                     .type(schema.schema.getType())
                                     .timestamp(schema.schema.getTimestamp())
                                     .data(new String(schema.schema.getData()))
@@ -132,13 +144,13 @@ public class SchemasResource extends AdminResource {
                     if (isNull(schema)) {
                         response.resume(Response.status(Response.Status.NOT_FOUND).build());
                     } else if (schema.schema.isDeleted()) {
-                        response.resume(Response.noContent().build());
+                        response.resume(Response.status(Response.Status.NOT_FOUND).build());
                     } else {
                         response.resume(
                             Response.ok()
                                 .encoding(MediaType.APPLICATION_JSON)
                                 .entity(GetSchemaResponse.builder()
-                                    .version(schema.version)
+                                    .version(getLongSchemaVersion(schema.version))
                                     .type(schema.schema.getType())
                                     .timestamp(schema.schema.getTimestamp())
                                     .data(new String(schema.schema.getData()))
@@ -173,7 +185,7 @@ public class SchemasResource extends AdminResource {
                     response.resume(
                         Response.ok().entity(
                             DeleteSchemaResponse.builder()
-                                .version(version)
+                                .version(getLongSchemaVersion(version))
                                 .build()
                         ).build()
                     );

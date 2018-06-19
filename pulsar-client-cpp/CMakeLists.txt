@@ -94,9 +94,9 @@ else()
     endif (NOT PROTOBUF_LIBRARIES)
 
     find_library(LIB_JSON jsoncpp)
-    find_library(LOG4CXX_LIBRARY_PATH log4cxx)
     find_library(CURL_LIBRARY_PATH curl)
     if (USE_LOG4CXX)
+        find_library(LOG4CXX_LIBRARY_PATH log4cxx)
         find_path(LOG4CXX_INCLUDE_PATH log4cxx/logger.h)
     endif (USE_LOG4CXX)
 endif (LINK_STATIC)
@@ -193,17 +193,23 @@ set(COMMON_LIBS
   ${OPENSSL_LIBRARIES}
   ${ZLIB_LIBRARY_PATH}
   ${PROTOBUF_LIBRARIES}
-  ${LOG4CXX_LIBRARY_PATH}
-  ${APR_LIBRARY_PATH}
-  ${APR_UTIL_LIBRARY_PATH}
-  ${EXPAT_LIBRARY_PATH}
-  ${ICONV_LIBRARY_PATH}
   ${CURL_LIBRARY_PATH}
   ${ADDITIONAL_LIBRARIES}
   ${LIB_JSON}
   dl
   pthread
 )
+
+if (USE_LOG4CXX)
+    set(COMMON_LIBS
+      ${COMMON_LIBS}
+      ${LOG4CXX_LIBRARY_PATH}
+      ${APR_LIBRARY_PATH}
+      ${APR_UTIL_LIBRARY_PATH}
+      ${EXPAT_LIBRARY_PATH}
+      ${ICONV_LIBRARY_PATH}
+    )
+endif ()
 
 if(NOT APPLE)
     set(COMMON_LIBS ${COMMON_LIBS} rt)

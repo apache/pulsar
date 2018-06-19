@@ -1164,4 +1164,52 @@ public interface Namespaces {
      */
     void setCompactionThreshold(String namespace, long compactionThreshold) throws PulsarAdminException;
 
+    /**
+     * Get the offloadThreshold for a namespace. The maximum number of bytes stored on the pulsar cluster for topics
+     * in the namespace before data starts being offloaded to longterm storage.
+     *
+     * <p>
+     * Response example:
+     *
+     * <pre>
+     * <code>10000000</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    long getOffloadThreshold(String namespace) throws PulsarAdminException;
+
+    /**
+     * Set the offloadThreshold for a namespace. The maximum number of bytes stored on the pulsar cluster for topics
+     * in the namespace before data starts being offloaded to longterm storage.
+     *
+     * Negative values disabled automatic offloading. Setting a threshold of 0 will offload data as soon as possible.
+     * <p>
+     * Request example:
+     *
+     * <pre>
+     * <code>10000000</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param offloadThreshold
+     *            maximum number of bytes stored before offloading is triggered
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setOffloadThreshold(String namespace, long compactionThreshold) throws PulsarAdminException;
 }
