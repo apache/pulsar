@@ -521,6 +521,9 @@ public class FunctionRuntimeManager implements AutoCloseable{
     public void close() throws Exception {
         this.functionActioner.close();
         this.functionAssignmentTailer.close();
+        if (runtimeFactory != null) {
+            runtimeFactory.close();
+        }
     }
 
     private Map<String, Assignment> diff(Map<String, Assignment> assignmentMap1, Map<String, Assignment> assignmentMap2) {
