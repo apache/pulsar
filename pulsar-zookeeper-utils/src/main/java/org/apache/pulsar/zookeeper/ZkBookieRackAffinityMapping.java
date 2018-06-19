@@ -18,10 +18,13 @@
  */
 package org.apache.pulsar.zookeeper;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.bookkeeper.client.RackChangeNotifier;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicyImpl;
@@ -31,6 +34,8 @@ import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.net.NetworkTopology;
 import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
 import org.apache.commons.configuration.Configuration;
+import org.apache.pulsar.common.policies.data.BookieInfo;
+import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooKeeper;
@@ -38,32 +43,36 @@ import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 /**
  * It provides the mapping of bookies to its rack from zookeeper.
  */
 public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
-        implements ZooKeeperCacheListener<Map<String, Map<String, BookieInfo>>>, RackChangeNotifier {
+        implements ZooKeeperCacheListener<BookiesRackConfiguration>, RackChangeNotifier {
     private static final Logger LOG = LoggerFactory.getLogger(ZkBookieRackAffinityMapping.class);
 
     public static final String BOOKIE_INFO_ROOT_PATH = "/bookies";
 
-    private ZooKeeperDataCache<Map<String, Map<String, BookieInfo>>> bookieMappingCache = null;
+    private ZooKeeperDataCache<BookiesRackConfiguration> bookieMappingCache = null;
     private RackawareEnsemblePlacementPolicyImpl rackawarePolicy = null;
 
-    public static final ObjectMapper jsonMapper = ObjectMapperFactory.create();
-    public static final TypeReference<Map<String, Map<String, BookieInfo>>> typeRef = new TypeReference<Map<String, Map<String, BookieInfo>>>() {
-    };
+    private static final ObjectMapper jsonMapper = ObjectMapperFactory.create();
+
+    private volatile BookiesRackConfiguration racksWithHost = new BookiesRackConfiguration();
 
     @Override
     public void setConf(Configuration conf) {
         super.setConf(conf);
         bookieMappingCache = getAndSetZkCache(conf);
+
+        try {
+            racksWithHost = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH)
+                    .orElseThrow(() -> new KeeperException.NoNodeException(BOOKIE_INFO_ROOT_PATH));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    private ZooKeeperDataCache<Map<String, Map<String, BookieInfo>>> getAndSetZkCache(Configuration conf) {
+    private ZooKeeperDataCache<BookiesRackConfiguration> getAndSetZkCache(Configuration conf) {
         ZooKeeperCache zkCache = null;
         if (conf.getProperty(ZooKeeperCache.ZK_CACHE_INSTANCE) != null) {
             zkCache = (ZooKeeperCache) conf.getProperty(ZooKeeperCache.ZK_CACHE_INSTANCE);
@@ -86,7 +95,7 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                 LOG.error("No zk configurations available");
             }
         }
-        ZooKeeperDataCache<Map<String, Map<String, BookieInfo>>> zkDataCache = getZkBookieRackMappingCache(
+        ZooKeeperDataCache<BookiesRackConfiguration> zkDataCache = getZkBookieRackMappingCache(
                 zkCache);
         if (zkDataCache != null) {
             zkDataCache.registerListener(this);
@@ -94,19 +103,37 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
         return zkDataCache;
     }
 
-    public static ZooKeeperDataCache<Map<String, Map<String, BookieInfo>>> getZkBookieRackMappingCache(
+    private ZooKeeperDataCache<BookiesRackConfiguration> getZkBookieRackMappingCache(
             ZooKeeperCache zkCache) {
-        ZooKeeperDataCache<Map<String, Map<String, BookieInfo>>> zkDataCache = new ZooKeeperDataCache<Map<String, Map<String, BookieInfo>>>(
+        ZooKeeperDataCache<BookiesRackConfiguration> zkDataCache = new ZooKeeperDataCache<BookiesRackConfiguration>(
                 zkCache) {
 
             @Override
-            public Map<String, Map<String, BookieInfo>> deserialize(String key, byte[] content)
+            public BookiesRackConfiguration deserialize(String key, byte[] content)
                     throws Exception {
                 LOG.info("Reloading the bookie rack affinity mapping cache.");
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Loading the bookie mappings with bookie info data: {}", new String(content));
                 }
-                return jsonMapper.readValue(content, typeRef);
+                BookiesRackConfiguration racks = jsonMapper.readValue(content, BookiesRackConfiguration.class);
+
+                // In config z-node, the bookies are added in the `ip:port` notation, while BK will ask
+                // for just the IP/hostname when trying to get the rack for a bookie.
+                // To work around this issue, we also insert in the map the bookie ip/hostname with same rack-info
+                BookiesRackConfiguration racksWithHost = new BookiesRackConfiguration();
+                racks.forEach((group, bookies) -> {
+                    bookies.forEach((addr, bi) -> {
+                        try {
+                            BookieSocketAddress bsa = new BookieSocketAddress(addr);
+                            racksWithHost.updateBookie(group, bsa.getHostName(), bi);
+                        } catch (UnknownHostException e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
+                });
+
+                ZkBookieRackAffinityMapping.this.racksWithHost = racksWithHost;
+                return racks;
             }
 
         };
@@ -123,27 +150,16 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
     }
 
     private String getRack(String bookieAddress) {
-        String rack = NetworkTopology.DEFAULT_RACK;
-        try {
-            if (bookieMappingCache != null) {
-                Map<String, Map<String, BookieInfo>> allGroupsBookieMapping = bookieMappingCache
-                        .get(BOOKIE_INFO_ROOT_PATH)
-                        .orElseThrow(() -> new KeeperException.NoNodeException(BOOKIE_INFO_ROOT_PATH));
-                for (Map<String, BookieInfo> bookieMapping : allGroupsBookieMapping.values()) {
-                    BookieInfo bookieInfo = bookieMapping.get(bookieAddress);
-                    if (bookieInfo != null) {
-                        rack = bookieInfo.getRack();
-                        if (!rack.startsWith("/")) {
-                            rack = "/" + rack;
-                        }
-                        break;
-                    }
-                }
+        Optional<BookieInfo> bi = racksWithHost.getBookie(bookieAddress);
+        if (bi.isPresent()) {
+            String rack = bi.get().getRack();
+            if (!rack.startsWith("/")) {
+                rack = "/" + rack;
             }
-        } catch (Exception e) {
-            LOG.warn("Error getting bookie info from zk, using default rack node {}: {}", rack, e.getMessage());
+            return rack;
+        } else {
+            return NetworkTopology.DEFAULT_RACK;
         }
-        return rack;
     }
 
     @Override
@@ -157,7 +173,7 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
     }
 
     @Override
-    public void onUpdate(String path, Map<String, Map<String, BookieInfo>> data, Stat stat) {
+    public void onUpdate(String path, BookiesRackConfiguration data, Stat stat) {
         if (rackawarePolicy != null) {
             LOG.info("Bookie rack info updated to {}. Notifying rackaware policy.", data.toString());
             List<BookieSocketAddress> bookieAddressList = new ArrayList<>();
