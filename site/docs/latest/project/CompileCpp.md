@@ -64,7 +64,7 @@ Then compile and install [Google Test](https://github.com/google/googletest):
 $ cd /usr/src/googletest
 $ sudo cmake .
 $ sudo make
-$ sudo cp ./googlemock/libgmock.a ./googletest/libgtest.a /usr/lib/
+$ sudo cp ./googlemock/libgmock.a ./googlemock/gtest/libgtest.a /usr/lib/
 
 # less than 1.18.0
 $ cd /usr/src/gtest
