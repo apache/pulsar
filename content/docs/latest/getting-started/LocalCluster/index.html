@@ -979,9 +979,9 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/getting-started/LocalCluster/">Setting up a local standalone cluster</a></li>
+          
+          
           
           
           
@@ -1211,9 +1211,9 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/getting-started/LocalCluster/">Setting up a local standalone cluster</a></li>
+          
+          
           
           
           
@@ -1618,8 +1618,8 @@
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">localClusterUrl</span> <span class="o">=</span> <span class="s">"pulsar://localhost:6650"</span><span class="o">;</span>
 
-<span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">localClusterUrl</span><span class="o">);</span>
-<span class="n">Producer</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">createProducer</span><span class="o">(</span><span class="s">"my-topic"</span><span class="o">);</span>
+<span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">builder</span><span class="o">().</span><span class="na">serviceURL</span><span class="o">(</span><span class="n">localClusterUrl</span><span class="o">).</span><span class="na">build</span><span class="o">();</span>
+<span class="n">Producer</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">newProducer</span><span class="o">().</span><span class="na">topic</span><span class="o">(</span><span class="s">"my-topic"</span><span class="o">).</span><span class="na">create</span><span class="o">();</span>
 </code></pre></div></div>
 
 <p>Here’s an example <a href="../../clients/Python">Python</a> producer:</p>

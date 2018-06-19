@@ -979,9 +979,9 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/getting-started/LocalCluster/">Setting up a local standalone cluster</a></li>
+          
+          
           
           
           
@@ -1211,9 +1211,9 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/getting-started/LocalCluster/">Setting up a local standalone cluster</a></li>
+          
+          
           
           
           
@@ -1625,9 +1625,6 @@ and follow the instructions for your OS.</p>
   <li><code class="highlighter-rouge">-v $PWD/data:/pulsar/data</code>: This will make the process inside the container to store the
 data and metadata in the filesystem outside the container, in order to not start “fresh” every
 time the container is restarted.</li>
-  <li><code class="highlighter-rouge">--advertised-address 127.0.0.1</code>: This is needed so that the Pulsar broker can advertise an IP
-address that is reachable from outside the Docker container. You can also use the host machine IP,
-if you want to make Pulsar standalone accessible from other machines.</li>
 </ul>
 
 <p>If Pulsar has been successfully started, you should see <code class="highlighter-rouge">INFO</code>-level log messages like this:</p>
