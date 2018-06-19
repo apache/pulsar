@@ -38,7 +38,7 @@ This release fixes issues reported for 2.0.0-rc1-incubating.
 The complete list of changes can be found at:
 https://github.com/apache/incubator-pulsar/milestone/14?closed=1
 
-https://github.com/apache/incubator-pulsar/releases/tag/v2.0.0-rc1-incubating
+https://github.com/apache/incubator-pulsar/releases/tag/v2.0.1-incubating
 
 ### 1.22.1-incubating &mdash; 2018-06-18 <a id="1.22.1-incubating"></a>
 
