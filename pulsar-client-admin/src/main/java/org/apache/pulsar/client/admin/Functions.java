@@ -117,6 +117,28 @@ public interface Functions {
      *             Unexpected error
      */
     void updateFunction(FunctionDetails functionDetails, String fileName) throws PulsarAdminException;
+    
+    /**
+     * Update the configuration for a function.
+     * <pre>
+     * Update a function by providing url from which fun-pkg can be downloaded. supported url: http/file
+     * eg:
+     * File: file:/dir/fileName.jar
+     * Http: http://www.repo.com/fileName.jar
+     * </pre>
+     * 
+     * @param functionDetails
+     *            the function configuration object
+     * @param pkgUrl
+     *            url from which pkg can be downloaded
+     * @throws NotAuthorizedException
+     *             You don't have admin permission to create the cluster
+     * @throws NotFoundException
+     *             Cluster doesn't exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void updateFunctionWithUrl(FunctionDetails functionDetails, String pkgUrl) throws PulsarAdminException;
 
     /**
      * Delete an existing function

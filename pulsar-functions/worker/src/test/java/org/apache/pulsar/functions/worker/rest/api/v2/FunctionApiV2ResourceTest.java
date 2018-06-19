@@ -585,6 +585,7 @@ public class FunctionApiV2ResourceTest {
             function,
             inputStream,
             details,
+            null,
             org.apache.pulsar.functions.utils.Utils.printJson(functionDetails));
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -612,6 +613,7 @@ public class FunctionApiV2ResourceTest {
             function,
             mockedInputStream,
             mockedFormData,
+            null,
             org.apache.pulsar.functions.utils.Utils.printJson(functionDetails));
     }
 
@@ -661,6 +663,43 @@ public class FunctionApiV2ResourceTest {
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
     }
 
+    @Test
+    public void testUpdateFunctionWithUrl() throws IOException {
+        Configurator.setRootLevel(Level.DEBUG);
+
+        String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+        String filePackageUrl = "file://" + fileLocation;
+        
+        SinkSpec sinkSpec = SinkSpec.newBuilder()
+                .setTopic(outputTopic)
+                .setSerDeClassName(outputSerdeClassName).build();
+        FunctionDetails functionDetails = FunctionDetails.newBuilder()
+                .setTenant(tenant).setNamespace(namespace).setName(function)
+                .setSink(sinkSpec)
+                .setClassName(className)
+                .setParallelism(parallelism)
+                .setSource(SourceSpec.newBuilder().setSubscriptionType(subscriptionType)
+                        .putAllTopicsToSerDeClassName(topicsToSerDeClassName)).build();
+        
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        RequestResult rr = new RequestResult()
+                .setSuccess(true)
+                .setMessage("function registered");
+            CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
+            when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+        
+        Response response = resource.updateFunction(
+            tenant,
+            namespace,
+            function,
+            null,
+            null,
+            filePackageUrl,
+            org.apache.pulsar.functions.utils.Utils.printJson(functionDetails));
+        
+        assertEquals(Status.OK.getStatusCode(), response.getStatus());
+    }
+    
     @Test
     public void testUpdateFunctionFailure() throws Exception {
         mockStatic(Utils.class);
