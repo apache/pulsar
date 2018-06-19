@@ -109,7 +109,7 @@
 
           <div class="dropdown-divider"></div>
           <h3 class="dropdown-header">Stable release</h3>
-          <a class="dropdown-item" href="/docs/v2.0.0-rc1-incubating/getting-started/LocalCluster">2.0.0-rc1-incubating</a>
+          <a class="dropdown-item" href="/docs/v2.0.1-incubating/getting-started/LocalCluster">2.0.1-incubating</a>
 
           
               <div class="dropdown-divider"></div>
@@ -117,6 +117,8 @@
 
               
                   <a class="dropdown-item" href="/docs/v1.22.1-incubating/getting-started/LocalCluster">1.22.1-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v2.0.0-rc1-incubating/getting-started/LocalCluster">2.0.0-rc1-incubating</a>
               
                   <a class="dropdown-item" href="/docs/v1.22.0-incubating/getting-started/LocalCluster">1.22.0-incubating</a>
               
@@ -676,8 +678,6 @@
           
           
           
-          
-          
           <li><a href="/ja/admin/Authz/">Pulsarにおける認証と認可</a></li>
           
           
@@ -689,6 +689,8 @@
           
           
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
+          
+          
           
           
           
@@ -758,9 +760,9 @@
           
           
           
-          
-          
           <li><a href="/ja/advanced/PartitionedTopics/">パーティションドトピック</a></li>
+          
+          
           
           
           
@@ -788,9 +790,9 @@
           
           
           
-          
-          
           <li><a href="/ja/advanced/RetentionExpiry/">メッセージの保存と有効期限</a></li>
+          
+          
           
           
           
@@ -928,9 +930,9 @@
           
           
           
-          
-          
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
+          
+          
           
           
           
@@ -1158,8 +1160,6 @@
           
           
           
-          
-          
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
           
           
@@ -1345,6 +1345,8 @@
           
           
           
+          
+          
         </ul>
       </div>
     </div>
@@ -1394,9 +1396,9 @@
           
           
           
-          
-          
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
+          
+          
           
           
           
@@ -1624,9 +1626,9 @@
           
           
           
-          
-          
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
+          
+          
           
           
           
@@ -1854,9 +1856,9 @@
           
           
           
-          
-          
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
+          
+          
           
           
           
@@ -3376,8 +3378,8 @@
       </li>
       
       <li>
-        <a href="#pulsar-admin-topics">
-          <code class="highlighter-rouge">topics</code>
+        <a href="#pulsar-admin-schemas">
+          <code class="highlighter-rouge">schemas</code>
         </a>
       </li>
        <!-- for command in commands -->
@@ -8517,14 +8519,14 @@
     </div>
     
     <div class="card cli-command">
-      <h3 class="cli-command-title" id="pulsar-admin-topics">
-        <code class="highlighter-rouge">topics</code>
+      <h3 class="cli-command-title" id="pulsar-admin-schemas">
+        <code class="highlighter-rouge">schemas</code>
       </h3>
       <div class="card-content">
-        <p>Operations related to Pulsar topics of all kinds (both persistent and non-persistent)</p>
+        <p>Operations related to Schemas associated with Pulsar topics.</p>
 
         <h5>Usage</h5>
-        <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin topics <span class="command">subcommand</span></code></pre></div>
+        <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin schemas <span class="command">subcommand</span></code></pre></div>
          <!-- if command.options -->
          <!-- if command.example -->
 
@@ -8533,8 +8535,20 @@
         <ul>
           
           <li>
-            <a href="#pulsar-admin-topics-compact">
-              <code class="highlighter-rouge">compact</code>
+            <a href="#pulsar-admin-schemas-upload">
+              <code class="highlighter-rouge">upload</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-schemas-delete">
+              <code class="highlighter-rouge">delete</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-schemas-get">
+              <code class="highlighter-rouge">get</code>
             </a>
           </li>
            <!-- for subcommand in subcommands -->
@@ -8542,11 +8556,91 @@
 
         
         <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-topics-compact"><code class="highlighter-rouge">compact</code></h4>
+          <h4 class="card-header-title" id="pulsar-admin-schemas-upload"><code class="highlighter-rouge">upload</code></h4>
           <div class="card-content">
-            <p>Runs a compaction operation on the specified topic</p>
+            <p>Upload the schema definition for a topic</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin topics compact <span class="command">topic-name</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin schemas upload <span class="command">persistent://tenant/namespace/topic</span> <span class="options">options</span></code></pre></div>
+            
+            <h5>Options</h5>
+            <table class="options-table">
+              <thead>
+                <tr>
+                  <th>Flag</th>
+                  <th>Description</th>
+                  <th>Default</th>
+                </tr>
+                <tbody>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--filename</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The path to the schema definition file. An example schema file is available under <code class="highlighter-rouge">conf</code> directory.</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                   <!-- for option in options -->
+                </tbody>
+              </thead>
+            </table>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-schemas-delete"><code class="highlighter-rouge">delete</code></h4>
+          <div class="card-content">
+            <p>Delete the schema definition associated with a topic</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin schemas delete <span class="command">persistent://tenant/namespace/topic</span></code></pre></div>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-schemas-get"><code class="highlighter-rouge">get</code></h4>
+          <div class="card-content">
+            <p>Retrieve the schema definition assoicated with a topic (at a given version if version is supplied).</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin schemas get <span class="command">persistent://tenant/namespace/topic</span> <span class="options">options</span></code></pre></div>
+            
+            <h5>Options</h5>
+            <table class="options-table">
+              <thead>
+                <tr>
+                  <th>Flag</th>
+                  <th>Description</th>
+                  <th>Default</th>
+                </tr>
+                <tbody>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--version</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The version of the schema definition to retrive for a topic.</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                   <!-- for option in options -->
+                </tbody>
+              </thead>
+            </table>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>

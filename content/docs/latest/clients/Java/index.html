@@ -109,7 +109,7 @@
 
           <div class="dropdown-divider"></div>
           <h3 class="dropdown-header">Stable release</h3>
-          <a class="dropdown-item" href="/docs/v2.0.0-rc1-incubating/getting-started/LocalCluster">2.0.0-rc1-incubating</a>
+          <a class="dropdown-item" href="/docs/v2.0.1-incubating/getting-started/LocalCluster">2.0.1-incubating</a>
 
           
               <div class="dropdown-divider"></div>
@@ -117,6 +117,8 @@
 
               
                   <a class="dropdown-item" href="/docs/v1.22.1-incubating/getting-started/LocalCluster">1.22.1-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v2.0.0-rc1-incubating/getting-started/LocalCluster">2.0.0-rc1-incubating</a>
               
                   <a class="dropdown-item" href="/docs/v1.22.0-incubating/getting-started/LocalCluster">1.22.0-incubating</a>
               
@@ -923,6 +925,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
           
           
@@ -937,9 +941,9 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/project/CompileCpp/">Building Pulsar C++ client</a></li>
+          
+          
           
           
           
@@ -1110,8 +1114,6 @@
           
           
           
-          
-          
         </ul>
       </div>
     </div>
@@ -1149,6 +1151,8 @@
       </div>
       <div class="modal-body">
         <ul>
+          
+          
           
           
           
@@ -1311,8 +1315,6 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/cookbooks/message-queue/">Using Pulsar as a message queue</a></li>
           
           
@@ -1325,9 +1327,9 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/admin-api/overview/">The Pulsar admin interface</a></li>
+          
+          
           
           
           
@@ -1443,9 +1445,9 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/clients/Java/">The Pulsar Java client</a></li>
-          
-          
           
           
           
@@ -1675,9 +1677,9 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/clients/Java/">The Pulsar Java client</a></li>
-          
-          
           
           
           
@@ -1850,7 +1852,7 @@
 
 -->
 
-<p>The Pulsar Java client can be used both to create Java <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producers</span>, <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumers</span>, and <a href="#readers">readers</a> of messages and to perform <a href="../../admin-api/overview">administrative tasks</a>. The current version of the Java client is <strong>2.0.0-rc1-incubating</strong>.</p>
+<p>The Pulsar Java client can be used both to create Java <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producers</span>, <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumers</span>, and <a href="#readers">readers</a> of messages and to perform <a href="../../admin-api/overview">administrative tasks</a>. The current version of the Java client is <strong>2.0.1-incubating</strong>.</p>
 
 <p>Javadoc for the Pulsar client is divided up into two domains, by package:</p>
 
@@ -1866,12 +1868,12 @@
     <tr>
       <td style="text-align: left"><a href="/api/client"><code class="highlighter-rouge">org.apache.pulsar.client.api</code></a></td>
       <td style="text-align: left">The <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producer</span> and <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span> API</td>
-      <td style="text-align: left"><a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C2.0.0-rc1-incubating%7Cjar">org.apache.pulsar:pulsar-client:2.0.0-rc1-incubating</a></td>
+      <td style="text-align: left"><a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C2.0.1-incubating%7Cjar">org.apache.pulsar:pulsar-client:2.0.1-incubating</a></td>
     </tr>
     <tr>
       <td style="text-align: left"><a href="/api/admin"><code class="highlighter-rouge">org.apache.pulsar.client.admin</code></a></td>
       <td style="text-align: left">The Java <a href="../../admin-api/overview">admin API</a></td>
-      <td style="text-align: left"><a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-admin%7C2.0.0-rc1-incubating%7Cjar">org.apache.pulsar:pulsar-client-admin:2.0.0-rc1-incubating</a></td>
+      <td style="text-align: left"><a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-admin%7C2.0.1-incubating%7Cjar">org.apache.pulsar:pulsar-client-admin:2.0.1-incubating</a></td>
     </tr>
   </tbody>
 </table>
@@ -1880,14 +1882,14 @@
 
 <h2 id="installation">Installation</h2>
 
-<p>The latest version of the Pulsar Java client library is available via <a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C2.0.0-rc1-incubating%7Cjar">Maven Central</a>. To use the latest version, add the <code class="highlighter-rouge">pulsar-client</code> library to your build configuration.</p>
+<p>The latest version of the Pulsar Java client library is available via <a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C2.0.1-incubating%7Cjar">Maven Central</a>. To use the latest version, add the <code class="highlighter-rouge">pulsar-client</code> library to your build configuration.</p>
 
 <h3 id="maven">Maven</h3>
 
 <p>If you’re using Maven, add this to your <code class="highlighter-rouge">pom.xml</code>:</p>
 
 <div class="language-xml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">&lt;!-- in your &lt;properties&gt; block --&gt;</span>
-<span class="nt">&lt;pulsar.version&gt;</span>2.0.0-rc1-incubating<span class="nt">&lt;/pulsar.version&gt;</span>
+<span class="nt">&lt;pulsar.version&gt;</span>2.0.1-incubating<span class="nt">&lt;/pulsar.version&gt;</span>
 
 <span class="c">&lt;!-- in your &lt;dependencies&gt; block --&gt;</span>
 <span class="nt">&lt;dependency&gt;</span>
@@ -1901,7 +1903,7 @@
 
 <p>If you’re using Gradle, add this to your <code class="highlighter-rouge">build.gradle</code> file:</p>
 
-<div class="language-groovy highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">def</span> <span class="n">pulsarVersion</span> <span class="o">=</span> <span class="s1">'2.0.0-rc1-incubating'</span>
+<div class="language-groovy highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">def</span> <span class="n">pulsarVersion</span> <span class="o">=</span> <span class="s1">'2.0.1-incubating'</span>
 
 <span class="n">dependencies</span> <span class="o">{</span>
     <span class="n">compile</span> <span class="nl">group:</span> <span class="s1">'org.apache.pulsar'</span><span class="o">,</span> <span class="nl">name:</span> <span class="s1">'pulsar-client'</span><span class="o">,</span> <span class="nl">version:</span> <span class="n">pulsarVersion</span>

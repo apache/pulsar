@@ -109,7 +109,7 @@
 
           <div class="dropdown-divider"></div>
           <h3 class="dropdown-header">Stable release</h3>
-          <a class="dropdown-item" href="/docs/v2.0.0-rc1-incubating/getting-started/LocalCluster">2.0.0-rc1-incubating</a>
+          <a class="dropdown-item" href="/docs/v2.0.1-incubating/getting-started/LocalCluster">2.0.1-incubating</a>
 
           
               <div class="dropdown-divider"></div>
@@ -117,6 +117,8 @@
 
               
                   <a class="dropdown-item" href="/docs/v1.22.1-incubating/getting-started/LocalCluster">1.22.1-incubating</a>
+              
+                  <a class="dropdown-item" href="/docs/v2.0.0-rc1-incubating/getting-started/LocalCluster">2.0.0-rc1-incubating</a>
               
                   <a class="dropdown-item" href="/docs/v1.22.0-incubating/getting-started/LocalCluster">1.22.0-incubating</a>
               
@@ -284,6 +286,46 @@
 -->
 
 <h2 id="apache-incubator">Apache incubator</h2>
+
+<h3 id="201-incubating--2018-06-18-">2.0.1-incubating — 2018-06-18 <a id="2.0.1-incubating"></a></h3>
+
+<p>This release fixes issues reported for 2.0.0-rc1-incubating.</p>
+
+<ul>
+  <li><a href="https://github.com/apache/incubator-pulsar/pull/1893">#1893</a> - Fixed issues with Python packages on PyPI</li>
+  <li><a href="https://github.com/apache/incubator-pulsar/issues/1797">#1797</a> - Proxy doesn’t strip the request
+ URL for admin requests correctly</li>
+  <li><a href="https://github.com/apache/incubator-pulsar/pull/1862">#1862</a> - Fix REST APIs provided by Pulsar proxy</li>
+</ul>
+
+<p>The complete list of changes can be found at:
+https://github.com/apache/incubator-pulsar/milestone/14?closed=1</p>
+
+<p>https://github.com/apache/incubator-pulsar/releases/tag/v2.0.1-incubating</p>
+
+<h3 id="1221-incubating--2018-06-18-">1.22.1-incubating — 2018-06-18 <a id="1.22.1-incubating"></a></h3>
+
+<p>This is the sixth release of Apache Pulsar since entering the ASF incubator.</p>
+
+<p>This release addresses issues reported in 1.22.0-incubating version.</p>
+
+<ul>
+  <li><a href="https://github.com/apache/incubator-pulsar/pull/1660">#1660</a> Deadlock while closing non persistent topic</li>
+  <li><a href="https://github.com/apache/incubator-pulsar/pull/1591">#1591</a> Deadlock while closing non shared consumer</li>
+  <li><a href="https://github.com/apache/incubator-pulsar/pull/1554">#1554</a> Handle invalid mark delete position at managed cursor</li>
+  <li><a href="https://github.com/apache/incubator-pulsar/pull/1262">#1262</a> Broker should not start replicator for root partitioned topic</li>
+  <li><a href="https://github.com/apache/incubator-pulsar/pull/1662">#1662</a> NPE when cursor failed to close empty subscription</li>
+  <li><a href="https://github.com/apache/incubator-pulsar/pull/1370">#1370</a> Relocate service files for shading pulsar-client-admin module</li>
+  <li><a href="https://github.com/apache/incubator-pulsar/pull/1265">#1265</a> Fixed lookup redirect logic on Proxyside</li>
+  <li><a href="https://github.com/apache/incubator-pulsar/pull/1428">#1428</a> Handle Race condition in concurrent bundle split</li>
+  <li><a href="https://github.com/apache/incubator-pulsar/pull/1817">#1817</a> Fixed mem leak when acknowledging while disconnected from broke</li>
+  <li><a href="https://github.com/apache/incubator-pulsar/pull/1851">#1851</a> Fixing resource leak due to open file descriptors in SecurityUtility.</li>
+</ul>
+
+<p>The complete list of changes can be found at:
+https://github.com/apache/incubator-pulsar/milestone/15?closed=1</p>
+
+<p>https://github.com/apache/incubator-pulsar/releases/tag/v1.22.1-incubating</p>
 
 <h3 id="200-rc1-incubating--2018-05-29-">2.0.0-rc1-incubating — 2018-05-29 <a id="2.0.0-rc1-incubating"></a></h3>
 
