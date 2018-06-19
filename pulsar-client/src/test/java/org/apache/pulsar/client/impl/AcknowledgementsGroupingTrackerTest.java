@@ -61,7 +61,7 @@ public class AcknowledgementsGroupingTrackerTest {
     public void testAckTracker() throws Exception {
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
         conf.setAcknowledgementsGroupTimeMicros(TimeUnit.SECONDS.toMicros(10));
-        AcknowledgmentsGroupingTracker tracker = new AcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
+        PersistentAcknowledgmentsGroupingTracker tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
 
         MessageIdImpl msg1 = new MessageIdImpl(5, 1, 0);
         MessageIdImpl msg2 = new MessageIdImpl(5, 2, 0);
@@ -119,7 +119,7 @@ public class AcknowledgementsGroupingTrackerTest {
     public void testImmediateAckingTracker() throws Exception {
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
         conf.setAcknowledgementsGroupTimeMicros(0);
-        AcknowledgmentsGroupingTracker tracker = new AcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
+        PersistentAcknowledgmentsGroupingTracker tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
 
         MessageIdImpl msg1 = new MessageIdImpl(5, 1, 0);
         MessageIdImpl msg2 = new MessageIdImpl(5, 2, 0);
@@ -146,7 +146,7 @@ public class AcknowledgementsGroupingTrackerTest {
     public void testAckTrackerMultiAck() throws Exception {
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
         conf.setAcknowledgementsGroupTimeMicros(TimeUnit.SECONDS.toMicros(10));
-        AcknowledgmentsGroupingTracker tracker = new AcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
+        PersistentAcknowledgmentsGroupingTracker tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
 
         when(cnx.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12_VALUE);
 
