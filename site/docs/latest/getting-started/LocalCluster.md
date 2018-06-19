@@ -56,10 +56,10 @@ When you start a local standalone cluster, Pulsar will automatically create a `p
 
 ## Testing your cluster setup
 
-Pulsar provides a CLI tool called [`pulsar-client`](../../reference/CliTools#pulsar-client) that enables you to do things like send messages to a Pulsar {% popover topic %} in a running cluster. This command will send a simple message saying `hello-pulsar` to the `persistent://public/default/my-topic` topic:
+Pulsar provides a CLI tool called [`pulsar-client`](../../reference/CliTools#pulsar-client) that enables you to do things like send messages to a Pulsar {% popover topic %} in a running cluster. This command will send a simple message saying `hello-pulsar` to the `my-topic` topic:
 
 ```bash
-$ bin/pulsar-client produce persistent://public/default/my-topic \
+$ bin/pulsar-client produce my-topic \
   --messages "hello-pulsar"
 ```
 
@@ -70,7 +70,7 @@ If the message has been successfully published to the topic, you should see a co
 ```
 
 {% include admonition.html type="success" title="No need to explicitly create new topics"
-content="You may have noticed that we did not explicitly create the `persistent://public/default/my-topic` topic to which we sent the `hello-pulsar` message. If you attempt to write a message to a topic that does not yet exist, Pulsar will automatically create that topic for you." %}
+content="You may have noticed that we did not explicitly create the `my-topic` topic to which we sent the `hello-pulsar` message. If you attempt to write a message to a topic that does not yet exist, Pulsar will automatically create that topic for you." %}
 
 ## Using Pulsar clients locally
 
@@ -85,7 +85,7 @@ Here's an example producer for a Pulsar {% popover topic %} using the [Java](../
 String localClusterUrl = "pulsar://localhost:6650";
 
 PulsarClient client = PulsarClient.builder().serviceURL(localClusterUrl).build();
-Producer<byte[]> producer = client.newProducer().topic("persistent://public/default/my-topic").create();
+Producer<byte[]> producer = client.newProducer().topic("my-topic").create();
 ```
 
 Here's an example [Python](../../clients/Python) producer:
@@ -94,7 +94,7 @@ Here's an example [Python](../../clients/Python) producer:
 import pulsar
 
 client = pulsar.Client('pulsar://localhost:6650')
-producer = client.create_producer('persistent://public/default/my-topic')
+producer = client.create_producer('my-topic')
 ```
 
 Finally, here's an example [C++](../../clients/Cpp) producer:
@@ -102,7 +102,7 @@ Finally, here's an example [C++](../../clients/Cpp) producer:
 ```cpp
 Client client("pulsar://localhost:6650");
 Producer producer;
-Result result = client.createProducer("persistent://public/default/my-topic", producer);
+Result result = client.createProducer("my-topic", producer);
 if (result != ResultOk) {
     LOG_ERROR("Error creating producer: " << result);
     return -1;

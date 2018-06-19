@@ -92,7 +92,7 @@ First create a consumer and subscribe to the topic:
 import pulsar
 
 client = pulsar.Client('pulsar://localhost:6650')
-consumer = client.subscribe('persistent://public/default/my-topic',
+consumer = client.subscribe('my-topic',
                             subscription_name='my-sub')
 
 while True:
@@ -109,7 +109,7 @@ Now we can start a producer to send some test messages:
 import pulsar
 
 client = pulsar.Client('pulsar://localhost:6650')
-producer = client.create_producer('persistent://public/default/my-topic')
+producer = client.create_producer('my-topic')
 
 for i in range(10):
     producer.send(('hello-pulsar-%d' % i).encode('utf-8'))
