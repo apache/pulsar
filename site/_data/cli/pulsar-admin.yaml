@@ -730,9 +730,22 @@ commands:
       description: A bundle of the form `{start-boundary}_{end_boundary}`.
     - flags: -n, --namespace
       description: The namespace as `property/cluster/namespace`, for example `my-prop/my-cluster/my-ns`.
-- name: topics
-  description: Operations related to Pulsar topics of all kinds (both persistent and non-persistent)
+- name: schemas
+  description: Operations related to Schemas associated with Pulsar topics.
   subcommands:
-  - name: compact
-    description: Runs a compaction operation on the specified topic
-    argument: topic-name
+  - name: upload
+    description: Upload the schema definition for a topic
+    argument: persistent://tenant/namespace/topic
+    options:
+    - flags: --filename
+      description: The path to the schema definition file. An example schema file is available under `conf` directory.
+  - name: delete
+    description: Delete the schema definition associated with a topic
+    argument: persistent://tenant/namespace/topic
+  - name: get
+    description: Retrieve the schema definition assoicated with a topic (at a given version if version is supplied).
+    argument: persistent://tenant/namespace/topic
+    options:
+    - flags: --version
+      description: The version of the schema definition to retrive for a topic.
+
