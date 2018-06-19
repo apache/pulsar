@@ -18,7 +18,7 @@
 # under the License.
 #
 
-set -e -x
+set -ex
 
 cd /pulsar/pulsar-client-cpp
 
@@ -36,4 +36,10 @@ make _pulsar -j3
 cd python
 python setup.py bdist_wheel
 
+# Audit wheel is required to convert a wheel that is tagged as generic
+# 'linux' into a 'multilinux' wheel.
+# Only wheel files tagged as multilinux can be uploaded to PyPI
+# Audit wheel will make sure no external dependencies are needed for
+# the shared library and that only symbols supported by most linux
+# distributions are used.
 auditwheel repair dist/pulsar_client-*-$PYTHON_SPEC-linux_x86_64.whl
