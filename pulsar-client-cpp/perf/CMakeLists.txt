@@ -31,5 +31,5 @@ set(PERF_CONSUMER_SOURCES
 add_executable(perfProducer ${PERF_PRODUCER_SOURCES})
 add_executable(perfConsumer ${PERF_CONSUMER_SOURCES})
 
-target_link_libraries(perfProducer ${CLIENT_LIBS})
-target_link_libraries(perfConsumer ${CLIENT_LIBS})
+target_link_libraries(perfProducer pulsarShared ${CLIENT_LIBS})
+target_link_libraries(perfConsumer pulsarShared ${CLIENT_LIBS})

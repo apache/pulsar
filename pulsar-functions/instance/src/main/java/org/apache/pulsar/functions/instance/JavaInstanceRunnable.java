@@ -22,14 +22,15 @@ package org.apache.pulsar.functions.instance;
 import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 import static org.apache.bookkeeper.stream.protocol.ProtocolConstants.DEFAULT_STREAM_CONF;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import io.netty.buffer.ByteBuf;
 
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.CompletableFuture;
 
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -42,24 +43,32 @@ import org.apache.bookkeeper.clients.admin.StorageAdminClient;
 import org.apache.bookkeeper.clients.config.StorageClientSettings;
 import org.apache.bookkeeper.clients.exceptions.NamespaceNotFoundException;
 import org.apache.bookkeeper.clients.exceptions.StreamNotFoundException;
-import org.apache.bookkeeper.clients.utils.NetUtils;
 import org.apache.bookkeeper.stream.proto.NamespaceConfiguration;
 import org.apache.logging.log4j.ThreadContext;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
-import org.apache.pulsar.client.api.MessageBuilder;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
-import org.apache.pulsar.functions.instance.processors.MessageProcessor;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.apache.pulsar.functions.proto.Function.SourceSpec;
+import org.apache.pulsar.functions.proto.Function.SinkSpec;
+import org.apache.pulsar.functions.sink.PulsarSink;
+import org.apache.pulsar.functions.sink.PulsarSinkConfig;
+import org.apache.pulsar.functions.source.PulsarRecord;
+import org.apache.pulsar.functions.source.PulsarSource;
+import org.apache.pulsar.functions.source.PulsarSourceConfig;
+import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
-import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.instance.state.StateContextImpl;
 import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.io.core.Record;
+import org.apache.pulsar.io.core.Sink;
+import org.apache.pulsar.io.core.Source;
 
 /**
  * A function container implemented using java thread.
@@ -71,7 +80,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private ClassLoader fnClassLoader;
     private final InstanceConfig instanceConfig;
     private final FunctionCacheManager fnCache;
-    private final LinkedBlockingDeque<InputMessage> queue;
     private final String jarFile;
 
     // input topic consumer & output topic producer
@@ -86,21 +94,17 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     @Getter(AccessLevel.PACKAGE)
     private Table<ByteBuf, ByteBuf> stateTable;
 
-    @Getter
-    private Exception failureException;
     private JavaInstance javaInstance;
-    private volatile boolean running = true;
-
-    @Getter(AccessLevel.PACKAGE)
-    private Map<String, SerDe> inputSerDe;
-    private SerDe outputSerDe;
-
-    @Getter(AccessLevel.PACKAGE)
-    // processor
-    private final MessageProcessor processor;
+    @Getter
+    private Exception deathException;
 
     // function stats
     private final FunctionStats stats;
+
+    private Record currentRecord;
+
+    private Source source;
+    private Sink sink;
 
     public JavaInstanceRunnable(InstanceConfig instanceConfig,
                                 FunctionCacheManager fnCache,
@@ -109,15 +113,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                                 String stateStorageServiceUrl) {
         this.instanceConfig = instanceConfig;
         this.fnCache = fnCache;
-        this.queue = new LinkedBlockingDeque<>(instanceConfig.getMaxBufferedTuples());
         this.jarFile = jarFile;
         this.client = (PulsarClientImpl) pulsarClient;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.stats = new FunctionStats();
-        this.processor = MessageProcessor.create(
-                client,
-                instanceConfig.getFunctionDetails(),
-                queue);
     }
 
     /**
@@ -126,6 +125,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     JavaInstance setupJavaInstance() throws Exception {
         // initialize the thread context
         ThreadContext.put("function", FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
+        ThreadContext.put("functionname", instanceConfig.getFunctionDetails().getName());
         ThreadContext.put("instance", instanceConfig.getInstanceId());
 
         log.info("Starting Java Instance {}", instanceConfig.getFunctionDetails().getName());
@@ -134,35 +134,23 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         loadJars();
 
         ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
-
         Object object = Reflections.createInstance(
                 instanceConfig.getFunctionDetails().getClassName(),
                 clsLoader);
         if (!(object instanceof Function) && !(object instanceof java.util.function.Function)) {
             throw new RuntimeException("User class must either be Function or java.util.Function");
         }
-        Class<?>[] typeArgs;
-        if (object instanceof Function) {
-            Function function = (Function) object;
-            typeArgs = TypeResolver.resolveRawArguments(Function.class, function.getClass());
-        } else {
-            java.util.function.Function function = (java.util.function.Function) object;
-            typeArgs = TypeResolver.resolveRawArguments(java.util.function.Function.class, function.getClass());
-        }
-
-        // setup serde
-        setupSerDe(typeArgs, clsLoader);
 
         // start the state table
         setupStateTable();
         // start the output producer
-        processor.setupOutput(outputSerDe);
+        setupOutput();
         // start the input consumer
-        processor.setupInput(inputSerDe);
+        setupInput();
         // start any log topic handler
         setupLogHandler();
 
-        return new JavaInstance(instanceConfig, object, clsLoader, client, processor.getInputConsumers());
+        return new JavaInstance(instanceConfig, object, clsLoader, client, this.source);
     }
 
     /**
@@ -172,23 +160,15 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     public void run() {
         try {
             javaInstance = setupJavaInstance();
-            while (running) {
-                processor.prepareDequeueMessageFromProcessQueue();
+            while (true) {
 
-                JavaExecutionResult result;
-                InputMessage msg;
-                try {
-                    msg = queue.take();
-                    log.debug("Received message: {}", msg.getActualMessage().getMessageId());
-                } catch (InterruptedException ie) {
-                    log.info("Function thread {} is interrupted",
-                            FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails()), ie);
-                    break;
-                }
+                currentRecord = readInput();
 
-                if (!processor.prepareProcessMessage(msg)) {
-                    // the message can't be processed by the processor at this moment, retry it.
-                    continue;
+                if (instanceConfig.getFunctionDetails().getProcessingGuarantees() == org.apache.pulsar.functions
+                        .proto.Function.ProcessingGuarantees.ATMOST_ONCE) {
+                    if (instanceConfig.getFunctionDetails().getAutoAck()) {
+                        currentRecord.ack();
+                    }
                 }
 
                 // state object is per function, because we need to have the ability to know what updates
@@ -202,42 +182,48 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 }
 
                 // process the message
-                Object input;
-                try {
-                    input = msg.getInputSerDe().deserialize(msg.getActualMessage().getData());
-                } catch (Exception ex) {
-                    stats.incrementDeserializationExceptions(msg.getTopicName());
-                    continue;
-                }
                 long processAt = System.currentTimeMillis();
                 stats.incrementProcessed(processAt);
                 addLogTopicHandler();
-                result = javaInstance.handleMessage(
-                        msg.getActualMessage().getMessageId(),
-                        msg.getTopicName(),
-                        input);
+                JavaExecutionResult result;
+                MessageId messageId = null;
+                String topicName = null;
+
+                if (currentRecord instanceof PulsarRecord) {
+                    PulsarRecord pulsarRecord = (PulsarRecord) currentRecord;
+                     messageId = pulsarRecord.getMessageId();
+                     topicName = pulsarRecord.getTopicName();
+                }
+                result = javaInstance.handleMessage(messageId, topicName, currentRecord.getValue());
+
                 removeLogTopicHandler();
 
                 long doneProcessing = System.currentTimeMillis();
                 log.debug("Got result: {}", result.getResult());
 
                 if (null != stateContext) {
-                    stateContext.flush()
-                            .thenRun(() -> processResult(msg, result, processAt, doneProcessing))
-                            .exceptionally(cause -> {
-                                // log the messages, since we DONT ack, pulsar consumer will re-deliver the messages.
-                                log.error("Failed to flush the state updates of message {}", msg, cause);
-                                return null;
-                            });
-                } else {
-                    processResult(msg, result, processAt, doneProcessing);
+                    CompletableFuture completableFuture = stateContext.flush();
+
+                    try {
+                        completableFuture.join();
+                    } catch (Exception e) {
+                        log.error("Failed to flush the state updates of message {}", currentRecord, e);
+                        currentRecord.fail();
+                    }
+                }
+                try {
+                    processResult(currentRecord, result, processAt, doneProcessing);
+                } catch (Exception e) {
+                    log.warn("Failed to process result of message {}", currentRecord, e);
+                    currentRecord.fail();
                 }
             }
-
-            javaInstance.close();
         } catch (Exception ex) {
-            log.info("Uncaught exception in Java Instance", ex);
-            failureException = ex;
+            log.error("Uncaught exception in Java Instance", ex);
+            deathException = ex;
+            return;
+        } finally {
+            close();
         }
     }
 
@@ -275,7 +261,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
         // TODO (sijie): use endpoint for now
         StorageClientSettings settings = StorageClientSettings.newBuilder()
-                .addEndpoints(NetUtils.parseEndpoint(stateStorageServiceUrl))
+                .serviceUri(stateStorageServiceUrl)
                 .clientName("function-" + tableNs + "/" + tableName)
                 .build();
 
@@ -303,58 +289,79 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         this.stateTable = result(storageClient.openTable(tableName));
     }
 
-    private void processResult(InputMessage msg,
+    private void processResult(Record srcRecord,
                                JavaExecutionResult result,
-                               long startTime, long endTime) {
+                               long startTime, long endTime) throws Exception {
         if (result.getUserException() != null) {
-            log.info("Encountered user exception when processing message {}", msg, result.getUserException());
+            log.info("Encountered user exception when processing message {}", srcRecord, result.getUserException());
             stats.incrementUserExceptions(result.getUserException());
-            processor.handleProcessException(msg, result.getUserException());
+            srcRecord.fail();
         } else if (result.getSystemException() != null) {
-            log.info("Encountered system exception when processing message {}", msg, result.getSystemException());
+            log.info("Encountered system exception when processing message {}", srcRecord, result.getSystemException());
             stats.incrementSystemExceptions(result.getSystemException());
-            processor.handleProcessException(msg, result.getSystemException());
+            throw result.getSystemException();
         } else {
             stats.incrementSuccessfullyProcessed(endTime - startTime);
-            if (result.getResult() != null && instanceConfig.getFunctionDetails().getOutput() != null) {
-                byte[] output;
-                try {
-                    output = outputSerDe.serialize(result.getResult());
-                } catch (Exception ex) {
-                    stats.incrementSerializationExceptions();
-                    processor.handleProcessException(msg, ex);
-                    return;
-                }
-                if (output != null) {
-                    sendOutputMessage(msg, output);
-                } else {
-                    processor.sendOutputMessage(msg, null);
-                }
+            if (result.getResult() != null) {
+                sendOutputMessage(srcRecord, result.getResult());
             } else {
-                // the function doesn't produce any result or the user doesn't want the result.
-                processor.sendOutputMessage(msg, null);
+                if (instanceConfig.getFunctionDetails().getAutoAck()) {
+                    // the function doesn't produce any result or the user doesn't want the result.
+                    srcRecord.ack();
+                }
             }
         }
     }
 
-    private void sendOutputMessage(InputMessage srcMsg,
-                                   byte[] output) {
-        MessageBuilder msgBuilder = MessageBuilder.create()
-                .setContent(output)
-                .setProperty("__pfn_input_topic__", srcMsg.getTopicName())
-                .setProperty("__pfn_input_msg_id__", new String(Base64.getEncoder().encode(srcMsg.getActualMessage().getMessageId().toByteArray())));
+    private void sendOutputMessage(Record srcRecord, Object output) {
+        try {
+            this.sink.write(srcRecord, output);
+        } catch (Exception e) {
+            log.info("Encountered exception in sink write: ", e);
+            throw new RuntimeException(e);
+        }
+    }
 
-        processor.sendOutputMessage(srcMsg, msgBuilder);
+    private Record readInput() {
+        Record record;
+        try {
+            record = this.source.read();
+        } catch (Exception e) {
+            log.info("Encountered exception in source read: ", e);
+            throw new RuntimeException(e);
+        }
+
+        // check record is valid
+        if (record == null) {
+            throw new IllegalArgumentException("The record returned by the source cannot be null");
+        } else if (record.getValue() == null) {
+            throw new IllegalArgumentException("The value in the record returned by the source cannot be null");
+        }
+        return record;
     }
 
     @Override
     public void close() {
-        if (!running) {
-            return;
-        }
-        running = false;
+        if (source != null) {
+            try {
+                source.close();
+            } catch (Exception e) {
+                log.error("Failed to close source {}", instanceConfig.getFunctionDetails().getSource().getClassName(), e);
 
-        processor.close();
+            }
+        }
+
+        if (sink != null) {
+            try {
+                sink.close();
+            } catch (Exception e) {
+                log.error("Failed to close sink {}", instanceConfig.getFunctionDetails().getSource().getClassName(), e);
+            }
+        }
+
+        if (null != javaInstance) {
+            javaInstance.close();
+        }
 
         // kill the state table
         if (null != stateTable) {
@@ -419,79 +426,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         bldr.putMetrics(metricName, digest);
     }
 
-    private static SerDe initializeSerDe(String serdeClassName, ClassLoader clsLoader,
-                                         Class<?>[] typeArgs, boolean inputArgs) {
-        if (null == serdeClassName || serdeClassName.isEmpty()) {
-            return null;
-        } else if (serdeClassName.equals(DefaultSerDe.class.getName())) {
-            return initializeDefaultSerDe(typeArgs, inputArgs);
-        } else {
-            return Reflections.createInstance(
-                    serdeClassName,
-                    SerDe.class,
-                    clsLoader);
-        }
-    }
-
-    private static SerDe initializeDefaultSerDe(Class<?>[] typeArgs, boolean inputArgs) {
-        if (inputArgs) {
-            if (!DefaultSerDe.IsSupportedType(typeArgs[0])) {
-                throw new RuntimeException("Default Serializer does not support " + typeArgs[0]);
-            }
-            return new DefaultSerDe(typeArgs[0]);
-        } else {
-            if (!DefaultSerDe.IsSupportedType(typeArgs[1])) {
-                throw new RuntimeException("Default Serializer does not support " + typeArgs[1]);
-            }
-            return new DefaultSerDe(typeArgs[1]);
-        }
-    }
-
-    private void setupSerDe(Class<?>[] typeArgs, ClassLoader clsLoader) {
-        this.inputSerDe = new HashMap<>();
-        instanceConfig.getFunctionDetails().getCustomSerdeInputsMap().forEach((k, v) -> this.inputSerDe.put(k, initializeSerDe(v, clsLoader, typeArgs, true)));
-        for (String topicName : instanceConfig.getFunctionDetails().getInputsList()) {
-            this.inputSerDe.put(topicName, initializeDefaultSerDe(typeArgs, true));
-        }
-
-        if (Void.class.equals(typeArgs[0])) {
-            throw new RuntimeException("Input type of Pulsar Function cannot be Void");
-        }
-
-        for (SerDe serDe : inputSerDe.values()) {
-            if (serDe.getClass().getName().equals(DefaultSerDe.class.getName())) {
-                if (!DefaultSerDe.IsSupportedType(typeArgs[0])) {
-                    throw new RuntimeException("Default Serde does not support " + typeArgs[0]);
-                }
-            } else {
-                Class<?>[] inputSerdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
-                if (!typeArgs[0].isAssignableFrom(inputSerdeTypeArgs[0])) {
-                    throw new RuntimeException("Inconsistent types found between function input type and input serde type: "
-                            + " function type = " + typeArgs[0] + " should be assignable from " + inputSerdeTypeArgs[0]);
-                }
-            }
-        }
-
-        if (!Void.class.equals(typeArgs[1])) { // return type is not `Void.class`
-            if (instanceConfig.getFunctionDetails().getOutputSerdeClassName() == null
-                    || instanceConfig.getFunctionDetails().getOutputSerdeClassName().isEmpty()
-                    || instanceConfig.getFunctionDetails().getOutputSerdeClassName().equals(DefaultSerDe.class.getName())) {
-                outputSerDe = initializeDefaultSerDe(typeArgs, false);
-            } else {
-                this.outputSerDe = initializeSerDe(instanceConfig.getFunctionDetails().getOutputSerdeClassName(), clsLoader, typeArgs, false);
-            }
-            Class<?>[] outputSerdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, outputSerDe.getClass());
-            if (outputSerDe.getClass().getName().equals(DefaultSerDe.class.getName())) {
-                if (!DefaultSerDe.IsSupportedType(typeArgs[1])) {
-                    throw new RuntimeException("Default Serde does not support type " + typeArgs[1]);
-                }
-            } else if (!outputSerdeTypeArgs[0].isAssignableFrom(typeArgs[1])) {
-                throw new RuntimeException("Inconsistent types found between function output type and output serde type: "
-                        + " function type = " + typeArgs[1] + "should be assignable from " + outputSerdeTypeArgs[0]);
-            }
-        }
-    }
-
     private void setupLogHandler() {
         if (instanceConfig.getFunctionDetails().getLogTopic() != null &&
                 !instanceConfig.getFunctionDetails().getLogTopic().isEmpty()) {
@@ -520,5 +454,103 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             loggerConfig.removeAppender(logAppender.getName());
         }
         config.getRootLogger().removeAppender(logAppender.getName());
+    }
+
+    public void setupInput() throws Exception {
+
+        SourceSpec sourceSpec = this.instanceConfig.getFunctionDetails().getSource();
+        Object object;
+        // If source classname is not set, we default pulsar source
+        if (sourceSpec.getClassName().isEmpty()) {
+            PulsarSourceConfig pulsarSourceConfig = new PulsarSourceConfig();
+            pulsarSourceConfig.setTopicSerdeClassNameMap(sourceSpec.getTopicsToSerDeClassNameMap());
+            pulsarSourceConfig.setTopicsPattern(sourceSpec.getTopicsPattern());
+            pulsarSourceConfig.setSubscriptionName(
+                    FunctionDetailsUtils.getFullyQualifiedName(this.instanceConfig.getFunctionDetails()));
+            pulsarSourceConfig.setProcessingGuarantees(
+                    FunctionConfig.ProcessingGuarantees.valueOf(
+                            this.instanceConfig.getFunctionDetails().getProcessingGuarantees().name()));
+
+            switch (sourceSpec.getSubscriptionType()) {
+                case FAILOVER:
+                    pulsarSourceConfig.setSubscriptionType(SubscriptionType.Failover);
+                    break;
+                default:
+                    pulsarSourceConfig.setSubscriptionType(SubscriptionType.Shared);
+                    break;
+            }
+
+            pulsarSourceConfig.setTypeClassName(sourceSpec.getTypeClassName());
+
+            if (sourceSpec.getTimeoutMs() > 0 ) {
+                pulsarSourceConfig.setTimeoutMs(sourceSpec.getTimeoutMs());
+            }
+
+            Object[] params = {this.client, pulsarSourceConfig};
+            Class[] paramTypes = {PulsarClient.class, PulsarSourceConfig.class};
+
+            object = Reflections.createInstance(
+                    PulsarSource.class.getName(),
+                    PulsarSource.class.getClassLoader(), params, paramTypes);
+
+        } else {
+            object = Reflections.createInstance(
+                    sourceSpec.getClassName(),
+                    Thread.currentThread().getContextClassLoader());
+        }
+
+        Class<?>[] typeArgs;
+        if (object instanceof Source) {
+            typeArgs = TypeResolver.resolveRawArguments(Source.class, object.getClass());
+            assert typeArgs.length > 0;
+        } else {
+            throw new RuntimeException("Source does not implement correct interface");
+        }
+        this.source = (Source) object;
+
+        if (sourceSpec.getConfigs().isEmpty()) {
+            this.source.open(new HashMap<>());
+        } else {
+            this.source.open(new Gson().fromJson(sourceSpec.getConfigs(),
+                    new TypeToken<Map<String, Object>>(){}.getType()));
+        }
+    }
+
+    public void setupOutput() throws Exception {
+
+        SinkSpec sinkSpec = this.instanceConfig.getFunctionDetails().getSink();
+        Object object;
+        // If sink classname is not set, we default pulsar sink
+        if (sinkSpec.getClassName().isEmpty()) {
+            PulsarSinkConfig pulsarSinkConfig = new PulsarSinkConfig();
+            pulsarSinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.valueOf(
+                    this.instanceConfig.getFunctionDetails().getProcessingGuarantees().name()));
+            pulsarSinkConfig.setTopic(sinkSpec.getTopic());
+            pulsarSinkConfig.setSerDeClassName(sinkSpec.getSerDeClassName());
+            pulsarSinkConfig.setTypeClassName(sinkSpec.getTypeClassName());
+
+            Object[] params = {this.client, pulsarSinkConfig};
+            Class[] paramTypes = {PulsarClient.class, PulsarSinkConfig.class};
+
+            object = Reflections.createInstance(
+                    PulsarSink.class.getName(),
+                    PulsarSink.class.getClassLoader(), params, paramTypes);
+        } else {
+            object = Reflections.createInstance(
+                    sinkSpec.getClassName(),
+                    Thread.currentThread().getContextClassLoader());
+        }
+
+        if (object instanceof Sink) {
+            this.sink = (Sink) object;
+        } else {
+            throw new RuntimeException("Sink does not implement correct interface");
+        }
+        if (sinkSpec.getConfigs().isEmpty()) {
+            this.sink.open(new HashMap<>());
+        } else {
+            this.sink.open(new Gson().fromJson(sinkSpec.getConfigs(),
+                    new TypeToken<Map<String, Object>>() {}.getType()));
+        }
     }
 }

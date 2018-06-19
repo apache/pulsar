@@ -29,7 +29,7 @@ Pulsar is currently available for **MacOS** and **Linux**. In order to use Pulsa
 
 To get started running Pulsar, download a binary tarball release in one of the following ways:
 
-* by clicking the link below, which will automatically trigger a download:
+* by clicking the link below and downloading the release from an Apache mirror:
 
   * <a href="{{ binary_release_url }}" download>Pulsar {{ site.current_version }} binary release</a>
 
@@ -56,6 +56,7 @@ Directory | Contains
 :---------|:--------
 `bin` | Pulsar's [command-line tools](../../reference/CliTools), such as [`pulsar`](../../reference/CliTools#pulsar) and [`pulsar-admin`](../../reference/CliTools#pulsar-admin)
 `conf` | Configuration files for Pulsar, including for [broker configuration](../../reference/Configuration#broker), [ZooKeeper configuration](../../reference/Configuration#zookeeper), and more
+`examples` | A Java JAR file containing example [Pulsar Functions](../../functions/overview)
 `lib` | The [JAR](https://en.wikipedia.org/wiki/JAR_(file_format)) files used by Pulsar
 `licenses` | License files, in `.txt` form, for various components of the Pulsar [codebase](../../project/Codebase)
 
@@ -64,4 +65,5 @@ These directories will be created once you begin running Pulsar:
 Directory | Contains
 :---------|:--------
 `data` | The data storage directory used by {% popover ZooKeeper %} and {% popover BookKeeper %}
+`instances` | Artifacts created for [Pulsar Functions](../../functions/overview)
 `logs` | Logs created by the installation

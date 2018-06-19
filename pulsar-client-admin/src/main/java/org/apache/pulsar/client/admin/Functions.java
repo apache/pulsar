@@ -18,13 +18,13 @@
  */
 package org.apache.pulsar.client.admin;
 
+import java.util.List;
+
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
-import org.apache.pulsar.functions.shaded.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.shaded.proto.InstanceCommunication.FunctionStatusList;
-
-import java.util.List;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
 
 /**
  * Admin interface for function management.
@@ -76,7 +76,7 @@ public interface Functions {
     FunctionDetails getFunction(String tenant, String namespace, String function) throws PulsarAdminException;
 
     /**
-     * Create a new function.
+     * Create a new function. 
      *
      * @param functionDetails
      *            the function configuration object
@@ -85,6 +85,22 @@ public interface Functions {
      *             Unexpected error
      */
     void createFunction(FunctionDetails functionDetails, String fileName) throws PulsarAdminException;
+    
+    /**
+     * <pre>
+     * Create a new function by providing url from which fun-pkg can be downloaded. supported url: http/file
+     * eg:
+     * File: file:/dir/fileName.jar
+     * Http: http://www.repo.com/fileName.jar
+     * </pre>
+     * 
+     * @param functionDetails
+     *            the function configuration object
+     * @param pkgUrl
+     *            url from which pkg can be downloaded
+     * @throws PulsarAdminException
+     */
+    void createFunctionWithUrl(FunctionDetails functionDetails, String pkgUrl) throws PulsarAdminException;
 
     /**
      * Update the configuration for a function.
@@ -157,7 +173,31 @@ public interface Functions {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    String triggerFunction(String tenant, String namespace, String function, String triggerValue, String triggerFile) throws PulsarAdminException;
+    String triggerFunction(String tenant, String namespace, String function, String topic, String triggerValue, String triggerFile) throws PulsarAdminException;
 
+    /**
+     * Upload Data.
+     *
+     * @param sourceFile
+     *            dataFile that needs to be uploaded
+     * @param path
+     *            Path where data should be stored
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void uploadFunction(String sourceFile, String path) throws PulsarAdminException;
 
+    /**
+     * Download Function Code.
+     *
+     * @param destinationFile
+     *            file where data should be downloaded to
+     * @param path
+     *            Path where data is located
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void downloadFunction(String destinationFile, String path) throws PulsarAdminException;
 }

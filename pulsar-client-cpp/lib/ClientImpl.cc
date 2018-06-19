@@ -24,6 +24,8 @@
 #include "ReaderImpl.h"
 #include "PartitionedProducerImpl.h"
 #include "PartitionedConsumerImpl.h"
+#include "SimpleLoggerImpl.h"
+#include "Log4CxxLogger.h"
 #include <boost/bind.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <sstream>
@@ -73,7 +75,24 @@ ClientImpl::ClientImpl(const std::string& serviceUrl, const ClientConfiguration&
       producerIdGenerator_(0),
       consumerIdGenerator_(0),
       requestIdGenerator_(0) {
-    LogUtils::init(clientConfiguration.getLogConfFilePath());
+    if (clientConfiguration.getLogger()) {
+        // A logger factory was explicitely configured. Let's just use that
+        LogUtils::setLoggerFactory(clientConfiguration.getLogger());
+    } else {
+#ifdef USE_LOG4CXX
+        if (!clientConfiguration.getLogConfFilePath().empty()) {
+            // A log4cxx log file was passed through deprecated parameter. Use that to configure Log4CXX
+            LogUtils::setLoggerFactory(Log4CxxLogger::create(clientConfiguration.getLogConfFilePath()));
+        } else {
+            // Use default simple console logger
+            LogUtils::setLoggerFactory(SimpleLoggerFactory::create());
+        }
+#else
+        // Use default simple console logger
+        LogUtils::setLoggerFactory(SimpleLoggerFactory::create());
+#endif
+    }
+
     if (serviceUrl_.compare(0, 4, "http") == 0) {
         LOG_DEBUG("Using HTTP Lookup");
         lookupServicePtr_ =
@@ -202,6 +221,12 @@ void ClientImpl::subscribeAsync(const std::string& topic, const std::string& con
         } else if (!(topicName = TopicName::get(topic))) {
             lock.unlock();
             callback(ResultInvalidTopicName, Consumer());
+            return;
+        } else if (conf.isReadCompacted() && (topicName->getDomain().compare("persistent") != 0 ||
+                                              (conf.getConsumerType() != ConsumerExclusive &&
+                                               conf.getConsumerType() != ConsumerFailover))) {
+            lock.unlock();
+            callback(ResultInvalidConfiguration, Consumer());
             return;
         }
     }

@@ -20,45 +20,56 @@ package org.apache.pulsar.admin.cli;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Objects.isNull;
 import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
+import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
+import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.apache.bookkeeper.api.StorageClient;
 import org.apache.bookkeeper.api.kv.Table;
 import org.apache.bookkeeper.api.kv.result.KeyValue;
 import org.apache.bookkeeper.clients.StorageClientBuilder;
 import org.apache.bookkeeper.clients.config.StorageClientSettings;
-import org.apache.bookkeeper.clients.utils.NetUtils;
+import org.apache.commons.lang.StringUtils;
+import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.utils.FunctionConfig;
-import org.apache.pulsar.functions.api.SerDe;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.proto.Function.Resources;
+import org.apache.pulsar.functions.proto.Function.SinkSpec;
+import org.apache.pulsar.functions.proto.Function.SourceSpec;
+import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.runtime.ProcessRuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
-import org.apache.pulsar.functions.shaded.io.netty.buffer.ByteBuf;
-import org.apache.pulsar.functions.shaded.io.netty.buffer.ByteBufUtil;
-import org.apache.pulsar.functions.shaded.io.netty.buffer.Unpooled;
-import org.apache.pulsar.functions.shaded.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.functions.utils.WindowConfig;
+import org.apache.pulsar.functions.utils.validation.ConfigValidation;
+import org.apache.pulsar.functions.windowing.WindowFunctionExecutor;
+import org.apache.pulsar.functions.windowing.WindowUtils;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.StringConverter;
 import com.google.common.annotations.VisibleForTesting;
@@ -67,13 +78,17 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 
+import static org.apache.pulsar.functions.utils.Utils.fileExists;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.Unpooled;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import net.jodah.typetools.TypeResolver;
 
 @Slf4j
 @Parameters(commandDescription = "Interface for managing Pulsar Functions (lightweight, Lambda-style compute processes that work with Pulsar)")
 public class CmdFunctions extends CmdBase {
+    private static final String DEFAULT_SERVICE_URL = "pulsar://localhost:6650";
 
     private final LocalRunner localRunner;
     private final CreateFunction creater;
@@ -84,6 +99,8 @@ public class CmdFunctions extends CmdBase {
     private final ListFunctions lister;
     private final StateGetter stateGetter;
     private final TriggerFunction triggerer;
+    private final UploadFunction uploader;
+    private final DownloadFunction downloader;
 
     /**
      * Base command
@@ -106,11 +123,21 @@ public class CmdFunctions extends CmdBase {
      */
     @Getter
     abstract class NamespaceCommand extends BaseCommand {
-        @Parameter(names = "--tenant", description = "The function's tenant", required = true)
+        @Parameter(names = "--tenant", description = "The function's tenant")
         protected String tenant;
 
-        @Parameter(names = "--namespace", description = "The function's namespace", required = true)
+        @Parameter(names = "--namespace", description = "The function's namespace")
         protected String namespace;
+
+        @Override
+        public void processArguments() {
+            if (tenant == null) {
+                tenant = PUBLIC_TENANT;
+            }
+            if (namespace == null) {
+                namespace = DEFAULT_NAMESPACE;
+            }
+        }
     }
 
     /**
@@ -152,9 +179,15 @@ public class CmdFunctions extends CmdBase {
                 namespace = fqfnParts[1];
                 functionName = fqfnParts[2];
             } else {
-                if (null == tenant || null == namespace || null == functionName) {
+                if (tenant == null) {
+                    tenant = PUBLIC_TENANT;
+                }
+                if (namespace == null) {
+                    namespace = DEFAULT_NAMESPACE;
+                }
+                if (null == functionName) {
                     throw new RuntimeException(
-                            "You must specify a tenant, namespace, and name for the function or a Fully Qualified Function Name (FQFN)");
+                            "You must specify a name for the function or a Fully Qualified Function Name (FQFN)");
                 }
             }
         }
@@ -187,6 +220,8 @@ public class CmdFunctions extends CmdBase {
         protected String pyFile;
         @Parameter(names = "--inputs", description = "The function's input topic or topics (multiple topics can be specified as a comma-separated list)")
         protected String inputs;
+        @Parameter(names = "--topicsPattern", description = "TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. Add SerDe class name for a pattern in --customSerdeInputs (supported for java fun only)")
+        protected String topicsPattern;
         @Parameter(names = "--output", description = "The function's output topic")
         protected String output;
         @Parameter(names = "--logTopic", description = "The topic to which the function's logs are produced")
@@ -199,13 +234,28 @@ public class CmdFunctions extends CmdBase {
         protected String fnConfigFile;
         @Parameter(names = "--processingGuarantees", description = "The processing guarantees (aka delivery semantics) applied to the function")
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
-        @Parameter(names = "--subscriptionType", description = "The type of subscription used by the function when consuming messages from the input topic(s)")
-        protected FunctionConfig.SubscriptionType subscriptionType;
         @Parameter(names = "--userConfig", description = "User-defined config key/values")
         protected String userConfigString;
         @Parameter(names = "--parallelism", description = "The function's parallelism factor (i.e. the number of function instances to run)")
-        protected String parallelism;
-
+        protected Integer parallelism;
+        @Parameter(names = "--cpu", description = "The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)")
+        protected Double cpu;
+        @Parameter(names = "--ram", description = "The ram in bytes that need to be allocated per function instance(applicable only to process/docker runtime)")
+        protected Long ram;
+        @Parameter(names = "--disk", description = "The disk in bytes that need to be allocated per function instance(applicable only to docker runtime)")
+        protected Long disk;
+        @Parameter(names = "--windowLengthCount", description = "The number of messages per window")
+        protected Integer windowLengthCount;
+        @Parameter(names = "--windowLengthDurationMs", description = "The time duration of the window in milliseconds")
+        protected Long windowLengthDurationMs;
+        @Parameter(names = "--slidingIntervalCount", description = "The number of messages after which the window slides")
+        protected Integer slidingIntervalCount;
+        @Parameter(names = "--slidingIntervalDurationMs", description = "The time duration after which the window slides")
+        protected Long slidingIntervalDurationMs;
+        @Parameter(names = "--autoAck", description = "Whether or not the framework will automatically acknowleges messages")
+        protected Boolean autoAck;
+        @Parameter(names = "--timeoutMs", description = "The message timeout in milliseconds")
+        protected Long timeoutMs;
         protected FunctionConfig functionConfig;
         protected String userCodeFile;
 
@@ -215,7 +265,7 @@ public class CmdFunctions extends CmdBase {
 
             // Initialize config builder either from a supplied YAML config file or from scratch
             if (null != fnConfigFile) {
-                functionConfig = loadConfig(new File(fnConfigFile));
+                functionConfig = CmdUtils.loadConfig(fnConfigFile, FunctionConfig.class);
             } else {
                 functionConfig = new FunctionConfig();
             }
@@ -235,12 +285,16 @@ public class CmdFunctions extends CmdBase {
             }
 
             if (null != inputs) {
-                Arrays.asList(inputs.split(",")).forEach(functionConfig.getInputs()::add);
+                List<String> inputTopics = Arrays.asList(inputs.split(","));
+                functionConfig.setInputs(inputTopics);
             }
             if (null != customSerdeInputString) {
                 Type type = new TypeToken<Map<String, String>>(){}.getType();
                 Map<String, String> customSerdeInputMap = new Gson().fromJson(customSerdeInputString, type);
                 functionConfig.setCustomSerdeInputs(customSerdeInputMap);
+            }
+            if (null != topicsPattern) {
+                functionConfig.setTopicsPattern(topicsPattern);
             }
             if (null != output) {
                 functionConfig.setOutput(output);
@@ -257,197 +311,162 @@ public class CmdFunctions extends CmdBase {
             if (null != processingGuarantees) {
                 functionConfig.setProcessingGuarantees(processingGuarantees);
             }
-            if (null != subscriptionType) {
-                functionConfig.setSubscriptionType(subscriptionType);
-            }
             if (null != userConfigString) {
                 Type type = new TypeToken<Map<String, String>>(){}.getType();
-                Map<String, String> userConfigMap = new Gson().fromJson(userConfigString, type);
+                Map<String, Object> userConfigMap = new Gson().fromJson(userConfigString, type);
                 functionConfig.setUserConfig(userConfigMap);
             }
+            if (functionConfig.getInputs() == null) {
+                functionConfig.setInputs(new LinkedList<>());
+            }
+            if (functionConfig.getCustomSerdeInputs() == null) {
+                functionConfig.setCustomSerdeInputs(new HashMap<>());
+            }
+            if (functionConfig.getUserConfig() == null) {
+                functionConfig.setUserConfig(new HashMap<>());
+            }
+
+            if (parallelism != null) {
+                functionConfig.setParallelism(parallelism);
+            }
+
+            functionConfig.setResources(new org.apache.pulsar.functions.utils.Resources(cpu, ram, disk));
+
+            if (timeoutMs != null) {
+                functionConfig.setTimeoutMs(timeoutMs);
+            }
+
+            // window configs
+            WindowConfig windowConfig = functionConfig.getWindowConfig();
+            if (null != windowLengthCount) {
+                if (windowConfig == null) {
+                    windowConfig = new WindowConfig();
+                }
+                windowConfig.setWindowLengthCount(windowLengthCount);
+            }
+            if (null != windowLengthDurationMs) {
+                if (windowConfig == null) {
+                    windowConfig = new WindowConfig();
+                }
+                windowConfig.setWindowLengthDurationMs(windowLengthDurationMs);
+            }
+            if (null != slidingIntervalCount) {
+                if (windowConfig == null) {
+                    windowConfig = new WindowConfig();
+                }
+                windowConfig.setSlidingIntervalCount(slidingIntervalCount);
+            }
+            if (null != slidingIntervalDurationMs) {
+                if (windowConfig == null) {
+                    windowConfig = new WindowConfig();
+                }
+                windowConfig.setSlidingIntervalDurationMs(slidingIntervalDurationMs);
+            }
+
+            functionConfig.setWindowConfig(windowConfig);
+
+            if  (null != autoAck) {
+                functionConfig.setAutoAck(autoAck);
+            } else {
+                functionConfig.setAutoAck(true);
+            }
+
             if (null != jarFile) {
-                doJavaSubmitChecks(functionConfig);
-                functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
-                userCodeFile = jarFile;
-            } else if (null != pyFile) {
-                doPythonSubmitChecks(functionConfig);
-                functionConfig.setRuntime(FunctionConfig.Runtime.PYTHON);
-                userCodeFile = pyFile;
-            } else {
-                throw new RuntimeException("Either a Java jar or a Python file needs to be specified for the function");
+                functionConfig.setJar(jarFile);
             }
 
-            if (functionConfig.getInputs().size() == 0 && functionConfig.getCustomSerdeInputs().size() == 0) {
-                throw new RuntimeException("No input topic(s) specified for the function");
+            if (null != pyFile) {
+                functionConfig.setPy(pyFile);
             }
 
-            if (parallelism == null) {
-                if (functionConfig.getParallelism() == 0) {
-                    functionConfig.setParallelism(1);
-                }
-            } else {
-                int num = Integer.parseInt(parallelism);
-                if (num <= 0) {
-                    throw new IllegalArgumentException("The parallelism factor (the number of instances) for the function must be positive");
-                }
-                functionConfig.setParallelism(num);
+            if (functionConfig.getJar() != null) {
+                userCodeFile = functionConfig.getJar();
+            } else if (functionConfig.getPy() != null) {
+                userCodeFile = functionConfig.getPy();
             }
 
-            if (functionConfig.getSubscriptionType() != null
-                    && functionConfig.getSubscriptionType() != FunctionConfig.SubscriptionType.FAILOVER
-                    && functionConfig.getProcessingGuarantees() != null
-                    && functionConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
-                throw new IllegalArgumentException("Effectively Once can only be acheived with Failover subscription");
-            }
-
-            functionConfig.setAutoAck(true);
+            // infer default vaues
             inferMissingArguments(functionConfig);
         }
 
-        private void doJavaSubmitChecks(FunctionConfig functionConfig) {
-            File file = new File(jarFile);
-            // check if the function class exists in Jar and it implements Function class
-            if (!Reflections.classExistsInJar(file, functionConfig.getClassName())) {
-                throw new IllegalArgumentException(String.format("Pulsar function class %s does not exist in jar %s",
-                        functionConfig.getClassName(), jarFile));
-            } else if (!Reflections.classInJarImplementsIface(file, functionConfig.getClassName(), Function.class)
-                    && !Reflections.classInJarImplementsIface(file, functionConfig.getClassName(), java.util.function.Function.class)) {
-                throw new IllegalArgumentException(String.format("The Pulsar function class %s in jar %s implements neither org.apache.pulsar.functions.api.Function nor java.util.function.Function",
-                        functionConfig.getClassName(), jarFile));
+        protected void validateFunctionConfigs(FunctionConfig functionConfig) {
+
+            if (functionConfig.getJar() != null && functionConfig.getPy() != null) {
+                throw new ParameterException("Either a Java jar or a Python file needs to"
+                        + " be specified for the function. Cannot specify both.");
             }
 
-            ClassLoader userJarLoader;
+            if (functionConfig.getJar() == null && functionConfig.getPy() == null) {
+                throw new ParameterException("Either a Java jar or a Python file needs to"
+                        + " be specified for the function. Please specify one.");
+            }
+
+            if (!fileExists(userCodeFile)) {
+                throw new ParameterException("File " + userCodeFile + " does not exist");
+            }
+
+            if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
+                File file = new File(functionConfig.getJar());
+                ClassLoader userJarLoader;
+                try {
+                    userJarLoader = Reflections.loadJar(file);
+                } catch (MalformedURLException e) {
+                    throw new ParameterException("Failed to load user jar " + file + " with error " + e.getMessage());
+                }
+                // make sure the function class loader is accessible thread-locally
+                Thread.currentThread().setContextClassLoader(userJarLoader);
+            }
+
             try {
-                userJarLoader = Reflections.loadJar(file);
-            } catch (MalformedURLException e) {
-                throw new RuntimeException("Failed to load user jar " + file, e);
-            }
-
-            Object userClass = Reflections.createInstance(functionConfig.getClassName(), file);
-            Class<?>[] typeArgs;
-            if (userClass instanceof Function) {
-                Function pulsarFunction = (Function) userClass;
-                if (pulsarFunction == null) {
-                    throw new IllegalArgumentException(String.format("The Pulsar function class %s could not be instantiated from jar %s",
-                            functionConfig.getClassName(), jarFile));
-                }
-                typeArgs = TypeResolver.resolveRawArguments(Function.class, pulsarFunction.getClass());
-            } else {
-                java.util.function.Function function = (java.util.function.Function) userClass;
-                if (function == null) {
-                    throw new IllegalArgumentException(String.format("The Java util function class %s could not be instantiated from jar %s",
-                            functionConfig.getClassName(), jarFile));
-                }
-                typeArgs = TypeResolver.resolveRawArguments(java.util.function.Function.class, function.getClass());
-            }
-
-            // Check if the Input serialization/deserialization class exists in jar or already loaded and that it
-            // implements SerDe class
-            functionConfig.getCustomSerdeInputs().forEach((topicName, inputSerializer) -> {
-                if (!Reflections.classExists(inputSerializer)
-                        && !Reflections.classExistsInJar(new File(jarFile), inputSerializer)) {
-                    throw new IllegalArgumentException(
-                            String.format("The input serialization/deserialization class %s does not exist",
-                                    inputSerializer));
-                } else if (Reflections.classExists(inputSerializer)) {
-                    if (!Reflections.classImplementsIface(inputSerializer, SerDe.class)) {
-                        throw new IllegalArgumentException(String.format("The input serialization/deserialization class %s does not not implement %s",
-                                inputSerializer, SerDe.class.getCanonicalName()));
-                    }
-                } else if (Reflections.classExistsInJar(new File(jarFile), inputSerializer)) {
-                    if (!Reflections.classInJarImplementsIface(new File(jarFile), inputSerializer, SerDe.class)) {
-                        throw new IllegalArgumentException(String.format("The input serialization/deserialization class %s does not not implement %s",
-                                inputSerializer, SerDe.class.getCanonicalName()));
-                    }
-                }
-                if (inputSerializer.equals(DefaultSerDe.class.getName())) {
-                    if (!DefaultSerDe.IsSupportedType(typeArgs[0])) {
-                        throw new RuntimeException("The default Serializer does not support type " + typeArgs[0]);
-                    }
-                } else {
-                    SerDe serDe = (SerDe) Reflections.createInstance(inputSerializer, file);
-                    if (serDe == null) {
-                        throw new IllegalArgumentException(String.format("The SerDe class %s does not exist in jar %s",
-                                inputSerializer, jarFile));
-                    }
-                    Class<?>[] serDeTypes = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
-
-                    // type inheritance information seems to be lost in generic type
-                    // load the actual type class for verification
-                    Class<?> fnInputClass;
-                    Class<?> serdeInputClass;
-                    try {
-                        fnInputClass = Class.forName(typeArgs[0].getName(), true, userJarLoader);
-                        serdeInputClass = Class.forName(serDeTypes[0].getName(), true, userJarLoader);
-                    } catch (ClassNotFoundException e) {
-                        throw new RuntimeException("Failed to load type class", e);
-                    }
-
-                    if (!fnInputClass.isAssignableFrom(serdeInputClass)) {
-                        throw new RuntimeException("Serializer type mismatch " + typeArgs[0] + " vs " + serDeTypes[0]);
-                    }
-                }
-            });
-            functionConfig.getInputs().forEach((topicName) -> {
-                if (!DefaultSerDe.IsSupportedType(typeArgs[0])) {
-                    throw new RuntimeException("Default Serializer does not support type " + typeArgs[0]);
-                }
-            });
-            if (!Void.class.equals(typeArgs[1])) {
-                if (functionConfig.getOutputSerdeClassName() == null
-                        || functionConfig.getOutputSerdeClassName().isEmpty()
-                        || functionConfig.getOutputSerdeClassName().equals(DefaultSerDe.class.getName())) {
-                    if (!DefaultSerDe.IsSupportedType(typeArgs[1])) {
-                        throw new RuntimeException("Default Serializer does not support type " + typeArgs[1]);
-                    }
-                } else {
-                    SerDe serDe = (SerDe) Reflections.createInstance(functionConfig.getOutputSerdeClassName(), file);
-                    if (serDe == null) {
-                        throw new IllegalArgumentException(String.format("SerDe class %s does not exist in jar %s",
-                                functionConfig.getOutputSerdeClassName(), jarFile));
-                    }
-                    Class<?>[] serDeTypes = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
-
-                    // type inheritance information seems to be lost in generic type
-                    // load the actual type class for verification
-                    Class<?> fnOutputClass;
-                    Class<?> serdeOutputClass;
-                    try {
-                        fnOutputClass = Class.forName(typeArgs[1].getName(), true, userJarLoader);
-                        serdeOutputClass = Class.forName(serDeTypes[0].getName(), true, userJarLoader);
-                    } catch (ClassNotFoundException e) {
-                        throw new RuntimeException("Failed to load type class", e);
-                    }
-
-                    if (!serdeOutputClass.isAssignableFrom(fnOutputClass)) {
-                        throw new RuntimeException("Serializer type mismatch " + typeArgs[1] + " vs " + serDeTypes[0]);
-                    }
-                }
-            }
-        }
-
-        private void doPythonSubmitChecks(FunctionConfig functionConfig) {
-            if (functionConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
-                throw new RuntimeException("Effectively-once processing guarantees not yet supported in Python");
+                // Need to load jar and set context class loader before calling
+                ConfigValidation.validateConfig(functionConfig, functionConfig.getRuntime().name());
+            } catch (Exception e) {
+                log.info("ex: {}", e, e);
+                throw new ParameterException(e.getMessage());
             }
         }
 
         private void inferMissingArguments(FunctionConfig functionConfig) {
-            if (functionConfig.getName() == null || functionConfig.getName().isEmpty()) {
+            if (StringUtils.isEmpty(functionConfig.getName())) {
                 inferMissingFunctionName(functionConfig);
             }
-            if (functionConfig.getTenant() == null || functionConfig.getTenant().isEmpty()) {
+            if (StringUtils.isEmpty(functionConfig.getTenant())) {
                 inferMissingTenant(functionConfig);
             }
-            if (functionConfig.getNamespace() == null || functionConfig.getNamespace().isEmpty()) {
+            if (StringUtils.isEmpty(functionConfig.getNamespace())) {
                 inferMissingNamespace(functionConfig);
             }
-            if (functionConfig.getOutput() == null || functionConfig.getOutput().isEmpty()) {
+            if (StringUtils.isEmpty(functionConfig.getOutput())) {
                 inferMissingOutput(functionConfig);
+            }
+
+            if (functionConfig.getParallelism() == 0) {
+                functionConfig.setParallelism(1);
+            }
+
+            if (functionConfig.getJar() != null) {
+                functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+            } else if (functionConfig.getPy() != null) {
+                functionConfig.setRuntime(FunctionConfig.Runtime.PYTHON);
+            }
+
+            WindowConfig windowConfig = functionConfig.getWindowConfig();
+            if (windowConfig != null) {
+                WindowUtils.inferDefaultConfigs(windowConfig);
+                // set auto ack to false since windowing framework is responsible
+                // for acking and not the function framework
+                if (autoAck != null && autoAck == true) {
+                    throw new ParameterException("Cannot enable auto ack when using windowing functionality");
+                }
+                functionConfig.setAutoAck(false);
             }
         }
 
         private void inferMissingFunctionName(FunctionConfig functionConfig) {
+            if (isNull(functionConfig.getClassName())) {
+                throw new ParameterException("You must specify a class name for the function");
+            }
+
             String [] domains = functionConfig.getClassName().split("\\.");
             if (domains.length == 0) {
                 functionConfig.setName(functionConfig.getClassName());
@@ -457,27 +476,18 @@ public class CmdFunctions extends CmdBase {
         }
 
         private void inferMissingTenant(FunctionConfig functionConfig) {
-            try {
-                String inputTopic = getUniqueInput(functionConfig);
-                functionConfig.setTenant(TopicName.get(inputTopic).getTenant());
-            } catch (IllegalArgumentException ex) {
-                throw new RuntimeException("You need to specify a tenant for the function", ex);
-            }
+            functionConfig.setTenant(PUBLIC_TENANT);
         }
 
         private void inferMissingNamespace(FunctionConfig functionConfig) {
-            try {
-                String inputTopic = getUniqueInput(functionConfig);
-                functionConfig.setNamespace(TopicName.get(inputTopic).getNamespacePortion());
-            } catch (IllegalArgumentException ex) {
-                throw new RuntimeException("You need to specify a namespace for the function");
-            }
+            functionConfig.setNamespace(DEFAULT_NAMESPACE);
         }
 
         private void inferMissingOutput(FunctionConfig functionConfig) {
             try {
                 String inputTopic = getUniqueInput(functionConfig);
-                functionConfig.setOutput(inputTopic + "-" + functionConfig.getName() + "-output");
+                String outputTopic = String.format("%s-%s-output", inputTopic, functionConfig.getName());
+                functionConfig.setOutput(outputTopic);
             } catch (IllegalArgumentException ex) {
                 // It might be that we really don't need an output topic
                 // So we cannot really throw an exception
@@ -494,6 +504,134 @@ public class CmdFunctions extends CmdBase {
                 return functionConfig.getCustomSerdeInputs().keySet().iterator().next();
             }
         }
+
+        protected FunctionDetails convert(FunctionConfig functionConfig)
+                throws IOException {
+
+            // check if configs are valid
+            validateFunctionConfigs(functionConfig);
+
+            Class<?>[] typeArgs = null;
+            if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
+                // Assuming any external jars are already loaded
+                typeArgs = Utils.getFunctionTypes(functionConfig);
+            }
+
+            FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
+
+            // Setup source
+            SourceSpec.Builder sourceSpecBuilder = SourceSpec.newBuilder();
+            Map<String, String> topicToSerDeClassNameMap = new HashMap<>();
+            topicToSerDeClassNameMap.putAll(functionConfig.getCustomSerdeInputs());
+            functionConfig.getInputs().forEach(v -> topicToSerDeClassNameMap.put(v, ""));
+            sourceSpecBuilder.putAllTopicsToSerDeClassName(topicToSerDeClassNameMap);
+            if (StringUtils.isNotBlank(functionConfig.getTopicsPattern())) {
+                sourceSpecBuilder.setTopicsPattern(functionConfig.getTopicsPattern());
+            }
+
+            // Set subscription type based on processing semantics
+            if (functionConfig.getProcessingGuarantees() != null) {
+                switch (functionConfig.getProcessingGuarantees()) {
+                    case ATMOST_ONCE:
+                        sourceSpecBuilder.setSubscriptionType(SubscriptionType.SHARED);
+                        break;
+                    case ATLEAST_ONCE:
+                        sourceSpecBuilder.setSubscriptionType(SubscriptionType.SHARED);
+                        break;
+                    case EFFECTIVELY_ONCE:
+                        sourceSpecBuilder.setSubscriptionType(SubscriptionType.FAILOVER);
+                        break;
+                    default:
+                        throw new RuntimeException("Unknown processing guarantee: "
+                                + functionConfig.getProcessingGuarantees().name());
+                }
+            }
+
+            if (typeArgs != null) {
+                sourceSpecBuilder.setTypeClassName(typeArgs[0].getName());
+            }
+            if (functionConfig.getTimeoutMs() != null) {
+                sourceSpecBuilder.setTimeoutMs(functionConfig.getTimeoutMs());
+            }
+            functionDetailsBuilder.setSource(sourceSpecBuilder);
+
+            // Setup sink
+            SinkSpec.Builder sinkSpecBuilder = SinkSpec.newBuilder();
+            if (functionConfig.getOutput() != null) {
+                sinkSpecBuilder.setTopic(functionConfig.getOutput());
+            }
+            if (functionConfig.getOutputSerdeClassName() != null) {
+                sinkSpecBuilder.setSerDeClassName(functionConfig.getOutputSerdeClassName());
+            }
+            if (typeArgs != null) {
+                sinkSpecBuilder.setTypeClassName(typeArgs[1].getName());
+            }
+            functionDetailsBuilder.setSink(sinkSpecBuilder);
+
+            if (functionConfig.getTenant() != null) {
+                functionDetailsBuilder.setTenant(functionConfig.getTenant());
+            }
+            if (functionConfig.getNamespace() != null) {
+                functionDetailsBuilder.setNamespace(functionConfig.getNamespace());
+            }
+            if (functionConfig.getName() != null) {
+                functionDetailsBuilder.setName(functionConfig.getName());
+            }
+            if (functionConfig.getLogTopic() != null) {
+                functionDetailsBuilder.setLogTopic(functionConfig.getLogTopic());
+            }
+            if (functionConfig.getRuntime() != null) {
+                functionDetailsBuilder.setRuntime(Utils.convertRuntime(functionConfig.getRuntime()));
+            }
+            if (functionConfig.getProcessingGuarantees() != null) {
+                functionDetailsBuilder.setProcessingGuarantees(
+                        Utils.convertProcessingGuarantee(functionConfig.getProcessingGuarantees()));
+            }
+
+            Map<String, Object> configs = new HashMap<>();
+            configs.putAll(functionConfig.getUserConfig());
+
+            // windowing related
+            WindowConfig windowConfig = functionConfig.getWindowConfig();
+            if (windowConfig != null) {
+                windowConfig.setActualWindowFunctionClassName(functionConfig.getClassName());
+                configs.put(WindowConfig.WINDOW_CONFIG_KEY, windowConfig);
+                // set class name to window function executor
+                functionDetailsBuilder.setClassName(WindowFunctionExecutor.class.getName());
+
+            } else {
+                if (functionConfig.getClassName() != null) {
+                    functionDetailsBuilder.setClassName(functionConfig.getClassName());
+                }
+            }
+            if (!configs.isEmpty()) {
+                functionDetailsBuilder.setUserConfig(new Gson().toJson(configs));
+            }
+
+            functionDetailsBuilder.setAutoAck(functionConfig.isAutoAck());
+            functionDetailsBuilder.setParallelism(functionConfig.getParallelism());
+            if (functionConfig.getResources() != null) {
+                Resources.Builder bldr = Resources.newBuilder();
+                if (functionConfig.getResources().getCpu() != null) {
+                    bldr.setCpu(functionConfig.getResources().getCpu());
+                }
+                if (functionConfig.getResources().getRam() != null) {
+                    bldr.setRam(functionConfig.getResources().getRam());
+                }
+                if (functionConfig.getResources().getDisk() != null) {
+                    bldr.setDisk(functionConfig.getResources().getDisk());
+                }
+                functionDetailsBuilder.setResources(bldr.build());
+            }
+            return functionDetailsBuilder.build();
+        }
+
+        protected org.apache.pulsar.functions.proto.Function.FunctionDetails convertProto2(FunctionConfig functionConfig)
+                throws IOException {
+            org.apache.pulsar.functions.proto.Function.FunctionDetails.Builder functionDetailsBuilder = org.apache.pulsar.functions.proto.Function.FunctionDetails.newBuilder();
+            Utils.mergeJson(FunctionsImpl.printJson(convert(functionConfig)), functionDetailsBuilder);
+            return functionDetailsBuilder.build();
+        }
     }
 
     @Parameters(commandDescription = "Run the Pulsar Function locally (rather than deploying it to the Pulsar cluster)")
@@ -505,64 +643,45 @@ public class CmdFunctions extends CmdBase {
 
         @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker")
         protected String brokerServiceUrl;
+        
+        @Parameter(names = "--clientAuthPlugin", description = "Client authentication plugin using which function-process can connect to broker")
+        protected String clientAuthPlugin;
+        
+        @Parameter(names = "--clientAuthParams", description = "Client authentication param")
+        protected String clientAuthParams;
+        
+        @Parameter(names = "--use_tls", description = "Use tls connection\n")
+        protected boolean useTls;
+
+        @Parameter(names = "--tls_allow_insecure", description = "Allow insecure tls connection\n")
+        protected boolean tlsAllowInsecureConnection;
+        
+        @Parameter(names = "--hostname_verification_enabled", description = "Enable hostname verification")
+        protected boolean tlsHostNameVerificationEnabled;
+        
+        @Parameter(names = "--tls_trust_cert_path", description = "tls trust cert file path")
+        protected String tlsTrustCertFilePath;
+
+        @Parameter(names = "--instanceIdOffset", description = "Start the instanceIds from this offset")
+        protected Integer instanceIdOffset = 0;
 
         @Override
         void runCmd() throws Exception {
-            if (!areAllRequiredFieldsPresent(functionConfig)) {
-                throw new RuntimeException("Missing arguments");
-            }
-
-            String serviceUrl = admin.getServiceUrl();
-            if (brokerServiceUrl != null) {
-                serviceUrl = brokerServiceUrl;
-            }
-            if (serviceUrl == null) {
-                serviceUrl = "pulsar://localhost:6650";
-            }
-            try (ProcessRuntimeFactory containerFactory = new ProcessRuntimeFactory(
-                    serviceUrl, null, null, null)) {
-                List<RuntimeSpawner> spawners = new LinkedList<>();
-                for (int i = 0; i < functionConfig.getParallelism(); ++i) {
-                    InstanceConfig instanceConfig = new InstanceConfig();
-                    instanceConfig.setFunctionDetails(convertProto2(functionConfig));
-                    // TODO: correctly implement function version and id
-                    instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
-                    instanceConfig.setFunctionId(UUID.randomUUID().toString());
-                    instanceConfig.setInstanceId(Integer.toString(i));
-                    instanceConfig.setMaxBufferedTuples(1024);
-                    RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
-                            instanceConfig,
-                            userCodeFile,
-                            containerFactory,
-                            null);
-                    spawners.add(runtimeSpawner);
-                    runtimeSpawner.start();
-                }
-                Runtime.getRuntime().addShutdownHook(new Thread() {
-                    public void run() {
-                        log.info("Shutting down the localrun runtimeSpawner ...");
-                        for (RuntimeSpawner spawner : spawners) {
-                            spawner.close();
-                        }
-                    }
-                });
-                for (RuntimeSpawner spawner : spawners) {
-                    spawner.join();
-                    log.info("RuntimeSpawner quit because of {}", spawner.getRuntime().getDeathException());
-                }
-
-            }
+            CmdFunctions.startLocalRun(convertProto2(functionConfig), functionConfig.getParallelism(),
+                    instanceIdOffset, brokerServiceUrl,
+                    AuthenticationConfig.builder().clientAuthenticationPlugin(clientAuthPlugin)
+                            .clientAuthenticationParameters(clientAuthParams).useTls(useTls)
+                            .tlsAllowInsecureConnection(tlsAllowInsecureConnection)
+                            .tlsHostnameVerificationEnable(tlsHostNameVerificationEnabled)
+                            .tlsTrustCertsFilePath(tlsTrustCertFilePath).build(),
+                    userCodeFile, admin);
         }
-
     }
 
     @Parameters(commandDescription = "Create a Pulsar Function in cluster mode (i.e. deploy it on a Pulsar cluster)")
     class CreateFunction extends FunctionDetailsCommand {
         @Override
         void runCmd() throws Exception {
-            if (!areAllRequiredFieldsPresent(functionConfig)) {
-                throw new RuntimeException("Missing arguments");
-            }
             admin.functions().createFunction(convert(functionConfig), userCodeFile);
             print("Created successfully");
         }
@@ -601,9 +720,6 @@ public class CmdFunctions extends CmdBase {
     class UpdateFunction extends FunctionDetailsCommand {
         @Override
         void runCmd() throws Exception {
-            if (!areAllRequiredFieldsPresent(functionConfig)) {
-                throw new RuntimeException("Missing arguments");
-            }
             admin.functions().updateFunction(convert(functionConfig), userCodeFile);
             print("Updated successfully");
         }
@@ -643,7 +759,7 @@ public class CmdFunctions extends CmdBase {
 
             try (StorageClient client = StorageClientBuilder.newBuilder()
                  .withSettings(StorageClientSettings.newBuilder()
-                     .addEndpoints(NetUtils.parseEndpoint(stateStorageServiceUrl))
+                     .serviceUri(stateStorageServiceUrl)
                      .clientName("functions-admin")
                      .build())
                  .withNamespace(tableNs)
@@ -681,13 +797,54 @@ public class CmdFunctions extends CmdBase {
         protected String triggerValue;
         @Parameter(names = "--triggerFile", description = "The path to the file that contains the data with which you'd like to trigger the function")
         protected String triggerFile;
+        @Parameter(names = "--topic", description = "The specific topic name that the function consumes from that you want to inject the data to")
+        protected String topic;
         @Override
         void runCmd() throws Exception {
             if (triggerFile == null && triggerValue == null) {
-                throw new RuntimeException("Either a trigger value or a trigger filepath needs to be specified");
+                throw new ParameterException("Either a trigger value or a trigger filepath needs to be specified");
             }
-            String retval = admin.functions().triggerFunction(tenant, namespace, functionName, triggerValue, triggerFile);
+            String retval = admin.functions().triggerFunction(tenant, namespace, functionName, topic, triggerValue, triggerFile);
             System.out.println(retval);
+        }
+    }
+
+    @Parameters(commandDescription = "Upload File Data to Pulsar", hidden = true)
+    class UploadFunction extends BaseCommand {
+        @Parameter(
+                names = "--sourceFile",
+                description = "The file whose contents need to be uploaded",
+                listConverter = StringConverter.class, required = true)
+        protected String sourceFile;
+        @Parameter(
+                names = "--path",
+                description = "Path where the contents need to be stored",
+                listConverter = StringConverter.class, required = true)
+        protected String path;
+        @Override
+        void runCmd() throws Exception {
+            admin.functions().uploadFunction(sourceFile, path);
+            print("Uploaded successfully");
+        }
+    }
+
+    @Parameters(commandDescription = "Download File Data from Pulsar", hidden = true)
+    class DownloadFunction extends BaseCommand {
+        @Parameter(
+                names = "--destinationFile",
+                description = "The file where downloaded contents need to be stored",
+                listConverter = StringConverter.class, required = true)
+        protected String destinationFile;
+        @Parameter(
+                names = "--path",
+                description = "Path where the contents are to be stored",
+                listConverter = StringConverter.class, required = true)
+        protected String path;
+
+        @Override
+        void runCmd() throws Exception {
+            admin.functions().downloadFunction(destinationFile, path);
+            print("Downloaded successfully");
         }
     }
 
@@ -702,6 +859,8 @@ public class CmdFunctions extends CmdBase {
         lister = new ListFunctions();
         stateGetter = new StateGetter();
         triggerer = new TriggerFunction();
+        uploader = new UploadFunction();
+        downloader = new DownloadFunction();
         jcommander.addCommand("localrun", getLocalRunner());
         jcommander.addCommand("create", getCreater());
         jcommander.addCommand("delete", getDeleter());
@@ -711,6 +870,8 @@ public class CmdFunctions extends CmdBase {
         jcommander.addCommand("list", getLister());
         jcommander.addCommand("querystate", getStateGetter());
         jcommander.addCommand("trigger", getTriggerer());
+        jcommander.addCommand("upload", getUploader());
+        jcommander.addCommand("download", getDownloader());
     }
 
     @VisibleForTesting
@@ -756,106 +917,98 @@ public class CmdFunctions extends CmdBase {
         return triggerer;
     }
 
-    private static FunctionConfig loadConfig(File file) throws IOException {
-
-        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-        return  mapper.readValue(file, FunctionConfig.class);
+    @VisibleForTesting
+    UploadFunction getUploader() {
+        return uploader;
     }
 
-    public static boolean areAllRequiredFieldsPresent(FunctionConfig functionConfig) {
-        return functionConfig.getTenant() != null && functionConfig.getNamespace() != null
-                && functionConfig.getName() != null && functionConfig.getClassName() != null
-                && (functionConfig.getInputs().size() > 0 || functionConfig.getCustomSerdeInputs().size() > 0)
-                && functionConfig.getParallelism() > 0;
-    }
-    
-    private org.apache.pulsar.functions.proto.Function.FunctionDetails convertProto2(FunctionConfig functionConfig)
-            throws IOException {
-        org.apache.pulsar.functions.proto.Function.FunctionDetails.Builder functionDetailsBuilder = org.apache.pulsar.functions.proto.Function.FunctionDetails.newBuilder();
-        Utils.mergeJson(FunctionsImpl.printJson(convert(functionConfig)), functionDetailsBuilder);
-        return functionDetailsBuilder.build();
-    }
-
-    private FunctionDetails convert(FunctionConfig functionConfig)
-            throws IOException {
-        FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
-        if (functionConfig.getInputs() != null) {
-            functionDetailsBuilder.setTenant(functionConfig.getTenant());
-        }
-        if (functionConfig.getNamespace() != null) {
-            functionDetailsBuilder.setNamespace(functionConfig.getNamespace());
-        }
-        if (functionConfig.getName() != null) {
-            functionDetailsBuilder.setName(functionConfig.getName());
-        }
-        if (functionConfig.getClassName() != null) {
-            functionDetailsBuilder.setClassName(functionConfig.getClassName());
-        }
-        functionDetailsBuilder.putAllCustomSerdeInputs(functionConfig.getCustomSerdeInputs());
-        if (functionConfig.getOutputSerdeClassName() != null) {
-            functionDetailsBuilder.setOutputSerdeClassName(functionConfig.getOutputSerdeClassName());
-        }
-        if (functionConfig.getOutput() != null) {
-            functionDetailsBuilder.setOutput(functionConfig.getOutput());
-        }
-        if (functionConfig.getLogTopic() != null) {
-            functionDetailsBuilder.setLogTopic(functionConfig.getLogTopic());
-        }
-        if (functionConfig.getProcessingGuarantees() != null) {
-            functionDetailsBuilder.setProcessingGuarantees(
-                    convertProcessingGuarantee(functionConfig.getProcessingGuarantees()));
-        }
-        functionDetailsBuilder.putAllUserConfig(functionConfig.getUserConfig());
-        if (functionConfig.getSubscriptionType() != null) {
-            functionDetailsBuilder.setSubscriptionType(
-                    convertSubscriptionType(functionConfig.getSubscriptionType()));
-        }
-        if (functionConfig.getRuntime() != null) {
-            functionDetailsBuilder.setRuntime(convertRuntime(functionConfig.getRuntime()));
-        }
-        functionDetailsBuilder.setAutoAck(functionConfig.isAutoAck());
-        functionDetailsBuilder.addAllInputs(functionConfig.getInputs());
-        functionDetailsBuilder.setParallelism(functionConfig.getParallelism());
-        return functionDetailsBuilder.build();
-    }
-
-    private static FunctionDetails.SubscriptionType convertSubscriptionType(
-            FunctionConfig.SubscriptionType subscriptionType) {
-        for (FunctionDetails.SubscriptionType type : FunctionDetails.SubscriptionType.values()) {
-            if (type.name().equals(subscriptionType.name())) {
-                return type;
-            }
-        }
-        throw new RuntimeException("Unrecognized subscription type: " + subscriptionType.name());
-    }
-
-    private static FunctionDetails.ProcessingGuarantees convertProcessingGuarantee(
-            FunctionConfig.ProcessingGuarantees processingGuarantees) {
-        for (FunctionDetails.ProcessingGuarantees type : FunctionDetails.ProcessingGuarantees.values()) {
-            if (type.name().equals(processingGuarantees.name())) {
-                return type;
-            }
-        }
-        throw new RuntimeException("Unrecognized processing guarantee: " + processingGuarantees.name());
-    }
-
-    private static FunctionDetails.Runtime convertRuntime(FunctionConfig.Runtime runtime) {
-        for (FunctionDetails.Runtime type : FunctionDetails.Runtime.values()) {
-            if (type.name().equals(runtime.name())) {
-                return type;
-            }
-        }
-        throw new RuntimeException("Unrecognized runtime: " + runtime.name());
+    @VisibleForTesting
+    DownloadFunction getDownloader() {
+        return downloader;
     }
 
     private void parseFullyQualifiedFunctionName(String fqfn, FunctionConfig functionConfig) {
         String[] args = fqfn.split("/");
         if (args.length != 3) {
-            throw new RuntimeException("Fully qualified function names (FQFNs) must be of the form tenant/namespace/name");
+            throw new ParameterException("Fully qualified function names (FQFNs) must be of the form tenant/namespace/name");
         } else {
             functionConfig.setTenant(args[0]);
             functionConfig.setNamespace(args[1]);
             functionConfig.setName(args[2]);
+        }
+    }
+
+    protected static void startLocalRun(org.apache.pulsar.functions.proto.Function.FunctionDetails functionDetails,
+            int parallelism, int instanceIdOffset, String brokerServiceUrl, AuthenticationConfig authConfig,
+            String userCodeFile, PulsarAdmin admin)
+            throws Exception {
+
+        String serviceUrl = admin.getServiceUrl();
+        if (brokerServiceUrl != null) {
+            serviceUrl = brokerServiceUrl;
+        }
+        if (serviceUrl == null) {
+            serviceUrl = DEFAULT_SERVICE_URL;
+        }
+        try (ProcessRuntimeFactory containerFactory = new ProcessRuntimeFactory(serviceUrl, authConfig, null, null,
+                null)) {
+            List<RuntimeSpawner> spawners = new LinkedList<>();
+            for (int i = 0; i < parallelism; ++i) {
+                InstanceConfig instanceConfig = new InstanceConfig();
+                instanceConfig.setFunctionDetails(functionDetails);
+                // TODO: correctly implement function version and id
+                instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
+                instanceConfig.setFunctionId(UUID.randomUUID().toString());
+                instanceConfig.setInstanceId(Integer.toString(i + instanceIdOffset));
+                instanceConfig.setMaxBufferedTuples(1024);
+                instanceConfig.setPort(Utils.findAvailablePort());
+                RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
+                        instanceConfig,
+                        userCodeFile,
+                        containerFactory,
+                        30000);
+                spawners.add(runtimeSpawner);
+                runtimeSpawner.start();
+            }
+            Runtime.getRuntime().addShutdownHook(new Thread() {
+                public void run() {
+                    log.info("Shutting down the localrun runtimeSpawner ...");
+                    for (RuntimeSpawner spawner : spawners) {
+                        spawner.close();
+                    }
+                }
+            });
+            Timer statusCheckTimer = new Timer();
+            statusCheckTimer.scheduleAtFixedRate(new TimerTask() {
+                    @Override
+                    public void run() {
+                        CompletableFuture<String>[] futures = new CompletableFuture[spawners.size()];
+                        int index = 0;
+                        for (RuntimeSpawner spawner : spawners) {
+                            futures[index++] = spawner.getFunctionStatusAsJson();
+                        }
+                        try {
+                            CompletableFuture.allOf(futures).get(5, TimeUnit.SECONDS);
+                            for (index = 0; index < futures.length; ++index) {
+                                String json = futures[index].get();
+                                Gson gson = new GsonBuilder().setPrettyPrinting().create();
+                                log.info(gson.toJson(new JsonParser().parse(json)));
+                            }
+                        } catch (Exception ex) {
+                            log.error("Could not get status from all local instances");
+                        }
+                    }
+                }, 30000, 30000);
+            Runtime.getRuntime().addShutdownHook(new Thread() {
+                    public void run() {
+                        statusCheckTimer.cancel();
+                    }
+                });
+            for (RuntimeSpawner spawner : spawners) {
+                spawner.join();
+                log.info("RuntimeSpawner quit because of {}", spawner.getRuntime().getDeathException());
+            }
+
         }
     }
 }

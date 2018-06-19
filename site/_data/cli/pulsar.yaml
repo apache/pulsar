@@ -58,13 +58,16 @@ commands:
     description: Run a BookKeeper autorecovery daemon on the same host as the Pulsar broker
     default: 'false'
 - name: compact-topic
-  description: Run compaction against a Pulsar topic
+  description: Run compaction against a Pulsar topic (in a new process)
   example: |
     pulsar compact-topic \
-      --topic persistent://sample/standalone/ns1/topic-to-compact
+      --topic topic-to-compact
   options:
   - flags: -t, --topic
     description: The Pulsar topic that you would like to compact
+  - flags: -c, --broker-conf
+    description: Configuration file for the broker
+    default: ${pulsarDirectory}/conf/broker.conf
 - name: discovery
   description: Run a discovery server
   example: |
@@ -73,11 +76,11 @@ commands:
   options:
   - flags: -c, --conf
     description: Configuration file for the discovery service
-- name: global-zookeeper
-  description: Starts up global ZooKeeper
+- name: configuration-store
+  description: Starts up the Pulsar configuration store
   options:
   - flags: -c, --conf
-    description: Configuration file for global ZooKeeper
+    description: Configuration file for the configuration store
 - name: initialize-cluster-metadata
   description: One-time cluster metadata initialization
   options:
@@ -87,8 +90,8 @@ commands:
     description: The broker service URL for the new cluster with TLS encryption
   - flags: -c, --cluster
     description: Cluster name
-  - flags: -gzk, --global-zookeeper
-    description: The global ZooKeeper quorum connection string
+  - flags: --configuration-store
+    description: The configuration store quorum connection string
   - flags: -uw, --web-service-url
     description: The web service URL for the new cluster
   - flags: -tw, --web-service-url-tls
@@ -100,12 +103,12 @@ commands:
   example: |
     pulsar proxy \
       --zookeeper-servers zk-0,zk-1,zk2 \
-      --global-zookeeper-servers zk-0,zk-1,zk-2
+      --configuration-store zk-0,zk-1,zk-2
   options:
   - flags: -c, --config
     description: Path to a Pulsar proxy configuration file
-  - flags: -gzk, --global-zookeeper-servers
-    description: Global ZooKeeper connection string
+  - flags: --configuration-store
+    description: Configuration store connection string
   - flags: -zk, --zookeeper-servers
     description: Local ZooKeeper connection string
 - name: standalone
@@ -168,8 +171,8 @@ env_vars:
 - name: PULSAR_ZK_CONF
   description: Configuration file for zookeeper
   default: conf/zookeeper.conf
-- name: PULSAR_GLOBAL_ZK_CONF
-  description:  Configuration file for global zookeeper
+- name: PULSAR_CONFIGURATION_STORE_CONF
+  description:  Configuration file for the configuration store
   default: conf/global_zookeeper.conf
 - name: PULSAR_DISCOVERY_CONF
   description: Configuration file for discovery service

@@ -20,12 +20,16 @@ package org.apache.pulsar.functions.worker;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.Map;
 
-import lombok.*;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
 import lombok.experimental.Accessors;
 
 @Data
@@ -47,6 +51,7 @@ public class WorkerConfig implements Serializable {
     private String clusterCoordinationTopicName;
     private String functionMetadataSnapshotsTopicPath;
     private String pulsarFunctionsNamespace;
+    private String pulsarFunctionsCluster;
     private int numFunctionPackageReplicas;
     private String downloadDirectory;
     private long snapshotFreqMs;
@@ -58,13 +63,19 @@ public class WorkerConfig implements Serializable {
     private int initialBrokerReconnectMaxRetries;
     private int assignmentWriteMaxRetries;
     private long instanceLivenessCheckFreqMs;
-
+    private String clientAuthenticationPlugin;
+    private String clientAuthenticationParameters;
+    private boolean useTls = false;
+    private String tlsTrustCertsFilePath = "";
+    private boolean tlsAllowInsecureConnection = false;
+    private boolean tlsHostnameVerificationEnable = false;
+    
     @Data
     @Setter
     @Getter
     @EqualsAndHashCode
     @ToString
-    static class ThreadContainerFactory {
+    public static class ThreadContainerFactory {
         private String threadGroupName;
     }
     private ThreadContainerFactory threadContainerFactory;
@@ -74,7 +85,7 @@ public class WorkerConfig implements Serializable {
     @Getter
     @EqualsAndHashCode
     @ToString
-    static class ProcessContainerFactory {
+    public static class ProcessContainerFactory {
         private String javaInstanceJarLocation;
         private String pythonInstanceLocation;
         private String logDirectory;
@@ -92,7 +103,7 @@ public class WorkerConfig implements Serializable {
     public String getFunctionAssignmentTopic() {
         return String.format("persistent://%s/%s", pulsarFunctionsNamespace, functionAssignmentTopicName);
     }
-    
+
     public static WorkerConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         return mapper.readValue(new File(yamlFile), WorkerConfig.class);

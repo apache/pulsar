@@ -30,6 +30,7 @@ import signal
 import time
 import json
 
+from pulsar import Authentication
 import pulsar
 
 import Function_pb2
@@ -58,17 +59,17 @@ def main():
   parser.add_argument('--name', required=True, help='Function Name')
   parser.add_argument('--tenant', required=True, help='Tenant Name')
   parser.add_argument('--namespace', required=True, help='Namespace name')
-  parser.add_argument('--custom_serde_input_topics', required=False, help='Input Topics Requiring Custom Deserialization')
-  parser.add_argument('--custom_serde_classnames', required=False, help='Input Serde Classnames')
-  parser.add_argument('--input_topics', required=False, help='Input topics with default serde')
-  parser.add_argument('--output_topic', required=False, help='Output Topic')
-  parser.add_argument('--output_serde_classname', required=False, help='Output Serde Classnames')
   parser.add_argument('--instance_id', required=True, help='Instance Id')
   parser.add_argument('--function_id', required=True, help='Function Id')
   parser.add_argument('--function_version', required=True, help='Function Version')
   parser.add_argument('--processing_guarantees', required=True, help='Processing Guarantees')
-  parser.add_argument('--subscription_type', required=True, help='Subscription Type')
   parser.add_argument('--pulsar_serviceurl', required=True, help='Pulsar Service Url')
+  parser.add_argument('--client_auth_plugin', required=False, help='Client authentication plugin')
+  parser.add_argument('--client_auth_params', required=False, help='Client authentication params')
+  parser.add_argument('--use_tls', required=False, help='Use tls')
+  parser.add_argument('--tls_allow_insecure_connection', required=False, help='Tls allow insecure connection')
+  parser.add_argument('--hostname_verification_enabled', required=False, help='Enable hostname verification')
+  parser.add_argument('--tls_trust_cert_path', required=False, help='Tls trust cert file path')
   parser.add_argument('--port', required=True, help='Instance Port', type=int)
   parser.add_argument('--max_buffered_tuples', required=True, help='Maximum number of Buffered tuples')
   parser.add_argument('--user_config', required=False, help='User Config')
@@ -76,6 +77,12 @@ def main():
   parser.add_argument('--logging_file', required=True, help='Log file name')
   parser.add_argument('--auto_ack', required=True, help='Enable Autoacking?')
   parser.add_argument('--log_topic', required=False, help='Topic to send Log Messages')
+  parser.add_argument('--source_subscription_type', required=True, help='Subscription Type')
+  parser.add_argument('--source_topics_serde_classname', required=True, help='A mapping of Input topics to SerDe')
+  parser.add_argument('--topics_pattern', required=False, help='TopicsPattern to consume from list of topics under a namespace that match the pattern (not supported)')
+  parser.add_argument('--source_timeout_ms', required=False, help='Source message timeout in milliseconds')
+  parser.add_argument('--sink_topic', required=False, help='Sink Topic')
+  parser.add_argument('--sink_serde_classname', required=False, help='Sink SerDe classname')
 
   args = parser.parse_args()
   log_file = os.path.join(args.logging_directory,
@@ -91,36 +98,52 @@ def main():
   function_details.namespace = args.namespace
   function_details.name = args.name
   function_details.className = args.function_classname
-  if args.custom_serde_input_topics is None and args.input_topics is None:
-    Log.critical("Atleast one input topic must be present")
+
+  if args.topics_pattern:
+    raise ValueError('topics_pattern is not supported by python client') 
+  sourceSpec = Function_pb2.SourceSpec()
+  sourceSpec.subscriptionType = Function_pb2.SubscriptionType.Value(args.source_subscription_type)
+  try:
+    source_topics_serde_classname_dict = json.loads(args.source_topics_serde_classname)
+  except ValueError:
+    Log.critical("Cannot decode source_topics_serde_classname.  This argument must be specifed as a JSON")
     sys.exit(1)
-  if args.custom_serde_input_topics is not None and args.custom_serde_classnames is not None:
-    input_topics = args.custom_serde_input_topics.split(",")
-    input_serde = args.custom_serde_classnames.split(",")
-    if len(input_topics) != len(input_serde):
-      Log.critical("CustomSerde InputTopcis and Serde classnames should match")
-      sys.exit(1)
-    for i in xrange(len(input_topics)):
-      function_details.customSerdeInputs[input_topics[i]] = input_serde[i]
-  if args.input_topics is not None:
-    for topic in args.input_topics.split(","):
-      function_details.inputs.append(topic)
-  if args.output_topic != None and len(args.output_topic) != 0:
-    function_details.output = args.output_topic
-  if args.output_serde_classname != None and len(args.output_serde_classname) != 0:
-    function_details.outputSerdeClassName = args.output_serde_classname
-  function_details.processingGuarantees = Function_pb2.FunctionDetails.ProcessingGuarantees.Value(args.processing_guarantees)
-  function_details.subscriptionType = Function_pb2.FunctionDetails.SubscriptionType.Values(args.subscription_type)
+  if not source_topics_serde_classname_dict:
+    Log.critical("source_topics_serde_classname cannot be empty")
+  for topics, serde_classname in source_topics_serde_classname_dict.items():
+    sourceSpec.topicsToSerDeClassName[topics] = serde_classname
+  if args.source_timeout_ms:
+    sourceSpec.timeoutMs = long(args.source_timeout_ms)
+  function_details.source.MergeFrom(sourceSpec)
+
+  sinkSpec = Function_pb2.SinkSpec()
+  if args.sink_topic != None and len(args.sink_topic) != 0:
+    sinkSpec.topic = args.sink_topic
+  if args.sink_serde_classname != None and len(args.sink_serde_classname) != 0:
+    sinkSpec.serDeClassName = args.sink_serde_classname
+  function_details.sink.MergeFrom(sinkSpec)
+
+  function_details.processingGuarantees = Function_pb2.ProcessingGuarantees.Value(args.processing_guarantees)
   if args.auto_ack == "true":
     function_details.autoAck = True
   else:
     function_details.autoAck = False
   if args.user_config != None and len(args.user_config) != 0:
-    user_config = json.loads(args.user_config)
-    for (key, value) in user_config.items():
-      function_details.userConfig[str(key)] = str(value)
+    function_details.userConfig = args.user_config
 
-  pulsar_client = pulsar.Client(args.pulsar_serviceurl)
+  authentication = None
+  use_tls = False
+  tls_allow_insecure_connection = False
+  tls_trust_cert_path = None
+  if args.client_auth_plugin and args.client_auth_params:
+      authentication = pulsar.Authentication(args.client_auth_plugin, args.client_auth_params)
+  if args.use_tls == "true":
+    use_tls = True
+  if args.tls_allow_insecure_connection == "true":
+    tls_allow_insecure_connection = True
+  if args.tls_trust_cert_path:
+     tls_trust_cert_path =  args.tls_trust_cert_path
+  pulsar_client = pulsar.Client(args.pulsar_serviceurl, authentication, 30, 1, 1, 50000, None, use_tls, tls_trust_cert_path, tls_allow_insecure_connection)
   pyinstance = python_instance.PythonInstance(str(args.instance_id), str(args.function_id),
                                               str(args.function_version), function_details,
                                               int(args.max_buffered_tuples), str(args.py),

@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
@@ -41,8 +42,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(required = true)
     private String zookeeperServers;
     // Global Zookeeper quorum connection string
+    @Deprecated
     @FieldContext(required = false)
     private String globalZookeeperServers;
+    // Configuration Store connection string
+    @FieldContext(required = false)
+    private String configurationStoreServers;
     private int brokerServicePort = 6650;
     private int brokerServicePortTls = 6651;
     // Port to use to server HTTP request
@@ -89,6 +94,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int messageExpiryCheckIntervalInMinutes = 5;
     // How long to delay rewinding cursor and dispatching messages when active consumer is changed
     private int activeConsumerFailoverDelayTimeMillis = 1000;
+    // How long to delete inactive subscriptions from last consuming
+    // When it is 0, inactive subscriptions are not deleted automatically
+    private long subscriptionExpirationTimeMinutes = 0;
+    // How frequently to proactively check and purge expired subscription
+    private long subscriptionExpiryCheckIntervalInMinutes = 5;
 
     // Set the default behavior for message deduplication in the broker
     // This can be overridden per-namespace. If enabled, broker will reject
@@ -325,6 +335,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int managedLedgerMinLedgerRolloverTimeMinutes = 10;
     // Maximum time before forcing a ledger rollover for a topic
     private int managedLedgerMaxLedgerRolloverTimeMinutes = 240;
+    // Delay between a ledger being successfully offloaded to long term storage
+    // and the ledger being deleted from bookkeeper
+    private long managedLedgerOffloadDeletionLagMs = TimeUnit.HOURS.toMillis(4);
     // Max number of entries to append to a cursor ledger
     private int managedLedgerCursorMaxEntriesPerLedger = 50000;
     // Max time before triggering a rollover on a cursor ledger
@@ -437,7 +450,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(dynamic = true)
     private boolean preferLaterVersions = false;
 
+    // Interval between checks to see if topics with compaction policies need to be compacted
+    private int brokerServiceCompactionMonitorIntervalInSeconds = 60;
+
     private String schemaRegistryStorageClassName = "org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory";
+    private Set<String> schemaRegistryCompatibilityCheckers = Sets.newHashSet(
+            "org.apache.pulsar.broker.service.schema.JsonSchemaCompatibilityCheck",
+            "org.apache.pulsar.broker.service.schema.AvroSchemaCompatibilityCheck"
+    );
 
     /**** --- WebSocket --- ****/
     // Number of IO threads in Pulsar Client used in WebSocket proxy
@@ -452,6 +472,34 @@ public class ServiceConfiguration implements PulsarConfiguration {
     /**** --- Functions --- ****/
     private boolean functionsWorkerEnabled = false;
 
+    /**** --- Broker Web Stats --- ****/
+    // If true, export publisher stats when returning topics stats from the admin rest api
+    private boolean exposePublisherStats = true;
+
+    /**** --- Ledger Offloading --- ****/
+    // Driver to use to offload old data to long term storage
+    private String managedLedgerOffloadDriver = null;
+
+    // Maximum number of thread pool threads for ledger offloading
+    private int managedLedgerOffloadMaxThreads = 2;
+
+    // For Amazon S3 ledger offload, AWS region
+    private String s3ManagedLedgerOffloadRegion = null;
+
+    // For Amazon S3 ledger offload, Bucket to place offloaded ledger into
+    private String s3ManagedLedgerOffloadBucket = null;
+
+    // For Amazon S3 ledger offload, Alternative endpoint to connect to (useful for testing)
+    private String s3ManagedLedgerOffloadServiceEndpoint = null;
+
+    // For Amazon S3 ledger offload, Max block size in bytes.
+    @FieldContext(minValue = 5242880) // 5MB
+    private int s3ManagedLedgerOffloadMaxBlockSizeInBytes = 64 * 1024 * 1024; // 64MB
+
+    // For Amazon S3 ledger offload, Read buffer size in bytes.
+    @FieldContext(minValue = 1024)
+    private int s3ManagedLedgerOffloadReadBufferSizeInBytes = 1024 * 1024; // 1MB
+
     public String getZookeeperServers() {
         return zookeeperServers;
     }
@@ -460,6 +508,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
         this.zookeeperServers = zookeeperServers;
     }
 
+    /**
+     * @deprecated See {@link #getConfigurationStoreServers}
+     */
+    @Deprecated
     public String getGlobalZookeeperServers() {
         if (this.globalZookeeperServers == null || this.globalZookeeperServers.isEmpty()) {
             // If the configuration is not set, assuming that the globalZK is not enabled and all data is in the same
@@ -469,8 +521,24 @@ public class ServiceConfiguration implements PulsarConfiguration {
         return globalZookeeperServers;
     }
 
+    /**
+     * @deprecated See {@link #setConfigurationStoreServers(String)}
+     */
+    @Deprecated
     public void setGlobalZookeeperServers(String globalZookeeperServers) {
         this.globalZookeeperServers = globalZookeeperServers;
+    }
+
+    public String getConfigurationStoreServers() {
+        if (this.configurationStoreServers == null || this.configurationStoreServers.isEmpty()) {
+            // If the configuration is not set, assuming that all data is in the same as globalZK cluster
+            return this.getGlobalZookeeperServers();
+        }
+        return configurationStoreServers;
+    }
+
+    public void setConfigurationStoreServers(String configurationStoreServers) {
+        this.configurationStoreServers = configurationStoreServers;
     }
 
     public int getBrokerServicePort() {
@@ -648,6 +716,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setActiveConsumerFailoverDelayTimeMillis(int activeConsumerFailoverDelayTimeMillis) {
         this.activeConsumerFailoverDelayTimeMillis = activeConsumerFailoverDelayTimeMillis;
+    }
+
+    public long getSubscriptionExpirationTimeMinutes() {
+        return subscriptionExpirationTimeMinutes;
+    }
+
+    public void setSubscriptionExpirationTimeMinutes(long subscriptionExpirationTimeMinutes) {
+        this.subscriptionExpirationTimeMinutes = subscriptionExpirationTimeMinutes;
+    }
+
+    public long getSubscriptionExpiryCheckIntervalInMinutes() {
+        return subscriptionExpiryCheckIntervalInMinutes;
+    }
+
+    public void setSubscriptionExpiryCheckIntervalInMinutes(long subscriptionExpiryCheckIntervalInMinutes) {
+        this.subscriptionExpiryCheckIntervalInMinutes = subscriptionExpiryCheckIntervalInMinutes;
     }
 
     public boolean isClientLibraryVersionCheckEnabled() {
@@ -1149,6 +1233,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
         this.managedLedgerMaxLedgerRolloverTimeMinutes = managedLedgerMaxLedgerRolloverTimeMinutes;
     }
 
+    public long getManagedLedgerOffloadDeletionLagMs() {
+        return managedLedgerOffloadDeletionLagMs;
+    }
+
+    public void setManagedLedgerOffloadDeletionLag(long amount, TimeUnit unit) {
+        this.managedLedgerOffloadDeletionLagMs = unit.toMillis(amount);
+    }
+
     public int getManagedLedgerCursorMaxEntriesPerLedger() {
         return managedLedgerCursorMaxEntriesPerLedger;
     }
@@ -1506,6 +1598,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
         schemaRegistryStorageClassName = className;
     }
 
+    public Set<String> getSchemaRegistryCompatibilityCheckers() {
+        return schemaRegistryCompatibilityCheckers;
+    }
+
+    public void setSchemaRegistryCompatibilityCheckers(Set<String> schemaRegistryCompatibilityCheckers) {
+        this.schemaRegistryCompatibilityCheckers = schemaRegistryCompatibilityCheckers;
+    }
+
     public boolean authenticateOriginalAuthData() {
         return authenticateOriginalAuthData;
     }
@@ -1547,11 +1647,87 @@ public class ServiceConfiguration implements PulsarConfiguration {
         return functionsWorkerEnabled;
     }
 
+
+    /**** --- Broker Web Stats ---- ****/
+
+    public void setExposePublisherStats(boolean expose) {
+        this.exposePublisherStats = expose;
+    }
+
+    public boolean exposePublisherStats() {
+        return exposePublisherStats;
+    }
+
     public boolean isRunningStandalone() {
         return isRunningStandalone;
     }
 
     public void setRunningStandalone(boolean isRunningStandalone) {
         this.isRunningStandalone = isRunningStandalone;
+    }
+
+    /**** --- Ledger Offload ---- ****/
+    public void setManagedLedgerOffloadDriver(String driver) {
+        this.managedLedgerOffloadDriver = driver;
+    }
+
+    public String getManagedLedgerOffloadDriver() {
+        return this.managedLedgerOffloadDriver;
+    }
+
+    public void setManagedLedgerOffloadMaxThreads(int maxThreads) {
+        this.managedLedgerOffloadMaxThreads = maxThreads;
+    }
+
+    public int getManagedLedgerOffloadMaxThreads() {
+        return this.managedLedgerOffloadMaxThreads;
+    }
+
+    public void setS3ManagedLedgerOffloadRegion(String region) {
+        this.s3ManagedLedgerOffloadRegion = region;
+    }
+
+    public String getS3ManagedLedgerOffloadRegion() {
+        return this.s3ManagedLedgerOffloadRegion;
+    }
+
+    public void setS3ManagedLedgerOffloadBucket(String bucket) {
+        this.s3ManagedLedgerOffloadBucket = bucket;
+    }
+
+    public String getS3ManagedLedgerOffloadBucket() {
+        return this.s3ManagedLedgerOffloadBucket;
+    }
+
+    public void setS3ManagedLedgerOffloadServiceEndpoint(String endpoint) {
+        this.s3ManagedLedgerOffloadServiceEndpoint = endpoint;
+    }
+
+    public String getS3ManagedLedgerOffloadServiceEndpoint() {
+        return this.s3ManagedLedgerOffloadServiceEndpoint;
+    }
+
+    public void setS3ManagedLedgerOffloadMaxBlockSizeInBytes(int blockSizeInBytes) {
+        this.s3ManagedLedgerOffloadMaxBlockSizeInBytes = blockSizeInBytes;
+    }
+
+    public int getS3ManagedLedgerOffloadMaxBlockSizeInBytes() {
+        return this.s3ManagedLedgerOffloadMaxBlockSizeInBytes;
+    }
+
+    public void setS3ManagedLedgerOffloadReadBufferSizeInBytes(int readBufferSizeInBytes) {
+        this.s3ManagedLedgerOffloadReadBufferSizeInBytes = readBufferSizeInBytes;
+    }
+
+    public int getS3ManagedLedgerOffloadReadBufferSizeInBytes() {
+        return this.s3ManagedLedgerOffloadReadBufferSizeInBytes;
+    }
+
+    public void setBrokerServiceCompactionMonitorIntervalInSeconds(int interval) {
+        this.brokerServiceCompactionMonitorIntervalInSeconds = interval;
+    }
+
+    public int getBrokerServiceCompactionMonitorIntervalInSeconds() {
+        return this.brokerServiceCompactionMonitorIntervalInSeconds;
     }
 }

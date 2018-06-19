@@ -21,6 +21,8 @@ groups:
 - title: Getting started
   dir: getting-started
   docs:
+  - title: Pulsar 2.0
+    endpoint: Pulsar-2.0
   - title: Run Pulsar locally
     endpoint: LocalCluster
   - title: Pulsar in Docker
@@ -80,8 +82,8 @@ groups:
     endpoint: Dashboard
   - title: Pulsar statistics
     endpoint: Stats
-  - title: Modular load manager
-    endpoint: ModularLoadManager
+  - title: Load distribution
+    endpoint: LoadDistribution
   - title: Pulsar proxy
     endpoint: Proxy
 
@@ -104,8 +106,8 @@ groups:
     endpoint: overview
   - title: Clusters
     endpoint: clusters
-  - title: Properties
-    endpoint: properties
+  - title: Tenants
+    endpoint: tenants
   - title: Brokers
     endpoint: brokers
   - title: Namespaces
@@ -132,7 +134,11 @@ groups:
 - title: Cookbooks
   dir: cookbooks
   docs:
-  - title: Message deduplication
+  - title: Tiered Storage
+    endpoint: tiered-storage
+  - title: Topic compaction
+    endpoint: compaction
+  - title: Managing message deduplication
     endpoint: message-deduplication
   - title: Non-persistent messaging
     endpoint: non-persistent-messaging
@@ -142,6 +148,8 @@ groups:
     endpoint: RetentionExpiry
   - title: Encryption
     endpoint: Encryption
+  - title: Using Pulsar as a message queue
+    endpoint: message-queue
 
 - title: Developing Pulsar
   dir: project
@@ -152,6 +160,12 @@ groups:
     endpoint: BinaryProtocol
   - title: Codebase
     endpoint: Codebase
+  - title: Custom schema storage
+    endpoint: schema-storage
+  - title: Modular load manager
+    endpoint: ModularLoadManager
+  - title: Building Pulsar C++ client
+    endpoint: CompileCpp
 
 - title: Reference
   dir: reference
@@ -162,3 +176,5 @@ groups:
     endpoint: CliTools
   - title: Pulsar configuration
     endpoint: Configuration
+  - title: Authn & Authz plugins
+    endpoint: CustomAuth

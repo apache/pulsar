@@ -23,14 +23,21 @@
  */
 package org.apache.pulsar.functions.runtime;
 
+import java.io.IOException;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
+import org.apache.pulsar.functions.utils.Utils;
+import static org.apache.pulsar.functions.proto.Function.FunctionDetails.Runtime.PYTHON;
 
 @Slf4j
 public class RuntimeSpawner implements AutoCloseable {
@@ -43,12 +50,13 @@ public class RuntimeSpawner implements AutoCloseable {
     private Runtime runtime;
     private Timer processLivenessCheckTimer;
     private int numRestarts;
-    private Long instanceLivenessCheckFreqMs;
+    private long instanceLivenessCheckFreqMs;
+    private Exception runtimeDeathException;
 
 
     public RuntimeSpawner(InstanceConfig instanceConfig,
                           String codeFile,
-                          RuntimeFactory containerFactory, Long instanceLivenessCheckFreqMs) {
+                          RuntimeFactory containerFactory, long instanceLivenessCheckFreqMs) {
         this.instanceConfig = instanceConfig;
         this.runtimeFactory = containerFactory;
         this.codeFile = codeFile;
@@ -59,11 +67,18 @@ public class RuntimeSpawner implements AutoCloseable {
     public void start() throws Exception {
         log.info("RuntimeSpawner starting function {} - {}", this.instanceConfig.getFunctionDetails().getName(),
                 this.instanceConfig.getInstanceId());
+        
+        if (instanceConfig.getFunctionDetails().getRuntime() == PYTHON
+                && instanceConfig.getFunctionDetails().getSource() != null
+                && StringUtils.isNotBlank(instanceConfig.getFunctionDetails().getSource().getTopicsPattern())) {
+            throw new IllegalArgumentException("topics-pattern is not supported for python function");
+        }
+
         runtime = runtimeFactory.createContainer(this.instanceConfig, codeFile);
         runtime.start();
 
         // monitor function runtime to make sure it is running.  If not, restart the function runtime
-        if (instanceLivenessCheckFreqMs != null) {
+        if (instanceLivenessCheckFreqMs > 0) {
             processLivenessCheckTimer = new Timer();
             processLivenessCheckTimer.scheduleAtFixedRate(new TimerTask() {
                 @Override
@@ -71,6 +86,9 @@ public class RuntimeSpawner implements AutoCloseable {
                     if (!runtime.isAlive()) {
                         log.error("Function Container is dead with exception", runtime.getDeathException());
                         log.error("Restarting...");
+                        // Just for the sake of sanity, just destroy the runtime
+                        runtime.stop();
+                        runtimeDeathException = runtime.getDeathException();
                         runtime.start();
                         numRestarts++;
                     }
@@ -89,10 +107,20 @@ public class RuntimeSpawner implements AutoCloseable {
         return runtime.getFunctionStatus().thenApply(f -> {
            FunctionStatus.Builder builder = FunctionStatus.newBuilder();
            builder.mergeFrom(f).setNumRestarts(numRestarts).setInstanceId(instanceConfig.getInstanceId());
-           if (runtime.getDeathException() != null) {
-               builder.setFailureException(runtime.getDeathException().getMessage());
+           if (runtimeDeathException != null) {
+               builder.setFailureException(runtimeDeathException.getMessage());
            }
            return builder.build();
+        });
+    }
+
+    public CompletableFuture<String> getFunctionStatusAsJson() {
+        return this.getFunctionStatus().thenApply(msg -> {
+            try {
+                return Utils.printJson(msg);
+            } catch (IOException e) {
+                throw new RuntimeException("Exception parsing getstatus", e);
+            }
         });
     }
 
@@ -101,6 +129,9 @@ public class RuntimeSpawner implements AutoCloseable {
         if (null != runtime) {
             runtime.stop();
             runtime = null;
+        }
+        if (runtimeFactory != null) {
+            runtimeFactory.close();
         }
         if (processLivenessCheckTimer != null) {
             processLivenessCheckTimer.cancel();

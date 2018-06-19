@@ -41,6 +41,9 @@ public class PulsarClusterUtils {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarClusterUtils.class);
     static final short BROKER_PORT = 8080;
 
+    public static final String PULSAR_ADMIN = "/pulsar/bin/pulsar-admin";
+    public static final String PULSAR = "/pulsar/bin/pulsar";
+
     public static String zookeeperConnectString(DockerClient docker, String cluster) {
         return DockerUtils.cubeIdsWithLabels(docker, ImmutableMap.of("service", "zookeeper", "cluster", cluster))
             .stream().map((id) -> DockerUtils.getContainerIP(docker, id)).collect(Collectors.joining(":"));
@@ -166,6 +169,7 @@ public class PulsarClusterUtils {
                     return true;
                 } catch (Exception e) {
                     // couldn't connect, try again after sleep
+                    LOG.debug("Failed to connect {} @ {}", ip, BROKER_PORT, e);
                 }
                 try {
                     Thread.sleep(pollMillis);
@@ -196,24 +200,9 @@ public class PulsarClusterUtils {
             .reduce(true, (accum, res) -> accum && res);
     }
 
-    public static boolean waitSupervisord(DockerClient docker, String containerId) {
-        int i = 50;
-        while (i > 0) {
-            try {
-                DockerUtils.runCommand(docker, containerId, "test", "-S", "/var/run/supervisor/supervisor.sock");
-                return true;
-            } catch (Exception e) {
-                // supervisord not running
-            }
-            try {
-                Thread.sleep(100);
-                i++;
-            } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
-                break;
-            }
-        }
-        return false;
+    public static void waitSupervisord(DockerClient docker, String containerId) {
+        DockerUtils.runCommand(docker, containerId, "timeout", "60", "bash", "-c",
+                               "until test -S /var/run/supervisor/supervisor.sock; do sleep 0.1; done");
     }
 
     public static boolean startAllBrokers(DockerClient docker, String cluster) {
@@ -290,5 +279,28 @@ public class PulsarClusterUtils {
     public static Set<String> zookeeperSet(DockerClient docker, String cluster) {
         return DockerUtils.cubeIdsWithLabels(docker, ImmutableMap.of("service", "zookeeper",
                                                                      "cluster", cluster));
+    }
+
+    public static void updateConf(DockerClient docker, String containerId,
+                                  String confFile, String key, String value) throws Exception {
+        String sedProgram = String.format(
+                "/[[:blank:]]*%s[[:blank:]]*=/ { h; s^=.*^=%s^; }; ${x;/^$/ { s^^%s=%s^;H; }; x}",
+                key, value, key, value);
+        DockerUtils.runCommand(docker, containerId, "sed", "-i", "-e", sedProgram, confFile);
+    }
+
+    public static void setLogLevel(DockerClient docker, String containerId,
+                                   String loggerName, String level) throws Exception {
+        String sedProgram = String.format(
+                "/  Logger:/ a\\\n"
+                +"      - name: %s\\n"
+                +"        level: %s\\n"
+                +"        additivity: false\\n"
+                +"        AppenderRef:\\n"
+                +"          - ref: Console\\n"
+                +"          - level: debug\\n",
+                loggerName, level);
+        String logConf = "/pulsar/conf/log4j2.yaml";
+        DockerUtils.runCommand(docker, containerId, "sed", "-i", "-e", sedProgram, logConf);
     }
 }

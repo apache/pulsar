@@ -6,10 +6,10 @@ package org.apache.pulsar.common.api.proto;
 public final class PulsarApi {
   private PulsarApi() {}
   public static void registerAllExtensions(
-      com.google.protobuf.ExtensionRegistryLite registry) {
+      org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite registry) {
   }
   public enum CompressionType
-      implements com.google.protobuf.Internal.EnumLite {
+      implements org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLite {
     NONE(0, 0),
     LZ4(1, 1),
     ZLIB(2, 2),
@@ -31,13 +31,13 @@ public final class PulsarApi {
       }
     }
     
-    public static com.google.protobuf.Internal.EnumLiteMap<CompressionType>
+    public static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<CompressionType>
         internalGetValueMap() {
       return internalValueMap;
     }
-    private static com.google.protobuf.Internal.EnumLiteMap<CompressionType>
+    private static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<CompressionType>
         internalValueMap =
-          new com.google.protobuf.Internal.EnumLiteMap<CompressionType>() {
+          new org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<CompressionType>() {
             public CompressionType findValueByNumber(int number) {
               return CompressionType.valueOf(number);
             }
@@ -53,7 +53,7 @@ public final class PulsarApi {
   }
   
   public enum ServerError
-      implements com.google.protobuf.Internal.EnumLite {
+      implements org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLite {
     UnknownError(0, 0),
     MetadataError(1, 1),
     PersistenceError(2, 2),
@@ -120,13 +120,13 @@ public final class PulsarApi {
       }
     }
     
-    public static com.google.protobuf.Internal.EnumLiteMap<ServerError>
+    public static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<ServerError>
         internalGetValueMap() {
       return internalValueMap;
     }
-    private static com.google.protobuf.Internal.EnumLiteMap<ServerError>
+    private static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<ServerError>
         internalValueMap =
-          new com.google.protobuf.Internal.EnumLiteMap<ServerError>() {
+          new org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<ServerError>() {
             public ServerError findValueByNumber(int number) {
               return ServerError.valueOf(number);
             }
@@ -142,7 +142,7 @@ public final class PulsarApi {
   }
   
   public enum AuthMethod
-      implements com.google.protobuf.Internal.EnumLite {
+      implements org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLite {
     AuthMethodNone(0, 0),
     AuthMethodYcaV1(1, 1),
     AuthMethodAthens(2, 2),
@@ -164,13 +164,13 @@ public final class PulsarApi {
       }
     }
     
-    public static com.google.protobuf.Internal.EnumLiteMap<AuthMethod>
+    public static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<AuthMethod>
         internalGetValueMap() {
       return internalValueMap;
     }
-    private static com.google.protobuf.Internal.EnumLiteMap<AuthMethod>
+    private static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<AuthMethod>
         internalValueMap =
-          new com.google.protobuf.Internal.EnumLiteMap<AuthMethod>() {
+          new org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<AuthMethod>() {
             public AuthMethod findValueByNumber(int number) {
               return AuthMethod.valueOf(number);
             }
@@ -186,7 +186,7 @@ public final class PulsarApi {
   }
   
   public enum ProtocolVersion
-      implements com.google.protobuf.Internal.EnumLite {
+      implements org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLite {
     v0(0, 0),
     v1(1, 1),
     v2(2, 2),
@@ -238,13 +238,13 @@ public final class PulsarApi {
       }
     }
     
-    public static com.google.protobuf.Internal.EnumLiteMap<ProtocolVersion>
+    public static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<ProtocolVersion>
         internalGetValueMap() {
       return internalValueMap;
     }
-    private static com.google.protobuf.Internal.EnumLiteMap<ProtocolVersion>
+    private static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<ProtocolVersion>
         internalValueMap =
-          new com.google.protobuf.Internal.EnumLiteMap<ProtocolVersion>() {
+          new org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<ProtocolVersion>() {
             public ProtocolVersion findValueByNumber(int number) {
               return ProtocolVersion.valueOf(number);
             }
@@ -260,7 +260,7 @@ public final class PulsarApi {
   }
   
   public interface SchemaOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required string name = 1;
     boolean hasName();
@@ -268,7 +268,7 @@ public final class PulsarApi {
     
     // required bytes schema_data = 3;
     boolean hasSchemaData();
-    com.google.protobuf.ByteString getSchemaData();
+    org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getSchemaData();
     
     // required .pulsar.proto.Schema.Type type = 4;
     boolean hasType();
@@ -281,16 +281,16 @@ public final class PulsarApi {
     int getPropertiesCount();
   }
   public static final class Schema extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements SchemaOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use Schema.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<Schema> handle;
-    private Schema(io.netty.util.Recycler.Handle<Schema> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private Schema(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<Schema> RECYCLER = new io.netty.util.Recycler<Schema>() {
-            protected Schema newObject(Handle<Schema> handle) {
+            protected Schema newObject(Handle handle) {
               return new Schema(handle);
             }
           };
@@ -300,12 +300,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private Schema(boolean noInit) {
-        this.handle = null;
-    }
+    private Schema(boolean noInit) {}
     
     private static final Schema defaultInstance;
     public static Schema getDefaultInstance() {
@@ -317,16 +315,18 @@ public final class PulsarApi {
     }
     
     public enum Type
-        implements com.google.protobuf.Internal.EnumLite {
-      Json(0, 1),
-      Protobuf(1, 2),
-      Thrift(2, 3),
-      Avro(3, 4),
+        implements org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLite {
+      None(0, 0),
+      String(1, 1),
+      Json(2, 2),
+      Protobuf(3, 3),
+      Avro(4, 4),
       ;
       
-      public static final int Json_VALUE = 1;
-      public static final int Protobuf_VALUE = 2;
-      public static final int Thrift_VALUE = 3;
+      public static final int None_VALUE = 0;
+      public static final int String_VALUE = 1;
+      public static final int Json_VALUE = 2;
+      public static final int Protobuf_VALUE = 3;
       public static final int Avro_VALUE = 4;
       
       
@@ -334,21 +334,22 @@ public final class PulsarApi {
       
       public static Type valueOf(int value) {
         switch (value) {
-          case 1: return Json;
-          case 2: return Protobuf;
-          case 3: return Thrift;
+          case 0: return None;
+          case 1: return String;
+          case 2: return Json;
+          case 3: return Protobuf;
           case 4: return Avro;
           default: return null;
         }
       }
       
-      public static com.google.protobuf.Internal.EnumLiteMap<Type>
+      public static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<Type>
           internalGetValueMap() {
         return internalValueMap;
       }
-      private static com.google.protobuf.Internal.EnumLiteMap<Type>
+      private static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<Type>
           internalValueMap =
-            new com.google.protobuf.Internal.EnumLiteMap<Type>() {
+            new org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<Type>() {
               public Type findValueByNumber(int number) {
                 return Type.valueOf(number);
               }
@@ -375,34 +376,34 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           name_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getNameBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getNameBytes() {
       java.lang.Object ref = name_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         name_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
     // required bytes schema_data = 3;
     public static final int SCHEMA_DATA_FIELD_NUMBER = 3;
-    private com.google.protobuf.ByteString schemaData_;
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString schemaData_;
     public boolean hasSchemaData() {
       return ((bitField0_ & 0x00000002) == 0x00000002);
     }
-    public com.google.protobuf.ByteString getSchemaData() {
+    public org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getSchemaData() {
       return schemaData_;
     }
     
@@ -439,8 +440,8 @@ public final class PulsarApi {
     
     private void initFields() {
       name_ = "";
-      schemaData_ = com.google.protobuf.ByteString.EMPTY;
-      type_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.Type.Json;
+      schemaData_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
+      type_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.Type.None;
       properties_ = java.util.Collections.emptyList();
     }
     private byte memoizedIsInitialized = -1;
@@ -470,7 +471,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -499,19 +500,19 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(1, getNameBytes());
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(3, schemaData_);
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeEnumSize(4, type_.getNumber());
       }
       for (int i = 0; i < properties_.size(); i++) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(5, properties_.get(i));
       }
       memoizedSerializedSize = size;
@@ -526,24 +527,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.Schema parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.Schema parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.Schema parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.Schema parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -553,7 +554,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.Schema parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -569,7 +570,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.Schema parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -579,13 +580,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.Schema parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.Schema parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -599,24 +600,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.Schema, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.SchemaOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.Schema.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -629,9 +630,9 @@ public final class PulsarApi {
         super.clear();
         name_ = "";
         bitField0_ = (bitField0_ & ~0x00000001);
-        schemaData_ = com.google.protobuf.ByteString.EMPTY;
+        schemaData_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
         bitField0_ = (bitField0_ & ~0x00000002);
-        type_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.Type.Json;
+        type_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.Type.None;
         bitField0_ = (bitField0_ & ~0x00000004);
         properties_ = java.util.Collections.emptyList();
         bitField0_ = (bitField0_ & ~0x00000008);
@@ -655,7 +656,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.Schema buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.Schema result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -735,14 +736,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -796,7 +797,7 @@ public final class PulsarApi {
       public String getName() {
         java.lang.Object ref = name_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           name_ = s;
           return s;
         } else {
@@ -818,21 +819,21 @@ public final class PulsarApi {
         
         return this;
       }
-      void setName(com.google.protobuf.ByteString value) {
+      void setName(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000001;
         name_ = value;
         
       }
       
       // required bytes schema_data = 3;
-      private com.google.protobuf.ByteString schemaData_ = com.google.protobuf.ByteString.EMPTY;
+      private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString schemaData_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
       public boolean hasSchemaData() {
         return ((bitField0_ & 0x00000002) == 0x00000002);
       }
-      public com.google.protobuf.ByteString getSchemaData() {
+      public org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getSchemaData() {
         return schemaData_;
       }
-      public Builder setSchemaData(com.google.protobuf.ByteString value) {
+      public Builder setSchemaData(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         if (value == null) {
     throw new NullPointerException();
   }
@@ -849,7 +850,7 @@ public final class PulsarApi {
       }
       
       // required .pulsar.proto.Schema.Type type = 4;
-      private org.apache.pulsar.common.api.proto.PulsarApi.Schema.Type type_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.Type.Json;
+      private org.apache.pulsar.common.api.proto.PulsarApi.Schema.Type type_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.Type.None;
       public boolean hasType() {
         return ((bitField0_ & 0x00000004) == 0x00000004);
       }
@@ -867,7 +868,7 @@ public final class PulsarApi {
       }
       public Builder clearType() {
         bitField0_ = (bitField0_ & ~0x00000004);
-        type_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.Type.Json;
+        type_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.Type.None;
         
         return this;
       }
@@ -973,7 +974,7 @@ public final class PulsarApi {
   }
   
   public interface MessageIdDataOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required uint64 ledgerId = 1;
     boolean hasLedgerId();
@@ -992,16 +993,16 @@ public final class PulsarApi {
     int getBatchIndex();
   }
   public static final class MessageIdData extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements MessageIdDataOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use MessageIdData.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<MessageIdData> handle;
-    private MessageIdData(io.netty.util.Recycler.Handle<MessageIdData> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private MessageIdData(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<MessageIdData> RECYCLER = new io.netty.util.Recycler<MessageIdData>() {
-            protected MessageIdData newObject(Handle<MessageIdData> handle) {
+            protected MessageIdData newObject(Handle handle) {
               return new MessageIdData(handle);
             }
           };
@@ -1011,12 +1012,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private MessageIdData(boolean noInit) {
-        this.handle = null;
-    }
+    private MessageIdData(boolean noInit) {}
     
     private static final MessageIdData defaultInstance;
     public static MessageIdData getDefaultInstance() {
@@ -1091,7 +1090,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -1120,19 +1119,19 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(1, ledgerId_);
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(2, entryId_);
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeInt32Size(3, partition_);
       }
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeInt32Size(4, batchIndex_);
       }
       memoizedSerializedSize = size;
@@ -1147,24 +1146,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -1174,7 +1173,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -1190,7 +1189,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -1200,13 +1199,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -1220,24 +1219,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.MessageIdDataOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -1276,7 +1275,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -1338,14 +1337,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -1482,7 +1481,7 @@ public final class PulsarApi {
   }
   
   public interface KeyValueOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required string key = 1;
     boolean hasKey();
@@ -1493,16 +1492,16 @@ public final class PulsarApi {
     String getValue();
   }
   public static final class KeyValue extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements KeyValueOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use KeyValue.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<KeyValue> handle;
-    private KeyValue(io.netty.util.Recycler.Handle<KeyValue> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private KeyValue(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<KeyValue> RECYCLER = new io.netty.util.Recycler<KeyValue>() {
-            protected KeyValue newObject(Handle<KeyValue> handle) {
+            protected KeyValue newObject(Handle handle) {
               return new KeyValue(handle);
             }
           };
@@ -1512,12 +1511,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private KeyValue(boolean noInit) {
-        this.handle = null;
-    }
+    private KeyValue(boolean noInit) {}
     
     private static final KeyValue defaultInstance;
     public static KeyValue getDefaultInstance() {
@@ -1540,24 +1537,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           key_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getKeyBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getKeyBytes() {
       java.lang.Object ref = key_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         key_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -1572,24 +1569,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           value_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getValueBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getValueBytes() {
       java.lang.Object ref = value_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         value_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -1614,7 +1611,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -1637,11 +1634,11 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(1, getKeyBytes());
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(2, getValueBytes());
       }
       memoizedSerializedSize = size;
@@ -1656,24 +1653,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.KeyValue parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.KeyValue parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.KeyValue parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.KeyValue parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -1683,7 +1680,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.KeyValue parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -1699,7 +1696,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.KeyValue parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -1709,13 +1706,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.KeyValue parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.KeyValue parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -1729,24 +1726,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.KeyValue, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.KeyValueOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.KeyValue.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -1781,7 +1778,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.KeyValue buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.KeyValue result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -1829,14 +1826,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -1875,7 +1872,7 @@ public final class PulsarApi {
       public String getKey() {
         java.lang.Object ref = key_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           key_ = s;
           return s;
         } else {
@@ -1897,7 +1894,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setKey(com.google.protobuf.ByteString value) {
+      void setKey(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000001;
         key_ = value;
         
@@ -1911,7 +1908,7 @@ public final class PulsarApi {
       public String getValue() {
         java.lang.Object ref = value_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           value_ = s;
           return s;
         } else {
@@ -1933,7 +1930,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setValue(com.google.protobuf.ByteString value) {
+      void setValue(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000002;
         value_ = value;
         
@@ -1951,7 +1948,7 @@ public final class PulsarApi {
   }
   
   public interface KeyLongValueOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required string key = 1;
     boolean hasKey();
@@ -1962,16 +1959,16 @@ public final class PulsarApi {
     long getValue();
   }
   public static final class KeyLongValue extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements KeyLongValueOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use KeyLongValue.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<KeyLongValue> handle;
-    private KeyLongValue(io.netty.util.Recycler.Handle<KeyLongValue> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private KeyLongValue(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<KeyLongValue> RECYCLER = new io.netty.util.Recycler<KeyLongValue>() {
-            protected KeyLongValue newObject(Handle<KeyLongValue> handle) {
+            protected KeyLongValue newObject(Handle handle) {
               return new KeyLongValue(handle);
             }
           };
@@ -1981,12 +1978,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private KeyLongValue(boolean noInit) {
-        this.handle = null;
-    }
+    private KeyLongValue(boolean noInit) {}
     
     private static final KeyLongValue defaultInstance;
     public static KeyLongValue getDefaultInstance() {
@@ -2009,24 +2004,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           key_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getKeyBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getKeyBytes() {
       java.lang.Object ref = key_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         key_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -2061,7 +2056,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -2084,11 +2079,11 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(1, getKeyBytes());
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(2, value_);
       }
       memoizedSerializedSize = size;
@@ -2103,24 +2098,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.KeyLongValue parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.KeyLongValue parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.KeyLongValue parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.KeyLongValue parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -2130,7 +2125,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.KeyLongValue parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -2146,7 +2141,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.KeyLongValue parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -2156,13 +2151,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.KeyLongValue parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.KeyLongValue parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -2176,24 +2171,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.KeyLongValue, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.KeyLongValueOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.KeyLongValue.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -2228,7 +2223,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.KeyLongValue buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.KeyLongValue result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -2276,14 +2271,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -2322,7 +2317,7 @@ public final class PulsarApi {
       public String getKey() {
         java.lang.Object ref = key_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           key_ = s;
           return s;
         } else {
@@ -2344,7 +2339,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setKey(com.google.protobuf.ByteString value) {
+      void setKey(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000001;
         key_ = value;
         
@@ -2383,7 +2378,7 @@ public final class PulsarApi {
   }
   
   public interface EncryptionKeysOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required string key = 1;
     boolean hasKey();
@@ -2391,7 +2386,7 @@ public final class PulsarApi {
     
     // required bytes value = 2;
     boolean hasValue();
-    com.google.protobuf.ByteString getValue();
+    org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getValue();
     
     // repeated .pulsar.proto.KeyValue metadata = 3;
     java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue> 
@@ -2400,16 +2395,16 @@ public final class PulsarApi {
     int getMetadataCount();
   }
   public static final class EncryptionKeys extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements EncryptionKeysOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use EncryptionKeys.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<EncryptionKeys> handle;
-    private EncryptionKeys(io.netty.util.Recycler.Handle<EncryptionKeys> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private EncryptionKeys(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<EncryptionKeys> RECYCLER = new io.netty.util.Recycler<EncryptionKeys>() {
-            protected EncryptionKeys newObject(Handle<EncryptionKeys> handle) {
+            protected EncryptionKeys newObject(Handle handle) {
               return new EncryptionKeys(handle);
             }
           };
@@ -2419,12 +2414,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private EncryptionKeys(boolean noInit) {
-        this.handle = null;
-    }
+    private EncryptionKeys(boolean noInit) {}
     
     private static final EncryptionKeys defaultInstance;
     public static EncryptionKeys getDefaultInstance() {
@@ -2447,34 +2440,34 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           key_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getKeyBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getKeyBytes() {
       java.lang.Object ref = key_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         key_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
     // required bytes value = 2;
     public static final int VALUE_FIELD_NUMBER = 2;
-    private com.google.protobuf.ByteString value_;
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value_;
     public boolean hasValue() {
       return ((bitField0_ & 0x00000002) == 0x00000002);
     }
-    public com.google.protobuf.ByteString getValue() {
+    public org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getValue() {
       return value_;
     }
     
@@ -2501,7 +2494,7 @@ public final class PulsarApi {
     
     private void initFields() {
       key_ = "";
-      value_ = com.google.protobuf.ByteString.EMPTY;
+      value_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
       metadata_ = java.util.Collections.emptyList();
     }
     private byte memoizedIsInitialized = -1;
@@ -2527,7 +2520,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -2553,15 +2546,15 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(1, getKeyBytes());
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(2, value_);
       }
       for (int i = 0; i < metadata_.size(); i++) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(3, metadata_.get(i));
       }
       memoizedSerializedSize = size;
@@ -2576,24 +2569,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -2603,7 +2596,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -2619,7 +2612,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -2629,13 +2622,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -2649,24 +2642,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeysOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -2679,7 +2672,7 @@ public final class PulsarApi {
         super.clear();
         key_ = "";
         bitField0_ = (bitField0_ & ~0x00000001);
-        value_ = com.google.protobuf.ByteString.EMPTY;
+        value_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
         bitField0_ = (bitField0_ & ~0x00000002);
         metadata_ = java.util.Collections.emptyList();
         bitField0_ = (bitField0_ & ~0x00000004);
@@ -2703,7 +2696,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -2772,14 +2765,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -2824,7 +2817,7 @@ public final class PulsarApi {
       public String getKey() {
         java.lang.Object ref = key_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           key_ = s;
           return s;
         } else {
@@ -2846,21 +2839,21 @@ public final class PulsarApi {
         
         return this;
       }
-      void setKey(com.google.protobuf.ByteString value) {
+      void setKey(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000001;
         key_ = value;
         
       }
       
       // required bytes value = 2;
-      private com.google.protobuf.ByteString value_ = com.google.protobuf.ByteString.EMPTY;
+      private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
       public boolean hasValue() {
         return ((bitField0_ & 0x00000002) == 0x00000002);
       }
-      public com.google.protobuf.ByteString getValue() {
+      public org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getValue() {
         return value_;
       }
-      public Builder setValue(com.google.protobuf.ByteString value) {
+      public Builder setValue(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         if (value == null) {
     throw new NullPointerException();
   }
@@ -2977,7 +2970,7 @@ public final class PulsarApi {
   }
   
   public interface MessageMetadataOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required string producer_name = 1;
     boolean hasProducerName();
@@ -3038,23 +3031,23 @@ public final class PulsarApi {
     
     // optional bytes encryption_param = 15;
     boolean hasEncryptionParam();
-    com.google.protobuf.ByteString getEncryptionParam();
+    org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getEncryptionParam();
     
     // optional bytes schema_version = 16;
     boolean hasSchemaVersion();
-    com.google.protobuf.ByteString getSchemaVersion();
+    org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getSchemaVersion();
   }
   public static final class MessageMetadata extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements MessageMetadataOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use MessageMetadata.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<MessageMetadata> handle;
-    private MessageMetadata(io.netty.util.Recycler.Handle<MessageMetadata> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private MessageMetadata(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<MessageMetadata> RECYCLER = new io.netty.util.Recycler<MessageMetadata>() {
-            protected MessageMetadata newObject(Handle<MessageMetadata> handle) {
+            protected MessageMetadata newObject(Handle handle) {
               return new MessageMetadata(handle);
             }
           };
@@ -3064,12 +3057,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private MessageMetadata(boolean noInit) {
-        this.handle = null;
-    }
+    private MessageMetadata(boolean noInit) {}
     
     private static final MessageMetadata defaultInstance;
     public static MessageMetadata getDefaultInstance() {
@@ -3092,24 +3083,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           producerName_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getProducerNameBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getProducerNameBytes() {
       java.lang.Object ref = producerName_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         producerName_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -3165,24 +3156,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           replicatedFrom_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getReplicatedFromBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getReplicatedFromBytes() {
       java.lang.Object ref = replicatedFrom_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         replicatedFrom_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -3197,30 +3188,30 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           partitionKey_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getPartitionKeyBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getPartitionKeyBytes() {
       java.lang.Object ref = partitionKey_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         partitionKey_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
     // repeated string replicate_to = 7;
     public static final int REPLICATE_TO_FIELD_NUMBER = 7;
-    private com.google.protobuf.LazyStringList replicateTo_;
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.LazyStringList replicateTo_;
     public java.util.List<String>
         getReplicateToList() {
       return replicateTo_;
@@ -3304,44 +3295,44 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           encryptionAlgo_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getEncryptionAlgoBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getEncryptionAlgoBytes() {
       java.lang.Object ref = encryptionAlgo_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         encryptionAlgo_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
     // optional bytes encryption_param = 15;
     public static final int ENCRYPTION_PARAM_FIELD_NUMBER = 15;
-    private com.google.protobuf.ByteString encryptionParam_;
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString encryptionParam_;
     public boolean hasEncryptionParam() {
       return ((bitField0_ & 0x00000400) == 0x00000400);
     }
-    public com.google.protobuf.ByteString getEncryptionParam() {
+    public org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getEncryptionParam() {
       return encryptionParam_;
     }
     
     // optional bytes schema_version = 16;
     public static final int SCHEMA_VERSION_FIELD_NUMBER = 16;
-    private com.google.protobuf.ByteString schemaVersion_;
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString schemaVersion_;
     public boolean hasSchemaVersion() {
       return ((bitField0_ & 0x00000800) == 0x00000800);
     }
-    public com.google.protobuf.ByteString getSchemaVersion() {
+    public org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getSchemaVersion() {
       return schemaVersion_;
     }
     
@@ -3352,15 +3343,15 @@ public final class PulsarApi {
       properties_ = java.util.Collections.emptyList();
       replicatedFrom_ = "";
       partitionKey_ = "";
-      replicateTo_ = com.google.protobuf.LazyStringArrayList.EMPTY;
+      replicateTo_ = org.apache.pulsar.shaded.com.google.protobuf.v241.LazyStringArrayList.EMPTY;
       compression_ = org.apache.pulsar.common.api.proto.PulsarApi.CompressionType.NONE;
       uncompressedSize_ = 0;
       numMessagesInBatch_ = 1;
       eventTime_ = 0L;
       encryptionKeys_ = java.util.Collections.emptyList();
       encryptionAlgo_ = "";
-      encryptionParam_ = com.google.protobuf.ByteString.EMPTY;
-      schemaVersion_ = com.google.protobuf.ByteString.EMPTY;
+      encryptionParam_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
+      schemaVersion_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -3395,7 +3386,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -3457,68 +3448,68 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(1, getProducerNameBytes());
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(2, sequenceId_);
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(3, publishTime_);
       }
       for (int i = 0; i < properties_.size(); i++) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(4, properties_.get(i));
       }
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(5, getReplicatedFromBytes());
       }
       if (((bitField0_ & 0x00000010) == 0x00000010)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(6, getPartitionKeyBytes());
       }
       {
         int dataSize = 0;
         for (int i = 0; i < replicateTo_.size(); i++) {
-          dataSize += com.google.protobuf.CodedOutputStream
+          dataSize += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
             .computeBytesSizeNoTag(replicateTo_.getByteString(i));
         }
         size += dataSize;
         size += 1 * getReplicateToList().size();
       }
       if (((bitField0_ & 0x00000020) == 0x00000020)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeEnumSize(8, compression_.getNumber());
       }
       if (((bitField0_ & 0x00000040) == 0x00000040)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt32Size(9, uncompressedSize_);
       }
       if (((bitField0_ & 0x00000080) == 0x00000080)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeInt32Size(11, numMessagesInBatch_);
       }
       if (((bitField0_ & 0x00000100) == 0x00000100)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(12, eventTime_);
       }
       for (int i = 0; i < encryptionKeys_.size(); i++) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(13, encryptionKeys_.get(i));
       }
       if (((bitField0_ & 0x00000200) == 0x00000200)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(14, getEncryptionAlgoBytes());
       }
       if (((bitField0_ & 0x00000400) == 0x00000400)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(15, encryptionParam_);
       }
       if (((bitField0_ & 0x00000800) == 0x00000800)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(16, schemaVersion_);
       }
       memoizedSerializedSize = size;
@@ -3533,24 +3524,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -3560,7 +3551,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -3576,7 +3567,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -3586,13 +3577,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -3606,24 +3597,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadataOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -3646,7 +3637,7 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000010);
         partitionKey_ = "";
         bitField0_ = (bitField0_ & ~0x00000020);
-        replicateTo_ = com.google.protobuf.LazyStringArrayList.EMPTY;
+        replicateTo_ = org.apache.pulsar.shaded.com.google.protobuf.v241.LazyStringArrayList.EMPTY;
         bitField0_ = (bitField0_ & ~0x00000040);
         compression_ = org.apache.pulsar.common.api.proto.PulsarApi.CompressionType.NONE;
         bitField0_ = (bitField0_ & ~0x00000080);
@@ -3660,9 +3651,9 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000800);
         encryptionAlgo_ = "";
         bitField0_ = (bitField0_ & ~0x00001000);
-        encryptionParam_ = com.google.protobuf.ByteString.EMPTY;
+        encryptionParam_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
         bitField0_ = (bitField0_ & ~0x00002000);
-        schemaVersion_ = com.google.protobuf.ByteString.EMPTY;
+        schemaVersion_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
         bitField0_ = (bitField0_ & ~0x00004000);
         return this;
       }
@@ -3684,7 +3675,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -3723,7 +3714,7 @@ public final class PulsarApi {
         }
         result.partitionKey_ = partitionKey_;
         if (((bitField0_ & 0x00000040) == 0x00000040)) {
-          replicateTo_ = new com.google.protobuf.UnmodifiableLazyStringList(
+          replicateTo_ = new org.apache.pulsar.shaded.com.google.protobuf.v241.UnmodifiableLazyStringList(
               replicateTo_);
           bitField0_ = (bitField0_ & ~0x00000040);
         }
@@ -3864,14 +3855,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -3981,7 +3972,7 @@ public final class PulsarApi {
       public String getProducerName() {
         java.lang.Object ref = producerName_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           producerName_ = s;
           return s;
         } else {
@@ -4003,7 +3994,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setProducerName(com.google.protobuf.ByteString value) {
+      void setProducerName(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000001;
         producerName_ = value;
         
@@ -4148,7 +4139,7 @@ public final class PulsarApi {
       public String getReplicatedFrom() {
         java.lang.Object ref = replicatedFrom_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           replicatedFrom_ = s;
           return s;
         } else {
@@ -4170,7 +4161,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setReplicatedFrom(com.google.protobuf.ByteString value) {
+      void setReplicatedFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000010;
         replicatedFrom_ = value;
         
@@ -4184,7 +4175,7 @@ public final class PulsarApi {
       public String getPartitionKey() {
         java.lang.Object ref = partitionKey_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           partitionKey_ = s;
           return s;
         } else {
@@ -4206,17 +4197,17 @@ public final class PulsarApi {
         
         return this;
       }
-      void setPartitionKey(com.google.protobuf.ByteString value) {
+      void setPartitionKey(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000020;
         partitionKey_ = value;
         
       }
       
       // repeated string replicate_to = 7;
-      private com.google.protobuf.LazyStringList replicateTo_ = com.google.protobuf.LazyStringArrayList.EMPTY;
+      private org.apache.pulsar.shaded.com.google.protobuf.v241.LazyStringList replicateTo_ = org.apache.pulsar.shaded.com.google.protobuf.v241.LazyStringArrayList.EMPTY;
       private void ensureReplicateToIsMutable() {
         if (!((bitField0_ & 0x00000040) == 0x00000040)) {
-          replicateTo_ = new com.google.protobuf.LazyStringArrayList(replicateTo_);
+          replicateTo_ = new org.apache.pulsar.shaded.com.google.protobuf.v241.LazyStringArrayList(replicateTo_);
           bitField0_ |= 0x00000040;
          }
       }
@@ -4257,12 +4248,12 @@ public final class PulsarApi {
         return this;
       }
       public Builder clearReplicateTo() {
-        replicateTo_ = com.google.protobuf.LazyStringArrayList.EMPTY;
+        replicateTo_ = org.apache.pulsar.shaded.com.google.protobuf.v241.LazyStringArrayList.EMPTY;
         bitField0_ = (bitField0_ & ~0x00000040);
         
         return this;
       }
-      void addReplicateTo(com.google.protobuf.ByteString value) {
+      void addReplicateTo(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         ensureReplicateToIsMutable();
         replicateTo_.add(value);
         
@@ -4452,7 +4443,7 @@ public final class PulsarApi {
       public String getEncryptionAlgo() {
         java.lang.Object ref = encryptionAlgo_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           encryptionAlgo_ = s;
           return s;
         } else {
@@ -4474,21 +4465,21 @@ public final class PulsarApi {
         
         return this;
       }
-      void setEncryptionAlgo(com.google.protobuf.ByteString value) {
+      void setEncryptionAlgo(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00001000;
         encryptionAlgo_ = value;
         
       }
       
       // optional bytes encryption_param = 15;
-      private com.google.protobuf.ByteString encryptionParam_ = com.google.protobuf.ByteString.EMPTY;
+      private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString encryptionParam_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
       public boolean hasEncryptionParam() {
         return ((bitField0_ & 0x00002000) == 0x00002000);
       }
-      public com.google.protobuf.ByteString getEncryptionParam() {
+      public org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getEncryptionParam() {
         return encryptionParam_;
       }
-      public Builder setEncryptionParam(com.google.protobuf.ByteString value) {
+      public Builder setEncryptionParam(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         if (value == null) {
     throw new NullPointerException();
   }
@@ -4505,14 +4496,14 @@ public final class PulsarApi {
       }
       
       // optional bytes schema_version = 16;
-      private com.google.protobuf.ByteString schemaVersion_ = com.google.protobuf.ByteString.EMPTY;
+      private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString schemaVersion_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
       public boolean hasSchemaVersion() {
         return ((bitField0_ & 0x00004000) == 0x00004000);
       }
-      public com.google.protobuf.ByteString getSchemaVersion() {
+      public org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getSchemaVersion() {
         return schemaVersion_;
       }
-      public Builder setSchemaVersion(com.google.protobuf.ByteString value) {
+      public Builder setSchemaVersion(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         if (value == null) {
     throw new NullPointerException();
   }
@@ -4540,7 +4531,7 @@ public final class PulsarApi {
   }
   
   public interface SingleMessageMetadataOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // repeated .pulsar.proto.KeyValue properties = 1;
     java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue> 
@@ -4559,18 +4550,22 @@ public final class PulsarApi {
     // optional bool compacted_out = 4 [default = false];
     boolean hasCompactedOut();
     boolean getCompactedOut();
+    
+    // optional uint64 event_time = 5 [default = 0];
+    boolean hasEventTime();
+    long getEventTime();
   }
   public static final class SingleMessageMetadata extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements SingleMessageMetadataOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use SingleMessageMetadata.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<SingleMessageMetadata> handle;
-    private SingleMessageMetadata(io.netty.util.Recycler.Handle<SingleMessageMetadata> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private SingleMessageMetadata(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<SingleMessageMetadata> RECYCLER = new io.netty.util.Recycler<SingleMessageMetadata>() {
-            protected SingleMessageMetadata newObject(Handle<SingleMessageMetadata> handle) {
+            protected SingleMessageMetadata newObject(Handle handle) {
               return new SingleMessageMetadata(handle);
             }
           };
@@ -4580,12 +4575,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private SingleMessageMetadata(boolean noInit) {
-        this.handle = null;
-    }
+    private SingleMessageMetadata(boolean noInit) {}
     
     private static final SingleMessageMetadata defaultInstance;
     public static SingleMessageMetadata getDefaultInstance() {
@@ -4629,24 +4622,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           partitionKey_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getPartitionKeyBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getPartitionKeyBytes() {
       java.lang.Object ref = partitionKey_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         partitionKey_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -4670,11 +4663,22 @@ public final class PulsarApi {
       return compactedOut_;
     }
     
+    // optional uint64 event_time = 5 [default = 0];
+    public static final int EVENT_TIME_FIELD_NUMBER = 5;
+    private long eventTime_;
+    public boolean hasEventTime() {
+      return ((bitField0_ & 0x00000008) == 0x00000008);
+    }
+    public long getEventTime() {
+      return eventTime_;
+    }
+    
     private void initFields() {
       properties_ = java.util.Collections.emptyList();
       partitionKey_ = "";
       payloadSize_ = 0;
       compactedOut_ = false;
+      eventTime_ = 0L;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -4695,7 +4699,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -4715,6 +4719,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
         output.writeBool(4, compactedOut_);
       }
+      if (((bitField0_ & 0x00000008) == 0x00000008)) {
+        output.writeUInt64(5, eventTime_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -4724,20 +4731,24 @@ public final class PulsarApi {
     
       size = 0;
       for (int i = 0; i < properties_.size(); i++) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(1, properties_.get(i));
       }
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(2, getPartitionKeyBytes());
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeInt32Size(3, payloadSize_);
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBoolSize(4, compactedOut_);
+      }
+      if (((bitField0_ & 0x00000008) == 0x00000008)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeUInt64Size(5, eventTime_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -4751,24 +4762,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadata parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadata parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadata parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadata parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -4778,7 +4789,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadata parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -4794,7 +4805,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadata parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -4804,13 +4815,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadata parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadata parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -4824,24 +4835,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadata, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadataOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadata.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -4860,6 +4871,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000004);
         compactedOut_ = false;
         bitField0_ = (bitField0_ & ~0x00000008);
+        eventTime_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000010);
         return this;
       }
       
@@ -4880,7 +4893,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadata buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadata result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -4910,6 +4923,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000004;
         }
         result.compactedOut_ = compactedOut_;
+        if (((from_bitField0_ & 0x00000010) == 0x00000010)) {
+          to_bitField0_ |= 0x00000008;
+        }
+        result.eventTime_ = eventTime_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -4935,6 +4952,9 @@ public final class PulsarApi {
         if (other.hasCompactedOut()) {
           setCompactedOut(other.getCompactedOut());
         }
+        if (other.hasEventTime()) {
+          setEventTime(other.getEventTime());
+        }
         return this;
       }
       
@@ -4952,14 +4972,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -4993,6 +5013,11 @@ public final class PulsarApi {
             case 32: {
               bitField0_ |= 0x00000008;
               compactedOut_ = input.readBool();
+              break;
+            }
+            case 40: {
+              bitField0_ |= 0x00000010;
+              eventTime_ = input.readUInt64();
               break;
             }
           }
@@ -5098,7 +5123,7 @@ public final class PulsarApi {
       public String getPartitionKey() {
         java.lang.Object ref = partitionKey_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           partitionKey_ = s;
           return s;
         } else {
@@ -5120,7 +5145,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setPartitionKey(com.google.protobuf.ByteString value) {
+      void setPartitionKey(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000002;
         partitionKey_ = value;
         
@@ -5168,6 +5193,27 @@ public final class PulsarApi {
         return this;
       }
       
+      // optional uint64 event_time = 5 [default = 0];
+      private long eventTime_ ;
+      public boolean hasEventTime() {
+        return ((bitField0_ & 0x00000010) == 0x00000010);
+      }
+      public long getEventTime() {
+        return eventTime_;
+      }
+      public Builder setEventTime(long value) {
+        bitField0_ |= 0x00000010;
+        eventTime_ = value;
+        
+        return this;
+      }
+      public Builder clearEventTime() {
+        bitField0_ = (bitField0_ & ~0x00000010);
+        eventTime_ = 0L;
+        
+        return this;
+      }
+      
       // @@protoc_insertion_point(builder_scope:pulsar.proto.SingleMessageMetadata)
     }
     
@@ -5180,7 +5226,7 @@ public final class PulsarApi {
   }
   
   public interface CommandConnectOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required string client_version = 1;
     boolean hasClientVersion();
@@ -5196,7 +5242,7 @@ public final class PulsarApi {
     
     // optional bytes auth_data = 3;
     boolean hasAuthData();
-    com.google.protobuf.ByteString getAuthData();
+    org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getAuthData();
     
     // optional int32 protocol_version = 4 [default = 0];
     boolean hasProtocolVersion();
@@ -5219,16 +5265,16 @@ public final class PulsarApi {
     String getOriginalAuthMethod();
   }
   public static final class CommandConnect extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements CommandConnectOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandConnect.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<CommandConnect> handle;
-    private CommandConnect(io.netty.util.Recycler.Handle<CommandConnect> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private CommandConnect(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandConnect> RECYCLER = new io.netty.util.Recycler<CommandConnect>() {
-            protected CommandConnect newObject(Handle<CommandConnect> handle) {
+            protected CommandConnect newObject(Handle handle) {
               return new CommandConnect(handle);
             }
           };
@@ -5238,12 +5284,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private CommandConnect(boolean noInit) {
-        this.handle = null;
-    }
+    private CommandConnect(boolean noInit) {}
     
     private static final CommandConnect defaultInstance;
     public static CommandConnect getDefaultInstance() {
@@ -5266,24 +5310,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           clientVersion_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getClientVersionBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getClientVersionBytes() {
       java.lang.Object ref = clientVersion_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         clientVersion_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -5308,34 +5352,34 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           authMethodName_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getAuthMethodNameBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getAuthMethodNameBytes() {
       java.lang.Object ref = authMethodName_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         authMethodName_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
     // optional bytes auth_data = 3;
     public static final int AUTH_DATA_FIELD_NUMBER = 3;
-    private com.google.protobuf.ByteString authData_;
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString authData_;
     public boolean hasAuthData() {
       return ((bitField0_ & 0x00000008) == 0x00000008);
     }
-    public com.google.protobuf.ByteString getAuthData() {
+    public org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getAuthData() {
       return authData_;
     }
     
@@ -5360,24 +5404,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           proxyToBrokerUrl_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getProxyToBrokerUrlBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getProxyToBrokerUrlBytes() {
       java.lang.Object ref = proxyToBrokerUrl_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         proxyToBrokerUrl_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -5392,24 +5436,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           originalPrincipal_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getOriginalPrincipalBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getOriginalPrincipalBytes() {
       java.lang.Object ref = originalPrincipal_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         originalPrincipal_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -5424,24 +5468,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           originalAuthData_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getOriginalAuthDataBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getOriginalAuthDataBytes() {
       java.lang.Object ref = originalAuthData_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         originalAuthData_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -5456,24 +5500,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           originalAuthMethod_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getOriginalAuthMethodBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getOriginalAuthMethodBytes() {
       java.lang.Object ref = originalAuthMethod_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         originalAuthMethod_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -5481,7 +5525,7 @@ public final class PulsarApi {
       clientVersion_ = "";
       authMethod_ = org.apache.pulsar.common.api.proto.PulsarApi.AuthMethod.AuthMethodNone;
       authMethodName_ = "";
-      authData_ = com.google.protobuf.ByteString.EMPTY;
+      authData_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
       protocolVersion_ = 0;
       proxyToBrokerUrl_ = "";
       originalPrincipal_ = "";
@@ -5501,7 +5545,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -5545,39 +5589,39 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(1, getClientVersionBytes());
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeEnumSize(2, authMethod_.getNumber());
       }
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(3, authData_);
       }
       if (((bitField0_ & 0x00000010) == 0x00000010)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeInt32Size(4, protocolVersion_);
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(5, getAuthMethodNameBytes());
       }
       if (((bitField0_ & 0x00000020) == 0x00000020)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(6, getProxyToBrokerUrlBytes());
       }
       if (((bitField0_ & 0x00000040) == 0x00000040)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(7, getOriginalPrincipalBytes());
       }
       if (((bitField0_ & 0x00000080) == 0x00000080)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(8, getOriginalAuthDataBytes());
       }
       if (((bitField0_ & 0x00000100) == 0x00000100)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(9, getOriginalAuthMethodBytes());
       }
       memoizedSerializedSize = size;
@@ -5592,24 +5636,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -5619,7 +5663,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -5635,7 +5679,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -5645,13 +5689,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -5665,24 +5709,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandConnectOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -5699,7 +5743,7 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000002);
         authMethodName_ = "";
         bitField0_ = (bitField0_ & ~0x00000004);
-        authData_ = com.google.protobuf.ByteString.EMPTY;
+        authData_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
         bitField0_ = (bitField0_ & ~0x00000008);
         protocolVersion_ = 0;
         bitField0_ = (bitField0_ & ~0x00000010);
@@ -5731,7 +5775,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -5824,14 +5868,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -5909,7 +5953,7 @@ public final class PulsarApi {
       public String getClientVersion() {
         java.lang.Object ref = clientVersion_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           clientVersion_ = s;
           return s;
         } else {
@@ -5931,7 +5975,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setClientVersion(com.google.protobuf.ByteString value) {
+      void setClientVersion(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000001;
         clientVersion_ = value;
         
@@ -5969,7 +6013,7 @@ public final class PulsarApi {
       public String getAuthMethodName() {
         java.lang.Object ref = authMethodName_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           authMethodName_ = s;
           return s;
         } else {
@@ -5991,21 +6035,21 @@ public final class PulsarApi {
         
         return this;
       }
-      void setAuthMethodName(com.google.protobuf.ByteString value) {
+      void setAuthMethodName(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000004;
         authMethodName_ = value;
         
       }
       
       // optional bytes auth_data = 3;
-      private com.google.protobuf.ByteString authData_ = com.google.protobuf.ByteString.EMPTY;
+      private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString authData_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
       public boolean hasAuthData() {
         return ((bitField0_ & 0x00000008) == 0x00000008);
       }
-      public com.google.protobuf.ByteString getAuthData() {
+      public org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getAuthData() {
         return authData_;
       }
-      public Builder setAuthData(com.google.protobuf.ByteString value) {
+      public Builder setAuthData(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         if (value == null) {
     throw new NullPointerException();
   }
@@ -6050,7 +6094,7 @@ public final class PulsarApi {
       public String getProxyToBrokerUrl() {
         java.lang.Object ref = proxyToBrokerUrl_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           proxyToBrokerUrl_ = s;
           return s;
         } else {
@@ -6072,7 +6116,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setProxyToBrokerUrl(com.google.protobuf.ByteString value) {
+      void setProxyToBrokerUrl(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000020;
         proxyToBrokerUrl_ = value;
         
@@ -6086,7 +6130,7 @@ public final class PulsarApi {
       public String getOriginalPrincipal() {
         java.lang.Object ref = originalPrincipal_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           originalPrincipal_ = s;
           return s;
         } else {
@@ -6108,7 +6152,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setOriginalPrincipal(com.google.protobuf.ByteString value) {
+      void setOriginalPrincipal(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000040;
         originalPrincipal_ = value;
         
@@ -6122,7 +6166,7 @@ public final class PulsarApi {
       public String getOriginalAuthData() {
         java.lang.Object ref = originalAuthData_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           originalAuthData_ = s;
           return s;
         } else {
@@ -6144,7 +6188,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setOriginalAuthData(com.google.protobuf.ByteString value) {
+      void setOriginalAuthData(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000080;
         originalAuthData_ = value;
         
@@ -6158,7 +6202,7 @@ public final class PulsarApi {
       public String getOriginalAuthMethod() {
         java.lang.Object ref = originalAuthMethod_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           originalAuthMethod_ = s;
           return s;
         } else {
@@ -6180,7 +6224,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setOriginalAuthMethod(com.google.protobuf.ByteString value) {
+      void setOriginalAuthMethod(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000100;
         originalAuthMethod_ = value;
         
@@ -6198,7 +6242,7 @@ public final class PulsarApi {
   }
   
   public interface CommandConnectedOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required string server_version = 1;
     boolean hasServerVersion();
@@ -6209,16 +6253,16 @@ public final class PulsarApi {
     int getProtocolVersion();
   }
   public static final class CommandConnected extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements CommandConnectedOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandConnected.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<CommandConnected> handle;
-    private CommandConnected(io.netty.util.Recycler.Handle<CommandConnected> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private CommandConnected(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandConnected> RECYCLER = new io.netty.util.Recycler<CommandConnected>() {
-            protected CommandConnected newObject(Handle<CommandConnected> handle) {
+            protected CommandConnected newObject(Handle handle) {
               return new CommandConnected(handle);
             }
           };
@@ -6228,12 +6272,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private CommandConnected(boolean noInit) {
-        this.handle = null;
-    }
+    private CommandConnected(boolean noInit) {}
     
     private static final CommandConnected defaultInstance;
     public static CommandConnected getDefaultInstance() {
@@ -6256,24 +6298,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           serverVersion_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getServerVersionBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getServerVersionBytes() {
       java.lang.Object ref = serverVersion_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         serverVersion_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -6304,7 +6346,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -6327,11 +6369,11 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(1, getServerVersionBytes());
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeInt32Size(2, protocolVersion_);
       }
       memoizedSerializedSize = size;
@@ -6346,24 +6388,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -6373,7 +6415,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -6389,7 +6431,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -6399,13 +6441,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -6419,24 +6461,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandConnectedOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -6471,7 +6513,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -6515,14 +6557,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -6561,7 +6603,7 @@ public final class PulsarApi {
       public String getServerVersion() {
         java.lang.Object ref = serverVersion_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           serverVersion_ = s;
           return s;
         } else {
@@ -6583,7 +6625,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setServerVersion(com.google.protobuf.ByteString value) {
+      void setServerVersion(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000001;
         serverVersion_ = value;
         
@@ -6622,7 +6664,7 @@ public final class PulsarApi {
   }
   
   public interface CommandSubscribeOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required string topic = 1;
     boolean hasTopic();
@@ -6679,16 +6721,16 @@ public final class PulsarApi {
     org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition getInitialPosition();
   }
   public static final class CommandSubscribe extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements CommandSubscribeOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandSubscribe.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<CommandSubscribe> handle;
-    private CommandSubscribe(io.netty.util.Recycler.Handle<CommandSubscribe> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private CommandSubscribe(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandSubscribe> RECYCLER = new io.netty.util.Recycler<CommandSubscribe>() {
-            protected CommandSubscribe newObject(Handle<CommandSubscribe> handle) {
+            protected CommandSubscribe newObject(Handle handle) {
               return new CommandSubscribe(handle);
             }
           };
@@ -6698,12 +6740,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private CommandSubscribe(boolean noInit) {
-        this.handle = null;
-    }
+    private CommandSubscribe(boolean noInit) {}
     
     private static final CommandSubscribe defaultInstance;
     public static CommandSubscribe getDefaultInstance() {
@@ -6715,7 +6755,7 @@ public final class PulsarApi {
     }
     
     public enum SubType
-        implements com.google.protobuf.Internal.EnumLite {
+        implements org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLite {
       Exclusive(0, 0),
       Shared(1, 1),
       Failover(2, 2),
@@ -6737,13 +6777,13 @@ public final class PulsarApi {
         }
       }
       
-      public static com.google.protobuf.Internal.EnumLiteMap<SubType>
+      public static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<SubType>
           internalGetValueMap() {
         return internalValueMap;
       }
-      private static com.google.protobuf.Internal.EnumLiteMap<SubType>
+      private static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<SubType>
           internalValueMap =
-            new com.google.protobuf.Internal.EnumLiteMap<SubType>() {
+            new org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<SubType>() {
               public SubType findValueByNumber(int number) {
                 return SubType.valueOf(number);
               }
@@ -6759,7 +6799,7 @@ public final class PulsarApi {
     }
     
     public enum InitialPosition
-        implements com.google.protobuf.Internal.EnumLite {
+        implements org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLite {
       Latest(0, 0),
       Earliest(1, 1),
       ;
@@ -6778,13 +6818,13 @@ public final class PulsarApi {
         }
       }
       
-      public static com.google.protobuf.Internal.EnumLiteMap<InitialPosition>
+      public static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<InitialPosition>
           internalGetValueMap() {
         return internalValueMap;
       }
-      private static com.google.protobuf.Internal.EnumLiteMap<InitialPosition>
+      private static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<InitialPosition>
           internalValueMap =
-            new com.google.protobuf.Internal.EnumLiteMap<InitialPosition>() {
+            new org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<InitialPosition>() {
               public InitialPosition findValueByNumber(int number) {
                 return InitialPosition.valueOf(number);
               }
@@ -6811,24 +6851,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           topic_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getTopicBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getTopicBytes() {
       java.lang.Object ref = topic_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         topic_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -6843,24 +6883,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           subscription_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getSubscriptionBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getSubscriptionBytes() {
       java.lang.Object ref = subscription_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         subscription_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -6905,24 +6945,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           consumerName_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getConsumerNameBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getConsumerNameBytes() {
       java.lang.Object ref = consumerName_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         consumerName_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -7069,7 +7109,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -7125,55 +7165,55 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(1, getTopicBytes());
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(2, getSubscriptionBytes());
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeEnumSize(3, subType_.getNumber());
       }
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(4, consumerId_);
       }
       if (((bitField0_ & 0x00000010) == 0x00000010)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(5, requestId_);
       }
       if (((bitField0_ & 0x00000020) == 0x00000020)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(6, getConsumerNameBytes());
       }
       if (((bitField0_ & 0x00000040) == 0x00000040)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeInt32Size(7, priorityLevel_);
       }
       if (((bitField0_ & 0x00000080) == 0x00000080)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBoolSize(8, durable_);
       }
       if (((bitField0_ & 0x00000100) == 0x00000100)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(9, startMessageId_);
       }
       for (int i = 0; i < metadata_.size(); i++) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(10, metadata_.get(i));
       }
       if (((bitField0_ & 0x00000200) == 0x00000200)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBoolSize(11, readCompacted_);
       }
       if (((bitField0_ & 0x00000400) == 0x00000400)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(12, schema_);
       }
       if (((bitField0_ & 0x00000800) == 0x00000800)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeEnumSize(13, initialPosition_.getNumber());
       }
       memoizedSerializedSize = size;
@@ -7188,24 +7228,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -7215,7 +7255,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -7231,7 +7271,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -7241,13 +7281,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -7261,24 +7301,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribeOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -7335,7 +7375,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -7498,14 +7538,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -7618,7 +7658,7 @@ public final class PulsarApi {
       public String getTopic() {
         java.lang.Object ref = topic_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           topic_ = s;
           return s;
         } else {
@@ -7640,7 +7680,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setTopic(com.google.protobuf.ByteString value) {
+      void setTopic(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000001;
         topic_ = value;
         
@@ -7654,7 +7694,7 @@ public final class PulsarApi {
       public String getSubscription() {
         java.lang.Object ref = subscription_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           subscription_ = s;
           return s;
         } else {
@@ -7676,7 +7716,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setSubscription(com.google.protobuf.ByteString value) {
+      void setSubscription(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000002;
         subscription_ = value;
         
@@ -7756,7 +7796,7 @@ public final class PulsarApi {
       public String getConsumerName() {
         java.lang.Object ref = consumerName_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           consumerName_ = s;
           return s;
         } else {
@@ -7778,7 +7818,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setConsumerName(com.google.protobuf.ByteString value) {
+      void setConsumerName(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000020;
         consumerName_ = value;
         
@@ -8058,7 +8098,7 @@ public final class PulsarApi {
   }
   
   public interface CommandPartitionedTopicMetadataOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required string topic = 1;
     boolean hasTopic();
@@ -8081,16 +8121,16 @@ public final class PulsarApi {
     String getOriginalAuthMethod();
   }
   public static final class CommandPartitionedTopicMetadata extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements CommandPartitionedTopicMetadataOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandPartitionedTopicMetadata.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<CommandPartitionedTopicMetadata> handle;
-    private CommandPartitionedTopicMetadata(io.netty.util.Recycler.Handle<CommandPartitionedTopicMetadata> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private CommandPartitionedTopicMetadata(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandPartitionedTopicMetadata> RECYCLER = new io.netty.util.Recycler<CommandPartitionedTopicMetadata>() {
-            protected CommandPartitionedTopicMetadata newObject(Handle<CommandPartitionedTopicMetadata> handle) {
+            protected CommandPartitionedTopicMetadata newObject(Handle handle) {
               return new CommandPartitionedTopicMetadata(handle);
             }
           };
@@ -8100,12 +8140,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private CommandPartitionedTopicMetadata(boolean noInit) {
-        this.handle = null;
-    }
+    private CommandPartitionedTopicMetadata(boolean noInit) {}
     
     private static final CommandPartitionedTopicMetadata defaultInstance;
     public static CommandPartitionedTopicMetadata getDefaultInstance() {
@@ -8128,24 +8166,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           topic_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getTopicBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getTopicBytes() {
       java.lang.Object ref = topic_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         topic_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -8170,24 +8208,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           originalPrincipal_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getOriginalPrincipalBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getOriginalPrincipalBytes() {
       java.lang.Object ref = originalPrincipal_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         originalPrincipal_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -8202,24 +8240,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           originalAuthData_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getOriginalAuthDataBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getOriginalAuthDataBytes() {
       java.lang.Object ref = originalAuthData_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         originalAuthData_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -8234,24 +8272,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           originalAuthMethod_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getOriginalAuthMethodBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getOriginalAuthMethodBytes() {
       java.lang.Object ref = originalAuthMethod_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         originalAuthMethod_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -8279,7 +8317,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -8311,23 +8349,23 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(1, getTopicBytes());
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(2, requestId_);
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(3, getOriginalPrincipalBytes());
       }
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(4, getOriginalAuthDataBytes());
       }
       if (((bitField0_ & 0x00000010) == 0x00000010)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(5, getOriginalAuthMethodBytes());
       }
       memoizedSerializedSize = size;
@@ -8342,24 +8380,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -8369,7 +8407,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -8385,7 +8423,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -8395,13 +8433,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -8415,24 +8453,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -8473,7 +8511,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -8542,14 +8580,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -8603,7 +8641,7 @@ public final class PulsarApi {
       public String getTopic() {
         java.lang.Object ref = topic_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           topic_ = s;
           return s;
         } else {
@@ -8625,7 +8663,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setTopic(com.google.protobuf.ByteString value) {
+      void setTopic(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000001;
         topic_ = value;
         
@@ -8660,7 +8698,7 @@ public final class PulsarApi {
       public String getOriginalPrincipal() {
         java.lang.Object ref = originalPrincipal_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           originalPrincipal_ = s;
           return s;
         } else {
@@ -8682,7 +8720,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setOriginalPrincipal(com.google.protobuf.ByteString value) {
+      void setOriginalPrincipal(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000004;
         originalPrincipal_ = value;
         
@@ -8696,7 +8734,7 @@ public final class PulsarApi {
       public String getOriginalAuthData() {
         java.lang.Object ref = originalAuthData_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           originalAuthData_ = s;
           return s;
         } else {
@@ -8718,7 +8756,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setOriginalAuthData(com.google.protobuf.ByteString value) {
+      void setOriginalAuthData(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000008;
         originalAuthData_ = value;
         
@@ -8732,7 +8770,7 @@ public final class PulsarApi {
       public String getOriginalAuthMethod() {
         java.lang.Object ref = originalAuthMethod_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           originalAuthMethod_ = s;
           return s;
         } else {
@@ -8754,7 +8792,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setOriginalAuthMethod(com.google.protobuf.ByteString value) {
+      void setOriginalAuthMethod(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000010;
         originalAuthMethod_ = value;
         
@@ -8772,7 +8810,7 @@ public final class PulsarApi {
   }
   
   public interface CommandPartitionedTopicMetadataResponseOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // optional uint32 partitions = 1;
     boolean hasPartitions();
@@ -8795,16 +8833,16 @@ public final class PulsarApi {
     String getMessage();
   }
   public static final class CommandPartitionedTopicMetadataResponse extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements CommandPartitionedTopicMetadataResponseOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandPartitionedTopicMetadataResponse.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<CommandPartitionedTopicMetadataResponse> handle;
-    private CommandPartitionedTopicMetadataResponse(io.netty.util.Recycler.Handle<CommandPartitionedTopicMetadataResponse> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private CommandPartitionedTopicMetadataResponse(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandPartitionedTopicMetadataResponse> RECYCLER = new io.netty.util.Recycler<CommandPartitionedTopicMetadataResponse>() {
-            protected CommandPartitionedTopicMetadataResponse newObject(Handle<CommandPartitionedTopicMetadataResponse> handle) {
+            protected CommandPartitionedTopicMetadataResponse newObject(Handle handle) {
               return new CommandPartitionedTopicMetadataResponse(handle);
             }
           };
@@ -8814,12 +8852,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private CommandPartitionedTopicMetadataResponse(boolean noInit) {
-        this.handle = null;
-    }
+    private CommandPartitionedTopicMetadataResponse(boolean noInit) {}
     
     private static final CommandPartitionedTopicMetadataResponse defaultInstance;
     public static CommandPartitionedTopicMetadataResponse getDefaultInstance() {
@@ -8831,7 +8867,7 @@ public final class PulsarApi {
     }
     
     public enum LookupType
-        implements com.google.protobuf.Internal.EnumLite {
+        implements org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLite {
       Success(0, 0),
       Failed(1, 1),
       ;
@@ -8850,13 +8886,13 @@ public final class PulsarApi {
         }
       }
       
-      public static com.google.protobuf.Internal.EnumLiteMap<LookupType>
+      public static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<LookupType>
           internalGetValueMap() {
         return internalValueMap;
       }
-      private static com.google.protobuf.Internal.EnumLiteMap<LookupType>
+      private static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<LookupType>
           internalValueMap =
-            new com.google.protobuf.Internal.EnumLiteMap<LookupType>() {
+            new org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<LookupType>() {
               public LookupType findValueByNumber(int number) {
                 return LookupType.valueOf(number);
               }
@@ -8923,24 +8959,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           message_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getMessageBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getMessageBytes() {
       java.lang.Object ref = message_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         message_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -8964,7 +9000,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -8996,23 +9032,23 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt32Size(1, partitions_);
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(2, requestId_);
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeEnumSize(3, response_.getNumber());
       }
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeEnumSize(4, error_.getNumber());
       }
       if (((bitField0_ & 0x00000010) == 0x00000010)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(5, getMessageBytes());
       }
       memoizedSerializedSize = size;
@@ -9027,24 +9063,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -9054,7 +9090,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -9070,7 +9106,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -9080,13 +9116,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -9100,24 +9136,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponseOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -9158,7 +9194,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -9223,14 +9259,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -9382,7 +9418,7 @@ public final class PulsarApi {
       public String getMessage() {
         java.lang.Object ref = message_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           message_ = s;
           return s;
         } else {
@@ -9404,7 +9440,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setMessage(com.google.protobuf.ByteString value) {
+      void setMessage(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000010;
         message_ = value;
         
@@ -9422,7 +9458,7 @@ public final class PulsarApi {
   }
   
   public interface CommandLookupTopicOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required string topic = 1;
     boolean hasTopic();
@@ -9449,16 +9485,16 @@ public final class PulsarApi {
     String getOriginalAuthMethod();
   }
   public static final class CommandLookupTopic extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements CommandLookupTopicOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandLookupTopic.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<CommandLookupTopic> handle;
-    private CommandLookupTopic(io.netty.util.Recycler.Handle<CommandLookupTopic> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private CommandLookupTopic(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandLookupTopic> RECYCLER = new io.netty.util.Recycler<CommandLookupTopic>() {
-            protected CommandLookupTopic newObject(Handle<CommandLookupTopic> handle) {
+            protected CommandLookupTopic newObject(Handle handle) {
               return new CommandLookupTopic(handle);
             }
           };
@@ -9468,12 +9504,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private CommandLookupTopic(boolean noInit) {
-        this.handle = null;
-    }
+    private CommandLookupTopic(boolean noInit) {}
     
     private static final CommandLookupTopic defaultInstance;
     public static CommandLookupTopic getDefaultInstance() {
@@ -9496,24 +9530,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           topic_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getTopicBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getTopicBytes() {
       java.lang.Object ref = topic_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         topic_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -9548,24 +9582,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           originalPrincipal_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getOriginalPrincipalBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getOriginalPrincipalBytes() {
       java.lang.Object ref = originalPrincipal_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         originalPrincipal_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -9580,24 +9614,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           originalAuthData_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getOriginalAuthDataBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getOriginalAuthDataBytes() {
       java.lang.Object ref = originalAuthData_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         originalAuthData_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -9612,24 +9646,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           originalAuthMethod_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getOriginalAuthMethodBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getOriginalAuthMethodBytes() {
       java.lang.Object ref = originalAuthMethod_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         originalAuthMethod_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -9658,7 +9692,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -9693,27 +9727,27 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(1, getTopicBytes());
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(2, requestId_);
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBoolSize(3, authoritative_);
       }
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(4, getOriginalPrincipalBytes());
       }
       if (((bitField0_ & 0x00000010) == 0x00000010)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(5, getOriginalAuthDataBytes());
       }
       if (((bitField0_ & 0x00000020) == 0x00000020)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(6, getOriginalAuthMethodBytes());
       }
       memoizedSerializedSize = size;
@@ -9728,24 +9762,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -9755,7 +9789,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -9771,7 +9805,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -9781,13 +9815,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -9801,24 +9835,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -9861,7 +9895,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -9937,14 +9971,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -10003,7 +10037,7 @@ public final class PulsarApi {
       public String getTopic() {
         java.lang.Object ref = topic_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           topic_ = s;
           return s;
         } else {
@@ -10025,7 +10059,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setTopic(com.google.protobuf.ByteString value) {
+      void setTopic(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000001;
         topic_ = value;
         
@@ -10081,7 +10115,7 @@ public final class PulsarApi {
       public String getOriginalPrincipal() {
         java.lang.Object ref = originalPrincipal_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           originalPrincipal_ = s;
           return s;
         } else {
@@ -10103,7 +10137,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setOriginalPrincipal(com.google.protobuf.ByteString value) {
+      void setOriginalPrincipal(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000008;
         originalPrincipal_ = value;
         
@@ -10117,7 +10151,7 @@ public final class PulsarApi {
       public String getOriginalAuthData() {
         java.lang.Object ref = originalAuthData_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           originalAuthData_ = s;
           return s;
         } else {
@@ -10139,7 +10173,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setOriginalAuthData(com.google.protobuf.ByteString value) {
+      void setOriginalAuthData(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000010;
         originalAuthData_ = value;
         
@@ -10153,7 +10187,7 @@ public final class PulsarApi {
       public String getOriginalAuthMethod() {
         java.lang.Object ref = originalAuthMethod_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           originalAuthMethod_ = s;
           return s;
         } else {
@@ -10175,7 +10209,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setOriginalAuthMethod(com.google.protobuf.ByteString value) {
+      void setOriginalAuthMethod(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000020;
         originalAuthMethod_ = value;
         
@@ -10193,7 +10227,7 @@ public final class PulsarApi {
   }
   
   public interface CommandLookupTopicResponseOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // optional string brokerServiceUrl = 1;
     boolean hasBrokerServiceUrl();
@@ -10228,16 +10262,16 @@ public final class PulsarApi {
     boolean getProxyThroughServiceUrl();
   }
   public static final class CommandLookupTopicResponse extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements CommandLookupTopicResponseOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandLookupTopicResponse.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<CommandLookupTopicResponse> handle;
-    private CommandLookupTopicResponse(io.netty.util.Recycler.Handle<CommandLookupTopicResponse> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private CommandLookupTopicResponse(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandLookupTopicResponse> RECYCLER = new io.netty.util.Recycler<CommandLookupTopicResponse>() {
-            protected CommandLookupTopicResponse newObject(Handle<CommandLookupTopicResponse> handle) {
+            protected CommandLookupTopicResponse newObject(Handle handle) {
               return new CommandLookupTopicResponse(handle);
             }
           };
@@ -10247,12 +10281,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private CommandLookupTopicResponse(boolean noInit) {
-        this.handle = null;
-    }
+    private CommandLookupTopicResponse(boolean noInit) {}
     
     private static final CommandLookupTopicResponse defaultInstance;
     public static CommandLookupTopicResponse getDefaultInstance() {
@@ -10264,7 +10296,7 @@ public final class PulsarApi {
     }
     
     public enum LookupType
-        implements com.google.protobuf.Internal.EnumLite {
+        implements org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLite {
       Redirect(0, 0),
       Connect(1, 1),
       Failed(2, 2),
@@ -10286,13 +10318,13 @@ public final class PulsarApi {
         }
       }
       
-      public static com.google.protobuf.Internal.EnumLiteMap<LookupType>
+      public static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<LookupType>
           internalGetValueMap() {
         return internalValueMap;
       }
-      private static com.google.protobuf.Internal.EnumLiteMap<LookupType>
+      private static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<LookupType>
           internalValueMap =
-            new com.google.protobuf.Internal.EnumLiteMap<LookupType>() {
+            new org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<LookupType>() {
               public LookupType findValueByNumber(int number) {
                 return LookupType.valueOf(number);
               }
@@ -10319,24 +10351,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           brokerServiceUrl_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getBrokerServiceUrlBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getBrokerServiceUrlBytes() {
       java.lang.Object ref = brokerServiceUrl_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         brokerServiceUrl_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -10351,24 +10383,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           brokerServiceUrlTls_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getBrokerServiceUrlTlsBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getBrokerServiceUrlTlsBytes() {
       java.lang.Object ref = brokerServiceUrlTls_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         brokerServiceUrlTls_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -10423,24 +10455,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           message_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getMessageBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getMessageBytes() {
       java.lang.Object ref = message_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         message_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -10477,7 +10509,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -10518,35 +10550,35 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(1, getBrokerServiceUrlBytes());
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(2, getBrokerServiceUrlTlsBytes());
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeEnumSize(3, response_.getNumber());
       }
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(4, requestId_);
       }
       if (((bitField0_ & 0x00000010) == 0x00000010)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBoolSize(5, authoritative_);
       }
       if (((bitField0_ & 0x00000020) == 0x00000020)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeEnumSize(6, error_.getNumber());
       }
       if (((bitField0_ & 0x00000040) == 0x00000040)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(7, getMessageBytes());
       }
       if (((bitField0_ & 0x00000080) == 0x00000080)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBoolSize(8, proxyThroughServiceUrl_);
       }
       memoizedSerializedSize = size;
@@ -10561,24 +10593,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -10588,7 +10620,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -10604,7 +10636,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -10614,13 +10646,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -10634,24 +10666,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponseOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -10698,7 +10730,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -10784,14 +10816,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -10868,7 +10900,7 @@ public final class PulsarApi {
       public String getBrokerServiceUrl() {
         java.lang.Object ref = brokerServiceUrl_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           brokerServiceUrl_ = s;
           return s;
         } else {
@@ -10890,7 +10922,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setBrokerServiceUrl(com.google.protobuf.ByteString value) {
+      void setBrokerServiceUrl(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000001;
         brokerServiceUrl_ = value;
         
@@ -10904,7 +10936,7 @@ public final class PulsarApi {
       public String getBrokerServiceUrlTls() {
         java.lang.Object ref = brokerServiceUrlTls_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           brokerServiceUrlTls_ = s;
           return s;
         } else {
@@ -10926,7 +10958,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setBrokerServiceUrlTls(com.google.protobuf.ByteString value) {
+      void setBrokerServiceUrlTls(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000002;
         brokerServiceUrlTls_ = value;
         
@@ -11030,7 +11062,7 @@ public final class PulsarApi {
       public String getMessage() {
         java.lang.Object ref = message_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           message_ = s;
           return s;
         } else {
@@ -11052,7 +11084,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setMessage(com.google.protobuf.ByteString value) {
+      void setMessage(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000040;
         message_ = value;
         
@@ -11091,7 +11123,7 @@ public final class PulsarApi {
   }
   
   public interface CommandProducerOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required string topic = 1;
     boolean hasTopic();
@@ -11124,16 +11156,16 @@ public final class PulsarApi {
     org.apache.pulsar.common.api.proto.PulsarApi.Schema getSchema();
   }
   public static final class CommandProducer extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements CommandProducerOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandProducer.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<CommandProducer> handle;
-    private CommandProducer(io.netty.util.Recycler.Handle<CommandProducer> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private CommandProducer(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandProducer> RECYCLER = new io.netty.util.Recycler<CommandProducer>() {
-            protected CommandProducer newObject(Handle<CommandProducer> handle) {
+            protected CommandProducer newObject(Handle handle) {
               return new CommandProducer(handle);
             }
           };
@@ -11143,12 +11175,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private CommandProducer(boolean noInit) {
-        this.handle = null;
-    }
+    private CommandProducer(boolean noInit) {}
     
     private static final CommandProducer defaultInstance;
     public static CommandProducer getDefaultInstance() {
@@ -11171,24 +11201,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           topic_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getTopicBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getTopicBytes() {
       java.lang.Object ref = topic_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         topic_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -11223,24 +11253,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           producerName_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getProducerNameBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getProducerNameBytes() {
       java.lang.Object ref = producerName_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         producerName_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -11327,7 +11357,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -11365,31 +11395,31 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(1, getTopicBytes());
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(2, producerId_);
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(3, requestId_);
       }
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(4, getProducerNameBytes());
       }
       if (((bitField0_ & 0x00000010) == 0x00000010)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBoolSize(5, encrypted_);
       }
       for (int i = 0; i < metadata_.size(); i++) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(6, metadata_.get(i));
       }
       if (((bitField0_ & 0x00000020) == 0x00000020)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(7, schema_);
       }
       memoizedSerializedSize = size;
@@ -11404,24 +11434,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -11431,7 +11461,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -11447,7 +11477,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -11457,13 +11487,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -11477,24 +11507,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -11539,7 +11569,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -11646,14 +11676,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -11723,7 +11753,7 @@ public final class PulsarApi {
       public String getTopic() {
         java.lang.Object ref = topic_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           topic_ = s;
           return s;
         } else {
@@ -11745,7 +11775,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setTopic(com.google.protobuf.ByteString value) {
+      void setTopic(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000001;
         topic_ = value;
         
@@ -11801,7 +11831,7 @@ public final class PulsarApi {
       public String getProducerName() {
         java.lang.Object ref = producerName_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           producerName_ = s;
           return s;
         } else {
@@ -11823,7 +11853,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setProducerName(com.google.protobuf.ByteString value) {
+      void setProducerName(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000008;
         producerName_ = value;
         
@@ -11994,7 +12024,7 @@ public final class PulsarApi {
   }
   
   public interface CommandSendOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required uint64 producer_id = 1;
     boolean hasProducerId();
@@ -12009,16 +12039,16 @@ public final class PulsarApi {
     int getNumMessages();
   }
   public static final class CommandSend extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements CommandSendOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandSend.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<CommandSend> handle;
-    private CommandSend(io.netty.util.Recycler.Handle<CommandSend> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private CommandSend(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandSend> RECYCLER = new io.netty.util.Recycler<CommandSend>() {
-            protected CommandSend newObject(Handle<CommandSend> handle) {
+            protected CommandSend newObject(Handle handle) {
               return new CommandSend(handle);
             }
           };
@@ -12028,12 +12058,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private CommandSend(boolean noInit) {
-        this.handle = null;
-    }
+    private CommandSend(boolean noInit) {}
     
     private static final CommandSend defaultInstance;
     public static CommandSend getDefaultInstance() {
@@ -12097,7 +12125,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -12123,15 +12151,15 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(1, producerId_);
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(2, sequenceId_);
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeInt32Size(3, numMessages_);
       }
       memoizedSerializedSize = size;
@@ -12146,24 +12174,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSend parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSend parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSend parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSend parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -12173,7 +12201,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSend parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -12189,7 +12217,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSend parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -12199,13 +12227,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSend parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSend parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -12219,24 +12247,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.CommandSend, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandSendOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandSend.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -12273,7 +12301,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.CommandSend buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.CommandSend result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -12328,14 +12356,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -12446,7 +12474,7 @@ public final class PulsarApi {
   }
   
   public interface CommandSendReceiptOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required uint64 producer_id = 1;
     boolean hasProducerId();
@@ -12461,16 +12489,16 @@ public final class PulsarApi {
     org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData getMessageId();
   }
   public static final class CommandSendReceipt extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements CommandSendReceiptOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandSendReceipt.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<CommandSendReceipt> handle;
-    private CommandSendReceipt(io.netty.util.Recycler.Handle<CommandSendReceipt> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private CommandSendReceipt(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandSendReceipt> RECYCLER = new io.netty.util.Recycler<CommandSendReceipt>() {
-            protected CommandSendReceipt newObject(Handle<CommandSendReceipt> handle) {
+            protected CommandSendReceipt newObject(Handle handle) {
               return new CommandSendReceipt(handle);
             }
           };
@@ -12480,12 +12508,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private CommandSendReceipt(boolean noInit) {
-        this.handle = null;
-    }
+    private CommandSendReceipt(boolean noInit) {}
     
     private static final CommandSendReceipt defaultInstance;
     public static CommandSendReceipt getDefaultInstance() {
@@ -12555,7 +12581,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -12581,15 +12607,15 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(1, producerId_);
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(2, sequenceId_);
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(3, messageId_);
       }
       memoizedSerializedSize = size;
@@ -12604,24 +12630,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -12631,7 +12657,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -12647,7 +12673,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -12657,13 +12683,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -12677,24 +12703,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceiptOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -12731,7 +12757,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -12792,14 +12818,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -12937,7 +12963,7 @@ public final class PulsarApi {
   }
   
   public interface CommandSendErrorOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required uint64 producer_id = 1;
     boolean hasProducerId();
@@ -12956,16 +12982,16 @@ public final class PulsarApi {
     String getMessage();
   }
   public static final class CommandSendError extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements CommandSendErrorOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandSendError.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<CommandSendError> handle;
-    private CommandSendError(io.netty.util.Recycler.Handle<CommandSendError> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private CommandSendError(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandSendError> RECYCLER = new io.netty.util.Recycler<CommandSendError>() {
-            protected CommandSendError newObject(Handle<CommandSendError> handle) {
+            protected CommandSendError newObject(Handle handle) {
               return new CommandSendError(handle);
             }
           };
@@ -12975,12 +13001,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private CommandSendError(boolean noInit) {
-        this.handle = null;
-    }
+    private CommandSendError(boolean noInit) {}
     
     private static final CommandSendError defaultInstance;
     public static CommandSendError getDefaultInstance() {
@@ -13033,24 +13057,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           message_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getMessageBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getMessageBytes() {
       java.lang.Object ref = message_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         message_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -13085,7 +13109,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -13114,19 +13138,19 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(1, producerId_);
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(2, sequenceId_);
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeEnumSize(3, error_.getNumber());
       }
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(4, getMessageBytes());
       }
       memoizedSerializedSize = size;
@@ -13141,24 +13165,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -13168,7 +13192,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -13184,7 +13208,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -13194,13 +13218,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -13214,24 +13238,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandSendErrorOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -13270,7 +13294,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -13340,14 +13364,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -13466,7 +13490,7 @@ public final class PulsarApi {
       public String getMessage() {
         java.lang.Object ref = message_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           message_ = s;
           return s;
         } else {
@@ -13488,7 +13512,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setMessage(com.google.protobuf.ByteString value) {
+      void setMessage(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000008;
         message_ = value;
         
@@ -13506,7 +13530,7 @@ public final class PulsarApi {
   }
   
   public interface CommandMessageOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required uint64 consumer_id = 1;
     boolean hasConsumerId();
@@ -13517,16 +13541,16 @@ public final class PulsarApi {
     org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData getMessageId();
   }
   public static final class CommandMessage extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements CommandMessageOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandMessage.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<CommandMessage> handle;
-    private CommandMessage(io.netty.util.Recycler.Handle<CommandMessage> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private CommandMessage(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandMessage> RECYCLER = new io.netty.util.Recycler<CommandMessage>() {
-            protected CommandMessage newObject(Handle<CommandMessage> handle) {
+            protected CommandMessage newObject(Handle handle) {
               return new CommandMessage(handle);
             }
           };
@@ -13536,12 +13560,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private CommandMessage(boolean noInit) {
-        this.handle = null;
-    }
+    private CommandMessage(boolean noInit) {}
     
     private static final CommandMessage defaultInstance;
     public static CommandMessage getDefaultInstance() {
@@ -13598,7 +13620,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -13621,11 +13643,11 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(1, consumerId_);
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(2, messageId_);
       }
       memoizedSerializedSize = size;
@@ -13640,24 +13662,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandMessage parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandMessage parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandMessage parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandMessage parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -13667,7 +13689,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandMessage parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -13683,7 +13705,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandMessage parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -13693,13 +13715,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandMessage parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandMessage parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -13713,24 +13735,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.CommandMessage, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandMessageOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandMessage.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -13765,7 +13787,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.CommandMessage buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.CommandMessage result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -13817,14 +13839,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -13936,7 +13958,7 @@ public final class PulsarApi {
   }
   
   public interface CommandAckOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required uint64 consumer_id = 1;
     boolean hasConsumerId();
@@ -13963,16 +13985,16 @@ public final class PulsarApi {
     int getPropertiesCount();
   }
   public static final class CommandAck extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements CommandAckOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandAck.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<CommandAck> handle;
-    private CommandAck(io.netty.util.Recycler.Handle<CommandAck> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private CommandAck(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandAck> RECYCLER = new io.netty.util.Recycler<CommandAck>() {
-            protected CommandAck newObject(Handle<CommandAck> handle) {
+            protected CommandAck newObject(Handle handle) {
               return new CommandAck(handle);
             }
           };
@@ -13982,12 +14004,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private CommandAck(boolean noInit) {
-        this.handle = null;
-    }
+    private CommandAck(boolean noInit) {}
     
     private static final CommandAck defaultInstance;
     public static CommandAck getDefaultInstance() {
@@ -13999,7 +14019,7 @@ public final class PulsarApi {
     }
     
     public enum AckType
-        implements com.google.protobuf.Internal.EnumLite {
+        implements org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLite {
       Individual(0, 0),
       Cumulative(1, 1),
       ;
@@ -14018,13 +14038,13 @@ public final class PulsarApi {
         }
       }
       
-      public static com.google.protobuf.Internal.EnumLiteMap<AckType>
+      public static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<AckType>
           internalGetValueMap() {
         return internalValueMap;
       }
-      private static com.google.protobuf.Internal.EnumLiteMap<AckType>
+      private static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<AckType>
           internalValueMap =
-            new com.google.protobuf.Internal.EnumLiteMap<AckType>() {
+            new org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<AckType>() {
               public AckType findValueByNumber(int number) {
                 return AckType.valueOf(number);
               }
@@ -14040,7 +14060,7 @@ public final class PulsarApi {
     }
     
     public enum ValidationError
-        implements com.google.protobuf.Internal.EnumLite {
+        implements org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLite {
       UncompressedSizeCorruption(0, 0),
       DecompressionError(1, 1),
       ChecksumMismatch(2, 2),
@@ -14068,13 +14088,13 @@ public final class PulsarApi {
         }
       }
       
-      public static com.google.protobuf.Internal.EnumLiteMap<ValidationError>
+      public static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<ValidationError>
           internalGetValueMap() {
         return internalValueMap;
       }
-      private static com.google.protobuf.Internal.EnumLiteMap<ValidationError>
+      private static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<ValidationError>
           internalValueMap =
-            new com.google.protobuf.Internal.EnumLiteMap<ValidationError>() {
+            new org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<ValidationError>() {
               public ValidationError findValueByNumber(int number) {
                 return ValidationError.valueOf(number);
               }
@@ -14198,7 +14218,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -14230,23 +14250,23 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(1, consumerId_);
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeEnumSize(2, ackType_.getNumber());
       }
       for (int i = 0; i < messageId_.size(); i++) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(3, messageId_.get(i));
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeEnumSize(4, validationError_.getNumber());
       }
       for (int i = 0; i < properties_.size(); i++) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(5, properties_.get(i));
       }
       memoizedSerializedSize = size;
@@ -14261,24 +14281,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandAck parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandAck parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandAck parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandAck parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -14288,7 +14308,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandAck parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -14304,7 +14324,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandAck parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -14314,13 +14334,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandAck parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandAck parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -14334,24 +14354,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.CommandAck, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandAckOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -14392,7 +14412,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.CommandAck buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.CommandAck result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -14489,14 +14509,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -14811,7 +14831,7 @@ public final class PulsarApi {
   }
   
   public interface CommandActiveConsumerChangeOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required uint64 consumer_id = 1;
     boolean hasConsumerId();
@@ -14822,16 +14842,16 @@ public final class PulsarApi {
     boolean getIsActive();
   }
   public static final class CommandActiveConsumerChange extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements CommandActiveConsumerChangeOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandActiveConsumerChange.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<CommandActiveConsumerChange> handle;
-    private CommandActiveConsumerChange(io.netty.util.Recycler.Handle<CommandActiveConsumerChange> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private CommandActiveConsumerChange(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandActiveConsumerChange> RECYCLER = new io.netty.util.Recycler<CommandActiveConsumerChange>() {
-            protected CommandActiveConsumerChange newObject(Handle<CommandActiveConsumerChange> handle) {
+            protected CommandActiveConsumerChange newObject(Handle handle) {
               return new CommandActiveConsumerChange(handle);
             }
           };
@@ -14841,12 +14861,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private CommandActiveConsumerChange(boolean noInit) {
-        this.handle = null;
-    }
+    private CommandActiveConsumerChange(boolean noInit) {}
     
     private static final CommandActiveConsumerChange defaultInstance;
     public static CommandActiveConsumerChange getDefaultInstance() {
@@ -14895,7 +14913,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -14918,11 +14936,11 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(1, consumerId_);
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBoolSize(2, isActive_);
       }
       memoizedSerializedSize = size;
@@ -14937,24 +14955,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -14964,7 +14982,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -14980,7 +14998,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -14990,13 +15008,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -15010,24 +15028,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChangeOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -15062,7 +15080,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -15106,14 +15124,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -15198,7 +15216,7 @@ public final class PulsarApi {
   }
   
   public interface CommandFlowOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required uint64 consumer_id = 1;
     boolean hasConsumerId();
@@ -15209,16 +15227,16 @@ public final class PulsarApi {
     int getMessagePermits();
   }
   public static final class CommandFlow extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements CommandFlowOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandFlow.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<CommandFlow> handle;
-    private CommandFlow(io.netty.util.Recycler.Handle<CommandFlow> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private CommandFlow(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandFlow> RECYCLER = new io.netty.util.Recycler<CommandFlow>() {
-            protected CommandFlow newObject(Handle<CommandFlow> handle) {
+            protected CommandFlow newObject(Handle handle) {
               return new CommandFlow(handle);
             }
           };
@@ -15228,12 +15246,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private CommandFlow(boolean noInit) {
-        this.handle = null;
-    }
+    private CommandFlow(boolean noInit) {}
     
     private static final CommandFlow defaultInstance;
     public static CommandFlow getDefaultInstance() {
@@ -15286,7 +15302,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -15309,11 +15325,11 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(1, consumerId_);
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt32Size(2, messagePermits_);
       }
       memoizedSerializedSize = size;
@@ -15328,24 +15344,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -15355,7 +15371,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -15371,7 +15387,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -15381,13 +15397,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -15401,24 +15417,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandFlowOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -15453,7 +15469,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -15501,14 +15517,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -15593,7 +15609,7 @@ public final class PulsarApi {
   }
   
   public interface CommandUnsubscribeOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required uint64 consumer_id = 1;
     boolean hasConsumerId();
@@ -15604,16 +15620,16 @@ public final class PulsarApi {
     long getRequestId();
   }
   public static final class CommandUnsubscribe extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements CommandUnsubscribeOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandUnsubscribe.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<CommandUnsubscribe> handle;
-    private CommandUnsubscribe(io.netty.util.Recycler.Handle<CommandUnsubscribe> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private CommandUnsubscribe(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandUnsubscribe> RECYCLER = new io.netty.util.Recycler<CommandUnsubscribe>() {
-            protected CommandUnsubscribe newObject(Handle<CommandUnsubscribe> handle) {
+            protected CommandUnsubscribe newObject(Handle handle) {
               return new CommandUnsubscribe(handle);
             }
           };
@@ -15623,12 +15639,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private CommandUnsubscribe(boolean noInit) {
-        this.handle = null;
-    }
+    private CommandUnsubscribe(boolean noInit) {}
     
     private static final CommandUnsubscribe defaultInstance;
     public static CommandUnsubscribe getDefaultInstance() {
@@ -15681,7 +15695,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -15704,11 +15718,11 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(1, consumerId_);
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(2, requestId_);
       }
       memoizedSerializedSize = size;
@@ -15723,24 +15737,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -15750,7 +15764,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -15766,7 +15780,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -15776,13 +15790,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -15796,24 +15810,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribeOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -15848,7 +15862,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -15896,14 +15910,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -15988,7 +16002,7 @@ public final class PulsarApi {
   }
   
   public interface CommandSeekOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required uint64 consumer_id = 1;
     boolean hasConsumerId();
@@ -16003,16 +16017,16 @@ public final class PulsarApi {
     org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData getMessageId();
   }
   public static final class CommandSeek extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements CommandSeekOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandSeek.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<CommandSeek> handle;
-    private CommandSeek(io.netty.util.Recycler.Handle<CommandSeek> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private CommandSeek(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandSeek> RECYCLER = new io.netty.util.Recycler<CommandSeek>() {
-            protected CommandSeek newObject(Handle<CommandSeek> handle) {
+            protected CommandSeek newObject(Handle handle) {
               return new CommandSeek(handle);
             }
           };
@@ -16022,12 +16036,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private CommandSeek(boolean noInit) {
-        this.handle = null;
-    }
+    private CommandSeek(boolean noInit) {}
     
     private static final CommandSeek defaultInstance;
     public static CommandSeek getDefaultInstance() {
@@ -16097,7 +16109,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -16123,15 +16135,15 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(1, consumerId_);
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(2, requestId_);
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(3, messageId_);
       }
       memoizedSerializedSize = size;
@@ -16146,24 +16158,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSeek parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSeek parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSeek parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSeek parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -16173,7 +16185,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSeek parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -16189,7 +16201,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSeek parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -16199,13 +16211,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSeek parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSeek parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -16219,24 +16231,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.CommandSeek, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandSeekOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandSeek.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -16273,7 +16285,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.CommandSeek buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.CommandSeek result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -16334,14 +16346,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -16479,23 +16491,23 @@ public final class PulsarApi {
   }
   
   public interface CommandReachedEndOfTopicOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required uint64 consumer_id = 1;
     boolean hasConsumerId();
     long getConsumerId();
   }
   public static final class CommandReachedEndOfTopic extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements CommandReachedEndOfTopicOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandReachedEndOfTopic.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<CommandReachedEndOfTopic> handle;
-    private CommandReachedEndOfTopic(io.netty.util.Recycler.Handle<CommandReachedEndOfTopic> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private CommandReachedEndOfTopic(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandReachedEndOfTopic> RECYCLER = new io.netty.util.Recycler<CommandReachedEndOfTopic>() {
-            protected CommandReachedEndOfTopic newObject(Handle<CommandReachedEndOfTopic> handle) {
+            protected CommandReachedEndOfTopic newObject(Handle handle) {
               return new CommandReachedEndOfTopic(handle);
             }
           };
@@ -16505,12 +16517,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private CommandReachedEndOfTopic(boolean noInit) {
-        this.handle = null;
-    }
+    private CommandReachedEndOfTopic(boolean noInit) {}
     
     private static final CommandReachedEndOfTopic defaultInstance;
     public static CommandReachedEndOfTopic getDefaultInstance() {
@@ -16548,7 +16558,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -16568,7 +16578,7 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(1, consumerId_);
       }
       memoizedSerializedSize = size;
@@ -16583,24 +16593,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopic parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopic parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopic parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopic parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -16610,7 +16620,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopic parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -16626,7 +16636,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopic parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -16636,13 +16646,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopic parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopic parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -16656,24 +16666,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopic, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopicOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopic.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -16706,7 +16716,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopic buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopic result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -16743,14 +16753,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -16809,7 +16819,7 @@ public final class PulsarApi {
   }
   
   public interface CommandCloseProducerOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required uint64 producer_id = 1;
     boolean hasProducerId();
@@ -16820,16 +16830,16 @@ public final class PulsarApi {
     long getRequestId();
   }
   public static final class CommandCloseProducer extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements CommandCloseProducerOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandCloseProducer.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<CommandCloseProducer> handle;
-    private CommandCloseProducer(io.netty.util.Recycler.Handle<CommandCloseProducer> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private CommandCloseProducer(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandCloseProducer> RECYCLER = new io.netty.util.Recycler<CommandCloseProducer>() {
-            protected CommandCloseProducer newObject(Handle<CommandCloseProducer> handle) {
+            protected CommandCloseProducer newObject(Handle handle) {
               return new CommandCloseProducer(handle);
             }
           };
@@ -16839,12 +16849,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private CommandCloseProducer(boolean noInit) {
-        this.handle = null;
-    }
+    private CommandCloseProducer(boolean noInit) {}
     
     private static final CommandCloseProducer defaultInstance;
     public static CommandCloseProducer getDefaultInstance() {
@@ -16897,7 +16905,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -16920,11 +16928,11 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(1, producerId_);
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(2, requestId_);
       }
       memoizedSerializedSize = size;
@@ -16939,24 +16947,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -16966,7 +16974,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -16982,7 +16990,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -16992,13 +17000,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -17012,24 +17020,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducerOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -17064,7 +17072,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -17112,14 +17120,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -17204,7 +17212,7 @@ public final class PulsarApi {
   }
   
   public interface CommandCloseConsumerOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required uint64 consumer_id = 1;
     boolean hasConsumerId();
@@ -17215,16 +17223,16 @@ public final class PulsarApi {
     long getRequestId();
   }
   public static final class CommandCloseConsumer extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements CommandCloseConsumerOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandCloseConsumer.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<CommandCloseConsumer> handle;
-    private CommandCloseConsumer(io.netty.util.Recycler.Handle<CommandCloseConsumer> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private CommandCloseConsumer(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandCloseConsumer> RECYCLER = new io.netty.util.Recycler<CommandCloseConsumer>() {
-            protected CommandCloseConsumer newObject(Handle<CommandCloseConsumer> handle) {
+            protected CommandCloseConsumer newObject(Handle handle) {
               return new CommandCloseConsumer(handle);
             }
           };
@@ -17234,12 +17242,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private CommandCloseConsumer(boolean noInit) {
-        this.handle = null;
-    }
+    private CommandCloseConsumer(boolean noInit) {}
     
     private static final CommandCloseConsumer defaultInstance;
     public static CommandCloseConsumer getDefaultInstance() {
@@ -17292,7 +17298,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -17315,11 +17321,11 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(1, consumerId_);
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(2, requestId_);
       }
       memoizedSerializedSize = size;
@@ -17334,24 +17340,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -17361,7 +17367,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -17377,7 +17383,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -17387,13 +17393,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -17407,24 +17413,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumerOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -17459,7 +17465,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -17507,14 +17513,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -17599,7 +17605,7 @@ public final class PulsarApi {
   }
   
   public interface CommandRedeliverUnacknowledgedMessagesOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required uint64 consumer_id = 1;
     boolean hasConsumerId();
@@ -17612,16 +17618,16 @@ public final class PulsarApi {
     int getMessageIdsCount();
   }
   public static final class CommandRedeliverUnacknowledgedMessages extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements CommandRedeliverUnacknowledgedMessagesOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandRedeliverUnacknowledgedMessages.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<CommandRedeliverUnacknowledgedMessages> handle;
-    private CommandRedeliverUnacknowledgedMessages(io.netty.util.Recycler.Handle<CommandRedeliverUnacknowledgedMessages> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private CommandRedeliverUnacknowledgedMessages(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandRedeliverUnacknowledgedMessages> RECYCLER = new io.netty.util.Recycler<CommandRedeliverUnacknowledgedMessages>() {
-            protected CommandRedeliverUnacknowledgedMessages newObject(Handle<CommandRedeliverUnacknowledgedMessages> handle) {
+            protected CommandRedeliverUnacknowledgedMessages newObject(Handle handle) {
               return new CommandRedeliverUnacknowledgedMessages(handle);
             }
           };
@@ -17631,12 +17637,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private CommandRedeliverUnacknowledgedMessages(boolean noInit) {
-        this.handle = null;
-    }
+    private CommandRedeliverUnacknowledgedMessages(boolean noInit) {}
     
     private static final CommandRedeliverUnacknowledgedMessages defaultInstance;
     public static CommandRedeliverUnacknowledgedMessages getDefaultInstance() {
@@ -17702,7 +17706,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -17725,11 +17729,11 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(1, consumerId_);
       }
       for (int i = 0; i < messageIds_.size(); i++) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(2, messageIds_.get(i));
       }
       memoizedSerializedSize = size;
@@ -17744,24 +17748,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessages parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessages parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessages parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessages parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -17771,7 +17775,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessages parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -17787,7 +17791,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessages parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -17797,13 +17801,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessages parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessages parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -17817,24 +17821,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessages, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessagesOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessages.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -17869,7 +17873,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessages buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessages result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -17927,14 +17931,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -18088,7 +18092,7 @@ public final class PulsarApi {
   }
   
   public interface CommandSuccessOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required uint64 request_id = 1;
     boolean hasRequestId();
@@ -18099,16 +18103,16 @@ public final class PulsarApi {
     org.apache.pulsar.common.api.proto.PulsarApi.Schema getSchema();
   }
   public static final class CommandSuccess extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements CommandSuccessOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandSuccess.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<CommandSuccess> handle;
-    private CommandSuccess(io.netty.util.Recycler.Handle<CommandSuccess> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private CommandSuccess(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandSuccess> RECYCLER = new io.netty.util.Recycler<CommandSuccess>() {
-            protected CommandSuccess newObject(Handle<CommandSuccess> handle) {
+            protected CommandSuccess newObject(Handle handle) {
               return new CommandSuccess(handle);
             }
           };
@@ -18118,12 +18122,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private CommandSuccess(boolean noInit) {
-        this.handle = null;
-    }
+    private CommandSuccess(boolean noInit) {}
     
     private static final CommandSuccess defaultInstance;
     public static CommandSuccess getDefaultInstance() {
@@ -18178,7 +18180,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -18201,11 +18203,11 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(1, requestId_);
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(2, schema_);
       }
       memoizedSerializedSize = size;
@@ -18220,24 +18222,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -18247,7 +18249,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -18263,7 +18265,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -18273,13 +18275,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -18293,24 +18295,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccessOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -18345,7 +18347,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -18395,14 +18397,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -18514,7 +18516,7 @@ public final class PulsarApi {
   }
   
   public interface CommandProducerSuccessOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required uint64 request_id = 1;
     boolean hasRequestId();
@@ -18530,19 +18532,19 @@ public final class PulsarApi {
     
     // optional bytes schema_version = 4;
     boolean hasSchemaVersion();
-    com.google.protobuf.ByteString getSchemaVersion();
+    org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getSchemaVersion();
   }
   public static final class CommandProducerSuccess extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements CommandProducerSuccessOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandProducerSuccess.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<CommandProducerSuccess> handle;
-    private CommandProducerSuccess(io.netty.util.Recycler.Handle<CommandProducerSuccess> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private CommandProducerSuccess(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandProducerSuccess> RECYCLER = new io.netty.util.Recycler<CommandProducerSuccess>() {
-            protected CommandProducerSuccess newObject(Handle<CommandProducerSuccess> handle) {
+            protected CommandProducerSuccess newObject(Handle handle) {
               return new CommandProducerSuccess(handle);
             }
           };
@@ -18552,12 +18554,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private CommandProducerSuccess(boolean noInit) {
-        this.handle = null;
-    }
+    private CommandProducerSuccess(boolean noInit) {}
     
     private static final CommandProducerSuccess defaultInstance;
     public static CommandProducerSuccess getDefaultInstance() {
@@ -18590,24 +18590,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           producerName_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getProducerNameBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getProducerNameBytes() {
       java.lang.Object ref = producerName_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         producerName_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -18623,11 +18623,11 @@ public final class PulsarApi {
     
     // optional bytes schema_version = 4;
     public static final int SCHEMA_VERSION_FIELD_NUMBER = 4;
-    private com.google.protobuf.ByteString schemaVersion_;
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString schemaVersion_;
     public boolean hasSchemaVersion() {
       return ((bitField0_ & 0x00000008) == 0x00000008);
     }
-    public com.google.protobuf.ByteString getSchemaVersion() {
+    public org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getSchemaVersion() {
       return schemaVersion_;
     }
     
@@ -18635,7 +18635,7 @@ public final class PulsarApi {
       requestId_ = 0L;
       producerName_ = "";
       lastSequenceId_ = -1L;
-      schemaVersion_ = com.google.protobuf.ByteString.EMPTY;
+      schemaVersion_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -18654,7 +18654,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -18683,19 +18683,19 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(1, requestId_);
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(2, getProducerNameBytes());
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeInt64Size(3, lastSequenceId_);
       }
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(4, schemaVersion_);
       }
       memoizedSerializedSize = size;
@@ -18710,24 +18710,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -18737,7 +18737,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -18753,7 +18753,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -18763,13 +18763,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -18783,24 +18783,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccessOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -18817,7 +18817,7 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000002);
         lastSequenceId_ = -1L;
         bitField0_ = (bitField0_ & ~0x00000004);
-        schemaVersion_ = com.google.protobuf.ByteString.EMPTY;
+        schemaVersion_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
         bitField0_ = (bitField0_ & ~0x00000008);
         return this;
       }
@@ -18839,7 +18839,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -18901,14 +18901,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -18978,7 +18978,7 @@ public final class PulsarApi {
       public String getProducerName() {
         java.lang.Object ref = producerName_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           producerName_ = s;
           return s;
         } else {
@@ -19000,7 +19000,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setProducerName(com.google.protobuf.ByteString value) {
+      void setProducerName(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000002;
         producerName_ = value;
         
@@ -19028,14 +19028,14 @@ public final class PulsarApi {
       }
       
       // optional bytes schema_version = 4;
-      private com.google.protobuf.ByteString schemaVersion_ = com.google.protobuf.ByteString.EMPTY;
+      private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString schemaVersion_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
       public boolean hasSchemaVersion() {
         return ((bitField0_ & 0x00000008) == 0x00000008);
       }
-      public com.google.protobuf.ByteString getSchemaVersion() {
+      public org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getSchemaVersion() {
         return schemaVersion_;
       }
-      public Builder setSchemaVersion(com.google.protobuf.ByteString value) {
+      public Builder setSchemaVersion(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         if (value == null) {
     throw new NullPointerException();
   }
@@ -19063,7 +19063,7 @@ public final class PulsarApi {
   }
   
   public interface CommandErrorOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required uint64 request_id = 1;
     boolean hasRequestId();
@@ -19078,16 +19078,16 @@ public final class PulsarApi {
     String getMessage();
   }
   public static final class CommandError extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements CommandErrorOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandError.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<CommandError> handle;
-    private CommandError(io.netty.util.Recycler.Handle<CommandError> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private CommandError(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandError> RECYCLER = new io.netty.util.Recycler<CommandError>() {
-            protected CommandError newObject(Handle<CommandError> handle) {
+            protected CommandError newObject(Handle handle) {
               return new CommandError(handle);
             }
           };
@@ -19097,12 +19097,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private CommandError(boolean noInit) {
-        this.handle = null;
-    }
+    private CommandError(boolean noInit) {}
     
     private static final CommandError defaultInstance;
     public static CommandError getDefaultInstance() {
@@ -19145,24 +19143,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           message_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getMessageBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getMessageBytes() {
       java.lang.Object ref = message_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         message_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -19192,7 +19190,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -19218,15 +19216,15 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(1, requestId_);
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeEnumSize(2, error_.getNumber());
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(3, getMessageBytes());
       }
       memoizedSerializedSize = size;
@@ -19241,24 +19239,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandError parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandError parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandError parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandError parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -19268,7 +19266,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandError parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -19284,7 +19282,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandError parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -19294,13 +19292,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandError parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandError parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -19314,24 +19312,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.CommandError, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandErrorOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandError.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -19368,7 +19366,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.CommandError buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.CommandError result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -19427,14 +19425,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -19527,7 +19525,7 @@ public final class PulsarApi {
       public String getMessage() {
         java.lang.Object ref = message_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           message_ = s;
           return s;
         } else {
@@ -19549,7 +19547,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setMessage(com.google.protobuf.ByteString value) {
+      void setMessage(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000004;
         message_ = value;
         
@@ -19567,19 +19565,19 @@ public final class PulsarApi {
   }
   
   public interface CommandPingOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
   }
   public static final class CommandPing extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements CommandPingOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandPing.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<CommandPing> handle;
-    private CommandPing(io.netty.util.Recycler.Handle<CommandPing> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private CommandPing(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandPing> RECYCLER = new io.netty.util.Recycler<CommandPing>() {
-            protected CommandPing newObject(Handle<CommandPing> handle) {
+            protected CommandPing newObject(Handle handle) {
               return new CommandPing(handle);
             }
           };
@@ -19588,12 +19586,10 @@ public final class PulsarApi {
             this.initFields();
             this.memoizedIsInitialized = -1;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private CommandPing(boolean noInit) {
-        this.handle = null;
-    }
+    private CommandPing(boolean noInit) {}
     
     private static final CommandPing defaultInstance;
     public static CommandPing getDefaultInstance() {
@@ -19615,7 +19611,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -19643,24 +19639,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandPing parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandPing parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandPing parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandPing parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -19670,7 +19666,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandPing parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -19686,7 +19682,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandPing parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -19696,13 +19692,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandPing parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandPing parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -19716,24 +19712,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.CommandPing, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandPingOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandPing.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -19764,7 +19760,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.CommandPing buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.CommandPing result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -19787,14 +19783,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -19826,19 +19822,19 @@ public final class PulsarApi {
   }
   
   public interface CommandPongOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
   }
   public static final class CommandPong extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements CommandPongOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandPong.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<CommandPong> handle;
-    private CommandPong(io.netty.util.Recycler.Handle<CommandPong> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private CommandPong(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandPong> RECYCLER = new io.netty.util.Recycler<CommandPong>() {
-            protected CommandPong newObject(Handle<CommandPong> handle) {
+            protected CommandPong newObject(Handle handle) {
               return new CommandPong(handle);
             }
           };
@@ -19847,12 +19843,10 @@ public final class PulsarApi {
             this.initFields();
             this.memoizedIsInitialized = -1;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private CommandPong(boolean noInit) {
-        this.handle = null;
-    }
+    private CommandPong(boolean noInit) {}
     
     private static final CommandPong defaultInstance;
     public static CommandPong getDefaultInstance() {
@@ -19874,7 +19868,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -19902,24 +19896,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandPong parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandPong parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandPong parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandPong parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -19929,7 +19923,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandPong parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -19945,7 +19939,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandPong parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -19955,13 +19949,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandPong parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandPong parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -19975,24 +19969,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.CommandPong, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandPongOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandPong.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -20023,7 +20017,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.CommandPong buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.CommandPong result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -20046,14 +20040,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -20085,7 +20079,7 @@ public final class PulsarApi {
   }
   
   public interface CommandConsumerStatsOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required uint64 request_id = 1;
     boolean hasRequestId();
@@ -20096,16 +20090,16 @@ public final class PulsarApi {
     long getConsumerId();
   }
   public static final class CommandConsumerStats extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements CommandConsumerStatsOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandConsumerStats.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<CommandConsumerStats> handle;
-    private CommandConsumerStats(io.netty.util.Recycler.Handle<CommandConsumerStats> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private CommandConsumerStats(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandConsumerStats> RECYCLER = new io.netty.util.Recycler<CommandConsumerStats>() {
-            protected CommandConsumerStats newObject(Handle<CommandConsumerStats> handle) {
+            protected CommandConsumerStats newObject(Handle handle) {
               return new CommandConsumerStats(handle);
             }
           };
@@ -20115,12 +20109,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private CommandConsumerStats(boolean noInit) {
-        this.handle = null;
-    }
+    private CommandConsumerStats(boolean noInit) {}
     
     private static final CommandConsumerStats defaultInstance;
     public static CommandConsumerStats getDefaultInstance() {
@@ -20173,7 +20165,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -20196,11 +20188,11 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(1, requestId_);
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(4, consumerId_);
       }
       memoizedSerializedSize = size;
@@ -20215,24 +20207,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStats parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStats parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStats parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStats parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -20242,7 +20234,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStats parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -20258,7 +20250,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStats parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -20268,13 +20260,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStats parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStats parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -20288,24 +20280,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStats, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStats.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -20340,7 +20332,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStats buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStats result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -20388,14 +20380,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -20480,7 +20472,7 @@ public final class PulsarApi {
   }
   
   public interface CommandConsumerStatsResponseOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required uint64 request_id = 1;
     boolean hasRequestId();
@@ -20543,16 +20535,16 @@ public final class PulsarApi {
     long getMsgBacklog();
   }
   public static final class CommandConsumerStatsResponse extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements CommandConsumerStatsResponseOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandConsumerStatsResponse.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<CommandConsumerStatsResponse> handle;
-    private CommandConsumerStatsResponse(io.netty.util.Recycler.Handle<CommandConsumerStatsResponse> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private CommandConsumerStatsResponse(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandConsumerStatsResponse> RECYCLER = new io.netty.util.Recycler<CommandConsumerStatsResponse>() {
-            protected CommandConsumerStatsResponse newObject(Handle<CommandConsumerStatsResponse> handle) {
+            protected CommandConsumerStatsResponse newObject(Handle handle) {
               return new CommandConsumerStatsResponse(handle);
             }
           };
@@ -20562,12 +20554,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private CommandConsumerStatsResponse(boolean noInit) {
-        this.handle = null;
-    }
+    private CommandConsumerStatsResponse(boolean noInit) {}
     
     private static final CommandConsumerStatsResponse defaultInstance;
     public static CommandConsumerStatsResponse getDefaultInstance() {
@@ -20610,24 +20600,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           errorMessage_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getErrorMessageBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getErrorMessageBytes() {
       java.lang.Object ref = errorMessage_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         errorMessage_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -20672,24 +20662,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           consumerName_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getConsumerNameBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getConsumerNameBytes() {
       java.lang.Object ref = consumerName_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         consumerName_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -20734,24 +20724,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           address_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getAddressBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getAddressBytes() {
       java.lang.Object ref = address_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         address_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -20766,24 +20756,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           connectedSince_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getConnectedSinceBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getConnectedSinceBytes() {
       java.lang.Object ref = connectedSince_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         connectedSince_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -20798,24 +20788,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           type_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getTypeBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getTypeBytes() {
       java.lang.Object ref = type_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         type_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -20869,7 +20859,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -20931,63 +20921,63 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(1, requestId_);
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeEnumSize(2, errorCode_.getNumber());
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(3, getErrorMessageBytes());
       }
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeDoubleSize(4, msgRateOut_);
       }
       if (((bitField0_ & 0x00000010) == 0x00000010)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeDoubleSize(5, msgThroughputOut_);
       }
       if (((bitField0_ & 0x00000020) == 0x00000020)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeDoubleSize(6, msgRateRedeliver_);
       }
       if (((bitField0_ & 0x00000040) == 0x00000040)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(7, getConsumerNameBytes());
       }
       if (((bitField0_ & 0x00000080) == 0x00000080)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(8, availablePermits_);
       }
       if (((bitField0_ & 0x00000100) == 0x00000100)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(9, unackedMessages_);
       }
       if (((bitField0_ & 0x00000200) == 0x00000200)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBoolSize(10, blockedConsumerOnUnackedMsgs_);
       }
       if (((bitField0_ & 0x00000400) == 0x00000400)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(11, getAddressBytes());
       }
       if (((bitField0_ & 0x00000800) == 0x00000800)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(12, getConnectedSinceBytes());
       }
       if (((bitField0_ & 0x00001000) == 0x00001000)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(13, getTypeBytes());
       }
       if (((bitField0_ & 0x00002000) == 0x00002000)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeDoubleSize(14, msgRateExpired_);
       }
       if (((bitField0_ & 0x00004000) == 0x00004000)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(15, msgBacklog_);
       }
       memoizedSerializedSize = size;
@@ -21002,24 +20992,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -21029,7 +21019,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -21045,7 +21035,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -21055,13 +21045,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -21075,24 +21065,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponseOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -21153,7 +21143,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -21288,14 +21278,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -21448,7 +21438,7 @@ public final class PulsarApi {
       public String getErrorMessage() {
         java.lang.Object ref = errorMessage_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           errorMessage_ = s;
           return s;
         } else {
@@ -21470,7 +21460,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setErrorMessage(com.google.protobuf.ByteString value) {
+      void setErrorMessage(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000004;
         errorMessage_ = value;
         
@@ -21547,7 +21537,7 @@ public final class PulsarApi {
       public String getConsumerName() {
         java.lang.Object ref = consumerName_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           consumerName_ = s;
           return s;
         } else {
@@ -21569,7 +21559,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setConsumerName(com.google.protobuf.ByteString value) {
+      void setConsumerName(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000040;
         consumerName_ = value;
         
@@ -21646,7 +21636,7 @@ public final class PulsarApi {
       public String getAddress() {
         java.lang.Object ref = address_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           address_ = s;
           return s;
         } else {
@@ -21668,7 +21658,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setAddress(com.google.protobuf.ByteString value) {
+      void setAddress(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000400;
         address_ = value;
         
@@ -21682,7 +21672,7 @@ public final class PulsarApi {
       public String getConnectedSince() {
         java.lang.Object ref = connectedSince_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           connectedSince_ = s;
           return s;
         } else {
@@ -21704,7 +21694,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setConnectedSince(com.google.protobuf.ByteString value) {
+      void setConnectedSince(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000800;
         connectedSince_ = value;
         
@@ -21718,7 +21708,7 @@ public final class PulsarApi {
       public String getType() {
         java.lang.Object ref = type_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           type_ = s;
           return s;
         } else {
@@ -21740,7 +21730,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setType(com.google.protobuf.ByteString value) {
+      void setType(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00001000;
         type_ = value;
         
@@ -21800,7 +21790,7 @@ public final class PulsarApi {
   }
   
   public interface CommandGetLastMessageIdOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required uint64 consumer_id = 1;
     boolean hasConsumerId();
@@ -21811,16 +21801,16 @@ public final class PulsarApi {
     long getRequestId();
   }
   public static final class CommandGetLastMessageId extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements CommandGetLastMessageIdOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandGetLastMessageId.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<CommandGetLastMessageId> handle;
-    private CommandGetLastMessageId(io.netty.util.Recycler.Handle<CommandGetLastMessageId> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private CommandGetLastMessageId(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandGetLastMessageId> RECYCLER = new io.netty.util.Recycler<CommandGetLastMessageId>() {
-            protected CommandGetLastMessageId newObject(Handle<CommandGetLastMessageId> handle) {
+            protected CommandGetLastMessageId newObject(Handle handle) {
               return new CommandGetLastMessageId(handle);
             }
           };
@@ -21830,12 +21820,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private CommandGetLastMessageId(boolean noInit) {
-        this.handle = null;
-    }
+    private CommandGetLastMessageId(boolean noInit) {}
     
     private static final CommandGetLastMessageId defaultInstance;
     public static CommandGetLastMessageId getDefaultInstance() {
@@ -21888,7 +21876,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -21911,11 +21899,11 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(1, consumerId_);
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(2, requestId_);
       }
       memoizedSerializedSize = size;
@@ -21930,24 +21918,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageId parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageId parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageId parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageId parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -21957,7 +21945,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageId parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -21973,7 +21961,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageId parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -21983,13 +21971,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageId parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageId parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -22003,24 +21991,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageId, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageIdOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageId.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -22055,7 +22043,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageId buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageId result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -22103,14 +22091,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -22195,7 +22183,7 @@ public final class PulsarApi {
   }
   
   public interface CommandGetLastMessageIdResponseOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required .pulsar.proto.MessageIdData last_message_id = 1;
     boolean hasLastMessageId();
@@ -22206,16 +22194,16 @@ public final class PulsarApi {
     long getRequestId();
   }
   public static final class CommandGetLastMessageIdResponse extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements CommandGetLastMessageIdResponseOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandGetLastMessageIdResponse.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<CommandGetLastMessageIdResponse> handle;
-    private CommandGetLastMessageIdResponse(io.netty.util.Recycler.Handle<CommandGetLastMessageIdResponse> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private CommandGetLastMessageIdResponse(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandGetLastMessageIdResponse> RECYCLER = new io.netty.util.Recycler<CommandGetLastMessageIdResponse>() {
-            protected CommandGetLastMessageIdResponse newObject(Handle<CommandGetLastMessageIdResponse> handle) {
+            protected CommandGetLastMessageIdResponse newObject(Handle handle) {
               return new CommandGetLastMessageIdResponse(handle);
             }
           };
@@ -22225,12 +22213,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private CommandGetLastMessageIdResponse(boolean noInit) {
-        this.handle = null;
-    }
+    private CommandGetLastMessageIdResponse(boolean noInit) {}
     
     private static final CommandGetLastMessageIdResponse defaultInstance;
     public static CommandGetLastMessageIdResponse getDefaultInstance() {
@@ -22287,7 +22273,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -22310,11 +22296,11 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(1, lastMessageId_);
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(2, requestId_);
       }
       memoizedSerializedSize = size;
@@ -22329,24 +22315,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageIdResponse parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageIdResponse parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageIdResponse parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageIdResponse parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -22356,7 +22342,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageIdResponse parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -22372,7 +22358,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageIdResponse parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -22382,13 +22368,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageIdResponse parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageIdResponse parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -22402,24 +22388,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageIdResponse, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageIdResponseOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageIdResponse.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -22454,7 +22440,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageIdResponse buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageIdResponse result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -22506,14 +22492,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -22625,7 +22611,7 @@ public final class PulsarApi {
   }
   
   public interface CommandGetTopicsOfNamespaceOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required uint64 request_id = 1;
     boolean hasRequestId();
@@ -22636,16 +22622,16 @@ public final class PulsarApi {
     String getNamespace();
   }
   public static final class CommandGetTopicsOfNamespace extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements CommandGetTopicsOfNamespaceOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandGetTopicsOfNamespace.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<CommandGetTopicsOfNamespace> handle;
-    private CommandGetTopicsOfNamespace(io.netty.util.Recycler.Handle<CommandGetTopicsOfNamespace> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private CommandGetTopicsOfNamespace(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandGetTopicsOfNamespace> RECYCLER = new io.netty.util.Recycler<CommandGetTopicsOfNamespace>() {
-            protected CommandGetTopicsOfNamespace newObject(Handle<CommandGetTopicsOfNamespace> handle) {
+            protected CommandGetTopicsOfNamespace newObject(Handle handle) {
               return new CommandGetTopicsOfNamespace(handle);
             }
           };
@@ -22655,12 +22641,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private CommandGetTopicsOfNamespace(boolean noInit) {
-        this.handle = null;
-    }
+    private CommandGetTopicsOfNamespace(boolean noInit) {}
     
     private static final CommandGetTopicsOfNamespace defaultInstance;
     public static CommandGetTopicsOfNamespace getDefaultInstance() {
@@ -22693,24 +22677,24 @@ public final class PulsarApi {
       if (ref instanceof String) {
         return (String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString bs = 
+            (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
         String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+        if (org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.isValidUtf8(bs)) {
           namespace_ = s;
         }
         return s;
       }
     }
-    private com.google.protobuf.ByteString getNamespaceBytes() {
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString getNamespaceBytes() {
       java.lang.Object ref = namespace_;
       if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString b = 
+            org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8((String) ref);
         namespace_ = b;
         return b;
       } else {
-        return (com.google.protobuf.ByteString) ref;
+        return (org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref;
       }
     }
     
@@ -22735,7 +22719,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -22758,11 +22742,11 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(1, requestId_);
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(2, getNamespaceBytes());
       }
       memoizedSerializedSize = size;
@@ -22777,24 +22761,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -22804,7 +22788,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -22820,7 +22804,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -22830,13 +22814,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -22850,24 +22834,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -22902,7 +22886,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -22950,14 +22934,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -23017,7 +23001,7 @@ public final class PulsarApi {
       public String getNamespace() {
         java.lang.Object ref = namespace_;
         if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          String s = ((org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString) ref).toStringUtf8();
           namespace_ = s;
           return s;
         } else {
@@ -23039,7 +23023,7 @@ public final class PulsarApi {
         
         return this;
       }
-      void setNamespace(com.google.protobuf.ByteString value) {
+      void setNamespace(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         bitField0_ |= 0x00000002;
         namespace_ = value;
         
@@ -23057,7 +23041,7 @@ public final class PulsarApi {
   }
   
   public interface CommandGetTopicsOfNamespaceResponseOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required uint64 request_id = 1;
     boolean hasRequestId();
@@ -23069,16 +23053,16 @@ public final class PulsarApi {
     String getTopics(int index);
   }
   public static final class CommandGetTopicsOfNamespaceResponse extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements CommandGetTopicsOfNamespaceResponseOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandGetTopicsOfNamespaceResponse.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<CommandGetTopicsOfNamespaceResponse> handle;
-    private CommandGetTopicsOfNamespaceResponse(io.netty.util.Recycler.Handle<CommandGetTopicsOfNamespaceResponse> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private CommandGetTopicsOfNamespaceResponse(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandGetTopicsOfNamespaceResponse> RECYCLER = new io.netty.util.Recycler<CommandGetTopicsOfNamespaceResponse>() {
-            protected CommandGetTopicsOfNamespaceResponse newObject(Handle<CommandGetTopicsOfNamespaceResponse> handle) {
+            protected CommandGetTopicsOfNamespaceResponse newObject(Handle handle) {
               return new CommandGetTopicsOfNamespaceResponse(handle);
             }
           };
@@ -23088,12 +23072,10 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private CommandGetTopicsOfNamespaceResponse(boolean noInit) {
-        this.handle = null;
-    }
+    private CommandGetTopicsOfNamespaceResponse(boolean noInit) {}
     
     private static final CommandGetTopicsOfNamespaceResponse defaultInstance;
     public static CommandGetTopicsOfNamespaceResponse getDefaultInstance() {
@@ -23117,7 +23099,7 @@ public final class PulsarApi {
     
     // repeated string topics = 2;
     public static final int TOPICS_FIELD_NUMBER = 2;
-    private com.google.protobuf.LazyStringList topics_;
+    private org.apache.pulsar.shaded.com.google.protobuf.v241.LazyStringList topics_;
     public java.util.List<String>
         getTopicsList() {
       return topics_;
@@ -23131,7 +23113,7 @@ public final class PulsarApi {
     
     private void initFields() {
       requestId_ = 0L;
-      topics_ = com.google.protobuf.LazyStringArrayList.EMPTY;
+      topics_ = org.apache.pulsar.shaded.com.google.protobuf.v241.LazyStringArrayList.EMPTY;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -23146,7 +23128,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -23169,13 +23151,13 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt64Size(1, requestId_);
       }
       {
         int dataSize = 0;
         for (int i = 0; i < topics_.size(); i++) {
-          dataSize += com.google.protobuf.CodedOutputStream
+          dataSize += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
             .computeBytesSizeNoTag(topics_.getByteString(i));
         }
         size += dataSize;
@@ -23193,24 +23175,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -23220,7 +23202,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -23236,7 +23218,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -23246,13 +23228,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -23266,24 +23248,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponseOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -23296,7 +23278,7 @@ public final class PulsarApi {
         super.clear();
         requestId_ = 0L;
         bitField0_ = (bitField0_ & ~0x00000001);
-        topics_ = com.google.protobuf.LazyStringArrayList.EMPTY;
+        topics_ = org.apache.pulsar.shaded.com.google.protobuf.v241.LazyStringArrayList.EMPTY;
         bitField0_ = (bitField0_ & ~0x00000002);
         return this;
       }
@@ -23318,7 +23300,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -23336,7 +23318,7 @@ public final class PulsarApi {
         }
         result.requestId_ = requestId_;
         if (((bitField0_ & 0x00000002) == 0x00000002)) {
-          topics_ = new com.google.protobuf.UnmodifiableLazyStringList(
+          topics_ = new org.apache.pulsar.shaded.com.google.protobuf.v241.UnmodifiableLazyStringList(
               topics_);
           bitField0_ = (bitField0_ & ~0x00000002);
         }
@@ -23371,14 +23353,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();
@@ -23431,10 +23413,10 @@ public final class PulsarApi {
       }
       
       // repeated string topics = 2;
-      private com.google.protobuf.LazyStringList topics_ = com.google.protobuf.LazyStringArrayList.EMPTY;
+      private org.apache.pulsar.shaded.com.google.protobuf.v241.LazyStringList topics_ = org.apache.pulsar.shaded.com.google.protobuf.v241.LazyStringArrayList.EMPTY;
       private void ensureTopicsIsMutable() {
         if (!((bitField0_ & 0x00000002) == 0x00000002)) {
-          topics_ = new com.google.protobuf.LazyStringArrayList(topics_);
+          topics_ = new org.apache.pulsar.shaded.com.google.protobuf.v241.LazyStringArrayList(topics_);
           bitField0_ |= 0x00000002;
          }
       }
@@ -23475,12 +23457,12 @@ public final class PulsarApi {
         return this;
       }
       public Builder clearTopics() {
-        topics_ = com.google.protobuf.LazyStringArrayList.EMPTY;
+        topics_ = org.apache.pulsar.shaded.com.google.protobuf.v241.LazyStringArrayList.EMPTY;
         bitField0_ = (bitField0_ & ~0x00000002);
         
         return this;
       }
-      void addTopics(com.google.protobuf.ByteString value) {
+      void addTopics(org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString value) {
         ensureTopicsIsMutable();
         topics_.add(value);
         
@@ -23498,7 +23480,7 @@ public final class PulsarApi {
   }
   
   public interface BaseCommandOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
     // required .pulsar.proto.BaseCommand.Type type = 1;
     boolean hasType();
@@ -23633,16 +23615,16 @@ public final class PulsarApi {
     org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse getGetTopicsOfNamespaceResponse();
   }
   public static final class BaseCommand extends
-      com.google.protobuf.GeneratedMessageLite
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
       implements BaseCommandOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use BaseCommand.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<BaseCommand> handle;
-    private BaseCommand(io.netty.util.Recycler.Handle<BaseCommand> handle) {
+    private io.netty.util.Recycler.Handle handle;
+    private BaseCommand(io.netty.util.Recycler.Handle handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<BaseCommand> RECYCLER = new io.netty.util.Recycler<BaseCommand>() {
-            protected BaseCommand newObject(Handle<BaseCommand> handle) {
+            protected BaseCommand newObject(Handle handle) {
               return new BaseCommand(handle);
             }
           };
@@ -23653,12 +23635,10 @@ public final class PulsarApi {
             this.bitField0_ = 0;
             this.bitField1_ = 0;
             this.memoizedSerializedSize = -1;
-            handle.recycle(this);
+            if (handle != null) { RECYCLER.recycle(this, handle); }
         }
          
-    private BaseCommand(boolean noInit) {
-        this.handle = null;
-    }
+    private BaseCommand(boolean noInit) {}
     
     private static final BaseCommand defaultInstance;
     public static BaseCommand getDefaultInstance() {
@@ -23670,7 +23650,7 @@ public final class PulsarApi {
     }
     
     public enum Type
-        implements com.google.protobuf.Internal.EnumLite {
+        implements org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLite {
       CONNECT(0, 2),
       CONNECTED(1, 3),
       SUBSCRIBE(2, 4),
@@ -23779,13 +23759,13 @@ public final class PulsarApi {
         }
       }
       
-      public static com.google.protobuf.Internal.EnumLiteMap<Type>
+      public static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<Type>
           internalGetValueMap() {
         return internalValueMap;
       }
-      private static com.google.protobuf.Internal.EnumLiteMap<Type>
+      private static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<Type>
           internalValueMap =
-            new com.google.protobuf.Internal.EnumLiteMap<Type>() {
+            new org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<Type>() {
               public Type findValueByNumber(int number) {
                 return Type.valueOf(number);
               }
@@ -24360,7 +24340,7 @@ public final class PulsarApi {
       return true;
     }
     
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
                         throws java.io.IOException {
         throw new RuntimeException("Cannot use CodedOutputStream");
     }
@@ -24476,135 +24456,135 @@ public final class PulsarApi {
     
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeEnumSize(1, type_.getNumber());
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(2, connect_);
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(3, connected_);
       }
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(4, subscribe_);
       }
       if (((bitField0_ & 0x00000010) == 0x00000010)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(5, producer_);
       }
       if (((bitField0_ & 0x00000020) == 0x00000020)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(6, send_);
       }
       if (((bitField0_ & 0x00000040) == 0x00000040)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(7, sendReceipt_);
       }
       if (((bitField0_ & 0x00000080) == 0x00000080)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(8, sendError_);
       }
       if (((bitField0_ & 0x00000100) == 0x00000100)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(9, message_);
       }
       if (((bitField0_ & 0x00000200) == 0x00000200)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(10, ack_);
       }
       if (((bitField0_ & 0x00000400) == 0x00000400)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(11, flow_);
       }
       if (((bitField0_ & 0x00000800) == 0x00000800)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(12, unsubscribe_);
       }
       if (((bitField0_ & 0x00001000) == 0x00001000)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(13, success_);
       }
       if (((bitField0_ & 0x00002000) == 0x00002000)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(14, error_);
       }
       if (((bitField0_ & 0x00004000) == 0x00004000)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(15, closeProducer_);
       }
       if (((bitField0_ & 0x00008000) == 0x00008000)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(16, closeConsumer_);
       }
       if (((bitField0_ & 0x00010000) == 0x00010000)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(17, producerSuccess_);
       }
       if (((bitField0_ & 0x00020000) == 0x00020000)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(18, ping_);
       }
       if (((bitField0_ & 0x00040000) == 0x00040000)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(19, pong_);
       }
       if (((bitField0_ & 0x00080000) == 0x00080000)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(20, redeliverUnacknowledgedMessages_);
       }
       if (((bitField0_ & 0x00100000) == 0x00100000)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(21, partitionMetadata_);
       }
       if (((bitField0_ & 0x00200000) == 0x00200000)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(22, partitionMetadataResponse_);
       }
       if (((bitField0_ & 0x00400000) == 0x00400000)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(23, lookupTopic_);
       }
       if (((bitField0_ & 0x00800000) == 0x00800000)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(24, lookupTopicResponse_);
       }
       if (((bitField0_ & 0x01000000) == 0x01000000)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(25, consumerStats_);
       }
       if (((bitField0_ & 0x02000000) == 0x02000000)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(26, consumerStatsResponse_);
       }
       if (((bitField0_ & 0x04000000) == 0x04000000)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(27, reachedEndOfTopic_);
       }
       if (((bitField0_ & 0x08000000) == 0x08000000)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(28, seek_);
       }
       if (((bitField0_ & 0x10000000) == 0x10000000)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(29, getLastMessageId_);
       }
       if (((bitField0_ & 0x20000000) == 0x20000000)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(30, getLastMessageIdResponse_);
       }
       if (((bitField0_ & 0x40000000) == 0x40000000)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(31, activeConsumerChange_);
       }
       if (((bitField0_ & 0x80000000) == 0x80000000)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(32, getTopicsOfNamespace_);
       }
       if (((bitField1_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(33, getTopicsOfNamespaceResponse_);
       }
       memoizedSerializedSize = size;
@@ -24619,24 +24599,24 @@ public final class PulsarApi {
     }
     
     public static org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
          throw new RuntimeException("Disabled");
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand parseFrom(
         byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
       return newBuilder().mergeFrom(data, extensionRegistry)
                .buildParsed();
     }
@@ -24646,7 +24626,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand parseFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -24662,7 +24642,7 @@ public final class PulsarApi {
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand parseDelimitedFrom(
         java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       Builder builder = newBuilder();
       if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
@@ -24672,13 +24652,13 @@ public final class PulsarApi {
       }
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand parseFrom(
-        com.google.protobuf.CodedInputStream input)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input).buildParsed();
     }
     public static org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return newBuilder().mergeFrom(input, extensionRegistry)
                .buildParsed();
@@ -24692,24 +24672,24 @@ public final class PulsarApi {
     public Builder toBuilder() { return newBuilder(this); }
     
     public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
           org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.BaseCommandOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                handle.recycle(this);
+                if (handle != null) {RECYCLER.recycle(this, handle);}
             }
       
       private void maybeForceBuilderInitialization() {
@@ -24806,7 +24786,7 @@ public final class PulsarApi {
       }
       
       private org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
         org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(
@@ -25250,14 +25230,14 @@ public final class PulsarApi {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
                               throws java.io.IOException {
          throw new java.io.IOException("Merge from CodedInputStream is disabled");
                               }
       public Builder mergeFrom(
           org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
           int tag = input.readTag();

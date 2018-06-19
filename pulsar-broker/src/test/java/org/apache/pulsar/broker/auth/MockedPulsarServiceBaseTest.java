@@ -100,7 +100,7 @@ public abstract class MockedPulsarServiceBaseTest {
         this.conf.setActiveConsumerFailoverDelayTimeMillis(0);
         this.conf.setDefaultNumberOfNamespaceBundles(1);
         this.conf.setZookeeperServers("localhost:2181");
-        this.conf.setGlobalZookeeperServers("localhost:3181");
+        this.conf.setConfigurationStoreServers("localhost:3181");
     }
 
     protected final void internalSetup() throws Exception {
@@ -201,7 +201,7 @@ public abstract class MockedPulsarServiceBaseTest {
     protected void setupBrokerMocks(PulsarService pulsar) throws Exception {
         // Override default providers with mocked ones
         doReturn(mockZooKeeperClientFactory).when(pulsar).getZooKeeperClientFactory();
-        doReturn(mockBookKeeperClientFactory).when(pulsar).getBookKeeperClientFactory();
+        doReturn(mockBookKeeperClientFactory).when(pulsar).newBookKeeperClientFactory();
 
         Supplier<NamespaceService> namespaceServiceSupplier = () -> spy(new NamespaceService(pulsar));
         doReturn(namespaceServiceSupplier).when(pulsar).getNamespaceServiceProvider();

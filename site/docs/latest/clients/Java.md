@@ -1,6 +1,6 @@
 ---
 title: The Pulsar Java client
-tags: [client, java]
+tags: [client, java, schema, schema registry]
 ---
 
 <!--
@@ -24,9 +24,7 @@ tags: [client, java]
 
 -->
 
-The Pulsar Java client can be used both to create Java {% popover producers %} and {% popover consumers %} of messages but also to perform [administrative tasks](../../admin-api/overview).
-
-The current version of the Java client is **{{ site.current_version }}**.
+The Pulsar Java client can be used both to create Java {% popover producers %}, {% popover consumers %}, and [readers](#readers) of messages and to perform [administrative tasks](../../admin-api/overview). The current version of the Java client is **{{ site.current_version }}**.
 
 Javadoc for the Pulsar client is divided up into two domains, by package:
 
@@ -78,9 +76,8 @@ dependencies {
 You can instantiate a {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %} object using just a URL for the target Pulsar {% popover cluster %}, like this:
 
 ```java
-String pulsarBrokerRootUrl = "pulsar://localhost:6650";
 PulsarClient client = PulsarClient.builder()
-        .serviceUrl(pulsarBrokerRootUrl)
+        .serviceUrl("pulsar://localhost:6650")
         .build();
 ```
 
@@ -98,26 +95,24 @@ In addition to client-level configuration, you can also apply [producer](#config
 In Pulsar, {% popover producers %} write {% popover messages %} to {% popover topics %}. Once you've instantiated a {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %} object (as in the section [above](#client-configuration)), you can create a {% javadoc Producer client org.apache.pulsar.client.api.Producer %} for a specific Pulsar {% popover topic %}.
 
 ```java
-String topic = "persistent://sample/standalone/ns1/my-topic";
-
-Producer producer = client.newProducer()
-        .topic(topic)
+Producer<byte[]> producer = client.newProducer()
+        .topic("my-topic")
         .create();
+
+// You can then send messages to the broker and topic you specified:
+producer.send("My message".getBytes());
 ```
 
-You can then send messages to the broker and topic you specified:
+By default, producers produce messages that consist of byte arrays. You can produce different types, however, by specifying a message [schema](#schemas).
 
 ```java
-// Publish 10 messages to the topic
-for (int i = 0; i < 10; i++) {
-    Message<byte[]> msg = MessageBuilder.create()
-            .setContent(String.format("Message number %d", i).getBytes())
-            .build();
-    producer.send(msg);
-}
+Producer<String> stringProducer = client.newProducer(Schema.STRING)
+        .topic("my-topic")
+        .create();
+stringProducer.send("My message");
 ```
 
-{% include admonition.html type='warning' content="
+{% include admonition.html type='warning' content='
 You should always make sure to close your producers, consumers, and clients when they are no longer needed:
 
 ```java
@@ -126,27 +121,29 @@ consumer.close();
 client.close();
 ```
 
-Closer operations can also be asynchronous:
+Close operations can also be asynchronous:
 
 ```java
-producer.asyncClose();
-consumer.asyncClose();
-clioent.asyncClose();
+producer.closeAsync()
+    .thenRun(() -> System.out.println("Producer closed"));
+    .exceptionally((ex) -> {
+        System.err.println("Failed to close producer: " + ex);
+        return ex;
+    });
 ```
-" %}
-
+' %}
 
 ### Configuring producers
 
 If you instantiate a `Producer` object specifying only a topic name, as in the example above, the producer will use the default configuration. To use a non-default configuration, there's a variety of configurable parameters that you can set. For a full listing, see the Javadoc for the {% javadoc ProducerBuilder client org.apache.pulsar.client.api.ProducerBuilder %} class. Here's an example:
 
 ```java
-Producer producer = client.newProducer()
-        .topic(topic)
-        .enableBatching(true)
-        .sendTimeout(10, TimeUnit.SECONDS)
-        .producerName("my-producer")
-        .create();
+Producer<byte[]> producer = client.newProducer()
+    .topic("my-topic")
+    .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS)
+    .sendTimeout(10, TimeUnit.SECONDS)
+    .blockIfQueueFull(true)
+    .create();
 ```
 
 ### Message routing
@@ -155,15 +152,33 @@ When using {% popover partitioned topics %}, you can specify the routing mode wh
 
 ### Async send
 
-You can publish messages [asynchronously](../../getting-started/ConceptsAndArchitecture#send-modes) using the Java client. With async send, the producer will put the message in a blocking queue and return immediately. The client library will then send the message to the {% popover broker %} in the background. If the queue is full (max size configurable), the producer could be blocked or fail immediately when calling the API, depending on arguments passed to the producer.
+You can also publish messages [asynchronously](../../getting-started/ConceptsAndArchitecture#send-modes) using the Java client. With async send, the producer will put the message in a blocking queue and return immediately. The client library will then send the message to the {% popover broker %} in the background. If the queue is full (max size configurable), the producer could be blocked or fail immediately when calling the API, depending on arguments passed to the producer.
 
 Here's an example async send operation:
 
 ```java
-CompletableFuture<MessageId> future = producer.sendAsync("my-async-message".getBytes());
+producer.sendAsync("my-async-message".getBytes()).thenAccept(msgId -> {
+    System.out.printf("Message with ID %s successfully sent", msgId);
+});
 ```
 
-Async send operations return a {% javadoc MessageId client org.apache.pulsar.client.api.MessageId %} wrapped in a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture).
+As you can see from the example above, async send operations return a {% javadoc MessageId client org.apache.pulsar.client.api.MessageId %} wrapped in a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture).
+
+### Configuring messages
+
+In addition to a value, it's possible to set additional items on a given message:
+
+```java
+producer.newMessage()
+    .key("my-message-key")
+    .value("my-async-message".getBytes())
+    .property("my-key", "my-value")
+    .property("my-other-key", "my-other-value")
+    .send();
+```
+
+As for the previous case, it's also possible to terminate the builder chain with `sendAsync()` and
+get a future returned.
 
 ## Consumers
 
@@ -172,17 +187,16 @@ In Pulsar, {% popover consumers %} subscribe to {% popover topics %} and handle 
 Once you've instantiated a {% javadoc PulsarClient client org.apache.pulsar.client.api.PulsarClient %} object, you can create a {% javadoc Consumer client org.apache.pulsar.client.api.Consumer %} by specifying a {% popover topic %} and a [subscription](../../getting-started/ConceptsAndArchitecture#subscription-modes).
 
 ```java
-String topic = "persistent://sample/standalone/ns1/my-topic"; // from above
-String subscription = "my-subscription";
 Consumer consumer = client.newConsumer()
-        .subscriptionName("my-subscription-1")
+        .topic("my-topic")
+        .subscriptionName("my-subscription")
         .subscribe();
 ```
 
 The `subscribe` method will automatically subscribe the consumer to the specified topic and subscription. One way to make the consumer listen on the topic is to set up a `while` loop. In this example loop, the consumer listens for messages, prints the contents of any message that's received, and then {% popover acknowledges %} that the message has been processed:
 
 ```java
-while (true) {
+do {
   // Wait for a message
   Message msg = consumer.receive();
 
@@ -190,7 +204,7 @@ while (true) {
 
   // Acknowledge the message so that it can be deleted by the message broker
   consumer.acknowledge(msg);
-}
+} while (true);
 ```
 
 ### Configuring consumers
@@ -201,8 +215,8 @@ Here's an example configuration:
 
 ```java
 Consumer consumer = client.newConsumer()
-        .topic(topic)
-        .subscriptionName(subscription)
+        .topic("my-topic")
+        .subscriptionName("my-subscription")
         .ackTimeout(10, TimeUnit.SECONDS)
         .subscriptionType(SubscriptionType.Exclusive)
         .subscribe();
@@ -234,18 +248,18 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 
-ConsumerBuilder bldr = pulsarClient.newConsumer()
+ConsumerBuilder consumerBuilder = pulsarClient.newConsumer()
         .subscriptionName(subscription);
 
 // Subscribe to all topics in a namespace
-Pattern allTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/.*");
-Consumer allTopicsConsumer = bldr
+Pattern allTopicsInNamespace = Pattern.compile("persistent://public/default/.*");
+Consumer allTopicsConsumer = consumerBuilder
         .topicsPattern(allTopicsInNamespace)
         .subscribe();
 
 // Subscribe to a subsets of topics in a namespace, based on regex
-Pattern someTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/foo.*");
-Consumer allTopicsConsumer = bldr
+Pattern someTopicsInNamespace = Pattern.compile("persistent://public/default/foo.*");
+Consumer allTopicsConsumer = consumerBuilder
         .topicsPattern(someTopicsInNamespace)
         .subscribe();
 ```
@@ -254,21 +268,21 @@ You can also subscribe to an explicit list of topics (across namespaces if you w
 
 ```java
 List<String> topics = Arrays.asList(
-        "persistent://sample/standalone/ns1/topic-1",
-        "persistent://sample/standalone/ns2/topic-2",
-        "persistent://sample/standalone/ns3/topic-3"
+        "topic-1",
+        "topic-2",
+        "topic-3"
 );
 
-Consumer multiTopicConsumer = bldr
+Consumer multiTopicConsumer = consumerBuilder
         .topics(topics)
         .subscribe();
 
 // Alternatively:
-Consumer multiTopicConsumer = bldr
+Consumer multiTopicConsumer = consumerBuilder
         .topics(
-            "persistent://sample/standalone/ns1/topic-1",
-            "persistent://sample/standalone/ns2/topic-2",
-            "persistent://sample/standalone/ns3/topic-3"
+            "topic-1",
+            "topic-2",
+            "topic-3"
         )
         .subscribe();
 ```
@@ -276,13 +290,23 @@ Consumer multiTopicConsumer = bldr
 You can also subscribe to multiple topics asynchronously using the `subscribeAsync` method rather than the synchronous `subscribe` method. Here's an example:
 
 ```java
-Pattern allTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/.*");
-CompletableFuture<Consumer> consumer = bldr
+Pattern allTopicsInNamespace = Pattern.compile("persistent://public/default.*");
+consumerBuilder
         .topics(topics)
-        .subscribeAsync();
+        .subscribeAsync()
+        .thenAccept(consumer -> {
+            do {
+                try {
+                    Message msg = consumer.receive();
+                    // Do something with the received message
+                } catch (PulsarClientException e) {
+                    e.printStackTrace();
+                }
+            } while (true);
+        });
 ```
 
-## Reader interface
+## Reader interface {#readers}
 
 With the [reader interface](../../getting-started/ConceptsAndArchitecture#reader-interface), Pulsar clients can "manually position" themselves within a topic, reading all messages from a specified message onward. The Pulsar API for Java enables you to create  {% javadoc Reader client org.apache.pulsar.client.api.Reader %} objects by specifying a {% popover topic %}, a {% javadoc MessageId client org.apache.pulsar.client.api.MessageId %}, and {% javadoc ReaderConfiguration client org.apache.pulsar.client.api.ReaderConfiguration %}.
 
@@ -306,6 +330,86 @@ while (true) {
 In the example above, a `Reader` object is instantiated for a specific topic and message (by ID); the reader then iterates over each message in the topic after the message identified by `msgIdBytes` (how that value is obtained depends on the application).
 
 The code sample above shows pointing the `Reader` object to a specific message (by ID), but you can also use `MessageId.earliest` to point to the earliest available message on the topic of `MessageId.latest` to point to the most recent available message.
+
+## Schemas
+
+In Pulsar, all message data consists of byte arrays "under the hood." [Message schemas](../../getting-started/ConceptsAndArchitecture#schema-registry) enable you to use other types of data when constructing and handling messages (from simple types like strings to more complex, application-specific types). If you construct, say, a [producer](#producers) without specifying a schema, then the producer can only produce messages of type `byte[]`. Here's an example:
+
+```java
+Producer<byte[]> producer = client.newProducer()
+        .topic(topic)
+        .create();
+```
+
+The producer above is equivalent to a `Producer<byte[]>` (in fact, you should *always* explicitly specify the type). If you'd like to use a producer for a different type of data, you'll need to specify a **schema** that informs Pulsar which data type will be transmitted over the {% popover topic %}.
+
+### Schema example
+
+Let's say that you have a `SensorReading` class that you'd like to transmit over a Pulsar topic:
+
+```java
+public class SensorReading {
+    public float temperature;
+
+    public SensorReading(float temperature) {
+        this.temperature = temperature;
+    }
+
+    // A no-arg constructor is required
+    public SensorReading() {
+    }
+
+    public float getTemperature() {
+        return temperature;
+    }
+
+    public void setTemperature(float temperature) {
+        this.temperature = temperature;
+    }
+}
+```
+
+You could then create a `Producer<SensorReading>` (or `Consumer<SensorReading>`) like so:
+
+```java
+Producer<SensorReading> producer = client.newProducer(JSONSchema.of(SensorReading.class))
+        .topic("sensor-readings")
+        .create();
+```
+
+The following schema formats are currently available for Java:
+
+* No schema or the byte array schema (which can be applied using `Schema.BYTES`):
+
+  ```java
+  Producer<byte[]> bytesProducer = client.newProducer(Schema.BYTES)
+        .topic("some-raw-bytes-topic")
+        .create();
+  ```
+
+  Or, equivalently:
+
+  ```java
+  Producer<byte[]> bytesProducer = client.newProducer()
+        .topic("some-raw-bytes-topic")
+        .create();
+  ```
+
+* `String` for normal UTF-8-encoded string data. This schema can be applied using `Schema.STRING`:
+
+  ```java
+  Producer<String> stringProducer = client.newProducer(Schema.STRING)
+        .topic("some-string-topic")
+        .create();
+  ```
+* JSON schemas can be created for POJOs using the `JSONSchema` class. Here's an example:
+
+  ```java
+  Schema<MyPojo> pojoSchema = JSONSchema.of(MyPojo.class);
+  Producer<MyPojo> pojoProducer = client.newProducer(pojoSchema)
+        .topic("some-pojo-topic")
+        .create();
+  ```
 
 ## Authentication
 
@@ -370,4 +474,3 @@ The `privateKey` parameter supports the following three pattern formats:
 * `file:///path/to/file`
 * `file:/path/to/file`
 * `data:application/x-pem-file;base64,<base64-encoded value>`' %}
-

@@ -54,6 +54,7 @@ public class ReaderImpl<T> implements Reader<T> {
         consumerConfiguration.setSubscriptionName(subscription);
         consumerConfiguration.setSubscriptionType(SubscriptionType.Exclusive);
         consumerConfiguration.setReceiverQueueSize(readerConfiguration.getReceiverQueueSize());
+        consumerConfiguration.setReadCompacted(readerConfiguration.isReadCompacted());
         if (readerConfiguration.getReaderName() != null) {
             consumerConfiguration.setConsumerName(readerConfiguration.getReaderName());
         }
@@ -147,4 +148,8 @@ public class ReaderImpl<T> implements Reader<T> {
         return consumer.hasMessageAvailableAsync();
     }
 
+    @Override
+    public boolean isConnected() {
+        return consumer.isConnected();
+    }
 }

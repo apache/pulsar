@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -124,6 +126,21 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public void createNamespace(String namespace, int numBundles) throws PulsarAdminException {
         createNamespace(namespace, new BundlesData(numBundles));
+    }
+
+    @Override
+    public void createNamespace(String namespace, Policies policies) throws PulsarAdminException {
+        NamespaceName ns = NamespaceName.get(namespace);
+        checkArgument(ns.isV2(), "Create namespace with policies is only supported on newer namespaces");
+
+        try {
+            WebTarget path = namespacePath(ns);
+
+            // For V2 API we pass full Policy class instance
+            request(path).put(Entity.entity(policies, MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
     }
 
     @Override
@@ -635,6 +652,50 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "maxConsumersPerSubscription");
             request(path).post(Entity.entity(maxConsumersPerSubscription, MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public long getCompactionThreshold(String namespace) throws PulsarAdminException {
+        try {
+            NamespaceName ns = NamespaceName.get(namespace);
+            WebTarget path = namespacePath(ns, "compactionThreshold");
+            return request(path).get(Long.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void setCompactionThreshold(String namespace, long compactionThreshold) throws PulsarAdminException {
+        try {
+            NamespaceName ns = NamespaceName.get(namespace);
+            WebTarget path = namespacePath(ns, "compactionThreshold");
+            request(path).put(Entity.entity(compactionThreshold, MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public long getOffloadThreshold(String namespace) throws PulsarAdminException {
+        try {
+            NamespaceName ns = NamespaceName.get(namespace);
+            WebTarget path = namespacePath(ns, "offloadThreshold");
+            return request(path).get(Long.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void setOffloadThreshold(String namespace, long offloadThreshold) throws PulsarAdminException {
+        try {
+            NamespaceName ns = NamespaceName.get(namespace);
+            WebTarget path = namespacePath(ns, "offloadThreshold");
+            request(path).put(Entity.entity(offloadThreshold, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }

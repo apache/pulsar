@@ -126,8 +126,8 @@ Configuration:
                   -
                     RollingFile:
                       name: "Rolling-${ctx:function}"
-                      fileName : "${sys:pulsar.log.dir}/functions/${ctx:function}/function.log"
-                      filePattern : "${sys:pulsar.log.dir}/functions/${ctx:function}-%d{MM-dd-yyyy}-%i.log.gz"
+                      fileName : "${sys:pulsar.log.dir}/functions/${ctx:function}/${ctx:functionname}-${ctx:instance}.log"
+                      filePattern : "${sys:pulsar.log.dir}/functions/${sys:pulsar.log.file}-${ctx:instance}-%d{MM-dd-yyyy}-%i.log.gz"
                       PatternLayout:
                         Pattern: "%d{ABSOLUTE} %level{length=5} [%thread] [instance: %X{instance}] %logger{1} - %msg%n"
                       Policies:
@@ -156,20 +156,6 @@ Configuration:
 
   Loggers:
 
-    Logger:
-      name: org.apache.bookkeeper
-      level: "${sys:bk.log.level}"
-      additivity: false
-      AppenderRef:
-        - ref: BkRollingFile
-
-    Logger:
-      name: org.apache.distributedlog
-      level: "${sys:bk.log.level}"
-      additivity: false
-      AppenderRef:
-        - ref: BkRollingFile
-  
     # Default root logger configuration
     Root:
       level: info
@@ -177,17 +163,29 @@ Configuration:
       AppenderRef:
         - ref: "${sys:pulsar.log.appender}"
           level: "${sys:pulsar.log.level}"
+
+    Logger:
+      - name: org.apache.bookkeeper
+        level: "${sys:bk.log.level}"
+        additivity: false
+        AppenderRef:
+          - ref: BkRollingFile
+
+      - name: org.apache.distributedlog
+        level: "${sys:bk.log.level}"
+        additivity: false
+        AppenderRef:
+          - ref: BkRollingFile
     
     # Logger to inject filter script
-#    Logger:
-#      name: org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl
-#      level: debug
-#      additivity: false
-#      AppenderRef:
-#        ref: "${sys:pulsar.log.appender}"
-#        ScriptFilter:
-#          onMatch: ACCEPT
-#          onMisMatch: DENY
-#          ScriptRef:
-#            ref: filter.js
+#     - name: org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl
+#       level: debug
+#       additivity: false
+#       AppenderRef:
+#         ref: "${sys:pulsar.log.appender}"
+#         ScriptFilter:
+#           onMatch: ACCEPT
+#           onMisMatch: DENY
+#           ScriptRef:
+#             ref: filter.js
         

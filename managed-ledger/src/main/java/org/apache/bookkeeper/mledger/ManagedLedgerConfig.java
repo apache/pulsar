@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.annotations.Beta;
 import com.google.common.base.Charsets;
+import java.time.Clock;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.client.api.DigestType;
@@ -53,10 +54,13 @@ public class ManagedLedgerConfig {
     private long retentionTimeMs = 0;
     private long retentionSizeInMB = 0;
     private boolean autoSkipNonRecoverableData;
+    private long offloadLedgerDeletionLagMs = TimeUnit.HOURS.toMillis(4);
+    private long offloadAutoTriggerSizeThresholdBytes = -1;
 
     private DigestType digestType = DigestType.CRC32C;
     private byte[] password = "".getBytes(Charsets.UTF_8);
     private LedgerOffloader ledgerOffloader = NullLedgerOffloader.INSTANCE;
+    private Clock clock = Clock.systemUTC();
 
     public boolean isCreateIfMissing() {
         return createIfMissing;
@@ -385,6 +389,49 @@ public class ManagedLedgerConfig {
     }
 
     /**
+     * When a ledger is offloaded from bookkeeper storage to longterm storage, the bookkeeper ledger
+     * is not deleted immediately. Instead we wait for a grace period before deleting from bookkeeper.
+     * The offloadLedgerDeleteLag sets this grace period.
+     *
+     * @param lagTime period to wait before deleting offloaded ledgers from bookkeeper
+     * @param unit timeunit for lagTime
+     */
+    public ManagedLedgerConfig setOffloadLedgerDeletionLag(long lagTime, TimeUnit unit) {
+        this.offloadLedgerDeletionLagMs = unit.toMillis(lagTime);
+        return this;
+    }
+
+    /**
+     * Number of milliseconds before an offloaded ledger will be deleted from bookkeeper.
+     *
+     * @return the offload ledger deletion lag time in milliseconds
+     */
+    public long getOffloadLedgerDeletionLagMillis() {
+        return offloadLedgerDeletionLagMs;
+    }
+
+    /**
+     * Size, in bytes, at which the managed ledger will start to automatically offload ledgers to longterm storage.
+     * A negative value disables autotriggering. A threshold of 0 offloads data as soon as possible.
+     * Offloading will not occur if no offloader has been set {@link #setLedgerOffloader(LedgerOffloader)}.
+     * Automatical offloading occurs when the ledger is rolled, and the ledgers up to that point exceed the threshold.
+     *
+     * @param threshold Threshold in bytes at which offload is automatically triggered
+     */
+    public ManagedLedgerConfig setOffloadAutoTriggerSizeThresholdBytes(long threshold) {
+        this.offloadAutoTriggerSizeThresholdBytes = threshold;
+        return this;
+    }
+
+    /**
+     * Size, in bytes, at which offloading will automatically be triggered for this managed ledger.
+     * @return the trigger threshold, in bytes
+     */
+    public long getOffloadAutoTriggerSizeThresholdBytes() {
+        return this.offloadAutoTriggerSizeThresholdBytes;
+    }
+
+    /**
      * Skip reading non-recoverable/unreadable data-ledger under managed-ledger's list. It helps when data-ledgers gets
      * corrupted at bookkeeper and managed-cursor is stuck at that ledger.
      */
@@ -443,6 +490,25 @@ public class ManagedLedgerConfig {
      */
     public ManagedLedgerConfig setLedgerOffloader(LedgerOffloader offloader) {
         this.ledgerOffloader = offloader;
+        return this;
+    }
+
+    /**
+     * Get clock to use to time operations
+     *
+     * @return a clock
+     */
+    public Clock getClock() {
+        return clock;
+    }
+
+    /**
+     * Set clock to use for time operations
+     *
+     * @param clock the clock to use
+     */
+    public ManagedLedgerConfig setClock(Clock clock) {
+        this.clock = clock;
         return this;
     }
 }

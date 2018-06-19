@@ -32,7 +32,7 @@ public class Policies {
 
     public final AuthPolicies auth_policies = new AuthPolicies();
     public Set<String> replication_clusters = Sets.newHashSet();
-    public BundlesData bundles = defaultBundle();
+    public BundlesData bundles;
     public Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlog_quota_map = Maps.newHashMap();
     public Map<String, DispatchRate> clusterDispatchRate = Maps.newHashMap();
     public Map<String, DispatchRate> subscriptionDispatchRate = Maps.newHashMap();
@@ -57,6 +57,9 @@ public class Policies {
     public int max_consumers_per_topic = 0;
     public int max_consumers_per_subscription = 0;
 
+    public long compaction_threshold = 0;
+    public long offload_threshold = -1;
+
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof Policies) {
@@ -75,7 +78,9 @@ public class Policies {
                     && Objects.equals(antiAffinityGroup, other.antiAffinityGroup)
                     && max_producers_per_topic == other.max_producers_per_topic
                     && max_consumers_per_topic == other.max_consumers_per_topic
-                    && max_consumers_per_subscription == other.max_consumers_per_subscription;
+                    && max_consumers_per_subscription == other.max_consumers_per_subscription
+                    && compaction_threshold == other.compaction_threshold
+                    && offload_threshold == other.offload_threshold;
         }
 
         return false;
@@ -105,6 +110,8 @@ public class Policies {
                 .add("subscription_auth_mode", subscription_auth_mode)
                 .add("max_producers_per_topic", max_producers_per_topic)
                 .add("max_consumers_per_topic", max_consumers_per_topic)
-                .add("max_consumers_per_subscription", max_consumers_per_topic).toString();
+                .add("max_consumers_per_subscription", max_consumers_per_topic)
+                .add("compaction_threshold", compaction_threshold)
+                .add("offload_threshold", offload_threshold).toString();
     }
 }

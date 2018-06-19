@@ -19,6 +19,16 @@
 package org.apache.pulsar.broker.admin.impl;
 
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+import static org.apache.pulsar.broker.namespace.NamespaceService.NAMESPACE_ISOLATION_POLICIES;
+
+import com.fasterxml.jackson.core.JsonGenerationException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -40,8 +50,8 @@ import javax.ws.rs.core.Response.Status;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
-import static org.apache.pulsar.broker.namespace.NamespaceService.NAMESPACE_ISOLATION_POLICIES;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -57,15 +67,6 @@ import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.core.JsonGenerationException;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
-
 public class ClustersBase extends AdminResource {
 
     @GET
@@ -73,7 +74,11 @@ public class ClustersBase extends AdminResource {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
     public Set<String> getClusters() throws Exception {
         try {
-            return clustersListCache().get();
+            Set<String> clusters = clustersListCache().get();
+
+            // Remove "global" cluster from returned list
+            clusters.remove(Constants.GLOBAL_CLUSTER);
+            return clusters;
         } catch (Exception e) {
             log.error("[{}] Failed to get clusters list", clientAppId(), e);
             throw new RestException(e);
@@ -118,7 +123,7 @@ public class ClustersBase extends AdminResource {
             log.info("[{}] Created cluster {}", clientAppId(), cluster);
         } catch (KeeperException.NodeExistsException e) {
             log.warn("[{}] Failed to create already existing cluster {}", clientAppId(), cluster);
-            throw new RestException(Status.CONFLICT, "Cluster already exist");
+            throw new RestException(Status.CONFLICT, "Cluster already exists");
         } catch (IllegalArgumentException e) {
             log.warn("[{}] Failed to create cluster with invalid name {}", clientAppId(), cluster, e);
             throw new RestException(Status.PRECONDITION_FAILED, "Cluster name is not valid");
@@ -238,7 +243,7 @@ public class ClustersBase extends AdminResource {
 			throw new RestException(e);
 		}
 	}
-    
+
     @DELETE
     @Path("/{cluster}")
     @ApiOperation(value = "Delete an existing cluster")
@@ -476,7 +481,7 @@ public class ClustersBase extends AdminResource {
         }
         return brokerIsolationData;
     }
-    
+
     @POST
     @Path("/{cluster}/namespaceIsolationPolicies/{policyName}")
     @ApiOperation(value = "Set namespace isolation policy")
@@ -537,7 +542,7 @@ public class ClustersBase extends AdminResource {
                 return true;
             } catch (KeeperException.NodeExistsException nee) {
                 if(log.isDebugEnabled()) {
-                    log.debug("Other broker preempted the full path [{}] already. Continue...", path);                    
+                    log.debug("Other broker preempted the full path [{}] already. Continue...", path);
                 }
             } catch (JsonGenerationException e) {
                 // ignore json error as it is empty hash
@@ -593,7 +598,7 @@ public class ClustersBase extends AdminResource {
     @Path("/{cluster}/failureDomains/{domainName}")
     @ApiOperation(value = "Set cluster's failure Domain")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 409, message = "Broker already exist into other domain"),
+            @ApiResponse(code = 409, message = "Broker already exists in another domain"),
             @ApiResponse(code = 404, message = "Cluster doesn't exist") })
     public void setFailureDomain(@PathParam("cluster") String cluster, @PathParam("domainName") String domainName,
             FailureDomain domain) throws Exception {
@@ -719,7 +724,7 @@ public class ClustersBase extends AdminResource {
                                     .filter(inputDomain.brokers::contains).collect(Collectors.toList());
                             if (!duplicateBrokers.isEmpty()) {
                                 throw new RestException(Status.CONFLICT,
-                                        duplicateBrokers + " already exist into " + domainName);
+                                        duplicateBrokers + " already exists in " + domainName);
                             }
                         }
                     } catch (Exception e) {

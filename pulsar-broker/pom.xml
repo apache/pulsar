@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.0.0-incubating-SNAPSHOT</version>
+    <version>2.1.0-incubating-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -55,9 +55,15 @@
     </dependency>
 
     <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>protobuf-shaded</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
-      <version>${protobuf2.version}</version>
+      <version>${protobuf3.version}</version>
     </dependency>
 
     <dependency>
@@ -105,12 +111,6 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-common</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-broker-common</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -135,6 +135,11 @@
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>com.amazonaws</groupId>
+      <artifactId>aws-java-sdk-s3</artifactId>
     </dependency>
 
     <!-- functions related dependencies (begin) -->
@@ -193,6 +198,11 @@
     </dependency>
 
     <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>jcl-over-slf4j</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
     </dependency>
@@ -235,6 +245,12 @@
     <dependency>
       <groupId>com.github.zafarkhaja</groupId>
       <artifactId>java-semver</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.avro</groupId>
+      <artifactId>avro</artifactId>
+      <version>${avro.version}</version>
     </dependency>
 
     <!-- aspectJ dependencies -->
@@ -303,6 +319,25 @@
           </execution>
         </executions>
       </plugin>
+
+      <plugin>
+        <groupId>org.xolstice.maven.plugins</groupId>
+        <artifactId>protobuf-maven-plugin</artifactId>
+        <version>${protobuf-maven-plugin.version}</version>
+        <configuration>
+          <protocArtifact>com.google.protobuf:protoc:${protoc3.version}:exe:${os.detected.classifier}</protocArtifact>
+          <checkStaleness>true</checkStaleness>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>compile</goal>
+              <goal>test-compile</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
     </plugins>
     <resources>
       <resource>

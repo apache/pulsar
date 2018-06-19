@@ -34,6 +34,7 @@ struct ConsumerConfigurationImpl {
     long brokerConsumerStatsCacheTimeInMs;
     CryptoKeyReaderPtr cryptoKeyReader;
     ConsumerCryptoFailureAction cryptoFailureAction;
+    bool readCompacted;
     ConsumerConfigurationImpl()
         : unAckedMessagesTimeoutMs(0),
           consumerType(ConsumerExclusive),
@@ -43,7 +44,8 @@ struct ConsumerConfigurationImpl {
           receiverQueueSize(1000),
           maxTotalReceiverQueueSizeAcrossPartitions(50000),
           cryptoKeyReader(),
-          cryptoFailureAction(ConsumerCryptoFailureAction::FAIL) {}
+          cryptoFailureAction(ConsumerCryptoFailureAction::FAIL),
+          readCompacted(false) {}
 };
 }  // namespace pulsar
 #endif /* LIB_CONSUMERCONFIGURATIONIMPL_H_ */

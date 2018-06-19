@@ -24,12 +24,15 @@
 """
 import base64
 import os
+import signal
 import time
 import Queue
 import threading
 from functools import partial
 from collections import namedtuple
+from threading import Timer
 import traceback
+import sys
 
 import pulsar
 import contextimpl
@@ -110,43 +113,50 @@ class PythonInstance(object):
     self.function_purefunction = None
     self.producer = None
     self.exeuction_thread = None
-    self.atmost_once = self.instance_config.function_details.processingGuarantees == Function_pb2.FunctionDetails.ProcessingGuarantees.Value('ATMOST_ONCE')
-    self.atleast_once = self.instance_config.function_details.processingGuarantees == Function_pb2.FunctionDetails.ProcessingGuarantees.Value('ATLEAST_ONCE')
+    self.atmost_once = self.instance_config.function_details.processingGuarantees == Function_pb2.ProcessingGuarantees.Value('ATMOST_ONCE')
+    self.atleast_once = self.instance_config.function_details.processingGuarantees == Function_pb2.ProcessingGuarantees.Value('ATLEAST_ONCE')
     self.auto_ack = self.instance_config.function_details.autoAck
     self.contextimpl = None
     self.total_stats = Stats()
     self.current_stats = Stats()
+    self.last_health_check_ts = time.time()
+    self.timeout_ms = function_details.source.timeoutMs if function_details.source.timeoutMs > 0 else None
+
+  def health_check(self):
+    self.last_health_check_ts = time.time()
+    health_check_result = InstanceCommunication_pb2.HealthCheckResult()
+    health_check_result.success = True
+    return health_check_result
+
+  def process_spawner_health_check_timer(self):
+    if time.time() - self.last_health_check_ts > 90:
+      Log.critical("Haven't received health check from spawner in a while. Stopping instance...")
+      os.kill(os.getpid(), signal.SIGTERM)
+      sys.exit(1)
+
+    Timer(30, self.process_spawner_health_check_timer).start()
 
   def run(self):
     # Setup consumers and input deserializers
     mode = pulsar._pulsar.ConsumerType.Shared
-    if self.instance_config.function_details.subscriptionType == Function_pb2.FunctionDetails.SubscriptionType.Value('EXCLUSIVE'):
-      mode = pulsar._pulsar.ConsumerType.Exclusive
-    elif self.instance_config.function_details.subscriptionType == Function_pb2.FunctionDetails.SubscriptionType.Value('FAILOVER'):
+    if self.instance_config.function_details.source.subscriptionType == Function_pb2.SubscriptionType.Value("FAILOVER"):
       mode = pulsar._pulsar.ConsumerType.Failover
 
     subscription_name = str(self.instance_config.function_details.tenant) + "/" + \
                         str(self.instance_config.function_details.namespace) + "/" + \
                         str(self.instance_config.function_details.name)
-    for topic, serde in self.instance_config.function_details.customSerdeInputs.items():
-      serde_kclass = util.import_class(os.path.dirname(self.user_code), serde)
+    for topic, serde in self.instance_config.function_details.source.topicsToSerDeClassName.items():
+      if not serde:
+        serde_kclass = util.import_class(os.path.dirname(self.user_code), DEFAULT_SERIALIZER)
+      else:
+        serde_kclass = util.import_class(os.path.dirname(self.user_code), serde)
       self.input_serdes[topic] = serde_kclass()
       Log.info("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
       self.consumers[topic] = self.pulsar_client.subscribe(
         str(topic), subscription_name,
         consumer_type=mode,
-        message_listener=partial(self.message_listener, topic, self.input_serdes[topic])
-      )
-
-    for topic in self.instance_config.function_details.inputs:
-      global DEFAULT_SERIALIZER
-      serde_kclass = util.import_class(os.path.dirname(self.user_code), DEFAULT_SERIALIZER)
-      self.input_serdes[topic] = serde_kclass()
-      Log.info("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
-      self.consumers[topic] = self.pulsar_client.subscribe(
-        str(topic), subscription_name,
-        consumer_type=mode,
-        message_listener=partial(self.message_listener, topic, self.input_serdes[topic])
+        message_listener=partial(self.message_listener, topic, self.input_serdes[topic]),
+        unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None
       )
 
     function_kclass = util.import_class(os.path.dirname(self.user_code), self.instance_config.function_details.className)
@@ -162,6 +172,10 @@ class PythonInstance(object):
     # Now launch a thread that does execution
     self.exeuction_thread = threading.Thread(target=self.actual_execution)
     self.exeuction_thread.start()
+
+    # start proccess spawner health check timer
+    self.last_health_check_ts = time.time()
+    Timer(30, self.process_spawner_health_check_timer).start()
 
   def actual_execution(self):
     Log.info("Started Thread for executing the function")
@@ -221,7 +235,7 @@ class PythonInstance(object):
       if self.producer is None:
         self.setup_producer()
       try:
-        output_bytes = self.output_serde.serialize(output)
+        output_bytes = bytes(self.output_serde.serialize(output))
       except:
         self.current_stats.nserialization_exceptions += 1
         self.total_stats.nserialization_exceptions += 1
@@ -236,9 +250,9 @@ class PythonInstance(object):
       msg.consumer.acknowledge(msg.message)
 
   def setup_output_serde(self):
-    if self.instance_config.function_details.outputSerdeClassName != None and \
-            len(self.instance_config.function_details.outputSerdeClassName) > 0:
-      serde_kclass = util.import_class(os.path.dirname(self.user_code), self.instance_config.function_details.outputSerdeClassName)
+    if self.instance_config.function_details.sink.serDeClassName != None and \
+            len(self.instance_config.function_details.sink.serDeClassName) > 0:
+      serde_kclass = util.import_class(os.path.dirname(self.user_code), self.instance_config.function_details.sink.serDeClassName)
       self.output_serde = serde_kclass()
     else:
       global DEFAULT_SERIALIZER
@@ -246,11 +260,11 @@ class PythonInstance(object):
       self.output_serde = serde_kclass()
 
   def setup_producer(self):
-    if self.instance_config.function_details.output != None and \
-            len(self.instance_config.function_details.output) > 0:
-      Log.info("Setting up producer for topic %s" % self.instance_config.function_details.output)
+    if self.instance_config.function_details.sink.topic != None and \
+            len(self.instance_config.function_details.sink.topic) > 0:
+      Log.info("Setting up producer for topic %s" % self.instance_config.function_details.sink.topic)
       self.producer = self.pulsar_client.create_producer(
-        str(self.instance_config.function_details.output),
+        str(self.instance_config.function_details.sink.topic),
         block_if_queue_full=True,
         batching_enabled=True,
         batching_max_publish_delay_ms=1,

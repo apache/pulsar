@@ -25,6 +25,7 @@ import com.beust.jcommander.Parameter;
 import com.google.common.collect.Lists;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.bookkeeper.client.BookKeeperAdmin;
@@ -44,6 +45,7 @@ import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException.NodeExistsException;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,8 +79,12 @@ public class PulsarClusterMetadataSetup {
         private String zookeeper;
 
         @Parameter(names = { "-gzk",
-                "--global-zookeeper" }, description = "Global ZooKeeper quorum connection string", required = true)
+                "--global-zookeeper" }, description = "Global ZooKeeper quorum connection string", required = false, hidden = true)
         private String globalZookeeper;
+
+        @Parameter(names = { "-cs",
+            "--configuration-store" }, description = "Configuration Store connection string", required = false)
+        private String configurationStore;
 
         @Parameter(names = { "-h", "--help" }, description = "Show this help message")
         private boolean help = false;
@@ -99,33 +105,49 @@ public class PulsarClusterMetadataSetup {
             throw e;
         }
 
-        log.info("Setting up cluster {} with zk={} global-zk={}", arguments.cluster, arguments.zookeeper,
-                arguments.globalZookeeper);
+        if (arguments.configurationStore == null && arguments.globalZookeeper == null) {
+            System.err.println("Configuration store address argument is required (--configuration-store)");
+            jcommander.usage();
+            System.exit(1);
+        }
+
+        if (arguments.configurationStore != null && arguments.globalZookeeper != null) {
+            System.err.println("Configuration store argument (--configuration-store) supercedes the deprecated (--global-zookeeper) argument");
+            jcommander.usage();
+            System.exit(1);
+        }
+
+        if (arguments.configurationStore == null) {
+            arguments.configurationStore = arguments.globalZookeeper;
+        }
+
+        log.info("Setting up cluster {} with zk={} configuration-store ={}", arguments.cluster, arguments.zookeeper,
+                arguments.configurationStore);
+        ZooKeeperClientFactory zkfactory = new ZookeeperClientFactoryImpl();
+        ZooKeeper localZk = zkfactory.create(arguments.zookeeper, SessionType.ReadWrite, 30000).get();
+        ZooKeeper configStoreZk = zkfactory.create(arguments.configurationStore, SessionType.ReadWrite, 30000).get();
 
         // Format BookKeeper metadata
         ServerConfiguration bkConf = new ServerConfiguration();
         bkConf.setLedgerManagerFactoryClass(HierarchicalLedgerManagerFactory.class);
         bkConf.setZkServers(arguments.zookeeper);
-        if (!BookKeeperAdmin.format(bkConf, false /* interactive */, false /* force */)) {
+        if (localZk.exists("/ledgers", false) == null // only format if /ledgers doesn't exist
+                && !BookKeeperAdmin.format(bkConf, false /* interactive */, false /* force */)) {
             throw new IOException("Failed to initialize BookKeeper metadata");
         }
-
-        ZooKeeperClientFactory zkfactory = new ZookeeperClientFactoryImpl();
-        ZooKeeper localZk = zkfactory.create(arguments.zookeeper, SessionType.ReadWrite, 30000).get();
-        ZooKeeper globalZk = zkfactory.create(arguments.globalZookeeper, SessionType.ReadWrite, 30000).get();
 
         localZk.create("/managed-ledgers", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         localZk.create("/namespace", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
 
         try {
-            ZkUtils.createFullPathOptimistic(globalZk, POLICIES_ROOT, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE,
+            ZkUtils.createFullPathOptimistic(configStoreZk, POLICIES_ROOT, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE,
                     CreateMode.PERSISTENT);
         } catch (NodeExistsException e) {
             // Ignore
         }
 
         try {
-            ZkUtils.createFullPathOptimistic(globalZk, "/admin/clusters", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE,
+            ZkUtils.createFullPathOptimistic(configStoreZk, "/admin/clusters", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE,
                     CreateMode.PERSISTENT);
         } catch (NodeExistsException e) {
             // Ignore
@@ -135,7 +157,7 @@ public class PulsarClusterMetadataSetup {
                 arguments.clusterBrokerServiceUrl, arguments.clusterBrokerServiceUrlTls);
         byte[] clusterDataJson = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(clusterData);
 
-        globalZk.create("/admin/clusters/" + arguments.cluster, clusterDataJson, ZooDefs.Ids.OPEN_ACL_UNSAFE,
+        configStoreZk.create("/admin/clusters/" + arguments.cluster, clusterDataJson, ZooDefs.Ids.OPEN_ACL_UNSAFE,
                 CreateMode.PERSISTENT);
 
         // Create marker for "global" cluster
@@ -143,39 +165,71 @@ public class PulsarClusterMetadataSetup {
         byte[] globalClusterDataJson = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(globalClusterData);
 
         try {
-            globalZk.create("/admin/clusters/global", globalClusterDataJson, ZooDefs.Ids.OPEN_ACL_UNSAFE,
+            configStoreZk.create("/admin/clusters/global", globalClusterDataJson, ZooDefs.Ids.OPEN_ACL_UNSAFE,
                     CreateMode.PERSISTENT);
         } catch (NodeExistsException e) {
             // Ignore
         }
 
-        // Create public tenant
-        TenantInfo publicTenant = new TenantInfo();
-        byte[] publicPropertyDataJson = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(publicTenant);
-        try {
-            ZkUtils.createFullPathOptimistic(
-                globalZk,
-                POLICIES_ROOT + "/" + TopicName.PUBLIC_TENANT,
-                publicPropertyDataJson,
-                ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                CreateMode.PERSISTENT);
-        } catch (NodeExistsException e) {
-            // Ignore
+        // Create public tenant, whitelisted to use the this same cluster, along with other clusters
+        String publicTenantPath = POLICIES_ROOT + "/" + TopicName.PUBLIC_TENANT;
+
+        Stat stat = configStoreZk.exists(publicTenantPath, false);
+        if (stat == null) {
+            TenantInfo publicTenant = new TenantInfo(Collections.emptySet(), Collections.singleton(arguments.cluster));
+
+            try {
+                ZkUtils.createFullPathOptimistic(configStoreZk, publicTenantPath,
+                        ObjectMapperFactory.getThreadLocal().writeValueAsBytes(publicTenant),
+                        ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+            } catch (NodeExistsException e) {
+                // Ignore
+            }
+        } else {
+            // Update existing public tenant with new cluster
+            byte[] content = configStoreZk.getData(publicTenantPath, false, null);
+            TenantInfo publicTenant = ObjectMapperFactory.getThreadLocal().readValue(content, TenantInfo.class);
+
+            // Only update z-node if the list of clusters should be modified
+            if (!publicTenant.getAllowedClusters().contains(arguments.cluster)) {
+                publicTenant.getAllowedClusters().add(arguments.cluster);
+
+                configStoreZk.setData(publicTenantPath, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(publicTenant),
+                        stat.getVersion());
+            }
         }
 
         // Create default namespace
-        Policies policies = new Policies();
-        policies.bundles = getBundles(4);
-        byte[] defaultNamespaceDataJson = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(policies);
-        try {
-            ZkUtils.createFullPathOptimistic(
-                globalZk,
-                POLICIES_ROOT + "/" + TopicName.PUBLIC_TENANT + "/" + TopicName.DEFAULT_NAMESPACE,
-                defaultNamespaceDataJson,
-                ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                CreateMode.PERSISTENT);
-        } catch (NodeExistsException e) {
-            // Ignore
+        String defaultNamespacePath = POLICIES_ROOT + "/" + TopicName.PUBLIC_TENANT + "/" + TopicName.DEFAULT_NAMESPACE;
+        Policies policies;
+
+        stat = configStoreZk.exists(defaultNamespacePath, false);
+        if (stat == null) {
+            policies = new Policies();
+            policies.bundles = getBundles(16);
+            policies.replication_clusters = Collections.singleton(arguments.cluster);
+
+            try {
+                ZkUtils.createFullPathOptimistic(
+                    configStoreZk,
+                    defaultNamespacePath,
+                    ObjectMapperFactory.getThreadLocal().writeValueAsBytes(policies),
+                    ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                    CreateMode.PERSISTENT);
+            } catch (NodeExistsException e) {
+                // Ignore
+            }
+        } else {
+            byte[] content = configStoreZk.getData(defaultNamespacePath, false, null);
+            policies = ObjectMapperFactory.getThreadLocal().readValue(content, Policies.class);
+
+            // Only update z-node if the list of clusters should be modified
+            if (!policies.replication_clusters.contains(arguments.cluster)) {
+                policies.replication_clusters.add(arguments.cluster);
+
+                configStoreZk.setData(defaultNamespacePath, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(policies),
+                        stat.getVersion());
+            }
         }
 
         log.info("Cluster metadata for '{}' setup correctly", arguments.cluster);

@@ -30,9 +30,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -45,8 +43,11 @@ import java.util.function.Supplier;
 
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.conf.ClientConfiguration;
+import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -60,6 +61,7 @@ import org.apache.pulsar.broker.loadbalance.LoadResourceQuotaUpdaterTask;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.s3offload.S3ManagedLedgerOffloader;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
@@ -78,6 +80,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -134,6 +137,8 @@ public class PulsarService implements AutoCloseable {
             .build();
     private final ScheduledExecutorService loadManagerExecutor;
     private ScheduledExecutorService compactorExecutor;
+    private OrderedScheduler offloaderScheduler;
+    private LedgerOffloader offloader;
     private ScheduledFuture<?> loadReportTask = null;
     private ScheduledFuture<?> loadSheddingTask = null;
     private ScheduledFuture<?> loadResourceQuotaTask = null;
@@ -257,6 +262,10 @@ public class PulsarService implements AutoCloseable {
                 compactorExecutor.shutdown();
             }
 
+            if (offloaderScheduler != null) {
+                offloaderScheduler.shutdown();
+            }
+
             // executor is not initialized in mocks even when real close method is called
             // guard against null executors
             if (executor != null) {
@@ -299,6 +308,13 @@ public class PulsarService implements AutoCloseable {
     public void start() throws PulsarServerException {
         mutex.lock();
 
+        LOG.info("Starting Pulsar Broker service; version: '{}'", ( brokerVersion != null ? brokerVersion : "unknown" )  );
+        LOG.info("Git Revision {}", PulsarBrokerVersionStringUtils.getGitSha());
+        LOG.info("Built by {} on {} at {}",
+                 PulsarBrokerVersionStringUtils.getBuildUser(),
+                 PulsarBrokerVersionStringUtils.getBuildHost(),
+                 PulsarBrokerVersionStringUtils.getBuildTime());
+
         try {
             if (state != State.Init) {
                 throw new PulsarServerException("Cannot start the service once it was stopped");
@@ -312,7 +328,7 @@ public class PulsarService implements AutoCloseable {
             // Initialize and start service to access configuration repository.
             this.startZkCacheService();
 
-            this.bkClientFactory = getBookKeeperClientFactory();
+            this.bkClientFactory = newBookKeeperClientFactory();
             managedLedgerClientFactory = new ManagedLedgerClientFactory(config, getZkClient(), bkClientFactory);
 
             this.brokerService = new BrokerService(this);
@@ -325,7 +341,8 @@ public class PulsarService implements AutoCloseable {
             // needs load management service
             this.startNamespaceService();
 
-            LOG.info("Starting Pulsar Broker service; version: '{}'", ( brokerVersion != null ? brokerVersion : "unknown" )  );
+            this.offloader = createManagedLedgerOffloader(this.getConfiguration());
+
             brokerService.start();
 
             this.webService = new WebService(this);
@@ -410,11 +427,6 @@ public class PulsarService implements AutoCloseable {
 
             leaderElectionService.start();
 
-            // start function worker service if necessary
-            this.startWorkerService();
-
-            LOG.info("Starting Pulsar Broker service; version: '{}'", ( brokerVersion != null ? brokerVersion : "unknown" )  );
-
             webService.start();
 
             this.metricsGenerator = new MetricsGenerator(this);
@@ -424,6 +436,9 @@ public class PulsarService implements AutoCloseable {
             state = State.Started;
 
             acquireSLANamespace();
+
+            // start function worker service if necessary
+            this.startWorkerService();
 
             LOG.info("messaging service is ready, bootstrap service on port={}, broker url={}, cluster={}, configs={}",
                     config.getWebServicePort(), brokerServiceUrl, config.getClusterName(),
@@ -491,7 +506,7 @@ public class PulsarService implements AutoCloseable {
 
         this.localZkCache = new LocalZooKeeperCache(getZkClient(), getOrderedExecutor());
         this.globalZkCache = new GlobalZooKeeperCache(getZooKeeperClientFactory(),
-                (int) config.getZooKeeperSessionTimeoutMillis(), config.getGlobalZookeeperServers(),
+                (int) config.getZooKeeperSessionTimeoutMillis(), config.getConfigurationStoreServers(),
                 getOrderedExecutor(), this.cacheExecutor);
         try {
             this.globalZkCache.start();
@@ -635,6 +650,20 @@ public class PulsarService implements AutoCloseable {
         return managedLedgerClientFactory.getManagedLedgerFactory();
     }
 
+    public LedgerOffloader getManagedLedgerOffloader() {
+        return offloader;
+    }
+
+    public synchronized LedgerOffloader createManagedLedgerOffloader(ServiceConfiguration conf)
+            throws PulsarServerException {
+        if (conf.getManagedLedgerOffloadDriver() != null
+            && conf.getManagedLedgerOffloadDriver().equalsIgnoreCase(S3ManagedLedgerOffloader.DRIVER_NAME)) {
+            return S3ManagedLedgerOffloader.create(conf, getOffloaderScheduler(conf));
+        } else {
+            return NullLedgerOffloader.INSTANCE;
+        }
+    }
+
     public ZooKeeperCache getLocalZkCache() {
         return localZkCache;
     }
@@ -671,8 +700,12 @@ public class PulsarService implements AutoCloseable {
         return zkClientFactory;
     }
 
-    public BookKeeperClientFactory getBookKeeperClientFactory() {
+    public BookKeeperClientFactory newBookKeeperClientFactory() {
         return new BookKeeperClientFactoryImpl();
+    }
+
+    public BookKeeperClientFactory getBookKeeperClientFactory() {
+        return bkClientFactory;
     }
 
     protected synchronized ScheduledExecutorService getCompactorExecutor() {
@@ -693,6 +726,15 @@ public class PulsarService implements AutoCloseable {
             }
         }
         return this.compactor;
+    }
+
+    protected synchronized OrderedScheduler getOffloaderScheduler(ServiceConfiguration conf) {
+        if (this.offloaderScheduler == null) {
+            this.offloaderScheduler = OrderedScheduler.newSchedulerBuilder()
+                .numThreads(conf.getManagedLedgerOffloadMaxThreads())
+                .name("offloader").build();
+        }
+        return this.offloaderScheduler;
     }
 
     public synchronized PulsarClient getClient() throws PulsarServerException {
@@ -818,7 +860,7 @@ public class PulsarService implements AutoCloseable {
                     .getWorkerConfig().getPulsarFunctionsNamespace();
             String[] a = functionWorkerService.get().getWorkerConfig().getPulsarFunctionsNamespace().split("/");
             String property = a[0];
-            String cluster = a[1];
+            String cluster = functionWorkerService.get().getWorkerConfig().getPulsarFunctionsCluster();
 
                 /*
                 multiple brokers may be trying to create the property, cluster, and namespace
@@ -870,6 +912,8 @@ public class PulsarService implements AutoCloseable {
             // create namespace for function worker service
             try {
                 Policies policies = new Policies();
+                policies.retention_policies = new RetentionPolicies(-1, -1);
+                policies.replication_clusters = Collections.singleton(functionWorkerService.get().getWorkerConfig().getPulsarFunctionsCluster());
                 int defaultNumberOfBundles = this.getConfiguration().getDefaultNumberOfNamespaceBundles();
                 policies.bundles = getBundles(defaultNumberOfBundles);
 
@@ -889,7 +933,7 @@ public class PulsarService implements AutoCloseable {
 
             InternalConfigurationData internalConf = new InternalConfigurationData(
                     this.getConfiguration().getZookeeperServers(),
-                    this.getConfiguration().getGlobalZookeeperServers(),
+                    this.getConfiguration().getConfigurationStoreServers(),
                     new ClientConfiguration().getZkLedgersRootPath());
 
             URI dlogURI;

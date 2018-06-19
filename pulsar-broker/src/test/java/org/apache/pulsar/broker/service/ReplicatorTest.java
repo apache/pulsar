@@ -572,7 +572,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
                 fail(String.format("replication test failed with %s exception", e.getMessage()));
             }
         }
-        admin1.persistentTopics().resetCursor(testDests.first(), "sub-id", System.currentTimeMillis());
+        admin1.topics().resetCursor(testDests.first(), "sub-id", System.currentTimeMillis());
     }
 
     @Test(enabled = true, timeOut = 30000)
@@ -796,7 +796,6 @@ public class ReplicatorTest extends ReplicatorTestBase {
      */
     @Test(timeOut = 15000)
     public void testCloseReplicatorStartProducer() throws Exception {
-
         TopicName dest = TopicName.get("persistent://pulsar/ns1/closeCursor");
         // Producer on r1
         MessageProducer producer1 = new MessageProducer(url1, dest);
@@ -815,27 +814,20 @@ public class ReplicatorTest extends ReplicatorTestBase {
         ManagedCursor cursor = (ManagedCursor) cursorField.get(replicator);
         cursor.close();
         // try to read entries
-        CountDownLatch latch = new CountDownLatch(1);
         producer1.produce(10);
-        cursor.asyncReadEntriesOrWait(10, new ReadEntriesCallback() {
-            @Override
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
-                latch.countDown();
-                fail("it should have been failed");
-            }
 
-            @Override
-            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                latch.countDown();
-                assertTrue(exception instanceof CursorAlreadyClosedException);
-            }
-        }, null);
+        try {
+            cursor.readEntriesOrWait(10);
+            fail("It should have failed");
+        } catch (Exception e) {
+            assertEquals(e.getClass(), CursorAlreadyClosedException.class);
+        }
 
         // replicator-readException: cursorAlreadyClosed
         replicator.readEntriesFailed(new CursorAlreadyClosedException("Cursor already closed exception"), null);
 
         // wait replicator producer to be closed
-        Thread.sleep(1000);
+        Thread.sleep(100);
 
         // Replicator producer must be closed
         Field producerField = AbstractReplicator.class.getDeclaredField("producer");
@@ -898,8 +890,8 @@ public class ReplicatorTest extends ReplicatorTestBase {
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"));
 
         if (isPartitionedTopic) {
-            admin1.persistentTopics().createPartitionedTopic(persistentTopicName, 5);
-            admin1.nonPersistentTopics().createPartitionedTopic(nonPersistentTopicName, 5);
+            admin1.topics().createPartitionedTopic(persistentTopicName, 5);
+            admin1.topics().createPartitionedTopic(nonPersistentTopicName, 5);
         }
 
         // load namespace with dummy topic on ns

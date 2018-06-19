@@ -16,68 +16,65 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#ifndef LOG_UTIL_H
-#define LOG_UTIL_H
+
+#pragma once
 
 #include <boost/thread/tss.hpp>
-#include <log4cxx/logger.h>
 #include <string>
+#include <sstream>
+
+#include <pulsar/Logger.h>
+
+namespace pulsar {
+
+#define PULSAR_UNLIKELY(expr) __builtin_expect(expr, 0)
 
 #define DECLARE_LOG_OBJECT()                                                                     \
-    static log4cxx::LoggerPtr& logger() {                                                        \
-        static boost::thread_specific_ptr<log4cxx::LoggerPtr> threadSpecificLogPtr;              \
-        log4cxx::LoggerPtr* ptr = threadSpecificLogPtr.get();                                    \
-        if (!ptr) {                                                                              \
-            threadSpecificLogPtr.reset(                                                          \
-                new log4cxx::LoggerPtr(log4cxx::Logger::getLogger(LOG_CATEGORY_NAME __FILE__))); \
+    static pulsar::Logger* logger() {                                                            \
+        static boost::thread_specific_ptr<pulsar::Logger> threadSpecificLogPtr;                  \
+        pulsar::Logger* ptr = threadSpecificLogPtr.get();                                        \
+        if (PULSAR_UNLIKELY(!ptr)) {                                                             \
+            std::string logger = pulsar::LogUtils::getLoggerName(__FILE__);                      \
+            threadSpecificLogPtr.reset(pulsar::LogUtils::getLoggerFactory()->getLogger(logger)); \
             ptr = threadSpecificLogPtr.get();                                                    \
         }                                                                                        \
-        return *ptr;                                                                             \
+        return ptr;                                                                              \
     }
 
-#define LOG_DEBUG(message)                                                                                \
-    {                                                                                                     \
-        if (LOG4CXX_UNLIKELY(logger()->isDebugEnabled())) {                                               \
-            ::log4cxx::helpers::MessageBuffer oss_;                                                       \
-            logger()->forcedLog(::log4cxx::Level::getDebug(), oss_.str(((std::ostream&)oss_) << message), \
-                                LOG4CXX_LOCATION);                                                        \
-        }                                                                                                 \
+#define LOG_DEBUG(message)                                                 \
+    {                                                                      \
+        if (PULSAR_UNLIKELY(logger()->isEnabled(pulsar::Logger::DEBUG))) { \
+            std::stringstream ss;                                          \
+            ss << message;                                                 \
+            logger()->log(pulsar::Logger::DEBUG, __LINE__, ss.str());      \
+        }                                                                  \
     }
 
-#define LOG_INFO(message)                                                                                \
-    {                                                                                                    \
-        if (logger()->isInfoEnabled()) {                                                                 \
-            ::log4cxx::helpers::MessageBuffer oss_;                                                      \
-            logger()->forcedLog(::log4cxx::Level::getInfo(), oss_.str(((std::ostream&)oss_) << message), \
-                                LOG4CXX_LOCATION);                                                       \
-        }                                                                                                \
+#define LOG_INFO(message)                                            \
+    {                                                                \
+        if (logger()->isEnabled(pulsar::Logger::INFO)) {             \
+            std::stringstream ss;                                    \
+            ss << message;                                           \
+            logger()->log(pulsar::Logger::INFO, __LINE__, ss.str()); \
+        }                                                            \
     }
 
-#define LOG_WARN(message)                                                                                \
-    {                                                                                                    \
-        if (logger()->isWarnEnabled()) {                                                                 \
-            ::log4cxx::helpers::MessageBuffer oss_;                                                      \
-            logger()->forcedLog(::log4cxx::Level::getWarn(), oss_.str(((std::ostream&)oss_) << message), \
-                                LOG4CXX_LOCATION);                                                       \
-        }                                                                                                \
+#define LOG_WARN(message)                                            \
+    {                                                                \
+        if (logger()->isEnabled(pulsar::Logger::WARN)) {             \
+            std::stringstream ss;                                    \
+            ss << message;                                           \
+            logger()->log(pulsar::Logger::WARN, __LINE__, ss.str()); \
+        }                                                            \
     }
 
-#define LOG_ERROR(message)                                                                                \
-    {                                                                                                     \
-        if (logger()->isErrorEnabled()) {                                                                 \
-            ::log4cxx::helpers::MessageBuffer oss_;                                                       \
-            logger()->forcedLog(::log4cxx::Level::getError(), oss_.str(((std::ostream&)oss_) << message), \
-                                LOG4CXX_LOCATION);                                                        \
-        }                                                                                                 \
-    }
-
-#define LOG_FATAL(message)                                                                                \
-    {                                                                                                     \
-        if (logger()->isFatalEnabled()) {                                                                 \
-            ::log4cxx::helpers::MessageBuffer oss_;                                                       \
-            logger()->forcedLog(::log4cxx::Level::getFatal(), oss_.str(((std::ostream&)oss_) << message), \
-                                LOG4CXX_LOCATION);                                                        \
-        }                                                                                                 \
+#define LOG_ERROR(message)                                            \
+    {                                                                 \
+        if (logger()->isEnabled(pulsar::Logger::ERROR)) {             \
+            std::stringstream ss;                                     \
+            ss << message;                                            \
+            logger()->log(pulsar::Logger::ERROR, __LINE__, ss.str()); \
+        }                                                             \
     }
 
 #pragma GCC visibility push(default)
@@ -85,8 +82,13 @@
 class LogUtils {
    public:
     static void init(const std::string& logConfFilePath);
+
+    static void setLoggerFactory(LoggerFactoryPtr loggerFactory);
+
+    static LoggerFactoryPtr getLoggerFactory();
+
+    static std::string getLoggerName(const std::string& path);
 };
 
 #pragma GCC visibility pop
-
-#endif
+}

@@ -58,6 +58,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerBusyException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerImpl;
@@ -530,9 +531,9 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         assertFalse(subRef.getDispatcher().isConsumerConnected());
 
         // 3. delete topic
-        admin.persistentTopics().delete(topicName);
+        admin.topics().delete(topicName);
         try {
-            admin.persistentTopics().getStats(topicName);
+            admin.topics().getStats(topicName);
         } catch (PulsarAdminException e) {
             // ok
         }
@@ -596,7 +597,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         assertTrue(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
 
         // 4. Topic can be GCed after unsubscribe
-        admin.persistentTopics().deleteSubscription(topicName, subName);
+        admin.topics().deleteSubscription(topicName, subName);
 
         runGC();
         assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
@@ -640,7 +641,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
 
         // 4. Topic can be GCed after unsubscribe
-        admin.persistentTopics().deleteSubscription(topicName, subName);
+        admin.topics().deleteSubscription(topicName, subName);
 
         runGC();
         assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
@@ -683,7 +684,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
 
         // 4. Topic can be GCed after unsubscribe
-        admin.persistentTopics().deleteSubscription(topicName, subName);
+        admin.topics().deleteSubscription(topicName, subName);
 
         runGC();
         assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
@@ -732,8 +733,8 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         // clean-up
         producer.close();
         consumer.close();
-        admin.persistentTopics().deleteSubscription(topicName, subName);
-        admin.persistentTopics().delete(topicName);
+        admin.topics().deleteSubscription(topicName, subName);
+        admin.topics().delete(topicName);
         admin.namespaces().deleteNamespace(namespaceName);
     }
 
@@ -852,7 +853,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         }
 
         consumer1.close();
-        admin.persistentTopics().delete(topicName);
+        admin.topics().delete(topicName);
     }
 
     @Test
@@ -921,11 +922,10 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         for (int i = SyncMessages; i < (SyncMessages + AsyncMessages); i++) {
             String content = "my-message-" + i;
-            Message<byte[]> msg = MessageBuilder.create().setContent(content.getBytes()).build();
             final int index = i;
 
-            producer.sendAsync(msg).thenRun(() -> {
-                assertEquals(msg.getMessageId(), new MessageIdImpl(ledgerId, index, -1));
+            producer.sendAsync(content.getBytes()).thenAccept((msgId) -> {
+                assertEquals(msgId, new MessageIdImpl(ledgerId, index, -1));
                 counter.countDown();
             }).exceptionally((ex) -> {
                 return null;
@@ -1061,7 +1061,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         assertNotNull(bundleStats);
 
         producer1.close();
-        admin.persistentTopics().delete("persistent://prop/ns-abc/topic-1");
+        admin.topics().delete("persistent://prop/ns-abc/topic-1");
 
         brokerService.updateRates();
 
@@ -1072,7 +1072,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         // // Delete 2nd topic as well
         // producer2.close();
-        // admin.persistentTopics().delete("persistent://prop/ns-abc/topic-2");
+        // admin.topics().delete("persistent://prop/ns-abc/topic-2");
         //
         // brokerService.updateRates();
         //
@@ -1389,5 +1389,21 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         Optional<Topic> t = pulsar.getBrokerService().getTopicReference(topicName);
         assertFalse(t.isPresent());
+    }
+
+    @Test
+    public void testWithEventTime() throws Exception {
+        final String topicName = "prop/ns-abc/topic-event-time";
+        final String subName = "sub";
+
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName(subName)
+                .subscribe();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
+
+        producer.newMessage().value("test").eventTime(5).send();
+        Message<String> msg = consumer.receive();
+        assertNotNull(msg);
+        assertEquals(msg.getValue(), "test");
+        assertEquals(msg.getEventTime(), 5);
     }
 }

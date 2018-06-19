@@ -237,6 +237,29 @@ public interface Namespaces {
     void createNamespace(String namespace, Set<String> clusters) throws PulsarAdminException;
 
     /**
+     * Create a new namespace.
+     * <p>
+     * Creates a new namespace with the specified policies.
+     *
+     * @param namespace
+     *            Namespace name
+     * @param policies
+     *            Policies for the namespace
+     *
+     * @throws NotAuthorizedException
+     *             You don't have admin permission
+     * @throws NotFoundException
+     *             Tenant or cluster does not exist
+     * @throws ConflictException
+     *             Namespace already exists
+     * @throws PulsarAdminException
+     *             Unexpected error
+     *
+     * @since 2.0
+     */
+    void createNamespace(String namespace, Policies policies) throws PulsarAdminException;
+
+    /**
      * Delete an existing namespace.
      * <p>
      * The namespace needs to be empty.
@@ -1094,4 +1117,99 @@ public interface Namespaces {
      *             Unexpected error
      */
     void setMaxConsumersPerSubscription(String namespace, int maxConsumersPerSubscription) throws PulsarAdminException;
+
+    /**
+     * Get the compactionThreshold for a namespace. The maximum number of bytes topics in the namespace
+     * can have before compaction is triggered. 0 disables.
+     * <p>
+     * Response example:
+     *
+     * <pre>
+     * <code>10000000</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    long getCompactionThreshold(String namespace) throws PulsarAdminException;
+
+    /**
+     * Set the compactionThreshold for a namespace. The maximum number of bytes topics in the namespace
+     * can have before compaction is triggered. 0 disables.
+     * <p>
+     * Request example:
+     *
+     * <pre>
+     * <code>10000000</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param compactionThreshold
+     *            maximum number of backlog bytes before compaction is triggered
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setCompactionThreshold(String namespace, long compactionThreshold) throws PulsarAdminException;
+
+    /**
+     * Get the offloadThreshold for a namespace. The maximum number of bytes stored on the pulsar cluster for topics
+     * in the namespace before data starts being offloaded to longterm storage.
+     *
+     * <p>
+     * Response example:
+     *
+     * <pre>
+     * <code>10000000</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    long getOffloadThreshold(String namespace) throws PulsarAdminException;
+
+    /**
+     * Set the offloadThreshold for a namespace. The maximum number of bytes stored on the pulsar cluster for topics
+     * in the namespace before data starts being offloaded to longterm storage.
+     *
+     * Negative values disabled automatic offloading. Setting a threshold of 0 will offload data as soon as possible.
+     * <p>
+     * Request example:
+     *
+     * <pre>
+     * <code>10000000</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param offloadThreshold
+     *            maximum number of bytes stored before offloading is triggered
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setOffloadThreshold(String namespace, long compactionThreshold) throws PulsarAdminException;
 }

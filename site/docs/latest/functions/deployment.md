@@ -22,6 +22,45 @@ In order to deploy and manage Pulsar Functions, you need to have a Pulsar {% pop
 
 If you're running a non-{% popover standalone %} cluster, you'll need to obtain the service URL for the cluster. How you obtain the service URL will depend on how you deployed your Pulsar cluster.
 
+## Command-line interface {#cli}
+
+Pulsar Functions are deployed and managed using the [`pulsar-admin functions`](../../reference/CliTools#pulsar-admin-functions) interface, which contains commands such as [`create`](../../reference/CliTools#pulsar-admin-functions-create) for deploying functions in [cluster mode](#cluster-mode), [`trigger`](../../reference/CliTools#pulsar-admin-functions-trigger) for [triggering](#triggering) functions, [`list`](../../reference/CliTools#pulsar-admin-functions-list) for listing deployed functions, and several others.
+
+### Fully Qualified Function Name (FQFN) {#fqfn}
+
+Each Pulsar Function has a **Fully Qualified Function Name** (FQFN) that consists of three elements: the function's {% popover tenant %}, {% popover namespace %}, and function name. FQFN's look like this:
+
+{% include fqfn.html tenant="tenant" namespace="namespace" name="name" %}
+
+FQFNs enable you to, for example, create multiple functions with the same name provided that they're in different namespaces.
+
+### Default arguments
+
+When managing Pulsar Functions, you'll need to specify a variety of information about those functions, including {% popover tenant %}, {% popover namespace %}, input and output topics, etc. There are some parameters, however, that have default values that will be supplied if omitted. The table below lists the defaults:
+
+Parameter | Default
+:---------|:-------
+Function name | Whichever value is specified for the class name (minus org, library, etc.). The flag `--className org.example.MyFunction`, for example, would give the function a name of `MyFunction`.
+Tenant | Derived from the input topics' names. If the input topics are under the `marketing` tenant---i.e. the topic names have the form `persistent://marketing/{namespace}/{topicName}`---then the tenant will be `marketing`.
+Namespace | Derived from the input topics' names. If the input topics are under the `asia` namespace under the `marketing` tenant---i.e. the topic names have the form `persistent://marketing/asia/{topicName}`, then the namespace will be `asia`.
+Output topic | `{input topic}-{function name}-output`. A function with an input topic name of `incoming` and a function name of `exclamation`, for example, would have an output topic of `incoming-exclamation-output`.
+Subscription type | For at-least-once and at-most-once [processing guarantees](../guarantees), the [`SHARED`](../../getting-started/ConceptsAndArchitecture#shared) is applied by default; for effectively-once guarantees, [`FAILOVER`](../../getting-started/ConceptsAndArchitecture#failover) is applied
+Processing guarantees | [`ATLEAST_ONCE`](../guarantees)
+Pulsar service URL | `pulsar://localhost:6650`
+
+#### Example use of defaults
+
+Take this `create` command:
+
+```bash
+$ bin/pulsar-admin functions create \
+  --jar my-pulsar-functions.jar \
+  --className org.example.MyFunction \
+  --inputs my-function-input-topic1,my-function-input-topic2
+```
+
+The created function would have default values supplied for the function name (`MyFunction`), tenant (`public`), namespace (`default`), subscription type (`SHARED`), processing guarantees (`ATLEAST_ONCE`), and Pulsar service URL (`pulsar://localhost:6650`).
+
 ## Local run mode {#local-run}
 
 If you run a Pulsar Function in **local run** mode, it will run on the machine from which the command is run (this could be your laptop, an [AWS EC2](https://aws.amazon.com/ec2/) instance, etc.). Here's an example [`localrun`](../../CliTools#pulsar-admin-functions-localrun) command:
@@ -30,8 +69,8 @@ If you run a Pulsar Function in **local run** mode, it will run on the machine f
 $ bin/pulsar-admin functions localrun \
   --py myfunc.py \
   --className myfunc.SomeFunction \
-  --inputs persistent://sample/standalone/ns1/input-1 \
-  --output persistent://sample/standalone/ns1/output-1
+  --inputs persistent://public/default/input-1 \
+  --output persistent://public/default/output-1
 ```
 
 By default, the function will connect to a Pulsar cluster running on the same machine, via a local {% popover broker %} service URL of `pulsar://localhost:6650`. If you'd like to use local run mode to run a function but connect it to a non-local Pulsar cluster, you can specify a different broker URL using the `--brokerServiceUrl` flag. Here's an example:
@@ -50,8 +89,8 @@ When you run a Pulsar Function in **cluster mode**, the function code will be up
 $ bin/pulsar-admin functions create \
   --py myfunc.py \
   --className myfunc.SomeFunction \
-  --inputs persistent://sample/standalone/ns1/input-1 \
-  --output persistent://sample/standalone/ns1/output-1
+  --inputs persistent://public/default/input-1 \
+  --output persistent://public/default/output-1
 ```
 
 ### Updating cluster mode functions {#updating}
@@ -62,8 +101,8 @@ You can use the [`update`](../../CliTools#pulsar-admin-functions-update) command
 $ bin/pulsar-admin functions update \
   --py myfunc.py \
   --className myfunc.SomeFunction \
-  --inputs persistent://sample/standalone/ns1/new-input-topic \
-  --output persistent://sample/standalone/ns1/new-output-topic
+  --inputs persistent://public/default/new-input-topic \
+  --output persistent://public/default/new-output-topic
 ```
 
 ### Parallelism
@@ -92,8 +131,8 @@ If you're specifying a function's configuration via YAML, use the `parallelism` 
 # function-config.yaml
 parallelism: 3
 inputs:
-- persistent://sample/standalone/ns1/input-1
-output: persistent://sample/standalone/ns1/output-1
+- persistent://public/default/input-1
+output: persistent://public/default/output-1
 # other parameters
 ```
 
@@ -103,6 +142,30 @@ And here's the corresponding update command:
 $ bin/pulsar-admin functions update \
   --functionConfigFile function-config.yaml
 ```
+
+### Function instance resources {#resources}
+
+When you run Pulsar Functions in [cluster run](#cluster-run) mode, you can specify the resources that are assigned to each function [instance](#parallelism):
+
+Resource | Specified as... | Runtimes
+:--------|:----------------|:--------
+CPU | The number of cores | Docker (coming soon)
+RAM | The number of bytes | Process, Docker
+Disk space | The number of bytes | Docker
+
+Here's an example function creation command that allocates 8 cores, 8 GB of RAM, and 10 GB of disk space to a function:
+
+```bash
+$ bin/pulsar-admin functions create \
+  --jar target/my-functions.jar \
+  --className org.example.functions.MyFunction \
+  --cpu 8 \
+  --ram 8589934592 \
+  --disk 10737418240
+```
+
+{% include admonition.html type="warning" title="Resources are *per instance*"
+   content="The resources that you apply to a given Pulsar Function are applied to each [instance](#parallelism) of the function. If you apply 8 GB of RAM to a function with a paralellism of 5, for example, then you are applying 40 GB of RAM total for the function. You should always make sure to factor paralellism---i.e. the number of instances---into your resource calculations." %}
 
 ## Triggering Pulsar Functions {#triggering}
 
@@ -122,19 +185,19 @@ Let's run that function in [local run mode](../deployment#local-run):
 
 ```bash
 $ bin/pulsar-admin functions create \
-  --tenant sample \
-  --namespace ns1 \
+  --tenant public \
+  --namespace default \
   --name myfunc \
   --py myfunc.py \
   --className myfunc \
-  --inputs persistent://sample/standalone/ns1/in \
-  --output persistent://sample/standalone/ns1/out
+  --inputs persistent://public/default/in \
+  --output persistent://public/default/out
 ```
 
 Now let's make a consumer listen on the output topic for messages coming from the `myfunc` function using the [`pulsar-client consume`](../../CliTools#pulsar-client-consume) command:
 
 ```bash
-$ bin/pulsar-client consume persistent://sample/standalone/ns1/out \
+$ bin/pulsar-client consume persistent://public/default/out \
   --subscription-name my-subscription
   --num-messages 0 # Listen indefinitely
 ```
@@ -143,8 +206,8 @@ Now let's trigger that function:
 
 ```bash
 $ bin/pulsar-admin functions trigger \
-  --tenant sample \
-  --namespace ns1 \
+  --tenant public \
+  --namespace default \
   --name myfunc \
   --triggerValue "hello world"
 ```

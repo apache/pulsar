@@ -18,6 +18,8 @@
 # under the License.
 #
 
+set -e
+
 FILES=$*
 
 for FILE in $FILES
@@ -25,9 +27,9 @@ do
    echo "Signing $FILE"
    gpg --armor --output $FILE.asc --detach-sig $FILE
 
-   # Checksum
-   gpg --print-md MD5 $FILE > $FILE.md5
+   # SHA-1 signature
+   shasum -a 1 $FILE > $FILE.sha1
 
    # SHA-512 signature
-   gpg --print-md SHA512 $FILE > $FILE.sha512
+   shasum -a 512 $FILE > $FILE.sha512
 done

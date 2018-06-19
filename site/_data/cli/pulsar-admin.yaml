@@ -18,7 +18,7 @@
 #
 
 description: |
-  The `pulsar-admin` tool enables you to manage Pulsar installations, including clusters, brokers, namespaces, properties, and more.
+  The `pulsar-admin` tool enables you to manage Pulsar installations, including clusters, brokers, namespaces, tenants, and more.
 commands:
 - name: broker-stats
   description: Operations to collect broker statistics
@@ -120,6 +120,12 @@ commands:
   - name: localrun
     description: Run a Pulsar Function locally
     options:
+    - flags: --cpu
+      description: The CPU to allocate to each function instance (in number of cores)
+    - flags: --ram
+      description: The RAM to allocate to each function instance (in bytes)
+    - flags: --disk
+      description: The disk space to allocate to each function instance (in bytes)
     - flags: --brokerServiceUrl
       description: The URL of the Pulsar broker
     - flags: --className
@@ -163,6 +169,12 @@ commands:
   - name: create
     description: Creates a new Pulsar Function on the target infrastructure
     options:
+    - flags: --cpu
+      description: The CPU to allocate to each function instance (in number of cores)
+    - flags: --ram
+      description: The RAM to allocate to each function instance (in bytes)
+    - flags: --disk
+      description: The disk space to allocate to each function instance (in bytes)
     - flags: --className
       description: The name of the function's class
     - flags: --customSerdeInputs
@@ -302,33 +314,33 @@ commands:
     - flags: --triggerValue
       description: The value with which the Pulsar Function is to be triggered
 - name: namespaces
-  description: Operations about namespaces
+  description: Operations for managing namespaces
   subcommands:
   - name: list
-    description: Get the namespaces for a property
-    argument: property-name
+    description: Get the namespaces for a tenant
+    argument: tenant-name
   - name: list-cluster
-    description: Get the namespaces for a property in the cluster
-    argument: property/cluster
+    description: Get the namespaces for a tenant in the cluster
+    argument: tenant/cluster
   - name: destinations
     description: Get the destinations for a namespace
-    argument: property/cluster/namespace
+    argument: tenant/cluster/namespace
   - name: policies
     description: Get the policies of a namespace
-    argument: property/cluster/namespace
+    argument: tenant/cluster/namespace
   - name: create
     description: Create a new namespace
-    argument: property/cluster/namespace
+    argument: tenant/cluster/namespace
     options:
     - flags: -b, --bundles
       description: The number of bundles to activate
       default: 0
   - name: delete
     description: Deletes a namespace
-    argument: property/cluster/namespace
+    argument: tenant/cluster/namespace
   - name: set-deduplication
     description: Enable or disable message deduplication on a namespace
-    argument: property/cluster/namespace
+    argument: tenant/cluster/namespace
     options:
     - flags: --enable, -e
       description: Enable message deduplication on the specified namespace
@@ -338,10 +350,10 @@ commands:
       default: 'false'
   - name: permissions
     description: Get the permissions on a namespace
-    argument: property/cluster/namespace
+    argument: tenant/cluster/namespace
   - name: grant-permission
     description: Grant permissions on a namespace
-    argument: property/cluster/namespace
+    argument: tenant/cluster/namespace
     options:
     - flags: --actions
       description: Actions to be granted (`produce` or `consume`)
@@ -349,25 +361,25 @@ commands:
       description: The client role to which to grant the permissions
   - name: revoke-permission
     description: Revoke permissions on a namespace
-    argument: property/cluster/namespace
+    argument: tenant/cluster/namespace
     options:
     - flags: --role
       description: The client role from which to revoke the permissions
   - name: set-clusters
     description: Set replication clusters for a namespace
-    argument: property/cluster/namespace
+    argument: tenant/cluster/namespace
     options:
     - flags: -c, --clusters
       description: Replication clusters ID list (comma-separated values)
   - name: get-clusters
     description: Get replication clusters for a namespace
-    argument: property/cluster/namespace
+    argument: tenant/cluster/namespace
   - name: get-backlog-quotas
     description: Get the backlog quota policies for a namespace
-    argument: property/cluster/namespace
+    argument: tenant/cluster/namespace
   - name: set-backlog-quota
     description: Set a backlog quota for a namespace
-    argument: property/cluster/namespace
+    argument: tenant/cluster/namespace
     example: |
       pulsar-admin namespaces set-backlog-quota my-prop/my-cluster/my-ns \
       --limit 2G \
@@ -383,13 +395,13 @@ commands:
         * `consumer_backlog_eviction`
   - name: remove-backlog-quota
     description: Remove a backlog quota policy from a namespace
-    argument: property/cluster/namespace
+    argument: tenant/cluster/namespace
   - name: get-persistence
     description: Get the persistence policies for a namespace
-    argument: property/cluster/namespace
+    argument: tenant/cluster/namespace
   - name: set-persistence
     description: Set the persistence policies for a namespace
-    argument: property/cluster/namespace
+    argument: tenant/cluster/namespace
     options:
     - flags: -a, --bookkeeper-ack-quorom
       description: The number of acks (guaranteed copies) to wait for each entry
@@ -404,7 +416,7 @@ commands:
       description: Throttling rate of mark-delete operation (0 means no throttle)
   - name: get-message-ttl
     description: Get the message TTL for a namespace
-    argument: property/cluster/namespace
+    argument: tenant/cluster/namespace
   - name: set-message-ttl
     description: Set the message TTL for a namespace
     options:
@@ -413,10 +425,10 @@ commands:
       default: 0
   - name: get-retention
     description: Get the retention policy for a namespace
-    argument: property/cluster/namespace
+    argument: tenant/cluster/namespace
   - name: set-retention
     description: Set the retention policy for a namespace
-    argument: property/cluster/namespace
+    argument: tenant/cluster/namespace
     options:
     - flags: -s, --size
       description: The retention size limits (for example `10M`, `16G` or `3T`). 0 means no retention and -1 means infinite size retention
@@ -424,13 +436,13 @@ commands:
       description: "The retention time in minutes, hours, days, or weeks. Examples: `100m`, `13h`, `2d`, `5w`. 0 means no retention and -1 means infinite time retention"
   - name: unload
     description: Unload a namespace or namespace bundle from the current serving broker.
-    argument: property/cluster/namespace
+    argument: tenant/cluster/namespace
     options:
     - flags: -b, --bundle
       description: # `{start_boundary}_{end_boundary}`
   - name: clear-backlog
     description: Clear the backlog for a namespace
-    argument: property/cluster/namespace
+    argument: tenant/cluster/namespace
     options:
     - flags: -b, --bundle
       description: # `{start_boundary}_{end_boundary}`
@@ -441,12 +453,33 @@ commands:
       description: The subscription name
   - name: unsubscribe
     description: Unsubscribe the given subscription on all destinations on a namespace
-    argument: property/cluster/namespace
+    argument: tenant/cluster/namespace
     options:
     - flags: -b, --bundle
       description: # `{start_boundary}_{end_boundary}`
     - flags: -s, --sub
       description: The subscription name
+  - name: get-compaction-threshold
+    description: Get compactionThreshold for a namespace
+    argument: tenant/namespace
+  - name: set-compaction-threshold
+    description: Set compactionThreshold for a namespace
+    argument: tenant/namespace
+    options:
+      - flags: -t, --threshold
+        description: "Maximum number of bytes in a topic backlog before compaction is triggered (eg: 10M, 16G, 3T). 0 disables automatic compaction"
+        default: '0'
+  - name: get-offload-threshold
+    description: Get offloadThreshold for a namespace
+    argument: tenant/namespace
+  - name: set-offload-threshold
+    description: Set offloadThreshold for a namespace
+    argument: tenant/namespace
+    options:
+      - flags: -s, --size
+        description: "Maximum number of bytes stored in the pulsar cluster for a topic before data will start being automatically offloaded to longterm storage (eg: 10M, 16G, 3T, 100). Negative values disable automatic offload. 0 triggers offloading as soon as possible."
+        default: '-1'
+
 - name: ns-isolation-policy
   description: Operations for managing namespace isolation policies.
   subcommands:
@@ -477,18 +510,63 @@ commands:
     argument: cluster-name
   - name: delete
     description: Delete namespace isolation policy of a cluster. This operation requires superuser privileges.
-- name: persistent
-  description: Operations on persistent topics
+- name: topics
+  description: Operations for managing Pulsar topics (both persistent and non persistent)
   subcommands:
+  - name: compact
+    description: Run compaction on the specified topic (persistent topics only)
+    argument: persistent://tenant/namespace/topic
+  - name: compaction-status
+    description: Check the status of a topic compaction (persistent topics only)
+    argument: persistent://tenant/namespace/topic
+    options:
+    - flags: -w, --wait-complete
+      description: Wait for compaction to complete
+      default: 'false'
+  - name: offload
+    description: Trigger offload of data from a topic to long-term storage (e.g. Amazon S3)
+    argument: "persistent://tenant/namespace/topic"
+    options:
+    - flags: -s, --size-threshold
+      description: The maximum amount of data to keep in BookKeeper for the specific topic
+  - name: offload-status
+    description: Check the status of data offloading from a topic to long-term storage
+    argument: "persistent://tenant/namespace/topic"
+    options:
+    - flags: -w, --wait-complete
+      description: Wait for offloading to complete
+      default: false
+  - name: create-partitioned-topic
+    description: Create a partitioned topic. A partitioned topic must be created before producers can publish to it.
+    argument: "{persistent|non-persistent}://tenant/namespace/topic"
+    options:
+    - flags: -p, --partitions
+      description: The number of partitions for the topic
+      default: 0
+  - name: delete-partitioned-topic
+    description: Delete a partitioned topic. This will also delete all the partitions of the topic if they exist.
+    argument: "{persistent|non-persistent}://tenant/namespace/topic"
+  - name: get-partitioned-topic-metadata
+    description: Get the partitioned topic metadata. If the topic is not created or is a non-partitioned topic, this will return an empty topic with zero partitions.
+    argument: "{persistent|non-persistent}://tenant/namespace/topic"
   - name: list
     description: Get the list of topics under a namespace
-    argument: property/cluster/namespace
+    argument: tenant/cluster/namespace
+  - name: list-in-bundle
+    description: Get a list of non-persistent topics present under a namespace bundle
+    argument: tenant/namespace
+    options:
+    - flags: -b, --bundle
+      description: The bundle range
+  - name: terminate
+    description: Terminate a topic (disallow further messages from being published on the topic)
+    argument: "{persistent|non-persistent}://tenant/namespace/topic"
   - name: permissions
     description: Get the permissions on a topic. Retrieve the effective permissions for a desination. These permissions are defined by the permissions set at the namespace level combined (union) with any eventual specific permissions set on the topic.
-    argument: persistent://property/cluster/namespace/topic
+    argument: topic
   - name: grant-permission
     description: Grant a new permission to a client role on a single topic
-    argument: persistent://property/cluster/namespace/topic
+    argument: "{persistent|non-persistent}://tenant/namespace/topic"
     options:
     - flags: --actions
       description: Actions to be granted (`produce` or `consume`)
@@ -496,47 +574,47 @@ commands:
       description: The client role to which permissions are to be granted
   - name: revoke-permission
     description: Revoke permissions to a client role on a single topic. If the permission was not set at the topic level, but rather at the namespace level, this operation will return an error (HTTP status code 412).
-    argument: persistent://property/cluster/namespace/topic
+    argument: topic
   - name: lookup
     description: Look up a topic from the current serving broker
-    argument: persistent://property/cluster/namespace/topic
+    argument: topic
   - name: bundle-range
     description: Get the namespace bundle which contains the given topic
-    argument: persistent://property/cluster/namespace/topic
+    argument: topic
   - name: delete
     description: Delete a topic. The topic cannot be deleted if there are any active subscriptions or producers connected to the topic.
-    argument: persistent://property/cluster/namespace/topic
+    argument: topic
   - name: unload
     description: Unload a topic
-    argument: persistent://property/cluster/namespace/topic
+    argument: topic
   - name: subscriptions
     description: Get the list of subscriptions on the topic
-    argument: persistent://property/cluster/namespace/topic
+    argument: topic
   - name: unsubscribe
     description: Delete a durable subscriber from a topic
-    argument: persistent://property/cluster/namespace/topic
+    argument: topic
     options:
     - flags: -s, --subscription
       description: The subscription to delete
   - name: stats
     description: Get the stats for the topic and its connected producers and consumers. All rates are computed over a 1-minute window and are relative to the last completed 1-minute period.
-    argument: persistent://property/cluster/namespace/topic
+    argument: topic
   - name: stats-internal
     description: Get the internal stats for the topic
-    argument: persistent://property/cluster/namespace/topic
+    argument: topic
   - name: info-internal
     description: Get the internal metadata info for the topic
-    argument: persistent://property/cluster/namespace/topic
+    argument: topic
   - name: partitioned-stats
     description: Get the stats for the partitioned topic and its connected producers and consumers. All rates are computed over a 1-minute window and are relative to the last completed 1-minute period.
-    argument: persistent://property/cluster/namespace/topic
+    argument: topic
     options:
     - flags: --per-partition
       description: Get per-partition stats
       default: 'false'
   - name: skip
-    description: SKip some messages for the subscription
-    argument: persistent://property/cluster/namespace/topic
+    description: Skip some messages for the subscription
+    argument: topic
     options:
     - flags: -n, --count
       description: The number of messages to skip
@@ -545,13 +623,13 @@ commands:
       description: The subscription on which to skip messages
   - name: skip-all
     description: Skip all the messages for the subscription
-    argument: persistent://property/cluster/namespace/topic
+    argument: topic
     options:
     - flags: -s, --subscription
       description: The subscription to clear
   - name: expire-messages
     description: Expire messages that are older than the given expiry time (in seconds) for the subscription.
-    argument: persistent://property/cluster/namespace/topic
+    argument: topic
     options:
     - flags: -t, --expireTime
       description: Expire messages older than the time (in seconds)
@@ -560,27 +638,14 @@ commands:
       description: The subscription to skip messages on
   - name: expire-messages-all-subscriptions
     description: Expire messages older than the given expiry time (in seconds) for all subscriptions
-    argument: persistent://property/cluster/namespace/topic
+    argument: topic
     options:
     - flags: -t, --expireTime
       description: Expire messages older than the time (in seconds)
       default: 0
-  - name: create-partitioned-topic
-    description: Create a partitioned topic
-    argument: persistent://property/cluster/namespace/topic
-    options:
-    - flags: -p, --partitions
-      description: The number of partitions for the topic
-      default: 0
-  - name: get-partitioned-topic-metadata
-    description: Get the partitioned topic metadata. If the topic is not created or is a non-partitioned topic, this will return an empty topic with zero partitions.
-    argument: persistent://property/cluster/namespace/topic
-  - name: delete-partitioned-topic
-    description: Delete a partitioned topic. This will also delete all the partitions of the topic if they exist.
-    argument: persistent://property/cluster/namespace/topic
   - name: peek-messages
     description: Peek some messages for the subscription.
-    argument: persistent://property/cluster/namespace/topic
+    argument: topic
     options:
     - flags: -n, --count
       description: The number of messages
@@ -589,72 +654,41 @@ commands:
       description: Subscription to get messages from
   - name: reset-cursor
     description: Reset position for subscription to closest to timestamp
-    argument: persistent://property/cluster/namespace/topic
+    argument: topic
     options:
     - flags: -s, --subscription
       description: Subscription to reset position on
     - flags: -t, --time
       description: "The time, in minutes, to reset back to (or minutes, hours, days, weeks, etc.). Examples: `100m`, `3h`, `2d`, `5w`."
-- name: non-persistent
-  description: Operations on persistent topics
-  subcommands:
-  - name: create-partitioned-topic
-    description: Create a partitioned topic. A partitioned non-persistent topic must be created before producers can publish to it.
-    argument: non-persistent://property/cluster/namespace/topic
-    options:
-    - flags: -p, --partitions
-      description: The number of partitions for the topic
-      default: 0
-  - name: lookup
-    description: Look up a non-persistent topic on the current serving broker
-    argument: non-persistent://property/cluster/namespace/topic
-  - name: stats
-    description: Get the stats for the topic and its connected producers and consumers. All rates are computed over a 1-minute window and are relative to the last completed 1-minute period.
-    argument: non-persistent://property/cluster/namespace/topic
-  - name: stats-internal
-    description: Get the internal stats for the topic
-    argument: non-persistent://property/cluster/namespace/topic
-  - name: get-partitioned-topic-metadata
-    description: Get the partitioned topic metadata. If the topic is not created or is a non-partitioned topic, this will return an empty topic with zero partitions.
-    argument: non-persistent://property/cluster/namespace/topic
-  - name: list
-    description: Get a list of non-persistent topics under a namespace
-    argument: property/cluster/namespace
-  - name: list-in-bundle
-    description: Get a list of non-persistent topics present under a namespace bundle
-    argument: property/cluster/namespace
-    options:
-    - flags: -b, --bundle
-      description: The bundle range
-- name: properties
-  description: Operations about properties
+- name: tenants
+  description: Operations for managing tenants
   subcommands:
   - name: list
-    description: List the existing properties
+    description: List the existing tenants
   - name: get
-    description: Gets the configuration of a property
-    argument: property-name
+    description: Gets the configuration of a tenant
+    argument: tenant-name
   - name: create
-    description: Creates a new property
-    argument: property-name
+    description: Creates a new tenant
+    argument: tenant-name
     options:
     - flags: -r, --admin-roles
       description: Comma-separated admin roles
     - flags: -c, --allowed-clusters
       description: Comma-separated allowed clusters
   - name: update
-    description: Updates a property
-    argument: property-name
+    description: Updates a tenant
+    argument: tenant-name
     options:
     - flags: -r, --admin-roles
       description: Comma-separated admin roles
     - flags: -c, --allowed-clusters
       description: Comma-separated allowed clusters
   - name: delete
-    description: Deletes an existing property
-    argument: property-name
+    description: Deletes an existing tenant
+    argument: tenant-name
 - name: resource-quotas
-  description: Operations about resource quotas
+  description: Operations for managing resource quotas
   subcommands:
   - name: get
     description: Get the resource quota for a specified namespace bundle, or default quota if no namespace/bundle is specified.
@@ -663,7 +697,7 @@ commands:
       description: A bundle of the form `{start-boundary}_{end_boundary}`. This must be specified together with `-n`/`--namespace`.
     - flags: -n, --namespace
       description: The namespace
-      argument: property/cluster/namespace
+      argument: tenant/namespace
   - name: set
     description: Set the resource quota for the specified namespace bundle, or default quota if no namespace/bundle is specified.
     options:
@@ -688,7 +722,7 @@ commands:
       description: Expected outgoing messages per second
       default: 0
     - flags: -n, --namespace
-      description: The namespace as `property/cluster/namespace`, for example `my-prop/my-cluster/my-ns`. Must be specified together with `-b`/`--bundle`.
+      description: The namespace as `tenant/namespace`, for example `my-tenant/my-ns`. Must be specified together with `-b`/`--bundle`.
   - name: reset-namespace-bundle-quota
     description: Reset the specifed namespace bundle's resource quota to a default value.
     options:
@@ -696,3 +730,22 @@ commands:
       description: A bundle of the form `{start-boundary}_{end_boundary}`.
     - flags: -n, --namespace
       description: The namespace as `property/cluster/namespace`, for example `my-prop/my-cluster/my-ns`.
+- name: schemas
+  description: Operations related to Schemas associated with Pulsar topics.
+  subcommands:
+  - name: upload
+    description: Upload the schema definition for a topic
+    argument: persistent://tenant/namespace/topic
+    options:
+    - flags: --filename
+      description: The path to the schema definition file. An example schema file is available under `conf` directory.
+  - name: delete
+    description: Delete the schema definition associated with a topic
+    argument: persistent://tenant/namespace/topic
+  - name: get
+    description: Retrieve the schema definition assoicated with a topic (at a given version if version is supplied).
+    argument: persistent://tenant/namespace/topic
+    options:
+    - flags: --version
+      description: The version of the schema definition to retrive for a topic.
+

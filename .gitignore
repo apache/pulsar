@@ -7,6 +7,7 @@ logs
 /data
 pulsar-broker/tmp.*
 pulsar-broker/src/test/resources/log4j2.yaml
+pulsar-functions/worker/test-tenant/
 *.log
 
 *.versionsBackup
@@ -24,7 +25,7 @@ pulsar-broker/src/test/resources/log4j2.yaml
 *.iws
 
 # Mac
-.DS_Store
+**/.DS_Store
 
 # VisualStudioCode artifacts
 .vscode/
@@ -51,3 +52,14 @@ deployment/terraform-ansible/aws/.terraform/
 deployment/terraform-ansible/aws/.terraform.tfstate.lock.info
 deployment/terraform-ansible/aws/terraform.tfstate
 deployment/terraform-ansible/aws/terraform.tfstate.backup
+
+# Vagrant
+**/.vagrant
+
+
+pulsar-client-cpp/python/pkg/osx/**/*.bak
+pulsar-client-cpp/python/pkg/osx/**/build.sh
+pulsar-client-cpp/python/pkg/osx/**/*.whl
+pulsar-client-cpp/python/pkg/osx/**/*.template2
+
+

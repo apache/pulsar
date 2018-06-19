@@ -58,6 +58,19 @@ public interface ManagedCursor {
     String getName();
 
     /**
+     * Get the last active time of the cursor.
+     *
+     * @return the last active time of the cursor
+     */
+    long getLastActive();
+
+    /**
+     * Update the last active time of the cursor
+     *
+     */
+    void updateLastActive();
+
+    /**
      * Return any properties that were associated with the last stored position.
      */
     Map<String, Long> getProperties();
@@ -514,6 +527,13 @@ public interface ManagedCursor {
      * @return
      */
     int getTotalNonContiguousDeletedMessagesRange();
+
+    /**
+     * Returns the estimated size of the unacknowledged backlog for this cursor
+     *
+     * @return the estimated size from the mark delete position of the cursor
+     */
+    long getEstimatedSizeSinceMarkDeletePosition();
 
     /**
      * Returns cursor throttle mark-delete rate.

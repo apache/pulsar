@@ -66,27 +66,27 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
     public void testIncrementPartitionsOfTopicOnUnusedTopic() throws Exception {
         final String partitionedTopicName = "persistent://prop-xyz/use/ns1/test-topic";
 
-        admin.persistentTopics().createPartitionedTopic(partitionedTopicName, 10);
-        assertEquals(admin.persistentTopics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 10);
+        admin.topics().createPartitionedTopic(partitionedTopicName, 10);
+        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 10);
 
-        admin.persistentTopics().updatePartitionedTopic(partitionedTopicName, 20);
-        assertEquals(admin.persistentTopics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 20);
+        admin.topics().updatePartitionedTopic(partitionedTopicName, 20);
+        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 20);
     }
 
     @Test
     public void testIncrementPartitionsOfTopic() throws Exception {
         final String partitionedTopicName = "persistent://prop-xyz/use/ns1/test-topic-2";
 
-        admin.persistentTopics().createPartitionedTopic(partitionedTopicName, 10);
-        assertEquals(admin.persistentTopics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 10);
+        admin.topics().createPartitionedTopic(partitionedTopicName, 10);
+        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 10);
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(partitionedTopicName).subscriptionName("sub-1")
                 .subscribe();
 
-        admin.persistentTopics().updatePartitionedTopic(partitionedTopicName, 20);
-        assertEquals(admin.persistentTopics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 20);
+        admin.topics().updatePartitionedTopic(partitionedTopicName, 20);
+        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 20);
 
-        assertEquals(admin.persistentTopics().getSubscriptions(
+        assertEquals(admin.topics().getSubscriptions(
                 TopicName.get(partitionedTopicName).getPartition(15).toString()), Lists.newArrayList("sub-1"));
 
         consumer.close();

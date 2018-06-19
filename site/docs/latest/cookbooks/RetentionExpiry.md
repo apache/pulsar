@@ -1,7 +1,7 @@
 ---
 title: Message retention and expiry
 lead: Manage how long messages remain stored in your Pulsar instance
-tags: [admin, expiry, retention, backlog]
+tags: [admin, expiry, retention, backlog, cookbook]
 ---
 
 <!--

@@ -65,7 +65,7 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
-import org.apache.pulsar.common.policies.data.PersistentTopicStats;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -138,11 +138,11 @@ public class BrokerServiceTest extends BrokerTestBase {
         final String topicName = "persistent://prop/ns-abc/successTopic";
         final String subName = "successSub";
 
-        PersistentTopicStats stats;
+        TopicStats stats;
         SubscriptionStats subStats;
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
-                .acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
@@ -215,11 +215,11 @@ public class BrokerServiceTest extends BrokerTestBase {
         final String topicName = "persistent://prop/ns-abc/successSharedTopic";
         final String subName = "successSharedSub";
 
-        PersistentTopicStats stats;
+        TopicStats stats;
         SubscriptionStats subStats;
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Shared).acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
+                .subscriptionType(SubscriptionType.Shared).acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
@@ -395,7 +395,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         for (String ns : nsList) {
             List<String> topics = admin.namespaces().getTopics(ns);
             for (String dest : topics) {
-                admin.persistentTopics().delete(dest);
+                admin.topics().delete(dest);
             }
             admin.namespaces().deleteNamespace(ns);
         }
@@ -694,17 +694,38 @@ public class BrokerServiceTest extends BrokerTestBase {
      */
     @Test
     public void testLookupThrottlingForClientByClient() throws Exception {
-        final String topicName = "persistent://prop/my-ns/newTopic";
+        final String topicName = "persistent://prop/ns-abc/newTopic";
 
         String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
-                .maxConcurrentLookupRequests(0).build();
+                .maxConcurrentLookupRequests(1).maxLookupRequests(2).build();
 
+        // 2 lookup will success.
         try {
-            pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub").subscribe();
-            fail("It should fail as throttling should not receive any request");
-        } catch (org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException e) {
-            // ok as throttling set to 0
+            CompletableFuture<Consumer<byte[]>> consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub1").subscribeAsync();
+            CompletableFuture<Consumer<byte[]>> consumer2 = pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub2").subscribeAsync();
+
+            consumer1.get().close();
+            consumer2.get().close();
+        } catch (Exception e) {
+            fail("Subscribe should success with 2 requests");
+        }
+
+        // 3 lookup will fail
+        try {
+            CompletableFuture<Consumer<byte[]>> consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub11").subscribeAsync();
+            CompletableFuture<Consumer<byte[]>> consumer2 = pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub22").subscribeAsync();
+            CompletableFuture<Consumer<byte[]>> consumer3 = pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub33").subscribeAsync();
+
+            consumer1.get().close();
+            consumer2.get().close();
+            consumer3.get().close();
+            fail("It should fail as throttling should only receive 2 requests");
+        } catch (Exception e) {
+            if (!(e.getCause() instanceof
+                org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException)) {
+                fail("Subscribe should fail with TooManyRequestsException");
+            }
         }
     }
 
@@ -725,7 +746,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         pulsar.getNamespaceService().getOwnershipCache().updateBundleState(bundle, false);
 
         // try to create topic which should fail as bundle is disable
-        CompletableFuture<Topic> futureResult = pulsar.getBrokerService().loadOrCreatePersistentTopic(topicName, true);
+        CompletableFuture<Optional<Topic>> futureResult = pulsar.getBrokerService().loadOrCreatePersistentTopic(topicName, true);
 
         try {
             futureResult.get();

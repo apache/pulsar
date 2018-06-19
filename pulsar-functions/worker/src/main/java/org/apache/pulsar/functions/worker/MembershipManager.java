@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -30,22 +32,21 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
-import com.google.common.annotations.VisibleForTesting;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
-import org.apache.pulsar.common.policies.data.PersistentTopicStats;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 
@@ -56,7 +57,7 @@ import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 public class MembershipManager implements AutoCloseable, ConsumerEventListener {
 
     private final String consumerName;
-    private final Consumer consumer;
+    private final Consumer<byte[]> consumer;
     private final WorkerConfig workerConfig;
     private PulsarAdmin pulsarAdminClient;
     private final CompletableFuture<Void> firstConsumerEventFuture;
@@ -85,18 +86,17 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
         // we don't produce any messages into this topic, we only use the `failover` subscription
         // to elect an active consumer as the leader worker. The leader worker will be responsible
         // for scheduling snapshots for FMT and doing task assignment.
-        consumer = client.subscribe(
-                workerConfig.getClusterCoordinationTopic(),
-                COORDINATION_TOPIC_SUBSCRIPTION,
-                new ConsumerConfiguration()
-                        .setSubscriptionType(SubscriptionType.Failover)
-                        .setConsumerEventListener(this)
-                        .setProperty(WORKER_IDENTIFIER, consumerName)
-        );
+        consumer = client.newConsumer()
+                .topic(workerConfig.getClusterCoordinationTopic())
+                .subscriptionName(COORDINATION_TOPIC_SUBSCRIPTION)
+                .subscriptionType(SubscriptionType.Failover)
+                .consumerEventListener(this)
+                .property(WORKER_IDENTIFIER, consumerName)
+                .subscribe();
     }
 
     @Override
-    public void becameActive(Consumer consumer, int partitionId) {
+    public void becameActive(Consumer<?> consumer, int partitionId) {
         firstConsumerEventFuture.complete(null);
         if (isLeader.compareAndSet(false, true)) {
             log.info("Worker {} became the leader.", consumerName);
@@ -104,7 +104,7 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
     }
 
     @Override
-    public void becameInactive(Consumer consumer, int partitionId) {
+    public void becameInactive(Consumer<?> consumer, int partitionId) {
         firstConsumerEventFuture.complete(null);
         if (isLeader.compareAndSet(true, false)) {
             log.info("Worker {} lost the leadership.", consumerName);
@@ -118,18 +118,17 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
     public List<WorkerInfo> getCurrentMembership() {
 
         List<WorkerInfo> workerIds = new LinkedList<>();
-        PersistentTopicStats persistentTopicStats = null;
+        TopicStats topicStats = null;
         PulsarAdmin pulsarAdmin = this.getPulsarAdminClient();
         try {
-            persistentTopicStats = pulsarAdmin.persistentTopics().getStats(
-                    this.workerConfig.getClusterCoordinationTopic());
+            topicStats = pulsarAdmin.topics().getStats(this.workerConfig.getClusterCoordinationTopic());
         } catch (PulsarAdminException e) {
             log.error("Failed to get status of coordinate topic {}",
                     this.workerConfig.getClusterCoordinationTopic(), e);
             throw new RuntimeException(e);
         }
 
-        for (ConsumerStats consumerStats : persistentTopicStats.subscriptions
+        for (ConsumerStats consumerStats : topicStats.subscriptions
                 .get(COORDINATION_TOPIC_SUBSCRIPTION).consumers) {
             WorkerInfo workerInfo = WorkerInfo.parseFrom(consumerStats.metadata.get(WORKER_IDENTIFIER));
             workerIds.add(workerInfo);
@@ -281,7 +280,9 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
 
     private PulsarAdmin getPulsarAdminClient() {
         if (this.pulsarAdminClient == null) {
-            this.pulsarAdminClient = Utils.getPulsarAdminClient(this.workerConfig.getPulsarWebServiceUrl());
+            this.pulsarAdminClient = Utils.getPulsarAdminClient(this.workerConfig.getPulsarWebServiceUrl(),
+                    workerConfig.getClientAuthenticationPlugin(), workerConfig.getClientAuthenticationParameters(),
+                    workerConfig.getTlsTrustCertsFilePath(), workerConfig.isTlsAllowInsecureConnection());
         }
         return this.pulsarAdminClient;
     }

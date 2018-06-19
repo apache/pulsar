@@ -77,7 +77,8 @@ class Commands {
     static SharedBuffer newSubscribe(const std::string& topic, const std::string& subscription,
                                      uint64_t consumerId, uint64_t requestId,
                                      proto::CommandSubscribe_SubType subType, const std::string& consumerName,
-                                     SubscriptionMode subscriptionMode, Optional<MessageId> startMessageId);
+                                     SubscriptionMode subscriptionMode, Optional<MessageId> startMessageId,
+                                     bool readCompacted);
 
     static SharedBuffer newUnsubscribe(uint64_t consumerId, uint64_t requestId);
 
@@ -108,6 +109,8 @@ class Commands {
     static Message deSerializeSingleMessageInBatch(Message& batchedMessage, int32_t batchIndex);
 
     static SharedBuffer newConsumerStats(uint64_t consumerId, uint64_t requestId);
+
+    static SharedBuffer newSeek(uint64_t consumerId, uint64_t requestId, const MessageId& messageId);
 
    private:
     Commands();

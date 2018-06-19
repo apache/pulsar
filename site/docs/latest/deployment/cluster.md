@@ -142,7 +142,7 @@ You can initialize this metadata using the [`initialize-cluster-metadata`](../..
 $ bin/pulsar initialize-cluster-metadata \
   --cluster pulsar-cluster-1 \
   --zookeeper zk1.us-west.example.com:2181 \
-  --global-zookeeper zk1.us-west.example.com:2181 \
+  --configuration-store zk1.us-west.example.com:2181 \
   --web-service-url http://pulsar.us-west.example.com:8080 \
   --web-service-url-tls https://pulsar.us-west.example.com:8443 \
   --broker-service-url pulsar://pulsar.us-west.example.com:6650 \
@@ -155,7 +155,7 @@ Flag | Description
 :----|:-----------
 `--cluster` | A name for the cluster
 `--zookeeper` | A "local" ZooKeeper connection string for the cluster. This connection string only needs to include *one* machine in the ZooKeeper cluster.
-`--global-zookeeper` | The "global" ZooKeeper connection string for the entire instance. As with the `--zookeeper` flag, this connection string only needs to include *one* machine in the ZooKeeper cluster.
+`--configuration-store` | The {% popover configuration store %} connection string for the entire instance. As with the `--zookeeper` flag, this connection string only needs to include *one* machine in the ZooKeeper cluster.
 `--web-service-url` | The web service URL for the cluster, plus a port. This URL should be a standard DNS name. The default port is 8080 (we don't recommend using a different port).
 `--web-service-url-tls` | If you're using [TLS](../../../admin/Authz#tls-client-auth), you'll also need to specify a TLS web service URL for the cluster. The default port is 8443 (we don't recommend using a different port).
 `--broker-service-url` | A broker service URL enabling interaction with the {% popover brokers %} in the cluster. This URL should use the same DNS name as the web service URL but should use the `pulsar` scheme instead. The default port is 6650 (we don't recommend using a different port).
@@ -199,13 +199,11 @@ This will create an ephemeral BookKeeper {% popover ledger %} on the local booki
 
 Pulsar {% popover brokers %} are the last thing you need to deploy in your Pulsar cluster. Brokers handle Pulsar messages and provide Pulsar's administrative interface. We recommend running **3 brokers**, one for each machine that's already running a BookKeeper bookie.
 
-The most important element of broker configuration is ensuring that that each broker is aware of the ZooKeeper cluster that you've deployed. Make sure that the [`zookeeperServers`](../../../reference/Configuration#broker-zookeeperServers) and [`globalZookeeperServers`](../../../reference/Configuration#broker-globalZookeeperServers) parameters.
-In this case, since we only have 1 cluster and no global ZooKeeper setup, the `globalZookeeperServers`
-will point to the same `zookeeperServers`.
+The most important element of broker configuration is ensuring that that each broker is aware of the ZooKeeper cluster that you've deployed. Make sure that the [`zookeeperServers`](../../../reference/Configuration#broker-zookeeperServers) and [`configurationStoreServers`](../../../reference/Configuration#broker-configurationStoreServers) parameters. In this case, since we only have 1 cluster and no configuration store setup, the `configurationStoreServers` will point to the same `zookeeperServers`.
 
 ```properties
 zookeeperServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
-globalZookeeperServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
+configurationStoreServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
 ```
 
 You also need to specify the cluster name (matching the name that you provided when [initializing the cluster's metadata](#initializing-cluster-metadata):
@@ -245,7 +243,7 @@ Once you've done that, you can publish a message to Pulsar topic:
 
 ```bash
 $ bin/pulsar-client produce \
-  persistent://sample/pulsar-cluster-1/ns1/test \
+  persistent://public/default/test \
   -n 1 \
   -m "Hello, Pulsar"
 ```

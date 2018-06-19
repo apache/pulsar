@@ -18,14 +18,18 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
@@ -35,6 +39,7 @@ import org.apache.pulsar.functions.utils.Reflections;
 import org.slf4j.Logger;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -87,13 +92,14 @@ class ContextImpl implements Context {
     private ProducerConfiguration producerConfiguration;
     private PulsarClient pulsarClient;
     private ClassLoader classLoader;
-    private Map<String, Consumer> inputConsumers;
+    Consumer inputConsumer;
     @Getter
     @Setter
     private StateContextImpl stateContext;
+    private Map<String, Object> userConfigs;
 
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
-                       ClassLoader classLoader, Map<String, Consumer> inputConsumers) {
+                       ClassLoader classLoader, Consumer inputConsumer) {
         this.config = config;
         this.logger = logger;
         this.pulsarClient = client;
@@ -101,12 +107,18 @@ class ContextImpl implements Context {
         this.accumulatedMetrics = new ConcurrentHashMap<>();
         this.publishProducers = new HashMap<>();
         this.publishSerializers = new HashMap<>();
-        this.inputConsumers = inputConsumers;
+        this.inputConsumer = inputConsumer;
         producerConfiguration = new ProducerConfiguration();
         producerConfiguration.setBlockIfQueueFull(true);
         producerConfiguration.setBatchingEnabled(true);
         producerConfiguration.setBatchingMaxPublishDelay(1, TimeUnit.MILLISECONDS);
         producerConfiguration.setMaxPendingMessages(1000000);
+        if (config.getFunctionDetails().getUserConfig().isEmpty()) {
+            userConfigs = new HashMap<>();
+        } else {
+            userConfigs = new Gson().fromJson(config.getFunctionDetails().getUserConfig(),
+                    new TypeToken<Map<String, Object>>(){}.getType());
+        }
     }
 
     public void setCurrentMessageContext(MessageId messageId, String topicName) {
@@ -120,23 +132,27 @@ class ContextImpl implements Context {
     }
 
     @Override
-    public String getTopicName() {
+    public String getCurrentMessageTopicName() {
         return currentTopicName;
     }
 
     @Override
     public Collection<String> getInputTopics() {
-        return inputConsumers.keySet();
+        if (inputConsumer instanceof MultiTopicsConsumerImpl) {
+            return ((MultiTopicsConsumerImpl) inputConsumer).getTopics();
+        } else {
+            return Arrays.asList(inputConsumer.getTopic());
+        }
     }
 
     @Override
     public String getOutputTopic() {
-        return config.getFunctionDetails().getOutput();
+        return config.getFunctionDetails().getSink().getTopic();
     }
 
     @Override
     public String getOutputSerdeClassName() {
-        return config.getFunctionDetails().getOutputSerdeClassName();
+        return config.getFunctionDetails().getSink().getSerDeClassName();
     }
 
     @Override
@@ -175,18 +191,19 @@ class ContextImpl implements Context {
     }
 
     @Override
-    public Optional<String> getUserConfigValue(String key) {
-        return Optional.ofNullable(config.getFunctionDetails().getUserConfigOrDefault(key, null));
+    public Optional<Object> getUserConfigValue(String key) {
+
+        return Optional.ofNullable(userConfigs.getOrDefault(key, null));
     }
 
     @Override
-    public String getUserConfigValueOrDefault(String key, String defaultValue) {
+    public Object getUserConfigValueOrDefault(String key, Object defaultValue) {
         return getUserConfigValue(key).orElse(defaultValue);
     }
 
     @Override
-    public Map<String, String> getUserConfigMap() {
-        return config.getFunctionDetails().getUserConfigMap();
+    public Map<String, Object> getUserConfigMap() {
+        return userConfigs;
     }
 
     @Override
@@ -214,7 +231,9 @@ class ContextImpl implements Context {
                 return retval;
             }
         }
-
+        if (StringUtils.isEmpty(serDeClassName)) {
+            serDeClassName = DefaultSerDe.class.getName();
+        }
         if (!publishSerializers.containsKey(serDeClassName)) {
             SerDe serDe;
             if (serDeClassName.equals(DefaultSerDe.class.getName())) {
@@ -241,19 +260,17 @@ class ContextImpl implements Context {
                 .thenApply(msgId -> null);
     }
 
+    //TODO remove topic argument
     @Override
-    public CompletableFuture<Void> ack(byte[] messageId, String topic) {
-        if (!inputConsumers.containsKey(topic)) {
-            throw new RuntimeException("No such input topic " + topic);
-        }
-
+    public CompletableFuture<Void> ack(byte[] messageId) {
         MessageId actualMessageId = null;
         try {
             actualMessageId = MessageId.fromByteArray(messageId);
+
         } catch (IOException e) {
             throw new RuntimeException("Invalid message id to ack", e);
         }
-        return inputConsumers.get(topic).acknowledgeAsync(actualMessageId);
+        return  inputConsumer.acknowledgeAsync(actualMessageId);
     }
 
     @Override

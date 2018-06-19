@@ -112,9 +112,10 @@
       .topic, .fqfn {
         color: $sx-light-gray;
         background-color: $black;
-        font-size: $code-font-size;
+        font-size: $code-font-size * 1.25;
         font-family: $font-family-monospace;
-        padding: 10px 0 10px 20px;
+        font-weight: 700;
+        padding: .5rem 0 .5rem 1rem;
         border-radius: 0;
 
         .property, .tenant { color: $sx-olive; }
@@ -122,8 +123,10 @@
         .namespace { color: $sx-7; }
         .t { color: $sx-magenta; }
 
-        & + p {
-          margin-top: 20px;
+        & ~ {
+          p, h2, h3, h4, h5 {
+            margin-top: 20px;
+          }
         }
       }
 
@@ -244,9 +247,7 @@
             padding: 5px 0;
 
             &:nth-child(1), &:nth-child(2) {
-              max-width: 225px;
               overflow: auto;
-              white-space: nowrap;
             }
 
             &:nth-child(2), &:nth-child(3)  {

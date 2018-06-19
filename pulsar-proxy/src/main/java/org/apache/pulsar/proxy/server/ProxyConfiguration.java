@@ -30,8 +30,12 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     // Local-Zookeeper quorum connection string
     private String zookeeperServers;
+    @Deprecated
     // Global-Zookeeper quorum connection string
     private String globalZookeeperServers;
+
+    // Configuration Store connection string
+    private String configurationStoreServers;
 
     // ZooKeeper session timeout
     private int zookeeperSessionTimeoutMs = 30_000;
@@ -39,6 +43,10 @@ public class ProxyConfiguration implements PulsarConfiguration {
     // if Service Discovery is Disabled this url should point to the discovery service provider.
     private String brokerServiceURL;
     private String brokerServiceURLTLS;
+
+    // These settings are unnecessary if `zookeeperServers` is specified
+    private String brokerWebServiceURL;
+    private String brokerWebServiceURLTLS;
 
     // Port to use to server binary-proto request
     private int servicePort = 6650;
@@ -49,7 +57,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private int webServicePort = 8080;
     // Port to use to server HTTPS request
     private int webServicePortTls = 8443;
-    
+
     // Path for the file used to determine the rotation status for the broker
     // when responding to service discovery health checks
     private String statusFilePath;
@@ -134,6 +142,22 @@ public class ProxyConfiguration implements PulsarConfiguration {
         this.brokerServiceURL = discoveryServiceURL;
     }
 
+    public String getBrokerWebServiceURL() {
+        return brokerWebServiceURL;
+    }
+
+    public void setBrokerWebServiceURL(String brokerWebServiceURL) {
+        this.brokerWebServiceURL = brokerWebServiceURL;
+    }
+
+    public String getBrokerWebServiceURLTLS() {
+        return brokerWebServiceURLTLS;
+    }
+
+    public void setBrokerWebServiceURLTLS(String brokerWebServiceURLTLS) {
+        this.brokerWebServiceURLTLS = brokerWebServiceURLTLS;
+    }
+
     public String getZookeeperServers() {
         return zookeeperServers;
     }
@@ -142,12 +166,22 @@ public class ProxyConfiguration implements PulsarConfiguration {
         this.zookeeperServers = zookeeperServers;
     }
 
+    @Deprecated
     public String getGlobalZookeeperServers() {
         return globalZookeeperServers;
     }
 
+    @Deprecated
     public void setGlobalZookeeperServers(String globalZookeeperServers) {
         this.globalZookeeperServers = globalZookeeperServers;
+    }
+
+    public String getConfigurationStoreServers() {
+        return null == configurationStoreServers ? getGlobalZookeeperServers() : configurationStoreServers;
+    }
+
+    public void setConfigurationStoreServers(String configurationStoreServers) {
+        this.configurationStoreServers = configurationStoreServers;
     }
 
     public int getZookeeperSessionTimeoutMs() {

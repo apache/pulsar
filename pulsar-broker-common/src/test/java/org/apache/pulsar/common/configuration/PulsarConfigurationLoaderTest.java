@@ -41,7 +41,7 @@ public class PulsarConfigurationLoaderTest {
         private Properties properties = new Properties();
 
         private String zookeeperServers = "localhost:2181";
-        private String globalZookeeperServers = "localhost:2184";
+        private String configurationStoreServers = "localhost:2184";
         private int brokerServicePort = 7650;
         private int brokerServicePortTls = 7651;
         private int webServicePort = 9080;
@@ -66,7 +66,7 @@ public class PulsarConfigurationLoaderTest {
 
         // check whether converting correctly
         assertEquals(serviceConfiguration.getZookeeperServers(), "localhost:2181");
-        assertEquals(serviceConfiguration.getGlobalZookeeperServers(), "localhost:2184");
+        assertEquals(serviceConfiguration.getConfigurationStoreServers(), "localhost:2184");
         assertEquals(serviceConfiguration.getBrokerServicePort(), 7650);
         assertEquals(serviceConfiguration.getBrokerServicePortTls(), 7651);
         assertEquals(serviceConfiguration.getWebServicePort(), 9080);
@@ -90,7 +90,7 @@ public class PulsarConfigurationLoaderTest {
         final String zkServer = "z1.example.com,z2.example.com,z3.example.com";
         PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)));
         printWriter.println("zookeeperServers=" + zkServer);
-        printWriter.println("globalZookeeperServers=gz1.example.com,gz2.example.com,gz3.example.com/foo");
+        printWriter.println("configurationStoreServers=gz1.example.com,gz2.example.com,gz3.example.com/foo");
         printWriter.println("brokerDeleteInactiveTopicsEnabled=true");
         printWriter.println("statusFilePath=/tmp/status.html");
         printWriter.println("managedLedgerDefaultEnsembleSize=1");

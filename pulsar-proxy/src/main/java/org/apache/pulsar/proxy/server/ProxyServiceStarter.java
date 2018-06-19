@@ -19,12 +19,16 @@
 package org.apache.pulsar.proxy.server;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.Lists.newArrayList;
 import static java.lang.Thread.setDefaultUncaughtExceptionHandler;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.slf4j.bridge.SLF4JBridgeHandler.install;
 import static org.slf4j.bridge.SLF4JBridgeHandler.removeHandlersForRootLogger;
 
+import java.util.List;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.slf4j.Logger;
@@ -49,8 +53,13 @@ public class ProxyServiceStarter {
     @Parameter(names = { "-zk", "--zookeeper-servers" }, description = "Local zookeeper connection string")
     private String zookeeperServers = "";
 
+    @Deprecated
     @Parameter(names = { "-gzk", "--global-zookeeper-servers" }, description = "Global zookeeper connection string")
     private String globalZookeeperServers = "";
+
+    @Parameter(names = { "-cs", "--configuration-store-servers" },
+        description = "Configuration store connection string")
+    private String configurationStoreServers = "";
 
     @Parameter(names = { "-h", "--help" }, description = "Show this help message")
     private boolean help = false;
@@ -86,13 +95,23 @@ public class ProxyServiceStarter {
 
         if (!isBlank(globalZookeeperServers)) {
             // Use globalZookeeperServers from command line
-            config.setGlobalZookeeperServers(globalZookeeperServers);
+            config.setConfigurationStoreServers(globalZookeeperServers);
+        }
+        if (!isBlank(configurationStoreServers)) {
+            // Use configurationStoreServers from command line
+            config.setConfigurationStoreServers(configurationStoreServers);
         }
 
         if ((isBlank(config.getBrokerServiceURL()) && isBlank(config.getBrokerServiceURLTLS()))
                 || config.isAuthorizationEnabled()) {
             checkArgument(!isEmpty(config.getZookeeperServers()), "zookeeperServers must be provided");
-            checkArgument(!isEmpty(config.getGlobalZookeeperServers()), "globalZookeeperServers must be provided");
+            checkArgument(!isEmpty(config.getConfigurationStoreServers()),
+                    "configurationStoreServers must be provided");
+        }
+
+        if ((!config.isTlsEnabledWithBroker() && isBlank(config.getBrokerWebServiceURL()))
+                || (config.isTlsEnabledWithBroker() && isBlank(config.getBrokerWebServiceURLTLS()))) {
+            checkArgument(!isEmpty(config.getZookeeperServers()), "zookeeperServers must be provided");
         }
 
         java.security.Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
@@ -102,17 +121,14 @@ public class ProxyServiceStarter {
         // create a web-service
         final WebServer server = new WebServer(config);
 
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-            @Override
-            public void run() {
-                try {
-                    proxyService.close();
-                    server.stop();
-                } catch (Exception e) {
-                    log.warn("server couldn't stop gracefully {}", e.getMessage(), e);
-                }
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            try {
+                proxyService.close();
+                server.stop();
+            } catch (Exception e) {
+                log.warn("server couldn't stop gracefully {}", e.getMessage(), e);
             }
-        });
+        }));
 
         proxyService.start();
 
@@ -121,6 +137,12 @@ public class ProxyServiceStarter {
         server.addServlet("/metrics", new ServletHolder(MetricsServlet.class));
         server.addRestResources("/", VipStatus.class.getPackage().getName(),
                 VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath());
+
+        AdminProxyHandler adminProxyHandler = new AdminProxyHandler(config, proxyService.getDiscoveryProvider());
+        ServletHolder servletHolder = new ServletHolder(adminProxyHandler);
+        servletHolder.setInitParameter("preserveHost", "true");
+        server.addServlet("/admin", servletHolder);
+        server.addServlet("/lookup", servletHolder);
 
         // start web-service
         server.start();

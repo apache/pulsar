@@ -40,10 +40,10 @@ public interface Context {
     byte[] getMessageId();
 
     /**
-     * The topic that this message belongs to
-     * @return The topic name
+     * The input topic that the message currently being processed belongs to
+     * @return The input topic name
      */
-    String getTopicName();
+    String getCurrentMessageTopicName();
 
     /**
      * Get a list of all input topics
@@ -117,14 +117,14 @@ public interface Context {
      * Get a map of all user-defined key/value configs for the function
      * @return The full map of user-defined config values
      */
-    Map<String, String> getUserConfigMap();
+    Map<String, Object> getUserConfigMap();
 
     /**
      * Get any user-defined key/value
      * @param key The key
      * @return The Optional value specified by the user for that key.
      */
-    Optional<String> getUserConfigValue(String key);
+    Optional<Object> getUserConfigValue(String key);
 
     /**
      * Get any user-defined key/value or a default value if none is present
@@ -132,7 +132,7 @@ public interface Context {
      * @param defaultValue
      * @return Either the user config value associated with a given key or a supplied default value
      */
-    String getUserConfigValueOrDefault(String key, String defaultValue);
+    Object getUserConfigValueOrDefault(String key, Object defaultValue);
 
     /**
      * Record a user defined metric
@@ -162,8 +162,7 @@ public interface Context {
      * By default acknowledgement management is done transparently by Pulsar Functions framework.
      * However users can disable that and do ack management by themselves by using this API.
      * @param messageId The messageId that needs to be acknowledged
-     * @param topic The topic name that the message belongs to that  needs to be acknowledged
      * @return A future that completes when the framework is done acking the message
      */
-    CompletableFuture<Void> ack(byte[] messageId, String topic);
+    CompletableFuture<Void> ack(byte[] messageId);
 }

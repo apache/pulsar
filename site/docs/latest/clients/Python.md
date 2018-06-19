@@ -69,36 +69,31 @@ Below you'll find a variety of Python code examples for the `pulsar-client` libr
 
 ### Producer example
 
-This creates a Python {% popover producer %} for the `persistent://sample/standalone/ns/my-topic` topic and send 10 messages on that topic:
+This creates a Python {% popover producer %} for the `my-topic` topic and send 10 messages on that topic:
 
 ```python
 import pulsar
 
-TOPIC = 'persistent://sample/standalone/ns/my-topic'
-PULSAR_SERVICE_URL = 'pulsar://localhost:6650'
+client = pulsar.Client('pulsar://localhost:6650')
 
-client = pulsar.Client(PULSAR_SERVICE_URL)
-
-producer = client.create_producer(TOPIC)
+producer = client.create_producer('my-topic')
 
 for i in range(10):
-    producer.send('Hello-%d' % i)
+    producer.send(('Hello-%d' % i).encode('utf-8'))
 
 client.close()
 ```
 
 ### Consumer example
 
-This creates a {% popover consumer %} with the `my-sub` {% popover subscription %} on the `persistent://sample/standalone/ns/my-topic` topic, listen for incoming messages, print the content and ID of messages that arrive, and {% popover acknowledge %} each message to the Pulsar {% popover broker %}:
+This creates a {% popover consumer %} with the `my-subscription` {% popover subscription %} on the `my-topic` topic, listen for incoming messages, print the content and ID of messages that arrive, and {% popover acknowledge %} each message to the Pulsar {% popover broker %}:
 
 ```python
-SUBSCRIPTION = 'my-sub'
-
-consumer = client.subscribe(TOPIC, SUBSCRIPTION)
+consumer = client.subscribe('my-topic', 'my-subscription')
 
 while True:
     msg = consumer.receive()
-    print("Received message '%s' id='%s'", msg.data(), msg.message_id())
+    print("Received message '{}' id='{}'".format(msg.data(), msg.message_id()))
     consumer.acknowledge(msg)
 
 client.close()
@@ -112,10 +107,10 @@ You can use the Pulsar Python API to use the Pulsar [reader interface](../../get
 # MessageId taken from a previously fetched message
 msg_id = msg.message_id()
 
-reader = client.create_reader(TOPIC, msg_id)
+reader = client.create_reader('my-topic', msg_id)
 
 while True:
     msg = reader.receive()
-    print("Received message '%s' id='%s'", msg.data(), msg.message_id())
+    print("Received message '{}' id='{}'".format(msg.data(), msg.message_id()))
     # No acknowledgment
 ```

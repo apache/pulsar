@@ -27,7 +27,7 @@ Persistent helps to access topic which is a logical endpoint for publishing and 
 
 In all of the instructions and commands below, the topic name structure is:
 
-{% include topic.html p="property" c="cluster" n="namespace" t="topic" %}
+{% include topic.html ten="tenant" n="namespace" t="topic" %}
 
 ## Persistent topics resources
 
@@ -41,20 +41,19 @@ List of topics can be fetched using [`list`](../../reference/CliTools#list) comm
 
 ```shell
 $ pulsar-admin persistent list \
-  my-property/my-cluster/my-namespace \
-  my-topic
+  my-tenant/my-namespace
 ```
 
 #### REST API
 
-{% endpoint GET /admin/persistent/:property/:cluster/:namespace %}
+{% endpoint GET /admin/persistent/:tenant/:namespace %}
 
-[More info](../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace)
+[More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace)
 
 #### Java
 
 ```java
-String namespace = "my-property/my-cluster-my-namespace";
+String namespace = "my-tenant/my-namespace";
 admin.persistentTopics().getList(namespace);
 ```
 
@@ -69,20 +68,20 @@ Permission can be granted using [`grant-permission`](../../reference/CliTools#gr
 ```shell
 $ pulsar-admin persistent grant-permission \
   --actions produce,consume --role application1 \
-  persistent://test-property/cl1/ns1/tp1 \
+  persistent://test-tenant/ns1/tp1 \
 
 ```
 
 #### REST API
 
-{% endpoint POST /admin/namespaces/:property/:cluster/:namespace/permissions/:role %}
+{% endpoint POST /admin/namespaces/:tenant/:namespace/permissions/:role %}
 
-[More info](../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/permissions/:role)
+[More info](../../reference/RestApi#/admin/namespaces/:tenant/:namespace/permissions/:role)
 
 #### Java
 
 ```java
-String destination = "persistent://my-property/my-cluster-my-namespace/my-topic";
+String destination = "persistent://my-tenant/my-namespace/my-topic";
 String role = "test-role";
 Set<AuthAction> actions  = Sets.newHashSet(AuthAction.produce, AuthAction.consume);
 admin.persistentTopics().grantPermission(destination, role, actions);
@@ -94,11 +93,9 @@ Permission can be fetched using [`permissions`](../../reference/CliTools#permiss
 
 #### pulsar-admin
 
-TODO: admin
-
 ```shell
 $ pulsar-admin persistent permissions \
-  persistent://test-property/cl1/ns1/tp1 \
+  persistent://test-tenant/ns1/tp1 \
 
 {
     "application1": [
@@ -110,14 +107,14 @@ $ pulsar-admin persistent permissions \
 
 #### REST API
 
-{% endpoint GET /admin/namespaces/:property/:cluster/:namespace/permissions %}
+{% endpoint GET /admin/namespaces/:tenant/:namespace/permissions %}
 
-[More info](../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/permissions)
+[More info](../../reference/RestApi#/admin/namespaces/:tenant:namespace/permissions)
 
 #### Java
 
 ```java
-String destination = "persistent://my-property/my-cluster-my-namespace/my-topic";
+String destination = "persistent://my-tenant/my-namespace/my-topic";
 admin.persistentTopics().getPermissions(destination);
 ```
 
@@ -132,26 +129,26 @@ Permission can be revoked using [`revoke-permission`](../../reference/CliTools#r
 ```shell
 $ pulsar-admin persistent revoke-permission \
   --role application1 \
-  persistent://test-property/cl1/ns1/tp1 \
+  persistent://test-tenant/ns1/tp1 \
 
 {
-    "application1": [
-        "consume",
-        "produce"
-    ]
+  "application1": [
+    "consume",
+    "produce"
+  ]
 }
 ```
 
 #### REST API
 
-{% endpoint DELETE /admin/namespaces/:property/:cluster/:namespace/permissions/:role %}
+{% endpoint DELETE /admin/namespaces/:tenant:namespace/permissions/:role %}
 
-[More info](../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/permissions/:role)
+[More info](../../reference/RestApi#/admin/namespaces/:tenant/:namespace/permissions/:role)
 
 #### Java
 
 ```java
-String destination = "persistent://my-property/my-cluster-my-namespace/my-topic";
+String destination = "persistent://my-tenant/my-namespace/my-topic";
 String role = "test-role";
 admin.persistentTopics().revokePermissions(destination, role);
 ```
@@ -166,19 +163,19 @@ Topic can be deleted using [`delete`](../../reference/CliTools#delete) command.
 
 ```shell
 $ pulsar-admin persistent delete \
-  persistent://test-property/cl1/ns1/tp1 \
+  persistent://test-tenant/ns1/tp1 \
 ```
 
 #### REST API
 
-{% endpoint DELETE /admin/persistent/:property/:cluster/:namespace/:destination %}
+{% endpoint DELETE /admin/persistent/:tenant/:namespace/:destination %}
 
-[More info](../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination)
+[More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination)
 
 #### Java
 
 ```java
-String destination = "persistent://my-property/my-cluster-my-namespace/my-topic";
+String destination = "persistent://my-tenant/my-namespace/my-topic";
 admin.persistentTopics().delete(destination);
 ```
 
@@ -192,19 +189,19 @@ Topic can be unloaded using [`unload`](../../reference/CliTools#unload) command.
 
 ```shell
 $ pulsar-admin persistent unload \
-  persistent://test-property/cl1/ns1/tp1 \
+  persistent://test-tenant/ns1/tp1 \
 ```
 
 #### REST API
 
-{% endpoint PUT /admin/persistent/:property/:cluster/:namespace/:destination/unload %}
+{% endpoint PUT /admin/persistent/:tenant/:namespace/:destination/unload %}
 
-[More info](../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/unload)
+[More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/unload)
 
 #### Java
 
 ```java
-String destination = "persistent://my-property/my-cluster-my-namespace/my-topic";
+String destination = "persistent://my-tenant/my-namespace/my-topic";
 admin.persistentTopics().unload(destination);
 ```
 
@@ -303,19 +300,19 @@ Topic stats can be fetched using [`stats`](../../reference/CliTools#stats) comma
 
 ```shell
 $ pulsar-admin persistent stats \
-  persistent://test-property/cl1/ns1/tp1 \
+  persistent://test-tenant/ns1/tp1 \
 ```
 
 #### REST API
 
-{% endpoint GET /admin/persistent/:property/:cluster/:namespace/:destination/stats %}
+{% endpoint GET /admin/persistent/:tenant/:namespace/:destination/stats %}
 
-[More info](../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/stats)
+[More info](../../reference/RestApi#/admin/persistent/:tenant:namespace/:destination/stats)
 
 #### Java
 
 ```java
-String destination = "persistent://my-property/my-cluster-my-namespace/my-topic";
+String destination = "persistent://my-tenant/my-namespace/my-topic";
 admin.persistentTopics().getStats(destination);
 ```
 
@@ -413,19 +410,19 @@ Topic internal-stats can be fetched using [`stats-internal`](../../reference/Cli
 
 ```shell
 $ pulsar-admin persistent stats-internal \
-  persistent://test-property/cl1/ns1/tp1 \
+  persistent://test-tenant/ns1/tp1 \
 ```
 
 #### REST API
 
-{% endpoint GET /admin/persistent/:property/:cluster/:namespace/:destination/internalStats %}
+{% endpoint GET /admin/persistent/:tenant/:namespace/:destination/internalStats %}
 
-[More info](../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/internalStats)
+[More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/internalStats)
 
 #### Java
 
 ```java
-String destination = "persistent://my-property/my-cluster-my-namespace/my-topic";
+String destination = "persistent://my-tenant/my-namespace/my-topic";
 admin.persistentTopics().getInternalStats(destination);
 ```
 
@@ -439,23 +436,23 @@ It peeks N messages for a specific subscription of a given topic.
 ```shell
 $ pulsar-admin persistent peek-messages \
   --count 10 --subscription my-subscription \
-  persistent://test-property/cl1/ns1/tp1 \
+  persistent://test-tenant/ns1/tp1 \
 
-Message ID: 315674752:0  
+Message ID: 315674752:0
 Properties:  {  "X-Pulsar-publish-time" : "2015-07-13 17:40:28.451"  }
 msg-payload
 ```
 
 #### REST API
 
-{% endpoint GET /admin/persistent/:property/:cluster/:namespace/:destination/subscription/:subName/position/:messagePosition %}
+{% endpoint GET /admin/persistent/:tenant/:namespace/:destination/subscription/:subName/position/:messagePosition %}
 
-[More info](../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/subscription/:subName/position/:messagePosition)
+[More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/subscription/:subName/position/:messagePosition)
 
 #### Java
 
 ```java
-String destination = "persistent://my-property/my-cluster-my-namespace/my-topic";
+String destination = "persistent://my-tenant/my-namespace/my-topic";
 String subName = "my-subscription";
 int numMessages = 1;
 admin.persistentTopics().peekMessages(destination, subName, numMessages);
@@ -471,19 +468,19 @@ It skips N messages for a specific subscription of a given topic.
 ```shell
 $ pulsar-admin persistent skip \
   --count 10 --subscription my-subscription \
-  persistent://test-property/cl1/ns1/tp1 \
+  persistent://test-tenant/ns1/tp1 \
 ```
 
 #### REST API
 
-{% endpoint POST /admin/persistent/:property/:cluster/:namespace/:destination/subscription/:subName/skip/:numMessages %}
+{% endpoint POST /admin/persistent/:tenant/:namespace/:destination/subscription/:subName/skip/:numMessages %}
 
-[More info](../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/subscription/:subName/skip/:numMessages)
+[More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/subscription/:subName/skip/:numMessages)
 
 #### Java
 
 ```java
-String destination = "persistent://my-property/my-cluster-my-namespace/my-topic";
+String destination = "persistent://my-tenant/my-namespace/my-topic";
 String subName = "my-subscription";
 int numMessages = 1;
 admin.persistentTopics().skipMessages(destination, subName, numMessages);
@@ -499,19 +496,19 @@ It skips all old messages for a specific subscription of a given topic.
 ```shell
 $ pulsar-admin persistent skip-all \
   --subscription my-subscription \
-  persistent://test-property/cl1/ns1/tp1 \
+  persistent://test-tenant/ns1/tp1 \
 ```
 
 #### REST API
 
-{% endpoint POST /admin/persistent/:property/:cluster/:namespace/:destination/subscription/:subName/skip_all %}
+{% endpoint POST /admin/persistent/:tenant/:namespace/:destination/subscription/:subName/skip_all %}
 
-[More info](../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/subscription/:subName/skip_all)
+[More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/subscription/:subName/skip_all)
 
 #### Java
 
 ```java
-String destination = "persistent://my-property/my-cluster-my-namespace/my-topic";
+String destination = "persistent://my-tenant/my-namespace/my-topic";
 String subName = "my-subscription";
 admin.persistentTopics().skipAllMessages(destination, subName);
 ```
@@ -526,19 +523,19 @@ It resets a subscription’s cursor position back to the position which was reco
 ```shell
 $ pulsar-admin persistent reset-cursor \
   --subscription my-subscription --time 10 \
-  persistent://test-property/cl1/ns1/tp1 \
+  persistent://test-tenant/ns1/tp1 \
 ```
 
 #### REST API
 
-{% endpoint POST /admin/persistent/:property/:cluster/:namespace/:destination/subscription/:subName/resetcursor/:timestamp %}
+{% endpoint POST /admin/persistent/:tenant/:namespace/:destination/subscription/:subName/resetcursor/:timestamp %}
 
-[More info](../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/subscription/:subName/resetcursor/:timestamp)
+[More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/subscription/:subName/resetcursor/:timestamp)
 
 #### Java
 
 ```java
-String destination = "persistent://my-property/my-cluster-my-namespace/my-topic";
+String destination = "persistent://my-tenant/my-namespace/my-topic";
 String subName = "my-subscription";
 long timestamp = 2342343L;
 admin.persistentTopics().skipAllMessages(destination, subName, timestamp);
@@ -553,19 +550,19 @@ It locates broker url which is serving the given topic.
 
 ```shell
 $ pulsar-admin persistent lookup \
-  persistent://test-property/cl1/ns1/tp1 \
+  persistent://test-tenant/ns1/tp1 \
 
  "pulsar://broker1.org.com:4480"
 ```
 
 #### REST API
 
-{% endpoint GET /lookup/v2/destination/persistent/:property/:cluster/:namespace/:destination %}
+{% endpoint GET /lookup/v2/destination/persistent/:tenant:namespace/:destination %}
 
 #### Java
 
 ```java
-String destination = "persistent://my-property/my-cluster-my-namespace/my-topic";
+String destination = "persistent://my-tenant/my-namespace/my-topic";
 admin.lookup().lookupDestination(destination);
 ```
 
@@ -578,19 +575,19 @@ It gives range of the bundle which contains given topic
 
 ```shell
 $ pulsar-admin persistent bundle-range \
-  persistent://test-property/cl1/ns1/tp1 \
+  persistent://test-tenant/ns1/tp1 \
 
  "0x00000000_0xffffffff"
 ```
 
 #### REST API
 
-{% endpoint GET /lookup/v2/destination/:destination_domain/:property/:cluster/:namespace/:destination/bundle %}
+{% endpoint GET /lookup/v2/destination/:destination_domain/:tenant/:namespace/:destination/bundle %}
 
 #### Java
 
 ```java
-String destination = "persistent://my-property/my-cluster-my-namespace/my-topic";
+String destination = "persistent://my-tenant/my-namespace/my-topic";
 admin.lookup().getBundleRange(destination);
 ```
 
@@ -603,21 +600,21 @@ It shows all subscription names for a given topic.
 
 ```shell
 $ pulsar-admin persistent subscriptions \
-  persistent://test-property/cl1/ns1/tp1 \
+  persistent://test-tenant/ns1/tp1 \
 
  my-subscription
 ```
 
 #### REST API
 
-{% endpoint GET /admin/persistent/:property/:cluster/:namespace/:destination/subscriptions %}
+{% endpoint GET /admin/persistent/:tenant/:namespace/:destination/subscriptions %}
 
-[More info](../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/subscriptions)
+[More info](../../reference/RestApi#/admin/persistent/:tenant/:namespace/:destination/subscriptions)
 
 #### Java
 
 ```java
-String destination = "persistent://my-property/my-cluster-my-namespace/my-topic";
+String destination = "persistent://my-tenant/my-namespace/my-topic";
 admin.persistentTopics().getSubscriptions(destination);
 ```
 
@@ -631,19 +628,19 @@ It can also help to unsubscribe a subscription which is no more processing furth
 ```shell
 $ pulsar-admin persistent unsubscribe \
   --subscription my-subscription \
-  persistent://test-property/cl1/ns1/tp1 \
+  persistent://test-tenant/ns1/tp1 \
 ```
 
 #### REST API
 
-{% endpoint POST /admin/namespaces/:property/:cluster/:namespace/unsubscribe/:subscription %}
+{% endpoint POST /admin/namespaces/:tenant/:namespace/unsubscribe/:subscription %}
 
-[More info](../../reference/RestApi#/admin/namespaces/:property/:cluster/:namespace/unsubscribe/:subscription)
+[More info](../../reference/RestApi#/admin/namespaces/:tenant/:namespace/unsubscribe/:subscription)
 
 #### Java
 
 ```java
-String destination = "persistent://my-property/my-cluster-my-namespace/my-topic";
+String destination = "persistent://my-tenant/my-namespace/my-topic";
 String subscriptionName = "my-subscription";
 admin.persistentTopics().deleteSubscription(destination, subscriptionName);
 ```

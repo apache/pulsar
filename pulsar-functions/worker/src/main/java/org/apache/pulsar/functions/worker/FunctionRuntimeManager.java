@@ -26,6 +26,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.functions.proto.Function.Assignment;
+import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.Request.AssignmentsUpdate;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
@@ -85,21 +86,30 @@ public class FunctionRuntimeManager implements AutoCloseable{
                                   MembershipManager membershipManager) throws Exception {
         this.workerConfig = workerConfig;
 
-        Reader reader = pulsarClient.newReader()
+        Reader<byte[]> reader = pulsarClient.newReader()
                 .topic(this.workerConfig.getFunctionAssignmentTopic())
                 .startMessageId(MessageId.earliest)
                 .create();
 
         this.functionAssignmentTailer = new FunctionAssignmentTailer(this, reader);
 
+        AuthenticationConfig authConfig = AuthenticationConfig.builder()
+                .clientAuthenticationPlugin(workerConfig.getClientAuthenticationPlugin())
+                .clientAuthenticationParameters(workerConfig.getClientAuthenticationParameters())
+                .tlsTrustCertsFilePath(workerConfig.getTlsTrustCertsFilePath())
+                .useTls(workerConfig.isUseTls()).tlsAllowInsecureConnection(workerConfig.isTlsAllowInsecureConnection())
+                .tlsHostnameVerificationEnable(workerConfig.isTlsHostnameVerificationEnable()).build();
+        
         if (workerConfig.getThreadContainerFactory() != null) {
             this.runtimeFactory = new ThreadRuntimeFactory(
                     workerConfig.getThreadContainerFactory().getThreadGroupName(),
                     workerConfig.getPulsarServiceUrl(),
-                    workerConfig.getStateStorageServiceUrl());
+                    workerConfig.getStateStorageServiceUrl(),
+                    authConfig);
         } else if (workerConfig.getProcessContainerFactory() != null) {
             this.runtimeFactory = new ProcessRuntimeFactory(
                     workerConfig.getPulsarServiceUrl(),
+                    authConfig,
                     workerConfig.getProcessContainerFactory().getJavaInstanceJarLocation(),
                     workerConfig.getProcessContainerFactory().getPythonInstanceLocation(),
                     workerConfig.getProcessContainerFactory().getLogDirectory());

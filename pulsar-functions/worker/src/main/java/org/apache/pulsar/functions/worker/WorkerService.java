@@ -23,9 +23,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.distributedlog.api.namespace.NamespaceBuilder;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 
@@ -45,6 +48,7 @@ public class WorkerService {
     private Namespace dlogNamespace;
     private MembershipManager membershipManager;
     private SchedulerManager schedulerManager;
+    private boolean isInitialized = false;
 
     public WorkerService(WorkerConfig workerConfig) {
         this.workerConfig = workerConfig;
@@ -76,7 +80,17 @@ public class WorkerService {
         // initialize the function metadata manager
         try {
 
-            this.client = PulsarClient.create(this.workerConfig.getPulsarServiceUrl());
+            ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(this.workerConfig.getPulsarServiceUrl());
+            if (isNotBlank(workerConfig.getClientAuthenticationPlugin())
+                    && isNotBlank(workerConfig.getClientAuthenticationParameters())) {
+                clientBuilder.authentication(workerConfig.getClientAuthenticationPlugin(),
+                        workerConfig.getClientAuthenticationParameters());
+            }
+            clientBuilder.enableTls(workerConfig.isUseTls());
+            clientBuilder.allowTlsInsecureConnection(workerConfig.isTlsAllowInsecureConnection());
+            clientBuilder.tlsTrustCertsFilePath(workerConfig.getTlsTrustCertsFilePath());
+            clientBuilder.enableTlsHostnameVerification(workerConfig.isTlsHostnameVerificationEnable());
+            this.client = clientBuilder.build();
             log.info("Created Pulsar client");
 
             //create scheduler manager
@@ -116,6 +130,9 @@ public class WorkerService {
 
             // Start function runtime manager
             this.functionRuntimeManager.start();
+
+            // indicate function worker service is done intializing
+            this.isInitialized = true;
 
         } catch (Exception e) {
             log.error("Error Starting up in worker", e);

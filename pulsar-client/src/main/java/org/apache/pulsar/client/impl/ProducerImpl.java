@@ -25,7 +25,16 @@ import static java.lang.String.format;
 import static org.apache.pulsar.common.api.Commands.hasChecksum;
 import static org.apache.pulsar.common.api.Commands.readChecksum;
 
-import com.google.protobuf.ByteString;
+import com.google.common.collect.Queues;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.util.Recycler;
+import io.netty.util.Recycler.Handle;
+import io.netty.util.ReferenceCountUtil;
+import io.netty.util.Timeout;
+import io.netty.util.TimerTask;
+import io.netty.util.concurrent.ScheduledFuture;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
@@ -34,7 +43,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -59,18 +67,9 @@ import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.util.DateFormatter;
+import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.Queues;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.util.Recycler;
-import io.netty.util.Recycler.Handle;
-import io.netty.util.ReferenceCountUtil;
-import io.netty.util.Timeout;
-import io.netty.util.TimerTask;
-import io.netty.util.concurrent.ScheduledFuture;
 
 public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, ConnectionHandler.Connection {
 
@@ -200,7 +199,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     @Override
-    public CompletableFuture<MessageId> sendAsync(Message<T> message) {
+    CompletableFuture<MessageId> internalSendAsync(Message<T> message) {
         CompletableFuture<MessageId> future = new CompletableFuture<>();
 
         sendAsync(message, new SendCallback() {
@@ -314,8 +313,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
                     if (conf.getCompressionType() != CompressionType.NONE) {
                         msgMetadataBuilder.setCompression(convertCompressionType(conf.getCompressionType()));
-                        msgMetadataBuilder.setUncompressedSize(uncompressedSize);
                     }
+                    msgMetadataBuilder.setUncompressedSize(uncompressedSize);
                 }
 
                 if (isBatchMessagingEnabled()) {
@@ -847,7 +846,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         long requestId = client.newRequestId();
 
         cnx.sendRequestWithId(
-                Commands.newProducer(topic, producerId, requestId, producerName, conf.isEncryptionEnabled(), metadata),
+                Commands.newProducer(topic, producerId, requestId, producerName, conf.isEncryptionEnabled(), metadata,
+                    schema == null ? null : schema.getSchemaInfo()),
                 requestId).thenAccept(response -> {
                     String producerName = response.getProducerName();
                     long lastSequenceId = response.getLastSequenceId();
@@ -1185,31 +1185,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     };
 
     @Override
-    public MessageId send(Message<T> message) throws PulsarClientException {
-        try {
-            // enqueue the message to the buffer
-            CompletableFuture<MessageId> sendFuture = sendAsync(message);
-
-            if (!sendFuture.isDone()) {
-                // the send request wasn't completed yet (e.g. not failing at enqueuing), then attempt to flush it out
-                flush();
-            }
-
-            return sendFuture.get();
-        } catch (ExecutionException e) {
-            Throwable t = e.getCause();
-            if (t instanceof PulsarClientException) {
-                throw (PulsarClientException) t;
-            } else {
-                throw new PulsarClientException(t);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException(e);
-        }
-    }
-
-    private void flush() {
+    protected void flush() {
         if (isBatchMessagingEnabled()) {
             synchronized (ProducerImpl.this) {
                 batchMessageAndSend();

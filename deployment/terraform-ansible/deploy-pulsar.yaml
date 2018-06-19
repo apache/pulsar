@@ -56,7 +56,7 @@
         zookeeper_servers: "{{ groups['zookeeper']|map('extract', hostvars, ['ansible_default_ipv4', 'address'])|map('regex_replace', '(.*)', '\\1:2181') | join(',') }}"
         service_url: "pulsar://{{ hostvars[groups['pulsar'][0]].public_ip }}:6650/"
         http_url: "http://{{ hostvars[groups['pulsar'][0]].public_ip }}:8080/"
-        pulsar_version: "1.22.0-incubating"
+        pulsar_version: "2.0.0-rc1-incubating"
 
     - name: Download Pulsar binary package
       unarchive:
@@ -80,7 +80,7 @@
     - set_fact:
         zid: "{{ groups['zookeeper'].index(inventory_hostname) }}"
         max_heap_memory: "512m"
-        max_direct_memory: "512m"
+        max_direct_memory: "1g"
         cluster_name: "local"
     - name: Create ZooKeeper data directory
       file:
@@ -88,7 +88,7 @@
         state: directory
       with_items:
         - data/zookeeper
-    - name: Add pulsar_env.sh configuration file 
+    - name: Add pulsar_env.sh configuration file
       template:
         src: "../templates/pulsar_env.sh"
         dest: "/opt/pulsar/conf/pulsar_env.sh"
@@ -114,7 +114,7 @@
         bin/pulsar initialize-cluster-metadata \
           --cluster {{ cluster_name }} \
           --zookeeper localhost:2181 \
-          --global-zookeeper localhost:2181 \
+          --configuration-store localhost:2181 \
           --web-service-url {{ http_url }} \
           --broker-service-url {{ service_url }}
       args:
@@ -161,7 +161,7 @@
       args:
         chdir: /opt/pulsar
       when: groups['zookeeper'][0] == inventory_hostname
-      
+
 - name:  Hosts addresses
   hosts: localhost
   become: false

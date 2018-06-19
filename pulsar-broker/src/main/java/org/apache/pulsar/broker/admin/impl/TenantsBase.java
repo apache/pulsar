@@ -47,9 +47,9 @@ public class TenantsBase extends AdminResource {
 
     @GET
     @ApiOperation(value = "Get the list of tenants.", response = String.class, responseContainer = "List")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Property doesn't exist") })
-    public List<String> getProperties() {
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 404, message = "Tenant doesn't exist") })
+    public List<String> getTenants() {
         validateSuperUserAccess();
 
         try {
@@ -65,14 +65,14 @@ public class TenantsBase extends AdminResource {
     @GET
     @Path("/{tenant}")
     @ApiOperation(value = "Get the admin configuration for a given tenant.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Property doesn't exist") })
-    public TenantInfo getPropertyAdmin(@PathParam("tenant") String tenant) {
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 404, message = "Tenant does not exist") })
+    public TenantInfo getTenantAdmin(@PathParam("tenant") String tenant) {
         validateSuperUserAccess();
 
         try {
             return tenantsCache().get(path(POLICIES, tenant))
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Property does not exist"));
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Tenant does not exist"));
         } catch (Exception e) {
             log.error("[{}] Failed to get tenant {}", clientAppId(), tenant, e);
             throw new RestException(e);
@@ -82,10 +82,10 @@ public class TenantsBase extends AdminResource {
     @PUT
     @Path("/{tenant}")
     @ApiOperation(value = "Create a new tenant.", notes = "This operation requires Pulsar super-user privileges.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 409, message = "Property already exist"),
-            @ApiResponse(code = 412, message = "Property name is not valid") })
-    public void createProperty(@PathParam("tenant") String tenant, TenantInfo config) {
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 409, message = "Tenant already exists"),
+            @ApiResponse(code = 412, message = "Tenant name is not valid") })
+    public void createTenant(@PathParam("tenant") String tenant, TenantInfo config) {
         validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
 
@@ -95,10 +95,10 @@ public class TenantsBase extends AdminResource {
             log.info("[{}] Created tenant {}", clientAppId(), tenant);
         } catch (KeeperException.NodeExistsException e) {
             log.warn("[{}] Failed to create already existing tenant {}", clientAppId(), tenant);
-            throw new RestException(Status.CONFLICT, "Property already exist");
+            throw new RestException(Status.CONFLICT, "Tenant already exists");
         } catch (IllegalArgumentException e) {
             log.warn("[{}] Failed to create tenant with invalid name {}", clientAppId(), tenant, e);
-            throw new RestException(Status.PRECONDITION_FAILED, "Property name is not valid");
+            throw new RestException(Status.PRECONDITION_FAILED, "Tenant name is not valid");
         } catch (Exception e) {
             log.error("[{}] Failed to create tenant {}", clientAppId(), tenant, e);
             throw new RestException(e);
@@ -108,23 +108,23 @@ public class TenantsBase extends AdminResource {
     @POST
     @Path("/{tenant}")
     @ApiOperation(value = "Update the admins for a tenant.", notes = "This operation requires Pulsar super-user privileges.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Property does not exist"),
-            @ApiResponse(code = 409, message = "Property already exist") })
-    public void updateProperty(@PathParam("tenant") String tenant, TenantInfo newPropertyAdmin) {
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 404, message = "Tenant does not exist"),
+            @ApiResponse(code = 409, message = "Tenant already exists") })
+    public void updateTenant(@PathParam("tenant") String tenant, TenantInfo newTenantAdmin) {
         validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
 
         Stat nodeStat = new Stat();
         try {
             byte[] content = globalZk().getData(path(POLICIES, tenant), null, nodeStat);
-            TenantInfo oldPropertyAdmin = jsonMapper().readValue(content, TenantInfo.class);
+            TenantInfo oldTenantAdmin = jsonMapper().readValue(content, TenantInfo.class);
             List<String> clustersWithActiveNamespaces = Lists.newArrayList();
-            if (oldPropertyAdmin.getAllowedClusters().size() > newPropertyAdmin.getAllowedClusters().size()) {
+            if (oldTenantAdmin.getAllowedClusters().size() > newTenantAdmin.getAllowedClusters().size()) {
                 // Get the colo(s) being removed from the list
-                oldPropertyAdmin.getAllowedClusters().removeAll(newPropertyAdmin.getAllowedClusters());
-                log.debug("Following clusters are being removed : [{}]", oldPropertyAdmin.getAllowedClusters());
-                for (String cluster : oldPropertyAdmin.getAllowedClusters()) {
+                oldTenantAdmin.getAllowedClusters().removeAll(newTenantAdmin.getAllowedClusters());
+                log.debug("Following clusters are being removed : [{}]", oldTenantAdmin.getAllowedClusters());
+                for (String cluster : oldTenantAdmin.getAllowedClusters()) {
                     List<String> activeNamespaces = Lists.newArrayList();
                     try {
                         activeNamespaces = globalZk().getChildren(path(POLICIES, tenant, cluster), false);
@@ -145,14 +145,14 @@ public class TenantsBase extends AdminResource {
                 }
             }
             String tenantPath = path(POLICIES, tenant);
-            globalZk().setData(tenantPath, jsonMapper().writeValueAsBytes(newPropertyAdmin), -1);
+            globalZk().setData(tenantPath, jsonMapper().writeValueAsBytes(newTenantAdmin), -1);
             globalZkCache().invalidate(tenantPath);
             log.info("[{}] updated tenant {}", clientAppId(), tenant);
         } catch (RestException re) {
             throw re;
         } catch (KeeperException.NoNodeException e) {
             log.warn("[{}] Failed to update tenant {}: does not exist", clientAppId(), tenant);
-            throw new RestException(Status.NOT_FOUND, "Property does not exist");
+            throw new RestException(Status.NOT_FOUND, "Tenant does not exist");
         } catch (Exception e) {
             log.error("[{}] Failed to update tenant {}", clientAppId(), tenant, e);
             throw new RestException(e);
@@ -161,17 +161,17 @@ public class TenantsBase extends AdminResource {
 
     @DELETE
     @Path("/{tenant}")
-    @ApiOperation(value = "elete a tenant and all namespaces and topics under it.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Property does not exist"),
+    @ApiOperation(value = "Delete a tenant and all namespaces and topics under it.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 404, message = "Tenant does not exist"),
             @ApiResponse(code = 409, message = "The tenant still has active namespaces") })
-    public void deleteProperty(@PathParam("tenant") String tenant) {
+    public void deleteTenant(@PathParam("tenant") String tenant) {
         validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
 
-        boolean isPropertyEmpty = false;
+        boolean isTenantEmpty;
         try {
-            isPropertyEmpty = getListOfNamespaces(tenant).isEmpty();
+            isTenantEmpty = getListOfNamespaces(tenant).isEmpty();
         } catch (KeeperException.NoNodeException e) {
             log.warn("[{}] Failed to delete tenant {}: does not exist", clientAppId(), tenant);
             throw new RestException(Status.NOT_FOUND, "The tenant does not exist");
@@ -180,7 +180,7 @@ public class TenantsBase extends AdminResource {
             throw new RestException(e);
         }
 
-        if (!isPropertyEmpty) {
+        if (!isTenantEmpty) {
             log.warn("[{}] Failed to delete tenant {}: not empty", clientAppId(), tenant);
             throw new RestException(Status.CONFLICT, "The tenant still has active namespaces");
         }

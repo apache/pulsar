@@ -27,7 +27,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-client-kafka-compat</artifactId>
-    <version>2.0.0-incubating-SNAPSHOT</version>
+    <version>2.1.0-incubating-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -81,8 +81,9 @@
                   <include>com.google.guava:guava</include>
                   <include>com.google.code.gson:gson</include>
                   <include>com.fasterxml.jackson.core</include>
+                  <include>com.fasterxml.jackson.module</include>
                   <include>io.netty:netty</include>
-                  <include>io.netty:netty-all</include>
+                  <include>io.netty:netty-*</include>
                   <include>org.apache.pulsar:pulsar-common</include>
                   <include>org.apache.bookkeeper:circe-checksum</include>
                   <include>net.jpountz.lz4:lz4</include>
@@ -90,6 +91,18 @@
                   <include>org.apache.httpcomponents:httpclient</include>
                   <include>commons-logging:commons-logging</include>
                   <include>org.apache.httpcomponents:httpcore</include>
+                  <include>org.eclipse.jetty:*</include>
+                  <include>com.yahoo.datasketches:*</include>
+                  <include>commons-*:*</include>
+                  
+                  <include>org.apache.avro:*</include>
+                  <!-- Avro transitive dependencies-->
+                  <include>org.codehaus.jackson:jackson-core-asl</include>
+                  <include>org.codehaus.jackson:jackson-mapper-asl</include>
+                  <include>com.thoughtworks.paranamer:paranamer</include>
+                  <include>org.xerial.snappy:snappy-java</include>
+                  <include>org.apache.commons:commons-compress</include>
+                  <include>org.tukaani:xz</include>
                 </includes>
               </artifactSet>
                <filters>
@@ -171,6 +184,43 @@
                 <relocation>
                   <pattern>org.apache.http</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.apache.http</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.avro</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.apache.avro</shadedPattern>
+                </relocation>
+                <!-- Avro transitive dependencies-->
+                <relocation>
+                  <pattern>org.codehaus.jackson</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.codehaus.jackson</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.thoughtworks.paranamer</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.thoughtworks.paranamer</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.xerial.snappy</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.xerial.snappy</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.tukaani</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.tukaani</shadedPattern>
+                </relocation>
+                <relocation>
+                   <pattern>org.eclipse.jetty</pattern>
+                   <shadedPattern>org.apache.pulsar.shade.org.eclipse</shadedPattern>
+                </relocation>
+                <relocation>
+                   <pattern>org.reactivestreams</pattern>
+                   <shadedPattern>org.apache.pulsar.shade.org.reactivestreams</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.typesafe</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.typesafe</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.yahoo.memory</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.yahoo.memory</shadedPattern>
                 </relocation>
               </relocations>
               <filters>

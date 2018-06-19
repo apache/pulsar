@@ -68,9 +68,23 @@ class Authentication {
     friend class ClientConfiguration;
 };
 
+/**
+ * AuthFactory is used to create instances of Authentication class when
+ * configuring a Client instance. It loads the authentication from an
+ * external plugin.
+ *
+ * To use authentication methods that are internally supported, you should
+ * use `AuthTls::create("my-cert.pem", "my-private.key")` or similar.
+ */
 class AuthFactory {
    public:
     static AuthenticationPtr Disabled();
+
+    /**
+     * Create
+     * @param dynamicLibPath
+     * @return
+     */
     static AuthenticationPtr create(const std::string& dynamicLibPath);
     static AuthenticationPtr create(const std::string& dynamicLibPath, const std::string& authParamsString);
     static AuthenticationPtr create(const std::string& dynamicLibPath, ParamMap& params);
@@ -80,8 +94,39 @@ class AuthFactory {
     static std::vector<void*> loadedLibrariesHandles_;
     static void release_handles();
 };
+
+/**
+ * TLS implementation of Pulsar client authentication
+ */
+class AuthTls : public Authentication {
+   public:
+    AuthTls(AuthenticationDataPtr&);
+    ~AuthTls();
+    static AuthenticationPtr create(const std::string& certificatePath, const std::string& privateKeyPath);
+    const std::string getAuthMethodName() const;
+    Result getAuthData(AuthenticationDataPtr& authDataTls) const;
+
+   private:
+    AuthenticationDataPtr authDataTls_;
+};
+
+/**
+ * Athenz implementation of Pulsar client authentication
+ */
+class AuthAthenz : public Authentication {
+   public:
+    AuthAthenz(AuthenticationDataPtr&);
+    ~AuthAthenz();
+    static AuthenticationPtr create(ParamMap& params);
+    static AuthenticationPtr create(const std::string& authParamsString);
+    const std::string getAuthMethodName() const;
+    Result getAuthData(AuthenticationDataPtr& authDataAthenz) const;
+
+   private:
+    AuthenticationDataPtr authDataAthenz_;
+};
+
 }  // namespace pulsar
-// namespace pulsar
 
 #pragma GCC visibility pop
 

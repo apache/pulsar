@@ -40,18 +40,20 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(required = true)
     private String clusterName;
 
-    // Pulsar cluster url to connect to broker (optional if globalZookeeperServers present)
+    // Pulsar cluster url to connect to broker (optional if configurationStoreServers present)
     private String serviceUrl;
     private String serviceUrlTls;
     private String brokerServiceUrl;
     private String brokerServiceUrlTls;
-    
+
     // Path for the file used to determine the rotation status for the broker
     // when responding to service discovery health checks
     private String statusFilePath;
 
-    // Global Zookeeper quorum connection string
+    // Configuration Store connection string
+    @Deprecated
     private String globalZookeeperServers;
+    private String configurationStoreServers;
     // Zookeeper session timeout in milliseconds
     private long zooKeeperSessionTimeoutMillis = 30000;
 
@@ -159,12 +161,22 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
         this.statusFilePath = statusFilePath;
     }
 
+    @Deprecated
     public String getGlobalZookeeperServers() {
         return globalZookeeperServers;
     }
 
+    @Deprecated
     public void setGlobalZookeeperServers(String globalZookeeperServers) {
         this.globalZookeeperServers = globalZookeeperServers;
+    }
+
+    public String getConfigurationStoreServers() {
+        return null == configurationStoreServers ? getGlobalZookeeperServers() : configurationStoreServers;
+    }
+
+    public void setConfigurationStoreServers(String configurationStoreServers) {
+        this.configurationStoreServers = configurationStoreServers;
     }
 
     public long getZooKeeperSessionTimeoutMillis() {

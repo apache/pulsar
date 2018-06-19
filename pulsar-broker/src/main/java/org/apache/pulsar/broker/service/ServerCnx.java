@@ -21,16 +21,18 @@ package org.apache.pulsar.broker.service;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.admin.impl.PersistentTopicsBase.getPartitionedTopicMetadata;
-import static org.apache.pulsar.broker.lookup.v1.TopicLookup.lookupTopicAsync;
+import static org.apache.pulsar.broker.lookup.TopicLookupBase.lookupTopicAsync;
 import static org.apache.pulsar.common.api.Commands.newLookupErrorResponse;
 import static org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion.v5;
 
-import com.google.protobuf.GeneratedMessageLite;
+import com.google.common.base.Strings;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
 import io.netty.handler.ssl.SslHandler;
+
 import java.net.SocketAddress;
 import java.util.List;
 import java.util.Map;
@@ -39,8 +41,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
+
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
@@ -76,8 +80,8 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledg
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSeek;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSend;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
@@ -91,7 +95,9 @@ import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.schema.SchemaVersion;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
+import org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -225,21 +231,6 @@ public class ServerCnx extends PulsarHandler {
             return;
         }
 
-        String originalPrincipal = null;
-        if (authenticateOriginalAuthData && lookup.hasOriginalAuthData()) {
-            originalPrincipal = validateOriginalPrincipal(
-                    lookup.hasOriginalAuthData() ? lookup.getOriginalAuthData() : null,
-                    lookup.hasOriginalAuthMethod() ? lookup.getOriginalAuthMethod() : null,
-                    lookup.hasOriginalPrincipal() ? lookup.getOriginalPrincipal() : this.originalPrincipal, requestId,
-                    lookup);
-
-            if (originalPrincipal == null) {
-                return;
-            }
-        } else {
-            originalPrincipal = lookup.hasOriginalPrincipal() ? lookup.getOriginalPrincipal() : this.originalPrincipal;
-        }
-
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
         if (lookupSemaphore.tryAcquire()) {
             if (invalidOriginalPrincipal(originalPrincipal)) {
@@ -310,22 +301,7 @@ public class ServerCnx extends PulsarHandler {
         if (topicName == null) {
             return;
         }
-        String originalPrincipal = null;
-        if (authenticateOriginalAuthData && partitionMetadata.hasOriginalAuthData()) {
-            originalPrincipal = validateOriginalPrincipal(
-                    partitionMetadata.hasOriginalAuthData() ? partitionMetadata.getOriginalAuthData() : null,
-                    partitionMetadata.hasOriginalAuthMethod() ? partitionMetadata.getOriginalAuthMethod() : null,
-                    partitionMetadata.hasOriginalPrincipal() ? partitionMetadata.getOriginalPrincipal()
-                            : this.originalPrincipal,
-                    requestId, partitionMetadata);
-
-            if (originalPrincipal == null) {
-                return;
-            }
-        } else {
-            originalPrincipal = partitionMetadata.hasOriginalPrincipal() ? partitionMetadata.getOriginalPrincipal() : this.originalPrincipal;
-        }
-
+        
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
         if (lookupSemaphore.tryAcquire()) {
             if (invalidOriginalPrincipal(originalPrincipal)) {
@@ -448,26 +424,6 @@ public class ServerCnx extends PulsarHandler {
         return commandConsumerStatsResponseBuilder;
     }
 
-    private String validateOriginalPrincipal(String originalAuthData, String originalAuthMethod, String originalPrincipal, Long requestId, GeneratedMessageLite request) {
-        ChannelHandler sslHandler = ctx.channel().pipeline().get(PulsarChannelInitializer.TLS_HANDLER);
-        SSLSession sslSession = null;
-        if (sslHandler != null) {
-            sslSession = ((SslHandler) sslHandler).engine().getSession();
-        }
-        try {
-            return getOriginalPrincipal(originalAuthData, originalAuthMethod, originalPrincipal, sslSession);
-        } catch (AuthenticationException e) {
-            String msg = "Unable to authenticate original authdata ";
-            log.warn("[{}] {}: {}", remoteAddress, msg, e.getMessage());
-            if (request instanceof CommandLookupTopic) {
-                ctx.writeAndFlush(newLookupErrorResponse(ServerError.AuthenticationError, msg, requestId));
-            } else if (request instanceof CommandPartitionedTopicMetadata) {
-                ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.AuthenticationError, msg, requestId));
-            }
-            return null;
-        }
-    }
-
     private String getOriginalPrincipal(String originalAuthData, String originalAuthMethod, String originalPrincipal,
             SSLSession sslSession) throws AuthenticationException {
         if (authenticateOriginalAuthData) {
@@ -561,6 +517,7 @@ public class ServerCnx extends PulsarHandler {
         final boolean readCompacted = subscribe.getReadCompacted();
         final Map<String, String> metadata = CommandUtils.metadataFromCommand(subscribe);
         final InitialPosition initialPosition = subscribe.getInitialPosition();
+        final SchemaData schema = subscribe.hasSchema() ? getSchema(subscribe.getSchema()) : null;
 
         CompletableFuture<Boolean> isProxyAuthorizedFuture;
         if (service.isAuthorizationEnabled() && originalPrincipal != null) {
@@ -622,9 +579,25 @@ public class ServerCnx extends PulsarHandler {
                         }
 
                         service.getOrCreateTopic(topicName.toString())
-                                .thenCompose(topic -> topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
-                                                                      subType, priorityLevel, consumerName, isDurable,
-                                                                      startMessageId, metadata, readCompacted, initialPosition))
+                                .thenCompose(topic -> {
+                                    if (schema != null) {
+                                        return topic.isSchemaCompatible(schema).thenCompose(isCompatible -> {
+                                            if (isCompatible) {
+                                                return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
+                                                    subType, priorityLevel, consumerName, isDurable,
+                                                    startMessageId, metadata, readCompacted, initialPosition);
+                                            } else {
+                                                return FutureUtil.failedFuture(new BrokerServiceException(
+                                                    "Trying to subscribe with incompatible schema"
+                                                ));
+                                            }
+                                        });
+                                    } else {
+                                        return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
+                                            subType, priorityLevel, consumerName, isDurable,
+                                            startMessageId, metadata, readCompacted, initialPosition);
+                                    }
+                                })
                                 .thenAccept(consumer -> {
                                     if (consumerFuture.complete(consumer)) {
                                         log.info("[{}] Created subscription on topic {} / {}", remoteAddress, topicName,
@@ -703,16 +676,18 @@ public class ServerCnx extends PulsarHandler {
 
     private static SchemaType getType(PulsarApi.Schema.Type protocolType) {
         switch (protocolType) {
-            case Json:
-                return SchemaType.JSON;
-            case Avro:
-                return SchemaType.AVRO;
-            case Thrift:
-                return SchemaType.THRIFT;
-            case Protobuf:
-                return SchemaType.PROTOBUF;
-            default:
-                return SchemaType.NONE;
+        case None:
+            return SchemaType.NONE;
+        case String:
+            return SchemaType.STRING;
+        case Json:
+            return SchemaType.JSON;
+        case Protobuf:
+            return SchemaType.PROTOBUF;
+        case Avro:
+            return SchemaType.AVRO;
+        default:
+            return SchemaType.NONE;
         }
     }
 
@@ -721,7 +696,7 @@ public class ServerCnx extends PulsarHandler {
             .data(protocolSchema.getSchemaData().toByteArray())
             .isDeleted(false)
             .timestamp(System.currentTimeMillis())
-            .user(originalPrincipal)
+            .user(Strings.nullToEmpty(originalPrincipal))
             .type(getType(protocolSchema.getType()))
             .props(protocolSchema.getPropertiesList().stream().collect(
                 Collectors.toMap(
@@ -741,6 +716,7 @@ public class ServerCnx extends PulsarHandler {
                 : service.generateUniqueProducerName();
         final boolean isEncrypted = cmdProducer.getEncrypted();
         final Map<String, String> metadata = CommandUtils.metadataFromCommand(cmdProducer);
+        final SchemaData schema = cmdProducer.hasSchema() ? getSchema(cmdProducer.getSchema()) : null;
 
         TopicName topicName = validateTopicName(cmdProducer.getTopic(), requestId, cmdProducer);
         if (topicName == null) {
@@ -841,8 +817,8 @@ public class ServerCnx extends PulsarHandler {
                             disableTcpNoDelayIfNeeded(topicName.toString(), producerName);
 
                             CompletableFuture<SchemaVersion> schemaVersionFuture;
-                            if (cmdProducer.hasSchema()) {
-                                schemaVersionFuture = topic.addSchema(getSchema(cmdProducer.getSchema()));
+                            if (schema != null) {
+                                schemaVersionFuture = topic.addSchema(schema);
                             } else {
                                 schemaVersionFuture = CompletableFuture.completedFuture(SchemaVersion.Empty);
                             }

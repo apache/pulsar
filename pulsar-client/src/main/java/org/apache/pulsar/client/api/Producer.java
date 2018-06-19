@@ -41,10 +41,14 @@ public interface Producer<T> extends Closeable {
     String getProducerName();
 
     /**
-     * Send a message
+     * Sends a message.
+     * <p>
+     * This call will be blocking until is successfully acknowledged by the Pulsar broker.
+     * <p>
+     * Use {@link #newMessage()} to specify more properties than just the value on the message to be sent.
      *
      * @param message
-     *            a byte array with the payload of the message
+     *            a message
      * @return the message id assigned to the published message
      * @throws PulsarClientException.TimeoutException
      *             if the message was not correctly received by the system within the timeout period
@@ -56,16 +60,38 @@ public interface Producer<T> extends Closeable {
     /**
      * Send a message asynchronously
      * <p>
-     * When the producer queue is full, by default this method will complete the future with an exception {@link PulsarClientException.ProducerQueueIsFullError}
+     * When the producer queue is full, by default this method will complete the future with an exception
+     * {@link PulsarClientException.ProducerQueueIsFullError}
      * <p>
      * See {@link ProducerBuilder#maxPendingMessages(int)} to configure the producer queue size and
      * {@link ProducerBuilder#blockIfQueueFull(boolean)} to change the blocking behavior.
+     * <p>
+     * Use {@link #newMessage()} to specify more properties than just the value on the message to be sent.
      *
      * @param message
      *            a byte array with the payload of the message
      * @return a future that can be used to track when the message will have been safely persisted
      */
     CompletableFuture<MessageId> sendAsync(T message);
+
+    /**
+     * Create a new message builder
+     *
+     * This message builder allows to specify additional properties on the message. For example:
+     *
+     * <pre>
+     * <code>
+     * producer.newMessage()
+     *       .key(messageKey)
+     *       .value(myValue)
+     *       .property("user-defined-property", "value")
+     *       .send();
+     * </code>
+     * </pre>
+     *
+     * @return a typed message builder that can be used to construct the message to be sent through this producer
+     */
+    TypedMessageBuilder<T> newMessage();
 
     /**
      * Send a message
@@ -75,7 +101,11 @@ public interface Producer<T> extends Closeable {
      * @return the message id assigned to the published message
      * @throws PulsarClientException.TimeoutException
      *             if the message was not correctly received by the system within the timeout period
+     *
+     * @deprecated since 2.0. Use {@link TypedMessageBuilder} as returned by {@link Producer#newMessage()} to create a
+     *             new message builder.
      */
+    @Deprecated
     MessageId send(Message<T> message) throws PulsarClientException;
 
     /**
@@ -95,7 +125,8 @@ public interface Producer<T> extends Closeable {
      * });</code>
      * </pre>
      * <p>
-     * When the producer queue is full, by default this method will complete the future with an exception {@link PulsarClientException.ProducerQueueIsFullError}
+     * When the producer queue is full, by default this method will complete the future with an exception
+     * {@link PulsarClientException.ProducerQueueIsFullError}
      * <p>
      * See {@link ProducerBuilder#maxPendingMessages(int)} to configure the producer queue size and
      * {@link ProducerBuilder#blockIfQueueFull(boolean)} to change the blocking behavior.
@@ -103,7 +134,10 @@ public interface Producer<T> extends Closeable {
      * @param message
      *            a message
      * @return a future that can be used to track when the message will have been safely persisted
+     * @deprecated since 2.0. Use {@link TypedMessageBuilder} as returned by {@link Producer#newMessage()} to create a
+     *             new message builder.
      */
+    @Deprecated
     CompletableFuture<MessageId> sendAsync(Message<T> message);
 
     /**
@@ -158,4 +192,9 @@ public interface Producer<T> extends Closeable {
      * @return a future that can used to track when the producer has been closed
      */
     CompletableFuture<Void> closeAsync();
+
+    /**
+     * @return Whether the producer is connected to the broker
+     */
+    boolean isConnected();
 }

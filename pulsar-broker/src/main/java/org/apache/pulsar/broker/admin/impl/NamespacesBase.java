@@ -1529,5 +1529,83 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
+    protected long internalGetCompactionThreshold() {
+        validateAdminAccessForTenant(namespaceName.getTenant());
+        return getNamespacePolicies(namespaceName).compaction_threshold;
+    }
+
+    protected void internalSetCompactionThreshold(long newThreshold) {
+        validateSuperUserAccess();
+        validatePoliciesReadOnlyAccess();
+
+        try {
+            Stat nodeStat = new Stat();
+            final String path = path(POLICIES, namespaceName.toString());
+            byte[] content = globalZk().getData(path, null, nodeStat);
+            Policies policies = jsonMapper().readValue(content, Policies.class);
+            if (newThreshold < 0) {
+                throw new RestException(Status.PRECONDITION_FAILED,
+                        "compactionThreshold must be 0 or more");
+            }
+            policies.compaction_threshold = newThreshold;
+            globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
+            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
+            log.info("[{}] Successfully updated compactionThreshold configuration: namespace={}, value={}",
+                     clientAppId(), namespaceName, policies.compaction_threshold);
+
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to update compactionThreshold configuration for namespace {}: does not exist",
+                     clientAppId(), namespaceName);
+            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+        } catch (KeeperException.BadVersionException e) {
+            log.warn("[{}] Failed to update compactionThreshold configuration for namespace {}: concurrent modification",
+                     clientAppId(), namespaceName);
+            throw new RestException(Status.CONFLICT, "Concurrent modification");
+        } catch (RestException pfe) {
+            throw pfe;
+        } catch (Exception e) {
+            log.error("[{}] Failed to update compactionThreshold configuration for namespace {}",
+                      clientAppId(), namespaceName, e);
+            throw new RestException(e);
+        }
+    }
+
+    protected long internalGetOffloadThreshold() {
+        validateAdminAccessForTenant(namespaceName.getTenant());
+        return getNamespacePolicies(namespaceName).offload_threshold;
+    }
+
+    protected void internalSetOffloadThreshold(long newThreshold) {
+        validateSuperUserAccess();
+        validatePoliciesReadOnlyAccess();
+
+        try {
+            Stat nodeStat = new Stat();
+            final String path = path(POLICIES, namespaceName.toString());
+            byte[] content = globalZk().getData(path, null, nodeStat);
+            Policies policies = jsonMapper().readValue(content, Policies.class);
+            policies.offload_threshold = newThreshold;
+            globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
+            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
+            log.info("[{}] Successfully updated offloadThreshold configuration: namespace={}, value={}",
+                     clientAppId(), namespaceName, policies.compaction_threshold);
+
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to update offloadThreshold configuration for namespace {}: does not exist",
+                     clientAppId(), namespaceName);
+            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+        } catch (KeeperException.BadVersionException e) {
+            log.warn("[{}] Failed to update offloadThreshold configuration for namespace {}: concurrent modification",
+                     clientAppId(), namespaceName);
+            throw new RestException(Status.CONFLICT, "Concurrent modification");
+        } catch (RestException pfe) {
+            throw pfe;
+        } catch (Exception e) {
+            log.error("[{}] Failed to update offloadThreshold configuration for namespace {}",
+                      clientAppId(), namespaceName, e);
+            throw new RestException(e);
+        }
+    }
+
     private static final Logger log = LoggerFactory.getLogger(NamespacesBase.class);
 }

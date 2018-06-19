@@ -1,25 +1,3 @@
-/**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- */
-/**
- * This file is derived from Google ProcolBuffer CodedInputStream class
- */
-
 // Protocol Buffers - Google's data interchange format
 // Copyright 2008 Google Inc.  All rights reserved.
 // http://code.google.com/p/protobuf/
@@ -50,19 +28,24 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+/*
+ * This file is derived from Google ProcolBuffer CodedInputStream class
+ * with adaptations to work directly with Netty ByteBuf instances.
+ */
+
 package org.apache.pulsar.common.util.protobuf;
-
-import java.io.IOException;
-
-import com.google.protobuf.ByteString;
-import com.google.protobuf.ExtensionRegistryLite;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.WireFormat;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.netty.util.concurrent.FastThreadLocal;
+
+import java.io.IOException;
+
+import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
+import org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite;
+import org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException;
+import org.apache.pulsar.shaded.com.google.protobuf.v241.WireFormat;
 
 public class ByteBufCodedInputStream {
     public static interface ByteBufMessageBuilder {
