@@ -72,6 +72,8 @@ public class BatchMessageIdImpl extends MessageIdImpl {
             } else {
                 return res;
             }
+        } else if (o instanceof TopicMessageIdImpl) {
+            return compareTo(((TopicMessageIdImpl) o).getInnerMessageId());
         } else {
             throw new IllegalArgumentException(
                     "expected BatchMessageIdImpl object. Got instance of " + o.getClass().getName());
