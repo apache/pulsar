@@ -83,15 +83,27 @@ public class LocalBookkeeperEnsemble {
 
     public LocalBookkeeperEnsemble(int numberOfBookies, int zkPort, int bkBasePort, String zkDataDirName,
             String bkDataDirName, boolean clearOldData) {
-        this(numberOfBookies, zkPort, bkBasePort, zkDataDirName, bkDataDirName, clearOldData, null);
+        this(numberOfBookies, zkPort, bkBasePort, 4181, zkDataDirName, bkDataDirName, clearOldData, null);
     }
 
     public LocalBookkeeperEnsemble(int numberOfBookies, int zkPort, int bkBasePort, String zkDataDirName,
             String bkDataDirName, boolean clearOldData, String advertisedAddress) {
+        this(numberOfBookies, zkPort, bkBasePort, 4181, zkDataDirName, bkDataDirName, clearOldData, advertisedAddress);
+    }
+
+    public LocalBookkeeperEnsemble(int numberOfBookies,
+                                   int zkPort,
+                                   int bkBasePort,
+                                   int streamStoragePort,
+                                   String zkDataDirName,
+                                   String bkDataDirName,
+                                   boolean clearOldData,
+                                   String advertisedAddress) {
         this.numberOfBookies = numberOfBookies;
         this.HOSTPORT = "127.0.0.1:" + zkPort;
         this.ZooKeeperDefaultPort = zkPort;
         this.initialPort = bkBasePort;
+        this.streamStoragePort = streamStoragePort;
         this.zkDataDirName = zkDataDirName;
         this.bkDataDirName = bkDataDirName;
         this.clearOldData = clearOldData;
