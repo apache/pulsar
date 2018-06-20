@@ -117,7 +117,7 @@ public class ProcessRuntimeTest {
 
         ProcessRuntime container = factory.createContainer(config, userJarFile);
         List<String> args = container.getProcessArgs();
-        assertEquals(args.size(), 53);
+        assertEquals(args.size(), 55);
         String expectedArgs = "java -cp " + javaInstanceJarFile + " -Dlog4j.configurationFile=java_instance_log4j2.yml "
                 + "-Dpulsar.log.dir=" + logDirectory + "/functions" + " -Dpulsar.log.file=" + config.getFunctionDetails().getName()
                 + " org.apache.pulsar.functions.runtime.JavaInstanceMain"
@@ -140,7 +140,8 @@ public class ProcessRuntimeTest {
                 + " --sink_classname " + config.getFunctionDetails().getSink().getClassName()
                 + " --sink_type_classname " + config.getFunctionDetails().getSink().getTypeClassName()
                 + " --sink_topic " + config.getFunctionDetails().getSink().getTopic()
-                + " --sink_serde_classname " + config.getFunctionDetails().getSink().getSerDeClassName();
+                + " --sink_serde_classname " + config.getFunctionDetails().getSink().getSerDeClassName()
+                + " --state_storage_serviceurl " + stateStorageServiceUrl;
         assertEquals(expectedArgs, String.join(" ", args));
     }
 
@@ -150,7 +151,7 @@ public class ProcessRuntimeTest {
 
         ProcessRuntime container = factory.createContainer(config, userJarFile);
         List<String> args = container.getProcessArgs();
-        assertEquals(args.size(), 44);
+        assertEquals(args.size(), 46);
         String expectedArgs = "python " + pythonInstanceFile
                 + " --py " + userJarFile + " --logging_directory "
                 + logDirectory + "/functions" + " --logging_file " + config.getFunctionDetails().getName() + " --instance_id "
@@ -168,7 +169,8 @@ public class ProcessRuntimeTest {
                 + " --source_topics_serde_classname " + new Gson().toJson(topicsToSerDeClassName)
                 + " --topics_pattern " + config.getFunctionDetails().getSource().getTopicsPattern()
                 + " --sink_topic " + config.getFunctionDetails().getSink().getTopic()
-                + " --sink_serde_classname " + config.getFunctionDetails().getSink().getSerDeClassName();
+                + " --sink_serde_classname " + config.getFunctionDetails().getSink().getSerDeClassName()
+                + " --state_storage_serviceurl " + stateStorageServiceUrl;
         assertEquals(expectedArgs, String.join(" ", args));
     }
 
