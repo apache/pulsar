@@ -87,6 +87,12 @@ public class PulsarStandaloneStarter {
     @Parameter(names = {"-fwc", "--functions-worker-conf"}, description = "Configuration file for Functions Worker")
     private String fnWorkerConfigFile = Paths.get("").toAbsolutePath().normalize().toString() + "/conf/functions_worker.yml";
 
+    @Parameter(names = {"-nss", "--no-stream-storage"}, description = "Disable stream storage")
+    private boolean noStreamStorage = false;
+
+    @Parameter(names = { "--stream-storage-port" }, description = "Local bookies stream storage port")
+    private int streamStoragePort = 4181;
+
     @Parameter(names = { "-a", "--advertised-address" }, description = "Standalone broker advertised address")
     private String advertisedAddress = null;
 
@@ -170,8 +176,9 @@ public class PulsarStandaloneStarter {
 
         if (!onlyBroker) {
             // Start LocalBookKeeper
-            bkEnsemble = new LocalBookkeeperEnsemble(numOfBk, zkPort, bkPort, zkDir, bkDir, wipeData, config.getAdvertisedAddress());
-            bkEnsemble.startStandalone();
+            bkEnsemble = new LocalBookkeeperEnsemble(
+                numOfBk, zkPort, bkPort, streamStoragePort, zkDir, bkDir, wipeData, config.getAdvertisedAddress());
+            bkEnsemble.startStandalone(!noStreamStorage);
         }
 
         if (noBroker) {
@@ -189,6 +196,7 @@ public class PulsarStandaloneStarter {
             // worker talks to local broker
             workerConfig.setPulsarServiceUrl("pulsar://127.0.0.1:" + config.getBrokerServicePort());
             workerConfig.setPulsarWebServiceUrl("http://127.0.0.1:" + config.getWebServicePort());
+            workerConfig.setStateStorageServiceUrl("bk://127.0.0.1:" + streamStoragePort);
             String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(
                 config.getAdvertisedAddress());
             workerConfig.setWorkerHostname(hostname);
