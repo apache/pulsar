@@ -312,6 +312,18 @@ SharedBuffer Commands::newSeek(uint64_t consumerId, uint64_t requestId, const Me
     return writeMessageWithSize(cmd);
 }
 
+SharedBuffer Commands::newGetLastMessageId(uint64_t consumerId, uint64_t requestId) {
+    BaseCommand cmd;
+    cmd.set_type(BaseCommand::GET_LAST_MESSAGE_ID);
+
+    CommandGetLastMessageId* getLastMessageId = cmd.mutable_getlastmessageid();
+    getLastMessageId->set_consumer_id(consumerId);
+    getLastMessageId->set_request_id(requestId);
+    const SharedBuffer buffer = writeMessageWithSize(cmd);
+    cmd.clear_getlastmessageid();
+    return buffer;
+}
+
 std::string Commands::messageType(BaseCommand_Type type) {
     switch (type) {
         case BaseCommand::CONNECT:
@@ -397,6 +409,12 @@ std::string Commands::messageType(BaseCommand_Type type) {
             break;
         case BaseCommand::ACTIVE_CONSUMER_CHANGE:
             return "ACTIVE_CONSUMER_CHANGE";
+            break;
+        case BaseCommand::GET_LAST_MESSAGE_ID:
+            return "GET_LAST_MESSAGE_ID";
+            break;
+        case BaseCommand::GET_LAST_MESSAGE_ID_RESPONSE:
+            return "GET_LAST_MESSAGE_ID_RESPONSE";
             break;
     };
 }

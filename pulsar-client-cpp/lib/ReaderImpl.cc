@@ -97,4 +97,9 @@ void ReaderImpl::acknowledgeIfNecessary(Result result, const Message& msg) {
 }
 
 void ReaderImpl::closeAsync(ResultCallback callback) { consumer_->closeAsync(callback); }
+
+void ReaderImpl::hasMessageAvailableAsync(HasMessageAvailableCallback callback) {
+    consumer_->hasMessageAvailableAsync(callback);
+}
+
 }  // namespace pulsar
