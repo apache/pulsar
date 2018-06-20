@@ -18,31 +18,41 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.io.MoreFiles;
-import com.google.common.io.RecursiveDeleteOption;
-import java.io.IOException;
-import java.nio.file.FileAlreadyExistsException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-
-import lombok.*;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.distributedlog.api.namespace.Namespace;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
-import org.apache.pulsar.functions.runtime.RuntimeFactory;
-import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.runtime.RuntimeSpawner;
-import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
+import static org.apache.pulsar.functions.utils.Utils.FILE;
+import static org.apache.pulsar.functions.utils.Utils.HTTP;
+import static org.apache.pulsar.functions.utils.Utils.isFunctionPackageUrlSupported;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.IOException;
+import java.net.URL;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.UUID;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+
+import org.apache.commons.lang3.StringUtils;
+import org.apache.distributedlog.api.namespace.Namespace;
+import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
+import org.apache.pulsar.functions.runtime.RuntimeFactory;
+import org.apache.pulsar.functions.runtime.RuntimeSpawner;
+import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.io.MoreFiles;
+import com.google.common.io.RecursiveDeleteOption;
+
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
 
 @Data
 @Setter
@@ -113,10 +123,11 @@ public class FunctionActioner implements AutoCloseable {
         File pkgFile = null;
         
         String pkgLocation = functionMetaData.getPackageLocation().getPackagePath();
-        boolean isPkgUrlProvided = Utils.isFunctionPackageUrlSupported(pkgLocation);
+        boolean isPkgUrlProvided = isFunctionPackageUrlSupported(pkgLocation);
         
-        if(isPkgUrlProvided && pkgLocation.startsWith(Utils.FILE)) {
-            pkgFile = new File(pkgLocation);
+        if(isPkgUrlProvided && pkgLocation.startsWith(FILE)) {
+            URL url = new URL(pkgLocation);
+            pkgFile = new File(url.toURI());
         } else {
             File pkgDir = new File(
                     workerConfig.getDownloadDirectory(),
@@ -164,7 +175,7 @@ public class FunctionActioner implements AutoCloseable {
             }
         }
         String pkgLocationPath = functionMetaData.getPackageLocation().getPackagePath();
-        boolean downloadFromHttp = isPkgUrlProvided && pkgLocationPath.startsWith(Utils.HTTP);
+        boolean downloadFromHttp = isPkgUrlProvided && pkgLocationPath.startsWith(HTTP);
         log.info("Function package file {} will be downloaded from {}", tempPkgFile,
                 downloadFromHttp ? pkgLocationPath : functionMetaData.getPackageLocation());
         
