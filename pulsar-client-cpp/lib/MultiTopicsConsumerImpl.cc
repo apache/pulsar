@@ -39,9 +39,7 @@ MultiTopicsConsumerImpl::MultiTopicsConsumerImpl(ClientImplPtr client, const std
       topics_(topics) {
     std::stringstream consumerStrStream;
     consumerStrStream << "[Muti Topics Consumer: "
-                      << "TopicName - " << topic_
-                      << " - Subscription - " << subscriptionName
-                      << "]";
+                      << "TopicName - " << topic_ << " - Subscription - " << subscriptionName << "]";
     consumerStr_ = consumerStrStream.str();
 
     if (conf.getUnAckedMessagesTimeoutMs() != 0) {
@@ -85,12 +83,13 @@ void MultiTopicsConsumerImpl::handleOneTopicSubscribe(Result result, Consumer co
         // unsubscribed all of the successfully subscribed partitioned consumers
         ResultCallback nullCallbackForCleanup = NULL;
         closeAsync(nullCallbackForCleanup);
-        LOG_ERROR("Unable to create Consumer - " << " Error - " << result);
+        LOG_ERROR("Unable to create Consumer - "
+                  << " Error - " << result);
         return;
     }
 
     LOG_DEBUG("Successfully Subscribed to topic " << topic << " in TopicsConsumer "
-                                                 << " with - " << topicsNumber << " topics.");
+                                                  << " with - " << topicsNumber << " topics.");
 
     if (topicsCreated->load() == topicsNumber) {
         LOG_INFO("Successfully Subscribed to Topics"
@@ -162,8 +161,8 @@ void MultiTopicsConsumerImpl::subscribeTopicPartitions(const Result result,
 
     for (int i = 0; i < partitionsNumber; i++) {
         std::string topicPartitionName = topicName->getTopicPartitionName(i);
-        consumer = boost::make_shared<ConsumerImpl>(client_, topicPartitionName, subscriptionName_,
-                                                    config, internalListenerExecutor, Partitioned);
+        consumer = boost::make_shared<ConsumerImpl>(client_, topicPartitionName, subscriptionName_, config,
+                                                    internalListenerExecutor, Partitioned);
         consumer->getConsumerCreatedFuture().addListener(
             boost::bind(&MultiTopicsConsumerImpl::handleSingleConsumerCreated, shared_from_this(), _1, _2,
                         atomicIntPtr, partitionsNumber, topicSubResultPromise));
@@ -191,12 +190,13 @@ void MultiTopicsConsumerImpl::handleSingleConsumerCreated(
     if (result != ResultOk) {
         state_ = Failed;
         topicSubResultPromise->setFailed(result);
-        LOG_ERROR("Unable to create Consumer - " << " Error - " << result);
+        LOG_ERROR("Unable to create Consumer - "
+                  << " Error - " << result);
         return;
     }
 
     LOG_DEBUG("Successfully Subscribed to a single partition of topic in TopicsConsumer "
-             << " created partitions - " << previous + 1 << " target partitions - " << partitionsNumber);
+              << " created partitions - " << previous + 1 << " target partitions - " << partitionsNumber);
 
     if (partitionsCreated->load() == partitionsNumber) {
         topicSubResultPromise->setValue(Consumer(shared_from_this()));
@@ -219,7 +219,8 @@ void MultiTopicsConsumerImpl::unsubscribeAsync(ResultCallback callback) {
 
     boost::shared_ptr<std::atomic<int>> atomicIntPtr = boost::make_shared<std::atomic<int>>(0);
 
-    for (ConsumerMap::const_iterator consumer = consumers_.begin(); consumer != consumers_.end(); consumer++) {
+    for (ConsumerMap::const_iterator consumer = consumers_.begin(); consumer != consumers_.end();
+         consumer++) {
         LOG_DEBUG("Unsubcribing Consumer - " << consumer->first);
         (consumer->second)
             ->unsubscribeAsync(boost::bind(&MultiTopicsConsumerImpl::handleUnsubscribeAsync,
@@ -334,7 +335,7 @@ void MultiTopicsConsumerImpl::handleUnsubscribeOneTopicAsync(
 void MultiTopicsConsumerImpl::closeAsync(ResultCallback callback) {
     if (state_ == Closing || state_ == Closed) {
         LOG_ERROR("TopicsConsumer already closed "
-                     << " topic" << topic_ << " consumer - " << consumerStr_);
+                  << " topic" << topic_ << " consumer - " << consumerStr_);
         callback(ResultAlreadyClosed);
         return;
     }
@@ -350,7 +351,8 @@ void MultiTopicsConsumerImpl::closeAsync(ResultCallback callback) {
     }
 
     // close successfully subscribed consumers
-    for (ConsumerMap::const_iterator consumer = consumers_.begin(); consumer != consumers_.end(); consumer++) {
+    for (ConsumerMap::const_iterator consumer = consumers_.begin(); consumer != consumers_.end();
+         consumer++) {
         std::string topicPartitionName = consumer->first;
         ConsumerImplPtr consumerPtr = consumer->second;
 
@@ -367,15 +369,15 @@ void MultiTopicsConsumerImpl::handleSingleConsumerClose(Result result, std::stri
     }
 
     LOG_DEBUG("Closing the consumer for partition - " << topicPartitionName << " allTopicPartitionsNumber_ - "
-                                                     << allTopicPartitionsNumber_->load());
+                                                      << allTopicPartitionsNumber_->load());
 
     assert(allTopicPartitionsNumber_->load() > 0);
     allTopicPartitionsNumber_->fetch_sub(1);
 
     if (result != ResultOk) {
         setState(Failed);
-        LOG_ERROR("Closing the consumer failed for partition - " << topicPartitionName
-                  << " with error - " << result);
+        LOG_ERROR("Closing the consumer failed for partition - " << topicPartitionName << " with error - "
+                                                                 << result);
     }
 
     // closed all consumers
@@ -398,7 +400,7 @@ void MultiTopicsConsumerImpl::handleSingleConsumerClose(Result result, std::stri
 
 void MultiTopicsConsumerImpl::messageReceived(Consumer consumer, const Message& msg) {
     LOG_DEBUG("Received Message from one of the topic - " << consumer.getTopic()
-                                                         << " message:" << msg.getDataAsString());
+                                                          << " message:" << msg.getDataAsString());
     std::string topicPartitionName = consumer.getTopic();
     msg.setTopicName(topicPartitionName);
     messages_.push(msg);

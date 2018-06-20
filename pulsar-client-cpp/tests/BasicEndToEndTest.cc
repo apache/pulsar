@@ -1545,7 +1545,6 @@ TEST(BasicEndToEndTest, testMultiTopicsConsumerTopicNameInvalid) {
     client.shutdown();
 }
 
-
 TEST(BasicEndToEndTest, testMultiTopicsConsumerDifferentNamespace) {
     Client client(lookupUrl);
     std::vector<std::string> topicNames;
@@ -1560,9 +1559,12 @@ TEST(BasicEndToEndTest, testMultiTopicsConsumerDifferentNamespace) {
     topicNames.push_back(topicName3);
 
     // call admin api to make topics partitioned
-    std::string url1 = adminUrl + "admin/persistent/prop/unit/ns1/testMultiTopicsConsumerDifferentNamespace1/partitions";
-    std::string url2 = adminUrl + "admin/persistent/prop/unit/ns2/testMultiTopicsConsumerDifferentNamespace2/partitions";
-    std::string url3 = adminUrl + "admin/persistent/prop/unit/ns3/testMultiTopicsConsumerDifferentNamespace3/partitions";
+    std::string url1 =
+        adminUrl + "admin/persistent/prop/unit/ns1/testMultiTopicsConsumerDifferentNamespace1/partitions";
+    std::string url2 =
+        adminUrl + "admin/persistent/prop/unit/ns2/testMultiTopicsConsumerDifferentNamespace2/partitions";
+    std::string url3 =
+        adminUrl + "admin/persistent/prop/unit/ns3/testMultiTopicsConsumerDifferentNamespace3/partitions";
 
     int res = makePutRequest(url1, "2");
     ASSERT_FALSE(res != 204 && res != 409);
@@ -1627,7 +1629,7 @@ TEST(BasicEndToEndTest, testMultiTopicsConsumerPubSub) {
     int messageNumber = 100;
     ConsumerConfiguration consConfig;
     consConfig.setConsumerType(ConsumerShared);
-    consConfig.setReceiverQueueSize(10); // size for each sub-consumer
+    consConfig.setReceiverQueueSize(10);  // size for each sub-consumer
     Consumer consumer;
     Promise<Result, Consumer> consumerPromise;
     client.subscribeAsync(topicNames, subName, consConfig, WaitForCallbackValue<Consumer>(consumerPromise));
