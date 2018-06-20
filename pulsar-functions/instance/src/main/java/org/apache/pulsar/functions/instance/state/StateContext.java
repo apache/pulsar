@@ -19,7 +19,6 @@
 package org.apache.pulsar.functions.instance.state;
 
 import java.nio.ByteBuffer;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * A state context per function.
@@ -32,7 +31,7 @@ public interface StateContext {
      * @param key key to increment
      * @param amount the amount incremented
      */
-    void incr(String key, long amount);
+    void incr(String key, long amount) throws Exception;
 
     /**
      * Update the given <i>key</i> to the provide <i>value</i>.
@@ -50,7 +49,7 @@ public interface StateContext {
      * @param key key to update.
      * @param value value to update
      */
-    void put(String key, ByteBuffer value);
+    void put(String key, ByteBuffer value) throws Exception;
 
     /**
      * Get the value of a given <i>key</i>.
@@ -58,7 +57,7 @@ public interface StateContext {
      * @param key key to retrieve
      * @return a completable future representing the retrieve result.
      */
-    CompletableFuture<ByteBuffer> getValue(String key);
+    ByteBuffer getValue(String key) throws Exception;
 
     /**
      * Get the amount of a given <i>key</i>.
@@ -66,13 +65,6 @@ public interface StateContext {
      * @param key key to retrieve
      * @return a completable future representing the retrieve result.
      */
-    CompletableFuture<ByteBuffer> getAmount(String key);
-
-    /**
-     * Flush all the modification to the global state.
-     *
-     * @return a completable future representing the flush results.
-     */
-    CompletableFuture<Void> flush();
+    long getAmount(String key) throws Exception;
 
 }

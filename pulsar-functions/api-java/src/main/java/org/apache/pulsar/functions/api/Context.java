@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.api;
 
+import java.nio.ByteBuffer;
 import org.slf4j.Logger;
 
 import java.util.Collection;
@@ -112,6 +113,30 @@ public interface Context {
      * @param amount The amount to be incremented
      */
     void incrCounter(String key, long amount);
+
+    /**
+     * Retrieve the counter value for the key.
+     *
+     * @param key name of the key
+     * @return the amount of the counter value for this key
+     */
+    long getCounter(String key);
+
+    /**
+     * Updare the state value for the key.
+     *
+     * @param key name of the key
+     * @param value state value of the key
+     */
+    void putState(String key, ByteBuffer value);
+
+    /**
+     * Retrieve the state value for the key.
+     *
+     * @param key name of the key
+     * @return the state value for the key.
+     */
+    ByteBuffer getState(String key);
 
     /**
      * Get a map of all user-defined key/value configs for the function

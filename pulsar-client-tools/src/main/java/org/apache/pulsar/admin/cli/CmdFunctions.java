@@ -50,7 +50,6 @@ import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
@@ -668,7 +667,7 @@ public class CmdFunctions extends CmdBase {
         @Override
         void runCmd() throws Exception {
             CmdFunctions.startLocalRun(convertProto2(functionConfig), functionConfig.getParallelism(),
-                    instanceIdOffset, brokerServiceUrl,
+                    instanceIdOffset, brokerServiceUrl, stateStorageServiceUrl,
                     AuthenticationConfig.builder().clientAuthenticationPlugin(clientAuthPlugin)
                             .clientAuthenticationParameters(clientAuthParams).useTls(useTls)
                             .tlsAllowInsecureConnection(tlsAllowInsecureConnection)
@@ -753,7 +752,7 @@ public class CmdFunctions extends CmdBase {
             String tableNs = String.format(
                 "%s_%s",
                 tenant,
-                namespace);
+                namespace).replace('-', '_');
 
             String tableName = getFunctionName();
 
@@ -939,7 +938,7 @@ public class CmdFunctions extends CmdBase {
     }
 
     protected static void startLocalRun(org.apache.pulsar.functions.proto.Function.FunctionDetails functionDetails,
-            int parallelism, int instanceIdOffset, String brokerServiceUrl, AuthenticationConfig authConfig,
+            int parallelism, int instanceIdOffset, String brokerServiceUrl, String stateStorageServiceUrl, AuthenticationConfig authConfig,
             String userCodeFile, PulsarAdmin admin)
             throws Exception {
 
@@ -950,7 +949,7 @@ public class CmdFunctions extends CmdBase {
         if (serviceUrl == null) {
             serviceUrl = DEFAULT_SERVICE_URL;
         }
-        try (ProcessRuntimeFactory containerFactory = new ProcessRuntimeFactory(serviceUrl, authConfig, null, null,
+        try (ProcessRuntimeFactory containerFactory = new ProcessRuntimeFactory(serviceUrl, stateStorageServiceUrl, authConfig, null, null,
                 null)) {
             List<RuntimeSpawner> spawners = new LinkedList<>();
             for (int i = 0; i < parallelism; ++i) {

@@ -57,6 +57,7 @@ public class ProcessRuntimeTest {
     private final String javaInstanceJarFile;
     private final String pythonInstanceFile;
     private final String pulsarServiceUrl;
+    private final String stateStorageServiceUrl;
     private final String logDirectory;
 
     public ProcessRuntimeTest() {
@@ -64,9 +65,10 @@ public class ProcessRuntimeTest {
         this.javaInstanceJarFile = "/Users/user/JavaInstance.jar";
         this.pythonInstanceFile = "/Users/user/PythonInstance.py";
         this.pulsarServiceUrl = "pulsar://localhost:6670";
+        this.stateStorageServiceUrl = "bk://localhost:4181";
         this.logDirectory = "Users/user/logs";
         this.factory = new ProcessRuntimeFactory(
-            pulsarServiceUrl, null, javaInstanceJarFile, pythonInstanceFile, logDirectory);
+            pulsarServiceUrl, stateStorageServiceUrl, null, javaInstanceJarFile, pythonInstanceFile, logDirectory);
     }
 
     @AfterMethod
