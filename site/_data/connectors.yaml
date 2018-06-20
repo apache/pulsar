@@ -1,0 +1,30 @@
+- name: Aerospike sink
+  url: https://www.aerospike.com/
+  class:
+    group: aerospike
+    name: AerospikeSink
+- name: Cassandra sink
+  url: https://cassandra.apache.org
+  class:
+    group: cassandra
+    name: CassandraSink
+- name: Kafka source
+  url: https://kafka.apache.org
+  class:
+    group: kafka
+    name: KafkaSource
+- name: Kafka sink
+  url: https://kafka.apache.org
+  class:
+    group: kafka
+    name: KafkaSink
+- name: RabbitMQ source
+  url: https://www.rabbitmq.com
+  class:
+    group: rabbitmq
+    name: RabbitMQSource
+- name: Twitter Firehose source
+  url: https://developer.twitter.com/en/docs
+  class:
+    group: twitter
+    name: TwitterFireHose
