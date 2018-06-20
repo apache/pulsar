@@ -31,15 +31,13 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 
 public class ClientBuilderImpl implements ClientBuilder {
 
-    private static final long serialVersionUID = 1L;
-
     final ClientConfigurationData conf;
 
     public ClientBuilderImpl() {
         this(new ClientConfigurationData());
     }
 
-    private ClientBuilderImpl(ClientConfigurationData conf) {
+    public ClientBuilderImpl(ClientConfigurationData conf) {
         this.conf = conf;
     }
 

@@ -19,10 +19,13 @@
 package org.apache.pulsar.client.api;
 
 import java.io.Closeable;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 
 /**
  * Class that provides a client interface to Pulsar.
@@ -41,6 +44,17 @@ public interface PulsarClient extends Closeable {
      */
     public static ClientBuilder builder() {
         return new ClientBuilderImpl();
+    }
+
+    /**
+     * Create a pulsar client builder instance with a provided configuration map.
+     *
+     * @param config configuration map.
+     * @return client builder
+     * @since 2.1.0
+     */
+    static ClientBuilder builder(Map<String, Object> config) {
+        return new ClientBuilderImpl(ConfigurationDataUtils.loadData(config, ClientConfigurationData.class));
     }
 
     /**

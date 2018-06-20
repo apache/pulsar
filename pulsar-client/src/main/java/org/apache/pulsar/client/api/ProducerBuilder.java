@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.api;
 
-import java.io.Serializable;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -30,7 +29,7 @@ import org.apache.pulsar.client.api.PulsarClientException.ProducerQueueIsFullErr
  *
  * @see PulsarClient#newProducer()
  */
-public interface ProducerBuilder<T> extends Serializable, Cloneable {
+public interface ProducerBuilder<T> extends Cloneable {
 
     /**
      * Finalize the creation of the {@link Producer} instance.
@@ -57,6 +56,14 @@ public interface ProducerBuilder<T> extends Serializable, Cloneable {
      *             if the producer creation fails
      */
     CompletableFuture<Producer<T>> createAsync();
+
+    /**
+     * Load the configuration from provided <tt>config</tt> map.
+     *
+     * @param config configuration to load
+     * @return producer builder instance
+     */
+    ProducerBuilder<T> loadConf(Map<String, Object> config);
 
     /**
      * Create a copy of the current {@link ProducerBuilder}.

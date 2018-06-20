@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
-import java.io.Serializable;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -28,7 +28,7 @@ import java.util.concurrent.CompletableFuture;
  *
  * @since 2.0.0
  */
-public interface ReaderBuilder<T> extends Serializable, Cloneable {
+public interface ReaderBuilder<T> extends Cloneable {
 
     /**
      * Finalize the creation of the {@link Reader} instance.
@@ -53,6 +53,14 @@ public interface ReaderBuilder<T> extends Serializable, Cloneable {
      *             if the reader creation fails
      */
     CompletableFuture<Reader<T>> createAsync();
+
+    /**
+     * Load the configuration from provided <tt>config</tt> map.
+     *
+     * @param config configuration to load
+     * @return reader builder instance
+     */
+    ReaderBuilder<T> loadConf(Map<String, Object> config);
 
     /**
      * Create a copy of the current {@link ReaderBuilder}.

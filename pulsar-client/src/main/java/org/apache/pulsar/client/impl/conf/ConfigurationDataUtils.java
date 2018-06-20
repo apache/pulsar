@@ -16,23 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.api;
+package org.apache.pulsar.client.impl.conf;
 
-import java.io.Serializable;
+import com.google.gson.Gson;
+import java.util.Map;
 
 /**
- * Listener on the consumer state changes.
+ * Utils for loading configuration data.
  */
-public interface ConsumerEventListener extends Serializable {
+public final class ConfigurationDataUtils {
 
-    /**
-     * Notified when the consumer group is changed, and the consumer becomes the active consumer.
-     */
-    void becameActive(Consumer<?> consumer, int partitionId);
+    private ConfigurationDataUtils() {}
 
-    /**
-     * Notified when the consumer group is changed, and the consumer is still inactive or becomes inactive.
-     */
-    void becameInactive(Consumer<?> consumer, int partitionId);
+    public static <T> T loadData(Map<String, Object> config, Class<T> configurationDataCls) {
+        Gson gson = new Gson();
+        String configJson = gson.toJson(config);
+        return gson.fromJson(configJson, configurationDataCls);
+    }
 
 }
+

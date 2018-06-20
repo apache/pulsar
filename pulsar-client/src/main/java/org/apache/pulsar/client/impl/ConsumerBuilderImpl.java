@@ -39,6 +39,7 @@ import org.apache.pulsar.client.api.PulsarClientException.InvalidConfigurationEx
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.util.FutureUtil;
 
@@ -48,10 +49,8 @@ import lombok.NonNull;
 
 public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
-    private static final long serialVersionUID = 1L;
-
     private final PulsarClientImpl client;
-    private final ConsumerConfigurationData<T> conf;
+    private ConsumerConfigurationData<T> conf;
     private final Schema<T> schema;
 
     private static long MIN_ACK_TIMEOUT_MILLIS = 1000;
@@ -60,10 +59,16 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
         this(client, new ConsumerConfigurationData<T>(), schema);
     }
 
-    private ConsumerBuilderImpl(PulsarClientImpl client, ConsumerConfigurationData<T> conf, Schema<T> schema) {
+    ConsumerBuilderImpl(PulsarClientImpl client, ConsumerConfigurationData<T> conf, Schema<T> schema) {
         this.client = client;
         this.conf = conf;
         this.schema = schema;
+    }
+
+    @Override
+    public ConsumerBuilder<T> loadConf(Map<String, Object> config) {
+        this.conf = ConfigurationDataUtils.loadData(config, ConsumerConfigurationData.class);
+        return this;
     }
 
     @Override

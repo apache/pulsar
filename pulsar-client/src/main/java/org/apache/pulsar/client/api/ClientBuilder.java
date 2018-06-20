@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.api;
 
-import java.io.Serializable;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -29,7 +28,7 @@ import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticat
  *
  * @since 2.0.0
  */
-public interface ClientBuilder extends Serializable, Cloneable {
+public interface ClientBuilder extends Cloneable {
 
     /**
      * @return the new {@link PulsarClient} instance

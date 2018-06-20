@@ -33,6 +33,7 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.util.FutureUtil;
 
@@ -40,10 +41,8 @@ import lombok.NonNull;
 
 public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
-    private static final long serialVersionUID = 1L;
-
     private final PulsarClientImpl client;
-    private final ProducerConfigurationData conf;
+    private ProducerConfigurationData conf;
     private final Schema<T> schema;
 
     ProducerBuilderImpl(PulsarClientImpl client, Schema<T> schema) {
@@ -86,6 +85,12 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
         }
 
         return client.createProducerAsync(conf, schema);
+    }
+
+    @Override
+    public ProducerBuilder<T> loadConf(Map<String, Object> config) {
+        conf = ConfigurationDataUtils.loadData(config, ProducerConfigurationData.class);
+        return this;
     }
 
     @Override
