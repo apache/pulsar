@@ -44,5 +44,5 @@ for line in "${PYTHON_VERSIONS[@]}"; do
     IMAGE_NAME=$BUILD_IMAGE_NAME:manylinux-$PYTHON_SPEC
 
     echo "Using image: $IMAGE_NAME"
-    docker run -i -v $PWD:/pulsar $IMAGE_NAME /build-wheel-file-within-docker.sh
+    docker run -i -v $PWD:/pulsar $IMAGE_NAME /pulsar/pulsar-client-cpp/docker/build-wheel-file-within-docker.sh
 done

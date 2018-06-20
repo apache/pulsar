@@ -50,7 +50,6 @@ public class SourceConfig {
     @NotNull
     private String name;
     @NotNull
-    @isImplementationOfClass(implementsClass = Source.class)
     private String className;
     @NotNull
     @isValidTopicName

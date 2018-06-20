@@ -34,9 +34,11 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+import static java.util.Collections.emptyMap;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyList;
 import static org.mockito.Matchers.anyLong;
+import static org.mockito.Matchers.anyObject;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -78,9 +80,10 @@ public class PulsarSourceTest {
         doReturn(consumerBuilder).when(consumerBuilder).subscriptionName(anyString());
         doReturn(consumerBuilder).when(consumerBuilder).subscriptionType(any());
         doReturn(consumerBuilder).when(consumerBuilder).ackTimeout(anyLong(), any());
+        doReturn(consumerBuilder).when(consumerBuilder).messageListener(anyObject());
         Consumer consumer = mock(Consumer.class);
         doReturn(consumer).when(consumerBuilder).subscribe();
-        doReturn(consumerBuilder).when(pulsarClient).newConsumer();
+        doReturn(consumerBuilder).when(pulsarClient).newConsumer(anyObject());
         return pulsarClient;
     }
 
@@ -168,7 +171,7 @@ public class PulsarSourceTest {
         pulsarConfig.setTopicSerdeClassNameMap(topicSerdeClassNameMap);
         PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig);
 
-        pulsarSource.open(new HashMap<>());
+        pulsarSource.open(emptyMap());
     }
 
     /**

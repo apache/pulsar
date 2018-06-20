@@ -1126,7 +1126,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return;
         }
         if (cnx == null || (getState() == State.Connecting)) {
-            log.warn("[{}] Client Connection needs to be establised for redelivery of unacknowledged messages", this);
+            log.warn("[{}] Client Connection needs to be established for redelivery of unacknowledged messages", this);
         } else {
             log.warn("[{}] Reconnecting the client to redeliver the messages.", this);
             cnx.ctx().close();
@@ -1173,7 +1173,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return;
         }
         if (cnx == null || (getState() == State.Connecting)) {
-            log.warn("[{}] Client Connection needs to be establised for redelivery of unacknowledged messages", this);
+            log.warn("[{}] Client Connection needs to be established for redelivery of unacknowledged messages", this);
         } else {
             log.warn("[{}] Reconnecting the client to redeliver the messages.", this);
             cnx.ctx().close();

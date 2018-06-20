@@ -155,6 +155,7 @@ public class JavaInstanceMain implements AutoCloseable {
 
     private Server server;
     private RuntimeSpawner runtimeSpawner;
+    private ThreadRuntimeFactory containerFactory;
     private Long lastHealthCheckTs = null;
     private ScheduledExecutorService timer;
 
@@ -222,7 +223,7 @@ public class JavaInstanceMain implements AutoCloseable {
         instanceConfig.setFunctionDetails(functionDetails);
         instanceConfig.setPort(port);
 
-        ThreadRuntimeFactory containerFactory = new ThreadRuntimeFactory("LocalRunnerThreadGroup", pulsarServiceUrl,
+        containerFactory = new ThreadRuntimeFactory("LocalRunnerThreadGroup", pulsarServiceUrl,
                 stateStorageServiceUrl,
                 AuthenticationConfig.builder().clientAuthenticationPlugin(clientAuthenticationPlugin)
                         .clientAuthenticationParameters(clientAuthenticationParameters).useTls(isTrue(useTls))
@@ -301,6 +302,9 @@ public class JavaInstanceMain implements AutoCloseable {
             }
             if (timer != null) {
                 timer.shutdown();
+            }
+            if (containerFactory != null) {
+                containerFactory.close();
             }
         } catch (Exception ex) {
             System.err.println(ex);

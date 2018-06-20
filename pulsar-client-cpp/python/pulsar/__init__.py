@@ -100,9 +100,9 @@ import _pulsar
 
 from _pulsar import Result, CompressionType, ConsumerType, PartitionsRoutingMode  # noqa: F401
 
-from functions.function import Function
-from functions.context import Context
-from functions.serde import SerDe, IdentitySerDe, PickleSerDe
+from pulsar.functions.function import Function
+from pulsar.functions.context import Context
+from pulsar.functions.serde import SerDe, IdentitySerDe, PickleSerDe
 
 class MessageId:
     """
