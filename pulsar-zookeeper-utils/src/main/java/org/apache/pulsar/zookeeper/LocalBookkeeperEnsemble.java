@@ -45,8 +45,12 @@ import org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage;
 import org.apache.bookkeeper.clients.StorageClientBuilder;
 import org.apache.bookkeeper.clients.admin.StorageAdminClient;
 import org.apache.bookkeeper.clients.config.StorageClientSettings;
+import org.apache.bookkeeper.clients.exceptions.ClientException;
 import org.apache.bookkeeper.clients.exceptions.NamespaceExistsException;
+import org.apache.bookkeeper.clients.exceptions.NamespaceNotFoundException;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.apache.bookkeeper.common.util.Backoff;
+import org.apache.bookkeeper.common.util.Backoff.Jitter.Type;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.server.conf.BookieConfiguration;
@@ -58,6 +62,7 @@ import org.apache.bookkeeper.stream.storage.api.cluster.ClusterInitializer;
 import org.apache.bookkeeper.stream.storage.impl.cluster.ZkClusterInitializer;
 import org.apache.bookkeeper.util.MathUtils;
 import org.apache.commons.configuration.CompositeConfiguration;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
@@ -274,19 +279,30 @@ public class LocalBookkeeperEnsemble {
         try (StorageAdminClient admin = StorageClientBuilder.newBuilder()
              .withSettings(StorageClientSettings.newBuilder()
                  .serviceUri("bk://localhost:4181")
+                 .backoffPolicy(Backoff.Jitter.of(
+                     Type.EXPONENTIAL,
+                     1000,
+                     10000,
+                     30
+                 ))
                  .build())
             .buildAdmin()) {
 
-            LOG.info("Creating default namespace");
             try {
-                NamespaceProperties ns =
-                    FutureUtils.result(admin.createNamespace("default", NamespaceConfiguration.newBuilder()
-                        .setDefaultStreamConf(DEFAULT_STREAM_CONF)
-                        .build()));
-                LOG.info("Successfully created 'default' namespace :\n{}", ns);
-            } catch (NamespaceExistsException nee) {
-                // namespace already exists
-                LOG.warn("Namespace 'default' already existed.");
+                NamespaceProperties ns = FutureUtils.result(admin.getNamespace("default"));
+                LOG.info("'default' namespace for table service : {}", ns);
+            } catch (NamespaceNotFoundException nnfe) {
+                LOG.info("Creating default namespace");
+                try {
+                    NamespaceProperties ns =
+                        FutureUtils.result(admin.createNamespace("default", NamespaceConfiguration.newBuilder()
+                            .setDefaultStreamConf(DEFAULT_STREAM_CONF)
+                            .build()));
+                    LOG.info("Successfully created 'default' namespace :\n{}", ns);
+                } catch (NamespaceExistsException nee) {
+                    // namespace already exists
+                    LOG.warn("Namespace 'default' already existed.");
+                }
             }
         }
     }
