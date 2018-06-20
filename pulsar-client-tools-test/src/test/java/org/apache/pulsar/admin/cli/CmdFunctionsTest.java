@@ -572,7 +572,7 @@ public class CmdFunctionsTest {
             "--namespace", namespace,
             "--name", fnName,
             "--key", "test-key",
-            "--storage-service-url", "127.0.0.1:4181"
+            "--storage-service-url", "bk://127.0.0.1:4181"
         });
 
         assertEquals(
