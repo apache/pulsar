@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+
 apiVersion: v1
 appVersion: "1.0"
 description: Apache Pulsar Helm chart for Kubernetes

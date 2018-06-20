@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+
 {{- if .Values.extra.dashboard }}
 apiVersion: apps/v1
 kind: Deployment

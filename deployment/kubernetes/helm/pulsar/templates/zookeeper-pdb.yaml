@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+
 {{- if .Values.zookeeper.pdb.usePolicy }}
 apiVersion: policy/v1beta1
 kind: PodDisruptionBudget

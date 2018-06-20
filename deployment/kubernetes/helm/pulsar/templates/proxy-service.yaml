@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+
 {{- if .Values.extra.proxy }}
 apiVersion: v1
 kind: Service

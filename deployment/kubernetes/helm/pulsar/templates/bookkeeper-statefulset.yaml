@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
