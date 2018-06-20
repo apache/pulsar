@@ -11,13 +11,18 @@ To use compaction:
 * Compaction can be configured to run [automatically](#automatic), or you can manually [trigger](#trigger) compaction using the Pulsar administrative API.
 * Your {% popover consumers %} must be [configured](#config) to read from compacted topics ([Java consumers](#java), for example, have a `readCompacted` setting that must be set to `true`). If this configuration is not set, consumers will still be able to read from the non-compacted topic.
 
+{% include admonition.html type="warning" content="Compaction only works on messages that have keys (as in the stock ticker example the stock symbol serves as the key for each message). Keys can thus be thought of as the axis along which compaction is applied. Messages that don't have keys are simply ignored by compaction." %}
+
 ## When should I use compacted topics? {#when}
 
-The classic example of a topic that could benefit from compaction would be a stock ticker topic through which {% popover consumers %} can access up-to-date values for specific stocks. On a stock ticker topic you only care about the most recent value of each stock; "historical values" don't matter, so there's no need to read through outdated data when processing a topic's messages.
+The classic example of a topic that could benefit from compaction would be a stock ticker topic through which {% popover consumers %} can access up-to-date values for specific stocks. Imagine a scneario in which messages carrying stock value data use the stock symbol as the key (`GOOG`, `AAPL`, `TWTR`, etc.). Compacting this topic would give consumers on the topic two options:
 
-{% include admonition.html type="info" content="For topics where older values are important, for example when you need to process a long series of messages in order, many of which have the same key, compaction is unnecessary and could possibly even be harmful." %}
+* They can read from the "original," non-compacted topic in case they need access to "historical" values, i.e. the entirety of the topic's messages.
+* They can read from the compacted topic if they only want to see the most up-to-date messages.
 
-{% include admonition.html type="warning" content="Compaction only works on topics where each message has a key (as in the stock ticker example, where the stock symbol serves as the key). Keys can be thought of as the axis along which compaction is applied." %}
+Thus, if you're using a Pulsar topic called `stock-values`, some consumers could have access to all messages in the topic (perhaps because they're performing some kind of number crunching of all values in the last hour) while the consumers used to power the real-time stock ticker only see the compacted topic (and thus aren't forced to process outdated messages). Which variant of the topic any given consumer pulls messages from is determined by the consumer's [configuration](#config).
+
+{% include admonition.html type="success" content="One of the benefits of compaction in Pulsar is that you aren't forced to choose between compacted and non-compacted topics, as the compaction process leaves the original topic as-is and essentially adds an alternate topic. In other words, you can run compaction on a topic and consumers that need access to the non-compacted version of the topic will not be adversely affected." %}
 
 ## Configuring compaction to run automatically {#automatic}
 
@@ -47,6 +52,8 @@ The `pulsar-admin` tool runs compaction via the Pulsar [REST API](../../referenc
 $ bin/pulsar compact-topic \
   --topic persistent://my-tenant-namespace/my-topic
 ```
+
+{% include admonition.html type="info" content="Running compaction in its own process is recommended when you want to avoid interfering with the broker's performance. Broker performance should only be affected, however, when running compaction on topics with a large keyspace (i.e when there are many keys on the topic). The first phase of the compaction process keeps a copy of each key in the topic, which can create memory pressure as the number of keys grows. Using the `pulsar-admin topics compact` command to run compaction through the REST API should present no issues in the overwhelming majority of cases; using `pulsar compact-topic` should correspondingly be considered an edge case." %}
 
 The `pulsar compact-topic` command communicates with [ZooKeeper](https://zookeeper.apache.org) directly. In order to establish communication with ZooKeeper, though, the `pulsar` CLI tool will need to have a valid [broker configuration](../../Configuration#broker). You can either supply a proper configuration in `conf/broker.conf` or specify a non-default location for the configuration:
 
