@@ -2,6 +2,7 @@ package org.apache.pulsar.tests.integration.cluster;
 
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerCmd;
+import org.apache.pulsar.tests.DockerUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.DockerClientFactory;
@@ -22,8 +23,6 @@ import static java.time.temporal.ChronoUnit.SECONDS;
 import static org.apache.pulsar.tests.PulsarClusterUtils.waitSocketAvaialble;
 
 public class Cluster3Bookie2Broker {
-
-    //single-cluster-3-bookie-2-broker-unstarted.yaml
 
     private static final Logger LOG = LoggerFactory.getLogger(Cluster3Bookie2Broker.class);
 
@@ -251,6 +250,7 @@ public class Cluster3Bookie2Broker {
 
     public void execInBroker(String... commands) throws IOException, InterruptedException {
         LOG.info("Executing Command in Broker : " + String.join(" ", commands));
+        //DockerUtils.runCommand(dockerClient, broker1Container.getContainerName().substring(1), commands);
         Container.ExecResult execResult = broker1Container.execInContainer(commands);
         LOG.info(execResult.getStdout());
         LOG.info(execResult.getStderr());
@@ -302,6 +302,28 @@ public class Cluster3Bookie2Broker {
     }
 
     public void stop() throws Exception {
+        DockerUtils.dumpContainerLogToTarget(dockerClient, zookeeperContainer.getContainerName().substring(1));
+        DockerUtils.dumpContainerLogToTarget(dockerClient, configStoreContainer.getContainerName().substring(1));
+        DockerUtils.dumpContainerLogToTarget(dockerClient, initContainer.getContainerName().substring(1));
+        DockerUtils.dumpContainerLogToTarget(dockerClient, broker1Container.getContainerName().substring(1));
+        DockerUtils.dumpContainerLogToTarget(dockerClient, broker2Container.getContainerName().substring(1));
+        DockerUtils.dumpContainerLogToTarget(dockerClient, bookie1Container.getContainerName().substring(1));
+        DockerUtils.dumpContainerLogToTarget(dockerClient, bookie2Container.getContainerName().substring(1));
+        DockerUtils.dumpContainerLogToTarget(dockerClient, bookie3Container.getContainerName().substring(1));
+        DockerUtils.dumpContainerLogToTarget(dockerClient, proxyContainer.getContainerName().substring(1));
+
+        DockerUtils.dumpContainerLogDirToTarget(dockerClient, zookeeperContainer.getContainerName().substring(1), "/var/log/pulsar");
+        DockerUtils.dumpContainerDirToTargetCompressed(dockerClient, zookeeperContainer.getContainerName().substring(1), "/pulsar/data/zookeeper");
+        DockerUtils.dumpContainerLogDirToTarget(dockerClient, configStoreContainer.getContainerName().substring(1), "/var/log/pulsar");
+        DockerUtils.dumpContainerDirToTargetCompressed(dockerClient, configStoreContainer.getContainerName().substring(1), "/pulsar/data/zookeeper");
+        DockerUtils.dumpContainerLogDirToTarget(dockerClient, initContainer.getContainerName().substring(1), "/var/log/pulsar");
+        DockerUtils.dumpContainerLogDirToTarget(dockerClient, broker1Container.getContainerName().substring(1), "/var/log/pulsar");
+        DockerUtils.dumpContainerLogDirToTarget(dockerClient, broker2Container.getContainerName().substring(1), "/var/log/pulsar");
+        DockerUtils.dumpContainerLogDirToTarget(dockerClient, bookie1Container.getContainerName().substring(1), "/var/log/pulsar");
+        DockerUtils.dumpContainerLogDirToTarget(dockerClient, bookie2Container.getContainerName().substring(1), "/var/log/pulsar");
+        DockerUtils.dumpContainerLogDirToTarget(dockerClient, bookie3Container.getContainerName().substring(1), "/var/log/pulsar");
+        DockerUtils.dumpContainerLogDirToTarget(dockerClient, proxyContainer.getContainerName().substring(1), "/var/log/pulsar");
+
         Stream.of(zookeeperContainer,
             configStoreContainer,
             initContainer,

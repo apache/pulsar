@@ -34,10 +34,6 @@
   <artifactId>integration-tests-base</artifactId>
   <packaging>pom</packaging>
 
-  <properties>
-      <testcontainers.version>1.8.0</testcontainers.version>
-  </properties>
-
   <name>Apache Pulsar :: Tests :: Base module for Container based integration tests</name>
 
   <dependencies>

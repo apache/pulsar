@@ -28,13 +28,15 @@
     <artifactId>pulsar</artifactId>
     <version>2.1.0-incubating-SNAPSHOT</version>
   </parent>
+  <properties>
+    <testcontainers.version>1.8.0</testcontainers.version>
+  </properties>
   <groupId>org.apache.pulsar.tests</groupId>
   <artifactId>tests-parent</artifactId>
   <name>Apache Pulsar :: Tests</name>
   <modules>
     <module>docker-images</module>
     <module>integration-tests-utils</module>
-    <!--<module>integration-tests-topologies</module>-->
     <module>integration-tests-base</module>
     <module>integration</module>
   </modules>

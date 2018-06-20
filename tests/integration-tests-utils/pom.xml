@@ -38,7 +38,6 @@
   <name>Apache Pulsar :: Tests :: Utility module for Container based integration tests</name>
 
   <properties>
-    <testcontainers.version>1.7.3</testcontainers.version>
     <commons-compress.version>1.15</commons-compress.version>
   </properties>
 
@@ -77,7 +76,6 @@
     <dependency>
         <groupId>com.google.guava</groupId>
         <artifactId>guava</artifactId>
-        <version>21.0</version>
     </dependency>
 
     <dependency>

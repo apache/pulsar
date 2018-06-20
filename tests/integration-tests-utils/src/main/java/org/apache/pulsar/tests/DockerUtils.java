@@ -220,24 +220,4 @@ public class DockerUtils {
                                    .exec().getConfig().getLabels().get("cluster"));
     }
 
-    public static Set<String> allCubeIds() {
-        Pattern pattern = Pattern.compile("^arq.cube.docker.([^.]*).ip$");
-        return System.getProperties().keySet().stream()
-            .map(k -> pattern.matcher(k.toString()))
-            .filter(m -> m.matches())
-            .map(m -> m.group(1))
-            .collect(Collectors.toSet());
-    }
-
-    public static Set<String> cubeIdsWithLabels(DockerClient docker, Map<String,String> labels) {
-        return allCubeIds().stream()
-            .filter(id -> {
-                    Map<String,String> configuredLabels = docker.inspectContainerCmd(id).exec().getConfig().getLabels();
-                    return labels.entrySet().stream()
-                        .map(e -> configuredLabels.containsKey(e.getKey())
-                             && configuredLabels.get(e.getKey()).equals(e.getValue()))
-                        .reduce(true, (acc, res) -> acc && res);
-                })
-            .collect(Collectors.toSet());
-    }
 }
