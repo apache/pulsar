@@ -170,6 +170,10 @@ public class TopicName implements ServiceUnitId {
 
     }
 
+    public boolean isPersistent() {
+        return TopicDomain.persistent == domain;
+    }
+
     /**
      * Extract the namespace portion out of a completeTopicName name.
      *

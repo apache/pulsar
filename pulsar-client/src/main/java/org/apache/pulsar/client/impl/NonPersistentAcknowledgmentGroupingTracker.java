@@ -23,17 +23,35 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 
 /**
- * Acknowledgments grouping tracker.
+ * A no-op acknowledgment grouping tracker.
  */
-public interface AcknowledgmentsGroupingTracker extends AutoCloseable {
+public class NonPersistentAcknowledgmentGroupingTracker implements AcknowledgmentsGroupingTracker {
 
-    boolean isDuplicate(MessageId messageId);
+    public static NonPersistentAcknowledgmentGroupingTracker of() {
+        return INSTANCE;
+    }
 
-    void addAcknowledgment(MessageIdImpl msgId, AckType ackType, Map<String, Long> properties);
+    private static final NonPersistentAcknowledgmentGroupingTracker INSTANCE = new NonPersistentAcknowledgmentGroupingTracker();
 
-    void flush();
+    private NonPersistentAcknowledgmentGroupingTracker() {}
 
     @Override
-    void close();
+    public boolean isDuplicate(MessageId messageId) {
+        return false;
+    }
 
+    @Override
+    public void addAcknowledgment(MessageIdImpl msgId, AckType ackType, Map<String, Long> properties) {
+        // no-op
+    }
+
+    @Override
+    public void flush() {
+        // no-op
+    }
+
+    @Override
+    public void close() {
+        // no-op
+    }
 }
