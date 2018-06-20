@@ -139,7 +139,7 @@ public class CmdSinks extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Create a Pulsar IO sink connector")
+    @Parameters(commandDescription = "Submit a Pulsar IO sink connector to run in a Pulsar cluster")
     class CreateSink extends SinkCommand {
         @Override
         void runCmd() throws Exception {

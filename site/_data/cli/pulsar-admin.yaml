@@ -511,10 +511,10 @@ commands:
   - name: delete
     description: Delete namespace isolation policy of a cluster. This operation requires superuser privileges.
 - name: sink
-  description: An interface for managing Pulsar IO sinks (egree data from Pulsar)
+  description: An interface for managing Pulsar IO sinks (egress data from Pulsar)
   subcommands:
   - name: create
-    description: Create a Pulsar IO sink connector
+    description: Submit a Pulsar IO sink connector to run in a Pulsar cluster
     options:
     - flags: --className
       description: The sink's Java class name
@@ -594,7 +594,7 @@ commands:
   description: An interface for managing Pulsar IO sources (ingress data into Pulsar)
   subcommands:
   - name: create
-    description: Create a Pulsar IO source connector
+    description: Submit a Pulsar IO source connector to run in a Pulsar cluster
     options:
     - flags: --className
       description: The source's Java class name

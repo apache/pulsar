@@ -134,7 +134,7 @@ public class CmdSources extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Create a Pulsar IO source connector")
+    @Parameters(commandDescription = "Submit a Pulsar IO source connector to run in a Pulsar cluster")
     public class CreateSource extends SourceCommand {
         @Override
         void runCmd() throws Exception {
@@ -143,7 +143,7 @@ public class CmdSources extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Update Pulsar source connectors")
+    @Parameters(commandDescription = "Update a Pulsar IO source connector")
     public class UpdateSource extends SourceCommand {
         @Override
         void runCmd() throws Exception {
