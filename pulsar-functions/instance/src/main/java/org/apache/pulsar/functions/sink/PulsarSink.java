@@ -54,28 +54,28 @@ public class PulsarSink<T> implements Sink<T> {
 
     private PulsarSinkProcessor pulsarSinkProcessor;
 
-    private interface PulsarSinkProcessor {
+    private interface PulsarSinkProcessor<T> {
         void initializeOutputProducer(String outputTopic) throws Exception;
 
-        void sendOutputMessage(MessageBuilder outputMsgBuilder,
+        void sendOutputMessage(MessageBuilder<T> outputMsgBuilder,
                                RecordContext recordContext) throws Exception;
 
         void close() throws Exception;
     }
 
-    private class PulsarSinkAtMostOnceProcessor implements PulsarSinkProcessor {
-        private Producer<byte[]> producer;
+    private class PulsarSinkAtMostOnceProcessor implements PulsarSinkProcessor<T> {
+        private Producer<T> producer;
 
         @Override
         public void initializeOutputProducer(String outputTopic) throws Exception {
             this.producer = AbstractOneOuputTopicProducers.createProducer(
-                    client, pulsarSinkConfig.getTopic());
+                    client, pulsarSinkConfig.getTopic(), outputSerDe);
         }
 
         @Override
-        public void sendOutputMessage(MessageBuilder outputMsgBuilder,
+        public void sendOutputMessage(MessageBuilder<T> outputMsgBuilder,
                                       RecordContext recordContext) throws Exception {
-            Message<byte[]> outputMsg = outputMsgBuilder.build();
+            Message<T> outputMsg = outputMsgBuilder.build();
             this.producer.sendAsync(outputMsg);
         }
 
@@ -91,19 +91,19 @@ public class PulsarSink<T> implements Sink<T> {
         }
     }
 
-    private class PulsarSinkAtLeastOnceProcessor implements PulsarSinkProcessor {
-        private Producer<byte[]> producer;
+    private class PulsarSinkAtLeastOnceProcessor implements PulsarSinkProcessor<T> {
+        private Producer<T> producer;
 
         @Override
         public void initializeOutputProducer(String outputTopic) throws Exception {
             this.producer = AbstractOneOuputTopicProducers.createProducer(
-                    client, pulsarSinkConfig.getTopic());
+                    client, pulsarSinkConfig.getTopic(), outputSerDe);
         }
 
         @Override
-        public void sendOutputMessage(MessageBuilder outputMsgBuilder,
+        public void sendOutputMessage(MessageBuilder<T> outputMsgBuilder,
                                       RecordContext recordContext) throws Exception {
-            Message<byte[]> outputMsg = outputMsgBuilder.build();
+            Message<T> outputMsg = outputMsgBuilder.build();
             this.producer.sendAsync(outputMsg).thenAccept(messageId -> recordContext.ack());
         }
 
@@ -119,19 +119,19 @@ public class PulsarSink<T> implements Sink<T> {
         }
     }
 
-    private class PulsarSinkEffectivelyOnceProcessor implements PulsarSinkProcessor, ConsumerEventListener {
+    private class PulsarSinkEffectivelyOnceProcessor implements PulsarSinkProcessor<T>, ConsumerEventListener {
 
         @Getter(AccessLevel.PACKAGE)
-        protected Producers outputProducer;
+        protected Producers<T> outputProducer;
 
         @Override
         public void initializeOutputProducer(String outputTopic) throws Exception {
-            outputProducer = new MultiConsumersOneOuputTopicProducers(client, outputTopic);
+            outputProducer = new MultiConsumersOneOuputTopicProducers(client, outputTopic, outputSerDe);
             outputProducer.initialize();
         }
 
         @Override
-        public void sendOutputMessage(MessageBuilder outputMsgBuilder, RecordContext recordContext)
+        public void sendOutputMessage(MessageBuilder<T> outputMsgBuilder, RecordContext recordContext)
                 throws Exception {
 
             // assign sequence id to output message for idempotent producing
@@ -139,9 +139,9 @@ public class PulsarSink<T> implements Sink<T> {
                     .setSequenceId(recordContext.getRecordSequence());
 
             // currently on PulsarRecord
-            Producer producer = outputProducer.getProducer(recordContext.getPartitionId());
+            Producer<T> producer = outputProducer.getProducer(recordContext.getPartitionId());
 
-            org.apache.pulsar.client.api.Message outputMsg = outputMsgBuilder.build();
+            org.apache.pulsar.client.api.Message<T> outputMsg = outputMsgBuilder.build();
             producer.sendAsync(outputMsg)
                     .thenAccept(messageId -> recordContext.ack())
                     .join();
