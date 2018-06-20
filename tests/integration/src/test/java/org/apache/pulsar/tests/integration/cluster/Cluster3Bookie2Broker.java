@@ -14,13 +14,16 @@ import org.testcontainers.containers.wait.strategy.LogMessageWaitStrategy;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import static java.time.temporal.ChronoUnit.SECONDS;
-import static org.apache.pulsar.tests.PulsarClusterUtils.waitSocketAvaialble;
+import static org.apache.pulsar.tests.PulsarClusterUtils.waitSocketAvailable;
 
 public class Cluster3Bookie2Broker {
 
@@ -55,7 +58,11 @@ public class Cluster3Bookie2Broker {
     private static final String NAME = "apachepulsar";
     private static final String IMG = "pulsar-test-latest-version";
 
+    private List<GenericContainer> brokers;
+
     public Cluster3Bookie2Broker(final String testName) {
+
+        brokers = new ArrayList<>();
 
         network = Network.newNetwork();
 
@@ -245,15 +252,21 @@ public class Cluster3Bookie2Broker {
             })
         ;
 
+        brokers.add(broker1Container);
+        brokers.add(broker2Container);
+
         dockerClient = DockerClientFactory.instance().client();
     }
 
-    public void execInBroker(String... commands) throws IOException, InterruptedException {
+    public String execInBroker(String... commands) throws IOException, InterruptedException {
         LOG.info("Executing Command in Broker : " + String.join(" ", commands));
+        Collections.shuffle(brokers);
+        GenericContainer selectedBroker = brokers.get(0);
+        Container.ExecResult execResult = selectedBroker.execInContainer(commands);
+        LOG.info(execResult.getStdout() != null ? execResult.getStdout() : "Stdout : N/A");
+        LOG.info(execResult.getStderr() != null ? execResult.getStderr() : "Stderr : N/A");
+        return execResult.getStdout() + "\n" + execResult.getStderr();
         //DockerUtils.runCommand(dockerClient, broker1Container.getContainerName().substring(1), commands);
-        Container.ExecResult execResult = broker1Container.execInContainer(commands);
-        LOG.info(execResult.getStdout());
-        LOG.info(execResult.getStderr());
     }
 
     public String getPulsarProxyIP() {
@@ -271,11 +284,11 @@ public class Cluster3Bookie2Broker {
     public void startAllBrokers() throws IOException, InterruptedException {
         broker1Container.execInContainer("supervisorctl", "start", "broker");
         broker2Container.execInContainer("supervisorctl", "start", "broker");
-        waitSocketAvaialble(broker1Container.getContainerIpAddress(),
+        waitSocketAvailable(broker1Container.getContainerIpAddress(),
             broker1Container.getMappedPort(PULSAR_BROKER_PORT),
             10,
             TimeUnit.SECONDS);
-        waitSocketAvaialble(broker2Container.getContainerIpAddress(),
+        waitSocketAvailable(broker2Container.getContainerIpAddress(),
             broker2Container.getMappedPort(PULSAR_BROKER_PORT),
             10,
             TimeUnit.SECONDS);
@@ -283,7 +296,7 @@ public class Cluster3Bookie2Broker {
 
     public void startAllProxies() throws IOException, InterruptedException {
         proxyContainer.execInContainer("supervisorctl", "start", "proxy");
-        waitSocketAvaialble(proxyContainer.getContainerIpAddress(),
+        waitSocketAvailable(proxyContainer.getContainerIpAddress(),
             proxyContainer.getMappedPort(PULSAR_BROKER_PORT),
             10,
             TimeUnit.SECONDS);

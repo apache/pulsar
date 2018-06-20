@@ -43,6 +43,7 @@ public class PulsarClusterUtils {
 
     public static final String PULSAR_ADMIN = "/pulsar/bin/pulsar-admin";
     public static final String PULSAR = "/pulsar/bin/pulsar";
+    public static final String PULSAR_CLIENT = "/pulsar/bin/pulsar-client";
 
 //    public static String zookeeperConnectString(DockerClient docker, String cluster) {
 //        return DockerUtils.cubeIdsWithLabels(docker, ImmutableMap.of("service", "zookeeper", "cluster", cluster))
@@ -250,8 +251,8 @@ public class PulsarClusterUtils {
         return false;
     }
 
-    public static boolean waitSocketAvaialble(String containerIp, int port,
-                                      int timeout, TimeUnit timeoutUnit) {
+    public static boolean waitSocketAvailable(String containerIp, int port,
+                                              int timeout, TimeUnit timeoutUnit) {
         long timeoutMillis = timeoutUnit.toMillis(timeout);
         long pollMillis = 100;
 

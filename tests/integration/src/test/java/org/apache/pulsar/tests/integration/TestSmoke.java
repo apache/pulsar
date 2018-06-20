@@ -22,17 +22,20 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.tests.PulsarClusterUtils;
 import org.apache.pulsar.tests.integration.cluster.Cluster3Bookie2Broker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Ignore;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 
+@Ignore
 public class TestSmoke {
 
     private static final Logger LOG = LoggerFactory.getLogger(TestSmoke.class);
@@ -51,11 +54,11 @@ public class TestSmoke {
     @Test
     public void testPublishAndConsume() throws Exception {
         // create property and namespace
-        cluster.execInBroker("/pulsar/bin/pulsar-admin", "tenants",
+        cluster.execInBroker(PulsarClusterUtils.PULSAR_ADMIN, "tenants",
             "create", "smoke-test", "--allowed-clusters", clusterName,
             "--admin-roles", "smoke-admin");
 
-        cluster.execInBroker("/pulsar/bin/pulsar-admin", "namespaces",
+        cluster.execInBroker(PulsarClusterUtils.PULSAR_ADMIN, "namespaces",
             "create", "smoke-test/test/ns1");
 
         String serviceUrl = "pulsar://" + cluster.getPulsarProxyIP() + ":" + cluster.getPulsarProxyPort();
