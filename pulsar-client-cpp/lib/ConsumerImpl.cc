@@ -58,7 +58,8 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
       brokerConsumerStats_(),
       consumerStatsBasePtr_(),
       msgCrypto_(),
-      readCompacted_(conf.isReadCompacted()) {
+      readCompacted_(conf.isReadCompacted()),
+      lastMessageInBroker_(Optional<MessageId>::of(MessageId())) {
     std::stringstream consumerStrStream;
     consumerStrStream << "[" << topic_ << ", " << subscription_ << ", " << consumerId_ << "] ";
     consumerStr_ = consumerStrStream.str();
@@ -922,5 +923,76 @@ void ConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback callback) {
 }
 
 bool ConsumerImpl::isReadCompacted() { return readCompacted_; }
+
+void ConsumerImpl::hasMessageAvailableAsync(HasMessageAvailableCallback callback) {
+    MessageId lastDequed = this->lastMessageIdDequed();
+    MessageId lastInBroker = this->lastMessageIdInBroker();
+    if (lastInBroker > lastDequed && lastInBroker.entryId() != -1) {
+        callback(ResultOk, true);
+        return;
+    }
+
+    BrokerGetLastMessageIdCallback callback1 = [this, lastDequed, callback](Result result,
+                                                                            MessageId messageId) {
+        if (result == ResultOk) {
+            if (messageId > lastDequed && messageId.entryId() != -1) {
+                callback(ResultOk, true);
+            } else {
+                callback(ResultOk, false);
+            }
+        } else {
+            callback(result, false);
+        }
+    };
+
+    getLastMessageIdAsync(callback1);
+}
+
+void ConsumerImpl::brokerGetLastMessageIdListener(Result res, MessageId messageId,
+                                                  BrokerGetLastMessageIdCallback callback) {
+    Lock lock(mutex_);
+    if (messageId > lastMessageIdInBroker()) {
+        lastMessageInBroker_ = Optional<MessageId>::of(messageId);
+        lock.unlock();
+        callback(res, messageId);
+    } else {
+        lock.unlock();
+        callback(res, lastMessageIdInBroker());
+    }
+}
+
+void ConsumerImpl::getLastMessageIdAsync(BrokerGetLastMessageIdCallback callback) {
+    Lock lock(mutex_);
+    if (state_ == Closed || state_ == Closing) {
+        lock.unlock();
+        LOG_ERROR(getName() << "Client connection already closed.");
+        if (!callback.empty()) {
+            callback(ResultAlreadyClosed, MessageId());
+        }
+        return;
+    }
+    lock.unlock();
+
+    ClientConnectionPtr cnx = getCnx().lock();
+    if (cnx) {
+        if (cnx->getServerProtocolVersion() >= proto::v12) {
+            ClientImplPtr client = client_.lock();
+            uint64_t requestId = client->newRequestId();
+            LOG_DEBUG(getName() << " Sending getLastMessageId Command for Consumer - " << getConsumerId()
+                                << ", requestId - " << requestId);
+
+            cnx->newGetLastMessageId(consumerId_, requestId)
+                .addListener(boost::bind(&ConsumerImpl::brokerGetLastMessageIdListener, shared_from_this(),
+                                         _1, _2, callback));
+        } else {
+            LOG_ERROR(getName() << " Operation not supported since server protobuf version "
+                                << cnx->getServerProtocolVersion() << " is older than proto::v12");
+            callback(ResultUnsupportedVersionError, MessageId());
+        }
+    } else {
+        LOG_ERROR(getName() << " Client Connection not ready for Consumer");
+        callback(ResultNotConnected, MessageId());
+    }
+}
 
 } /* namespace pulsar */
