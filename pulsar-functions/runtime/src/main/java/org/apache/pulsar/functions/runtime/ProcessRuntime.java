@@ -232,7 +232,8 @@ class ProcessRuntime implements Runtime {
         }
 
         // state storage configs
-        if (null != stateStorageServiceUrl) {
+        if (null != stateStorageServiceUrl
+            && instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
             args.add("--state_storage_serviceurl");
             args.add(stateStorageServiceUrl);
         }

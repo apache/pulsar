@@ -151,7 +151,7 @@ public class ProcessRuntimeTest {
 
         ProcessRuntime container = factory.createContainer(config, userJarFile);
         List<String> args = container.getProcessArgs();
-        assertEquals(args.size(), 46);
+        assertEquals(args.size(), 44);
         String expectedArgs = "python " + pythonInstanceFile
                 + " --py " + userJarFile + " --logging_directory "
                 + logDirectory + "/functions" + " --logging_file " + config.getFunctionDetails().getName() + " --instance_id "
@@ -169,8 +169,7 @@ public class ProcessRuntimeTest {
                 + " --source_topics_serde_classname " + new Gson().toJson(topicsToSerDeClassName)
                 + " --topics_pattern " + config.getFunctionDetails().getSource().getTopicsPattern()
                 + " --sink_topic " + config.getFunctionDetails().getSink().getTopic()
-                + " --sink_serde_classname " + config.getFunctionDetails().getSink().getSerDeClassName()
-                + " --state_storage_serviceurl " + stateStorageServiceUrl;
+                + " --sink_serde_classname " + config.getFunctionDetails().getSink().getSerDeClassName();
         assertEquals(expectedArgs, String.join(" ", args));
     }
 
