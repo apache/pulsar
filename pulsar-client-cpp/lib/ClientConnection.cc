@@ -960,6 +960,7 @@ void ClientConnection::handleIncomingCommand() {
 
                         getLastMessageIdPromise.setValue(messageId);
                     } else {
+                        lock.unlock();
                         LOG_WARN(
                             "getLastMessageIdResponse command - Received unknown request id from server: "
                             << getLastMessageIdResponse.request_id());
@@ -1261,6 +1262,7 @@ Future<Result, MessageId> ClientConnection::newGetLastMessageId(uint64_t consume
         lock.unlock();
         LOG_ERROR(cnxString_ << " Client is not connected to the broker");
         promise.setFailed(ResultNotConnected);
+        return promise.getFuture();
     }
 
     pendingGetLastMessageIdRequests_.insert(std::make_pair(requestId, promise));

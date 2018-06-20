@@ -176,12 +176,12 @@ class ConsumerImpl : public ConsumerImplBase,
     void brokerGetLastMessageIdListener(Result res, MessageId messageId,
                                         BrokerGetLastMessageIdCallback callback);
 
-    inline bool lastMessageIdAvailable() {
-        MessageId lastDequeued = lastDequedMessage_.is_present() ? lastDequedMessage_.value() : MessageId();
-        MessageId lastMessageInBroker =
-            lastMessageInBroker_.is_present() ? lastMessageInBroker_.value() : MessageId();
+    MessageId lastMessageIdDequed() {
+        return lastDequedMessage_.is_present() ? lastDequedMessage_.value() : MessageId();
+    }
 
-        return (lastMessageInBroker > lastDequeued && lastMessageInBroker.entryId() != -1);
+    MessageId lastMessageIdInBroker() {
+        return lastMessageInBroker_.is_present() ? lastMessageInBroker_.value() : MessageId();
     }
 
     friend class PulsarFriend;
