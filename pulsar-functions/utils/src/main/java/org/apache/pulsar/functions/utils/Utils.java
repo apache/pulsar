@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.functions.utils;
 
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -51,6 +53,9 @@ import net.jodah.typetools.TypeResolver;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class Utils {
 
+    public static String HTTP = "http";
+    public static String FILE = "file";
+    
     public static final long getSequenceId(MessageId messageId) {
         MessageIdImpl msgId = (MessageIdImpl) ((messageId instanceof TopicMessageIdImpl)
                 ? ((TopicMessageIdImpl) messageId).getInnerMessageId()
@@ -206,5 +211,10 @@ public class Utils {
 
     public static boolean fileExists(String file) {
         return new File(file).exists();
+    }
+    
+    public static boolean isFunctionPackageUrlSupported(String functionPkgUrl) {
+        return isNotBlank(functionPkgUrl)
+                && (functionPkgUrl.startsWith(Utils.HTTP) || functionPkgUrl.startsWith(Utils.FILE));
     }
 }

@@ -18,19 +18,28 @@
 # under the License.
 #
 
-set -e
+set -ex
 
 cd /pulsar/pulsar-client-cpp
 
-find . -name CMakeCache.txt | xargs rm
-find . -name CMakeFiles | xargs rm -rf
+find . -name CMakeCache.txt | xargs -r rm
+find . -name CMakeFiles | xargs -r rm -rf
 
 cmake . -DPYTHON_INCLUDE_DIR=/opt/python/$PYTHON_SPEC/include/python$PYTHON_VERSION \
         -DPYTHON_LIBRARY=/opt/python/$PYTHON_SPEC/lib \
-        -DLINK_STATIC=ON
+        -DLINK_STATIC=ON \
+        -DBUILD_TESTS=OFF
 
 make clean
-make _pulsar
+make _pulsar -j3
 
 cd python
 python setup.py bdist_wheel
+
+# Audit wheel is required to convert a wheel that is tagged as generic
+# 'linux' into a 'multilinux' wheel.
+# Only wheel files tagged as multilinux can be uploaded to PyPI
+# Audit wheel will make sure no external dependencies are needed for
+# the shared library and that only symbols supported by most linux
+# distributions are used.
+auditwheel repair dist/pulsar_client-*-$PYTHON_SPEC-linux_x86_64.whl

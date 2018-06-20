@@ -40,6 +40,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
 
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.functions.utils.Utils.fileExists;
 import static org.apache.pulsar.functions.utils.Utils.getSinkType;
 import static org.apache.pulsar.functions.utils.Utils.getSourceType;
@@ -217,6 +218,10 @@ public class ValidatorImpls {
 
         public ImplementsClassesValidator(Map<String, Object> params) {
             this.classesImplements = (Class<?>[]) params.get(ConfigValidationAnnotations.ValidatorParams.IMPLEMENTS_CLASSES);
+        }
+        
+        public ImplementsClassesValidator(Class<?>... classesImplements) {
+            this.classesImplements = classesImplements;
         }
 
         @Override
@@ -695,6 +700,11 @@ public class ValidatorImpls {
         @Override
         public void validateField(String name, Object o) {
             SinkConfig sinkConfig = (SinkConfig) o;
+            // if function-pkg url is present eg: file://xyz.jar then admin-tool might not have access of the file at
+            // the same location so, need to rely on server side validation.
+            if (Utils.isFunctionPackageUrlSupported(sinkConfig.getJar())) {
+                return;
+            }
             Class<?> typeArg = getSinkType(sinkConfig.getClassName());
 
             ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
@@ -762,9 +772,14 @@ public class ValidatorImpls {
             }
             new StringValidator().validateField(name, o);
 
-            if (!fileExists((String) o)) {
-                throw new IllegalArgumentException
-                        (String.format("File %s specified in field '%s' does not exist", o, name));
+            String path = (String) o;
+            
+            if(!Utils.isFunctionPackageUrlSupported(path)) {
+                // check file existence if path is not url and local path
+                if (!fileExists(path)) {
+                    throw new IllegalArgumentException
+                            (String.format("File %s specified in field '%s' does not exist", path, name));
+                }
             }
         }
     }
