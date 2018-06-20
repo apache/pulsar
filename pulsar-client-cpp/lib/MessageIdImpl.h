@@ -22,15 +22,21 @@
 #include <cstdint>
 
 namespace pulsar {
+const static std::string emptyString = "";
 
 class MessageIdImpl {
    public:
-    MessageIdImpl() : ledgerId_(-1), entryId_(-1), partition_(-1), batchIndex_(-1) {}
+    MessageIdImpl() : ledgerId_(-1), entryId_(-1), partition_(-1), batchIndex_(-1), topicName_(emptyString) {}
     MessageIdImpl(int32_t partition, int64_t ledgerId, int64_t entryId, int32_t batchIndex)
-        : ledgerId_(ledgerId), entryId_(entryId), partition_(partition), batchIndex_(batchIndex) {}
+        : ledgerId_(ledgerId),
+          entryId_(entryId),
+          partition_(partition),
+          batchIndex_(batchIndex),
+          topicName_(emptyString) {}
     const int64_t ledgerId_;
     const int64_t entryId_;
     const int32_t partition_;
     const int32_t batchIndex_;
+    std::string topicName_;
 };
 }  // namespace pulsar

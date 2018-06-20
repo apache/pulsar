@@ -100,6 +100,26 @@ void UnAckedMessageTrackerEnabled::removeMessagesTill(const MessageId& msgId) {
     }
 }
 
+// this is only for MultiTopicsConsumerImpl, when un-subscribe a single topic, should remove all it's message.
+void UnAckedMessageTrackerEnabled::removeTopicMessage(const std::string& topic) {
+    for (std::set<MessageId>::iterator it = oldSet_.begin(); it != oldSet_.end();) {
+        std::string topicPartitionName = it->getTopicName();
+        if (topicPartitionName.find(topic) != std::string::npos) {
+            oldSet_.erase(it++);
+        } else {
+            it++;
+        }
+    }
+    for (std::set<MessageId>::iterator it = currentSet_.begin(); it != currentSet_.end();) {
+        std::string topicPartitionName = it->getTopicName();
+        if (topicPartitionName.find(topic) != std::string::npos) {
+            currentSet_.erase(it++);
+        } else {
+            it++;
+        }
+    }
+}
+
 void UnAckedMessageTrackerEnabled::clear() {
     currentSet_.clear();
     oldSet_.clear();

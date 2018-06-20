@@ -19,8 +19,9 @@
 #include "MessageImpl.h"
 
 namespace pulsar {
+const static std::string emptyString = "";
 
-MessageImpl::MessageImpl() : metadata(), payload(), messageId(), cnx_(0) {}
+MessageImpl::MessageImpl() : metadata(), payload(), messageId(), cnx_(0), topicName_(emptyString) {}
 
 const Message::StringMap& MessageImpl::properties() {
     if (properties_.size() == 0) {
@@ -78,4 +79,12 @@ void MessageImpl::setPartitionKey(const std::string& partitionKey) {
 }
 
 void MessageImpl::setEventTimestamp(uint64_t eventTimestamp) { metadata.set_event_time(eventTimestamp); }
+
+void MessageImpl::setTopicName(std::string topicName) {
+    topicName_ = topicName;
+    messageId.setTopicName(topicName);
+}
+
+std::string& MessageImpl::getTopicName() { return topicName_; }
+
 }  // namespace pulsar

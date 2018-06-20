@@ -44,6 +44,8 @@ class UnAckedMessageTrackerInterface {
     virtual bool remove(const MessageId& m) = 0;
     virtual void removeMessagesTill(const MessageId& msgId) = 0;
     virtual void clear() = 0;
+    // this is only for MultiTopicsConsumerImpl, when un-subscribe a single topic, should remove all it's message.
+    virtual void removeTopicMessage(const std::string& topic) = 0;
 };
 
 typedef boost::scoped_ptr<UnAckedMessageTrackerInterface> UnAckedMessageTrackerScopedPtr;

@@ -228,4 +228,7 @@ const std::string TopicName::getTopicPartitionName(unsigned int partition) {
     topicPartitionName << toString() << PartitionedProducerImpl::PARTITION_NAME_SUFFIX << partition;
     return topicPartitionName.str();
 }
+
+boost::shared_ptr<NamespaceName> TopicName::getNamespaceName() { return namespaceName_; }
+
 }  // namespace pulsar

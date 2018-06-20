@@ -99,6 +99,15 @@ class Client {
     void subscribeAsync(const std::string& topic, const std::string& consumerName,
                         const ConsumerConfiguration& conf, SubscribeCallback callback);
 
+    Result subscribe(const std::vector<std::string>& topics, const std::string& consumerName,
+                     Consumer& consumer);
+    Result subscribe(const std::vector<std::string>& topics, const std::string& consumerName,
+                     const ConsumerConfiguration& conf, Consumer& consumer);
+    void subscribeAsync(const std::vector<std::string>& topics, const std::string& consumerName,
+                        SubscribeCallback callback);
+    void subscribeAsync(const std::vector<std::string>& topics, const std::string& consumerName,
+                        const ConsumerConfiguration& conf, SubscribeCallback callback);
+
     /**
      * Create a topic reader with given {@code ReaderConfiguration} for reading messages from the specified
      * topic.

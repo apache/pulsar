@@ -24,6 +24,7 @@
 #include "ReaderImpl.h"
 #include "PartitionedProducerImpl.h"
 #include "PartitionedConsumerImpl.h"
+#include "MultiTopicsConsumerImpl.h"
 #include "SimpleLoggerImpl.h"
 #include "Log4CxxLogger.h"
 #include <boost/bind.hpp>
@@ -33,6 +34,7 @@
 #include "boost/date_time/posix_time/posix_time.hpp"
 #include <lib/HTTPLookupService.h>
 #include <lib/TopicName.h>
+#include <algorithm>
 
 DECLARE_LOG_OBJECT()
 
@@ -208,6 +210,40 @@ void ClientImpl::handleReaderMetadataLookup(const Result result, const LookupDat
 
     Lock lock(mutex_);
     consumers_.push_back(reader->getConsumer());
+}
+
+void ClientImpl::subscribeAsync(const std::vector<std::string>& topics, const std::string& consumerName,
+                                const ConsumerConfiguration& conf, SubscribeCallback callback) {
+    TopicNamePtr topicNamePtr;
+    {
+        Lock lock(mutex_);
+        if (state_ != Open) {
+            lock.unlock();
+            callback(ResultAlreadyClosed, Consumer());
+            return;
+        } else if (!topics.empty() && !(topicNamePtr = MultiTopicsConsumerImpl::topicNamesValid(topics))) {
+            lock.unlock();
+            callback(ResultInvalidTopicName, Consumer());
+            return;
+        }
+    }
+
+    if (topicNamePtr) {
+        std::string randomName = generateRandomName();
+        std::stringstream consumerTopicNameStream;
+        consumerTopicNameStream << topicNamePtr->toString() << "-TopicsConsumerFakeName-" << randomName;
+        topicNamePtr = TopicName::get(consumerTopicNameStream.str());
+    }
+
+    ConsumerImplBasePtr consumer = boost::make_shared<MultiTopicsConsumerImpl>(
+        shared_from_this(), topics, consumerName, topicNamePtr, conf, lookupServicePtr_);
+
+    consumer->getConsumerCreatedFuture().addListener(
+        boost::bind(&ClientImpl::handleConsumerCreated, shared_from_this(), _1, _2, callback, consumer));
+    Lock lock(mutex_);
+    consumers_.push_back(consumer);
+    lock.unlock();
+    consumer->start();
 }
 
 void ClientImpl::subscribeAsync(const std::string& topic, const std::string& consumerName,

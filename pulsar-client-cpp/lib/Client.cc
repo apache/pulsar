@@ -90,6 +90,30 @@ void Client::subscribeAsync(const std::string& topic, const std::string& consume
     impl_->subscribeAsync(topic, consumerName, conf, callback);
 }
 
+Result Client::subscribe(const std::vector<std::string>& topics, const std::string& consumerName,
+                         Consumer& consumer) {
+    return subscribe(topics, consumerName, ConsumerConfiguration(), consumer);
+}
+
+Result Client::subscribe(const std::vector<std::string>& topics, const std::string& consumerName,
+                         const ConsumerConfiguration& conf, Consumer& consumer) {
+    Promise<Result, Consumer> promise;
+    subscribeAsync(topics, consumerName, conf, WaitForCallbackValue<Consumer>(promise));
+    Future<Result, Consumer> future = promise.getFuture();
+
+    return future.get(consumer);
+}
+
+void Client::subscribeAsync(const std::vector<std::string>& topics, const std::string& consumerName,
+                            SubscribeCallback callback) {
+    subscribeAsync(topics, consumerName, ConsumerConfiguration(), callback);
+}
+
+void Client::subscribeAsync(const std::vector<std::string>& topics, const std::string& consumerName,
+                            const ConsumerConfiguration& conf, SubscribeCallback callback) {
+    impl_->subscribeAsync(topics, consumerName, conf, callback);
+}
+
 Result Client::createReader(const std::string& topic, const MessageId& startMessageId,
                             const ReaderConfiguration& conf, Reader& reader) {
     Promise<Result, Reader> promise;

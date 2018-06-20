@@ -51,6 +51,7 @@ class TopicName : public ServiceUnitId {
     std::string getLocalName();
     std::string getEncodedLocalName();
     std::string toString();
+    boost::shared_ptr<NamespaceName> getNamespaceName();
     static boost::shared_ptr<TopicName> get(const std::string& topicName);
     bool operator==(const TopicName& other);
     static std::string getEncodedName(const std::string& nameBeforeEncoding);

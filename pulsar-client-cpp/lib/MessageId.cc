@@ -89,6 +89,10 @@ int32_t MessageId::batchIndex() const { return impl_->batchIndex_; }
 
 int32_t MessageId::partition() const { return impl_->partition_; }
 
+std::string& MessageId::getTopicName() const { return impl_->topicName_; }
+
+void MessageId::setTopicName(std::string topicName) { impl_->topicName_ = topicName; }
+
 #pragma GCC visibility push(default)
 
 std::ostream& operator<<(std::ostream& s, const pulsar::MessageId& messageId) {

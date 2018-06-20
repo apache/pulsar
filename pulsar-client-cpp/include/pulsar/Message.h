@@ -47,6 +47,16 @@ class Message {
     Message();
 
     /**
+     * Only for MultiTopicsConsumer to get a valid topicName
+     */
+    std::string& getTopicName() const;
+
+    /**
+     * Only for MultiTopicsConsumer to set a valid topicName
+     */
+    void setTopicName(std::string topicName) const;
+
+    /**
      * Return the properties attached to the message.
      * Properties are application defined key/value pairs that will be attached to the message
      *
@@ -134,6 +144,7 @@ class Message {
             proto::SingleMessageMetadata& singleMetadata);
     friend class PartitionedProducerImpl;
     friend class PartitionedConsumerImpl;
+    friend class MultiTopicsConsumerImpl;
     friend class MessageBuilder;
     friend class ConsumerImpl;
     friend class ProducerImpl;
