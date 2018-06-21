@@ -52,3 +52,11 @@ void pulsar_reader_close_async(pulsar_reader_t *reader, pulsar_result_callback c
 }
 
 void pulsar_reader_free(pulsar_reader_t *reader) { delete reader; }
+
+pulsar_result pulsar_reader_has_message_available(pulsar_reader_t *reader, int *available) {
+    bool ava = (*available != 0);
+    bool &para = ava;
+    pulsar_result result = (pulsar_result)reader->reader.hasMessageAvailable(para);
+    *available = para;
+    return result;
+}
