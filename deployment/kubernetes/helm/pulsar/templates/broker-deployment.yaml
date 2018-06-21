@@ -46,8 +46,10 @@ spec:
       annotations:
 {{ toYaml .Values.broker.annotations | indent 8 }}
     spec:
+    {{- if .Values.broker.nodeSelector }}
       nodeSelector:
 {{ toYaml .Values.broker.nodeSelector | indent 8 }}
+    {{- end }}
     {{- if .Values.broker.tolerations }}
       tolerations:
 {{ toYaml .Values.broker.tolerations | indent 8 }}

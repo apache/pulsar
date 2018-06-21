@@ -50,8 +50,10 @@ spec:
       annotations:
 {{ toYaml .Values.zookeeper.annotations | indent 8 }}
     spec:
+    {{- if .Values.zookeeper.nodeSelector }}
       nodeSelector:
 {{ toYaml .Values.zookeeper.nodeSelector | indent 8 }}
+    {{- end }}
     {{- if .Values.zookeeper.tolerations }}
       tolerations:
 {{ toYaml .Values.zookeeper.tolerations | indent 8 }}
@@ -120,6 +122,12 @@ spec:
         volumeMounts:
         - name: "{{ template "pulsar.fullname" . }}-{{ .Values.zookeeper.component }}-{{ .Values.zookeeper.volumes.data.name }}"
           mountPath: /pulsar/data
+    {{- if not .Values.persistence }}
+      volumes:
+      - name: "{{ template "pulsar.fullname" . }}-{{ .Values.zookeeper.component }}-{{ .Values.zookeeper.volumes.data.name }}"
+        emptyDir: {}
+    {{- end }}
+{{- if .Values.persistence }}
   volumeClaimTemplates:
   - metadata:
       name: "{{ template "pulsar.fullname" . }}-{{ .Values.zookeeper.component }}-{{ .Values.zookeeper.volumes.data.name }}"
@@ -128,4 +136,7 @@ spec:
       resources:
         requests:
           storage: {{ .Values.zookeeper.volumes.data.size }}
+    {{- if .Values.zookeeper.volumes.data.storageClass }}
       storageClassName: "{{ template "pulsar.fullname" . }}-{{ .Values.zookeeper.component }}-{{ .Values.zookeeper.volumes.data.name }}"
+    {{- end }}
+{{- end }}

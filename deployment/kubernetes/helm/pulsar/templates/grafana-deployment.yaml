@@ -47,8 +47,10 @@ spec:
       annotations:
 {{ toYaml .Values.grafana.annotations | indent 8 }}
     spec:
+    {{- if .Values.grafana.nodeSelector }}
       nodeSelector:
 {{ toYaml .Values.grafana.nodeSelector | indent 8 }}
+    {{- end }}
     {{- if .Values.grafana.tolerations }}
       tolerations:
 {{ toYaml .Values.grafana.tolerations | indent 8 }}

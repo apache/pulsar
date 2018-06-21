@@ -17,6 +17,8 @@
 # under the License.
 #
 
+{{- if .Values.persistence }}
+{{- if .Values.bookkeeper.volumes.journal.storageClass }}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -33,8 +35,10 @@ provisioner: {{ .Values.bookkeeper.volumes.journal.storageClass.provisioner }}
 parameters:
   type: {{ .Values.bookkeeper.volumes.journal.storageClass.type }}
   fsType: {{ .Values.bookkeeper.volumes.journal.storageClass.fsType }}
+{{- end }}
 ---
 
+{{- if .Values.bookkeeper.volumes.ledgers.storageClass }}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -51,3 +55,5 @@ provisioner: {{ .Values.bookkeeper.volumes.ledgers.storageClass.provisioner }}
 parameters:
   type: {{ .Values.bookkeeper.volumes.ledgers.storageClass.type }}
   fsType: {{ .Values.bookkeeper.volumes.ledgers.storageClass.fsType }}
+{{- end }}
+{{- end }}

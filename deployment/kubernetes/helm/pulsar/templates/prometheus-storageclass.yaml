@@ -18,6 +18,8 @@
 #
 
 {{- if .Values.extra.monitoring }}
+{{- if .Values.persistence }}
+{{- if .Values.prometheus.volumes.data.storageClass }}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -34,4 +36,6 @@ provisioner: {{ .Values.prometheus.volumes.data.storageClass.provisioner }}
 parameters:
   type: {{ .Values.prometheus.volumes.data.storageClass.type }}
   fsType: {{ .Values.prometheus.volumes.data.storageClass.fsType }}
+{{- end }}
+{{- end }}
 {{- end }}

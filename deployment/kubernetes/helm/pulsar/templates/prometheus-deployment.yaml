@@ -47,8 +47,10 @@ spec:
       annotations:
 {{ toYaml .Values.prometheus.annotations | indent 8 }}
     spec:
+    {{- if .Values.prometheus.nodeSelector }}
       nodeSelector:
 {{ toYaml .Values.prometheus.nodeSelector | indent 8 }}
+    {{- end }}
     {{- if .Values.prometheus.tolerations }}
       tolerations:
 {{ toYaml .Values.prometheus.tolerations | indent 8 }}

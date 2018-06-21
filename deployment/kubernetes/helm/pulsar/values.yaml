@@ -21,6 +21,11 @@
 namespace: pulsar
 namespaceCreate: yes
 
+## If persistence is enabled, components that has state will
+## be deployed with PersistentVolumeClaims, otherwise, for test
+## purposes, they will be deployed with emptDir
+persistence: no
+
 ## which extra components to deploy
 extra:
   # Pulsar proxy
@@ -49,8 +54,8 @@ zookeeper:
   updateStrategy:
     type: OnDelete
   podManagementPolicy: OrderedReady
-  nodeSelector:
-    cloud.google.com/gke-nodepool: default-pool
+  # nodeSelector:
+    # cloud.google.com/gke-nodepool: default-pool
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "8000"
@@ -64,10 +69,13 @@ zookeeper:
     data:
       name: data
       size: 20Gi
-      storageClass:
-        type: pd-ssd
-        fsType: xfs
-        provisioner: kubernetes.io/gce-pd
+      ## If the storage class is left undefined when using persistence
+      ## the default storage class for the cluster will be used.
+      ##
+      # storageClass:
+        # type: pd-ssd
+        # fsType: xfs
+        # provisioner: kubernetes.io/gce-pd
   ## Zookeeper configmap
   ## templates/zookeeper-configmap.yaml
   ##
@@ -104,7 +112,7 @@ zookeeperMetadata:
   component: zookeeper-metadata
 
 ## Pulsar: Bookkeeper cluster
-## templates/bookkeeper-service.yaml
+## templates/bookkeeper-statefulset.yaml
 ##
 bookkeeper:
   component: bookkeeper
@@ -112,8 +120,8 @@ bookkeeper:
   updateStrategy:
     type: OnDelete
   podManagementPolicy: OrderedReady
-  nodeSelector:
-    cloud.google.com/gke-nodepool: default-pool
+  # nodeSelector:
+    # cloud.google.com/gke-nodepool: default-pool
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "8000"
@@ -127,17 +135,23 @@ bookkeeper:
     journal:
       name: journal
       size: 50Gi
-      storageClass:
-        type: pd-ssd
-        fsType: xfs
-        provisioner: kubernetes.io/gce-pd
+      ## If the storage class is left undefined when using persistence
+      ## the default storage class for the cluster will be used.
+      ##
+      # storageClass:
+        # type: pd-ssd
+        # fsType: xfs
+        # provisioner: kubernetes.io/gce-pd
     ledgers:
       name: ledgers
       size: 50Gi
-      storageClass:
-        type: pd-ssd
-        fsType: xfs
-        provisioner: kubernetes.io/gce-pd
+      ## If the storage class is left undefined when using persistence
+      ## the default storage class for the cluster will be used.
+      ##
+      # storageClass:
+        # type: pd-ssd
+        # fsType: xfs
+        # provisioner: kubernetes.io/gce-pd
   ## Bookkeeper configmap
   ## templates/bookkeeper-configmap.yaml
   ##
@@ -171,8 +185,8 @@ bookkeeper:
 broker:
   component: broker
   replicaCount: 3
-  nodeSelector:
-    cloud.google.com/gke-nodepool: default-pool
+  # nodeSelector:
+    # cloud.google.com/gke-nodepool: default-pool
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "8080"
@@ -216,8 +230,8 @@ broker:
 proxy:
   component: proxy
   replicaCount: 3
-  nodeSelector:
-    cloud.google.com/gke-nodepool: default-pool
+  # nodeSelector:
+    # cloud.google.com/gke-nodepool: default-pool
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/port: "8080"
@@ -259,8 +273,8 @@ proxy:
 autoRecovery:
   component: autorecovery
   replicaCount: 1
-  nodeSelector:
-    cloud.google.com/gke-nodepool: default-pool
+  # nodeSelector:
+    # cloud.google.com/gke-nodepool: default-pool
   annotations: {}
   tolarations: []
   gracePeriod: 0
@@ -280,8 +294,8 @@ autoRecovery:
 dashboard:
   component: dashboard
   replicaCount: 1
-  nodeSelector:
-    cloud.google.com/gke-nodepool: default-pool
+  # nodeSelector:
+    # cloud.google.com/gke-nodepool: default-pool
   annotations: {}
   tolarations: []
   gracePeriod: 0
@@ -308,8 +322,8 @@ dashboard:
 bastion:
   component: bastion
   replicaCount: 1
-  nodeSelector:
-    cloud.google.com/gke-nodepool: default-pool
+  # nodeSelector:
+    # cloud.google.com/gke-nodepool: default-pool
   annotations: {}
   tolarations: []
   gracePeriod: 0
@@ -329,8 +343,8 @@ bastion:
 prometheus:
   component: prometheus
   replicaCount: 1
-  nodeSelector:
-    cloud.google.com/gke-nodepool: default-pool
+  # nodeSelector:
+    # cloud.google.com/gke-nodepool: default-pool
   annotations: {}
   tolarations: []
   gracePeriod: 0
@@ -346,10 +360,13 @@ prometheus:
     data:
       name: data
       size: 50Gi
-      storageClass:
-        type: pd-standard
-        fsType: xfs
-        provisioner: kubernetes.io/gce-pd
+      ## If the storage class is left undefined when using persistence
+      ## the default storage class for the cluster will be used.
+      ##
+      # storageClass:
+        # type: pd-standard
+        # fsType: xfs
+        # provisioner: kubernetes.io/gce-pd
   ## Prometheus service
   ## templates/prometheus-service.yaml
   ##
@@ -365,8 +382,8 @@ prometheus:
 grafana:
   component: grafana
   replicaCount: 1
-  nodeSelector:
-    cloud.google.com/gke-nodepool: default-pool
+  # nodeSelector:
+    # cloud.google.com/gke-nodepool: default-pool
   annotations: {}
   tolarations: []
   gracePeriod: 0

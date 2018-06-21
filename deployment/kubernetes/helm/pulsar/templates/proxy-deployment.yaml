@@ -47,8 +47,10 @@ spec:
       annotations:
 {{ toYaml .Values.proxy.annotations | indent 8 }}
     spec:
+    {{- if .Values.proxy.nodeSelector }}
       nodeSelector:
 {{ toYaml .Values.proxy.nodeSelector | indent 8 }}
+    {{- end }}
     {{- if .Values.proxy.tolerations }}
       tolerations:
 {{ toYaml .Values.proxy.tolerations | indent 8 }}
