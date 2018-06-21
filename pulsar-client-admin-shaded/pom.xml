@@ -130,83 +130,83 @@
               <relocations>
                <relocation>
                   <pattern>org.asynchttpclient</pattern>
-                  <shadedPattern>org.apache.pulsar.admin.shade.org.asynchttpclient</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.asynchttpclient</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.apache.commons</pattern>
-                  <shadedPattern>org.apache.pulsar.admin.shade.org.apache.commons</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.apache.commons</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.google</pattern>
-                  <shadedPattern>org.apache.pulsar.admin.shade.com.google</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.google</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.fasterxml.jackson</pattern>
-                  <shadedPattern>org.apache.pulsar.admin.shade.com.fasterxml.jackson</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.fasterxml.jackson</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>io.netty</pattern>
-                  <shadedPattern>org.apache.pulsar.admin.shade.io.netty</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.io.netty</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.apache.pulsar.policies</pattern>
-                  <shadedPattern>org.apache.pulsar.admin.shade.org.apache.pulsar.policies</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.apache.pulsar.policies</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.apache.pulsar.checksum</pattern>
-                  <shadedPattern>org.apache.pulsar.admin.shade.org.apache.pulsar.checksum</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.apache.pulsar.checksum</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.scurrilous.circe</pattern>
-                  <shadedPattern>org.apache.pulsar.admin.shade.com.scurrilous.circe</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.scurrilous.circe</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>net.jpountz</pattern>
-                  <shadedPattern>org.apache.pulsar.admin.shade.net.jpountz</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.net.jpountz</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.yahoo</pattern>
-                  <shadedPattern>org.apache.pulsar.admin.shade.com.yahoo</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.yahoo</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.typesafe</pattern>
-                  <shadedPattern>org.apache.pulsar.admin.shade.com.typesafe</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.typesafe</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.glassfish</pattern>
-                  <shadedPattern>org.apache.pulsar.admin.shade.org.glassfish</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.glassfish</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>javax.ws</pattern>
-                  <shadedPattern>org.apache.pulsar.admin.shade.javax.ws</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.javax.ws</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>javax.annotation</pattern>
-                  <shadedPattern>org.apache.pulsar.admin.shade.javax.annotation</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.javax.annotation</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>jersey</pattern>
-                  <shadedPattern>org.apache.pulsar.admin.shade.jersey</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.jersey</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.jvnet</pattern>
-                  <shadedPattern>org.apache.pulsar.admin.shade.org.jvnet</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.jvnet</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.aopalliance</pattern>
-                  <shadedPattern>org.apache.pulsar.admin.shade.org.aopalliance</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.aopalliance</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>javassist</pattern>
-                  <shadedPattern>org.apache.pulsar.admin.shade.javassist</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.javassist</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>javax.inject</pattern>
-                  <shadedPattern>org.apache.pulsar.admin.shade.javax.inject</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.javax.inject</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.reactivestreams</pattern>
-                  <shadedPattern>org.apache.pulsar.admin.shade.org.reactivestreams</shadedPattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.reactivestreams</shadedPattern>
                 </relocation>
                   <relocation>
                       <pattern>org.apache.avro</pattern>
