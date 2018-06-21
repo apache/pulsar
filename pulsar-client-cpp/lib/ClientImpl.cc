@@ -82,7 +82,8 @@ ClientImpl::ClientImpl(const std::string& serviceUrl, const ClientConfiguration&
 #ifdef USE_LOG4CXX
         if (!clientConfiguration.getLogConfFilePath().empty()) {
             // A log4cxx log file was passed through deprecated parameter. Use that to configure Log4CXX
-            LogUtils::setLoggerFactory(Log4CxxLogger::create(clientConfiguration.getLogConfFilePath()));
+            LogUtils::setLoggerFactory(
+                Log4CxxLoggerFactory::create(clientConfiguration.getLogConfFilePath()));
         } else {
             // Use default simple console logger
             LogUtils::setLoggerFactory(SimpleLoggerFactory::create());
