@@ -89,6 +89,11 @@ public class MultiConsumersOneOutputTopicProducersTest {
         }
 
         @Override
+        public ProducerBuilder<byte[]> loadConf(Map<String, Object> config) {
+            return this;
+        }
+
+        @Override
         public ProducerBuilder<byte[]> clone() {
             return this;
         }
