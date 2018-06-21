@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6,"i20":6,"i21":6};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6,"i20":6,"i21":6,"i22":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -99,12 +99,12 @@ var activeTableTab = "activeTableTab";
 <li class="blockList">
 <dl>
 <dt>All Superinterfaces:</dt>
-<dd>Cloneable, Serializable</dd>
+<dd>Cloneable</dd>
 </dl>
 <hr>
 <br>
 <pre>public interface <span class="typeNameLabel">ProducerBuilder&lt;T&gt;</span>
-extends Serializable, Cloneable</pre>
+extends Cloneable</pre>
 <div class="block"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api"><code>ProducerBuilder</code></a> is used to configure and create instances of <a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api"><code>Producer</code></a>.</div>
 <dl>
 <dt><span class="seeLabel">See Also:</span></dt>
@@ -211,55 +211,61 @@ extends Serializable, Cloneable</pre>
 </tr>
 <tr id="i13" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#loadConf-java.util.Map-">loadConf</a></span>(Map&lt;String,Object&gt;&nbsp;config)</code>
+<div class="block">Load the configuration from provided <tt>config</tt> map.</div>
+</td>
+</tr>
+<tr id="i14" class="altColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#maxPendingMessages-int-">maxPendingMessages</a></span>(int&nbsp;maxPendingMessages)</code>
 <div class="block">Set the max size of the queue holding the messages pending to receive an acknowledgment from the broker.</div>
 </td>
 </tr>
-<tr id="i14" class="altColor">
+<tr id="i15" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#maxPendingMessagesAcrossPartitions-int-">maxPendingMessagesAcrossPartitions</a></span>(int&nbsp;maxPendingMessagesAcrossPartitions)</code>
 <div class="block">Set the number of max pending messages across all the partitions</div>
 </td>
 </tr>
-<tr id="i15" class="rowColor">
+<tr id="i16" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#messageRouter-org.apache.pulsar.client.api.MessageRouter-">messageRouter</a></span>(<a href="../../../../../org/apache/pulsar/client/api/MessageRouter.html" title="interface in org.apache.pulsar.client.api">MessageRouter</a>&nbsp;messageRouter)</code>
 <div class="block">Set a custom message routing policy by passing an implementation of MessageRouter</div>
 </td>
 </tr>
-<tr id="i16" class="altColor">
+<tr id="i17" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#messageRoutingMode-org.apache.pulsar.client.api.MessageRoutingMode-">messageRoutingMode</a></span>(<a href="../../../../../org/apache/pulsar/client/api/MessageRoutingMode.html" title="enum in org.apache.pulsar.client.api">MessageRoutingMode</a>&nbsp;messageRoutingMode)</code>
 <div class="block">Set the message routing mode for the partitioned producer.</div>
 </td>
 </tr>
-<tr id="i17" class="rowColor">
+<tr id="i18" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#producerName-java.lang.String-">producerName</a></span>(String&nbsp;producerName)</code>
 <div class="block">Specify a name for the producer</div>
 </td>
 </tr>
-<tr id="i18" class="altColor">
+<tr id="i19" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#properties-java.util.Map-">properties</a></span>(Map&lt;String,String&gt;&nbsp;properties)</code>
 <div class="block">Add all the properties in the provided map</div>
 </td>
 </tr>
-<tr id="i19" class="rowColor">
+<tr id="i20" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#property-java.lang.String-java.lang.String-">property</a></span>(String&nbsp;key,
         String&nbsp;value)</code>
 <div class="block">Set a name/value property with this producer.</div>
 </td>
 </tr>
-<tr id="i20" class="altColor">
+<tr id="i21" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#sendTimeout-int-java.util.concurrent.TimeUnit-">sendTimeout</a></span>(int&nbsp;sendTimeout,
            TimeUnit&nbsp;unit)</code>
 <div class="block">Set the send timeout <i>(default: 30 seconds)</i></div>
 </td>
 </tr>
-<tr id="i21" class="rowColor">
+<tr id="i22" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#topic-java.lang.String-">topic</a></span>(String&nbsp;topicName)</code>
 <div class="block">Specify the topic this producer will be publishing on.</div>
@@ -316,6 +322,34 @@ extends Serializable, Cloneable</pre>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.ProducerBusyException.html" title="class in org.apache.pulsar.client.api">PulsarClientException.ProducerBusyException</a></code> - if a producer with the same "producer name" is already connected to the topic</dd>
 <dd><code><a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></code> - if the producer creation fails</dd>
+</dl>
+</li>
+</ul>
+<a name="loadConf-java.util.Map-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>loadConf</h4>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;&nbsp;loadConf(Map&lt;String,Object&gt;&nbsp;config)</pre>
+<div class="block">Load the configuration from provided <tt>config</tt> map.
+
+ <p>Example:
+ <pre>
+ Map&lt;String, Object&gt; config = new HashMap&lt;&gt;();
+ config.put("producerName", "test-producer");
+ config.put("sendTimeoutMs", 2000);
+
+ ProducerBuilder&lt;byte[]&gt; builder = ...;
+ builder = builder.loadConf(config);
+
+ Producer&lt;byte[]&gt; producer = builder.create();
+ </pre></div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>config</code> - configuration to load</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>producer builder instance</dd>
 </dl>
 </li>
 </ul>
