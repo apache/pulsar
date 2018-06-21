@@ -47,17 +47,6 @@ public interface PulsarClient extends Closeable {
     }
 
     /**
-     * Create a pulsar client builder instance with a provided configuration map.
-     *
-     * @param config configuration map.
-     * @return client builder
-     * @since 2.1.0
-     */
-    static ClientBuilder builder(Map<String, Object> config) {
-        return new ClientBuilderImpl(ConfigurationDataUtils.loadData(config, ClientConfigurationData.class));
-    }
-
-    /**
      * Create a new PulsarClient object using default client configuration
      *
      * @param serviceUrl

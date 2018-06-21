@@ -60,6 +60,18 @@ public interface ProducerBuilder<T> extends Cloneable {
     /**
      * Load the configuration from provided <tt>config</tt> map.
      *
+     * <p>Example:
+     * <pre>
+     * Map&lt;String, Object&gt; config = new HashMap&lt;&gt;();
+     * config.put("producerName", "test-producer");
+     * config.put("sendTimeoutMs", 2000);
+     *
+     * ProducerBuilder&lt;byte[]&gt; builder = ...;
+     * builder = builder.loadConf(config);
+     *
+     * Producer&lt;byte[]&gt; producer = builder.create();
+     * </pre>
+     *
      * @param config configuration to load
      * @return producer builder instance
      */

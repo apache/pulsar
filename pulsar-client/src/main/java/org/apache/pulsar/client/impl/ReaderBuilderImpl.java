@@ -96,7 +96,7 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
 
     @Override
     public ReaderBuilder<T> loadConf(Map<String, Object> config) {
-        conf = ConfigurationDataUtils.loadData(config, ReaderConfigurationData.class);
+        conf = ConfigurationDataUtils.loadData(config, conf, ReaderConfigurationData.class);
         return this;
     }
 

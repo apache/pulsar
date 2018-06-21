@@ -31,42 +31,62 @@ public class ConfigurationDataUtilsTest {
 
     @Test
     public void testLoadClientConfigurationData() {
+        ClientConfigurationData confData = new ClientConfigurationData();
+        confData.setServiceUrl("pulsar://unknown:6650");
+        confData.setMaxLookupRequest(600);
+        confData.setNumIoThreads(33);
         Map<String, Object> config = new HashMap<>();
         config.put("serviceUrl", "pulsar://localhost:6650");
         config.put("maxLookupRequest", 70000);
-        ClientConfigurationData confData = ConfigurationDataUtils.loadData(config, ClientConfigurationData.class);
+        confData = ConfigurationDataUtils.loadData(config, confData, ClientConfigurationData.class);
         assertEquals("pulsar://localhost:6650", confData.getServiceUrl());
         assertEquals(70000, confData.getMaxLookupRequest());
+        assertEquals(33, confData.getNumIoThreads());
     }
 
     @Test
     public void testLoadProducerConfigurationData() {
+        ProducerConfigurationData confData = new ProducerConfigurationData();
+        confData.setProducerName("unset");
+        confData.setBatchingEnabled(true);
+        confData.setBatchingMaxMessages(1234);
         Map<String, Object> config = new HashMap<>();
         config.put("producerName", "test-producer");
         config.put("batchingEnabled", false);
-        ProducerConfigurationData confData = ConfigurationDataUtils.loadData(config, ProducerConfigurationData.class);
+        confData = ConfigurationDataUtils.loadData(config, confData, ProducerConfigurationData.class);
         assertEquals("test-producer", confData.getProducerName());
         assertEquals(false, confData.isBatchingEnabled());
+        assertEquals(1234, confData.getBatchingMaxMessages());
     }
 
     @Test
     public void testLoadConsumerConfigurationData() {
+        ConsumerConfigurationData confData = new ConsumerConfigurationData();
+        confData.setSubscriptionName("unknown-subscription");
+        confData.setPriorityLevel(10000);
+        confData.setConsumerName("unknown-consumer");
         Map<String, Object> config = new HashMap<>();
         config.put("subscriptionName", "test-subscription");
         config.put("priorityLevel", 100);
-        ConsumerConfigurationData confData = ConfigurationDataUtils.loadData(config, ConsumerConfigurationData.class);
+        confData = ConfigurationDataUtils.loadData(config, confData, ConsumerConfigurationData.class);
         assertEquals("test-subscription", confData.getSubscriptionName());
         assertEquals(100, confData.getPriorityLevel());
+        assertEquals("unknown-consumer", confData.getConsumerName());
     }
 
     @Test
     public void testLoadReaderConfigurationData() {
+        ReaderConfigurationData confData = new ReaderConfigurationData();
+        confData.setTopicName("unknown");
+        confData.setReceiverQueueSize(1000000);
+        confData.setReaderName("unknown-reader");
         Map<String, Object> config = new HashMap<>();
         config.put("topicName", "test-topic");
         config.put("receiverQueueSize", 100);
-        ReaderConfigurationData confData = ConfigurationDataUtils.loadData(config, ReaderConfigurationData.class);
+        confData = ConfigurationDataUtils.loadData(config, confData, ReaderConfigurationData.class);
         assertEquals("test-topic", confData.getTopicName());
         assertEquals(100, confData.getReceiverQueueSize());
+        assertEquals("unknown-reader", confData.getReaderName());
     }
 
 }

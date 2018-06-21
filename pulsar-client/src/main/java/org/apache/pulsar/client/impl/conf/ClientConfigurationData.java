@@ -18,10 +18,8 @@
  */
 package org.apache.pulsar.client.impl.conf;
 
-import com.google.gson.Gson;
 import java.io.Serializable;
 
-import java.util.Map;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 

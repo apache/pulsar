@@ -36,6 +36,26 @@ public interface ClientBuilder extends Cloneable {
     PulsarClient build() throws PulsarClientException;
 
     /**
+     * Load the configuration from provided <tt>config</tt> map.
+     *
+     * <p>Example:
+     * <pre>
+     * Map&lt;String, Object&gt; config = new HashMap&lt;&gt;();
+     * config.put("serviceUrl", "pulsar://localhost:5550");
+     * config.put("numIoThreads", 20);
+     *
+     * ClientBuilder builder = ...;
+     * builder = builder.loadConf(config);
+     *
+     * PulsarClient client = builder.build();
+     * </pre>
+     *
+     * @param config configuration to load
+     * @return client builder instance
+     */
+    ClientBuilder loadConf(Map<String, Object> config);
+
+    /**
      * Create a copy of the current client builder.
      * <p>
      * Cloning the builder can be used to share an incomplete configuration and specialize it multiple times. For

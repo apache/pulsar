@@ -18,8 +18,11 @@
  */
 package org.apache.pulsar.client.impl.conf;
 
-import com.google.gson.Gson;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Maps;
+import java.io.IOException;
 import java.util.Map;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 /**
  * Utils for loading configuration data.
@@ -28,10 +31,22 @@ public final class ConfigurationDataUtils {
 
     private ConfigurationDataUtils() {}
 
-    public static <T> T loadData(Map<String, Object> config, Class<T> configurationDataCls) {
-        Gson gson = new Gson();
-        String configJson = gson.toJson(config);
-        return gson.fromJson(configJson, configurationDataCls);
+    public static <T> T loadData(Map<String, Object> config,
+                                 T existingData,
+                                 Class<T> dataCls) {
+        ObjectMapper mapper = ObjectMapperFactory.getThreadLocal();
+        try {
+            String existingConfigJson = mapper.writeValueAsString(existingData);
+            Map<String, Object> existingConfig = mapper.readValue(existingConfigJson, Map.class);
+            Map<String, Object> newConfig = Maps.newHashMap();
+            newConfig.putAll(existingConfig);
+            newConfig.putAll(config);
+            String configJson = mapper.writeValueAsString(newConfig);
+            return mapper.readValue(configJson, dataCls);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load config into existing configuration data");
+        }
+
     }
 
 }
