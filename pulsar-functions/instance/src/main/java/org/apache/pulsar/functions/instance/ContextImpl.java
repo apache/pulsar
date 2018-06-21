@@ -18,8 +18,11 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import java.nio.ByteBuffer;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.lang.StringUtils;
@@ -215,12 +218,48 @@ class ContextImpl implements Context {
         return userConfigs;
     }
 
+
+    private void ensureStateEnabled() {
+        checkState(null != stateContext, "State is not enabled.");
+    }
+
     @Override
     public void incrCounter(String key, long amount) {
-        if (null != stateContext) {
+        ensureStateEnabled();
+        try {
             stateContext.incr(key, amount);
-        } else {
-            throw new RuntimeException("State is not enabled.");
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to increment key '" + key + "' by amount '" + amount + "'", e);
+        }
+    }
+
+    @Override
+    public long getCounter(String key) {
+        ensureStateEnabled();
+        try {
+            return stateContext.getAmount(key);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve counter from key '" + key + "'");
+        }
+    }
+
+    @Override
+    public void putState(String key, ByteBuffer value) {
+        ensureStateEnabled();
+        try {
+            stateContext.put(key, value);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to update the state value for key '" + key + "'");
+        }
+    }
+
+    @Override
+    public ByteBuffer getState(String key) {
+        ensureStateEnabled();
+        try {
+            return stateContext.getValue(key);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve the state value for key '" + key + "'");
         }
     }
 

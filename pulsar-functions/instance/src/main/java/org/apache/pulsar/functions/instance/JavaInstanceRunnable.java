@@ -30,7 +30,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -160,6 +159,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     public void run() {
         try {
             javaInstance = setupJavaInstance();
+            if (null != stateTable) {
+                StateContextImpl stateContext = new StateContextImpl(stateTable);
+                javaInstance.getContext().setStateContext(stateContext);
+            }
             while (true) {
 
                 currentRecord = readInput();
@@ -169,16 +172,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     if (instanceConfig.getFunctionDetails().getAutoAck()) {
                         currentRecord.ack();
                     }
-                }
-
-                // state object is per function, because we need to have the ability to know what updates
-                // are made in this function and ensure we only acknowledge after the state is persisted.
-                StateContextImpl stateContext;
-                if (null != stateTable) {
-                    stateContext = new StateContextImpl(stateTable);
-                    javaInstance.getContext().setStateContext(stateContext);
-                } else {
-                    stateContext = null;
                 }
 
                 // process the message
@@ -201,16 +194,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 long doneProcessing = System.currentTimeMillis();
                 log.debug("Got result: {}", result.getResult());
 
-                if (null != stateContext) {
-                    CompletableFuture completableFuture = stateContext.flush();
-
-                    try {
-                        completableFuture.join();
-                    } catch (Exception e) {
-                        log.error("Failed to flush the state updates of message {}", currentRecord, e);
-                        currentRecord.fail();
-                    }
-                }
                 try {
                     processResult(currentRecord, result, processAt, doneProcessing);
                 } catch (Exception e) {
@@ -259,7 +242,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         ).replace('-', '_');
         String tableName = instanceConfig.getFunctionDetails().getName();
 
-        // TODO (sijie): use endpoint for now
         StorageClientSettings settings = StorageClientSettings.newBuilder()
                 .serviceUri(stateStorageServiceUrl)
                 .clientName("function-" + tableNs + "/" + tableName)

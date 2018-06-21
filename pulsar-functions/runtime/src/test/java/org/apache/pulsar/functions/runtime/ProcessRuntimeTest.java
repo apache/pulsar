@@ -57,6 +57,7 @@ public class ProcessRuntimeTest {
     private final String javaInstanceJarFile;
     private final String pythonInstanceFile;
     private final String pulsarServiceUrl;
+    private final String stateStorageServiceUrl;
     private final String logDirectory;
 
     public ProcessRuntimeTest() {
@@ -64,9 +65,10 @@ public class ProcessRuntimeTest {
         this.javaInstanceJarFile = "/Users/user/JavaInstance.jar";
         this.pythonInstanceFile = "/Users/user/PythonInstance.py";
         this.pulsarServiceUrl = "pulsar://localhost:6670";
+        this.stateStorageServiceUrl = "bk://localhost:4181";
         this.logDirectory = "Users/user/logs";
         this.factory = new ProcessRuntimeFactory(
-            pulsarServiceUrl, null, javaInstanceJarFile, pythonInstanceFile, logDirectory);
+            pulsarServiceUrl, stateStorageServiceUrl, null, javaInstanceJarFile, pythonInstanceFile, logDirectory);
     }
 
     @AfterMethod
@@ -115,7 +117,7 @@ public class ProcessRuntimeTest {
 
         ProcessRuntime container = factory.createContainer(config, userJarFile);
         List<String> args = container.getProcessArgs();
-        assertEquals(args.size(), 53);
+        assertEquals(args.size(), 55);
         String expectedArgs = "java -cp " + javaInstanceJarFile + " -Dlog4j.configurationFile=java_instance_log4j2.yml "
                 + "-Dpulsar.log.dir=" + logDirectory + "/functions" + " -Dpulsar.log.file=" + config.getFunctionDetails().getName()
                 + " org.apache.pulsar.functions.runtime.JavaInstanceMain"
@@ -138,7 +140,8 @@ public class ProcessRuntimeTest {
                 + " --sink_classname " + config.getFunctionDetails().getSink().getClassName()
                 + " --sink_type_classname " + config.getFunctionDetails().getSink().getTypeClassName()
                 + " --sink_topic " + config.getFunctionDetails().getSink().getTopic()
-                + " --sink_serde_classname " + config.getFunctionDetails().getSink().getSerDeClassName();
+                + " --sink_serde_classname " + config.getFunctionDetails().getSink().getSerDeClassName()
+                + " --state_storage_serviceurl " + stateStorageServiceUrl;
         assertEquals(expectedArgs, String.join(" ", args));
     }
 

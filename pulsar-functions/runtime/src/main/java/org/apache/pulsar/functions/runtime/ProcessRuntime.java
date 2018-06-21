@@ -70,10 +70,11 @@ class ProcessRuntime implements Runtime {
                    String logDirectory,
                    String codeFile,
                    String pulsarServiceUrl,
+                   String stateStorageServiceUrl,
                    AuthenticationConfig authConfig) {
         this.instanceConfig = instanceConfig;
         this.instancePort = instanceConfig.getPort();
-        this.processArgs = composeArgs(instanceConfig, instanceFile, logDirectory, codeFile, pulsarServiceUrl,
+        this.processArgs = composeArgs(instanceConfig, instanceFile, logDirectory, codeFile, pulsarServiceUrl, stateStorageServiceUrl,
                 authConfig);
     }
 
@@ -82,6 +83,7 @@ class ProcessRuntime implements Runtime {
                                      String logDirectory,
                                      String codeFile,
                                      String pulsarServiceUrl,
+                                     String stateStorageServiceUrl,
                                      AuthenticationConfig authConfig) {
         List<String> args = new LinkedList<>();
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
@@ -227,6 +229,13 @@ class ProcessRuntime implements Runtime {
                 && !instanceConfig.getFunctionDetails().getSink().getSerDeClassName().isEmpty()) {
             args.add("--sink_serde_classname");
             args.add(instanceConfig.getFunctionDetails().getSink().getSerDeClassName());
+        }
+
+        // state storage configs
+        if (null != stateStorageServiceUrl
+            && instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
+            args.add("--state_storage_serviceurl");
+            args.add(stateStorageServiceUrl);
         }
         return args;
     }
