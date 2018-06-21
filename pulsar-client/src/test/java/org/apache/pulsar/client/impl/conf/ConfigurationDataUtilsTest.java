@@ -19,7 +19,10 @@
 package org.apache.pulsar.client.impl.conf;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import org.testng.annotations.Test;
@@ -89,4 +92,20 @@ public class ConfigurationDataUtilsTest {
         assertEquals("unknown-reader", confData.getReaderName());
     }
 
+    @Test
+    public void testLoadConfigurationDataWithUnknownFields() {
+        ReaderConfigurationData confData = new ReaderConfigurationData();
+        confData.setTopicName("unknown");
+        confData.setReceiverQueueSize(1000000);
+        confData.setReaderName("unknown-reader");
+        Map<String, Object> config = new HashMap<>();
+        config.put("unknown", "test-topic");
+        config.put("receiverQueueSize", 100);
+        try {
+            ConfigurationDataUtils.loadData(config, confData, ReaderConfigurationData.class);
+            fail("Should fail loading configuration data with unknown fields");
+        } catch (RuntimeException re) {
+            assertTrue(re.getCause() instanceof IOException);
+        }
+    }
 }

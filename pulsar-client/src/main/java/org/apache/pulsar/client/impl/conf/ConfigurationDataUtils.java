@@ -18,23 +18,45 @@
  */
 package org.apache.pulsar.client.impl.conf;
 
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
+import io.netty.util.concurrent.FastThreadLocal;
 import java.io.IOException;
 import java.util.Map;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 /**
  * Utils for loading configuration data.
  */
 public final class ConfigurationDataUtils {
 
+    public static ObjectMapper create() {
+        ObjectMapper mapper = new ObjectMapper();
+        // forward compatibility for the properties may go away in the future
+        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, true);
+        mapper.configure(DeserializationFeature.READ_UNKNOWN_ENUM_VALUES_AS_NULL, false);
+        mapper.setSerializationInclusion(Include.NON_NULL);
+        return mapper;
+    }
+
+    private static final FastThreadLocal<ObjectMapper> mapper = new FastThreadLocal<ObjectMapper>() {
+        @Override
+        protected ObjectMapper initialValue() throws Exception {
+            return create();
+        }
+    };
+
+    public static ObjectMapper getThreadLocal() {
+        return mapper.get();
+    }
+
     private ConfigurationDataUtils() {}
 
     public static <T> T loadData(Map<String, Object> config,
                                  T existingData,
                                  Class<T> dataCls) {
-        ObjectMapper mapper = ObjectMapperFactory.getThreadLocal();
+        ObjectMapper mapper = getThreadLocal();
         try {
             String existingConfigJson = mapper.writeValueAsString(existingData);
             Map<String, Object> existingConfig = mapper.readValue(existingConfigJson, Map.class);
@@ -44,7 +66,7 @@ public final class ConfigurationDataUtils {
             String configJson = mapper.writeValueAsString(newConfig);
             return mapper.readValue(configJson, dataCls);
         } catch (IOException e) {
-            throw new RuntimeException("Failed to load config into existing configuration data");
+            throw new RuntimeException("Failed to load config into existing configuration data", e);
         }
 
     }
