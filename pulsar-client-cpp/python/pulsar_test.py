@@ -488,6 +488,28 @@ class PulsarTest(TestCase):
         consumer2.close()
         client.close()
 
+    def test_seek(self):
+        client = Client(self.serviceUrl)
+        consumer = client.subscribe('persistent://sample/standalone/ns/my-python-topic-seek',
+                                    'my-sub',
+                                    consumer_type=ConsumerType.Shared)
+        producer = client.create_producer('persistent://sample/standalone/ns/my-python-topic-seek')
+
+        for i in range(100):
+            producer.send('hello-%d' % i)
+
+        for i in range(100):
+            msg = consumer.receive()
+            self.assertEqual(msg.data(), b'hello-%d' % i)
+            consumer.acknowledge(msg)
+
+        # seek, and after reconnect, expected receive first message.
+        consumer.seek(MessageId.earliest)
+        time.sleep(0.5)
+        msg = consumer.receive()
+        self.assertEqual(msg.data(), b'hello-0')
+        client.close()
+
     def _check_value_error(self, fun):
         try:
             fun()
