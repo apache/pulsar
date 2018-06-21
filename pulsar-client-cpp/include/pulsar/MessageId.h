@@ -36,16 +36,6 @@ class MessageId {
     explicit MessageId(int32_t partition, int64_t ledgerId, int64_t entryId, int32_t batchIndex);
 
     /**
-     * Only for MultiTopicsConsumer to set a valid topicName
-     */
-    void setTopicName(std::string topicName);
-
-    /**
-     * Only for MultiTopicsConsumer to get a valid topicName
-     */
-    std::string& getTopicName() const;
-
-    /**
      * MessageId representing the "earliest" or "oldest available" message stored in the topic
      */
     static const MessageId& earliest();
@@ -93,6 +83,16 @@ class MessageId {
     int64_t entryId() const;
     int32_t batchIndex() const;
     int32_t partition() const;
+
+    /**
+     * Only for MultiTopicsConsumer to set a valid topicName
+     */
+    void setTopicName(std::string topicName);
+
+    /**
+     * Only for MultiTopicsConsumer to get a valid topicName
+     */
+    std::string& getTopicName() const;
 
     typedef boost::shared_ptr<MessageIdImpl> MessageIdImplPtr;
     MessageIdImplPtr impl_;

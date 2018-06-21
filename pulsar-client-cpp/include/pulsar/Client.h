@@ -99,13 +99,13 @@ class Client {
     void subscribeAsync(const std::string& topic, const std::string& consumerName,
                         const ConsumerConfiguration& conf, SubscribeCallback callback);
 
-    Result subscribe(const std::vector<std::string>& topics, const std::string& consumerName,
+    Result subscribe(const std::vector<std::string>& topics, const std::string& subscriptionName,
                      Consumer& consumer);
-    Result subscribe(const std::vector<std::string>& topics, const std::string& consumerName,
+    Result subscribe(const std::vector<std::string>& topics, const std::string& subscriptionName,
                      const ConsumerConfiguration& conf, Consumer& consumer);
-    void subscribeAsync(const std::vector<std::string>& topics, const std::string& consumerName,
+    void subscribeAsync(const std::vector<std::string>& topics, const std::string& subscriptionName,
                         SubscribeCallback callback);
-    void subscribeAsync(const std::vector<std::string>& topics, const std::string& consumerName,
+    void subscribeAsync(const std::vector<std::string>& topics, const std::string& subscriptionName,
                         const ConsumerConfiguration& conf, SubscribeCallback callback);
 
     /**

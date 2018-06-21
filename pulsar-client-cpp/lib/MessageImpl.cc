@@ -19,9 +19,8 @@
 #include "MessageImpl.h"
 
 namespace pulsar {
-const static std::string emptyString = "";
 
-MessageImpl::MessageImpl() : metadata(), payload(), messageId(), cnx_(0), topicName_(emptyString) {}
+MessageImpl::MessageImpl() : metadata(), payload(), messageId(), cnx_(0), topicName_() {}
 
 const Message::StringMap& MessageImpl::properties() {
     if (properties_.size() == 0) {
@@ -85,6 +84,6 @@ void MessageImpl::setTopicName(std::string topicName) {
     messageId.setTopicName(topicName);
 }
 
-std::string& MessageImpl::getTopicName() { return topicName_; }
+const std::string& MessageImpl::getTopicName() { return topicName_; }
 
 }  // namespace pulsar

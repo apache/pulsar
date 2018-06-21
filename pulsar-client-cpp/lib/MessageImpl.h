@@ -54,7 +54,7 @@ class MessageImpl {
     /**
      * Only for MultiTopicsConsumer to get a valid topicName
      */
-    std::string& getTopicName();
+    const std::string& getTopicName();
 
     /**
      * Only for MultiTopicsConsumer to set a valid topicName

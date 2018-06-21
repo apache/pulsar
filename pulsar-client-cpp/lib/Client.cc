@@ -90,28 +90,28 @@ void Client::subscribeAsync(const std::string& topic, const std::string& consume
     impl_->subscribeAsync(topic, consumerName, conf, callback);
 }
 
-Result Client::subscribe(const std::vector<std::string>& topics, const std::string& consumerName,
+Result Client::subscribe(const std::vector<std::string>& topics, const std::string& subscriptionName,
                          Consumer& consumer) {
-    return subscribe(topics, consumerName, ConsumerConfiguration(), consumer);
+    return subscribe(topics, subscriptionName, ConsumerConfiguration(), consumer);
 }
 
-Result Client::subscribe(const std::vector<std::string>& topics, const std::string& consumerName,
+Result Client::subscribe(const std::vector<std::string>& topics, const std::string& subscriptionName,
                          const ConsumerConfiguration& conf, Consumer& consumer) {
     Promise<Result, Consumer> promise;
-    subscribeAsync(topics, consumerName, conf, WaitForCallbackValue<Consumer>(promise));
+    subscribeAsync(topics, subscriptionName, conf, WaitForCallbackValue<Consumer>(promise));
     Future<Result, Consumer> future = promise.getFuture();
 
     return future.get(consumer);
 }
 
-void Client::subscribeAsync(const std::vector<std::string>& topics, const std::string& consumerName,
+void Client::subscribeAsync(const std::vector<std::string>& topics, const std::string& subscriptionName,
                             SubscribeCallback callback) {
-    subscribeAsync(topics, consumerName, ConsumerConfiguration(), callback);
+    subscribeAsync(topics, subscriptionName, ConsumerConfiguration(), callback);
 }
 
-void Client::subscribeAsync(const std::vector<std::string>& topics, const std::string& consumerName,
+void Client::subscribeAsync(const std::vector<std::string>& topics, const std::string& subscriptionName,
                             const ConsumerConfiguration& conf, SubscribeCallback callback) {
-    impl_->subscribeAsync(topics, consumerName, conf, callback);
+    impl_->subscribeAsync(topics, subscriptionName, conf, callback);
 }
 
 Result Client::createReader(const std::string& topic, const MessageId& startMessageId,
