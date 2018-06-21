@@ -37,7 +37,6 @@ import org.apache.commons.configuration.Configuration;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
@@ -65,8 +64,7 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
         bookieMappingCache = getAndSetZkCache(conf);
 
         try {
-            racksWithHost = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH)
-                    .orElseThrow(() -> new KeeperException.NoNodeException(BOOKIE_INFO_ROOT_PATH));
+            racksWithHost = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH).orElse(new BookiesRackConfiguration());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -150,6 +148,17 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
     }
 
     private String getRack(String bookieAddress) {
+        try {
+            // Trigger load of z-node in case it didn't exist
+            Optional<BookiesRackConfiguration> racks = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH);
+            if (!racks.isPresent()) {
+                return NetworkTopology.DEFAULT_RACK;
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+
         Optional<BookieInfo> bi = racksWithHost.getBookie(bookieAddress);
         if (bi.isPresent()) {
             String rack = bi.get().getRack();

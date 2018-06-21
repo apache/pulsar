@@ -111,8 +111,7 @@ public class ZkBookieRackAffinityMappingTest {
         bkClientConf.setProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, new ZooKeeperCache(localZkc) {
         });
         mapping.setConf(bkClientConf);
-        List<String> racks = mapping
-                .resolve(Lists.newArrayList(BOOKIE1.toString(), BOOKIE2.toString(), BOOKIE3.toString()));
+        List<String> racks = mapping.resolve(Lists.newArrayList("127.0.0.1", "127.0.0.2", "127.0.0.3"));
         assertEquals(racks.get(0), NetworkTopology.DEFAULT_RACK);
         assertEquals(racks.get(1), NetworkTopology.DEFAULT_RACK);
         assertEquals(racks.get(2), NetworkTopology.DEFAULT_RACK);
@@ -130,7 +129,7 @@ public class ZkBookieRackAffinityMappingTest {
 
         Thread.sleep(100);
 
-        racks = mapping.resolve(Lists.newArrayList(BOOKIE1.toString(), BOOKIE2.toString(), BOOKIE3.toString()));
+        racks = mapping.resolve(Lists.newArrayList("127.0.0.1", "127.0.0.2", "127.0.0.3"));
         assertEquals(racks.get(0), "/rack0");
         assertEquals(racks.get(1), "/rack1");
         assertEquals(racks.get(2), NetworkTopology.DEFAULT_RACK);
@@ -173,16 +172,16 @@ public class ZkBookieRackAffinityMappingTest {
         // wait for the zk to notify and update the mappings
         Thread.sleep(100);
 
-        racks = mapping.resolve(Lists.newArrayList(BOOKIE1.toString(), BOOKIE2.toString(), BOOKIE3.toString()));
+        racks = mapping.resolve(Lists.newArrayList("127.0.0.1", "127.0.0.2", "127.0.0.3"));
         assertEquals(racks.get(0), "/rack0");
         assertEquals(racks.get(1), "/rack1");
         assertEquals(racks.get(2), "/rack0");
 
-        localZkc.delete(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, -1);
+        localZkc.setData(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, "{}".getBytes(), -1);
 
         Thread.sleep(100);
 
-        racks = mapping.resolve(Lists.newArrayList(BOOKIE1.toString(), BOOKIE2.toString(), BOOKIE3.toString()));
+        racks = mapping.resolve(Lists.newArrayList("127.0.0.1", "127.0.0.2", "127.0.0.3"));
         assertEquals(racks.get(0), NetworkTopology.DEFAULT_RACK);
         assertEquals(racks.get(1), NetworkTopology.DEFAULT_RACK);
         assertEquals(racks.get(2), NetworkTopology.DEFAULT_RACK);
