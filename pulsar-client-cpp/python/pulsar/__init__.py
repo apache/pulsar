@@ -801,6 +801,20 @@ class Consumer:
         """
         self._consumer.redeliver_unacknowledged_messages()
 
+    def seek(self, messageid):
+        """
+        Reset the subscription associated with this consumer to a specific message id.
+        The message id can either be a specific message or represent the first or last messages in the topic.
+        Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the
+        seek() on the individual partitions.
+
+        **Args**
+
+        * `message`:
+          The message id for seek.
+        """
+        self._consumer.seek(messageid)
+
     def close(self):
         """
         Close the consumer.
