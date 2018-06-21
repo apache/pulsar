@@ -50,5 +50,15 @@
            <artifactId>managed-ledger</artifactId>
            <version>${project.version}</version>
        </dependency>
+       <dependency>
+           <groupId>org.apache.pulsar</groupId>
+           <artifactId>pulsar-io-cassandra</artifactId>
+           <version>${project.version}</version>
+       </dependency>
+       <dependency>
+           <groupId>org.apache.pulsar</groupId>
+           <artifactId>pulsar-io-kafka</artifactId>
+           <version>${project.version}</version>
+       </dependency>
    </dependencies>
 </project>
