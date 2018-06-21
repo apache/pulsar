@@ -142,7 +142,11 @@ public class CmdSources extends CmdBase {
     public class CreateSource extends SourceCommand {
         @Override
         void runCmd() throws Exception {
-            admin.functions().createFunction(createSourceConfig(sourceConfig), jarFile);
+            if (Utils.isFunctionPackageUrlSupported(jarFile)) {
+                admin.functions().createFunctionWithUrl(createSourceConfig(sourceConfig), jarFile);
+            } else {
+                admin.functions().createFunction(createSourceConfig(sourceConfig), jarFile);
+            }
             print("Created successfully");
         }
     }
@@ -151,7 +155,11 @@ public class CmdSources extends CmdBase {
     public class UpdateSource extends SourceCommand {
         @Override
         void runCmd() throws Exception {
-            admin.functions().updateFunction(createSourceConfig(sourceConfig), jarFile);
+            if (Utils.isFunctionPackageUrlSupported(jarFile)) {
+                admin.functions().updateFunctionWithUrl(createSourceConfig(sourceConfig), jarFile);
+            } else {
+                admin.functions().updateFunction(createSourceConfig(sourceConfig), jarFile);
+            }
             print("Updated successfully");
         }
     }

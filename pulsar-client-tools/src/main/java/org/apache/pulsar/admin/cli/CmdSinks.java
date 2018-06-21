@@ -156,7 +156,11 @@ public class CmdSinks extends CmdBase {
     class UpdateSink extends SinkCommand {
         @Override
         void runCmd() throws Exception {
-            admin.functions().updateFunction(createSinkConfig(sinkConfig), jarFile);
+            if (Utils.isFunctionPackageUrlSupported(jarFile)) {
+                admin.functions().updateFunctionWithUrl(createSinkConfig(sinkConfig), jarFile);
+            } else {
+                admin.functions().updateFunction(createSinkConfig(sinkConfig), jarFile);
+            }
             print("Updated successfully");
         }
     }

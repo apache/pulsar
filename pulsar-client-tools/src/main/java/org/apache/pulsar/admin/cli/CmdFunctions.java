@@ -758,7 +758,11 @@ public class CmdFunctions extends CmdBase {
     class UpdateFunction extends FunctionDetailsCommand {
         @Override
         void runCmd() throws Exception {
-            admin.functions().updateFunction(convert(functionConfig), userCodeFile);
+            if (Utils.isFunctionPackageUrlSupported(jarFile)) {
+                admin.functions().updateFunctionWithUrl(convert(functionConfig), jarFile);
+            } else {
+                admin.functions().updateFunction(convert(functionConfig), userCodeFile);
+            }
             print("Updated successfully");
         }
     }

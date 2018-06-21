@@ -188,7 +188,7 @@ public class FunctionsImpl {
         // validate parameters
         try {
             if(isPkgUrlProvided) {
-                functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
+                functionDetails = validateUpdateRequestParamsWithPkgUrl(tenant, namespace, functionName,
                         functionPkgUrl, functionDetailsJson);
             }else {
                 functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
