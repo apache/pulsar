@@ -549,8 +549,8 @@
           
           
           <li>
-            <a href="../../clients/Cpp">
-              C++ client
+            <a href="../../clients/go">
+              Go client
             </a>
           </li>
           
@@ -558,6 +558,13 @@
           <li>
             <a href="../../clients/Python">
               Python client
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../clients/Cpp">
+              C++ client
             </a>
           </li>
           
@@ -1106,6 +1113,8 @@
           
           
           
+          
+          
         </ul>
       </div>
     </div>
@@ -1174,6 +1183,8 @@
           
           
           <li><a href="/docs/latest/getting-started/ConceptsAndArchitecture/">Pulsar concepts and architecture</a></li>
+          
+          
           
           
           
@@ -3024,7 +3035,7 @@
 <p>Pulsar’s topic compaction feature:</p>
 
 <ul>
-  <li>Allos for much more efficient “rewind” through topic logs</li>
+  <li>Allows for faster “rewind” through topic logs</li>
   <li>Applies only to <a href="#persistent-storage">persistent topics</a></li>
   <li>Triggered automatically when the backlog reaches a certain size or can be triggered manually via the command line. See the <a href="../../cookbooks/compaction">Topic compaction cookbook</a></li>
   <li>Is conceptually and operationally distinct from <a href="#message-retention-and-expiry">retention and expiry</a>. Topic compaction <em>does</em>, however, respect retention. If retention has removed a message from the message backlog of a topic, the message will also not be readable from the compacted topic ledger.</li>
@@ -3061,39 +3072,11 @@
 
 <h3 id="how-topic-compaction-works">How topic compaction works</h3>
 
-<p>When topic compaction is triggered <a href="../../cookbooks/compaction">via the CLI</a>, Pulsar will iterate over the entire topic from beginning to end. For each key that it encounters the <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> responsible will keep a record of the latest occurrence of that key. When this iterative process is finished, the broker will create a <a href="#ledgers">BookKeeper ledger</a> to store the compacted topic.</p>
+<p>When topic compaction is triggered <a href="../../cookbooks/compaction">via the CLI</a>, Pulsar will iterate over the entire topic from beginning to end. For each key that it encounters the compaction routine will keep a record of the latest occurrence of that key.</p>
 
-<p>After that, the broker will make a second iteration through each message on the topic. For each message, if the key matches the latest occurrence of that key, then the key’s data payload, message ID, and metadata will be written to the new BookKeeper ledger (the one that was created when compaction was manually initiated). If the key doesn’t match the latest then the message will be skipped and left alone. If any given message has an empty payload, it will be skipped and considered deleted (akin to the concept of <a href="https://en.wikipedia.org/wiki/Tombstone_(data_store)">tombstones</a> in key-value databases). At the end of this second iteration through the topic, the newly created BookKeeper ledger is closed and two things are written to the topic’s metadata: the ID of the BookKeeper ledger and the message ID of the last compacted message (this is known as the <strong>compaction horizon</strong> of the topic). Once this metadata is written compaction is complete.</p>
+<p>After that, the broker will create a new <a href="#ledgers">BookKeeper ledger</a> and make a second iteration through each message on the topic. For each message, if the key matches the latest occurrence of that key, then the key’s data payload, message ID, and metadata will be written to the newly created ledger. If the key doesn’t match the latest then the message will be skipped and left alone. If any given message has an empty payload, it will be skipped and considered deleted (akin to the concept of <a href="https://en.wikipedia.org/wiki/Tombstone_(data_store)">tombstones</a> in key-value databases). At the end of this second iteration through the topic, the newly created BookKeeper ledger is closed and two things are written to the topic’s metadata: the ID of the BookKeeper ledger and the message ID of the last compacted message (this is known as the <strong>compaction horizon</strong> of the topic). Once this metadata is written compaction is complete.</p>
 
-<!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<div class="admonition">
-  <div class="info">
-    <span class="admonition-title"><p>Compaction leaves the original topic intact</p>
-</span>
-    
-  </div>
-</div>
-
-<p>In addition to performing compaction, Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span> listen for changes on each topic’s metadata. If the ledger for the topic changes:</p>
+<p>After the initial compaction operation, the Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> that owns the topic is notified whenever any future changes are made to the compaction horizon and compacted backlog. When such changes occur:</p>
 
 <ul>
   <li>Clients (consumers and readers) that have read compacted enabled will attempt to read messages from a topic and either:

@@ -1026,6 +1026,7 @@ table {
     <li class="mono"><a href="#pulsar.Consumer.receive">receive</a></li>
     <li class="mono"><a href="#pulsar.Consumer.redeliver_unacknowledged_messages">redeliver_unacknowledged_messages</a></li>
     <li class="mono"><a href="#pulsar.Consumer.resume_message_listener">resume_message_listener</a></li>
+    <li class="mono"><a href="#pulsar.Consumer.seek">seek</a></li>
     <li class="mono"><a href="#pulsar.Consumer.subscription_name">subscription_name</a></li>
     <li class="mono"><a href="#pulsar.Consumer.topic">topic</a></li>
     <li class="mono"><a href="#pulsar.Consumer.unsubscribe">unsubscribe</a></li>
@@ -1971,6 +1972,20 @@ class Consumer:
         are redelivered after reconnect.
         """
         self._consumer.redeliver_unacknowledged_messages()
+
+    def seek(self, messageid):
+        """
+        Reset the subscription associated with this consumer to a specific message id.
+        The message id can either be a specific message or represent the first or last messages in the topic.
+        Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the
+        seek() on the individual partitions.
+
+        **Args**
+
+        * `message`:
+          The message id for seek.
+        """
+        self._consumer.seek(messageid)
 
     def close(self):
         """
@@ -3311,6 +3326,20 @@ def my_listener(consumer, message):
         """
         self._consumer.redeliver_unacknowledged_messages()
 
+    def seek(self, messageid):
+        """
+        Reset the subscription associated with this consumer to a specific message id.
+        The message id can either be a specific message or represent the first or last messages in the topic.
+        Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the
+        seek() on the individual partitions.
+
+        **Args**
+
+        * `message`:
+          The message id for seek.
+        """
+        self._consumer.seek(messageid)
+
     def close(self):
         """
         Close the consumer.
@@ -3551,6 +3580,44 @@ Asynchronously receive all the messages enqueued from the time
     `pause_message_listener()` was called.
     """
     self._consumer.resume_message_listener()
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.Consumer.seek">
+    <p>def <span class="ident">seek</span>(</p><p>self, messageid)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Reset the subscription associated with this consumer to a specific message id.
+The message id can either be a specific message or represent the first or last messages in the topic.
+Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the
+seek() on the individual partitions.</p>
+<p><strong>Args</strong></p>
+<ul>
+<li><code>message</code>:
+  The message id for seek.</li>
+</ul></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Consumer.seek', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Consumer.seek" class="source">
+    <pre><code>def seek(self, messageid):
+    """
+    Reset the subscription associated with this consumer to a specific message id.
+    The message id can either be a specific message or represent the first or last messages in the topic.
+    Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the
+    seek() on the individual partitions.
+    **Args**
+    * `message`:
+      The message id for seek.
+    """
+    self._consumer.seek(messageid)
 </code></pre>
   </div>
 </div>
