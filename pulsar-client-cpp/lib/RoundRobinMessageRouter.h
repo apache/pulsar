@@ -26,6 +26,7 @@
 #include "Hash.h"
 #include "MessageRouterBase.h"
 
+#pragma GCC visibility push(default)
 namespace pulsar {
 class RoundRobinMessageRouter : public MessageRouterBase {
    public:
@@ -39,4 +40,5 @@ class RoundRobinMessageRouter : public MessageRouterBase {
 };
 typedef boost::unique_lock<boost::mutex> Lock;
 }  // namespace pulsar
+#pragma GCC visibility pop
 #endif  // PULSAR_RR_MESSAGE_ROUTER_HEADER_
