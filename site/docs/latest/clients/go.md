@@ -31,6 +31,14 @@ The Pulsar Go client can be used to create Pulsar [producers](#producers), [cons
 
 ## Installation
 
+### Requirements
+
+Pulsar Go client library is based on the C++ client library. Follow
+the instructions for [C++ library](../Cpp) for installing the binaries
+through RPM, Deb or Homebrew packages.
+
+### Installing go package
+
 You can install the `pulsar` library locally using `go get`:
 
 ```bash
@@ -54,55 +62,22 @@ In order to interact with Pulsar, you'll first need a `Client` object. You can c
 
 ```go
 import (
-        "log"
-        "runtime"
+    "log"
+    "runtime"
 
-        "github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"
+    "github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"
 )
 
 func main() {
-        cores := runtime.NumCPU()
+    client, err := pulsar.NewClient(pulsar.ClientOptions
+        URL: "pulsar://localhost:6650",
+        OperationTimeoutSeconds: 5,
+        MessageListenerThreads: runtime.NumCPU(),
+    })
 
-        clientOpts := pulsar.ClientOptions{
-                URL: "pulsar://localhost:6650",
-                OperationTimeoutSeconds: 5,
-                MessageListenerThreads: cores,
-        }
-
-        client, err := pulsar.NewClient(clientOpts)
-
-        if err != nil {
-                log.Fatalf("Could not instantiate Pulsar client: %v", err)
-        }
-}
-```
-
-### Client configuration
-
-You can configure your Pulsar client using a `ClientOptions` object. Here's an example:
-
-```go
-import (
-        "log"
-        "runtime"
-
-        "github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"
-)
-
-func main() {
-        cores := runtime.NumCPU()
-
-        clientOpts := pulsar.ClientOptions{
-                URL: "pulsar://localhost:6650",
-                OperationTimeoutSeconds: 5,
-                MessageListenerThreads: runtime.NumCPU(),
-        }
-
-        client, err := pulsar.NewClient(clientOpts)
-
-        if err != nil {
-                log.Fatalf("Could not instantiate Pulsar client: %v", err)
-        }
+    if err != nil {
+        log.Fatalf("Could not instantiate Pulsar client: %v", err)
+    }
 }
 ```
 
@@ -115,10 +90,10 @@ Parameter | Description | Default
 `OperationTimeoutSeconds` | The timeout for some Go client operations (creating producers, subscribing to and unsubscribing from {% popover topics %}). Retries will occur until this threshold is reached, at which point the operation will fail. | 30
 `MessageListenerThreads` | The number of threads used by message listeners ([consumers](#consumers) and [readers](#readers)) | 1
 `ConcurrentLookupRequests` | The number of concurrent lookup requests that can be sent on each broker connection. Setting a maximum helps to keep from overloading brokers. You should set values over the default of 5000 only if the client needs to produce and/or subscribe to thousands of Pulsar topics. | 5000
-`Logger` | A custom logger implementation for the client (as a function that takes a log level, filepath, line number, and message). All info, warn, and error messages will be routed to this function.
-`EnableTLS` | Whether [TLS](#tls) encryption is enabled for the client | `false`
-`TLSTrustCertsFilePath` | The filepath for the trusted TLS certificate |
+`Logger` | A custom logger implementation for the client (as a function that takes a log level, file path, line number, and message). All info, warn, and error messages will be routed to this function. | `nil`
+`TLSTrustCertsFilePath` | The file path for the trusted TLS certificate |
 `TLSAllowInsecureConnection` | Whether the client accepts untrusted TLS certificates from the broker | `false`
+`Authentication` | Configure the authentication provider. (default: no authentication). Example: `Authentication: NewAuthenticationTLS("my-cert.pem", "my-key.pem")` | `nil`
 `StatsIntervalInSeconds` | The interval (in seconds) at which client stats are published | 60
 
 ## Producers
@@ -126,20 +101,18 @@ Parameter | Description | Default
 Pulsar {% popover producers %} publish messages to Pulsar {% popover topics %}. You can [configure](#producer-configuration) Go producers using a `ProducerOptions` object. Here's an example:
 
 ```go
-producerOpts := pulsar.ProducerOptions{
-        Topic: "my-topic",
-}
-
-producer, err := client.CreateProducer(producerOpts)
+producer, err := client.CreateProducer(pulsar.ProducerOptions{
+    Topic: "my-topic",
+})
 
 if err != nil {
-        log.Fatalf("Could not instantiate Pulsar producer: %v", err)
+    log.Fatalf("Could not instantiate Pulsar producer: %v", err)
 }
 
 defer producer.Close()
 
 msg := pulsar.ProducerMessage{
-        Payload: []byte("Hello, Pulsar"),
+    Payload: []byte("Hello, Pulsar"),
 }
 
 if err := producer.Send(msg); err != nil {
@@ -147,8 +120,7 @@ if err := producer.Send(msg); err != nil {
 }
 ```
 
-{% include admonition.html type="warning" title="Blocking operation"
-   content="When you create a new Pulsar producer, the operation will block until either a producer is successfully created or an error is thrown." %}
+{% include admonition.html type="info" title="Blocking operation"    content="When you create a new Pulsar producer, the operation will block (waiting on a go channel) until either a producer is successfully created or an error is thrown." %}
 
 ### Producer operations
 
@@ -166,53 +138,53 @@ Here's a more involved example usage of a producer:
 
 ```go
 import (
-        "context"
-        "fmt"
+    "context"
+    "fmt"
 
-        "github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"
+    "github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"
 )
 
 func main() {
-        // Instantiate a Pulsar client
-        client, err := pulsar.NewClient(pulsar.ClientOptions{
-                URL: "pulsar://localhost:6650",
-        })
+    // Instantiate a Pulsar client
+    client, err := pulsar.NewClient(pulsar.ClientOptions{
+        URL: "pulsar://localhost:6650",
+    })
 
-        if err != nil { log.Fatal(err) }
+    if err != nil { log.Fatal(err) }
 
-        // Use the client to instantiate a producer
-        producer, err := client.CreateProducer(pulsar.ProducerOptions{
-                Topic: "my-topic",
-        })
+    // Use the client to instantiate a producer
+    producer, err := client.CreateProducer(pulsar.ProducerOptions{
+        Topic: "my-topic",
+    })
 
-        if err != nil { log.Fatal(err) }
+    if err != nil { log.Fatal(err) }
 
-        ctx := context.Background()
+    ctx := context.Background()
 
-        // Send 10 messages synchronously and 10 messages asynchronously
-        for i := 0; i < 10; i++ {
-                // Create a message
-                msg := pulsar.ProducerMessage{
-                        Payload: []byte(fmt.Sprintf("message-%d", i)),
-                }
-
-                // Attempt to send the message
-                if err := producer.Send(ctx, msg); err != nil {
-                        log.Fatal(err)
-                }
-
-                // Create a different message to send asynchronously
-                asyncMsg := pulsar.ProducerMessage{
-                        Payload: []byte(fmt.Sprintf("async-message-%d", i)),
-                }
-
-                // Attempt to send the message asynchronously and handle the response
-                producer.SendAsync(ctx, asyncMsg, func(msg pulsar.ProducerMessage, err error) {
-                        if err != nil { log.Fatal(err) }
-
-                        fmt.Printf("Message %s succesfully published", msg.ID())
-                })
+    // Send 10 messages synchronously and 10 messages asynchronously
+    for i := 0; i < 10; i++ {
+        // Create a message
+        msg := pulsar.ProducerMessage{
+            Payload: []byte(fmt.Sprintf("message-%d", i)),
         }
+
+        // Attempt to send the message
+        if err := producer.Send(ctx, msg); err != nil {
+            log.Fatal(err)
+        }
+
+        // Create a different message to send asynchronously
+        asyncMsg := pulsar.ProducerMessage{
+            Payload: []byte(fmt.Sprintf("async-message-%d", i)),
+        }
+
+        // Attempt to send the message asynchronously and handle the response
+        producer.SendAsync(ctx, asyncMsg, func(msg pulsar.ProducerMessage, err error) {
+            if err != nil { log.Fatal(err) }
+
+            fmt.Printf("Message %s succesfully published", msg.ID())
+        })
+    }
 }
 ```
 
@@ -239,32 +211,32 @@ Pulsar {% popover consumers %} subscribe to one or more Pulsar {% popover topics
 msgChannel := make(chan pulsar.ConsumerMessage)
 
 consumerOpts := pulsar.ConsumerOptions{
-        Topic:            "my-topic",
-        SubscriptionName: "my-subscription-1",
-        Type:             pulsar.Exclusive,
-        MessageChannel:   msgChannel,
+    Topic:            "my-topic",
+    SubscriptionName: "my-subscription-1",
+    Type:             pulsar.Exclusive,
+    MessageChannel:   msgChannel,
 }
 
 consumer, err := client.Subscribe(consumerOpts)
 
 if err != nil {
-        log.Fatalf("Could not establish subscription: %v", err)
+    log.Fatalf("Could not establish subscription: %v", err)
 }
 
 defer consumer.Close()
 
 for cm := range channel {
-        msg := cm.Message
+    msg := cm.Message
 
-        fmt.Printf("Message ID: %s", msg.ID())
-        fmt.Printf("Message value: %s", string(msg.Payload()))
+    fmt.Printf("Message ID: %s", msg.ID())
+    fmt.Printf("Message value: %s", string(msg.Payload()))
 
-        consumer.Ack(msg)
+    consumer.Ack(msg)
 }
 ```
 
-{% include admonition.html type="warning" title="Blocking operation"
-   content="When you create a new Pulsar consumer, the operation will block until either a producer is successfully created or an error is thrown." %}
+{% include admonition.html type="info" title="Blocking operation"
+   content="When you create a new Pulsar consumer, the operation will block (on a go channel) until either a producer is successfully created or an error is thrown." %}
 
 ### Consumer operations
 
@@ -288,103 +260,42 @@ Here's an example usage of a Go consumer that uses the `Receive()` method to pro
 
 ```go
 import (
-        "context"
-        "log"
+    "context"
+    "log"
 
-        "github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"
+    "github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"
 )
 
 func main() {
-        // Instantiate a Pulsar client
-        client, err := pulsar.NewClient(pulsar.ClientOptions{
-                URL: "pulsar://localhost:6650",
-        })
+    // Instantiate a Pulsar client
+    client, err := pulsar.NewClient(pulsar.ClientOptions{
+            URL: "pulsar://localhost:6650",
+    })
 
+    if err != nil { log.Fatal(err) }
+
+    // Use the client object to instantiate a consumer
+    consumer, err := client.Subscribe(pulsar.ConsumerOptions{
+        Topic:            "my-golang-topic",
+        SubscriptionName: "sub-1",
+        SubscriptionType: pulsar.Exclusive,
+    })
+
+    if err != nil { log.Fatal(err) }
+
+    defer consumer.Close()
+
+    ctx := context.Background()
+
+    // Listen indefinitely on the topic
+    for {
+        msg, err := consumer.Receive(ctx)
         if err != nil { log.Fatal(err) }
 
-        // Use the client object to instantiate a consumer
-        consumer, err := client.Subscribe(pulsar.ConsumerOptions{
-                Topic:            "my-golang-topic",
-                SubscriptionName: "sub-1",
-                SubscriptionType: pulsar.Exclusive,
-        })
+        // Do something with the message
 
-        if err != nil { log.Fatal(err) }
-
-        defer consumer.Close()
-
-        ctx := context.Background()
-
-        // Listen indefinitely on the topic
-        for {
-                msg, err := consumer.Receive(ctx)
-
-                if err != nil { log.Fatal(err) }
-
-                msgBytes := msg.Payload()
-
-                // Do something with the message
-
-                consumer.Ack(msg)
-        }
-}
-```
-
-#### Channel example
-
-Here's a more involved example usage of a Go consumer that uses Go [channels](https://gobyexample.com/channels) to process incoming messages:
-
-```go
-import (
-        "context"
-        "fmt"
-        "log"
-        "strings"
-
-        "github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"
-)
-
-func main() {
-        // Instantiate a Pulsar client
-        client, err := pulsar.NewClient(pulsar.ClientOptions{
-                URL: "pulsar://localhost:6650",
-        })
-
-        if err != nil { log.Fatal(err) }
-
-        // Create 5 consumers with a shared subscription
-        for i := 0; i < 5; i++ {
-                consumerName := fmt.Sprintf("consumer-%d", i)
-
-                // Establish a per-consumer channel to listen for received messages
-                rcvChannel := make(chan pulsar.ConsumerMessage)
-
-                consumer, err := client.Subscribe(pulsar.ConsumerOptions{
-                        Topic:            "my-golang-topic",
-                        SubscriptionName: "shared-subscription-1",
-                        SubscriptionType: pulsar.Shared,
-                        MessageChannel:   rcvChannel,
-                })
-
-                if err != nil { log.Fatal(err) }
-
-                defer consumer.Close()
-
-                // Listen on the message receiver channel
-                for cm := range rcvChannel {
-                        msg := cm.Message
-
-                        // Unsubscribe if the message contains a specified string
-                        msgStr := string(msg.Payload())
-
-                        if strings.Contains(msgStr, "hocus") {
-                                log.Fatal(consumer.Unsubscribe())
-                        }
-
-                        // Acknowledge the message
-                        consumer.Ack(msg)
-                }
-        }
+        consumer.Ack(msg)
+    }
 }
 ```
 
@@ -399,23 +310,21 @@ Parameter | Description | Default
 `SubscriptionType` | Available options are `Exclusive`, `Shared`, and `Failover` | `Exclusive`
 `MessageChannel` | The Go channel used by the consumer. Messages that arrive from the Pulsar topic(s) will be passed to this channel. |
 `ReceiverQueueSize` | Sets the size of the consumer's receiver queue, i.e. the number of messages that can be accumulated by the consumer before the application calls `Receive`. A value higher than the default of 1000 could increase consumer throughput, though at the expense of more memory utilization. | 1000
-`MaxTotalReceiverQueueSizeAcrossPartitions` | | 50000
+`MaxTotalReceiverQueueSizeAcrossPartitions` |Set the max total receiver queue size across partitions. This setting will be used to reduce the receiver queue size for individual partitions if the total exceeds this value | 50000
 
 ## Readers
 
 Pulsar {% popover readers %} process messages from Pulsar {% popover topics %}. Readers are different from consumers because with readers you need to explicitly specify which message in the stream you want to begin with (consumers, on the other hand, automatically begin with the most recent unacked message). You can [configure](#reader-configuration) Go readers using a `ReaderOptions` object. Here's an example:
 
 ```go
-readerOpts := pulsar.ReaderOptions{
-        Topic: "my-golang-topic",
-        StartMessageId: pulsar.LatestMessage,
-}
-
-reader, err := client.CreateReader(readerOpts)
+reader, err := client.CreateReader(pulsar.ReaderOptions{
+    Topic: "my-golang-topic",
+    StartMessageId: pulsar.LatestMessage,
+})
 ```
 
-{% include admonition.html type="warning" title="Blocking operation"
-   content="When you create a new Pulsar reader, the operation will block until either a reader is successfully created or an error is thrown." %}
+{% include admonition.html type="info" title="Blocking operation"
+   content="When you create a new Pulsar reader, the operation will block (on a go channel) until either a reader is successfully created or an error is thrown." %}
 
 ### Reader operations
 
@@ -433,101 +342,51 @@ Here's an example usage of a Go reader that uses the `Next()` method to process 
 
 ```go
 import (
-        "context"
-        "log"
+    "context"
+    "log"
 
-        "github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"
+    "github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"
 )
 
 func main() {
-        // Instantiate a Pulsar client
-        client, err := pulsar.NewClient(pulsar.ClientOptions{
-                URL: "pulsar://localhost:6650",
-        })
+    // Instantiate a Pulsar client
+    client, err := pulsar.NewClient(pulsar.ClientOptions{
+            URL: "pulsar://localhost:6650",
+    })
 
-        if err != nil { log.Fatalf("Could not create client: %v", err) }
+    if err != nil { log.Fatalf("Could not create client: %v", err) }
 
-        // Reader configuration
-        readerOpts := pulsar.ReaderOptions{
-                Topic:          "my-golang-topic",
-                StartMessageID: pulsar.EarliestMessage,
-        }
+    // Use the client to instantiate a reader
+    reader, err := client.CreateReader(pulsar.ReaderOptions{
+        Topic:          "my-golang-topic",
+        StartMessageID: pulsar.EarliestMessage,
+    })
 
-        // Use the client to instantiate a reader
-        reader, err := client.CreateReader(readerOpts)
+    if err != nil { log.Fatalf("Could not create reader: %v", err) }
 
-        if err != nil { log.Fatalf("Could not create reader: %v", err) }
+    defer reader.Close()
 
-        defer reader.Close()
+    ctx := context.Background()
 
-        ctx := context.Background()
+    // Listen on the topic for incoming messages
+    for {
+        msg, err := reader.Next(ctx)
+        if err != nil { log.Fatalf("Error reading from topic: %v", err) }
 
-        // Listen on the topic for incoming messages
-        for {
-                msg, err := reader.Next(ctx)
-
-                if err != nil { log.Fatalf("Error reading from topic: %v", err) }
-
-                // Process the message
-        }
+        // Process the message
+    }
 }
 ```
 
 In the example above, the reader begins reading from the earliest available message (specified by `pulsar.EarliestMessage`). The reader can also begin reading from the latest message (`pulsar.LatestMessage`) or some other message ID specified by bytes using the `DeserializeMessageID` function, which takes a byte array and returns a `MessageID` object. Here's an example:
 
 ```go
-fetchedMsg := // Fetch a message from a Pulsar topic somehow
+lastSavedId := // Read last saved message id from external store as byte[]
 
-msgId := DeserializeMessageID(fetchedMsg.ID())
-
-readerOpts := pulsar.ReaderOptions{
-        Topic:          "my-golang-topic",
-        StartMessageID: msgId,
-}
-
-reader, err := client.CreateReader(readerOpts)
-```
-
-#### Channel example
-
-Here's a more involved example usage of a Go reader that uses Go [channels](https://gobyexample.com/channels) to process incoming messages:
-
-```go
-import (
-        "context"
-        "fmt"
-        "log"
-        "strings"
-
-        "github.com/apache/incubator-pulsar/pulsar-client-go/pulsar"
-)
-
-func main() {
-        // Instantiate a Pulsar client
-        client, err := pulsar.NewClient(pulsar.ClientOptions{
-                URL: "pulsar://localhost:6650",
-        })
-
-        if err != nil { log.Fatal(err) }
-
-        // Create a reader with an assigned channel
-        rcvChannel := make(chan pulsar.ReaderMessage)
-
-        reader, err := client.CreateReader(pulsar.ReaderOpts{
-                Topic:          "my-golang-topic",
-                MessageChannel: rcvChannel,
-        })
-
-        if err != nil { log.Fatalf("Could not create reader: %v", err) }
-
-        defer reader.Close()
-
-        for cm := range rvcChannel {
-                msg := cm.Message
-
-                // Process the message
-        }
-}
+reader, err := client.CreateReader(pulsar.ReaderOptions{
+    Topic:          "my-golang-topic",
+    StartMessageID: DeserializeMessageID(lastSavedId),
+})
 ```
 
 ### Reader configuration
@@ -547,17 +406,17 @@ The Pulsar Go client provides a `ProducerMessage` interface that you can use to 
 
 ```go
 msg := pulsar.ProducerMessage{
-        Payload: []byte("Here is some message data"),
-        Key: "message-key",
-        Properties: map[string]string{
-            "foo": "bar",
-        },
-        EventTime: time.Now(),
-        ReplicationClusters: []string{"cluster1", "cluster3"},
+    Payload: []byte("Here is some message data"),
+    Key: "message-key",
+    Properties: map[string]string{
+        "foo": "bar",
+    },
+    EventTime: time.Now(),
+    ReplicationClusters: []string{"cluster1", "cluster3"},
 }
 
 if err := producer.send(msg); err != nil {
-        log.Fatalf("Could not publish message due to: %v", err)
+    log.Fatalf("Could not publish message due to: %v", err)
 }
 ```
 
@@ -571,19 +430,20 @@ Parameter | Description
 `EventTime` | The timestamp associated with the message
 `ReplicationClusters` | The clusters to which this message will be replicated. Pulsar brokers handle message replication automatically; you should only change this setting if you want to override the broker default.
 
-## TLS encryption {#tls}
+## TLS encryption and authentication {#tls}
 
 In order to use [TLS encryption](../../admin/Authz#), you'll need to configure your client to do so:
 
-* Set `EnableTLS` to `true`
-* Set `TLSTrustCertsFilePath` to the path to the TLS certs used by your client and the Pulsar {% popover broker %}
+ * Use `pulsar+ssl` URL type
+ * Set `TLSTrustCertsFilePath` to the path to the TLS certs used by your client and the Pulsar {% popover broker %}
+ * Configure `Authentication` option
 
 Here's an example:
 
 ```go
 opts := pulsar.ClientOptions{
-        URL: "pulsar://my-cluster.com:6650",
-        EnableTLS: true,
-        TLSTrustCertsFilePath: "/path/to/certs/my-cert.csr",
+    URL: "pulsar+ssl://my-cluster.com:6651",
+    TLSTrustCertsFilePath: "/path/to/certs/my-cert.csr",
+    Authentication: NewAuthenticationTLS("my-cert.pem", "my-key.pem"),
 }
 ```
