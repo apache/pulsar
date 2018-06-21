@@ -21,13 +21,17 @@ package org.apache.pulsar.broker.s3offload.impl;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.Maps;
+import com.google.protobuf.ByteString;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
+
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.FilterInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,6 +39,7 @@ import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
+
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
@@ -42,7 +47,6 @@ import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.proto.DataFormats;
 import org.apache.bookkeeper.proto.DataFormats.LedgerMetadataFormat;
 import org.apache.bookkeeper.proto.DataFormats.LedgerMetadataFormat.State;
-import org.apache.bookkeeper.shaded.com.google.protobuf.ByteString;
 import org.apache.pulsar.broker.s3offload.OffloadIndexBlock;
 import org.apache.pulsar.broker.s3offload.OffloadIndexEntry;
 import org.slf4j.Logger;
@@ -54,6 +58,8 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
     private static final int INDEX_MAGIC_WORD = 0xDE47DE47;
 
     private LedgerMetadata segmentMetadata;
+    private long dataObjectLength;
+    private long dataHeaderLength;
     private TreeMap<Long, OffloadIndexEntryImpl> indexEntries;
 
     private final Handle<OffloadIndexBlockImpl> recyclerHandle;
@@ -69,12 +75,16 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         this.recyclerHandle = recyclerHandle;
     }
 
-    public static OffloadIndexBlockImpl get(LedgerMetadata metadata, List<OffloadIndexEntryImpl> entries) {
+    public static OffloadIndexBlockImpl get(LedgerMetadata metadata, long dataObjectLength,
+                                            long dataHeaderLength,
+                                            List<OffloadIndexEntryImpl> entries) {
         OffloadIndexBlockImpl block = RECYCLER.get();
         block.indexEntries = Maps.newTreeMap();
         entries.forEach(entry -> block.indexEntries.putIfAbsent(entry.getEntryId(), entry));
         checkState(entries.size() == block.indexEntries.size());
         block.segmentMetadata = metadata;
+        block.dataObjectLength = dataObjectLength;
+        block.dataHeaderLength = dataHeaderLength;
         return block;
     }
 
@@ -86,6 +96,8 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
     }
 
     public void recycle() {
+        dataObjectLength = -1;
+        dataHeaderLength = -1;
         segmentMetadata = null;
         indexEntries.clear();
         indexEntries = null;
@@ -114,6 +126,16 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
     @Override
     public LedgerMetadata getLedgerMetadata() {
         return this.segmentMetadata;
+    }
+
+    @Override
+    public long getDataObjectLength() {
+        return this.dataObjectLength;
+    }
+
+    @Override
+    public long getDataBlockHeaderLength() {
+        return this.dataHeaderLength;
     }
 
     private static byte[] buildLedgerMetadataFormat(LedgerMetadata metadata) {
@@ -145,22 +167,21 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
     /**
      * Get the content of the index block as InputStream.
      * Read out in format:
-     *   | index_magic_header | index_block_len | index_entry_count |
-     *   |segment_metadata_len | segment metadata | index entries |
+     *   | index_magic_header | index_block_len | data_object_len | data_header_len |
+     *   | index_entry_count  | segment_metadata_len | segment metadata | index entries... |
      */
     @Override
-    public InputStream toStream() throws IOException {
-        int indexBlockLength;
-        int segmentMetadataLength;
+    public OffloadIndexBlock.IndexInputStream toStream() throws IOException {
         int indexEntryCount = this.indexEntries.size();
-
         byte[] ledgerMetadataByte = buildLedgerMetadataFormat(this.segmentMetadata);
-        segmentMetadataLength = ledgerMetadataByte.length;
+        int segmentMetadataLength = ledgerMetadataByte.length;
 
-        indexBlockLength = 4 /* magic header */
+        int indexBlockLength = 4 /* magic header */
             + 4 /* index block length */
-            + 4 /* segment metadata length */
+            + 8 /* data object length */
+            + 8 /* data header length */
             + 4 /* index entry count */
+            + 4 /* segment metadata length */
             + segmentMetadataLength
             + indexEntryCount * (8 + 4 + 8); /* messageEntryId + blockPartId + blockOffset */
 
@@ -168,9 +189,10 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
 
         out.writeInt(INDEX_MAGIC_WORD)
             .writeInt(indexBlockLength)
-            .writeInt(segmentMetadataLength)
-            .writeInt(indexEntryCount);
-
+            .writeLong(dataObjectLength)
+            .writeLong(dataHeaderLength)
+            .writeInt(indexEntryCount)
+            .writeInt(segmentMetadataLength);
         // write metadata
         out.writeBytes(ledgerMetadataByte);
 
@@ -180,7 +202,7 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
                 .writeInt(entry.getValue().getPartId())
                 .writeLong(entry.getValue().getOffset()));
 
-        return new ByteBufInputStream(out, true);
+        return new OffloadIndexBlock.IndexInputStream(new ByteBufInputStream(out, true), indexBlockLength);
     }
 
     static private class InternalLedgerMetadata implements LedgerMetadata {
@@ -306,8 +328,10 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
                                                 magic, INDEX_MAGIC_WORD));
         }
         int indexBlockLength = dis.readInt();
-        int segmentMetadataLength = dis.readInt();
+        this.dataObjectLength = dis.readLong();
+        this.dataHeaderLength = dis.readLong();
         int indexEntryCount = dis.readInt();
+        int segmentMetadataLength = dis.readInt();
 
         byte[] metadataBytes = new byte[segmentMetadataLength];
 
@@ -319,7 +343,8 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
 
         for (int i = 0; i < indexEntryCount; i ++) {
             long entryId = dis.readLong();
-            this.indexEntries.putIfAbsent(entryId, OffloadIndexEntryImpl.of(entryId, dis.readInt(), dis.readLong()));
+            this.indexEntries.putIfAbsent(entryId, OffloadIndexEntryImpl.of(entryId, dis.readInt(),
+                                                                            dis.readLong(), dataHeaderLength));
         }
 
         return this;

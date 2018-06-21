@@ -142,6 +142,8 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
 
     Future<Result, BrokerConsumerStatsImpl> newConsumerStats(uint64_t consumerId, uint64_t requestId);
 
+    Future<Result, MessageId> newGetLastMessageId(uint64_t consumerId, uint64_t requestId);
+
    private:
     struct PendingRequestData {
         Promise<Result, ResponseData> promise;
@@ -264,6 +266,9 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
 
     typedef std::map<uint64_t, Promise<Result, BrokerConsumerStatsImpl> > PendingConsumerStatsMap;
     PendingConsumerStatsMap pendingConsumerStatsMap_;
+
+    typedef std::map<long, Promise<Result, MessageId> > PendingGetLastMessageIdRequestsMap;
+    PendingGetLastMessageIdRequestsMap pendingGetLastMessageIdRequests_;
 
     boost::mutex mutex_;
     typedef boost::unique_lock<boost::mutex> Lock;

@@ -211,6 +211,30 @@ class Consumer {
      */
     void getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback);
 
+    /**
+     * Reset the subscription associated with this consumer to a specific message id.
+     * The message id can either be a specific message or represent the first or last messages in the topic.
+     *
+     * Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the
+     * seek() on the individual partitions.
+     *
+     * @param messageId
+     *            the message id where to reposition the subscription
+     */
+    Result seek(const MessageId& msgId);
+
+    /**
+     * Asynchronously reset the subscription associated with this consumer to a specific message id.
+     * The message id can either be a specific message or represent the first or last messages in the topic.
+     *
+     * Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the
+     * seek() on the individual partitions.
+     *
+     * @param messageId
+     *            the message id where to reposition the subscription
+     */
+    virtual void seekAsync(const MessageId& msgId, ResultCallback callback);
+
    private:
     typedef boost::shared_ptr<ConsumerImplBase> ConsumerImplBasePtr;
     ConsumerImplBasePtr impl_;

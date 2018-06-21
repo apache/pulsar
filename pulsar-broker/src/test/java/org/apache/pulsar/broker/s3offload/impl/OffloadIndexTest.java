@@ -47,17 +47,19 @@ public class OffloadIndexTest {
     @Test
     public void offloadIndexEntryImplTest() {
         // verify OffloadIndexEntryImpl builder
-        OffloadIndexEntryImpl entry1 = OffloadIndexEntryImpl.of(0, 2, 0);
-        OffloadIndexEntryImpl entry2 = OffloadIndexEntryImpl.of(100, 3, 1234);
+        OffloadIndexEntryImpl entry1 = OffloadIndexEntryImpl.of(0, 2, 0, 20);
+        OffloadIndexEntryImpl entry2 = OffloadIndexEntryImpl.of(100, 3, 1234, 20);
 
         // verify OffloadIndexEntryImpl get
         assertEquals(entry1.getEntryId(), 0L);
         assertEquals(entry1.getPartId(), 2);
         assertEquals(entry1.getOffset(), 0L);
+        assertEquals(entry1.getDataOffset(), 20L);
 
         assertEquals(entry2.getEntryId(), 100L);
         assertEquals(entry2.getPartId(), 3);
         assertEquals(entry2.getOffset(), 1234L);
+        assertEquals(entry2.getDataOffset(), 1254L);
     }
 
 
@@ -108,7 +110,7 @@ public class OffloadIndexTest {
         LedgerMetadata metadata = createLedgerMetadata();
         log.debug("created metadata: {}", metadata.toString());
 
-        blockBuilder.withMetadata(metadata);
+        blockBuilder.withLedgerMetadata(metadata).withDataObjectLength(1).withDataBlockHeaderLength(23455);
 
         blockBuilder.addBlock(0, 2, 64 * 1024 * 1024);
         blockBuilder.addBlock(1000, 3, 64 * 1024 * 1024);
@@ -161,32 +163,42 @@ public class OffloadIndexTest {
         ByteBuf wrapper = Unpooled.wrappedBuffer(b);
         int magic = wrapper.readInt();
         int indexBlockLength = wrapper.readInt();
-        int segmentMetadataLength = wrapper.readInt();
+        long dataObjectLength = wrapper.readLong();
+        long dataHeaderLength = wrapper.readLong();
         int indexEntryCount = wrapper.readInt();
+        int segmentMetadataLength = wrapper.readInt();
 
         // verify counter
         assertEquals(magic, OffloadIndexBlockImpl.getIndexMagicWord());
         assertEquals(indexBlockLength, readoutLen);
         assertEquals(indexEntryCount, 3);
+        assertEquals(dataObjectLength, 1);
+        assertEquals(dataHeaderLength, 23455);
 
         wrapper.readBytes(segmentMetadataLength);
         log.debug("magic: {}, blockLength: {}, metadataLength: {}, indexCount: {}",
             magic, indexBlockLength, segmentMetadataLength, indexEntryCount);
 
         // verify entry
-        OffloadIndexEntry e1 = OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(), wrapper.readLong());
-        OffloadIndexEntry e2 = OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(), wrapper.readLong());
-        OffloadIndexEntry e3 = OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(), wrapper.readLong());;
+        OffloadIndexEntry e1 = OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(),
+                                                        wrapper.readLong(), dataHeaderLength);
+        OffloadIndexEntry e2 = OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(),
+                                                        wrapper.readLong(), dataHeaderLength);
+        OffloadIndexEntry e3 = OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(),
+                                                        wrapper.readLong(), dataHeaderLength);;
 
         assertEquals(e1.getEntryId(),entry1.getEntryId());
         assertEquals(e1.getPartId(), entry1.getPartId());
         assertEquals(e1.getOffset(), entry1.getOffset());
+        assertEquals(e1.getDataOffset(), entry1.getDataOffset());
         assertEquals(e2.getEntryId(), entry2.getEntryId());
         assertEquals(e2.getPartId(), entry2.getPartId());
         assertEquals(e2.getOffset(), entry2.getOffset());
+        assertEquals(e2.getDataOffset(), entry2.getDataOffset());
         assertEquals(e3.getEntryId(), entry3.getEntryId());
         assertEquals(e3.getPartId(), entry3.getPartId());
         assertEquals(e3.getOffset(), entry3.getOffset());
+        assertEquals(e3.getDataOffset(), entry3.getDataOffset());
         wrapper.release();
 
         // verify build OffloadIndexBlock from InputStream

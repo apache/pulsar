@@ -71,7 +71,7 @@ JavaStreamingContext jssc = new JavaStreamingContext(conf, Durations.seconds(5))
 ClientConfiguration clientConf = new ClientConfiguration();
 ConsumerConfiguration consConf = new ConsumerConfiguration();
 String url = "pulsar://localhost:6650/";
-String topic = "persistent://sample/standalone/ns1/topic1";
+String topic = "persistent://public/default/topic1";
 String subs = "sub1";
 
 JavaReceiverInputDStream<byte[]> msgs = jssc

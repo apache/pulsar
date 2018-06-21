@@ -30,6 +30,8 @@ import java.io.InputStream;
 import java.io.IOException;
 
 import org.apache.pulsar.broker.s3offload.S3BackedInputStream;
+import org.apache.pulsar.broker.s3offload.S3ManagedLedgerOffloader.VersionCheck;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,21 +41,27 @@ public class S3BackedInputStreamImpl extends S3BackedInputStream {
     private final AmazonS3 s3client;
     private final String bucket;
     private final String key;
+    private final VersionCheck versionCheck;
     private final ByteBuf buffer;
     private final long objectLen;
     private final int bufferSize;
 
     private long cursor;
+    private long bufferOffsetStart;
+    private long bufferOffsetEnd;
 
     public S3BackedInputStreamImpl(AmazonS3 s3client, String bucket, String key,
+                                   VersionCheck versionCheck,
                                    long objectLen, int bufferSize) {
         this.s3client = s3client;
         this.bucket = bucket;
         this.key = key;
+        this.versionCheck = versionCheck;
         this.buffer = PooledByteBufAllocator.DEFAULT.buffer(bufferSize, bufferSize);
         this.objectLen = objectLen;
         this.bufferSize = bufferSize;
         this.cursor = 0;
+        this.bufferOffsetStart = this.bufferOffsetEnd = -1;
     }
 
     /**
@@ -72,10 +80,14 @@ public class S3BackedInputStreamImpl extends S3BackedInputStream {
                 .withRange(startRange, endRange);
             log.debug("Reading range {}-{} from {}/{}", startRange, endRange, bucket, key);
             try (S3Object obj = s3client.getObject(req)) {
+                versionCheck.check(key, obj.getObjectMetadata());
+
                 Long[] range = obj.getObjectMetadata().getContentRange();
                 long bytesRead = range[1] - range[0] + 1;
 
                 buffer.clear();
+                bufferOffsetStart = range[0];
+                bufferOffsetEnd = range[1];
                 InputStream s = obj.getObjectContent();
                 int bytesToCopy = (int)bytesRead;
                 while (bytesToCopy > 0) {
@@ -112,8 +124,13 @@ public class S3BackedInputStreamImpl extends S3BackedInputStream {
     @Override
     public void seek(long position) {
         log.debug("Seeking to {} on {}/{}, current position {}", position, bucket, key, cursor);
-        this.cursor = position;
-        buffer.clear();
+        if (position >= bufferOffsetStart && position <= bufferOffsetEnd) {
+            long newIndex = position - bufferOffsetStart;
+            buffer.readerIndex((int)newIndex);
+        } else {
+            this.cursor = position;
+            buffer.clear();
+        }
     }
 
     @Override

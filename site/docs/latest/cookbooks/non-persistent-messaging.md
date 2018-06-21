@@ -42,7 +42,7 @@ title: Non-persistent messaging
 In order to use non-persistent topics, you only need to differentiate them by name when interacting with them. This [`pulsar-client produce`](../../CliTools#pulsar-client-produce) command, for example, would produce one message on a non-persistent topic in a {% popover standalone %} cluster:
 
 ```bash
-$ bin/pulsar-client produce non-persistent://sample/standalone/ns1/example-np-topic \
+$ bin/pulsar-client produce non-persistent://public/default/example-np-topic \
   --num-produce 1 \
   --messages "This message will be stored only in memory"
 ```

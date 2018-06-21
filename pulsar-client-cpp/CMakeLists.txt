@@ -27,6 +27,9 @@ MESSAGE(STATUS "BUILD_TESTS:  " ${BUILD_TESTS})
 option(LINK_STATIC "Link against static libraries" OFF)
 MESSAGE(STATUS "LINK_STATIC:  " ${LINK_STATIC})
 
+option(USE_LOG4CXX "Build with Log4cxx support" OFF)
+MESSAGE(STATUS "USE_LOG4CXX:  " ${USE_LOG4CXX})
+
 IF (CMAKE_BUILD_TYPE STREQUAL "")
     set(CMAKE_BUILD_TYPE RelWithDebInfo)
 ENDIF ()
@@ -65,17 +68,20 @@ if (LINK_STATIC)
     find_library(PROTOBUF_LIBRARIES NAMES libprotobuf.a)
     find_library(CURL_LIBRARY_PATH NAMES libcurl.a curl)
     find_library(LIB_JSON NAMES libjsoncpp.a libjsoncpp_static.a)
-    find_library(LOG4CXX_LIBRARY_PATH NAMES liblog4cxx.a)
 
-    # Libraries needed by log4cxx to link statically with
-    find_library(APR_LIBRARY_PATH NAMES libapr-1.a PATHS /usr/lib /usr/local/apr/lib /usr/local/opt/apr/libexec/lib/)
-    find_library(APR_UTIL_LIBRARY_PATH NAMES libaprutil-1.a PATHS /usr/lib /usr/local/apr/lib /usr/local/opt/apr-util/libexec/lib/)
-    find_library(EXPAT_LIBRARY_PATH NAMES libexpat.a expat)
-    if (APPLE)
-        find_library(ICONV_LIBRARY_PATH NAMES libiconv.a iconv)
-    else ()
-        set(ICONV_LIBRARY_PATH )
-    endif ()
+    if (USE_LOG4CXX)
+        find_library(LOG4CXX_LIBRARY_PATH NAMES liblog4cxx.a)
+
+        # Libraries needed by log4cxx to link statically with
+        find_library(APR_LIBRARY_PATH NAMES libapr-1.a PATHS /usr/lib /usr/local/apr/lib /usr/local/opt/apr/libexec/lib/)
+        find_library(APR_UTIL_LIBRARY_PATH NAMES libaprutil-1.a PATHS /usr/lib /usr/local/apr/lib /usr/local/opt/apr-util/libexec/lib/)
+        find_library(EXPAT_LIBRARY_PATH NAMES libexpat.a expat)
+        if (APPLE)
+            find_library(ICONV_LIBRARY_PATH NAMES libiconv.a iconv)
+        else ()
+            set(ICONV_LIBRARY_PATH )
+        endif (APPLE)
+    endif (USE_LOG4CXX)
 else()
     # Link to shared libraries
     find_package(ZLIB REQUIRED)
@@ -88,9 +94,11 @@ else()
     endif (NOT PROTOBUF_LIBRARIES)
 
     find_library(LIB_JSON jsoncpp)
-    find_library(LOG4CXX_LIBRARY_PATH log4cxx)
     find_library(CURL_LIBRARY_PATH curl)
-    find_path(LOG4CXX_INCLUDE_PATH log4cxx/logger.h)
+    if (USE_LOG4CXX)
+        find_library(LOG4CXX_LIBRARY_PATH log4cxx)
+        find_path(LOG4CXX_INCLUDE_PATH log4cxx/logger.h)
+    endif (USE_LOG4CXX)
 endif (LINK_STATIC)
 
 
@@ -140,7 +148,11 @@ if (BUILD_TESTS)
 endif ()
 
 find_path(JSON_INCLUDE_PATH jsoncpp)
-find_path(LOG4CXX_INCLUDE_PATH log4cxx/logger.h)
+
+if (USE_LOG4CXX)
+    set(CMAKE_CXX_FLAGS " -DUSE_LOG4CXX ${CMAKE_CXX_FLAGS}")
+    find_path(LOG4CXX_INCLUDE_PATH log4cxx/logger.h)
+endif (USE_LOG4CXX)
 
 if (NOT LIB_JSON)
     find_library(LIB_JSON json_cpp)
@@ -181,17 +193,23 @@ set(COMMON_LIBS
   ${OPENSSL_LIBRARIES}
   ${ZLIB_LIBRARY_PATH}
   ${PROTOBUF_LIBRARIES}
-  ${LOG4CXX_LIBRARY_PATH}
-  ${APR_LIBRARY_PATH}
-  ${APR_UTIL_LIBRARY_PATH}
-  ${EXPAT_LIBRARY_PATH}
-  ${ICONV_LIBRARY_PATH}
   ${CURL_LIBRARY_PATH}
   ${ADDITIONAL_LIBRARIES}
   ${LIB_JSON}
   dl
   pthread
 )
+
+if (USE_LOG4CXX)
+    set(COMMON_LIBS
+      ${COMMON_LIBS}
+      ${LOG4CXX_LIBRARY_PATH}
+      ${APR_LIBRARY_PATH}
+      ${APR_UTIL_LIBRARY_PATH}
+      ${EXPAT_LIBRARY_PATH}
+      ${ICONV_LIBRARY_PATH}
+    )
+endif ()
 
 if(NOT APPLE)
     set(COMMON_LIBS ${COMMON_LIBS} rt)

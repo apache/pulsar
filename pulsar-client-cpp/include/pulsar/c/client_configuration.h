@@ -25,6 +25,11 @@ extern "C" {
 
 #pragma GCC visibility push(default)
 
+typedef enum { pulsar_DEBUG = 0, pulsar_INFO = 1, pulsar_WARN = 2, pulsar_ERROR = 3 } pulsar_logger_level_t;
+
+typedef void (*pulsar_logger)(pulsar_logger_level_t level, const char *file, int line, const char *message,
+                              void *ctx);
+
 typedef struct _pulsar_client_configuration pulsar_client_configuration_t;
 typedef struct _pulsar_authentication pulsar_authentication_t;
 
@@ -101,18 +106,8 @@ void pulsar_client_configuration_set_concurrent_lookup_request(pulsar_client_con
  */
 int pulsar_client_configuration_get_concurrent_lookup_request(pulsar_client_configuration_t *conf);
 
-/**
- * Initialize the log configuration
- *
- * @param logConfFilePath  path of the configuration file
- */
-void pulsar_client_configuration_set_log_conf_file_path(pulsar_client_configuration_t *conf,
-                                                        const char *logConfFilePath);
-
-/**
- * Get the path of log configuration file (log4cpp)
- */
-const char *pulsar_client_configuration_get_log_conf_file_path(pulsar_client_configuration_t *conf);
+void pulsar_client_configuration_set_logger(pulsar_client_configuration_t *conf, pulsar_logger logger,
+                                            void *ctx);
 
 void pulsar_client_configuration_set_use_tls(pulsar_client_configuration_t *conf, int useTls);
 

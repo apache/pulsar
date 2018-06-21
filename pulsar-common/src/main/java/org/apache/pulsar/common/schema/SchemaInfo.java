@@ -21,9 +21,13 @@ package org.apache.pulsar.common.schema;
 import java.util.Collections;
 import java.util.Map;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class SchemaInfo {
     private String name;
     private byte[] schema;

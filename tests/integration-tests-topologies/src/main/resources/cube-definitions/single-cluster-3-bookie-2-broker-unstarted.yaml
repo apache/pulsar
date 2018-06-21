@@ -35,6 +35,8 @@ zookeeper*:
   beforeStop:
     - customBeforeStopAction:
         strategy: org.apache.pulsar.tests.PulsarLogsToTargetDirStopAction
+    - customBeforeStopAction:
+        strategy: org.apache.pulsar.tests.ZKJournalToTargetDirStopAction
   networkMode: pulsarnet*
 
 configuration-store*:
@@ -51,6 +53,8 @@ configuration-store*:
   beforeStop:
     - customBeforeStopAction:
         strategy: org.apache.pulsar.tests.PulsarLogsToTargetDirStopAction
+    - customBeforeStopAction:
+        strategy: org.apache.pulsar.tests.ZKJournalToTargetDirStopAction
   networkMode: pulsarnet*
 
 init*:
@@ -58,7 +62,7 @@ init*:
   await:
     strategy: org.apache.pulsar.tests.NoopAwaitStrategy
   env:
-    - cluster=test
+    - clusterName=test
     - zkServers=zookeeper
     - configurationStore=configuration-store:2184
     - pulsarNode=pulsar-broker1
@@ -76,6 +80,7 @@ bookkeeper1*:
   await:
     strategy: org.apache.pulsar.tests.NoopAwaitStrategy
   env:
+    - clusterName=test
     - zkServers=zookeeper
     - useHostNameAsBookieID=true
   labels:
@@ -92,6 +97,7 @@ bookkeeper2*:
   await:
     strategy: org.apache.pulsar.tests.NoopAwaitStrategy
   env:
+    - clusterName=test
     - zkServers=zookeeper
     - useHostNameAsBookieID=true
   labels:
@@ -108,6 +114,7 @@ bookkeeper3*:
   await:
     strategy: org.apache.pulsar.tests.NoopAwaitStrategy
   env:
+    - clusterName=test
     - zkServers=zookeeper
     - useHostNameAsBookieID=true
   labels:
@@ -126,9 +133,9 @@ pulsar-broker1*:
   aliases:
     - pulsar-broker1
   env:
+    - clusterName=test
     - zookeeperServers=zookeeper
     - configurationStoreServers=configuration-store:2184
-    - clusterName=test
     - NO_AUTOSTART=true
   labels:
     cluster: test
@@ -146,9 +153,9 @@ pulsar-broker2*:
   aliases:
     - pulsar-broker2
   env:
+    - clusterName=test
     - zookeeperServers=zookeeper
     - configurationStoreServers=configuration-store:2184
-    - clusterName=test
     - NO_AUTOSTART=true
   labels:
     cluster: test
@@ -166,9 +173,9 @@ pulsar-proxy*:
   aliases:
     - pulsar-broker2
   env:
+    - clusterName=test
     - zookeeperServers=zookeeper
     - configurationStoreServers=configuration-store:2184
-    - clusterName=test
     - NO_AUTOSTART=true
   labels:
     cluster: test

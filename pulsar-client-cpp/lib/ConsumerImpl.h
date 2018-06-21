@@ -53,6 +53,8 @@ class BatchAcknowledgementTracker;
 typedef boost::shared_ptr<ConsumerImpl> ConsumerImplPtr;
 typedef boost::weak_ptr<ConsumerImpl> ConsumerImplWeakPtr;
 typedef boost::shared_ptr<MessageCrypto> MessageCryptoPtr;
+typedef boost::function<void(Result result, MessageId messageId)> BrokerGetLastMessageIdCallback;
+typedef boost::function<void(Result result, bool hasMessageAvailable)> HasMessageAvailableCallback;
 
 enum ConsumerTopicType
 {
@@ -102,6 +104,11 @@ class ConsumerImpl : public ConsumerImplBase,
     virtual Result resumeMessageListener();
     virtual void redeliverUnacknowledgedMessages();
     virtual void getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback);
+    void handleSeek(Result result, ResultCallback callback);
+    virtual void seekAsync(const MessageId& msgId, ResultCallback callback);
+    virtual bool isReadCompacted();
+    virtual void hasMessageAvailableAsync(HasMessageAvailableCallback callback);
+    virtual void getLastMessageIdAsync(BrokerGetLastMessageIdCallback callback);
 
    protected:
     void connectionOpened(const ClientConnectionPtr& cnx);
@@ -163,6 +170,19 @@ class ConsumerImpl : public ConsumerImplBase,
     BrokerConsumerStatsImpl brokerConsumerStats_;
 
     MessageCryptoPtr msgCrypto_;
+    const bool readCompacted_;
+
+    Optional<MessageId> lastMessageInBroker_;
+    void brokerGetLastMessageIdListener(Result res, MessageId messageId,
+                                        BrokerGetLastMessageIdCallback callback);
+
+    MessageId lastMessageIdDequed() {
+        return lastDequedMessage_.is_present() ? lastDequedMessage_.value() : MessageId();
+    }
+
+    MessageId lastMessageIdInBroker() {
+        return lastMessageInBroker_.is_present() ? lastMessageInBroker_.value() : MessageId();
+    }
 
     friend class PulsarFriend;
 };

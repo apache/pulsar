@@ -21,6 +21,8 @@ package org.apache.pulsar.functions.runtime;
 
 import com.google.common.annotations.VisibleForTesting;
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 
 import java.nio.file.Paths;
@@ -31,18 +33,23 @@ import java.nio.file.Paths;
 @Slf4j
 public class ProcessRuntimeFactory implements RuntimeFactory {
 
-    private String pulsarServiceUrl;
+    private final String pulsarServiceUrl;
+    private final String stateStorageServiceUrl;
+    private AuthenticationConfig authConfig;
     private String javaInstanceJarFile;
     private String pythonInstanceFile;
     private String logDirectory;
 
     @VisibleForTesting
     public ProcessRuntimeFactory(String pulsarServiceUrl,
+                                 String stateStorageServiceUrl,
+                                 AuthenticationConfig authConfig,
                                  String javaInstanceJarFile,
                                  String pythonInstanceFile,
                                  String logDirectory) {
-
         this.pulsarServiceUrl = pulsarServiceUrl;
+        this.stateStorageServiceUrl = stateStorageServiceUrl;
+        this.authConfig = authConfig;
         this.javaInstanceJarFile = javaInstanceJarFile;
         this.pythonInstanceFile = pythonInstanceFile;
         this.logDirectory = logDirectory;
@@ -100,7 +107,9 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
             instanceFile,
             logDirectory,
             codeFile,
-            pulsarServiceUrl);
+            pulsarServiceUrl,
+            stateStorageServiceUrl,
+            authConfig);
     }
 
     @Override

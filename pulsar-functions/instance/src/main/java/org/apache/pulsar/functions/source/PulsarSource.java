@@ -19,34 +19,41 @@
 package org.apache.pulsar.functions.source;
 
 import com.google.common.annotations.VisibleForTesting;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-import net.jodah.typetools.TypeResolver;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.client.impl.TopicMessageIdImpl;
-import org.apache.pulsar.client.impl.TopicMessageImpl;
-import org.apache.pulsar.functions.api.SerDe;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
-import org.apache.pulsar.functions.instance.InstanceUtils;
-import org.apache.pulsar.functions.utils.FunctionConfig;
-import org.apache.pulsar.io.core.Record;
-import org.apache.pulsar.io.core.Source;
-
+import com.google.common.collect.Maps;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import lombok.extern.slf4j.Slf4j;
+import net.jodah.typetools.TypeResolver;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageListener;
+
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.TopicMessageIdImpl;
+import org.apache.pulsar.client.impl.TopicMessageImpl;
+import org.apache.pulsar.io.core.PushSource;
+import org.apache.pulsar.functions.api.SerDe;
+import org.apache.pulsar.functions.api.utils.DefaultSerDe;
+import org.apache.pulsar.functions.instance.InstanceUtils;
+import org.apache.pulsar.functions.utils.FunctionConfig;
+import org.apache.pulsar.functions.utils.Utils;
+import org.jboss.util.Classes;
 
 @Slf4j
-public class PulsarSource<T> implements Source<T> {
+public class PulsarSource<T> extends PushSource<T> implements MessageListener<T> {
 
     private PulsarClient pulsarClient;
     private PulsarSourceConfig pulsarSourceConfig;
-    private Map<String, SerDe> topicToSerDeMap = new HashMap<>();
+    private boolean isTopicsPattern;
+    private Map<String, SerDe<T>> topicToSerDeMap = new HashMap<>();
 
-    @Getter
-    private org.apache.pulsar.client.api.Consumer inputConsumer;
+    private Map<String, org.apache.pulsar.client.api.Consumer<T>> inputConsumers;
 
     public PulsarSource(PulsarClient pulsarClient, PulsarSourceConfig pulsarConfig) {
         this.pulsarClient = pulsarClient;
@@ -58,19 +65,31 @@ public class PulsarSource<T> implements Source<T> {
         // Setup Serialization/Deserialization
         setupSerDe();
 
-        // Setup pulsar consumer
-        this.inputConsumer = this.pulsarClient.newConsumer()
-                .topics(new ArrayList<>(this.pulsarSourceConfig.getTopicSerdeClassNameMap().keySet()))
+        inputConsumers = Maps.newHashMap();
+        for (Map.Entry<String, SerDe<T>> entry : topicToSerDeMap.entrySet()) {
+            ConsumerBuilder<T> consumerBuilder = this.pulsarClient.newConsumer(entry.getValue())
                 .subscriptionName(this.pulsarSourceConfig.getSubscriptionName())
-                .subscriptionType(this.pulsarSourceConfig.getSubscriptionType().get())
-                .ackTimeout(1, TimeUnit.MINUTES)
-                .subscribe();
+                .subscriptionType(this.pulsarSourceConfig.getSubscriptionType())
+                .messageListener(this);
+
+            if (pulsarSourceConfig.getTimeoutMs() != null) {
+                consumerBuilder.ackTimeout(pulsarSourceConfig.getTimeoutMs(), TimeUnit.MILLISECONDS);
+            }
+
+            if(isNotBlank(this.pulsarSourceConfig.getTopicsPattern())) {
+                consumerBuilder.topicsPattern(this.pulsarSourceConfig.getTopicsPattern());
+                isTopicsPattern = true;
+            }else {
+                consumerBuilder.topics(new ArrayList<>(this.pulsarSourceConfig.getTopicSerdeClassNameMap().keySet()));
+            }
+
+            inputConsumers.put(entry.getKey(),consumerBuilder.subscribe());
+        }
+
     }
 
     @Override
-    public Record<T> read() throws Exception {
-        org.apache.pulsar.client.api.Message<T> message = this.inputConsumer.receive();
-
+    public void received(Consumer<T> consumer, Message<T> message) {
         String topicName;
         String partitionId;
 
@@ -88,9 +107,19 @@ public class PulsarSource<T> implements Source<T> {
 
         Object object;
         try {
-            object = this.topicToSerDeMap.get(topicName).deserialize(message.getData());
+            SerDe deserializer = null;
+            if (this.topicToSerDeMap.containsKey(topicName)) {
+                deserializer = this.topicToSerDeMap.get(topicName);
+            } else if (isTopicsPattern) {
+                deserializer = this.topicToSerDeMap.get(this.pulsarSourceConfig.getTopicsPattern());
+            }
+            if (deserializer != null) {
+                object = deserializer.deserialize(message.getData());
+            } else {
+                throw new IllegalStateException("Topic deserializer not configured : " + topicName);
+            }
         } catch (Exception e) {
-            //TODO Add deserialization exception stats
+            // TODO Add deserialization exception stats
             throw new RuntimeException("Error occured when attempting to deserialize input:", e);
         }
 
@@ -102,35 +131,52 @@ public class PulsarSource<T> implements Source<T> {
         }
 
         PulsarRecord<T> pulsarMessage = (PulsarRecord<T>) PulsarRecord.builder()
-                .value(input)
-                .messageId(message.getMessageId())
-                .partitionId(String.format("%s-%s", topicName, partitionId))
-                .sequenceId(message.getSequenceId())
-                .topicName(topicName)
-                .ackFunction(() -> {
-                    if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
-                        inputConsumer.acknowledgeCumulativeAsync(message);
-                    } else {
-                        inputConsumer.acknowledgeAsync(message);
-                    }
-                }).failFunction(() -> {
-                    if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
-                        throw new RuntimeException("Failed to process message: " + message.getMessageId());
-                    }
-                })
-                .build();
-        return pulsarMessage;
+            .value(input)
+            .messageId(message.getMessageId())
+            .partitionId(String.format("%s-%s", topicName, partitionId))
+            .recordSequence(Utils.getSequenceId(message.getMessageId()))
+            .topicName(topicName)
+            .ackFunction(() -> {
+                if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+                    consumer.acknowledgeCumulativeAsync(message);
+                } else {
+                    consumer.acknowledgeAsync(message);
+                }
+            }).failFunction(() -> {
+                if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+                    throw new RuntimeException("Failed to process message: " + message.getMessageId());
+                }
+            })
+            .build();
+
+        consume(pulsarMessage);
+    }
+
+    public Consumer<T> getConsumerForTopic(String topic) {
+        return inputConsumers.get(topic);
+    }
+
+    @Override
+    public void reachedEndOfTopic(Consumer<T> consumer) {
+        //No-op
     }
 
     @Override
     public void close() throws Exception {
-        this.inputConsumer.close();
+        inputConsumers.forEach((ignored, consumer) -> {
+            try {
+                consumer.close();
+            } catch (PulsarClientException e) {
+            }
+        });
     }
 
     @VisibleForTesting
     void setupSerDe() throws ClassNotFoundException {
 
-        Class<?> typeArg = Thread.currentThread().getContextClassLoader().loadClass(this.pulsarSourceConfig.getTypeClassName());
+        Class<?> typeArg = Classes.loadClass(this.pulsarSourceConfig.getTypeClassName(),
+                Thread.currentThread().getContextClassLoader());
+
         if (Void.class.equals(typeArg)) {
             throw new RuntimeException("Input type of Pulsar Function cannot be Void");
         }

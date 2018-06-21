@@ -30,7 +30,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -43,7 +42,6 @@ import org.apache.bookkeeper.clients.admin.StorageAdminClient;
 import org.apache.bookkeeper.clients.config.StorageClientSettings;
 import org.apache.bookkeeper.clients.exceptions.NamespaceNotFoundException;
 import org.apache.bookkeeper.clients.exceptions.StreamNotFoundException;
-import org.apache.bookkeeper.clients.utils.NetUtils;
 import org.apache.bookkeeper.stream.proto.NamespaceConfiguration;
 import org.apache.logging.log4j.ThreadContext;
 import org.apache.logging.log4j.core.LoggerContext;
@@ -51,6 +49,7 @@ import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
@@ -125,6 +124,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     JavaInstance setupJavaInstance() throws Exception {
         // initialize the thread context
         ThreadContext.put("function", FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
+        ThreadContext.put("functionname", instanceConfig.getFunctionDetails().getName());
         ThreadContext.put("instance", instanceConfig.getInstanceId());
 
         log.info("Starting Java Instance {}", instanceConfig.getFunctionDetails().getName());
@@ -159,6 +159,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     public void run() {
         try {
             javaInstance = setupJavaInstance();
+            if (null != stateTable) {
+                StateContextImpl stateContext = new StateContextImpl(stateTable);
+                javaInstance.getContext().setStateContext(stateContext);
+            }
             while (true) {
 
                 currentRecord = readInput();
@@ -168,16 +172,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     if (instanceConfig.getFunctionDetails().getAutoAck()) {
                         currentRecord.ack();
                     }
-                }
-
-                // state object is per function, because we need to have the ability to know what updates
-                // are made in this function and ensure we only acknowledge after the state is persisted.
-                StateContextImpl stateContext;
-                if (null != stateTable) {
-                    stateContext = new StateContextImpl(stateTable);
-                    javaInstance.getContext().setStateContext(stateContext);
-                } else {
-                    stateContext = null;
                 }
 
                 // process the message
@@ -200,16 +194,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 long doneProcessing = System.currentTimeMillis();
                 log.debug("Got result: {}", result.getResult());
 
-                if (null != stateContext) {
-                    CompletableFuture completableFuture = stateContext.flush();
-
-                    try {
-                        completableFuture.join();
-                    } catch (Exception e) {
-                        log.error("Failed to flush the state updates of message {}", currentRecord, e);
-                        currentRecord.fail();
-                    }
-                }
                 try {
                     processResult(currentRecord, result, processAt, doneProcessing);
                 } catch (Exception e) {
@@ -258,9 +242,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         ).replace('-', '_');
         String tableName = instanceConfig.getFunctionDetails().getName();
 
-        // TODO (sijie): use endpoint for now
         StorageClientSettings settings = StorageClientSettings.newBuilder()
-                .addEndpoints(NetUtils.parseEndpoint(stateStorageServiceUrl))
+                .serviceUri(stateStorageServiceUrl)
                 .clientName("function-" + tableNs + "/" + tableName)
                 .build();
 
@@ -294,7 +277,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         if (result.getUserException() != null) {
             log.info("Encountered user exception when processing message {}", srcRecord, result.getUserException());
             stats.incrementUserExceptions(result.getUserException());
-            this.currentRecord.fail();
+            srcRecord.fail();
         } else if (result.getSystemException() != null) {
             log.info("Encountered system exception when processing message {}", srcRecord, result.getSystemException());
             stats.incrementSystemExceptions(result.getSystemException());
@@ -341,16 +324,21 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     @Override
     public void close() {
-        try {
-            source.close();
-        } catch (Exception e) {
-            log.error("Failed to close source {}", instanceConfig.getFunctionDetails().getSource().getClassName(), e);
+        if (source != null) {
+            try {
+                source.close();
+            } catch (Exception e) {
+                log.error("Failed to close source {}", instanceConfig.getFunctionDetails().getSource().getClassName(), e);
+
+            }
         }
 
-        try {
-            sink.close();
-        } catch (Exception e) {
-            log.error("Failed to close sink {}", instanceConfig.getFunctionDetails().getSource().getClassName(), e);
+        if (sink != null) {
+            try {
+                sink.close();
+            } catch (Exception e) {
+                log.error("Failed to close sink {}", instanceConfig.getFunctionDetails().getSource().getClassName(), e);
+            }
         }
 
         if (null != javaInstance) {
@@ -458,14 +446,27 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         if (sourceSpec.getClassName().isEmpty()) {
             PulsarSourceConfig pulsarSourceConfig = new PulsarSourceConfig();
             pulsarSourceConfig.setTopicSerdeClassNameMap(sourceSpec.getTopicsToSerDeClassNameMap());
+            pulsarSourceConfig.setTopicsPattern(sourceSpec.getTopicsPattern());
             pulsarSourceConfig.setSubscriptionName(
                     FunctionDetailsUtils.getFullyQualifiedName(this.instanceConfig.getFunctionDetails()));
             pulsarSourceConfig.setProcessingGuarantees(
                     FunctionConfig.ProcessingGuarantees.valueOf(
                             this.instanceConfig.getFunctionDetails().getProcessingGuarantees().name()));
-            pulsarSourceConfig.setSubscriptionType(
-                    FunctionConfig.SubscriptionType.valueOf(sourceSpec.getSubscriptionType().name()));
+
+            switch (sourceSpec.getSubscriptionType()) {
+                case FAILOVER:
+                    pulsarSourceConfig.setSubscriptionType(SubscriptionType.Failover);
+                    break;
+                default:
+                    pulsarSourceConfig.setSubscriptionType(SubscriptionType.Shared);
+                    break;
+            }
+
             pulsarSourceConfig.setTypeClassName(sourceSpec.getTypeClassName());
+
+            if (sourceSpec.getTimeoutMs() > 0 ) {
+                pulsarSourceConfig.setTimeoutMs(sourceSpec.getTimeoutMs());
+            }
 
             Object[] params = {this.client, pulsarSourceConfig};
             Class[] paramTypes = {PulsarClient.class, PulsarSourceConfig.class};

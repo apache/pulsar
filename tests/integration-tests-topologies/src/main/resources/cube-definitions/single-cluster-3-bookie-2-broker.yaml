@@ -35,6 +35,8 @@ zookeeper*:
   beforeStop:
     - customBeforeStopAction:
         strategy: org.apache.pulsar.tests.PulsarLogsToTargetDirStopAction
+    - customBeforeStopAction:
+        strategy: org.apache.pulsar.tests.ZKJournalToTargetDirStopAction
   networkMode: pulsarnet*
 
 configuration-store*:
@@ -51,6 +53,8 @@ configuration-store*:
   beforeStop:
     - customBeforeStopAction:
         strategy: org.apache.pulsar.tests.PulsarLogsToTargetDirStopAction
+    - customBeforeStopAction:
+        strategy: org.apache.pulsar.tests.ZKJournalToTargetDirStopAction
   networkMode: pulsarnet*
 
 init*:
@@ -58,7 +62,7 @@ init*:
   await:
     strategy: org.apache.pulsar.tests.NoopAwaitStrategy
   env:
-    - cluster=test
+    - clusterName=test
     - zkServers=zookeeper
     - configurationStore=configuration-store:2184
     - pulsarNode=pulsar-broker1
@@ -78,6 +82,7 @@ bookkeeper1*:
   env:
     - zkServers=zookeeper
     - useHostNameAsBookieID=true
+    - clusterName=test
   labels:
     cluster: test
     service: bookie
@@ -110,6 +115,7 @@ bookkeeper3*:
   env:
     - zkServers=zookeeper
     - useHostNameAsBookieID=true
+    - clusterName=test
   labels:
     cluster: test
     service: bookie
@@ -129,6 +135,7 @@ pulsar-broker1*:
     - zookeeperServers=zookeeper
     - configurationStoreServers=configuration-store:2184
     - clusterName=test
+    - brokerServiceCompactionMonitorIntervalInSeconds=1
   labels:
     cluster: test
     service: pulsar-broker
@@ -148,6 +155,7 @@ pulsar-broker2*:
     - zookeeperServers=zookeeper
     - configurationStoreServers=configuration-store:2184
     - clusterName=test
+    - brokerServiceCompactionMonitorIntervalInSeconds=1
   labels:
     cluster: test
     service: pulsar-broker

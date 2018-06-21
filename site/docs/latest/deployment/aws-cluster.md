@@ -176,7 +176,7 @@ Once in the shell, run the following:
 >>> import pulsar
 >>> client = pulsar.Client('pulsar://pulsar-elb-1800761694.us-west-2.elb.amazonaws.com:6650')
 # Make sure to use your connection URL
->>> producer = client.create_producer('persistent://sample/local/ns1/test-topic')
+>>> producer = client.create_producer('persistent://public/default/test-topic')
 >>> producer.send('Hello world')
 >>> client.close()
 ```

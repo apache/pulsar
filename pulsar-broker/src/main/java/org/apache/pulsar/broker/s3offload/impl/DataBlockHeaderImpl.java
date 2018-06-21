@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.s3offload.impl;
 
+import com.google.common.io.CountingInputStream;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.PooledByteBufAllocator;
@@ -39,37 +41,38 @@ public class DataBlockHeaderImpl implements DataBlockHeader {
     // This is bigger than header size. Leaving some place for alignment and future enhancement.
     // Payload use this as the start offset.
     private static final int HEADER_MAX_SIZE = 128;
-    // The size of this header.
-    private static final int HEADER_SIZE = 4 /* magic word */
-        + 4 /* index block length */
-        + 8 /* first entry id */;
-    private static final byte[] PADDING = new byte[HEADER_MAX_SIZE - HEADER_SIZE];
-
+    private static final int HEADER_BYTES_USED = 4 /* magic */
+                                               + 8 /* header len */
+                                               + 8 /* block len */
+                                               + 8 /* first entry id */;
+    private static final byte[] PADDING = new byte[HEADER_MAX_SIZE - HEADER_BYTES_USED];
 
     public static DataBlockHeaderImpl of(int blockLength, long firstEntryId) {
-        return new DataBlockHeaderImpl(blockLength, firstEntryId);
+        return new DataBlockHeaderImpl(HEADER_MAX_SIZE, blockLength, firstEntryId);
     }
 
     // Construct DataBlockHeader from InputStream, which contains `HEADER_MAX_SIZE` bytes readable.
     public static DataBlockHeader fromStream(InputStream stream) throws IOException {
-        DataInputStream dis = new DataInputStream(stream);
+        CountingInputStream countingStream = new CountingInputStream(stream);
+        DataInputStream dis = new DataInputStream(countingStream);
         int magic = dis.readInt();
         if (magic != MAGIC_WORD) {
             throw new IOException("Data block header magic word not match. read: " + magic + " expected: " + MAGIC_WORD);
         }
 
-        int blockLen = dis.readInt();
+        long headerLen = dis.readLong();
+        long blockLen = dis.readLong();
         long firstEntryId = dis.readLong();
-
-        // padding part
-        if (PADDING.length != dis.skipBytes(PADDING.length)) {
-            throw new EOFException("Data block header magic word not match.");
+        long toSkip = headerLen - countingStream.getCount();
+        if (dis.skip(toSkip) != toSkip) {
+            throw new EOFException("Header was too small");
         }
 
-        return new DataBlockHeaderImpl(blockLen, firstEntryId);
+        return new DataBlockHeaderImpl(headerLen, blockLen, firstEntryId);
     }
 
-    private final int blockLength;
+    private final long headerLength;
+    private final long blockLength;
     private final long firstEntryId;
 
     static public int getBlockMagicWord() {
@@ -81,8 +84,13 @@ public class DataBlockHeaderImpl implements DataBlockHeader {
     }
 
     @Override
-    public int getBlockLength() {
+    public long getBlockLength() {
         return this.blockLength;
+    }
+
+    @Override
+    public long getHeaderLength() {
+        return this.headerLength;
     }
 
     @Override
@@ -90,12 +98,8 @@ public class DataBlockHeaderImpl implements DataBlockHeader {
         return this.firstEntryId;
     }
 
-    @Override
-    public int getHeaderSize() {
-        return HEADER_MAX_SIZE;
-    }
-
-    public DataBlockHeaderImpl(int blockLength, long firstEntryId) {
+    public DataBlockHeaderImpl(long headerLength, long blockLength, long firstEntryId) {
+        this.headerLength = headerLength;
         this.blockLength = blockLength;
         this.firstEntryId = firstEntryId;
     }
@@ -107,13 +111,10 @@ public class DataBlockHeaderImpl implements DataBlockHeader {
      */
     @Override
     public InputStream toStream() {
-        int headerSize = 4 /* magic word */
-            + 4 /* index block length */
-            + 8 /* first entry id */;
-
         ByteBuf out = PooledByteBufAllocator.DEFAULT.buffer(HEADER_MAX_SIZE, HEADER_MAX_SIZE);
         out.writeInt(MAGIC_WORD)
-            .writeInt(blockLength)
+            .writeLong(headerLength)
+            .writeLong(blockLength)
             .writeLong(firstEntryId)
             .writeBytes(PADDING);
 

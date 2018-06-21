@@ -19,14 +19,12 @@
 package org.apache.pulsar.functions.instance.state;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
+import java.nio.ByteBuffer;
 import org.apache.bookkeeper.api.kv.Table;
-import org.apache.bookkeeper.common.concurrent.FutureUtils;
 
 /**
  * This class accumulates the state updates from one function.
@@ -36,27 +34,41 @@ import org.apache.bookkeeper.common.concurrent.FutureUtils;
 public class StateContextImpl implements StateContext {
 
     private final Table<ByteBuf, ByteBuf> table;
-    // the list
-    private final List<CompletableFuture<Void>> updates;
 
     public StateContextImpl(Table<ByteBuf, ByteBuf> table) {
         this.table = table;
-        this.updates = new ArrayList<>();
     }
 
     @Override
-    public void incr(String key, long amount) {
+    public void incr(String key, long amount) throws Exception {
         // TODO: this can be optimized with a batch operation.
-        updates.add(table.increment(
+        result(table.increment(
             Unpooled.wrappedBuffer(key.getBytes(UTF_8)),
             amount));
     }
 
-    /**
-     * flush and wait all the updates to be completed.
-     */
     @Override
-    public CompletableFuture<Void> flush() {
-        return FutureUtils.collect(updates).thenApply(ignored -> null);
+    public void put(String key, ByteBuffer value) throws Exception {
+        result(table.put(
+            Unpooled.wrappedBuffer(key.getBytes(UTF_8)),
+            Unpooled.wrappedBuffer(value)));
     }
+
+    @Override
+    public ByteBuffer getValue(String key) throws Exception {
+        ByteBuf data = result(table.get(Unpooled.wrappedBuffer(key.getBytes(UTF_8))));
+        try {
+            ByteBuffer result = ByteBuffer.allocate(data.readableBytes());
+            data.readBytes(result);
+            return result;
+        } finally {
+            data.release();
+        }
+    }
+
+    @Override
+    public long getAmount(String key) throws Exception {
+        return result(table.getNumber(Unpooled.wrappedBuffer(key.getBytes(UTF_8))));
+    }
+
 }

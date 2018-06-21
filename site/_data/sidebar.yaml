@@ -134,7 +134,11 @@ groups:
 - title: Cookbooks
   dir: cookbooks
   docs:
-  - title: Message deduplication
+  - title: Tiered Storage
+    endpoint: tiered-storage
+  - title: Topic compaction
+    endpoint: compaction
+  - title: Managing message deduplication
     endpoint: message-deduplication
   - title: Non-persistent messaging
     endpoint: non-persistent-messaging
@@ -160,6 +164,8 @@ groups:
     endpoint: schema-storage
   - title: Modular load manager
     endpoint: ModularLoadManager
+  - title: Building Pulsar C++ client
+    endpoint: CompileCpp
 
 - title: Reference
   dir: reference
@@ -170,3 +176,5 @@ groups:
     endpoint: CliTools
   - title: Pulsar configuration
     endpoint: Configuration
+  - title: Authn & Authz plugins
+    endpoint: CustomAuth

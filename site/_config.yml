@@ -26,9 +26,11 @@ baseurl: /
 destination: ../generated-site/content
 
 preview_version_id: 20180426.125800-32
-current_version: 1.22.0-incubating
-python_latest: "1.22.0"
+current_version: 2.0.1-incubating
+python_latest: 2.0.1
 archived_releases:
+  - 1.22.1-incubating
+  - 2.0.0-rc1-incubating
   - 1.22.0-incubating
   - 1.21.0-incubating
   - 1.20.0-incubating

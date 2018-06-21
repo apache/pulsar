@@ -34,9 +34,11 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+import static java.util.Collections.emptyMap;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyList;
 import static org.mockito.Matchers.anyLong;
+import static org.mockito.Matchers.anyObject;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -78,16 +80,16 @@ public class PulsarSourceTest {
         doReturn(consumerBuilder).when(consumerBuilder).subscriptionName(anyString());
         doReturn(consumerBuilder).when(consumerBuilder).subscriptionType(any());
         doReturn(consumerBuilder).when(consumerBuilder).ackTimeout(anyLong(), any());
+        doReturn(consumerBuilder).when(consumerBuilder).messageListener(anyObject());
         Consumer consumer = mock(Consumer.class);
         doReturn(consumer).when(consumerBuilder).subscribe();
-        doReturn(consumerBuilder).when(pulsarClient).newConsumer();
+        doReturn(consumerBuilder).when(pulsarClient).newConsumer(anyObject());
         return pulsarClient;
     }
 
     private static PulsarSourceConfig getPulsarConfigs() {
         PulsarSourceConfig pulsarConfig = new PulsarSourceConfig();
         pulsarConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
-        pulsarConfig.setSubscriptionType(FunctionConfig.SubscriptionType.FAILOVER);
         pulsarConfig.setTopicSerdeClassNameMap(topicSerdeClassNameMap);
         pulsarConfig.setTypeClassName(String.class.getName());
         return pulsarConfig;
@@ -160,7 +162,7 @@ public class PulsarSourceTest {
      * Verify that Default Serializer works fine.
      */
     @Test
-    public void testDefaultSerDe() throws PulsarClientException {
+    public void testDefaultSerDe() throws Exception {
 
         PulsarSourceConfig pulsarConfig = getPulsarConfigs();
         // set type to void
@@ -169,20 +171,14 @@ public class PulsarSourceTest {
         pulsarConfig.setTopicSerdeClassNameMap(topicSerdeClassNameMap);
         PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig);
 
-        try {
-            pulsarSource.open(new HashMap<>());
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            assertEquals(ex, null);
-            assertTrue(false);
-        }
+        pulsarSource.open(emptyMap());
     }
 
     /**
      * Verify that Explicit setting of Default Serializer works fine.
      */
     @Test
-    public void testExplicitDefaultSerDe() throws PulsarClientException {
+    public void testExplicitDefaultSerDe() throws Exception {
         PulsarSourceConfig pulsarConfig = getPulsarConfigs();
         // set type to void
         pulsarConfig.setTypeClassName(String.class.getName());
@@ -190,13 +186,7 @@ public class PulsarSourceTest {
         pulsarConfig.setTopicSerdeClassNameMap(topicSerdeClassNameMap);
         PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig);
 
-        try {
-            pulsarSource.open(new HashMap<>());
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            assertEquals(ex, null);
-            assertTrue(false);
-        }
+        pulsarSource.open(new HashMap<>());
     }
 
     @Test
@@ -211,7 +201,6 @@ public class PulsarSourceTest {
         try {
             pulsarSource.setupSerDe();
         } catch (Exception ex) {
-            ex.printStackTrace();
             fail();
         }
     }

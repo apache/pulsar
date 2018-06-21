@@ -18,28 +18,41 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import static org.apache.pulsar.functions.utils.Utils.FILE;
+import static org.apache.pulsar.functions.utils.Utils.HTTP;
+import static org.apache.pulsar.functions.utils.Utils.isFunctionPackageUrlSupported;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.URL;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-
-import lombok.*;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.distributedlog.api.namespace.Namespace;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
-import org.apache.pulsar.functions.runtime.RuntimeFactory;
-import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.runtime.RuntimeSpawner;
-import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
-
-import java.io.File;
-import java.io.FileOutputStream;
 import java.util.UUID;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+
+import org.apache.commons.lang3.StringUtils;
+import org.apache.distributedlog.api.namespace.Namespace;
+import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
+import org.apache.pulsar.functions.runtime.RuntimeFactory;
+import org.apache.pulsar.functions.runtime.RuntimeSpawner;
+import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.io.MoreFiles;
+import com.google.common.io.RecursiveDeleteOption;
+
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
 
 @Data
 @Setter
@@ -101,22 +114,51 @@ public class FunctionActioner implements AutoCloseable {
         actioner.join();
     }
 
-    private void startFunction(FunctionRuntimeInfo functionRuntimeInfo) throws Exception {
-        Function.Instance instance = functionRuntimeInfo.getFunctionInstance();
-        FunctionMetaData functionMetaData = instance.getFunctionMetaData();
-        log.info("Starting function {} - {} ...",
-                functionMetaData.getFunctionDetails().getName(), instance.getInstanceId());
-        File pkgDir = new File(
-                workerConfig.getDownloadDirectory(),
-                getDownloadPackagePath(functionMetaData, instance.getInstanceId()));
-        pkgDir.mkdirs();
-
+    @VisibleForTesting
+    protected void startFunction(FunctionRuntimeInfo functionRuntimeInfo) throws Exception {
+        FunctionMetaData functionMetaData = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData();
         int instanceId = functionRuntimeInfo.getFunctionInstance().getInstanceId();
+        log.info("Starting function {} - {} ...",
+                functionMetaData.getFunctionDetails().getName(), instanceId);
+        File pkgFile = null;
+        
+        String pkgLocation = functionMetaData.getPackageLocation().getPackagePath();
+        boolean isPkgUrlProvided = isFunctionPackageUrlSupported(pkgLocation);
+        
+        if(isPkgUrlProvided && pkgLocation.startsWith(FILE)) {
+            URL url = new URL(pkgLocation);
+            pkgFile = new File(url.toURI());
+        } else {
+            File pkgDir = new File(
+                    workerConfig.getDownloadDirectory(),
+                    getDownloadPackagePath(functionMetaData, instanceId));
+            pkgDir.mkdirs();
+            
+            pkgFile = new File(
+                    pkgDir,
+                    new File(FunctionDetailsUtils.getDownloadFileName(functionMetaData.getFunctionDetails())).getName());
+            downloadFile(pkgFile, isPkgUrlProvided, functionMetaData, instanceId);
+        }
+        
+        InstanceConfig instanceConfig = new InstanceConfig();
+        instanceConfig.setFunctionDetails(functionMetaData.getFunctionDetails());
+        // TODO: set correct function id and version when features implemented
+        instanceConfig.setFunctionId(UUID.randomUUID().toString());
+        instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
+        instanceConfig.setInstanceId(String.valueOf(instanceId));
+        instanceConfig.setMaxBufferedTuples(1024);
+        instanceConfig.setPort(org.apache.pulsar.functions.utils.Utils.findAvailablePort());
+        RuntimeSpawner runtimeSpawner = new RuntimeSpawner(instanceConfig, pkgFile.getAbsolutePath(),
+                runtimeFactory, workerConfig.getInstanceLivenessCheckFreqMs());
 
-        File pkgFile = new File(
-            pkgDir,
-            new File(FunctionDetailsUtils.getDownloadFileName(functionMetaData.getFunctionDetails())).getName());
+        functionRuntimeInfo.setRuntimeSpawner(runtimeSpawner);
+        runtimeSpawner.start();
+    }
 
+    private void downloadFile(File pkgFile, boolean isPkgUrlProvided, FunctionMetaData functionMetaData, int instanceId) throws FileNotFoundException, IOException {
+        
+        File pkgDir = pkgFile.getParentFile();
+        
         if (pkgFile.exists()) {
             log.warn("Function package exists already {} deleting it",
                     pkgFile);
@@ -132,14 +174,21 @@ public class FunctionActioner implements AutoCloseable {
                 break;
             }
         }
-        try {
-            log.info("Function package file {} will be downloaded from {}",
-                    tempPkgFile, functionMetaData.getPackageLocation());
+        String pkgLocationPath = functionMetaData.getPackageLocation().getPackagePath();
+        boolean downloadFromHttp = isPkgUrlProvided && pkgLocationPath.startsWith(HTTP);
+        log.info("Function package file {} will be downloaded from {}", tempPkgFile,
+                downloadFromHttp ? pkgLocationPath : functionMetaData.getPackageLocation());
+        
+        if(downloadFromHttp) {
+            Utils.downloadFromHttpUrl(pkgLocationPath, new FileOutputStream(tempPkgFile));
+        } else {
             Utils.downloadFromBookkeeper(
                     dlogNamespace,
                     new FileOutputStream(tempPkgFile),
-                    functionMetaData.getPackageLocation().getPackagePath());
-
+                    pkgLocationPath);
+        }
+        
+        try {
             // create a hardlink, if there are two concurrent createLink operations, one will fail.
             // this ensures one instance will successfully download the package.
             try {
@@ -156,20 +205,6 @@ public class FunctionActioner implements AutoCloseable {
         } finally {
             tempPkgFile.delete();
         }
-
-        InstanceConfig instanceConfig = new InstanceConfig();
-        instanceConfig.setFunctionDetails(functionMetaData.getFunctionDetails());
-        // TODO: set correct function id and version when features implemented
-        instanceConfig.setFunctionId(UUID.randomUUID().toString());
-        instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
-        instanceConfig.setInstanceId(String.valueOf(instanceId));
-        instanceConfig.setMaxBufferedTuples(1024);
-        instanceConfig.setPort(org.apache.pulsar.functions.utils.Utils.findAvailablePort());
-        RuntimeSpawner runtimeSpawner = new RuntimeSpawner(instanceConfig, pkgFile.getAbsolutePath(),
-                runtimeFactory, workerConfig.getInstanceLivenessCheckFreqMs());
-
-        functionRuntimeInfo.setRuntimeSpawner(runtimeSpawner);
-        runtimeSpawner.start();
     }
 
     private void stopFunction(FunctionRuntimeInfo functionRuntimeInfo) {
@@ -189,7 +224,8 @@ public class FunctionActioner implements AutoCloseable {
 
         if (pkgDir.exists()) {
             try {
-                FileUtils.deleteDirectory(pkgDir);
+                MoreFiles.deleteRecursively(
+                    Paths.get(pkgDir.toURI()), RecursiveDeleteOption.ALLOW_INSECURE);
             } catch (IOException e) {
                 log.warn("Failed to delete package for function: {}",
                         FunctionDetailsUtils.getFullyQualifiedName(functionMetaData.getFunctionDetails()), e);

@@ -48,6 +48,7 @@ import org.apache.pulsar.broker.s3offload.OffloadIndexBlock;
 import org.apache.pulsar.broker.s3offload.OffloadIndexBlockBuilder;
 import org.apache.pulsar.broker.s3offload.OffloadIndexEntry;
 import org.apache.pulsar.broker.s3offload.S3BackedInputStream;
+import org.apache.pulsar.broker.s3offload.S3ManagedLedgerOffloader.VersionCheck;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -190,16 +191,19 @@ public class S3BackedReadHandleImpl implements ReadHandle {
 
     public static ReadHandle open(ScheduledExecutorService executor,
                                   AmazonS3 s3client, String bucket, String key, String indexKey,
+                                  VersionCheck versionCheck,
                                   long ledgerId, int readBufferSize)
             throws AmazonClientException, IOException {
         GetObjectRequest req = new GetObjectRequest(bucket, indexKey);
         try (S3Object obj = s3client.getObject(req)) {
+            versionCheck.check(indexKey, obj.getObjectMetadata());
+
             OffloadIndexBlockBuilder indexBuilder = OffloadIndexBlockBuilder.create();
             OffloadIndexBlock index = indexBuilder.fromStream(obj.getObjectContent());
 
-            ObjectMetadata dataMetadata = s3client.getObjectMetadata(bucket, key); // FIXME: this should be part of index
             S3BackedInputStream inputStream = new S3BackedInputStreamImpl(s3client, bucket, key,
-                                                                          dataMetadata.getContentLength(),
+                                                                          versionCheck,
+                                                                          index.getDataObjectLength(),
                                                                           readBufferSize);
             return new S3BackedReadHandleImpl(ledgerId, index, inputStream, executor);
         }

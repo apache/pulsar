@@ -26,6 +26,80 @@ layout: content
 
 ## Apache incubator
 
+<!--
+### 2.1.0-incubating &mdash; XXXX-XX-XX <a id="2.1.0-incubating"></a>
+
+Notes:
+
+ * [#2002](https://github.com/apache/incubator-pulsar/pull/2002) Updated
+  default checksum configured in BookKeeper client to CRC32-C. This will mean
+  that,  while it is possible to downgrade a Pulsar cluster from 2.1 to 2.0,
+  it will not be possible to downgrade from 2.1 to 1.22 release directly.
+-->
+
+### 2.0.1-incubating &mdash; 2018-06-18 <a id="2.0.1-incubating"></a>
+
+This release fixes issues reported for 2.0.0-rc1-incubating.
+
+ * [#1893](https://github.com/apache/incubator-pulsar/pull/1893) - Fixed issues with Python packages on PyPI
+ * [#1797](https://github.com/apache/incubator-pulsar/issues/1797) - Proxy doesn't strip the request
+    URL for admin requests correctly
+ * [#1862](https://github.com/apache/incubator-pulsar/pull/1862) - Fix REST APIs provided by Pulsar proxy
+
+The complete list of changes can be found at:
+https://github.com/apache/incubator-pulsar/milestone/14?closed=1
+
+https://github.com/apache/incubator-pulsar/releases/tag/v2.0.1-incubating
+
+### 1.22.1-incubating &mdash; 2018-06-18 <a id="1.22.1-incubating"></a>
+
+This is the sixth release of Apache Pulsar since entering the ASF incubator.
+
+This release addresses issues reported in 1.22.0-incubating version.
+
+ * [#1660](https://github.com/apache/incubator-pulsar/pull/1660) Deadlock while closing non persistent topic
+ * [#1591](https://github.com/apache/incubator-pulsar/pull/1591) Deadlock while closing non shared consumer
+ * [#1554](https://github.com/apache/incubator-pulsar/pull/1554) Handle invalid mark delete position at managed cursor
+ * [#1262](https://github.com/apache/incubator-pulsar/pull/1262) Broker should not start replicator for root partitioned topic
+ * [#1662](https://github.com/apache/incubator-pulsar/pull/1662) NPE when cursor failed to close empty subscription
+ * [#1370](https://github.com/apache/incubator-pulsar/pull/1370) Relocate service files for shading pulsar-client-admin module
+ * [#1265](https://github.com/apache/incubator-pulsar/pull/1265) Fixed lookup redirect logic on Proxyside
+ * [#1428](https://github.com/apache/incubator-pulsar/pull/1428) Handle Race condition in concurrent bundle split
+ * [#1817](https://github.com/apache/incubator-pulsar/pull/1817) Fixed mem leak when acknowledging while disconnected from broke
+ * [#1851](https://github.com/apache/incubator-pulsar/pull/1851) Fixing resource leak due to open file descriptors in SecurityUtility.
+
+The complete list of changes can be found at:
+https://github.com/apache/incubator-pulsar/milestone/15?closed=1
+
+https://github.com/apache/incubator-pulsar/releases/tag/v1.22.1-incubating
+
+### 2.0.0-rc1-incubating &mdash; 2018-05-29 <a id="2.0.0-rc1-incubating"></a>
+
+This is the fifth release of Apache Pulsar since entering the ASF incubator and the
+first time we increase major release number.
+
+There are several new features and major improvements:
+
+ * [Pulsar functions](http://pulsar.apache.org/docs/latest/functions/overview/): Lightweight
+   compute framework
+ * New type-safe [Java API](http://pulsar.apache.org/docs/latest/clients/Java/) for producer/consumers
+ * [Schema registry](http://pulsar.apache.org/docs/v2.0.0-rc1-incubating/getting-started/ConceptsAndArchitecture/#Schemaregistry-ll008b) &mdash; Enforce schema on topics
+ * Topic compaction &mdash; Out of band compaction of messages to allow consumer to fetch a
+   snapshot with last published message for each message key.
+ * Upgraded to [Apache BookKeeper](https://bookkeeper.apache.org/) 4.7.0
+ * Performance improvements &mdash; Up to 3x throughput improvements compared to Pulsar-1.22 and
+   99.9 Pct publish latencies <10ms
+ * [Simplified terminology](http://pulsar.apache.org/docs/v2.0.0-rc1-incubating/getting-started/Pulsar-2.0/#Propertiesversustenants-gh1amh) and admin tools
+   - Renamed "property" into "tenants"
+   - Short topic names: `my-topic`
+   - Topics independent of cluster names: `my-tenant/my-namespace/my-topic`
+
+The complete list of changes can be found at:
+https://github.com/apache/incubator-pulsar/milestone/12?closed=1
+
+https://github.com/apache/incubator-pulsar/releases/tag/v2.0.0-rc1-incubating
+
+
 ### 1.22.0-incubating &mdash; 2018-03-06 <a id="1.22.0-incubating"></a>
 
 This is the fourth of Apache Pulsar since entering the ASF incubator.

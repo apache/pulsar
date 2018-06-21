@@ -72,6 +72,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -152,7 +153,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.priorityLevel = conf.getPriorityLevel();
         this.readCompacted = conf.isReadCompacted();
         this.subscriptionInitialPosition = conf.getSubscriptionInitialPosition();
-        this.acknowledgmentsGroupingTracker = new AcknowledgmentsGroupingTracker(this, conf, client.eventLoopGroup());
+
+        TopicName topicName = TopicName.get(topic);
+        if (topicName.isPersistent()) {
+            this.acknowledgmentsGroupingTracker =
+                new PersistentAcknowledgmentsGroupingTracker(this, conf, client.eventLoopGroup());
+        } else {
+            this.acknowledgmentsGroupingTracker =
+                NonPersistentAcknowledgmentGroupingTracker.of();
+        }
 
         if (client.getConfiguration().getStatsIntervalSeconds() > 0) {
             stats = new ConsumerStatsRecorderImpl(client, conf, this);
@@ -213,8 +222,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             ClientCnx cnx = cnx();
             cnx.sendRequestWithId(unsubscribe, requestId).thenRun(() -> {
                 cnx.removeConsumer(consumerId);
-                log.info("[{}][{}] Successfully unsubscribed from topic", topic, subscription);
                 unAckedMessageTracker.close();
+                client.cleanupConsumer(ConsumerImpl.this);
+                log.info("[{}][{}] Successfully unsubscribed from topic", topic, subscription);
                 unsubscribeFuture.complete(null);
                 setState(State.Closed);
             }).exceptionally(e -> {
@@ -484,7 +494,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     AVAILABLE_PERMITS_UPDATER.set(this, 0);
                     // For zerosize queue : If the connection is reset and someone is waiting for the messages
                     // or queue was not empty: send a flow command
-                    if (waitingOnReceiveForZeroQueueSize || (conf.getReceiverQueueSize() == 0 && currentSize > 0)) {
+                    if (waitingOnReceiveForZeroQueueSize
+                            || (conf.getReceiverQueueSize() == 0 && (currentSize > 0 || listener != null))) {
                         sendFlowPermitsToBroker(cnx, 1);
                     }
                 } else {
@@ -677,6 +688,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 log.debug("[{}][{}] Ignoring message as it was already being acked earlier by same consumer {}/{}",
                         topic, subscription, msgId);
             }
+            if (conf.getReceiverQueueSize() == 0) {
+                increaseAvailablePermits(cnx);
+            }
             return;
         }
 
@@ -721,12 +735,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 // if the conf.getReceiverQueueSize() is 0 then discard message if no one is waiting for it.
                 // if asyncReceive is waiting then notify callback without adding to incomingMessages queue
                 unAckedMessageTracker.add((MessageIdImpl) message.getMessageId());
-                boolean asyncReceivedWaiting = !pendingReceives.isEmpty();
-                if ((conf.getReceiverQueueSize() != 0 || waitingOnReceiveForZeroQueueSize) && !asyncReceivedWaiting) {
-                    incomingMessages.add(message);
-                }
-                if (asyncReceivedWaiting) {
+                if (!pendingReceives.isEmpty()) {
                     notifyPendingReceivedCallback(message, null);
+                } else if (conf.getReceiverQueueSize() != 0 || waitingOnReceiveForZeroQueueSize) {
+                    incomingMessages.add(message);
+                } else if (conf.getReceiverQueueSize() == 0 && listener != null) {
+                    triggerZeroQueueSizeListener(message);
                 }
             } finally {
                 lock.readLock().unlock();
@@ -753,7 +767,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             msgMetadata.recycle();
         }
 
-        if (listener != null) {
+        if (listener != null && conf.getReceiverQueueSize() != 0) {
             // Trigger the notification on the message listener in a separate thread to avoid blocking the networking
             // thread while the message processing happens
             listenerExecutor.execute(() -> {
@@ -813,6 +827,27 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 listenerExecutor.execute(() -> receivedFuture.completeExceptionally(exception));
             }
         }
+    }
+
+    private void triggerZeroQueueSizeListener(final Message<T> message) {
+        checkArgument(conf.getReceiverQueueSize() == 0);
+        checkNotNull(listener, "listener can't be null");
+        checkNotNull(message, "unqueued message can't be null");
+
+        listenerExecutor.execute(() -> {
+            stats.updateNumMsgsReceived(message);
+            try {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}][{}] Calling message listener for unqueued message {}", topic, subscription,
+                            message.getMessageId());
+                }
+                listener.received(ConsumerImpl.this, message);
+            } catch (Throwable t) {
+                log.error("[{}][{}] Message listener error in processing unqueued message: {}", topic, subscription,
+                        message.getMessageId(), t);
+            }
+            increaseAvailablePermits(cnx());
+        });
     }
 
     void receiveIndividualMessagesFromBatch(MessageMetadata msgMetadata, ByteBuf uncompressedPayload,
@@ -1091,7 +1126,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return;
         }
         if (cnx == null || (getState() == State.Connecting)) {
-            log.warn("[{}] Client Connection needs to be establised for redelivery of unacknowledged messages", this);
+            log.warn("[{}] Client Connection needs to be established for redelivery of unacknowledged messages", this);
         } else {
             log.warn("[{}] Reconnecting the client to redeliver the messages.", this);
             cnx.ctx().close();
@@ -1138,7 +1173,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return;
         }
         if (cnx == null || (getState() == State.Connecting)) {
-            log.warn("[{}] Client Connection needs to be establised for redelivery of unacknowledged messages", this);
+            log.warn("[{}] Client Connection needs to be established for redelivery of unacknowledged messages", this);
         } else {
             log.warn("[{}] Reconnecting the client to redeliver the messages.", this);
             cnx.ctx().close();
@@ -1350,7 +1385,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     void connectionClosed(ClientCnx cnx) {
         this.connectionHandler.connectionClosed(cnx);
     }
-    
+
     @VisibleForTesting
     public ClientCnx getClientCnx() {
         return this.connectionHandler.getClientCnx();

@@ -42,6 +42,9 @@ class InstanceCommunicationServicer(InstanceCommunication_pb2_grpc.InstanceContr
     Log.info("Came in GetAndResetMetrics")
     return self.pyinstance.get_and_reset_metrics()
 
+  def HealthCheck(self, request, context):
+    return self.pyinstance.health_check()
+
 
 def serve(port, pyinstance):
   server_instance = grpc.server(futures.ThreadPoolExecutor(max_workers=10))

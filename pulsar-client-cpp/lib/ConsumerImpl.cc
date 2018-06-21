@@ -57,7 +57,9 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
       batchAcknowledgementTracker_(topic_, subscription, (long)consumerId_),
       brokerConsumerStats_(),
       consumerStatsBasePtr_(),
-      msgCrypto_() {
+      msgCrypto_(),
+      readCompacted_(conf.isReadCompacted()),
+      lastMessageInBroker_(Optional<MessageId>::of(MessageId())) {
     std::stringstream consumerStrStream;
     consumerStrStream << "[" << topic_ << ", " << subscription_ << ", " << consumerId_ << "] ";
     consumerStr_ = consumerStrStream.str();
@@ -135,8 +137,9 @@ void ConsumerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
 
     ClientImplPtr client = client_.lock();
     uint64_t requestId = client->newRequestId();
-    SharedBuffer cmd = Commands::newSubscribe(topic_, subscription_, consumerId_, requestId, getSubType(),
-                                              consumerName_, subscriptionMode_, startMessageId_);
+    SharedBuffer cmd =
+        Commands::newSubscribe(topic_, subscription_, consumerId_, requestId, getSubType(), consumerName_,
+                               subscriptionMode_, startMessageId_, readCompacted_);
     cnx->sendRequestWithId(cmd, requestId)
         .addListener(boost::bind(&ConsumerImpl::handleCreateConsumer, shared_from_this(), cnx, _1));
 }
@@ -876,6 +879,119 @@ void ConsumerImpl::brokerConsumerStatsListener(Result res, BrokerConsumerStatsIm
 
     if (!callback.empty()) {
         callback(res, BrokerConsumerStats(boost::make_shared<BrokerConsumerStatsImpl>(brokerConsumerStats)));
+    }
+}
+
+void ConsumerImpl::handleSeek(Result result, ResultCallback callback) {
+    if (result == ResultOk) {
+        LOG_INFO(getName() << "Seek successfully");
+    } else {
+        LOG_ERROR(getName() << "Failed to seek: " << strResult(result));
+    }
+    callback(result);
+}
+
+void ConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback callback) {
+    Lock lock(mutex_);
+    if (state_ == Closed || state_ == Closing) {
+        lock.unlock();
+        LOG_ERROR(getName() << "Client connection already closed.");
+        if (!callback.empty()) {
+            callback(ResultAlreadyClosed);
+        }
+        return;
+    }
+    lock.unlock();
+
+    ClientConnectionPtr cnx = getCnx().lock();
+    if (cnx) {
+        ClientImplPtr client = client_.lock();
+        uint64_t requestId = client->newRequestId();
+        LOG_DEBUG(getName() << " Sending seek Command for Consumer - " << getConsumerId() << ", requestId - "
+                            << requestId);
+        Future<Result, ResponseData> future =
+            cnx->sendRequestWithId(Commands::newSeek(consumerId_, requestId, msgId), requestId);
+
+        if (!callback.empty()) {
+            future.addListener(boost::bind(&ConsumerImpl::handleSeek, shared_from_this(), _1, callback));
+        }
+        return;
+    }
+
+    LOG_ERROR(getName() << " Client Connection not ready for Consumer");
+    callback(ResultNotConnected);
+}
+
+bool ConsumerImpl::isReadCompacted() { return readCompacted_; }
+
+void ConsumerImpl::hasMessageAvailableAsync(HasMessageAvailableCallback callback) {
+    MessageId lastDequed = this->lastMessageIdDequed();
+    MessageId lastInBroker = this->lastMessageIdInBroker();
+    if (lastInBroker > lastDequed && lastInBroker.entryId() != -1) {
+        callback(ResultOk, true);
+        return;
+    }
+
+    BrokerGetLastMessageIdCallback callback1 = [this, lastDequed, callback](Result result,
+                                                                            MessageId messageId) {
+        if (result == ResultOk) {
+            if (messageId > lastDequed && messageId.entryId() != -1) {
+                callback(ResultOk, true);
+            } else {
+                callback(ResultOk, false);
+            }
+        } else {
+            callback(result, false);
+        }
+    };
+
+    getLastMessageIdAsync(callback1);
+}
+
+void ConsumerImpl::brokerGetLastMessageIdListener(Result res, MessageId messageId,
+                                                  BrokerGetLastMessageIdCallback callback) {
+    Lock lock(mutex_);
+    if (messageId > lastMessageIdInBroker()) {
+        lastMessageInBroker_ = Optional<MessageId>::of(messageId);
+        lock.unlock();
+        callback(res, messageId);
+    } else {
+        lock.unlock();
+        callback(res, lastMessageIdInBroker());
+    }
+}
+
+void ConsumerImpl::getLastMessageIdAsync(BrokerGetLastMessageIdCallback callback) {
+    Lock lock(mutex_);
+    if (state_ == Closed || state_ == Closing) {
+        lock.unlock();
+        LOG_ERROR(getName() << "Client connection already closed.");
+        if (!callback.empty()) {
+            callback(ResultAlreadyClosed, MessageId());
+        }
+        return;
+    }
+    lock.unlock();
+
+    ClientConnectionPtr cnx = getCnx().lock();
+    if (cnx) {
+        if (cnx->getServerProtocolVersion() >= proto::v12) {
+            ClientImplPtr client = client_.lock();
+            uint64_t requestId = client->newRequestId();
+            LOG_DEBUG(getName() << " Sending getLastMessageId Command for Consumer - " << getConsumerId()
+                                << ", requestId - " << requestId);
+
+            cnx->newGetLastMessageId(consumerId_, requestId)
+                .addListener(boost::bind(&ConsumerImpl::brokerGetLastMessageIdListener, shared_from_this(),
+                                         _1, _2, callback));
+        } else {
+            LOG_ERROR(getName() << " Operation not supported since server protobuf version "
+                                << cnx->getServerProtocolVersion() << " is older than proto::v12");
+            callback(ResultUnsupportedVersionError, MessageId());
+        }
+    } else {
+        LOG_ERROR(getName() << " Client Connection not ready for Consumer");
+        callback(ResultNotConnected, MessageId());
     }
 }
 

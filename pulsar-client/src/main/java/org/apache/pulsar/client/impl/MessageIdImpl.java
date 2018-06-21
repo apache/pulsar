@@ -73,6 +73,9 @@ public class MessageIdImpl implements MessageId {
         if (obj instanceof MessageIdImpl) {
             MessageIdImpl other = (MessageIdImpl) obj;
             return ledgerId == other.ledgerId && entryId == other.entryId && partitionIndex == other.partitionIndex;
+        } else if (obj instanceof BatchMessageIdImpl){
+            BatchMessageIdImpl other = (BatchMessageIdImpl) obj;
+            return other.equals(this);
         }
         return false;
     }
@@ -148,16 +151,18 @@ public class MessageIdImpl implements MessageId {
 
     @Override
     public int compareTo(MessageId o) {
-        if (!(o instanceof MessageIdImpl)) {
+        if (o instanceof MessageIdImpl) {
+            MessageIdImpl other = (MessageIdImpl) o;
+            return ComparisonChain.start()
+                .compare(this.ledgerId, other.ledgerId)
+                .compare(this.entryId, other.entryId)
+                .compare(this.getPartitionIndex(), other.getPartitionIndex())
+                .result();
+        } else if (o instanceof TopicMessageIdImpl) {
+            return compareTo(((TopicMessageIdImpl) o).getInnerMessageId());
+        } else {
             throw new IllegalArgumentException(
                 "expected MessageIdImpl object. Got instance of " + o.getClass().getName());
         }
-
-        MessageIdImpl other = (MessageIdImpl) o;
-        return ComparisonChain.start()
-            .compare(this.ledgerId, other.ledgerId)
-            .compare(this.entryId, other.entryId)
-            .compare(this.getPartitionIndex(), other.getPartitionIndex())
-            .result();
     }
 }

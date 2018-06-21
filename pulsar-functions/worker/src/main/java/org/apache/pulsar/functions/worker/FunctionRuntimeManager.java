@@ -26,6 +26,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.functions.proto.Function.Assignment;
+import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.Request.AssignmentsUpdate;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
@@ -92,14 +93,24 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
         this.functionAssignmentTailer = new FunctionAssignmentTailer(this, reader);
 
+        AuthenticationConfig authConfig = AuthenticationConfig.builder()
+                .clientAuthenticationPlugin(workerConfig.getClientAuthenticationPlugin())
+                .clientAuthenticationParameters(workerConfig.getClientAuthenticationParameters())
+                .tlsTrustCertsFilePath(workerConfig.getTlsTrustCertsFilePath())
+                .useTls(workerConfig.isUseTls()).tlsAllowInsecureConnection(workerConfig.isTlsAllowInsecureConnection())
+                .tlsHostnameVerificationEnable(workerConfig.isTlsHostnameVerificationEnable()).build();
+        
         if (workerConfig.getThreadContainerFactory() != null) {
             this.runtimeFactory = new ThreadRuntimeFactory(
                     workerConfig.getThreadContainerFactory().getThreadGroupName(),
                     workerConfig.getPulsarServiceUrl(),
-                    workerConfig.getStateStorageServiceUrl());
+                    workerConfig.getStateStorageServiceUrl(),
+                    authConfig);
         } else if (workerConfig.getProcessContainerFactory() != null) {
             this.runtimeFactory = new ProcessRuntimeFactory(
                     workerConfig.getPulsarServiceUrl(),
+                    workerConfig.getStateStorageServiceUrl(),
+                    authConfig,
                     workerConfig.getProcessContainerFactory().getJavaInstanceJarLocation(),
                     workerConfig.getProcessContainerFactory().getPythonInstanceLocation(),
                     workerConfig.getProcessContainerFactory().getLogDirectory());
@@ -511,6 +522,9 @@ public class FunctionRuntimeManager implements AutoCloseable{
     public void close() throws Exception {
         this.functionActioner.close();
         this.functionAssignmentTailer.close();
+        if (runtimeFactory != null) {
+            runtimeFactory.close();
+        }
     }
 
     private Map<String, Assignment> diff(Map<String, Assignment> assignmentMap1, Map<String, Assignment> assignmentMap2) {

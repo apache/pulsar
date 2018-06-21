@@ -22,6 +22,7 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 
 import java.io.FileInputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -88,6 +89,7 @@ public class PulsarAdminTool {
         commandMap.put("properties", CmdTenants.CmdProperties.class); // deprecated, doesn't show in usage()
         commandMap.put("namespaces", CmdNamespaces.class);
         commandMap.put("topics", CmdTopics.class);
+        commandMap.put("schemas", CmdSchemas.class);
 
         // Hidden deprecated "persistent" and "non-persistent" subcommands
         commandMap.put("persistent", CmdPersistentTopics.class);
@@ -109,7 +111,13 @@ public class PulsarAdminTool {
                 jcommander.addCommand(c.getKey(), c.getValue().getConstructor(PulsarAdmin.class).newInstance(admin));
             }
         } catch (Exception e) {
-            System.err.println(e.getClass() + ": " + e.getMessage());
+            Throwable cause;
+            if (e instanceof InvocationTargetException && null != e.getCause()) {
+                cause = e.getCause();
+            } else {
+                cause = e;
+            }
+            System.err.println(cause.getClass() + ": " + cause.getMessage());
             System.exit(1);
         }
     }

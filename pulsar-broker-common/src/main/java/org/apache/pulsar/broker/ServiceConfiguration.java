@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
@@ -303,9 +304,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(minValue = 1)
     private int managedLedgerDefaultAckQuorum = 1;
 
-    // Default type of checksum to use when writing to BookKeeper. Default is "CRC32"
-    // Other possible options are "CRC32C" (which is faster), "MAC" or "DUMMY" (no checksum).
-    private DigestType managedLedgerDigestType = DigestType.CRC32;
+    // Default type of checksum to use when writing to BookKeeper. Default is "CRC32C"
+    // Other possible options are "CRC32", "MAC" or "DUMMY" (no checksum).
+    private DigestType managedLedgerDigestType = DigestType.CRC32C;
 
     // Max number of bookies to use when creating a ledger
     @FieldContext(minValue = 1)
@@ -334,6 +335,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int managedLedgerMinLedgerRolloverTimeMinutes = 10;
     // Maximum time before forcing a ledger rollover for a topic
     private int managedLedgerMaxLedgerRolloverTimeMinutes = 240;
+    // Delay between a ledger being successfully offloaded to long term storage
+    // and the ledger being deleted from bookkeeper
+    private long managedLedgerOffloadDeletionLagMs = TimeUnit.HOURS.toMillis(4);
     // Max number of entries to append to a cursor ledger
     private int managedLedgerCursorMaxEntriesPerLedger = 50000;
     // Max time before triggering a rollover on a cursor ledger
@@ -446,9 +450,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(dynamic = true)
     private boolean preferLaterVersions = false;
 
+    // Interval between checks to see if topics with compaction policies need to be compacted
+    private int brokerServiceCompactionMonitorIntervalInSeconds = 60;
+
     private String schemaRegistryStorageClassName = "org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory";
     private Set<String> schemaRegistryCompatibilityCheckers = Sets.newHashSet(
-        "org.apache.pulsar.broker.service.schema.JsonSchemaCompatibilityCheck"
+            "org.apache.pulsar.broker.service.schema.JsonSchemaCompatibilityCheck",
+            "org.apache.pulsar.broker.service.schema.AvroSchemaCompatibilityCheck"
     );
 
     /**** --- WebSocket --- ****/
@@ -485,7 +493,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String s3ManagedLedgerOffloadServiceEndpoint = null;
 
     // For Amazon S3 ledger offload, Max block size in bytes.
-    private int s3ManagedLedgerOffloadMaxBlockSizeInBytes = 64 * 1024 * 1024;
+    @FieldContext(minValue = 5242880) // 5MB
+    private int s3ManagedLedgerOffloadMaxBlockSizeInBytes = 64 * 1024 * 1024; // 64MB
 
     // For Amazon S3 ledger offload, Read buffer size in bytes.
     @FieldContext(minValue = 1024)
@@ -1224,6 +1233,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
         this.managedLedgerMaxLedgerRolloverTimeMinutes = managedLedgerMaxLedgerRolloverTimeMinutes;
     }
 
+    public long getManagedLedgerOffloadDeletionLagMs() {
+        return managedLedgerOffloadDeletionLagMs;
+    }
+
+    public void setManagedLedgerOffloadDeletionLag(long amount, TimeUnit unit) {
+        this.managedLedgerOffloadDeletionLagMs = unit.toMillis(amount);
+    }
+
     public int getManagedLedgerCursorMaxEntriesPerLedger() {
         return managedLedgerCursorMaxEntriesPerLedger;
     }
@@ -1706,4 +1723,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         return this.s3ManagedLedgerOffloadReadBufferSizeInBytes;
     }
 
+    public void setBrokerServiceCompactionMonitorIntervalInSeconds(int interval) {
+        this.brokerServiceCompactionMonitorIntervalInSeconds = interval;
+    }
+
+    public int getBrokerServiceCompactionMonitorIntervalInSeconds() {
+        return this.brokerServiceCompactionMonitorIntervalInSeconds;
+    }
 }

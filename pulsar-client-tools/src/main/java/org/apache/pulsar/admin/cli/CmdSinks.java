@@ -19,35 +19,35 @@
 package org.apache.pulsar.admin.cli;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.StringConverter;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-import net.jodah.typetools.TypeResolver;
+
+import static org.apache.commons.lang3.StringUtils.isBlank;
+
+import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.internal.FunctionsImpl;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
-import org.apache.pulsar.functions.shaded.proto.Function;
-import org.apache.pulsar.functions.shaded.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.shaded.proto.Function.Resources;
-import org.apache.pulsar.functions.shaded.proto.Function.ProcessingGuarantees;
-import org.apache.pulsar.functions.shaded.proto.Function.SinkSpec;
-import org.apache.pulsar.functions.shaded.proto.Function.SourceSpec;
-import org.apache.pulsar.functions.sink.PulsarSink;
-import org.apache.pulsar.functions.source.PulsarSource;
+import org.apache.pulsar.functions.instance.AuthenticationConfig;
+import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.proto.Function.Resources;
+import org.apache.pulsar.functions.proto.Function.SinkSpec;
+import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.SinkConfig;
 import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.functions.utils.validation.ConfigValidation;
+import org.apache.pulsar.functions.utils.validation.ValidatorImpls.ImplementsClassValidator;
 import org.apache.pulsar.io.core.Sink;
-import org.apache.pulsar.io.core.Source;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
@@ -55,24 +55,32 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
 
-@Slf4j
+import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
+import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
+import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
+import static org.apache.pulsar.functions.utils.Utils.fileExists;
+import static org.apache.pulsar.functions.utils.Utils.getSinkType;
+import static org.apache.pulsar.functions.worker.Utils.downloadFromHttpUrl;
+
 @Getter
 @Parameters(commandDescription = "Interface for managing Pulsar Sinks (Egress data from Pulsar)")
 public class CmdSinks extends CmdBase {
 
     private final CreateSink createSink;
+    private final UpdateSink updateSink;
     private final DeleteSink deleteSink;
     private final LocalSinkRunner localSinkRunner;
 
     public CmdSinks(PulsarAdmin admin) {
         super("sink", admin);
         createSink = new CreateSink();
+        updateSink = new UpdateSink();
         deleteSink = new DeleteSink();
         localSinkRunner = new LocalSinkRunner();
 
         jcommander.addCommand("create", createSink);
+        jcommander.addCommand("update", updateSink);
         jcommander.addCommand("delete", deleteSink);
         jcommander.addCommand("localrun", localSinkRunner);
     }
@@ -99,16 +107,62 @@ public class CmdSinks extends CmdBase {
 
         @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker")
         protected String brokerServiceUrl;
+        
+        @Parameter(names = "--clientAuthPlugin", description = "Client authentication plugin using which function-process can connect to broker")
+        protected String clientAuthPlugin;
+        
+        @Parameter(names = "--clientAuthParams", description = "Client authentication param")
+        protected String clientAuthParams;
+        
+        @Parameter(names = "--use_tls", description = "Use tls connection\n")
+        protected boolean useTls;
+
+        @Parameter(names = "--tls_allow_insecure", description = "Allow insecure tls connection\n")
+        protected boolean tlsAllowInsecureConnection;
+        
+        @Parameter(names = "--hostname_verification_enabled", description = "Enable hostname verification")
+        protected boolean tlsHostNameVerificationEnabled;
+        
+        @Parameter(names = "--tls_trust_cert_path", description = "tls trust cert file path")
+        protected String tlsTrustCertFilePath;
 
         @Override
         void runCmd() throws Exception {
-            CmdFunctions.startLocalRun(createSinkConfigProto2(sinkConfig),
-                    sinkConfig.getParallelism(), brokerServiceUrl, jarFile, admin);
+            CmdFunctions.startLocalRun(createSinkConfigProto2(sinkConfig), sinkConfig.getParallelism(),
+                    0, brokerServiceUrl, null,
+                    AuthenticationConfig.builder().clientAuthenticationPlugin(clientAuthPlugin)
+                            .clientAuthenticationParameters(clientAuthParams).useTls(useTls)
+                            .tlsAllowInsecureConnection(tlsAllowInsecureConnection)
+                            .tlsHostnameVerificationEnable(tlsHostNameVerificationEnabled)
+                            .tlsTrustCertsFilePath(tlsTrustCertFilePath).build(),
+                    jarFile, admin);
         }
     }
 
     @Parameters(commandDescription = "Create Pulsar sink connectors")
-    class CreateSink extends BaseCommand {
+    class CreateSink extends SinkCommand {
+        @Override
+        void runCmd() throws Exception {
+            if (Utils.isFunctionPackageUrlSupported(jarFile)) {
+                admin.functions().createFunctionWithUrl(createSinkConfig(sinkConfig), jarFile);
+            } else {
+                admin.functions().createFunction(createSinkConfig(sinkConfig), jarFile);
+            }
+            print("Created successfully");
+        }
+    }
+
+    @Parameters(commandDescription = "Update Pulsar sink connectors")
+    class UpdateSink extends SinkCommand {
+        @Override
+        void runCmd() throws Exception {
+            admin.functions().updateFunction(createSinkConfig(sinkConfig), jarFile);
+            print("Updated successfully");
+        }
+    }
+
+    @Parameters(commandDescription = "Create Pulsar sink connectors")
+    abstract class SinkCommand extends BaseCommand {
         @Parameter(names = "--tenant", description = "The sink's tenant")
         protected String tenant;
         @Parameter(names = "--namespace", description = "The sink's namespace")
@@ -119,18 +173,17 @@ public class CmdSinks extends CmdBase {
         protected String className;
         @Parameter(names = "--inputs", description = "The sink's input topic or topics (multiple topics can be specified as a comma-separated list)")
         protected String inputs;
+        @Parameter(names = "--topicsPattern", description = "TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. Add SerDe class name for a pattern in --customSerdeInputs  (supported for java fun only)")
+        protected String topicsPattern;
         @Parameter(names = "--customSerdeInputs", description = "The map of input topics to SerDe class names (as a JSON string)")
         protected String customSerdeInputString;
         @Parameter(names = "--processingGuarantees", description = "The processing guarantees (aka delivery semantics) applied to the Sink")
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
-        @Parameter(names = "--parallelism", description = "")
-        protected String parallelism;
-        @Parameter(
-                names = "--jar",
-                description = "Path to the jar file for the sink",
-                listConverter = StringConverter.class)
+        @Parameter(names = "--parallelism", description = "The sink's parallelism factor (i.e. the number of sink instances to run)")
+        protected Integer parallelism;
+        @Parameter(names = "--jar", description = "Path to the jar file for the sink. It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.", listConverter = StringConverter.class)
         protected String jarFile;
-
+        
         @Parameter(names = "--sinkConfigFile", description = "The path to a YAML config file specifying the "
                 + "sink's configuration")
         protected String sinkConfigFile;
@@ -150,7 +203,7 @@ public class CmdSinks extends CmdBase {
             super.processArguments();
 
             if (null != sinkConfigFile) {
-                this.sinkConfig = loadSinkConfig(sinkConfigFile);
+                this.sinkConfig = CmdUtils.loadConfig(sinkConfigFile, SinkConfig.class);
             } else {
                 this.sinkConfig = new SinkConfig();
             }
@@ -158,9 +211,11 @@ public class CmdSinks extends CmdBase {
             if (null != tenant) {
                 sinkConfig.setTenant(tenant);
             }
+
             if (null != namespace) {
                 sinkConfig.setNamespace(namespace);
             }
+
             if (null != name) {
                 sinkConfig.setName(name);
             }
@@ -171,47 +226,33 @@ public class CmdSinks extends CmdBase {
             if (null != processingGuarantees) {
                 sinkConfig.setProcessingGuarantees(processingGuarantees);
             }
+
             Map<String, String> topicsToSerDeClassName = new HashMap<>();
             if (null != inputs) {
                 List<String> inputTopics = Arrays.asList(inputs.split(","));
-                inputTopics.forEach(new Consumer<String>() {
-                    @Override
-                    public void accept(String s) {
-                        CmdSinks.validateTopicName(s);
-                        topicsToSerDeClassName.put(s, "");
-                    }
-                });
+                inputTopics.forEach(s -> topicsToSerDeClassName.put(s, ""));
             }
             if (null != customSerdeInputString) {
                 Type type = new TypeToken<Map<String, String>>(){}.getType();
                 Map<String, String> customSerdeInputMap = new Gson().fromJson(customSerdeInputString, type);
                 customSerdeInputMap.forEach((topic, serde) -> {
-                    CmdSinks.validateTopicName(topic);
                     topicsToSerDeClassName.put(topic, serde);
                 });
             }
             sinkConfig.setTopicToSerdeClassName(topicsToSerDeClassName);
-
-            if (parallelism == null) {
-                if (sinkConfig.getParallelism() == 0) {
-                    sinkConfig.setParallelism(1);
-                }
-            } else {
-                int num = Integer.parseInt(parallelism);
-                if (num <= 0) {
-                    throw new IllegalArgumentException("The parallelism factor (the number of instances) for the "
-                            + "connector must be positive");
-                }
-                sinkConfig.setParallelism(num);
+            
+            if (null != topicsPattern) {
+                sinkConfig.setTopicsPattern(topicsPattern);
             }
 
-            if (null == jarFile) {
-                throw new IllegalArgumentException("Connector JAR not specfied");
+            if (parallelism != null) {
+                sinkConfig.setParallelism(parallelism);
             }
 
-            com.google.common.base.Preconditions.checkArgument(cpu == null || cpu > 0, "The cpu allocation for the sink must be positive");
-            com.google.common.base.Preconditions.checkArgument(ram == null || ram > 0, "The ram allocation for the sink must be positive");
-            com.google.common.base.Preconditions.checkArgument(disk == null || disk > 0, "The disk allocation for the sink must be positive");
+            if (null != jarFile) {
+                sinkConfig.setJar(jarFile);
+            }
+            
             sinkConfig.setResources(new org.apache.pulsar.functions.utils.Resources(cpu, ram, disk));
 
             if (null != sinkConfigString) {
@@ -219,37 +260,76 @@ public class CmdSinks extends CmdBase {
                 Map<String, Object> sinkConfigMap = new Gson().fromJson(sinkConfigString, type);
                 sinkConfig.setConfigs(sinkConfigMap);
             }
+
+            inferMissingArguments(sinkConfig);
         }
 
-        @Override
-        void runCmd() throws Exception {
-            if (!areAllRequiredFieldsPresentForSink(sinkConfig)) {
-                throw new RuntimeException("Missing arguments");
+        private void inferMissingArguments(SinkConfig sinkConfig) {
+            if (sinkConfig.getTenant() == null) {
+                sinkConfig.setTenant(PUBLIC_TENANT);
             }
-            admin.functions().createFunction(createSinkConfig(sinkConfig), jarFile);
-            print("Created successfully");
+            if (sinkConfig.getNamespace() == null) {
+                sinkConfig.setNamespace(DEFAULT_NAMESPACE);
+            }
         }
 
-        private Class<?> getSinkType(File file) {
-            if (!Reflections.classExistsInJar(file, sinkConfig.getClassName())) {
-                throw new IllegalArgumentException(String.format("Pulsar sink class %s does not exist in jar %s",
-                        sinkConfig.getClassName(), jarFile));
-            } else if (!Reflections.classInJarImplementsIface(file, sinkConfig.getClassName(), Sink.class)) {
-                throw new IllegalArgumentException(String.format("The Pulsar sink class %s in jar %s implements " + Sink.class.getName(),
-                        sinkConfig.getClassName(), jarFile));
+        protected void validateSinkConfigs(SinkConfig sinkConfig) {
+            
+            if (isBlank(sinkConfig.getJar())) {
+                throw new ParameterException("Sink jar not specfied");
             }
+            
+            boolean isJarPathUrl = Utils.isFunctionPackageUrlSupported(sinkConfig.getJar());
 
-            Object userClass = Reflections.createInstance(sinkConfig.getClassName(), file);
-            Class<?> typeArg;
-            Sink sink = (Sink) userClass;
-            if (sink == null) {
-                throw new IllegalArgumentException(String.format("The Pulsar sink class %s could not be instantiated from jar %s",
-                        sinkConfig.getClassName(), jarFile));
+            String jarFilePath = null;
+            if (isJarPathUrl) {
+                // download jar file if url is http
+                if(sinkConfig.getJar().startsWith(Utils.HTTP)) {
+                    File tempPkgFile = null;
+                    try {
+                        tempPkgFile = File.createTempFile(sinkConfig.getName(), "sink");
+                        downloadFromHttpUrl(sinkConfig.getJar(), new FileOutputStream(tempPkgFile));
+                        jarFilePath = tempPkgFile.getAbsolutePath();
+                    } catch(Exception e) {
+                        if(tempPkgFile!=null ) {
+                            tempPkgFile.deleteOnExit();
+                        }
+                        throw new ParameterException("Failed to download jar from " + sinkConfig.getJar()
+                                + ", due to =" + e.getMessage());
+                    }
+                }
+            } else {
+                jarFilePath = sinkConfig.getJar();
             }
-            typeArg = TypeResolver.resolveRawArgument(Sink.class, sink.getClass());
+            
+            // if jar file is present locally then load jar and validate SinkClass in it
+            if (jarFilePath != null) {
+                if (!fileExists(jarFilePath)) {
+                    throw new ParameterException("Jar file " + jarFilePath + " does not exist");
+                }
 
-            return typeArg;
+                File file = new File(jarFilePath);
+                ClassLoader userJarLoader;
+                try {
+                    userJarLoader = Reflections.loadJar(file);
+                } catch (MalformedURLException e) {
+                    throw new ParameterException("Failed to load user jar " + file + " with error " + e.getMessage());
+                }
+                // make sure the function class loader is accessible thread-locally
+                Thread.currentThread().setContextClassLoader(userJarLoader);
+
+                // jar is already loaded, validate against Sink-Class name
+                (new ImplementsClassValidator(Sink.class)).validateField("className", sinkConfig.getClassName());
+            }
+            
+            try {
+                // Need to load jar and set context class loader before calling
+                ConfigValidation.validateConfig(sinkConfig, FunctionConfig.Runtime.JAVA.name());
+            } catch (Exception e) {
+                throw new ParameterException(e.getMessage());
+            }
         }
+
 
         protected org.apache.pulsar.functions.proto.Function.FunctionDetails createSinkConfigProto2(SinkConfig sinkConfig)
                 throws IOException {
@@ -261,13 +341,11 @@ public class CmdSinks extends CmdBase {
 
         protected FunctionDetails createSinkConfig(SinkConfig sinkConfig) {
 
-            File file = new File(jarFile);
-            try {
-                Reflections.loadJar(file);
-            } catch (MalformedURLException e) {
-                throw new RuntimeException("Failed to load user jar " + file, e);
-            }
-            Class<?> typeArg = getSinkType(file);
+            // check if configs are valid
+            validateSinkConfigs(sinkConfig);
+
+            String typeArg = sinkConfig.getJar().startsWith(Utils.FILE) ? null
+                    : getSinkType(sinkConfig.getClassName()).getName();
 
             FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
             if (sinkConfig.getTenant() != null) {
@@ -292,15 +370,24 @@ public class CmdSinks extends CmdBase {
             SourceSpec.Builder sourceSpecBuilder = SourceSpec.newBuilder();
             sourceSpecBuilder.setSubscriptionType(Function.SubscriptionType.SHARED);
             sourceSpecBuilder.putAllTopicsToSerDeClassName(sinkConfig.getTopicToSerdeClassName());
-            sourceSpecBuilder.setTypeClassName(typeArg.getName());
+            if (sinkConfig.getTopicsPattern() != null) {
+                sourceSpecBuilder.setTopicsPattern(sinkConfig.getTopicsPattern());
+            }
+            if (typeArg != null) {
+                sourceSpecBuilder.setTypeClassName(typeArg);
+            }
             functionDetailsBuilder.setAutoAck(true);
             functionDetailsBuilder.setSource(sourceSpecBuilder);
 
             // set up sink spec
             SinkSpec.Builder sinkSpecBuilder = SinkSpec.newBuilder();
             sinkSpecBuilder.setClassName(sinkConfig.getClassName());
-            sinkSpecBuilder.setConfigs(new Gson().toJson(sinkConfig.getConfigs()));
-            sinkSpecBuilder.setTypeClassName(typeArg.getName());
+            if (sinkConfig.getConfigs() != null) {
+                sinkSpecBuilder.setConfigs(new Gson().toJson(sinkConfig.getConfigs()));
+            }
+            if (typeArg != null) {
+                sinkSpecBuilder.setTypeClassName(typeArg);
+            }
             functionDetailsBuilder.setSink(sinkSpecBuilder);
 
             if (sinkConfig.getResources() != null) {
@@ -335,9 +422,15 @@ public class CmdSinks extends CmdBase {
         @Override
         void processArguments() throws Exception {
             super.processArguments();
-            if (null == tenant || null == namespace || null == name) {
+            if (null == name) {
                 throw new RuntimeException(
-                        "You must specify a tenant, namespace, and name for the sink");
+                        "You must specify a name for the sink");
+            }
+            if (tenant == null) {
+                tenant = PUBLIC_TENANT;
+            }
+            if (namespace == null) {
+                namespace = DEFAULT_NAMESPACE;
             }
         }
 
@@ -346,39 +439,5 @@ public class CmdSinks extends CmdBase {
             admin.functions().deleteFunction(tenant, namespace, name);
             print("Deleted successfully");
         }
-    }
-
-    private static SinkConfig loadSinkConfig(String file) throws IOException {
-        return (SinkConfig) loadConfig(file, SinkConfig.class);
-    }
-
-    private static Object loadConfig(String file, Class<?> clazz) throws IOException {
-        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-        return mapper.readValue(new File(file), clazz);
-    }
-
-    public static boolean areAllRequiredFieldsPresentForSink(SinkConfig sinkConfig) {
-        return sinkConfig.getTenant() != null && !sinkConfig.getTenant().isEmpty()
-                && sinkConfig.getNamespace() != null && !sinkConfig.getNamespace().isEmpty()
-                && sinkConfig.getName() != null && !sinkConfig.getName().isEmpty()
-                && sinkConfig.getClassName() != null && !sinkConfig.getClassName().isEmpty()
-                && sinkConfig.getTopicToSerdeClassName() != null && !sinkConfig.getTopicToSerdeClassName().isEmpty()
-                && sinkConfig.getParallelism() > 0;
-    }
-
-    private static void validateTopicName(String topic) {
-        if (!TopicName.isValid(topic)) {
-            throw new IllegalArgumentException(String.format("The topic name %s is invalid", topic));
-        }
-    }
-
-    private static ProcessingGuarantees convertProcessingGuarantee(
-            FunctionConfig.ProcessingGuarantees processingGuarantees) {
-        for (ProcessingGuarantees type : ProcessingGuarantees.values()) {
-            if (type.name().equals(processingGuarantees.name())) {
-                return type;
-            }
-        }
-        throw new RuntimeException("Unrecognized processing guarantee: " + processingGuarantees.name());
     }
 }

@@ -80,6 +80,16 @@
       <version>${project.version}</version>
     </dependency>
 
+    <dependency>
+      <groupId>net.jodah</groupId>
+      <artifactId>typetools</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.bookkeeper</groupId>
+      <artifactId>stream-storage-java-client</artifactId>
+    </dependency>
+
     <!-- functions related dependencies (end) -->
   </dependencies>
 

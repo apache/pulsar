@@ -28,7 +28,6 @@ import org.apache.pulsar.functions.utils.FunctionConfig;
 @ToString
 public class PulsarSinkConfig {
     private FunctionConfig.ProcessingGuarantees processingGuarantees;
-    private FunctionConfig.SubscriptionType subscriptionType;
     private String topic;
     private String serDeClassName;
     private String typeClassName;
