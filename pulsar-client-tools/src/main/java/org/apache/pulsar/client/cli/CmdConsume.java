@@ -132,7 +132,7 @@ public class CmdConsume {
 
                 Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
                 if (msg == null) {
-                    LOG.warn("No message to consume after waiting for 20 seconds.");
+                    LOG.debug("No message to consume after waiting for 5 seconds.");
                 } else {
                     numMessagesConsumed += 1;
                     System.out.println(MESSAGE_BOUNDARY);
