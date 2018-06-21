@@ -4,6 +4,7 @@ import com.github.dockerjava.api.command.CreateContainerCmd;
 import com.github.dockerjava.api.command.LogContainerCmd;
 import com.github.dockerjava.api.model.Frame;
 import com.github.dockerjava.core.command.LogContainerResultCallback;
+import org.apache.pulsar.tests.PulsarClusterUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
@@ -13,6 +14,7 @@ import org.testcontainers.containers.wait.strategy.LogMessageWaitStrategy;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import static java.time.temporal.ChronoUnit.SECONDS;
@@ -34,7 +36,7 @@ public class PulsarStandAloneContainer extends GenericContainer<PulsarStandAlone
     private String containerNameAddition;
 
     public PulsarStandAloneContainer(String containerName){
-        this(containerName, FUNC_MODE.STANALONE);
+        this(containerName, FUNC_MODE.STANDALONE);
     }
 
     public PulsarStandAloneContainer(String containerName, FUNC_MODE mode){
@@ -79,7 +81,7 @@ public class PulsarStandAloneContainer extends GenericContainer<PulsarStandAlone
     @Override
     public void start() {
         this.waitStrategy = new LogMessageWaitStrategy()
-            .withRegEx(".*ready.*\\s")
+            .withRegEx(".*Successfully validated clusters on tenant.*\\s")
             .withTimes(1)
             .withStartupTimeout(Duration.of(60, SECONDS));
         this.withCreateContainerCmdModifier(new Consumer<CreateContainerCmd>() {
@@ -89,9 +91,9 @@ public class PulsarStandAloneContainer extends GenericContainer<PulsarStandAlone
                 createContainerCmd.withName(getContainerName());
             }
         });
+        this.withExposedPorts(PULSAR_BROKER_PORT, PULSAR_ADMIN_PORT);
         this.withLogConsumer(new Slf4jLogConsumer(LOG));
-        this.withCommand("/bin/bash", "-c", "bin/pulsar standalone");
-
+        this.withCommand("/pulsar/bin/pulsar", "standalone");
         super.start();
         LOG.info("Container Name : " +  this.containerName.substring(1));
     }

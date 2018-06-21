@@ -25,30 +25,30 @@ import java.util.stream.Stream;
 import static java.time.temporal.ChronoUnit.SECONDS;
 import static org.apache.pulsar.tests.PulsarClusterUtils.waitSocketAvailable;
 
-public class Cluster3Bookie2Broker {
+public class Cluster2Bookie1BrokerWithS3 {
 
-    private static final Logger LOG = LoggerFactory.getLogger(Cluster3Bookie2Broker.class);
+    private static final Logger LOG = LoggerFactory.getLogger(Cluster2Bookie1BrokerWithS3.class);
 
     private static final int PULSAR_BROKER_PORT = 6650;
+    private static final int PULSAR_ADMIN_PORT = 8080;
+    private static final int ZOOKEEPER_PORT = 2181;
 
     public static final String ZOOKEEPER_NAME = "zookeeper";
     public static final String CONFIGURATION_STORE_NAME = "configuration-store";
     public static final String INIT_NAME = "init";
     public static final String PULSAR_BROKER1_NAME = "pulsar-broker1";
-    public static final String PULSAR_BROKER2_NAME = "pulsar-broker2";
     public static final String PULSAR_BOOKIE1_NAME = "bookkeeper1";
     public static final String PULSAR_BOOKIE2_NAME = "bookkeeper2";
-    public static final String PULSAR_BOOKIE3_NAME = "bookkeeper3";
     public static final String PULSAR_PROXY_NAME = "pulsar-proxy";
+    public static final String S3_MOCK_NAME = "s3";
 
     private GenericContainer zookeeperContainer;
     private GenericContainer configStoreContainer;
     private GenericContainer initContainer;
     private GenericContainer broker1Container;
-    private GenericContainer broker2Container;
     private GenericContainer bookie1Container;
     private GenericContainer bookie2Container;
-    private GenericContainer bookie3Container;
+    private GenericContainer s3Container;
     private GenericContainer proxyContainer;
 
     private Network network;
@@ -58,9 +58,12 @@ public class Cluster3Bookie2Broker {
     private static final String NAME = "apachepulsar";
     private static final String IMG = "pulsar-test-latest-version";
 
+    private static final String S3_NAME = "adobe";
+    private static final String S3_IMG = "s3mock";
+
     private List<GenericContainer> brokers;
 
-    public Cluster3Bookie2Broker(final String testName) {
+    public Cluster2Bookie1BrokerWithS3(final String testName) {
 
         brokers = new ArrayList<>();
 
@@ -71,6 +74,7 @@ public class Cluster3Bookie2Broker {
             .withNetworkAliases(ZOOKEEPER_NAME)
             .withLabel("cluster", "test")
             .withLabel("service", "zookeeper")
+            .withExposedPorts(ZOOKEEPER_PORT)
             .withEnv("ZOOKEEPER_SERVERS", "zookeeper")
             .withCommand("sh", "-c", "bin/run-local-zk.sh")
             .withLogConsumer(new Slf4jLogConsumer(LOG).withPrefix(ZOOKEEPER_NAME))
@@ -158,25 +162,6 @@ public class Cluster3Bookie2Broker {
             })
         ;
 
-        bookie3Container = new GenericContainer(NAME + "/" + IMG + ":" + "latest")
-            .withNetwork(network)
-            .withNetworkAliases(PULSAR_BOOKIE3_NAME)
-            .withLabel("cluster", "test")
-            .withLabel("service", "bookie")
-            .withEnv("clusterName", "test")
-            .withEnv("zkServers", "zookeeper")
-            .withEnv("useHostNameAsBookieID", "true")
-            .withCommand("sh", "-c", "bin/run-bookie.sh")
-            .withLogConsumer(new Slf4jLogConsumer(LOG).withPrefix(PULSAR_BOOKIE3_NAME))
-            .withCreateContainerCmdModifier(new Consumer<CreateContainerCmd>() {
-                @Override
-                public void accept(CreateContainerCmd createContainerCmd) {
-                    createContainerCmd.withHostName(PULSAR_BOOKIE3_NAME);
-                    createContainerCmd.withName(PULSAR_BOOKIE3_NAME + "-" + testName);
-                }
-            })
-        ;
-
         broker1Container = new GenericContainer(NAME + "/" + IMG + ":" + "latest")
             .withNetwork(network)
             .withNetworkAliases(PULSAR_BROKER1_NAME)
@@ -202,37 +187,12 @@ public class Cluster3Bookie2Broker {
             })
         ;
 
-        broker2Container = new GenericContainer(NAME + "/" + IMG + ":" + "latest")
-            .withNetwork(network)
-            .withNetworkAliases(PULSAR_BROKER2_NAME)
-            .withLabel("cluster", "test")
-            .withLabel("service", "pulsar-broker")
-            .withExposedPorts(PULSAR_BROKER_PORT)
-            .withEnv("clusterName", "test")
-            .withEnv("zookeeperServers", "zookeeper")
-            .withEnv("configurationStore", "configuration-store:2184")
-            .withEnv("NO_AUTOSTART", "true")
-            .withCommand("sh", "-c", "bin/run-broker.sh")
-            .waitingFor(new LogMessageWaitStrategy()
-                .withRegEx(".*supervisord started with pid.*\\s")
-                .withTimes(1)
-                .withStartupTimeout(Duration.of(100, SECONDS)))
-            .withLogConsumer(new Slf4jLogConsumer(LOG).withPrefix(PULSAR_BROKER2_NAME))
-            .withCreateContainerCmdModifier(new Consumer<CreateContainerCmd>() {
-                @Override
-                public void accept(CreateContainerCmd createContainerCmd) {
-                    createContainerCmd.withHostName(PULSAR_BROKER2_NAME);
-                    createContainerCmd.withName(PULSAR_BROKER2_NAME + "-" + testName);
-                }
-            })
-        ;
-
         proxyContainer = new GenericContainer(NAME + "/" + IMG + ":" + "latest")
             .withNetwork(network)
             .withNetworkAliases(PULSAR_PROXY_NAME)
             .withLabel("cluster", "test")
             .withLabel("service", "pulsar-proxy")
-            .withExposedPorts(PULSAR_BROKER_PORT)
+            .withExposedPorts(PULSAR_BROKER_PORT, PULSAR_ADMIN_PORT)
             .withEnv("clusterName", "test")
             .withEnv("zookeeperServers", "zookeeper")
             .withEnv("configurationStoreServers", "configuration-store:2184")
@@ -252,8 +212,27 @@ public class Cluster3Bookie2Broker {
             })
         ;
 
+        s3Container = new GenericContainer(S3_NAME + "/" + S3_IMG + ":" + "latest")
+            .withNetwork(network)
+            .withNetworkAliases(S3_MOCK_NAME)
+            .withLabel("cluster", "test")
+            .withLabel("service", "s3")
+            .withEnv("initialBuckets", "pulsar-integtest")
+            .waitingFor(new LogMessageWaitStrategy()
+                .withRegEx(".*supervisord started with pid.*\\s")
+                .withTimes(1)
+                .withStartupTimeout(Duration.of(100, SECONDS)))
+            .withLogConsumer(new Slf4jLogConsumer(LOG).withPrefix(S3_NAME))
+            .withCreateContainerCmdModifier(new Consumer<CreateContainerCmd>() {
+                @Override
+                public void accept(CreateContainerCmd createContainerCmd) {
+                    createContainerCmd.withHostName(S3_MOCK_NAME);
+                    createContainerCmd.withName(S3_MOCK_NAME + "-" + testName);
+                }
+            })
+        ;
+
         brokers.add(broker1Container);
-        brokers.add(broker2Container);
 
         dockerClient = DockerClientFactory.instance().client();
     }
@@ -283,13 +262,16 @@ public class Cluster3Bookie2Broker {
 
     public void startAllBrokers() throws IOException, InterruptedException {
         broker1Container.execInContainer("supervisorctl", "start", "broker");
-        broker2Container.execInContainer("supervisorctl", "start", "broker");
         waitSocketAvailable(broker1Container.getContainerIpAddress(),
             broker1Container.getMappedPort(PULSAR_BROKER_PORT),
             10,
             TimeUnit.SECONDS);
-        waitSocketAvailable(broker2Container.getContainerIpAddress(),
-            broker2Container.getMappedPort(PULSAR_BROKER_PORT),
+    }
+
+    public void stopAllBrokers() throws IOException, InterruptedException {
+        broker1Container.execInContainer("supervisorctl", "stop", "broker");
+        waitSocketAvailable(broker1Container.getContainerIpAddress(),
+            broker1Container.getMappedPort(PULSAR_BROKER_PORT),
             10,
             TimeUnit.SECONDS);
     }
@@ -302,27 +284,43 @@ public class Cluster3Bookie2Broker {
             TimeUnit.SECONDS);
     }
 
-    public void start() throws ExecutionException, InterruptedException {
+    public void stopAllProxies() throws IOException, InterruptedException {
+        proxyContainer.execInContainer("supervisorctl", "stop", "proxy");
+        waitSocketAvailable(proxyContainer.getContainerIpAddress(),
+            proxyContainer.getMappedPort(PULSAR_BROKER_PORT),
+            10,
+            TimeUnit.SECONDS);
+    }
+
+    public void start() throws ExecutionException {
         Stream.of(zookeeperContainer,
             configStoreContainer,
             initContainer,
             broker1Container,
-            broker2Container,
             bookie1Container,
             bookie2Container,
-            bookie3Container,
             proxyContainer).parallel().forEach(GenericContainer::start);
     }
+
+    public void updateBrokerConf(String confFile, String key, String value) throws Exception {
+        String sedProgram = String.format(
+            "/[[:blank:]]*%s[[:blank:]]*=/ { h; s^=.*^=%s^; }; ${x;/^$/ { s^^%s=%s^;H; }; x}",
+            key, value, key, value);
+        execInBroker( "sed", "-i", "-e", sedProgram, confFile);
+    }
+
+    public String getZkConnectionString(){
+        return zookeeperContainer.getContainerIpAddress() + ":" + zookeeperContainer.getMappedPort(ZOOKEEPER_PORT);
+    }
+
 
     public void stop() throws Exception {
         DockerUtils.dumpContainerLogToTarget(dockerClient, zookeeperContainer.getContainerName().substring(1));
         DockerUtils.dumpContainerLogToTarget(dockerClient, configStoreContainer.getContainerName().substring(1));
         DockerUtils.dumpContainerLogToTarget(dockerClient, initContainer.getContainerName().substring(1));
         DockerUtils.dumpContainerLogToTarget(dockerClient, broker1Container.getContainerName().substring(1));
-        DockerUtils.dumpContainerLogToTarget(dockerClient, broker2Container.getContainerName().substring(1));
         DockerUtils.dumpContainerLogToTarget(dockerClient, bookie1Container.getContainerName().substring(1));
         DockerUtils.dumpContainerLogToTarget(dockerClient, bookie2Container.getContainerName().substring(1));
-        DockerUtils.dumpContainerLogToTarget(dockerClient, bookie3Container.getContainerName().substring(1));
         DockerUtils.dumpContainerLogToTarget(dockerClient, proxyContainer.getContainerName().substring(1));
 
         DockerUtils.dumpContainerLogDirToTarget(dockerClient, zookeeperContainer.getContainerName().substring(1), "/var/log/pulsar");
@@ -331,20 +329,16 @@ public class Cluster3Bookie2Broker {
         DockerUtils.dumpContainerDirToTargetCompressed(dockerClient, configStoreContainer.getContainerName().substring(1), "/pulsar/data/zookeeper");
         DockerUtils.dumpContainerLogDirToTarget(dockerClient, initContainer.getContainerName().substring(1), "/var/log/pulsar");
         DockerUtils.dumpContainerLogDirToTarget(dockerClient, broker1Container.getContainerName().substring(1), "/var/log/pulsar");
-        DockerUtils.dumpContainerLogDirToTarget(dockerClient, broker2Container.getContainerName().substring(1), "/var/log/pulsar");
         DockerUtils.dumpContainerLogDirToTarget(dockerClient, bookie1Container.getContainerName().substring(1), "/var/log/pulsar");
         DockerUtils.dumpContainerLogDirToTarget(dockerClient, bookie2Container.getContainerName().substring(1), "/var/log/pulsar");
-        DockerUtils.dumpContainerLogDirToTarget(dockerClient, bookie3Container.getContainerName().substring(1), "/var/log/pulsar");
         DockerUtils.dumpContainerLogDirToTarget(dockerClient, proxyContainer.getContainerName().substring(1), "/var/log/pulsar");
 
         Stream.of(zookeeperContainer,
             configStoreContainer,
             initContainer,
             broker1Container,
-            broker2Container,
             bookie1Container,
             bookie2Container,
-            bookie3Container,
             proxyContainer).parallel().forEach(GenericContainer::stop);
         network.close();
     }
