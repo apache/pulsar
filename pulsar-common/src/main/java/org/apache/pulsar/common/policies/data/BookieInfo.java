@@ -16,26 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.zookeeper;
+package org.apache.pulsar.common.policies.data;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class BookieInfo {
-
     private String rack;
     private String hostname;
-
-    public String getRack() {
-        return rack;
-    }
-
-    public void setRack(String rack) {
-        this.rack = rack;
-    }
-
-    public String getHostname() {
-        return hostname;
-    }
-
-    public void setHostname(String hostname) {
-        this.hostname = hostname;
-    }
 }

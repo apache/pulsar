@@ -90,6 +90,7 @@ public class PulsarAdminTool {
         commandMap.put("namespaces", CmdNamespaces.class);
         commandMap.put("topics", CmdTopics.class);
         commandMap.put("schemas", CmdSchemas.class);
+        commandMap.put("bookies", CmdBookies.class);
 
         // Hidden deprecated "persistent" and "non-persistent" subcommands
         commandMap.put("persistent", CmdPersistentTopics.class);

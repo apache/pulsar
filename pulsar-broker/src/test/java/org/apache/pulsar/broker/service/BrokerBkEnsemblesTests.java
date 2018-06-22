@@ -71,11 +71,22 @@ public class BrokerBkEnsemblesTests {
     private final int ZOOKEEPER_PORT = 12759;
     protected final int BROKER_WEBSERVICE_PORT = 15782;
 
+    protected final int bkBasePort = 5001;
+    private final int numberOfBookies;
+
+    public BrokerBkEnsemblesTests() {
+        this(3);
+    }
+
+    public BrokerBkEnsemblesTests(int numberOfBookies) {
+        this.numberOfBookies = numberOfBookies;
+    }
+
     @BeforeMethod
     void setup() throws Exception {
         try {
             // start local bookie and zookeeper
-            bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, 5001);
+            bkEnsemble = new LocalBookkeeperEnsemble(numberOfBookies, ZOOKEEPER_PORT, 5001);
             bkEnsemble.start();
 
             // start pulsar service
