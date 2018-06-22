@@ -182,9 +182,7 @@ public class PulsarSinkE2ETest {
                     workerConfig.getClientAuthenticationParameters());
         }
         pulsarClient = clientBuilder.build();
-        // pulsarClient = PulsarClient.builder().serviceUrl(urlTls.toString()).statsInterval(0,
-        // TimeUnit.SECONDS).build();
-
+       
         TenantInfo propAdmin = new TenantInfo();
         propAdmin.setAllowedClusters(Sets.newHashSet(Lists.newArrayList("use")));
         admin.tenants().updateTenant(tenant, propAdmin);
@@ -257,6 +255,9 @@ public class PulsarSinkE2ETest {
                 + PulsarSink.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         FunctionDetails functionDetails = createSinkConfig(jarFilePathUrl, tenant, namespacePortion, "PulsarSink-test");
         admin.functions().createFunctionWithUrl(functionDetails, jarFilePathUrl);
+        
+        // try to update function to test: update-function functionality
+        admin.functions().updateFunctionWithUrl(functionDetails, jarFilePathUrl);
 
         retryStrategically((test) -> {
             try {
