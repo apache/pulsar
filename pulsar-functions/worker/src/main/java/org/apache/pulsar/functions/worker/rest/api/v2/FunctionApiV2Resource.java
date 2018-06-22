@@ -64,10 +64,11 @@ public class FunctionApiV2Resource extends FunctionApiResource {
                                    final @PathParam("functionName") String functionName,
                                    final @FormDataParam("data") InputStream uploadedInputStream,
                                    final @FormDataParam("data") FormDataContentDisposition fileDetail,
+                                   final @FormDataParam("url") String functionPkgUrl,
                                    final @FormDataParam("functionDetails") String functionDetailsJson) {
 
         return functions.updateFunction(
-            tenant, namespace, functionName, uploadedInputStream, fileDetail, functionDetailsJson);
+            tenant, namespace, functionName, uploadedInputStream, fileDetail, functionPkgUrl, functionDetailsJson);
 
     }
 

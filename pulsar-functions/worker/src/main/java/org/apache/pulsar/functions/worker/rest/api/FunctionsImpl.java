@@ -176,6 +176,7 @@ public class FunctionsImpl {
                                    final @PathParam("functionName") String functionName,
                                    final @FormDataParam("data") InputStream uploadedInputStream,
                                    final @FormDataParam("data") FormDataContentDisposition fileDetail,
+                                   final @FormDataParam("url") String functionPkgUrl,
                                    final @FormDataParam("functionDetails") String functionDetailsJson) {
 
         if (!isWorkerServiceAvailable()) {
@@ -183,13 +184,19 @@ public class FunctionsImpl {
         }
 
         FunctionDetails functionDetails;
+        boolean isPkgUrlProvided = StringUtils.isNotBlank(functionPkgUrl);
         // validate parameters
         try {
-            functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
-                    uploadedInputStream, fileDetail, functionDetailsJson);
-        } catch (IllegalArgumentException e) {
-            log.error("Invalid update function request @ /{}/{}/{}",
-                    tenant, namespace, functionName, e);
+            if(isPkgUrlProvided) {
+                functionDetails = validateUpdateRequestParamsWithPkgUrl(tenant, namespace, functionName,
+                        functionPkgUrl, functionDetailsJson);
+            }else {
+                functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
+                        uploadedInputStream, fileDetail, functionDetailsJson);
+            }
+        } catch (Exception e) {
+            log.error("Invalid register function request @ /{}/{}/{}",
+                tenant, namespace, functionName, e);
             return Response.status(Status.BAD_REQUEST)
                     .type(MediaType.APPLICATION_JSON)
                     .entity(new ErrorData(e.getMessage())).build();
@@ -210,10 +217,10 @@ public class FunctionsImpl {
                 .setVersion(0);
 
         PackageLocationMetaData.Builder packageLocationMetaDataBuilder = PackageLocationMetaData.newBuilder()
-                .setPackagePath(createPackagePath(tenant, namespace, functionName, fileDetail.getFileName()));
+                .setPackagePath(isPkgUrlProvided ? functionPkgUrl : createPackagePath(tenant, namespace, functionName, fileDetail.getFileName()));
         functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
 
-        return updateRequest(functionMetaDataBuilder.build(), uploadedInputStream);
+        return isPkgUrlProvided ? updateRequest(functionMetaDataBuilder.build()) : updateRequest(functionMetaDataBuilder.build(), uploadedInputStream);
     }
 
 
