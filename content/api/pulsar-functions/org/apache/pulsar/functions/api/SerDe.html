@@ -17,8 +17,8 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":18,"i1":6,"i2":18,"i3":18,"i4":6};
-var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],16:["t5","Default Methods"]};
+var methods = {"i0":6,"i1":6};
+var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
 var tableTab = "tableTab";
@@ -118,28 +118,16 @@ var activeTableTab = "activeTableTab";
 </a>
 <h3>Method Summary</h3>
 <table class="memberSummary" border="0" cellpadding="3" cellspacing="0" summary="Method Summary table, listing methods, and an explanation">
-<caption><span id="t0" class="activeTableTab"><span>All Methods</span><span class="tabEnd">&nbsp;</span></span><span id="t2" class="tableTab"><span><a href="javascript:show(2);">Instance Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t3" class="tableTab"><span><a href="javascript:show(4);">Abstract Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t5" class="tableTab"><span><a href="javascript:show(16);">Default Methods</a></span><span class="tabEnd">&nbsp;</span></span></caption>
+<caption><span id="t0" class="activeTableTab"><span>All Methods</span><span class="tabEnd">&nbsp;</span></span><span id="t2" class="tableTab"><span><a href="javascript:show(2);">Instance Methods</a></span><span class="tabEnd">&nbsp;</span></span><span id="t3" class="tableTab"><span><a href="javascript:show(4);">Abstract Methods</a></span><span class="tabEnd">&nbsp;</span></span></caption>
 <tr>
 <th class="colFirst" scope="col">Modifier and Type</th>
 <th class="colLast" scope="col">Method and Description</th>
 </tr>
 <tr id="i0" class="altColor">
-<td class="colFirst"><code>default <a href="../../../../../org/apache/pulsar/functions/api/SerDe.html" title="type parameter in SerDe">T</a></code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/SerDe.html#decode-byte:A-">decode</a></span>(byte[]&nbsp;bytes)</code>&nbsp;</td>
-</tr>
-<tr id="i1" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/functions/api/SerDe.html" title="type parameter in SerDe">T</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/SerDe.html#deserialize-byte:A-">deserialize</a></span>(byte[]&nbsp;input)</code>&nbsp;</td>
 </tr>
-<tr id="i2" class="altColor">
-<td class="colFirst"><code>default byte[]</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/SerDe.html#encode-T-">encode</a></span>(<a href="../../../../../org/apache/pulsar/functions/api/SerDe.html" title="type parameter in SerDe">T</a>&nbsp;message)</code>&nbsp;</td>
-</tr>
-<tr id="i3" class="rowColor">
-<td class="colFirst"><code>default SchemaInfo</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/SerDe.html#getSchemaInfo--">getSchemaInfo</a></span>()</code>&nbsp;</td>
-</tr>
-<tr id="i4" class="altColor">
+<tr id="i1" class="rowColor">
 <td class="colFirst"><code>byte[]</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/functions/api/SerDe.html#serialize-T-">serialize</a></span>(<a href="../../../../../org/apache/pulsar/functions/api/SerDe.html" title="type parameter in SerDe">T</a>&nbsp;input)</code>&nbsp;</td>
 </tr>
@@ -172,39 +160,10 @@ var activeTableTab = "activeTableTab";
 </a><a name="serialize-T-">
 <!--   -->
 </a>
-<ul class="blockList">
+<ul class="blockListLast">
 <li class="blockList">
 <h4>serialize</h4>
 <pre>byte[]&nbsp;serialize(<a href="../../../../../org/apache/pulsar/functions/api/SerDe.html" title="type parameter in SerDe">T</a>&nbsp;input)</pre>
-</li>
-</ul>
-<a name="getSchemaInfo--">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>getSchemaInfo</h4>
-<pre>default&nbsp;SchemaInfo&nbsp;getSchemaInfo()</pre>
-</li>
-</ul>
-<a name="encode-java.lang.Object-">
-<!--   -->
-</a><a name="encode-T-">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>encode</h4>
-<pre>default&nbsp;byte[]&nbsp;encode(<a href="../../../../../org/apache/pulsar/functions/api/SerDe.html" title="type parameter in SerDe">T</a>&nbsp;message)</pre>
-</li>
-</ul>
-<a name="decode-byte:A-">
-<!--   -->
-</a>
-<ul class="blockListLast">
-<li class="blockList">
-<h4>decode</h4>
-<pre>default&nbsp;<a href="../../../../../org/apache/pulsar/functions/api/SerDe.html" title="type parameter in SerDe">T</a>&nbsp;decode(byte[]&nbsp;bytes)</pre>
 </li>
 </ul>
 </li>

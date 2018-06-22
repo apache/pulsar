@@ -190,6 +190,20 @@
 <dd>
 <div class="block">Flag to verify if subscription is blocked due to reaching threshold of unacked messages</div>
 </dd>
+<dt><a href="org/apache/pulsar/common/policies/data/BookieInfo.html" title="class in org.apache.pulsar.common.policies.data"><span class="typeNameLink">BookieInfo</span></a> - Class in <a href="org/apache/pulsar/common/policies/data/package-summary.html">org.apache.pulsar.common.policies.data</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/BookieInfo.html#BookieInfo--">BookieInfo()</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/BookieInfo.html" title="class in org.apache.pulsar.common.policies.data">BookieInfo</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/client/admin/Bookies.html" title="interface in org.apache.pulsar.client.admin"><span class="typeNameLink">Bookies</span></a> - Interface in <a href="org/apache/pulsar/client/admin/package-summary.html">org.apache.pulsar.client.admin</a></dt>
+<dd>
+<div class="block">Admin interface for bookies rack placement management.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdmin.html#bookies--">bookies()</a></span> - Method in class org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin">PulsarAdmin</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/common/policies/data/BookiesRackConfiguration.html" title="class in org.apache.pulsar.common.policies.data"><span class="typeNameLink">BookiesRackConfiguration</span></a> - Class in <a href="org/apache/pulsar/common/policies/data/package-summary.html">org.apache.pulsar.common.policies.data</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/BookiesRackConfiguration.html#BookiesRackConfiguration--">BookiesRackConfiguration()</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/BookiesRackConfiguration.html" title="class in org.apache.pulsar.common.policies.data">BookiesRackConfiguration</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/BundlesData.html#boundaries">boundaries</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/BundlesData.html" title="class in org.apache.pulsar.common.policies.data">BundlesData</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NamespaceOwnershipStatus.html#broker_assignment">broker_assignment</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NamespaceOwnershipStatus.html" title="class in org.apache.pulsar.common.policies.data">NamespaceOwnershipStatus</a></dt>
@@ -452,6 +466,10 @@
 <dd>
 <div class="block">Delete a topic asynchronously.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Bookies.html#deleteBookieRackInfo-java.lang.String-">deleteBookieRackInfo(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Bookies.html" title="interface in org.apache.pulsar.client.admin">Bookies</a></dt>
+<dd>
+<div class="block">Remove rack placement information for a specific bookie in the cluster</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Clusters.html#deleteCluster-java.lang.String-">deleteCluster(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Clusters.html" title="interface in org.apache.pulsar.client.admin">Clusters</a></dt>
 <dd>
 <div class="block">Delete an existing cluster</div>
@@ -698,6 +716,16 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ResourceQuota.html#getBandwidthOut--">getBandwidthOut()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ResourceQuota.html" title="class in org.apache.pulsar.common.policies.data">ResourceQuota</a></dt>
 <dd>
 <div class="block">Get outbound bandwidth quota</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/BookiesRackConfiguration.html#getBookie-java.lang.String-">getBookie(String)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/BookiesRackConfiguration.html" title="class in org.apache.pulsar.common.policies.data">BookiesRackConfiguration</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Bookies.html#getBookieRackInfo-java.lang.String-">getBookieRackInfo(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Bookies.html" title="interface in org.apache.pulsar.client.admin">Bookies</a></dt>
+<dd>
+<div class="block">Gets the rack placement information for a specific bookie in the cluster</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Bookies.html#getBookiesRackInfo--">getBookiesRackInfo()</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Bookies.html" title="interface in org.apache.pulsar.client.admin">Bookies</a></dt>
+<dd>
+<div class="block">Gets the rack placement information for all the bookies in the cluster</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistencePolicies.html#getBookkeeperAckQuorum--">getBookkeeperAckQuorum()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistencePolicies.html" title="class in org.apache.pulsar.common.policies.data">PersistencePolicies</a></dt>
 <dd>&nbsp;</dd>
@@ -1678,6 +1706,8 @@
 <dd>
 <div class="block">Remove a backlog quota policy from a namespace.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/BookiesRackConfiguration.html#removeBookie-java.lang.String-">removeBookie(String)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/BookiesRackConfiguration.html" title="class in org.apache.pulsar.common.policies.data">BookiesRackConfiguration</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html#replication">replication</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentTopicStats</a></dt>
 <dd>
 <div class="block">Map of replication statistics by remote cluster context</div>
@@ -2160,6 +2190,12 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ClusterData.html#update-org.apache.pulsar.common.policies.data.ClusterData-">update(ClusterData)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ClusterData.html" title="class in org.apache.pulsar.common.policies.data">ClusterData</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/BookiesRackConfiguration.html#updateBookie-java.lang.String-java.lang.String-org.apache.pulsar.common.policies.data.BookieInfo-">updateBookie(String, String, BookieInfo)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/BookiesRackConfiguration.html" title="class in org.apache.pulsar.common.policies.data">BookiesRackConfiguration</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Bookies.html#updateBookieRackInfo-java.lang.String-java.lang.String-org.apache.pulsar.common.policies.data.BookieInfo-">updateBookieRackInfo(String, String, BookieInfo)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Bookies.html" title="interface in org.apache.pulsar.client.admin">Bookies</a></dt>
+<dd>
+<div class="block">Updates the rack placement information for a specific bookie in the cluster</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Clusters.html#updateCluster-java.lang.String-org.apache.pulsar.common.policies.data.ClusterData-">updateCluster(String, ClusterData)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Clusters.html" title="interface in org.apache.pulsar.client.admin">Clusters</a></dt>
 <dd>
 <div class="block">Update the configuration for a cluster.</div>
@@ -2175,6 +2211,10 @@
 <div class="block">Update a domain into cluster</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Functions.html#updateFunction-FunctionDetails-java.lang.String-">updateFunction(FunctionDetails, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Functions.html" title="interface in org.apache.pulsar.client.admin">Functions</a></dt>
+<dd>
+<div class="block">Update the configuration for a function.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Functions.html#updateFunctionWithUrl-FunctionDetails-java.lang.String-">updateFunctionWithUrl(FunctionDetails, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Functions.html" title="interface in org.apache.pulsar.client.admin">Functions</a></dt>
 <dd>
 <div class="block">Update the configuration for a function.</div>
 </dd>

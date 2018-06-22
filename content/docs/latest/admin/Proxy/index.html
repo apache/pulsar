@@ -144,6 +144,9 @@
           <a class="dropdown-item" href="/docs/latest/clients/Java">
             Java
           </a>
+          <a class="dropdown-item" href="/docs/latest/clients/go">
+            Go
+          </a>
           <a class="dropdown-item" href="/docs/latest/clients/Python">
             Python
           </a>
@@ -156,6 +159,9 @@
           </a>
           <a class="dropdown-item" href="/api/admin">
             Java admin Javadoc
+          </a>
+          <a class="dropdown-item" href="https://godoc.org/github.com/apache/incubator-pulsar/pulsar-client-go/pulsar">
+            GoDoc
           </a>
           <a class="dropdown-item" href="/api/pulsar-functions">
             Pulsar Functions Java SDK
@@ -970,6 +976,212 @@
 <h2 id="using-pulsar-clients-with-the-proxy">Using Pulsar clients with the proxy</h2>
 
 <p>Once your Pulsar proxy is up and running, preferably behind a load-distributing <a href="#proxy-frontends">frontend</a>, clients can connect to the proxy via whichever address is used by the frontend. If the address were the DNS address <code class="highlighter-rouge">pulsar.cluster.default</code>, for example, then the connection URL for clients would be <code class="highlighter-rouge">pulsar://pulsar.cluster.default:6650</code>.</p>
+
+<h2 id="proxy-configuration">Proxy configuration</h2>
+
+<p>The Pulsar proxy can be configured using the <a href="../../reference/Configuration#proxy"><code class="highlighter-rouge">proxy.conf</code></a> configuration file. The following parameters are available in that file:</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<table class="config">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Description</th>
+      <th>Default</th>
+    </tr>
+  </thead>
+  <tbody>
+    
+    <tr id="proxy-zookeeperServers">
+      <td>zookeeperServers</td>
+      <td>The ZooKeeper quorum connection string (as a comma-separated list)
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="proxy-configurationStoreServers">
+      <td>configurationStoreServers</td>
+      <td>Configuration store connection string (as a comma-separated list)
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="proxy-zookeeperSessionTimeoutMs">
+      <td>zookeeperSessionTimeoutMs</td>
+      <td>ZooKeeper session timeout (in milliseconds)
+</td>
+      <td>30000</td>
+    </tr>
+    
+    <tr id="proxy-servicePort">
+      <td>servicePort</td>
+      <td>The port to use for server binary Protobuf requests
+</td>
+      <td>6650</td>
+    </tr>
+    
+    <tr id="proxy-servicePortTls">
+      <td>servicePortTls</td>
+      <td>The port to use to server binary Protobuf TLS requests
+</td>
+      <td>6651</td>
+    </tr>
+    
+    <tr id="proxy-statusFilePath">
+      <td>statusFilePath</td>
+      <td>Path for the file used to determine the rotation status for the proxy instance when responding to service discovery health checks
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="proxy-authenticationEnabled">
+      <td>authenticationEnabled</td>
+      <td>Whether authentication is enabled for the Pulsar proxy
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="proxy-authenticationProviders">
+      <td>authenticationProviders</td>
+      <td>Authentication provider name list (a comma-separated list of class names)
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="proxy-authorizationEnabled">
+      <td>authorizationEnabled</td>
+      <td>Whether authorization is enforced by the Pulsar proxy
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="proxy-authorizationProvider">
+      <td>authorizationProvider</td>
+      <td>Authorization provider as a fully qualified class name
+</td>
+      <td>org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider</td>
+    </tr>
+    
+    <tr id="proxy-brokerClientAuthenticationPlugin">
+      <td>brokerClientAuthenticationPlugin</td>
+      <td>The authentication plugin used by the Pulsar proxy to authenticate with Pulsar brokers
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="proxy-brokerClientAuthenticationParameters">
+      <td>brokerClientAuthenticationParameters</td>
+      <td>The authentication parameters used by the Pulsar proxy to authenticate with Pulsar brokers
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="proxy-brokerClientTrustCertsFilePath">
+      <td>brokerClientTrustCertsFilePath</td>
+      <td>The path to trusted certificates used by the Pulsar proxy to authenticate with Pulsar brokers
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="proxy-superUserRoles">
+      <td>superUserRoles</td>
+      <td>Role names that are treated as “super-users,” meaning that they will be able to perform all admin
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="proxy-forwardAuthorizationCredentials">
+      <td>forwardAuthorizationCredentials</td>
+      <td>Whether client authorization credentials are forwared to the broker for re-authorization. Authentication must be enabled via <code class="highlighter-rouge">authenticationEnabled=true</code> for this to take effect.
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="proxy-maxConcurrentInboundConnections">
+      <td>maxConcurrentInboundConnections</td>
+      <td>Max concurrent inbound connections. The proxy will reject requests beyond that.
+</td>
+      <td>10000</td>
+    </tr>
+    
+    <tr id="proxy-maxConcurrentLookupRequests">
+      <td>maxConcurrentLookupRequests</td>
+      <td>Max concurrent outbound connections. The proxy will error out requests beyond that.
+</td>
+      <td>10000</td>
+    </tr>
+    
+    <tr id="proxy-tlsEnabledInProxy">
+      <td>tlsEnabledInProxy</td>
+      <td>Whether TLS is enabled for the proxy
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="proxy-tlsEnabledWithBroker">
+      <td>tlsEnabledWithBroker</td>
+      <td>Whether TLS is enabled when communicating with Pulsar brokers
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="proxy-tlsCertificateFilePath">
+      <td>tlsCertificateFilePath</td>
+      <td>Path for the TLS certificate file
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="proxy-tlsKeyFilePath">
+      <td>tlsKeyFilePath</td>
+      <td>Path for the TLS private key file
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="proxy-tlsTrustCertsFilePath">
+      <td>tlsTrustCertsFilePath</td>
+      <td>Path for the trusted TLS certificate pem file
+</td>
+      <td></td>
+    </tr>
+    
+    <tr id="proxy-tlsHostnameVerificationEnabled">
+      <td>tlsHostnameVerificationEnabled</td>
+      <td>Whether the hostname is validated when the proxy creates a TLS connection with brokers
+</td>
+      <td>false</td>
+    </tr>
+    
+    <tr id="proxy-tlsRequireTrustedClientCertOnConnect">
+      <td>tlsRequireTrustedClientCertOnConnect</td>
+      <td>Whether client certificates are required for TLS. Connections are rejected if the client certificate isn’t trusted.
+</td>
+      <td>false</td>
+    </tr>
+    
+  </tbody>
+</table>
 
       </section>
     </article>

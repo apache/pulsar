@@ -115,11 +115,9 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:a203d50fd687e2c77e4f7e7bb0b14bab7"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a203d50fd687e2c77e4f7e7bb0b14bab7"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>closeAsync</b> (<a class="el" href="namespacepulsar.html#a471fb397a128f0e2891d5979f2282e2d">ResultCallback</a> callback)</td></tr>
 <tr class="separator:a203d50fd687e2c77e4f7e7bb0b14bab7"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a0c3755b32954d1aeb1b4ef60e4314c1d"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a0c3755b32954d1aeb1b4ef60e4314c1d"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>hasMessageAvailableAsync</b> (HasMessageAvailableCallback callback)</td></tr>
+<tr class="memitem:a0c3755b32954d1aeb1b4ef60e4314c1d"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_reader.html#a0c3755b32954d1aeb1b4ef60e4314c1d">hasMessageAvailableAsync</a> (HasMessageAvailableCallback callback)</td></tr>
 <tr class="separator:a0c3755b32954d1aeb1b4ef60e4314c1d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a7f751b63fba4d4734ff79da590f9fd56"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a7f751b63fba4d4734ff79da590f9fd56"></a>
-<a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a>&#160;</td><td class="memItemRight" valign="bottom"><b>hasMessageAvailable</b> (bool &amp;hasMessageAvailable)</td></tr>
+<tr class="memitem:a7f751b63fba4d4734ff79da590f9fd56"><td class="memItemLeft" align="right" valign="top"><a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_reader.html#a7f751b63fba4d4734ff79da590f9fd56">hasMessageAvailable</a> (bool &amp;hasMessageAvailable)</td></tr>
 <tr class="separator:a7f751b63fba4d4734ff79da590f9fd56"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="friends"></a>
@@ -170,6 +168,40 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>ReaderTest</b></td><
       </table>
 </div><div class="memdoc">
 <dl class="section return"><dt>Returns</dt><dd>the topic this reader is reading from </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="a7f751b63fba4d4734ff79da590f9fd56"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a> pulsar::Reader::hasMessageAvailable </td>
+          <td>(</td>
+          <td class="paramtype">bool &amp;&#160;</td>
+          <td class="paramname"><em>hasMessageAvailable</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Check if there is any message available to read from the current position. </p>
+
+</div>
+</div>
+<a class="anchor" id="a0c3755b32954d1aeb1b4ef60e4314c1d"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void pulsar::Reader::hasMessageAvailableAsync </td>
+          <td>(</td>
+          <td class="paramtype">HasMessageAvailableCallback&#160;</td>
+          <td class="paramname"><em>callback</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Asynchronously check if there is any message available to read from the current position. </p>
 
 </div>
 </div>

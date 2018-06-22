@@ -1076,6 +1076,7 @@ table {
           
   <ul>
     <li class="mono"><a href="#pulsar.Reader.close">close</a></li>
+    <li class="mono"><a href="#pulsar.Reader.has_message_available">has_message_available</a></li>
     <li class="mono"><a href="#pulsar.Reader.read_next">read_next</a></li>
     <li class="mono"><a href="#pulsar.Reader.topic">topic</a></li>
   </ul>
@@ -2024,6 +2025,12 @@ class Reader:
         else:
             _check_type(int, timeout_millis, 'timeout_millis')
             return self._reader.read_next(timeout_millis)
+
+    def has_message_available(self):
+        """
+        Check if there is any message available to read from the current position.
+        """
+        return self._reader.has_message_available();
 
     def close(self):
         """
@@ -4492,6 +4499,12 @@ and the callback invoked with an error code.</p>
             _check_type(int, timeout_millis, 'timeout_millis')
             return self._reader.read_next(timeout_millis)
 
+    def has_message_available(self):
+        """
+        Check if there is any message available to read from the current position.
+        """
+        return self._reader.has_message_available();
+
     def close(self):
         """
         Close the reader.
@@ -4528,6 +4541,30 @@ and the callback invoked with an error code.</p>
     """
     self._reader.close()
     self._client._consumers.remove(self)
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+            
+  <div class="item">
+    <div class="name def" id="pulsar.Reader.has_message_available">
+    <p>def <span class="ident">has_message_available</span>(</p><p>self)</p>
+    </div>
+    
+
+    
+  
+    <div class="desc"><p>Check if there is any message available to read from the current position.</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.Reader.has_message_available', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.Reader.has_message_available" class="source">
+    <pre><code>def has_message_available(self):
+    """
+    Check if there is any message available to read from the current position.
+    """
+    return self._reader.has_message_available();
 </code></pre>
   </div>
 </div>

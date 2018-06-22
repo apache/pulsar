@@ -144,6 +144,9 @@
           <a class="dropdown-item" href="/docs/latest/clients/Java">
             Java
           </a>
+          <a class="dropdown-item" href="/docs/latest/clients/go">
+            Go
+          </a>
           <a class="dropdown-item" href="/docs/latest/clients/Python">
             Python
           </a>
@@ -156,6 +159,9 @@
           </a>
           <a class="dropdown-item" href="/api/admin">
             Java admin Javadoc
+          </a>
+          <a class="dropdown-item" href="https://godoc.org/github.com/apache/incubator-pulsar/pulsar-client-go/pulsar">
+            GoDoc
           </a>
           <a class="dropdown-item" href="/api/pulsar-functions">
             Pulsar Functions Java SDK
@@ -697,6 +703,14 @@
 
     <div class="card-text">
       <ul>
+        
+        
+        
+        <li><a href="/admin/bookies/racks-info"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>bookies<span class="slash">/</span>racks-info</code></a></li>
+        
+        
+        
+        <li><a href="/admin/bookies/racks-info/:bookie"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>bookies<span class="slash">/</span>racks-info<span class="slash">/</span><span class="endpoint">:bookie</span></code></a></li>
         
         
         
@@ -1258,6 +1272,219 @@
     </div>
   </div>
 
+  
+  
+  
+  <div class="card" id="/admin/bookies/racks-info">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>bookies<span class="slash">/</span>racks-info</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge get">GET</code>
+          </h5>
+          <p>Gets the rack placement information for all the bookies in the cluster</p>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>200</td>
+                <td>successful operation</td>
+              </tr>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/bookies/racks-info/:bookie">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>bookies<span class="slash">/</span>racks-info<span class="slash">/</span><span class="endpoint">:bookie</span></code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge get">GET</code>
+          </h5>
+          <p>Gets the rack placement information for a specific bookie in the cluster</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">bookie</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>200</td>
+                <td>successful operation</td>
+              </tr>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge post">POST</code>
+          </h5>
+          <p>Updates the rack placement information for a specific bookie in the cluster</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">bookie</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+              
+              <tr>
+                <td><code class="highlighter-rouge">group</code></td>
+                <td>query</td>
+                <td>false</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge delete">DELETE</code>
+          </h5>
+          <p>Removed the rack placement information for a specific bookie in the cluster</p>
+          
+          <h5>URL parameters</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>In</th>
+                <th>Required</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td><code class="highlighter-rouge">bookie</code></td>
+                <td>path</td>
+                <td>true</td>
+                <td>string</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>403</td>
+                <td>Don't have admin permission</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
   
   
   
@@ -4007,7 +4234,7 @@
           <h5>
             <code class="highlighter-rouge get">GET</code>
           </h5>
-          <p>Get all namespaces that are grouped by given anti-affinity group in a given cluster. api can be only accessed by admin of any of the existing property</p>
+          <p>Get all namespaces that are grouped by given anti-affinity group in a given cluster. api can be only accessed by admin of any of the existing tenant</p>
           
           <h5>URL parameters</h5>
           <table>
@@ -4036,7 +4263,7 @@
               </tr>
               
               <tr>
-                <td><code class="highlighter-rouge">property</code></td>
+                <td><code class="highlighter-rouge">tenant</code></td>
                 <td>query</td>
                 <td>false</td>
                 <td>string</td>
