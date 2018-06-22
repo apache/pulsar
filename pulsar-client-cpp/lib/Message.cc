@@ -89,10 +89,6 @@ Message::Message(const MessageId& messageID, proto::MessageMetadata& metadata, S
     }
 }
 
-const std::string& Message::getTopicName() const { return impl_->getTopicName(); }
-
-void Message::setTopicName(std::string topicName) const { impl_->setTopicName(topicName); }
-
 const MessageId& Message::getMessageId() const {
     if (!impl_) {
         return invalidMessageId;

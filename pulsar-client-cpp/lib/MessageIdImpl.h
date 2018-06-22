@@ -36,6 +36,11 @@ class MessageIdImpl {
     const int64_t entryId_;
     const int32_t partition_;
     const int32_t batchIndex_;
+
+   private:
     std::string topicName_;
+    friend class MessageImpl;
+    friend class MultiTopicsConsumerImpl;
+    friend class UnAckedMessageTrackerEnabled;
 };
 }  // namespace pulsar

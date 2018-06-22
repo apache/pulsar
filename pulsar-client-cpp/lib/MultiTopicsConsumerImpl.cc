@@ -402,7 +402,7 @@ void MultiTopicsConsumerImpl::messageReceived(Consumer consumer, const Message& 
     LOG_DEBUG("Received Message from one of the topic - " << consumer.getTopic()
                                                           << " message:" << msg.getDataAsString());
     std::string topicPartitionName = consumer.getTopic();
-    msg.setTopicName(topicPartitionName);
+    msg.impl_->setTopicName(topicPartitionName);
     messages_.push(msg);
 
     if (messageListener_) {
@@ -468,7 +468,7 @@ void MultiTopicsConsumerImpl::acknowledgeAsync(const MessageId& msgId, ResultCal
         callback(ResultAlreadyClosed);
         return;
     }
-    std::string topicPartitionName = msgId.getTopicName();
+    std::string& topicPartitionName = msgId.impl_->topicName_;
     std::map<std::string, ConsumerImplPtr>::iterator iterator = consumers_.find(topicPartitionName);
 
     if (consumers_.end() != iterator) {

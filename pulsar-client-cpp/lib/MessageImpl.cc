@@ -81,7 +81,7 @@ void MessageImpl::setEventTimestamp(uint64_t eventTimestamp) { metadata.set_even
 
 void MessageImpl::setTopicName(std::string topicName) {
     topicName_ = topicName;
-    messageId.setTopicName(topicName);
+    messageId.impl_->topicName_ = topicName;
 }
 
 const std::string& MessageImpl::getTopicName() { return topicName_; }

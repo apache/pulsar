@@ -132,15 +132,6 @@ class Message {
     /// Used for Batch Messages
     Message(const MessageId& messageID, proto::MessageMetadata& metadata, SharedBuffer& payload,
             proto::SingleMessageMetadata& singleMetadata);
-    /**
-     * Only for MultiTopicsConsumer to get a valid topicName
-     */
-    const std::string& getTopicName() const;
-    /**
-     * Only for MultiTopicsConsumer to set a valid topicName
-     */
-    void setTopicName(std::string topicName) const;
-
     friend class PartitionedProducerImpl;
     friend class PartitionedConsumerImpl;
     friend class MultiTopicsConsumerImpl;

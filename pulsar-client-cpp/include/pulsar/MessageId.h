@@ -22,12 +22,11 @@
 #include <iosfwd>
 #include <stdint.h>
 #include <boost/shared_ptr.hpp>
+#include <lib/MessageIdImpl.h>
 
 #pragma GCC visibility push(default)
 
 namespace pulsar {
-
-class MessageIdImpl;
 
 class MessageId {
    public:
@@ -83,16 +82,6 @@ class MessageId {
     int64_t entryId() const;
     int32_t batchIndex() const;
     int32_t partition() const;
-
-    /**
-     * Only for MultiTopicsConsumer to set a valid topicName
-     */
-    void setTopicName(std::string topicName);
-
-    /**
-     * Only for MultiTopicsConsumer to get a valid topicName
-     */
-    std::string& getTopicName() const;
 
     typedef boost::shared_ptr<MessageIdImpl> MessageIdImplPtr;
     MessageIdImplPtr impl_;
