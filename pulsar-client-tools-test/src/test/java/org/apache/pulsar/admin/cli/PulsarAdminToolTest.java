@@ -28,6 +28,7 @@ import com.google.common.collect.Sets;
 
 import java.util.EnumSet;
 
+import org.apache.pulsar.client.admin.Bookies;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.Brokers;
 import org.apache.pulsar.client.admin.Clusters;
@@ -43,6 +44,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
+import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FailureDomain;
@@ -686,6 +688,27 @@ public class PulsarAdminToolTest {
         topics.run(split("list-in-bundle myprop/clust/ns1 --bundle 0x23d70a30_0x26666658"));
         verify(mockTopics).getListInBundle("myprop/clust/ns1", "0x23d70a30_0x26666658");
 
+    }
+
+    @Test
+    void bookies() throws Exception {
+        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
+        Bookies mockBookies = mock(Bookies.class);
+        doReturn(mockBookies).when(admin).bookies();
+
+        CmdBookies bookies = new CmdBookies(admin);
+
+        bookies.run(split("racks-placement"));
+        verify(mockBookies).getBookiesRackInfo();
+
+        bookies.run(split("get-bookie-rack --bookie my-bookie:3181"));
+        verify(mockBookies).getBookieRackInfo("my-bookie:3181");
+
+        bookies.run(split("delete-bookie-rack --bookie my-bookie:3181"));
+        verify(mockBookies).deleteBookieRackInfo("my-bookie:3181");
+
+        bookies.run(split("set-bookie-rack --group my-group --bookie my-bookie:3181 --rack rack-1 --hostname host-1"));
+        verify(mockBookies).updateBookieRackInfo("my-bookie:3181", "my-group", new BookieInfo("rack-1", "host-1"));
     }
 
     String[] split(String s) {

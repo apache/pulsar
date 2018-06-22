@@ -32,6 +32,7 @@ import javax.ws.rs.client.WebTarget;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.conn.ssl.DefaultHostnameVerifier;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
+import org.apache.pulsar.client.admin.internal.BookiesImpl;
 import org.apache.pulsar.client.admin.internal.BrokerStatsImpl;
 import org.apache.pulsar.client.admin.internal.BrokersImpl;
 import org.apache.pulsar.client.admin.internal.ClustersImpl;
@@ -74,6 +75,7 @@ public class PulsarAdmin implements Closeable {
     private final Tenants tenants;
     private final Properties properties;
     private final Namespaces namespaces;
+    private final Bookies bookies;
     private final TopicsImpl topics;
     private final NonPersistentTopics nonPersistentTopics;
     private final ResourceQuotas resourceQuotas;
@@ -186,6 +188,7 @@ public class PulsarAdmin implements Closeable {
         this.lookups = new LookupImpl(root, auth, useTls);
         this.functions = new FunctionsImpl(root, auth);
         this.schemas = new SchemasImpl(root, auth);
+        this.bookies = new BookiesImpl(root, auth);
     }
 
     /**
@@ -302,6 +305,13 @@ public class PulsarAdmin implements Closeable {
 
     public Topics topics() {
         return topics;
+    }
+
+    /**
+     * @return the bookies management object
+     */
+    public Bookies bookies() {
+        return bookies;
     }
 
     /**
