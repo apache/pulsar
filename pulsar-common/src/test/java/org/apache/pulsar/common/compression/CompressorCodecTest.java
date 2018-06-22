@@ -109,10 +109,8 @@ public class CompressorCodecTest {
 
     @Test(dataProvider = "codec")
     void testCodecProvider(CompressionType type) throws IOException {
-        CompressionCodecProvider provider = new CompressionCodecProvider();
-
-        CompressionCodec codec1 = provider.getCodec(type);
-        CompressionCodec codec2 = provider.getCodec(type);
+        CompressionCodec codec1 = CompressionCodecProvider.getCompressionCodec(type);
+        CompressionCodec codec2 = CompressionCodecProvider.getCompressionCodec(type);
 
         // A single provider instance must return the same codec instance every time
         assertTrue(codec1 == codec2);
