@@ -124,15 +124,6 @@ class ContextImpl implements Context {
         }
     }
 
-    public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
-                       ClassLoader classLoader) {
-        this(config, logger, client, classLoader, null);
-    }
-
-    public void setInputConsumer(Consumer inputConsumer) {
-        this.inputConsumer = inputConsumer;
-    }
-
     public void setCurrentMessageContext(MessageId messageId, String topicName) {
         this.messageId = messageId;
         this.currentTopicName = topicName;
