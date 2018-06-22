@@ -27,7 +27,7 @@ import com.datastax.driver.core.ResultSetFuture;
 import com.datastax.driver.core.Session;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
-import org.apache.pulsar.common.util.KeyValue;
+import org.apache.pulsar.io.core.KeyValue;
 import org.apache.pulsar.io.core.SimpleSink;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

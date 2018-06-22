@@ -19,7 +19,7 @@
 
 package org.apache.pulsar.io.cassandra;
 
-import org.apache.pulsar.common.util.KeyValue;
+import org.apache.pulsar.io.core.KeyValue;
 
 /**
  * Cassandra sink that treats incoming messages on the input topic as Strings

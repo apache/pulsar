@@ -31,7 +31,7 @@ import com.aerospike.client.async.NioEventLoops;
 import com.aerospike.client.listener.WriteListener;
 import com.aerospike.client.policy.ClientPolicy;
 import com.aerospike.client.policy.WritePolicy;
-import org.apache.pulsar.common.util.KeyValue;
+import org.apache.pulsar.io.core.KeyValue;
 import org.apache.pulsar.io.core.SimpleSink;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
