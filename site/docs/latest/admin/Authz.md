@@ -53,13 +53,13 @@ The first step is to create the certificate for the CA. The CA will be used to s
 
 ###### Linux
 
-```shell
+```bash
 $ CA.pl -newca
 ```
 
-###### MacOS
+###### macOS
 
-```
+```bash
 $ /System/Library/OpenSSL/misc/CA.pl -newca
 ```
 

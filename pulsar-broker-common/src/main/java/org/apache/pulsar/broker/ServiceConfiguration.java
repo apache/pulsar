@@ -304,9 +304,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(minValue = 1)
     private int managedLedgerDefaultAckQuorum = 1;
 
-    // Default type of checksum to use when writing to BookKeeper. Default is "CRC32"
-    // Other possible options are "CRC32C" (which is faster), "MAC" or "DUMMY" (no checksum).
-    private DigestType managedLedgerDigestType = DigestType.CRC32;
+    // Default type of checksum to use when writing to BookKeeper. Default is "CRC32C"
+    // Other possible options are "CRC32", "MAC" or "DUMMY" (no checksum).
+    private DigestType managedLedgerDigestType = DigestType.CRC32C;
 
     // Max number of bookies to use when creating a ledger
     @FieldContext(minValue = 1)

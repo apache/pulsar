@@ -26,6 +26,17 @@ layout: content
 
 ## Apache incubator
 
+<!--
+### 2.1.0-incubating &mdash; XXXX-XX-XX <a id="2.1.0-incubating"></a>
+
+Notes:
+
+ * [#2002](https://github.com/apache/incubator-pulsar/pull/2002) Updated
+  default checksum configured in BookKeeper client to CRC32-C. This will mean
+  that,  while it is possible to downgrade a Pulsar cluster from 2.1 to 2.0,
+  it will not be possible to downgrade from 2.1 to 1.22 release directly.
+-->
+
 ### 2.0.1-incubating &mdash; 2018-06-18 <a id="2.0.1-incubating"></a>
 
 This release fixes issues reported for 2.0.0-rc1-incubating.

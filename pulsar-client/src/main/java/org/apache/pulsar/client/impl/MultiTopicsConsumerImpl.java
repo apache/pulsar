@@ -21,7 +21,6 @@ package org.apache.pulsar.client.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -118,11 +117,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         this.namespaceName = conf.getTopicNames().stream().findFirst()
                 .flatMap(s -> Optional.of(TopicName.get(s).getNamespaceObject())).get();
 
-        List<CompletableFuture<Void>> futures =
-            conf.getTopicNames().stream()
-                .map(this::subscribeAsync)
+        List<CompletableFuture<Void>> futures = conf.getTopicNames().stream().map(t -> subscribeAsync(t))
                 .collect(Collectors.toList());
-
         FutureUtil.waitForAll(futures)
             .thenAccept(finalFuture -> {
                 try {
@@ -131,7 +127,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     }
                     setState(State.Ready);
                     // We have successfully created N consumers, so we can start receiving messages now
-                    startReceivingMessages(new ArrayList<>(consumers.values()));
+                    startReceivingMessages(consumers.values().stream().collect(Collectors.toList()));
                     subscribeFuture().complete(MultiTopicsConsumerImpl.this);
                     log.info("[{}] [{}] Created topics consumer with {} sub-consumers",
                         topic, subscription, allTopicPartitionsNumber.get());

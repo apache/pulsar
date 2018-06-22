@@ -19,8 +19,6 @@
 package org.apache.pulsar.functions.instance.producers;
 
 import static org.apache.pulsar.functions.instance.producers.MultiConsumersOneOuputTopicProducers.makeProducerName;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyObject;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -45,7 +43,6 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Schema;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -86,6 +83,11 @@ public class MultiConsumersOneOutputTopicProducersTest {
                 future.completeExceptionally(e);
                 return future;
             }
+        }
+
+        @Override
+        public ProducerBuilder<byte[]> loadConf(Map<String, Object> config) {
+            return this;
         }
 
         @Override
@@ -194,10 +196,10 @@ public class MultiConsumersOneOutputTopicProducersTest {
     public void setup() throws Exception {
         this.mockClient = mock(PulsarClient.class);
 
-        when(mockClient.newProducer(any(Schema.class)))
+        when(mockClient.newProducer())
             .thenReturn(new MockProducerBuilder());
 
-        producers = new MultiConsumersOneOuputTopicProducers(mockClient, TEST_OUTPUT_TOPIC, Schema.BYTES);
+        producers = new MultiConsumersOneOuputTopicProducers(mockClient, TEST_OUTPUT_TOPIC);
         producers.initialize();
     }
 
@@ -222,13 +224,13 @@ public class MultiConsumersOneOutputTopicProducersTest {
 
         assertSame(mockProducers.get(producerName), producer);
         verify(mockClient, times(1))
-            .newProducer(Schema.BYTES);
+            .newProducer();
         assertTrue(producers.getProducers().containsKey(producerName));
 
         // second get will not create a new producer
         assertSame(mockProducers.get(producerName), producer);
         verify(mockClient, times(1))
-            .newProducer(Schema.BYTES);
+            .newProducer();
         assertTrue(producers.getProducers().containsKey(producerName));
 
         // close

@@ -63,4 +63,6 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             throw new RuntimeException("Failed to clone ClientConfigurationData");
         }
     }
+
+
 }

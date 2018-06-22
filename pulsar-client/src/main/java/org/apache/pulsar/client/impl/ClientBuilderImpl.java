@@ -28,18 +28,17 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 
 public class ClientBuilderImpl implements ClientBuilder {
 
-    private static final long serialVersionUID = 1L;
-
-    final ClientConfigurationData conf;
+    ClientConfigurationData conf;
 
     public ClientBuilderImpl() {
         this(new ClientConfigurationData());
     }
 
-    private ClientBuilderImpl(ClientConfigurationData conf) {
+    public ClientBuilderImpl(ClientConfigurationData conf) {
         this.conf = conf;
     }
 
@@ -55,6 +54,13 @@ public class ClientBuilderImpl implements ClientBuilder {
     @Override
     public ClientBuilder clone() {
         return new ClientBuilderImpl(conf.clone());
+    }
+
+    @Override
+    public ClientBuilder loadConf(Map<String, Object> config) {
+        conf = ConfigurationDataUtils.loadData(
+            config, conf, ClientConfigurationData.class);
+        return this;
     }
 
     @Override
