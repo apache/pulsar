@@ -111,21 +111,20 @@ class MultiTopicsConsumerImpl : public ConsumerImplBase,
     void internalListener(Consumer consumer);
     void receiveMessages();
 
-    void handleOneTopicSubscribe(Result result, Consumer consumer, const std::string& topic,
-                                 boost::shared_ptr<std::atomic<int>> topicsCreated, const int topicsNumber);
+    void handleOneTopicSubscribed(Result result, Consumer consumer, const std::string& topic,
+                                  boost::shared_ptr<std::atomic<int>> topicsNeedCreate);
     void subscribeTopicPartitions(const Result result, const LookupDataResultPtr partitionMetadata,
                                   TopicNamePtr topicName, const std::string& consumerName,
                                   ConsumerConfiguration conf,
                                   ConsumerSubResultPromisePtr topicSubResultPromise);
     void handleSingleConsumerCreated(Result result, ConsumerImplBaseWeakPtr consumerImplBaseWeakPtr,
-                                     boost::shared_ptr<std::atomic<int>> partitionsCreated,
-                                     const int partitionsNumber,
+                                     boost::shared_ptr<std::atomic<int>> partitionsNeedCreate,
                                      ConsumerSubResultPromisePtr topicSubResultPromise);
-    void handleUnsubscribeAsync(Result result, boost::shared_ptr<std::atomic<int>> consumerUnsubed,
-                                ResultCallback callback);
-    void handleUnsubscribeOneTopicAsync(Result result, boost::shared_ptr<std::atomic<int>> consumerUnsubed,
-                                        int numberPartitions, TopicNamePtr topicNamePtr,
-                                        std::string& topicPartitionName, ResultCallback callback);
+    void handleUnsubscribedAsync(Result result, boost::shared_ptr<std::atomic<int>> consumerUnsubed,
+                                 ResultCallback callback);
+    void handleOneTopicUnsubscribedAsync(Result result, boost::shared_ptr<std::atomic<int>> consumerUnsubed,
+                                         int numberPartitions, TopicNamePtr topicNamePtr,
+                                         std::string& topicPartitionName, ResultCallback callback);
 };
 
 }  // namespace pulsar

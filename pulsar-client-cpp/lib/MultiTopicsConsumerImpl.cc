@@ -20,7 +20,8 @@
 
 DECLARE_LOG_OBJECT()
 
-namespace pulsar {
+using namespace pulsar;
+
 MultiTopicsConsumerImpl::MultiTopicsConsumerImpl(ClientImplPtr client, const std::vector<std::string>& topics,
                                                  const std::string& subscriptionName, TopicNamePtr topicName,
                                                  const ConsumerConfiguration& conf,
@@ -53,29 +54,27 @@ MultiTopicsConsumerImpl::MultiTopicsConsumerImpl(ClientImplPtr client, const std
 void MultiTopicsConsumerImpl::start() {
     if (topics_.empty()) {
         setState(Ready);
-        LOG_INFO("No topics passed in when create MultiTopicsConsumer.");
+        LOG_DEBUG("No topics passed in when create MultiTopicsConsumer.");
         multiTopicsConsumerCreatedPromise_.setValue(shared_from_this());
         return;
     }
 
     // start call subscribeOneTopicAsync for each single topic
-    boost::shared_ptr<std::atomic<int>> atomicIntPtr = boost::make_shared<std::atomic<int>>(0);
-
     int topicsNumber = topics_.size();
+    boost::shared_ptr<std::atomic<int>> topicsNeedCreate = boost::make_shared<std::atomic<int>>(topicsNumber);
     // subscribe for each passed in topic
     for (std::vector<std::string>::const_iterator itr = topics_.begin(); itr != topics_.end(); itr++) {
         subscribeOneTopicAsync(*itr).addListener(
-            boost::bind(&MultiTopicsConsumerImpl::handleOneTopicSubscribe, shared_from_this(), _1, _2, *itr,
-                        atomicIntPtr, topicsNumber));
+            boost::bind(&MultiTopicsConsumerImpl::handleOneTopicSubscribed, shared_from_this(), _1, _2, *itr,
+                        topicsNeedCreate));
     }
 }
 
-void MultiTopicsConsumerImpl::handleOneTopicSubscribe(Result result, Consumer consumer,
-                                                      const std::string& topic,
-                                                      boost::shared_ptr<std::atomic<int>> topicsCreated,
-                                                      const int topicsNumber) {
-    int previous = topicsCreated->fetch_add(1);
-    assert(previous < topicsNumber);
+void MultiTopicsConsumerImpl::handleOneTopicSubscribed(Result result, Consumer consumer,
+                                                       const std::string& topic,
+                                                       boost::shared_ptr<std::atomic<int>> topicsNeedCreate) {
+    int previous = topicsNeedCreate->fetch_sub(1);
+    assert(previous > 0);
 
     if (result != ResultOk) {
         state_ = Failed;
@@ -88,12 +87,10 @@ void MultiTopicsConsumerImpl::handleOneTopicSubscribe(Result result, Consumer co
         return;
     }
 
-    LOG_DEBUG("Successfully Subscribed to topic " << topic << " in TopicsConsumer "
-                                                  << " with - " << topicsNumber << " topics.");
+    LOG_DEBUG("Successfully Subscribed to topic " << topic << " in TopicsConsumer ");
 
-    if (topicsCreated->load() == topicsNumber) {
-        LOG_INFO("Successfully Subscribed to Topics"
-                 << " with - " << topicsNumber << " topics.");
+    if (topicsNeedCreate->load() == 0) {
+        LOG_INFO("Successfully Subscribed to Topics");
         setState(Ready);
         if (!namespaceName_) {
             namespaceName_ = TopicName::get(topic)->getNamespaceName();
@@ -157,7 +154,8 @@ void MultiTopicsConsumerImpl::subscribeTopicPartitions(const Result result,
     lock.unlock();
     allTopicPartitionsNumber_->fetch_add(partitionsNumber);
 
-    boost::shared_ptr<std::atomic<int>> atomicIntPtr = boost::make_shared<std::atomic<int>>(0);
+    boost::shared_ptr<std::atomic<int>> partitionsNeedCreate =
+        boost::make_shared<std::atomic<int>>(partitionsNumber);
 
     for (int i = 0; i < partitionsNumber; i++) {
         std::string topicPartitionName = topicName->getTopicPartitionName(i);
@@ -165,17 +163,17 @@ void MultiTopicsConsumerImpl::subscribeTopicPartitions(const Result result,
                                                     internalListenerExecutor, Partitioned);
         consumer->getConsumerCreatedFuture().addListener(
             boost::bind(&MultiTopicsConsumerImpl::handleSingleConsumerCreated, shared_from_this(), _1, _2,
-                        atomicIntPtr, partitionsNumber, topicSubResultPromise));
+                        partitionsNeedCreate, topicSubResultPromise));
         consumer->setPartitionIndex(i);
         consumers_.insert(std::make_pair(topicPartitionName, consumer));
-        LOG_DEBUG("Creating Consumer for - " << topicPartitionName << " - " << consumerStr_);
+        LOG_DEBUG("Create Consumer for - " << topicPartitionName << " - " << consumerStr_);
         consumer->start();
     }
 }
 
 void MultiTopicsConsumerImpl::handleSingleConsumerCreated(
     Result result, ConsumerImplBaseWeakPtr consumerImplBaseWeakPtr,
-    boost::shared_ptr<std::atomic<int>> partitionsCreated, const int partitionsNumber,
+    boost::shared_ptr<std::atomic<int>> partitionsNeedCreate,
     ConsumerSubResultPromisePtr topicSubResultPromise) {
     if (state_ == Failed) {
         // one of the consumer creation failed, and we are cleaning up
@@ -184,8 +182,8 @@ void MultiTopicsConsumerImpl::handleSingleConsumerCreated(
         return;
     }
 
-    int previous = partitionsCreated->fetch_add(1);
-    assert(previous < partitionsNumber);
+    int previous = partitionsNeedCreate->fetch_sub(1);
+    assert(previous > 0);
 
     if (result != ResultOk) {
         state_ = Failed;
@@ -195,10 +193,10 @@ void MultiTopicsConsumerImpl::handleSingleConsumerCreated(
         return;
     }
 
-    LOG_DEBUG("Successfully Subscribed to a single partition of topic in TopicsConsumer "
-              << " created partitions - " << previous + 1 << " target partitions - " << partitionsNumber);
+    LOG_DEBUG("Successfully Subscribed to a single partition of topic in TopicsConsumer. "
+              << "Partitions need to create - " << previous - 1);
 
-    if (partitionsCreated->load() == partitionsNumber) {
+    if (partitionsNeedCreate->load() == 0) {
         topicSubResultPromise->setValue(Consumer(shared_from_this()));
         return;
     }
@@ -217,20 +215,20 @@ void MultiTopicsConsumerImpl::unsubscribeAsync(ResultCallback callback) {
     state_ = Closing;
     lock.unlock();
 
-    boost::shared_ptr<std::atomic<int>> atomicIntPtr = boost::make_shared<std::atomic<int>>(0);
+    boost::shared_ptr<std::atomic<int>> consumerUnsubed = boost::make_shared<std::atomic<int>>(0);
 
     for (ConsumerMap::const_iterator consumer = consumers_.begin(); consumer != consumers_.end();
          consumer++) {
         LOG_DEBUG("Unsubcribing Consumer - " << consumer->first);
         (consumer->second)
-            ->unsubscribeAsync(boost::bind(&MultiTopicsConsumerImpl::handleUnsubscribeAsync,
-                                           shared_from_this(), _1, atomicIntPtr, callback));
+            ->unsubscribeAsync(boost::bind(&MultiTopicsConsumerImpl::handleUnsubscribedAsync,
+                                           shared_from_this(), _1, consumerUnsubed, callback));
     }
 }
 
-void MultiTopicsConsumerImpl::handleUnsubscribeAsync(Result result,
-                                                     boost::shared_ptr<std::atomic<int>> consumerUnsubed,
-                                                     ResultCallback callback) {
+void MultiTopicsConsumerImpl::handleUnsubscribedAsync(Result result,
+                                                      boost::shared_ptr<std::atomic<int>> consumerUnsubed,
+                                                      ResultCallback callback) {
     int previous = consumerUnsubed->fetch_add(1);
     assert(previous < allTopicPartitionsNumber_->load());
 
@@ -275,7 +273,7 @@ void MultiTopicsConsumerImpl::unsubscribeOneTopicAsync(const std::string& topic,
         callback(ResultUnknownError);
     }
     int numberPartitions = it->second;
-    boost::shared_ptr<std::atomic<int>> atomicIntPtr = boost::make_shared<std::atomic<int>>(0);
+    boost::shared_ptr<std::atomic<int>> consumerUnsubed = boost::make_shared<std::atomic<int>>(0);
 
     for (int i = 0; i < numberPartitions; i++) {
         std::string topicPartitionName = topicName->getTopicPartitionName(i);
@@ -287,13 +285,13 @@ void MultiTopicsConsumerImpl::unsubscribeOneTopicAsync(const std::string& topic,
         }
 
         (iterator->second)
-            ->unsubscribeAsync(boost::bind(&MultiTopicsConsumerImpl::handleUnsubscribeOneTopicAsync,
-                                           shared_from_this(), _1, atomicIntPtr, numberPartitions, topicName,
-                                           topicPartitionName, callback));
+            ->unsubscribeAsync(boost::bind(&MultiTopicsConsumerImpl::handleOneTopicUnsubscribedAsync,
+                                           shared_from_this(), _1, consumerUnsubed, numberPartitions,
+                                           topicName, topicPartitionName, callback));
     }
 }
 
-void MultiTopicsConsumerImpl::handleUnsubscribeOneTopicAsync(
+void MultiTopicsConsumerImpl::handleOneTopicUnsubscribedAsync(
     Result result, boost::shared_ptr<std::atomic<int>> consumerUnsubed, int numberPartitions,
     TopicNamePtr topicNamePtr, std::string& topicPartitionName, ResultCallback callback) {
     int previous = consumerUnsubed->fetch_add(1);
@@ -621,5 +619,3 @@ boost::shared_ptr<TopicName> MultiTopicsConsumerImpl::topicNamesValid(
 void MultiTopicsConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback callback) {
     callback(ResultOperationNotSupported);
 }
-
-}  // namespace pulsar

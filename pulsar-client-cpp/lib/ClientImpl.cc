@@ -221,10 +221,12 @@ void ClientImpl::subscribeAsync(const std::vector<std::string>& topics, const st
             lock.unlock();
             callback(ResultAlreadyClosed, Consumer());
             return;
-        } else if (!topics.empty() && !(topicNamePtr = MultiTopicsConsumerImpl::topicNamesValid(topics))) {
+        } else {
             lock.unlock();
-            callback(ResultInvalidTopicName, Consumer());
-            return;
+            if (!topics.empty() && !(topicNamePtr = MultiTopicsConsumerImpl::topicNamesValid(topics))) {
+                callback(ResultInvalidTopicName, Consumer());
+                return;
+            }
         }
     }
 
