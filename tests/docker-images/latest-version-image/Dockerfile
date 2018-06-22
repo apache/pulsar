@@ -21,19 +21,15 @@ FROM apachepulsar/pulsar:latest
 
 RUN apt-get update && apt-get install -y supervisor
 
-RUN mkdir -p /var/log/pulsar && mkdir -p /var/run/supervisor/
+RUN mkdir -p /var/log/pulsar && mkdir -p /var/run/supervisor/ && mkdir -p /pulsar/ssl
 
 COPY conf/supervisord.conf /etc/supervisord.conf
-COPY conf/global-zk.conf /etc/supervisord/conf.d/global-zk.conf
-COPY conf/local-zk.conf /etc/supervisord/conf.d/local-zk.conf
-COPY conf/bookie.conf /etc/supervisord/conf.d/bookie.conf
-COPY conf/broker.conf /etc/supervisord/conf.d/broker.conf
-COPY conf/proxy.conf /etc/supervisord/conf.d/proxy.conf
+COPY conf/global-zk.conf conf/local-zk.conf conf/bookie.conf conf/broker.conf \
+     conf/proxy.conf /etc/supervisord/conf.d/
 
-COPY scripts/init-cluster.sh /pulsar/bin
-COPY scripts/run-global-zk.sh /pulsar/bin
-COPY scripts/run-local-zk.sh /pulsar/bin
-COPY scripts/run-bookie.sh /pulsar/bin
-COPY scripts/run-broker.sh /pulsar/bin
-COPY scripts/run-proxy.sh /pulsar/bin
+COPY ssl/ca.cert.pem ssl/broker.key-pk8.pem ssl/broker.cert.pem \
+     ssl/admin.key-pk8.pem ssl/admin.cert.pem /pulsar/ssl/
+
+COPY scripts/init-cluster.sh scripts/run-global-zk.sh scripts/run-local-zk.sh \
+     scripts/run-bookie.sh scripts/run-broker.sh scripts/run-proxy.sh /pulsar/bin/
 
