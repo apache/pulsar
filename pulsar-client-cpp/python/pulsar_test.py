@@ -488,6 +488,39 @@ class PulsarTest(TestCase):
         consumer2.close()
         client.close()
 
+    def test_reader_has_message_available(self):
+        # create client, producer, reader
+        client = Client(self.serviceUrl)
+        producer = client.create_producer('persistent://sample/standalone/ns/my-python-topic-reader-has-message-available')
+        reader = client.create_reader('persistent://sample/standalone/ns/my-python-topic-reader-has-message-available',
+                                      MessageId.latest)
+
+        # before produce data, expected not has message available
+        self.assertFalse(reader.has_message_available());
+
+        for i in range(10):
+            producer.send('hello-%d' % i)
+
+        # produced data, expected has message available
+        self.assertTrue(reader.has_message_available());
+
+        for i in range(10):
+            msg = reader.read_next()
+            self.assertTrue(msg)
+            self.assertEqual(msg.data(), b'hello-%d' % i)
+
+        # consumed all data, expected not has message available
+        self.assertFalse(reader.has_message_available());
+
+        for i in range(10, 20):
+            producer.send('hello-%d' % i)
+
+        # produced data again, expected has message available
+        self.assertTrue(reader.has_message_available());
+        reader.close()
+        producer.close()
+        client.close()
+
     def test_seek(self):
         client = Client(self.serviceUrl)
         consumer = client.subscribe('persistent://sample/standalone/ns/my-python-topic-seek',
