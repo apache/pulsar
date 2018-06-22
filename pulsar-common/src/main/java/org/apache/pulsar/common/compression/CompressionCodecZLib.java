@@ -27,14 +27,26 @@ import java.util.zip.Inflater;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.util.concurrent.FastThreadLocal;
 
 /**
  * ZLib Compression
  */
 public class CompressionCodecZLib implements CompressionCodec {
 
-    private final Deflater deflater = new Deflater();
-    private final Inflater inflater = new Inflater();
+    private final FastThreadLocal<Deflater> deflater = new FastThreadLocal<Deflater>() {
+        @Override
+        protected Deflater initialValue() throws Exception {
+            return new Deflater();
+        }
+    };
+
+    private final FastThreadLocal<Inflater> inflater = new FastThreadLocal<Inflater>() {
+        @Override
+        protected Inflater initialValue() throws Exception {
+            return new Inflater();
+        }
+    };
 
     @Override
     public ByteBuf encode(ByteBuf source) {
@@ -54,19 +66,17 @@ public class CompressionCodecZLib implements CompressionCodec {
             source.getBytes(source.readerIndex(), array);
         }
 
-        synchronized (deflater) {
-            deflater.setInput(array, offset, length);
-            while (!deflater.needsInput()) {
-                deflate(compressed);
-            }
-
-            deflater.reset();
+        Deflater deflater = this.deflater.get();
+        deflater.reset();
+        deflater.setInput(array, offset, length);
+        while (!deflater.needsInput()) {
+            deflate(deflater, compressed);
         }
 
         return compressed;
     }
 
-    private void deflate(ByteBuf out) {
+    private static void deflate(Deflater deflater, ByteBuf out) {
         int numBytes;
         do {
             int writerIndex = out.writerIndex();
@@ -94,14 +104,14 @@ public class CompressionCodecZLib implements CompressionCodec {
         }
 
         int resultLength;
-        synchronized (inflater) {
-            inflater.setInput(array, offset, len);
-            try {
-                resultLength = inflater.inflate(uncompressed.array(), uncompressed.arrayOffset(), uncompressedLength);
-            } catch (DataFormatException e) {
-                throw new IOException(e);
-            }
-            inflater.reset();
+        Inflater inflater = this.inflater.get();
+        inflater.reset();
+        inflater.setInput(array, offset, len);
+
+        try {
+            resultLength = inflater.inflate(uncompressed.array(), uncompressed.arrayOffset(), uncompressedLength);
+        } catch (DataFormatException e) {
+            throw new IOException(e);
         }
 
         checkArgument(resultLength == uncompressedLength);
