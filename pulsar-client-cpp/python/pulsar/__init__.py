@@ -853,6 +853,12 @@ class Reader:
             _check_type(int, timeout_millis, 'timeout_millis')
             return self._reader.read_next(timeout_millis)
 
+    def has_message_available(self):
+        """
+        Check if there is any message available to read from the current position.
+        """
+        return self._reader.has_message_available();
+
     def close(self):
         """
         Close the reader.
