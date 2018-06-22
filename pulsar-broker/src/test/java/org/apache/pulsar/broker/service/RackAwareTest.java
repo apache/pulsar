@@ -55,7 +55,7 @@ public class RackAwareTest extends BrokerBkEnsemblesTests {
     void setup() throws Exception {
         super.setup();
 
-        // Start bookies
+        // Start bookies with specific racks
         for (int i = 0; i < NUM_BOOKIES; i++) {
             File bkDataDir = Files.createTempDirectory("bk" + Integer.toString(i) + "test").toFile();
             ServerConfiguration conf = new ServerConfiguration();
@@ -79,6 +79,7 @@ public class RackAwareTest extends BrokerBkEnsemblesTests {
             bookies.add(bs);
             log.info("Local BK[{}] started (port: {}, adddress: {})", i, bookiePort, addr);
         }
+
     }
 
     @AfterClass
@@ -88,6 +89,8 @@ public class RackAwareTest extends BrokerBkEnsemblesTests {
         for (BookieServer bs : bookies) {
             bs.shutdown();
         }
+
+        bookies.clear();
     }
 
     @Test
@@ -116,6 +119,14 @@ public class RackAwareTest extends BrokerBkEnsemblesTests {
                     "first bookie in rack 0 not included in ensemble");
             lh.close();
         }
+    }
+
+    public void testCrashBrokerWithoutCursorLedgerLeak() throws Exception {
+        // Ignore test
+    }
+
+    public void testSkipCorruptDataLedger() throws Exception {
+        // Ignore test
     }
 
     private static final Logger log = LoggerFactory.getLogger(RackAwareTest.class);
