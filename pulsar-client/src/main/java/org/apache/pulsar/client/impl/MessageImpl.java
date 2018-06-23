@@ -81,6 +81,11 @@ public class MessageImpl<T> extends MessageRecordImpl<T, MessageId> {
     // Constructor for incoming message
     MessageImpl(MessageIdImpl messageId, MessageMetadata msgMetadata, ByteBuf payload, ClientCnx cnx,
             Schema<T> schema) {
+        this(messageId, msgMetadata, payload, null, cnx, schema);
+    }
+    
+    MessageImpl(MessageIdImpl messageId, MessageMetadata msgMetadata, ByteBuf payload,
+            Map<String, String> encryptionProperties, ClientCnx cnx, Schema<T> schema) {
         this.msgMetadataBuilder = MessageMetadata.newBuilder(msgMetadata);
         this.messageId = messageId;
         this.cnx = cnx;
@@ -90,9 +95,13 @@ public class MessageImpl<T> extends MessageRecordImpl<T, MessageId> {
         // backed by a direct buffer which we could not expose as a byte[]
         this.payload = Unpooled.copiedBuffer(payload);
 
-        if (msgMetadata.getPropertiesCount() > 0) {
-            this.properties = Collections.unmodifiableMap(msgMetadataBuilder.getPropertiesList().stream()
-                    .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue)));
+        if (msgMetadata.getPropertiesCount() > 0 || encryptionProperties != null) {
+            Map<String, String> props = msgMetadata.getPropertiesCount() > 0 ? msgMetadataBuilder.getPropertiesList()
+                    .stream().collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue)) : Maps.newHashMap();
+            if (encryptionProperties != null) {
+                props.putAll(encryptionProperties);
+            }
+            this.properties = Collections.unmodifiableMap(props);
         } else {
             properties = Collections.emptyMap();
         }

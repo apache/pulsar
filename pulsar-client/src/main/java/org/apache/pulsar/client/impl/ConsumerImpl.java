@@ -27,12 +27,14 @@ import static org.apache.pulsar.common.api.Commands.readChecksum;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Timeout;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import static java.util.Base64.getEncoder;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -49,6 +51,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
+
 
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
@@ -67,6 +70,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
+import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
@@ -709,11 +713,17 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         ByteBuf decryptedPayload = decryptPayloadIfNeeded(messageId, msgMetadata, payload, cnx);
+        
+        boolean isMessageUndecryptable = isMessageUndecryptable(msgMetadata);
+        
         if (decryptedPayload == null) {
             // Message was discarded or CryptoKeyReader isn't implemented
             return;
         }
-        ByteBuf uncompressedPayload = uncompressPayloadIfNeeded(messageId, msgMetadata, decryptedPayload, cnx);
+        
+        // uncompress decryptedPayload and release decryptedPayload-ByteBuf
+        ByteBuf uncompressedPayload = isMessageUndecryptable ? decryptedPayload.retain() 
+                : uncompressPayloadIfNeeded(messageId, msgMetadata, decryptedPayload, cnx);
         decryptedPayload.release();
         if (uncompressedPayload == null) {
             // Message was discarded on decompression error
@@ -722,8 +732,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         final int numMessages = msgMetadata.getNumMessagesInBatch();
 
-        if (numMessages == 1 && !msgMetadata.hasNumMessagesInBatch()) {
-            final MessageImpl<T> message = new MessageImpl<>(msgId, msgMetadata, uncompressedPayload, cnx, schema);
+        // if message is not decryptable then add encryption-properties along with payload
+        if (isMessageUndecryptable || (numMessages == 1 && !msgMetadata.hasNumMessagesInBatch())) {
+            final MessageImpl<T> message = new MessageImpl<>(msgId, msgMetadata, uncompressedPayload,
+                    isMessageUndecryptable ? createEncryptionPropertiesOfUndecryptableMsg(msgMetadata) : null, cnx, schema);
             uncompressedPayload.release();
             msgMetadata.recycle();
 
@@ -1320,6 +1332,49 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             messageId = new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), getPartitionIndex());
         }
         return messageId;
+    }
+
+
+    private boolean isMessageUndecryptable(MessageMetadata msgMetadata) {
+        return (msgMetadata.getEncryptionKeysCount() > 0 && conf.getCryptoKeyReader() == null
+                && conf.getCryptoFailureAction() == ConsumerCryptoFailureAction.CONSUME);
+    }
+
+    /**
+     * If crypto-reader is not configured at consumer and {@link ConsumerCryptoFailureAction} is configured to CONSUME message
+     * then create properties that can be used to uncompress and decrypt the payload.
+     * 
+     * @param msgMetadata
+     * @return if payload can't be decrypted then return properties with encryption metadata.
+     */
+    private Map<String, String> createEncryptionPropertiesOfUndecryptableMsg(MessageMetadata msgMetadata) {
+        if (isMessageUndecryptable(msgMetadata)) {
+            Map<String, String> encryptionKeys = Maps.newHashMap();
+
+            byte[] encParam = new byte[MessageCrypto.ivLen];
+            msgMetadata.getEncryptionParam().copyTo(encParam, 0);
+            encryptionKeys.put(ConsumerCryptoFailureAction.PULSAR_COMPRESSION_TYPE_PROP,
+                    msgMetadata.getCompression().toString());
+            encryptionKeys.put(ConsumerCryptoFailureAction.PULSAR_UNCOMPRESSED_MSG_SIZE_PROP,
+                    Integer.toString(msgMetadata.getUncompressedSize()));
+            encryptionKeys.put(ConsumerCryptoFailureAction.PULSAR_ENCRYPTION_PARAM_BASE64_ENCODED_PROP,
+                    getEncoder().encodeToString(encParam));
+            encryptionKeys.put(ConsumerCryptoFailureAction.PULSAR_ENCRYPTION_ALGO_PROP,
+                    msgMetadata.getEncryptionAlgo());
+            msgMetadata.getEncryptionKeysList().forEach(encryptionKey -> {
+                String msgDataKey = getEncoder().encodeToString(encryptionKey.getValue().toByteArray());
+                Map<String, String> metadata = encryptionKey.getMetadataList().stream()
+                        .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue));
+                encryptionKeys.put(ConsumerCryptoFailureAction.PULSAR_ENCRYPTION_KEY_PROP + encryptionKey.getKey(),
+                        (EncryptionProperties.toJson(new EncryptionProperties(msgDataKey, metadata))));
+            });
+            if (msgMetadata.hasNumMessagesInBatch()) {
+                encryptionKeys.put(ConsumerCryptoFailureAction.PULSAR_BATCH_SIZE_PROP,
+                        Integer.toString(msgMetadata.getNumMessagesInBatch()));
+            }
+            return encryptionKeys;
+        }
+        return null;
     }
 
     private int removeExpiredMessagesFromQueue(Set<MessageId> messageIds) {
