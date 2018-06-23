@@ -127,9 +127,6 @@
                   <include>com.google.googlejavaformat:google-java-format</include>
                   <include>com.google.errorprone:javac</include>
                   <include>net.jodah:typetools</include>
-                  <include>org.jboss:jboss-reflect</include>
-                  <include>org.jboss.logging:jboss-logging-spi</include>
-                  <include>org.jboss:jboss-common-core</include>
                   <include>com.beust:jcommander</include>
                   <include>com.fasterxml.jackson.dataformat:jackson-dataformat-yaml</include>
                   <include>org.yaml:snakeyaml</include>
