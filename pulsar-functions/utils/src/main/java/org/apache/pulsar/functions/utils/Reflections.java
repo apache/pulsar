@@ -19,11 +19,13 @@
 package org.apache.pulsar.functions.utils;
 
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -34,6 +36,19 @@ public class Reflections {
 
     private static final Map<Class<?>, Constructor<?>> constructorCache =
         new ConcurrentHashMap<>();
+
+    private static final Map PRIMITIVE_NAME_TYPE_MAP = new HashMap();
+
+    static {
+        PRIMITIVE_NAME_TYPE_MAP.put("boolean", Boolean.TYPE);
+        PRIMITIVE_NAME_TYPE_MAP.put("byte", Byte.TYPE);
+        PRIMITIVE_NAME_TYPE_MAP.put("char", Character.TYPE);
+        PRIMITIVE_NAME_TYPE_MAP.put("short", Short.TYPE);
+        PRIMITIVE_NAME_TYPE_MAP.put("int", Integer.TYPE);
+        PRIMITIVE_NAME_TYPE_MAP.put("long", Long.TYPE);
+        PRIMITIVE_NAME_TYPE_MAP.put("float", Float.TYPE);
+        PRIMITIVE_NAME_TYPE_MAP.put("double", Double.TYPE);
+    }
 
     /**
      * Create an instance of <code>userClassName</code> using provided <code>classLoader</code>.
@@ -236,5 +251,64 @@ public class Reflections {
             throw new RuntimeException(e);
         }
         return ret;
+    }
+
+    private static boolean isPrimitive(String type) {
+        return PRIMITIVE_NAME_TYPE_MAP.containsKey(type);
+    }
+
+    /**
+     * Load class to resolve array types.
+     *
+     * @param className class name
+     * @param classLoader class loader
+     * @return loaded class
+     * @throws ClassNotFoundException
+     */
+    public static Class loadClass(String className, ClassLoader classLoader) throws ClassNotFoundException {
+        if (className.length() == 1) {
+            char type = className.charAt(0);
+            if (type == 'B') {
+                return Byte.TYPE;
+            } else if (type == 'C') {
+                return Character.TYPE;
+            } else if (type == 'D') {
+                return Double.TYPE;
+            } else if (type == 'F') {
+                return Float.TYPE;
+            } else if (type == 'I') {
+                return Integer.TYPE;
+            } else if (type == 'J') {
+                return Long.TYPE;
+            } else if (type == 'S') {
+                return Short.TYPE;
+            } else if (type == 'Z') {
+                return Boolean.TYPE;
+            } else if (type == 'V') {
+                return Void.TYPE;
+            } else {
+                throw new ClassNotFoundException(className);
+            }
+        } else if (isPrimitive(className)) {
+            return (Class)PRIMITIVE_NAME_TYPE_MAP.get(className);
+        } else if (className.charAt(0) == 'L' && className.charAt(className.length() - 1) == ';') {
+            return classLoader.loadClass(className.substring(1, className.length() - 1));
+        } else {
+            try {
+                return classLoader.loadClass(className);
+            } catch (ClassNotFoundException var4) {
+                if (className.charAt(0) != '[') {
+                    throw var4;
+                } else {
+                    int arrayDimension;
+                    for(arrayDimension = 0; className.charAt(arrayDimension) == '['; ++arrayDimension) {
+                        ;
+                    }
+
+                    Class componentType = loadClass(className.substring(arrayDimension), classLoader);
+                    return Array.newInstance(componentType, new int[arrayDimension]).getClass();
+                }
+            }
+        }
     }
 }
