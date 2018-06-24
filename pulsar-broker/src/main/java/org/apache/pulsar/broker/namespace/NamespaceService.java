@@ -53,6 +53,8 @@ import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
+import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.TopicName;
@@ -824,6 +826,20 @@ public class NamespaceService {
         } catch (KeeperException.NoNodeException e) {
             // NoNode means there are no persistent topics for this namespace
         }
+
+        // Non-persistent topics don't have managed ledges so we have to retrieve them from local cache.
+		synchronized (pulsar.getBrokerService().getMultiLayerTopicMap()) {
+			if (pulsar.getBrokerService().getMultiLayerTopicMap().containsKey(namespaceName.toString())) {
+				pulsar.getBrokerService().getMultiLayerTopicMap().get(namespaceName.toString()).values()
+						.forEach(bundle -> {
+							bundle.forEach((topicName, topic) -> {
+								if (topic instanceof NonPersistentTopic && ((NonPersistentTopic)topic).isActive()) {
+									topics.add(topicName);
+								}
+							});
+						});
+			}
+		}
 
         topics.sort(null);
         return topics;
