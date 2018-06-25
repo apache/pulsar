@@ -11,7 +11,7 @@ To use compaction:
 * Compaction can be configured to run [automatically](#automatic), or you can manually [trigger](#trigger) compaction using the Pulsar administrative API.
 * Your {% popover consumers %} must be [configured](#config) to read from compacted topics ([Java consumers](#java), for example, have a `readCompacted` setting that must be set to `true`). If this configuration is not set, consumers will still be able to read from the non-compacted topic.
 
-{% include admonition.html type="warning" content="Compaction only works on messages that have keys (as in the stock ticker example the stock symbol serves as the key for each message). Keys can thus be thought of as the axis along which compaction is applied. Messages that don't have keys are simply ignored by compaction." %}
+{% include admonition.html type="warning" content="Compaction only works on messages that have keys (as in the stock ticker example the stock symbol serves as the key for each message). Keys can thus be thought of as the axis along which compaction is applied. Messages that don't have keys are left untouched by compaction, and retained in final compacted topic." %}
 
 ## When should I use compacted topics? {#when}
 
