@@ -180,3 +180,23 @@ modified April 2001  by Iris Van den Broeke, Daniel Deville.
 Permission to use, copy, modify and distribute UnixCrypt
 for non-commercial or commercial purposes and without fee is
 granted provided that the copyright notice appears in all copies.
+
+------------------------------------------------------------------------------------
+- org.xerial.snappy-snappy-java-1.1.1.3.jar
+
+This product includes software developed by Google
+ Snappy: http://code.google.com/p/snappy/ (New BSD License)
+
+This product includes software developed by Apache
+ PureJavaCrc32C from apache-hadoop-common http://hadoop.apache.org/
+ (Apache 2.0 license)
+
+This library containd statically linked libstdc++. This inclusion is allowed by
+"GCC RUntime Library Exception"
+http://gcc.gnu.org/onlinedocs/libstdc++/manual/license.html
+
+== Contributors ==
+  * Tatu Saloranta
+    * Providing benchmark suite
+  * Alec Wysoker
+    * Performance and memory usage improvement
