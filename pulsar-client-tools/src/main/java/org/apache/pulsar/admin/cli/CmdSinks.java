@@ -64,7 +64,7 @@ import static org.apache.pulsar.functions.utils.Utils.getSinkType;
 import static org.apache.pulsar.functions.worker.Utils.downloadFromHttpUrl;
 
 @Getter
-@Parameters(commandDescription = "Interface for managing Pulsar Sinks (Egress data from Pulsar)")
+@Parameters(commandDescription = "Interface for managing Pulsar IO sinks (egress data from Pulsar)")
 public class CmdSinks extends CmdBase {
 
     private final CreateSink createSink;
@@ -102,7 +102,7 @@ public class CmdSinks extends CmdBase {
         abstract void runCmd() throws Exception;
     }
 
-    @Parameters(commandDescription = "Run the Pulsar sink locally (rather than deploying it to the Pulsar cluster)")
+    @Parameters(commandDescription = "Run a Pulsar IO sink connector locally (rather than deploying it to the Pulsar cluster)")
     class LocalSinkRunner extends CreateSink {
 
         @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker")
@@ -139,7 +139,7 @@ public class CmdSinks extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Create Pulsar sink connectors")
+    @Parameters(commandDescription = "Submit a Pulsar IO sink connector to run in a Pulsar cluster")
     class CreateSink extends SinkCommand {
         @Override
         void runCmd() throws Exception {
@@ -152,7 +152,7 @@ public class CmdSinks extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Update Pulsar sink connectors")
+    @Parameters(commandDescription = "Update a Pulsar IO sink connector")
     class UpdateSink extends SinkCommand {
         @Override
         void runCmd() throws Exception {
@@ -165,7 +165,6 @@ public class CmdSinks extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Create Pulsar sink connectors")
     abstract class SinkCommand extends BaseCommand {
         @Parameter(names = "--tenant", description = "The sink's tenant")
         protected String tenant;
@@ -181,7 +180,7 @@ public class CmdSinks extends CmdBase {
         protected String topicsPattern;
         @Parameter(names = "--customSerdeInputs", description = "The map of input topics to SerDe class names (as a JSON string)")
         protected String customSerdeInputString;
-        @Parameter(names = "--processingGuarantees", description = "The processing guarantees (aka delivery semantics) applied to the Sink")
+        @Parameter(names = "--processingGuarantees", description = "The processing guarantees (aka delivery semantics) applied to the sink")
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
         @Parameter(names = "--parallelism", description = "The sink's parallelism factor (i.e. the number of sink instances to run)")
         protected Integer parallelism;
@@ -191,11 +190,11 @@ public class CmdSinks extends CmdBase {
         @Parameter(names = "--sinkConfigFile", description = "The path to a YAML config file specifying the "
                 + "sink's configuration")
         protected String sinkConfigFile;
-        @Parameter(names = "--cpu", description = "The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)")
+        @Parameter(names = "--cpu", description = "The CPU (in cores) that needs to be allocated per sink instance (applicable only to Docker runtime)")
         protected Double cpu;
-        @Parameter(names = "--ram", description = "The ram in bytes that need to be allocated per function instance(applicable only to process/docker runtime)")
+        @Parameter(names = "--ram", description = "The RAM (in bytes) that need to be allocated per sink instance (applicable only to the process and Docker runtimes)")
         protected Long ram;
-        @Parameter(names = "--disk", description = "The disk in bytes that need to be allocated per function instance(applicable only to docker runtime)")
+        @Parameter(names = "--disk", description = "The disk (in bytes) that need to be allocated per sink instance (applicable only to Docker runtime)")
         protected Long disk;
         @Parameter(names = "--sinkConfig", description = "Sink config key/values")
         protected String sinkConfigString;
@@ -411,7 +410,7 @@ public class CmdSinks extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Stops a Pulsar sink or source")
+    @Parameters(commandDescription = "Stops a Pulsar IO sink connector")
     class DeleteSink extends BaseCommand {
 
         @Parameter(names = "--tenant", description = "The tenant of the sink")

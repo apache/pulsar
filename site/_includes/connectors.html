@@ -18,11 +18,27 @@
     under the License.
 
 -->
-<figure>
-    <img src="{{ include.src }}"{% if include.width %} width="{{ include.width }}%"{% endif %}{% if include.alt %} alt="{{ include.alt }}"{% endif %}>
-    {% if include.caption %}
-    <figcaption>
-        {{ include.caption }}
-    </figcaption>
-    {% endif %}
-</figure>
+<table>
+    <thead>
+    <tr>
+        <th>Name</th>
+        <th>Java class</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for connector in site.data.connectors %}
+    <tr>
+        <td>
+            <a href="{{ connector.url }}">
+                {{ connector.name }}
+            </a>
+        </td>
+        <td>
+            <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/{{ connector.class.group }}/src/main/java/org/apache/pulsar/connect/{{ connector.class.group }}/{{ connector.class.name }}.java">
+                <code>org.apache.pulsar.io.{{ connector.class.group }}.{{ connector.class.name }}</code>
+            </a>
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>

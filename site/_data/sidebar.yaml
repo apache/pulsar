@@ -136,6 +136,8 @@ groups:
 - title: Cookbooks
   dir: cookbooks
   docs:
+  - title: Pulsar IO
+    endpoint: pulsar-io
   - title: Tiered Storage
     endpoint: tiered-storage
   - title: Topic compaction

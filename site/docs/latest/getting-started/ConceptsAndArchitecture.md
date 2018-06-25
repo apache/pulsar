@@ -585,6 +585,34 @@ Pulsar currently supports S3 as a long term store. Offloading to S3 triggered vi
 
 {% include admonition.html type="info" content="For a guide for setting up tiered storage, see the [Tiered storage cookbook](../../cookbooks/tiered-storage)." %}
 
+## Pulsar IO
+
+Messaging systems are most powerful when you can easily use them in conjunction with external systems like databases and other messaging systems. **Pulsar IO** is a feature of Pulsar that enables you to easily create, deploy, and manage Pulsar **connectors** that interact with external systems, such as [Apache Cassandra](https://cassandra.apache.org), [Aerospike](https://www.aerospike.com), and many others.
+
+{% include admonition.html type="info" title="Pulsar IO and Pulsar Functions"
+   content="Under the hood, Pulsar IO connectors are specialized [Pulsar Functions](#pulsar-functions) purpose-built to interface with external systems. The [administrative interface](../../cookbooks/pulsar-io) for Pulsar IO is, in fact, quite similar to that of Pulsar Functions." %}
+
+### Sources and sinks
+
+Pulsar IO connectors come in two types:
+
+* **Sources** feed data *into* Pulsar from other systems. Common sources include other messaging systems and "firehose"-style data pipeline APIs.
+* **Sinks** are fed data *from* Pulsar. Common sinks include other messaging systems and SQL and NoSQL databases.
+
+This diagram illustrates the relationship between sources, sinks, and Pulsar:
+
+{% include figure.html src="/img/pulsar-io.png" alt="Pulsar IO diagram" caption="Pulsar IO connectors (sources and sinks)" width="80" %}
+
+### Working with connectors
+
+Pulsar IO connectors can be managed via the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) CLI tool, in particular the [`source`](../../reference/CliTools#pulsar-admin-source) and [`sink`](../../reference/CliTools#pulsar-admin-sink) commands.
+
+{% include admonition.html type="info" content="For a guide to managing connectors in your Pulsar installation, see the [Pulsar IO cookbook](../../cookbooks/pulsar-io#managing-connectors)." %}
+
+The following connectors are currently available for Pulsar:
+
+{% include connectors.html %}
+
 ## Schema registry
 
 Type safety is extremely important in any application built around a message bus like Pulsar. {% popover Producers %} and {% popover consumers %} need some kind of mechanism for coordinating types at the {% popover topic %} level lest a wide variety of potential problems arise (for example serialization and deserialization issues). Applications typically adopt one of two basic approaches to type safety in messaging:
