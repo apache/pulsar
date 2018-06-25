@@ -42,7 +42,6 @@ import org.apache.pulsar.functions.utils.SourceConfig;
 import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.functions.utils.validation.ConfigValidation;
 import org.apache.pulsar.functions.utils.validation.ValidatorImpls.ImplementsClassValidator;
-import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.Source;
 
 import java.io.File;
@@ -52,18 +51,15 @@ import java.lang.reflect.Type;
 import java.net.MalformedURLException;
 import java.util.Map;
 
-import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
 import static org.apache.pulsar.functions.utils.Utils.fileExists;
-import static org.apache.pulsar.functions.utils.Utils.getSinkType;
 import static org.apache.pulsar.functions.utils.Utils.getSourceType;
 import static org.apache.pulsar.functions.worker.Utils.downloadFromHttpUrl;
 
 @Getter
-@Parameters(commandDescription = "Interface for managing Pulsar Source (Ingress data to Pulsar)")
+@Parameters(commandDescription = "Interface for managing Pulsar IO Sources (ingress data into Pulsar)")
 public class CmdSources extends CmdBase {
 
     private final CreateSource createSource;
@@ -101,7 +97,7 @@ public class CmdSources extends CmdBase {
         abstract void runCmd() throws Exception;
     }
 
-    @Parameters(commandDescription = "Run the Pulsar source locally (rather than deploying it to the Pulsar cluster)")
+    @Parameters(commandDescription = "Run a Pulsar IO source connector locally (rather than deploying it to the Pulsar cluster)")
     class LocalSourceRunner extends CreateSource {
 
         @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker")
@@ -138,7 +134,7 @@ public class CmdSources extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Create Pulsar source connectors")
+    @Parameters(commandDescription = "Submit a Pulsar IO source connector to run in a Pulsar cluster")
     public class CreateSource extends SourceCommand {
         @Override
         void runCmd() throws Exception {
@@ -151,7 +147,7 @@ public class CmdSources extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Update Pulsar source connectors")
+    @Parameters(commandDescription = "Update a Pulsar IO source connector")
     public class UpdateSource extends SourceCommand {
         @Override
         void runCmd() throws Exception {
@@ -175,23 +171,22 @@ public class CmdSources extends CmdBase {
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
         @Parameter(names = "--className", description = "The source's class name")
         protected String className;
-        @Parameter(names = "--destinationTopicName", description = "Pulsar topic to ingress data to")
+        @Parameter(names = "--destinationTopicName", description = "The Pulsar topic to which data is sent")
         protected String destinationTopicName;
-        @Parameter(names = "--deserializationClassName", description = "The classname for SerDe class for the source")
+        @Parameter(names = "--deserializationClassName", description = "The SerDe classname for the source")
         protected String deserializationClassName;
         @Parameter(names = "--parallelism", description = "The source's parallelism factor (i.e. the number of source instances to run)")
         protected Integer parallelism;
-        @Parameter(names = "--jar", description = "Path to the jar file for the Source. It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.", listConverter = StringConverter.class)
+        @Parameter(names = "--jar", description = "The path to the jar file for the Source. It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.", listConverter = StringConverter.class)
         protected String jarFile;
-
         @Parameter(names = "--sourceConfigFile", description = "The path to a YAML config file specifying the "
                 + "source's configuration")
         protected String sourceConfigFile;
-        @Parameter(names = "--cpu", description = "The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)")
+        @Parameter(names = "--cpu", description = "The CPU (in cores) that needs to be allocated per source instance (applicable only to Docker runtime)")
         protected Double cpu;
-        @Parameter(names = "--ram", description = "The ram in bytes that need to be allocated per function instance(applicable only to process/docker runtime)")
+        @Parameter(names = "--ram", description = "The RAM (in bytes) that need to be allocated per source instance (applicable only to the process and Docker runtimes)")
         protected Long ram;
-        @Parameter(names = "--disk", description = "The disk in bytes that need to be allocated per function instance(applicable only to docker runtime)")
+        @Parameter(names = "--disk", description = "The disk (in bytes) that need to be allocated per source instance (applicable only to Docker runtime)")
         protected Long disk;
         @Parameter(names = "--sourceConfig", description = "Source config key/values")
         protected String sourceConfigString;
@@ -391,7 +386,7 @@ public class CmdSources extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Stops a Pulsar source")
+    @Parameters(commandDescription = "Stops a Pulsar IO source connector")
     class DeleteSource extends BaseCommand {
 
         @Parameter(names = "--tenant", description = "The tenant of a sink or source")
