@@ -75,6 +75,7 @@ flexible messaging model and an intuitive client API.</description>
   <modules>
     <module>buildtools</module>
     <module>managed-ledger</module>
+    <module>managed-ledger-shaded</module>
     <module>pulsar-common</module>
     <module>pulsar-broker-common</module>
     <module>pulsar-broker</module>
