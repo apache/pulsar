@@ -324,7 +324,7 @@ public class ServerCnx extends PulsarHandler {
             isProxyAuthorizedFuture.thenApply(isProxyAuthorized -> {
                     if (isProxyAuthorized) {
                     getPartitionedTopicMetadata(getBrokerService().pulsar(),
-                            finalOriginalPrincipal != null ? finalOriginalPrincipal : authRole, authenticationData,
+                                                authRole, finalOriginalPrincipal, authenticationData,
                             topicName).handle((metadata, ex) -> {
                                     if (ex == null) {
                                         int partitions = metadata.partitions;

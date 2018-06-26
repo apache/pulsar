@@ -132,6 +132,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         doReturn(pulsar.getConfigurationCache().policiesCache()).when(namespaces).policiesCache();
         doReturn(false).when(namespaces).isRequestHttps();
         doReturn("test").when(namespaces).clientAppId();
+        doReturn(null).when(namespaces).originalPrincipal();
         doReturn(Sets.newTreeSet(Lists.newArrayList("use", "usw", "usc", "global"))).when(namespaces).clusters();
         doNothing().when(namespaces).validateAdminAccessForTenant("my-tenant");
         doNothing().when(namespaces).validateAdminAccessForTenant("other-tenant");
@@ -991,8 +992,6 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             ZkUtils.createFullPathOptimistic(pulsar.getConfigurationCache().getZooKeeper(), path, data.getBytes(),
                     ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
             namespaces.validateAdminAccessForTenant(property);
-        } catch (RestException e) {
-            fail("validateAdminAccessOnTenant failed");
         } finally {
             pulsar.getConfiguration().setAuthenticationEnabled(false);
             pulsar.getConfiguration().setAuthorizationEnabled(false);
@@ -1048,37 +1047,29 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testValidateTopicOwnership() throws Exception {
-        try {
-            URL localWebServiceUrl = new URL(pulsar.getWebServiceAddress());
-            String bundledNsLocal = "test-bundled-namespace-1";
-            BundlesData bundleData = new BundlesData(Lists.newArrayList("0x00000000", "0xffffffff"));
-            createBundledTestNamespaces(this.testTenant, this.testLocalCluster, bundledNsLocal, bundleData);
-            final NamespaceName testNs = NamespaceName.get(this.testTenant, this.testLocalCluster, bundledNsLocal);
-            OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
-            doNothing().when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
-            Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
-            ownership.setAccessible(true);
-            ownership.set(pulsar.getNamespaceService(), MockOwnershipCache);
-            TopicName topicName = TopicName.get(testNs.getPersistentTopicName("my-topic"));
-            PersistentTopics topics = spy(new PersistentTopics());
-            topics.setServletContext(new MockServletContext());
-            topics.setPulsar(pulsar);
-            doReturn(false).when(topics).isRequestHttps();
-            doReturn("test").when(topics).clientAppId();
-            mockWebUrl(localWebServiceUrl, testNs);
-            doReturn("persistent").when(topics).domain();
+        URL localWebServiceUrl = new URL(pulsar.getWebServiceAddress());
+        String bundledNsLocal = "test-bundled-namespace-1";
+        BundlesData bundleData = new BundlesData(Lists.newArrayList("0x00000000", "0xffffffff"));
+        createBundledTestNamespaces(this.testTenant, this.testLocalCluster, bundledNsLocal, bundleData);
+        final NamespaceName testNs = NamespaceName.get(this.testTenant, this.testLocalCluster, bundledNsLocal);
+        OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
+        doNothing().when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
+        Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
+        ownership.setAccessible(true);
+        ownership.set(pulsar.getNamespaceService(), MockOwnershipCache);
+        TopicName topicName = TopicName.get(testNs.getPersistentTopicName("my-topic"));
+        PersistentTopics topics = spy(new PersistentTopics());
+        topics.setServletContext(new MockServletContext());
+        topics.setPulsar(pulsar);
+        doReturn(false).when(topics).isRequestHttps();
+        doReturn("test").when(topics).clientAppId();
+        doReturn(null).when(topics).originalPrincipal();
+        mockWebUrl(localWebServiceUrl, testNs);
+        doReturn("persistent").when(topics).domain();
 
-            try {
-                topics.validateTopicName(topicName.getTenant(), topicName.getCluster(),
-                        topicName.getNamespacePortion(), topicName.getEncodedLocalName());
-                topics.validateAdminOperationOnTopic(false);
-            } catch (RestException e) {
-                fail("validateAdminAccessOnTenant failed");
-            }
-
-        } catch (RestException e) {
-            fail("validateAdminAccessOnTenant failed");
-        }
+        topics.validateTopicName(topicName.getTenant(), topicName.getCluster(),
+                                 topicName.getNamespacePortion(), topicName.getEncodedLocalName());
+        topics.validateAdminOperationOnTopic(false);
     }
 
     @Test

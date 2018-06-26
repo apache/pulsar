@@ -71,6 +71,8 @@ public abstract class PulsarWebResource {
 
     private static final Logger log = LoggerFactory.getLogger(PulsarWebResource.class);
 
+    static final String ORIGINAL_PRINCIPAL_HEADER = "X-Original-Principal";
+
     @Context
     protected ServletContext servletContext;
 
@@ -126,6 +128,10 @@ public abstract class PulsarWebResource {
         return (String) httpRequest.getAttribute(AuthenticationFilter.AuthenticatedRoleAttributeName);
     }
 
+    public String originalPrincipal() {
+        return httpRequest.getHeader(ORIGINAL_PRINCIPAL_HEADER);
+    }
+
     public AuthenticationDataHttps clientAuthData() {
         return (AuthenticationDataHttps) httpRequest.getAttribute(AuthenticationFilter.AuthenticatedDataAttributeName);
     }
@@ -151,7 +157,21 @@ public abstract class PulsarWebResource {
                 log.debug("[{}] Check super user access: Authenticated: {} -- Role: {}", uri.getRequestUri(),
                         isClientAuthenticated(appId), appId);
             }
-            if (!config().getSuperUserRoles().contains(appId)) {
+            if (pulsar.getConfiguration().getProxyRoles().contains(appId)) {
+                String originalPrincipal = originalPrincipal();
+                boolean proxyAuthorized = pulsar.getConfiguration().getSuperUserRoles().contains(appId);
+                boolean originalPrincipalAuthorized = !StringUtils.isBlank(originalPrincipal)
+                    && !pulsar.getConfiguration().getProxyRoles().contains(originalPrincipal)
+                    && pulsar.getConfiguration().getSuperUserRoles().contains(originalPrincipal);
+
+                if (!proxyAuthorized || !originalPrincipalAuthorized) {
+                    throw new RestException(Status.UNAUTHORIZED,
+                            String.format("Proxy not authorized for super-user operation (proxy:%s,original:%s)",
+                                          appId, originalPrincipal));
+                }
+                log.debug("Successfully authorized {} (proxied by {}) as super-user",
+                          originalPrincipal, appId);
+            } else if (!config().getSuperUserRoles().contains(appId)) {
                 throw new RestException(Status.UNAUTHORIZED, "This operation requires super-user access");
             }
         }
@@ -167,7 +187,7 @@ public abstract class PulsarWebResource {
      */
     protected void validateAdminAccessForTenant(String tenant) {
         try {
-            validateAdminAccessForTenant(pulsar(), clientAppId(), tenant);
+            validateAdminAccessForTenant(pulsar(), clientAppId(), originalPrincipal(), tenant);
         } catch (RestException e) {
             throw e;
         } catch (Exception e) {
@@ -176,7 +196,8 @@ public abstract class PulsarWebResource {
         }
     }
 
-    protected static void validateAdminAccessForTenant(PulsarService pulsar, String clientAppId, String tenant)
+    protected static void validateAdminAccessForTenant(PulsarService pulsar, String clientAppId,
+                                                       String originalPrincipal, String tenant)
             throws RestException, Exception {
         if (log.isDebugEnabled()) {
             log.debug("check admin access on tenant: {} - Authenticated: {} -- role: {}", tenant,
@@ -198,7 +219,21 @@ public abstract class PulsarWebResource {
                 throw new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request");
             }
 
-            if (pulsar.getConfiguration().getSuperUserRoles().contains(clientAppId)) {
+            if (pulsar.getConfiguration().getProxyRoles().contains(clientAppId)) {
+                boolean proxyAuthorized = pulsar.getConfiguration().getSuperUserRoles().contains(clientAppId)
+                    || tenantInfo.getAdminRoles().contains(clientAppId);
+                boolean originalPrincipalAuthorized = !StringUtils.isBlank(originalPrincipal)
+                    && !pulsar.getConfiguration().getProxyRoles().contains(originalPrincipal)
+                    && tenantInfo.getAdminRoles().contains(originalPrincipal);
+
+                if (!proxyAuthorized || !originalPrincipalAuthorized) {
+                    throw new RestException(Status.UNAUTHORIZED,
+                            String.format("Proxy not authorized to access resource (proxy:%s,original:%s)",
+                                          clientAppId, originalPrincipal));
+                }
+                log.debug("Successfully authorized {} (proxied by {}) on tenant {}",
+                          originalPrincipal, clientAppId, tenant);
+            } else if (pulsar.getConfiguration().getSuperUserRoles().contains(clientAppId)) {
                 // Super-user has access to configure all the policies
                 log.debug("granting access to super-user {} on tenant {}", clientAppId, tenant);
             } else {
