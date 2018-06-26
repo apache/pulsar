@@ -43,7 +43,7 @@
     under the License.
 
 -->
-<title>Processing guarantees</title>
+<title>The Pulsar IO cookbook</title>
 
 <meta charset="utf-8">
 
@@ -896,11 +896,11 @@
     <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
       <section class="docs-header">
         <h1 class="docs-title">
-          Processing guarantees
+          The Pulsar IO cookbook
           
-           <span class="badge badge-warning">Preview</span>
+          
         </h1>
-        <span class="docs-lead">Apply at-most-once, at-least-once, or effectively-once delivery semantics to Pulsar Functions</span><br />
+        
         <section class="tags">
           
         </section>
@@ -909,47 +909,76 @@
       </section>
 
       <section class="content">
-        <p>Pulsar Functions provides three different messaging semantics that you can apply to any function:</p>
+        <!--
 
-<table>
-  <thead>
-    <tr>
-      <th style="text-align: left">Delivery semantics</th>
-      <th style="text-align: left">Description</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="text-align: left"><strong>At-most-once</strong> delivery</td>
-      <td style="text-align: left">Each message that is sent to the function will most likely be processed but also may not be (hence the “at most”)</td>
-    </tr>
-    <tr>
-      <td style="text-align: left"><strong>At-least-once</strong> delivery</td>
-      <td style="text-align: left">Each message that is sent to the function could be processed more than once (hence the “at least”)</td>
-    </tr>
-    <tr>
-      <td style="text-align: left"><strong>Effectively-once</strong> delivery</td>
-      <td style="text-align: left">Each message that is sent to the function will have one output associated with it</td>
-    </tr>
-  </tbody>
-</table>
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
 
-<h2 id="applying-processing-guarantees-to-a-function">Applying processing guarantees to a function</h2>
+      http://www.apache.org/licenses/LICENSE-2.0
 
-<p>You can set the processing guarantees for a Pulsar Function when you create the Function. This <a href="../../reference/CliTools#pulsar-admin-functions-create"><code class="highlighter-rouge">pulsar-function create</code></a> command, for example, would apply effectively-once guarantees to the Function:</p>
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
 
-<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions create <span class="se">\</span>
-  <span class="nt">--processingGuarantees</span> EFFECTIVELY_ONCE <span class="se">\</span>
-  <span class="c"># Other function configs</span>
+-->
+
+<p><a href="../../getting-started/ConceptsAndArchitecture#pulsar-io">Pulsar IO</a> is a feature of Pulsar that enables you to easily create and manage <strong>connectors</strong> that interface with external systems, such as databases and other messaging systems.</p>
+
+<h2 id="setup">Setup</h2>
+
+<p>In order to run Pulsar IO connectors, you’ll need to have a binary distribution of pulsar locally.</p>
+
+<h2 id="managing-connectors">Managing connectors</h2>
+
+<p>Pulsar connectors can be managed using the <a href="../../reference/CliTools#pulsar-admin-source"><code class="highlighter-rouge">source</code></a> and <a href="../../reference/CliTools#pulsar-admin-sink"><code class="highlighter-rouge">sink</code></a> commands of the <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> CLI tool.</p>
+
+<h3 id="running-sources">Running sources</h3>
+
+<p>You can use the <a href="../../reference/CliTools#pulsar-admin-source-create"><code class="highlighter-rouge">create</code></a></p>
+
+<p>You can submit a sink to be run in an existing Pulsar cluster using a command of this form:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>./bin/pulsar-admin sink create <span class="nt">--className</span>  &lt;classname&gt; <span class="nt">--jar</span> &lt;jar-location&gt; <span class="nt">--tenant</span> <span class="nb">test</span> <span class="nt">--namespace</span> &lt;namespace&gt; <span class="nt">--name</span> &lt;sink-name&gt; <span class="nt">--inputs</span> &lt;input-topics&gt;
 </code></pre></div></div>
 
-<p>The available options are:</p>
+<p>Here’s an example command:</p>
 
-<ul>
-  <li><code class="highlighter-rouge">ATMOST_ONCE</code></li>
-  <li><code class="highlighter-rouge">ATLEAST_ONCE</code></li>
-  <li><code class="highlighter-rouge">EFFECTIVELY_ONCE</code></li>
-</ul>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>bin/pulsar-admin <span class="nb">source </span>create <span class="nt">--className</span>  org.apache.pulsar.io.twitter.TwitterFireHose <span class="nt">--jar</span> ~/application.jar <span class="nt">--tenant</span> <span class="nb">test</span> <span class="nt">--namespace</span> ns1 <span class="nt">--name</span> twitter-source <span class="nt">--destinationTopicName</span> twitter_data
+</code></pre></div></div>
+
+<p>Instead of submitting a source to run on an existing Pulsar cluster, you alternatively can run a source as a process on your local machine:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>bin/pulsar-admin <span class="nb">source </span>localrun <span class="nt">--className</span>  org.apache.pulsar.io.twitter.TwitterFireHose <span class="nt">--jar</span> ~/application.jar <span class="nt">--tenant</span> <span class="nb">test</span> <span class="nt">--namespace</span> ns1 <span class="nt">--name</span> twitter-source <span class="nt">--destinationTopicName</span> twitter_data
+</code></pre></div></div>
+
+<h3 id="running-sinks">Running Sinks</h3>
+
+<p>You can submit a sink to be run in an existing Pulsar cluster using a command of this form:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./bin/pulsar-admin sink create <span class="nt">--className</span>  &lt;classname&gt; <span class="nt">--jar</span> &lt;jar-location&gt; <span class="nt">--tenant</span> <span class="nb">test</span> <span class="nt">--namespace</span> &lt;namespace&gt; <span class="nt">--name</span> &lt;sink-name&gt; <span class="nt">--inputs</span> &lt;input-topics&gt;
+</code></pre></div></div>
+
+<p>Here’s an example command:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./bin/pulsar-admin sink create <span class="nt">--className</span>  org.apache.pulsar.io.cassandra <span class="nt">--jar</span> ~/application.jar <span class="nt">--tenant</span> <span class="nb">test</span> <span class="nt">--namespace</span> ns1 <span class="nt">--name</span> cassandra-sink <span class="nt">--inputs</span> test_topic
+</code></pre></div></div>
+
+<p>Instead of submitting a sink to run on an existing Pulsar cluster, you alternatively can run a sink as a process on your local machine:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./bin/pulsar-admin sink localrun <span class="nt">--className</span>  org.apache.pulsar.io.cassandra <span class="nt">--jar</span> ~/application.jar <span class="nt">--tenant</span> <span class="nb">test</span> <span class="nt">--namespace</span> ns1 <span class="nt">--name</span> cassandra-sink <span class="nt">--inputs</span> test_topic
+</code></pre></div></div>
+
+<h2 id="available-connectors">Available connectors</h2>
+
+<p>At the moment, the following connectors are available for Pulsar:</p>
 
 <!--
 
@@ -971,22 +1000,95 @@
     under the License.
 
 -->
-<div class="admonition">
-  <div class="info">
+<table>
+    <thead>
+    <tr>
+        <th>Name</th>
+        <th>Java class</th>
+    </tr>
+    </thead>
+    <tbody>
     
-    <p>By default, Pulsar Functions provide at-most-once delivery guarantees. So if you create a function without supplying a value for the <code class="highlighter-rouge">--processingGuarantees</code> flag, then the function will provide at-most-once guarantees.</p>
-
-  </div>
-</div>
-
-<h2 id="updating-the-processing-guarantees-of-a-function">Updating the processing guarantees of a function</h2>
-
-<p>You can change the processing guarantees applied to a function once it’s already been created using the <a href="../../reference/CliTools#pulsar-admin-functions-update"><code class="highlighter-rouge">update</code></a> command. Here’s an example:</p>
-
-<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions update <span class="se">\</span>
-  <span class="nt">--processingGuarantees</span> ATMOST_ONCE <span class="se">\</span>
-  <span class="c"># Other function configs</span>
-</code></pre></div></div>
+    <tr>
+        <td>
+            <a href="https://www.aerospike.com/">
+                Aerospike sink
+            </a>
+        </td>
+        <td>
+            <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/aerospike/src/main/java/org/apache/pulsar/connect/aerospike/AerospikeSink.java">
+                <code>org.apache.pulsar.io.aerospike.AerospikeSink</code>
+            </a>
+        </td>
+    </tr>
+    
+    <tr>
+        <td>
+            <a href="https://cassandra.apache.org">
+                Cassandra sink
+            </a>
+        </td>
+        <td>
+            <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/cassandra/src/main/java/org/apache/pulsar/connect/cassandra/CassandraSink.java">
+                <code>org.apache.pulsar.io.cassandra.CassandraSink</code>
+            </a>
+        </td>
+    </tr>
+    
+    <tr>
+        <td>
+            <a href="https://kafka.apache.org">
+                Kafka source
+            </a>
+        </td>
+        <td>
+            <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/kafka/src/main/java/org/apache/pulsar/connect/kafka/KafkaSource.java">
+                <code>org.apache.pulsar.io.kafka.KafkaSource</code>
+            </a>
+        </td>
+    </tr>
+    
+    <tr>
+        <td>
+            <a href="https://kafka.apache.org">
+                Kafka sink
+            </a>
+        </td>
+        <td>
+            <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/kafka/src/main/java/org/apache/pulsar/connect/kafka/KafkaSink.java">
+                <code>org.apache.pulsar.io.kafka.KafkaSink</code>
+            </a>
+        </td>
+    </tr>
+    
+    <tr>
+        <td>
+            <a href="https://www.rabbitmq.com">
+                RabbitMQ source
+            </a>
+        </td>
+        <td>
+            <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/rabbitmq/src/main/java/org/apache/pulsar/connect/rabbitmq/RabbitMQSource.java">
+                <code>org.apache.pulsar.io.rabbitmq.RabbitMQSource</code>
+            </a>
+        </td>
+    </tr>
+    
+    <tr>
+        <td>
+            <a href="https://developer.twitter.com/en/docs">
+                Twitter Firehose source
+            </a>
+        </td>
+        <td>
+            <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/twitter/src/main/java/org/apache/pulsar/connect/twitter/TwitterFireHose.java">
+                <code>org.apache.pulsar.io.twitter.TwitterFireHose</code>
+            </a>
+        </td>
+    </tr>
+    
+    </tbody>
+</table>
 
       </section>
     </article>
@@ -994,7 +1096,7 @@
     <nav class="toc-bar hidden-md-down col-lg-2">
       
       <div id="toc">
-        <h4>Processing guarantees</h4>
+        <h4>The Pulsar IO cookbook</h4>
       </div>
       
     </nav>

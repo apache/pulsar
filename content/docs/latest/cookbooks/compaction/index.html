@@ -718,6 +718,13 @@
           
           
           <li>
+            <a href="../../cookbooks/pulsar-io">
+              Pulsar IO
+            </a>
+          </li>
+          
+          
+          <li>
             <a href="../../cookbooks/tiered-storage">
               Tiered Storage
             </a>
@@ -1138,6 +1145,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/cookbooks/tiered-storage/">Tiered Storage</a></li>
           
           
@@ -1345,6 +1354,8 @@
           
           
           <li><a href="/docs/latest/cookbooks/message-queue/">Using Pulsar as a message queue</a></li>
+          
+          
           
           
           
@@ -1613,6 +1624,8 @@
           
           
           
+          
+          
         </ul>
       </div>
     </div>
@@ -1659,7 +1672,7 @@
 <div class="admonition">
   <div class="warning">
     
-    <p>Compaction only works on messages that have keys (as in the stock ticker example the stock symbol serves as the key for each message). Keys can thus be thought of as the axis along which compaction is applied. Messages that don’t have keys are simply ignored by compaction.</p>
+    <p>Compaction only works on messages that have keys (as in the stock ticker example the stock symbol serves as the key for each message). Keys can thus be thought of as the axis along which compaction is applied. Messages that don’t have keys are left untouched by compaction, and retained in final compacted topic.</p>
 
   </div>
 </div>

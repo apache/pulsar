@@ -9494,6 +9494,17 @@ span.popover-term {
     border-radius: 0; }
   .rest-api-container article section.content em, .docs-container article section.content em {
     margin-right: 2px; }
+  .rest-api-container article section.content figure, .docs-container article section.content figure {
+    margin: 2rem 0; }
+    .rest-api-container article section.content figure img, .docs-container article section.content figure img {
+      display: block;
+      max-width: 100%;
+      margin: 0 auto; }
+    .rest-api-container article section.content figure figcaption, .docs-container article section.content figure figcaption {
+      text-align: center;
+      margin-top: 1rem;
+      font-size: 1.5rem;
+      font-weight: 500; }
   .rest-api-container article section.content p img, .docs-container article section.content p img {
     display: block;
     margin: 20px auto;

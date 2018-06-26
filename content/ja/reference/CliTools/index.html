@@ -887,6 +887,8 @@
           
           
           
+          
+          
         </ul>
       </div>
     </div>
@@ -941,6 +943,8 @@
           
           
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
+          
+          
           
           
           
@@ -1359,6 +1363,8 @@
           
           
           
+          
+          
         </ul>
       </div>
     </div>
@@ -1411,6 +1417,8 @@
           
           
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
+          
+          
           
           
           
@@ -1823,6 +1831,8 @@
           
           
           
+          
+          
         </ul>
       </div>
     </div>
@@ -1875,6 +1885,8 @@
           
           
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
+          
+          
           
           
           
@@ -3374,6 +3386,18 @@
       <li>
         <a href="#pulsar-admin-ns-isolation-policy">
           <code class="highlighter-rouge">ns-isolation-policy</code>
+        </a>
+      </li>
+      
+      <li>
+        <a href="#pulsar-admin-sink">
+          <code class="highlighter-rouge">sink</code>
+        </a>
+      </li>
+      
+      <li>
+        <a href="#pulsar-admin-source">
+          <code class="highlighter-rouge">source</code>
         </a>
       </li>
       
@@ -6929,6 +6953,1183 @@
             <p>Delete namespace isolation policy of a cluster. This operation requires superuser privileges.</p>
             <h5>Usage</h5>
             <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin ns-isolation-policy delete</code></pre></div>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+       <!-- for subcommand in subcommands -->
+      
+      </div>
+    </div>
+    
+    <div class="card cli-command">
+      <h3 class="cli-command-title" id="pulsar-admin-sink">
+        <code class="highlighter-rouge">sink</code>
+      </h3>
+      <div class="card-content">
+        <p>An interface for managing Pulsar IO sinks (egress data from Pulsar)</p>
+
+        <h5>Usage</h5>
+        <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin sink <span class="command">subcommand</span></code></pre></div>
+         <!-- if command.options -->
+         <!-- if command.example -->
+
+        
+        <h5>Subcommands</h5>
+        <ul>
+          
+          <li>
+            <a href="#pulsar-admin-sink-create">
+              <code class="highlighter-rouge">create</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-sink-delete">
+              <code class="highlighter-rouge">delete</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-sink-localrun">
+              <code class="highlighter-rouge">localrun</code>
+            </a>
+          </li>
+           <!-- for subcommand in subcommands -->
+        </ul>
+
+        
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-sink-create"><code class="highlighter-rouge">create</code></h4>
+          <div class="card-content">
+            <p>Submit a Pulsar IO sink connector to run in a Pulsar cluster</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin sink create <span class="options">options</span></code></pre></div>
+            
+            <h5>Options</h5>
+            <table class="options-table">
+              <thead>
+                <tr>
+                  <th>Flag</th>
+                  <th>Description</th>
+                  <th>Default</th>
+                </tr>
+                <tbody>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--className</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The sink’s Java class name</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--cpu</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The CPU (in cores) that needs to be allocated per sink instance (applicable only to the Docker runtime)</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--customSerdeInputs</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The map of input topics to SerDe class names (as a JSON string)</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--disk</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The disk (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--inputs</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The sink’s input topic(s) (multiple topics can be specified as a comma-separated list)</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--jar</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>Path to the Java jar file for the sink</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--name</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The sink’s name</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--namespace</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The sink’s namespace</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--parallelism</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>“The sink’s parallelism factor (i.e. the number of sink instances to run).”</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--processingGuarantees</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>“The processing guarantees (aka delivery semantics) applied to the sink. Available values: <code class="highlighter-rouge">ATLEAST_ONCE</code>, <code class="highlighter-rouge">ATMOST_ONCE</code>, <code class="highlighter-rouge">EFFECTIVELY_ONCE</code>.”</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--ram</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The RAM (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--sinkConfig</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>Sink config key/values</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--sinkConfigFile</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The path to a YAML config file specifying the sink’s configuration</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--tenant</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The sink’s tenant</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                   <!-- for option in options -->
+                </tbody>
+              </thead>
+            </table>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-sink-delete"><code class="highlighter-rouge">delete</code></h4>
+          <div class="card-content">
+            <p>Stops a Pulsar IO sink</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin sink delete <span class="options">options</span></code></pre></div>
+            
+            <h5>Options</h5>
+            <table class="options-table">
+              <thead>
+                <tr>
+                  <th>Flag</th>
+                  <th>Description</th>
+                  <th>Default</th>
+                </tr>
+                <tbody>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--name</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The name of the sink</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--namespace</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The namespace of the sink</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--tenant</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The tenant of the sink</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                   <!-- for option in options -->
+                </tbody>
+              </thead>
+            </table>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-sink-localrun"><code class="highlighter-rouge">localrun</code></h4>
+          <div class="card-content">
+            <p>Run the Pulsar sink locally (rather than in the Pulsar cluster)</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin sink localrun <span class="options">options</span></code></pre></div>
+            
+            <h5>Options</h5>
+            <table class="options-table">
+              <thead>
+                <tr>
+                  <th>Flag</th>
+                  <th>Description</th>
+                  <th>Default</th>
+                </tr>
+                <tbody>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--brokerServiceUrl</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The URL for the Pulsar broker</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--className</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The sink’s Java class name</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--cpu</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The CPU (in cores) that needs to be allocated per sink instance (applicable only to the Docker runtime)</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--customSerdeInputs</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The map of input topics to SerDe class names (as a JSON string)</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--disk</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The disk (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--inputs</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The sink’s input topic(s) (multiple topics can be specified as a comma-separated list)</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--jar</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>Path to the Java jar file for the sink</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--name</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The sink’s name</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--namespace</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The sink’s namespace</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--parallelism</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>“The sink’s parallelism factor (i.e. the number of sink instances to run).”</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--processingGuarantees</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>“The processing guarantees (aka delivery semantics) applied to the sink. Available values: <code class="highlighter-rouge">ATLEAST_ONCE</code>, <code class="highlighter-rouge">ATMOST_ONCE</code>, <code class="highlighter-rouge">EFFECTIVELY_ONCE</code>.”</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--ram</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The RAM (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--sinkConfig</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>Sink config key/values</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--sinkConfigFile</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The path to a YAML config file specifying the sink’s configuration</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--tenant</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The sink’s tenant</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                   <!-- for option in options -->
+                </tbody>
+              </thead>
+            </table>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+       <!-- for subcommand in subcommands -->
+      
+      </div>
+    </div>
+    
+    <div class="card cli-command">
+      <h3 class="cli-command-title" id="pulsar-admin-source">
+        <code class="highlighter-rouge">source</code>
+      </h3>
+      <div class="card-content">
+        <p>An interface for managing Pulsar IO sources (ingress data into Pulsar)</p>
+
+        <h5>Usage</h5>
+        <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin source <span class="command">subcommand</span></code></pre></div>
+         <!-- if command.options -->
+         <!-- if command.example -->
+
+        
+        <h5>Subcommands</h5>
+        <ul>
+          
+          <li>
+            <a href="#pulsar-admin-source-create">
+              <code class="highlighter-rouge">create</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-source-delete">
+              <code class="highlighter-rouge">delete</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-source-localrun">
+              <code class="highlighter-rouge">localrun</code>
+            </a>
+          </li>
+           <!-- for subcommand in subcommands -->
+        </ul>
+
+        
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-source-create"><code class="highlighter-rouge">create</code></h4>
+          <div class="card-content">
+            <p>Submit a Pulsar IO source connector to run in a Pulsar cluster</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin source create <span class="options">options</span></code></pre></div>
+            
+            <h5>Options</h5>
+            <table class="options-table">
+              <thead>
+                <tr>
+                  <th>Flag</th>
+                  <th>Description</th>
+                  <th>Default</th>
+                </tr>
+                <tbody>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--className</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The source’s Java class name</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--cpu</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The CPU (in cores) that needs to be allocated per source instance (applicable only to the Docker runtime)</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--deserializationClassName</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The SerDe classname for the source</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--destinationTopicName</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The Pulsar topic to which data is sent</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--disk</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The disk (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--jar</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>Path to the Java jar file for the source</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--name</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The source’s name</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--namespace</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The source’s namespace</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--parallelism</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The source’s parallelism factor (i.e. the number of source instances to run).</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--processingGuarantees</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>“The processing guarantees (aka delivery semantics) applied to the source. Available values: <code class="highlighter-rouge">ATLEAST_ONCE</code>, <code class="highlighter-rouge">ATMOST_ONCE</code>, <code class="highlighter-rouge">EFFECTIVELY_ONCE</code>.”</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--ram</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The RAM (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--sourceConfig</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>Source config key/values</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--sourceConfigFile</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The path to a YAML config file specifying the source’s configuration</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--tenant</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The source’s tenant</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                   <!-- for option in options -->
+                </tbody>
+              </thead>
+            </table>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-source-delete"><code class="highlighter-rouge">delete</code></h4>
+          <div class="card-content">
+            <p>Stops a Pulsar IO source</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin source delete <span class="options">options</span></code></pre></div>
+            
+            <h5>Options</h5>
+            <table class="options-table">
+              <thead>
+                <tr>
+                  <th>Flag</th>
+                  <th>Description</th>
+                  <th>Default</th>
+                </tr>
+                <tbody>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--name</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The name of the source</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--namespace</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The namespace of the source</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--tenant</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The tenant of the source</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                   <!-- for option in options -->
+                </tbody>
+              </thead>
+            </table>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-source-localrun"><code class="highlighter-rouge">localrun</code></h4>
+          <div class="card-content">
+            <p>Run the Pulsar source locally (rather than in the Pulsar cluster)</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin source localrun <span class="options">options</span></code></pre></div>
+            
+            <h5>Options</h5>
+            <table class="options-table">
+              <thead>
+                <tr>
+                  <th>Flag</th>
+                  <th>Description</th>
+                  <th>Default</th>
+                </tr>
+                <tbody>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--className</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The source’s Java class name</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--cpu</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The CPU (in cores) that needs to be allocated per source instance (applicable only to the Docker runtime)</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--deserializationClassName</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The SerDe classname for the source</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--destinationTopicName</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The Pulsar topic to which data is sent</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--disk</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The disk (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--jar</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>Path to the Java jar file for the source</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--name</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The source’s name</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--namespace</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The source’s namespace</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--parallelism</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The source’s parallelism factor (i.e. the number of source instances to run).</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--processingGuarantees</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>“The processing guarantees (aka delivery semantics) applied to the source. Available values: <code class="highlighter-rouge">ATLEAST_ONCE</code>, <code class="highlighter-rouge">ATMOST_ONCE</code>, <code class="highlighter-rouge">EFFECTIVELY_ONCE</code>.”</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--ram</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The RAM (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--sourceConfig</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>Source config key/values</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--sourceConfigFile</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The path to a YAML config file specifying the source’s configuration</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--tenant</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The source’s tenant</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                   <!-- for option in options -->
+                </tbody>
+              </thead>
+            </table>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>
