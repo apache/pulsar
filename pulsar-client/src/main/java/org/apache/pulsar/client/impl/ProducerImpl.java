@@ -91,6 +91,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private long createProducerTimeout;
     private final int maxNumMessagesInBatch;
     private final BatchMessageContainer batchMessageContainer;
+    private OpSendMsg lastSendOp;
 
     // Globally unique producer name
     private String producerName;
@@ -353,6 +354,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     op.setNumMessagesInBatch(1);
                     op.setBatchSizeByte(encryptedPayload.readableBytes());
                     pendingMessages.put(op);
+                    lastSendOp = op;
 
                     // Read the connection before validating if it's still connected, so that we avoid reading a null
                     // value
@@ -1252,6 +1254,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 batchMessageContainer.clear();
 
                 pendingMessages.put(op);
+                lastSendOp = op;
 
                 if (isConnected()) {
                     // If we do have a connection, the message is sent immediately, otherwise we'll try again once a new
