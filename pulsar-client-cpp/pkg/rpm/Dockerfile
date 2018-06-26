@@ -23,7 +23,7 @@ FROM centos:7
 
 RUN yum update && \
     yum install -y gcc-c++ make cmake git rpm-build \
-                python-devel openssl-devel openssl-static
+                python-devel createrepo
 
 # Download and compile boost
 RUN curl -O -L https://dl.bintray.com/boostorg/release/1.64.0/source/boost_1_64_0.tar.gz && \
@@ -64,6 +64,13 @@ RUN curl -O -L https://github.com/madler/zlib/archive/v1.2.11.tar.gz && \
     make && make install && \
     rm -rf /zlib-1.2.11.tar.gz /zlib-1.2.11
 
+RUN curl -O -L https://github.com/openssl/openssl/archive/OpenSSL_1_1_0h.tar.gz && \
+    tar xvfz OpenSSL_1_1_0h.tar.gz && \
+    cd openssl-OpenSSL_1_1_0h/ && \
+    ./Configure -fPIC no-shared linux-x86_64 && \
+    make && make install && \
+    rm -rf /OpenSSL_1_1_0h.tar.gz /openssl-OpenSSL_1_1_0h
+
 # LibCurl
 RUN curl -O -L  https://github.com/curl/curl/releases/download/curl-7_54_0/curl-7.54.0.tar.gz && \
     tar xvfz curl-7.54.0.tar.gz && \
@@ -72,6 +79,5 @@ RUN curl -O -L  https://github.com/curl/curl/releases/download/curl-7_54_0/curl-
     make && make install && \
     rm -rf /curl-7.54.0.tar.gz /curl-7.54.0
 
-ADD build-rpm.sh /
 
-RUN yum install -y createrepo
+
