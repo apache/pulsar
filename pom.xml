@@ -1027,6 +1027,10 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>src/main/java/org/apache/pulsar/broker/service/schema/proto/SchemaRegistryFormat.java</exclude>
             <exclude>bin/proto/MLDataFormats_pb2.py</exclude>
 
+            <!-- These files are BSD licensed files -->
+            <exclude>src/main/java/org/apache/pulsar/common/util/protobuf/ByteBufCodedInputStream.java</exclude>
+            <exclude>src/main/java/org/apache/pulsar/common/util/protobuf/ByteBufCodedOutputStream.java</exclude>
+
             <!-- This is generated during maven build -->
             <exclude>dependency-reduced-pom.xml</exclude>
 
@@ -1052,6 +1056,8 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/*.htpasswd</exclude>
             <exclude>src/test/resources/athenz.conf.test</exclude>
             <exclude>deployment/terraform-ansible/templates/myid</exclude>
+            <exclude>certificate-authority/index.txt</exclude>
+            <exclude>certificate-authority/README.md</exclude>
 
             <!-- Python requirements files -->
             <exclude>**/requirements.txt</exclude>
