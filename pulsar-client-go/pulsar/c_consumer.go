@@ -92,7 +92,7 @@ func subscribeAsync(client *client, options ConsumerOptions, callback func(Consu
 
 	if options.AckTimeout != 0 {
 		timeoutMillis := options.AckTimeout.Nanoseconds() / int64(time.Millisecond)
-		C.pulsar_consumer_set_unacked_messages_timeout_ms(conf, C.ulonglong(timeoutMillis))
+		C.pulsar_consumer_set_unacked_messages_timeout_ms(conf, C.uint64_t(timeoutMillis))
 	}
 
 	if options.Type != Exclusive {
