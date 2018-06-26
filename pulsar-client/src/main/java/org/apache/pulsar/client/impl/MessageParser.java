@@ -43,7 +43,7 @@ import org.apache.pulsar.common.naming.TopicName;
 @UtilityClass
 @Slf4j
 public class MessageParser {
-    static interface MessageProcessor {
+    public interface MessageProcessor {
         void process(MessageId messageId, Message<?> message, ByteBuf payload);
     }
 
