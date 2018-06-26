@@ -100,12 +100,7 @@
                                     <include>org.apache.commons:*</include>
                                     <include>net.java.dev.jna:jna</include>
                                     <include>org.apache.yetus:audience-annotations</include>
-
-                                    <!-- Bookeeper -->
                                     <include>org.apache.bookkeeper*:*</include>
-                                    <!--<include>org.apache.bookkeeper:circe-checksum</include>-->
-                                    <!--<include>org.apache.bookkeeper:bookkeeper-stats-api</include>-->
-                                    <!--<include>org.apache.bookkeeper:bookkeeper-common</include>-->
 
                                     <include>org.apache.avro:*</include>
                                     <!-- Avro transitive dependencies-->
