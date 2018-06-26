@@ -52,7 +52,7 @@ func buildMessage(message ProducerMessage) *C.pulsar_message_t {
 	}
 
 	if message.Payload != nil {
-		C.pulsar_message_set_content(cMsg, unsafe.Pointer(&message.Payload[0]), C.ulong(len(message.Payload)))
+		C.pulsar_message_set_content(cMsg, unsafe.Pointer(&message.Payload[0]), C.size_t(len(message.Payload)))
 	}
 
 	if message.Properties != nil {
@@ -68,7 +68,7 @@ func buildMessage(message ProducerMessage) *C.pulsar_message_t {
 	}
 
 	if message.EventTime.UnixNano() != 0 {
-		C.pulsar_message_set_event_timestamp(cMsg, timeToUnixTimestampMillis(message.EventTime))
+		C.pulsar_message_set_event_timestamp(cMsg, C.uint64_t(timeToUnixTimestampMillis(message.EventTime)))
 	}
 
 	if message.ReplicationClusters != nil {
@@ -134,7 +134,7 @@ func (m *message) ID() MessageID {
 }
 
 func (m *message) PublishTime() time.Time {
-	return timeFromUnixTimestampMillis(C.pulsar_message_get_publish_timestamp(m.ptr))
+	return timeFromUnixTimestampMillis(C.ulonglong(C.pulsar_message_get_publish_timestamp(m.ptr)))
 }
 
 func (m *message) EventTime() *time.Time {
@@ -142,7 +142,7 @@ func (m *message) EventTime() *time.Time {
 	if uint64(eventTime) == 0 {
 		return nil
 	} else {
-		res := timeFromUnixTimestampMillis(eventTime)
+		res := timeFromUnixTimestampMillis(C.ulonglong(eventTime))
 		return &res
 	}
 }
@@ -171,7 +171,7 @@ func (m *messageID) Serialize() []byte {
 }
 
 func deserializeMessageId(data []byte) MessageID {
-	msgId := &messageID{ptr: C.pulsar_message_id_deserialize(unsafe.Pointer(&data[0]), C.uint(len(data)))}
+	msgId := &messageID{ptr: C.pulsar_message_id_deserialize(unsafe.Pointer(&data[0]), C.uint32_t(len(data)))}
 	runtime.SetFinalizer(msgId, messageIdFinalizer)
 	return msgId
 }
