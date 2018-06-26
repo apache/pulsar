@@ -21,8 +21,8 @@
 
 FROM debian:9
 
- RUN apt-get update && \
-     apt-get install -y curl g++ make libcurl4-openssl-dev libssl-dev python-dev \
+RUN apt-get update && \
+     apt-get install -y curl g++ make python-dev \
                 libxml2-utils git
 
 # Download and compile boost
@@ -63,6 +63,13 @@ RUN curl -O -L https://github.com/madler/zlib/archive/v1.2.11.tar.gz && \
     CFLAGS="-fPIC -O3" ./configure && \
     make && make install && \
     rm -rf /zlib-1.2.11.tar.gz /zlib-1.2.11
+
+RUN curl -O -L https://github.com/openssl/openssl/archive/OpenSSL_1_1_0h.tar.gz && \
+    tar xvfz OpenSSL_1_1_0h.tar.gz && \
+    cd openssl-OpenSSL_1_1_0h/ && \
+    ./Configure -fPIC no-shared linux-x86_64 && \
+    make && make install && \
+    rm -rf /OpenSSL_1_1_0h.tar.gz /openssl-OpenSSL_1_1_0h
 
 # LibCurl
 RUN curl -O -L  https://github.com/curl/curl/releases/download/curl-7_54_0/curl-7.54.0.tar.gz && \
