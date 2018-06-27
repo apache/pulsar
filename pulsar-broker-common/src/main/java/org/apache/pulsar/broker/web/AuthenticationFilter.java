@@ -30,7 +30,6 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -48,8 +47,8 @@ public class AuthenticationFilter implements Filter {
     public static final String AuthenticatedRoleAttributeName = AuthenticationFilter.class.getName() + "-role";
     public static final String AuthenticatedDataAttributeName = AuthenticationFilter.class.getName() + "-data";
 
-    public AuthenticationFilter(PulsarService pulsar) {
-        this.authenticationService = pulsar.getBrokerService().getAuthenticationService();
+    public AuthenticationFilter(AuthenticationService authenticationService) {
+        this.authenticationService = authenticationService;
     }
 
     @Override
