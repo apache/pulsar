@@ -144,6 +144,25 @@ public abstract class PulsarWebResource {
         return appId != null;
     }
 
+    private static void validateOriginalPrincipal(Set<String> proxyRoles, String authenticatedPrincipal,
+                                                  String originalPrincipal) {
+        if (originalPrincipal != null) {
+            if (StringUtils.isBlank(originalPrincipal)) {
+                log.warn("Original principal empty in request authenticated as {}", authenticatedPrincipal);
+                throw new RestException(Status.UNAUTHORIZED, "Original principal cannot be empty if it is set");
+            }
+            if (proxyRoles.contains(originalPrincipal)) {
+                log.warn("Original principal {} cannot be a proxy role ({})", originalPrincipal, proxyRoles);
+                throw new RestException(Status.UNAUTHORIZED, "Original principal cannot be a proxy role");
+            }
+            if (!proxyRoles.contains(authenticatedPrincipal)) {
+                log.warn("Original principal can only be accepted from a client authenticated as a proxy. "
+                        + "{} is not part of proxyRoles", authenticatedPrincipal, proxyRoles);
+                throw new RestException(Status.UNAUTHORIZED, "Original principal only accepted from proxy");
+            }
+        }
+    }
+
     /**
      * Checks whether the user has Pulsar Super-User access to the system.
      *
@@ -157,12 +176,13 @@ public abstract class PulsarWebResource {
                 log.debug("[{}] Check super user access: Authenticated: {} -- Role: {}", uri.getRequestUri(),
                         isClientAuthenticated(appId), appId);
             }
+            String originalPrincipal = originalPrincipal();
+            validateOriginalPrincipal(pulsar.getConfiguration().getProxyRoles(), appId, originalPrincipal);
+
             if (pulsar.getConfiguration().getProxyRoles().contains(appId)) {
-                String originalPrincipal = originalPrincipal();
-                boolean proxyAuthorized = pulsar.getConfiguration().getSuperUserRoles().contains(appId);
-                boolean originalPrincipalAuthorized = !StringUtils.isBlank(originalPrincipal)
-                    && !pulsar.getConfiguration().getProxyRoles().contains(originalPrincipal)
-                    && pulsar.getConfiguration().getSuperUserRoles().contains(originalPrincipal);
+                Set<String> superUserRoles = pulsar.getConfiguration().getSuperUserRoles();
+                boolean proxyAuthorized = superUserRoles.contains(appId);
+                boolean originalPrincipalAuthorized = superUserRoles.contains(originalPrincipal);
 
                 if (!proxyAuthorized || !originalPrincipalAuthorized) {
                     throw new RestException(Status.UNAUTHORIZED,
@@ -219,12 +239,14 @@ public abstract class PulsarWebResource {
                 throw new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request");
             }
 
+            validateOriginalPrincipal(pulsar.getConfiguration().getProxyRoles(), clientAppId, originalPrincipal);
+
             if (pulsar.getConfiguration().getProxyRoles().contains(clientAppId)) {
-                boolean proxyAuthorized = pulsar.getConfiguration().getSuperUserRoles().contains(clientAppId)
-                    || tenantInfo.getAdminRoles().contains(clientAppId);
-                boolean originalPrincipalAuthorized = !StringUtils.isBlank(originalPrincipal)
-                    && !pulsar.getConfiguration().getProxyRoles().contains(originalPrincipal)
-                    && tenantInfo.getAdminRoles().contains(originalPrincipal);
+                Set<String> superUserRoles = pulsar.getConfiguration().getSuperUserRoles();
+                Set<String> adminRoles = tenantInfo.getAdminRoles();
+                boolean proxyAuthorized = superUserRoles.contains(clientAppId) || adminRoles.contains(clientAppId);
+                boolean originalPrincipalAuthorized
+                    = superUserRoles.contains(originalPrincipal) || adminRoles.contains(originalPrincipal);
 
                 if (!proxyAuthorized || !originalPrincipalAuthorized) {
                     throw new RestException(Status.UNAUTHORIZED,

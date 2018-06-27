@@ -298,6 +298,25 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         } catch (NotAuthorizedException e) {
             // expected
         }
+    }
 
+    @Test
+    public void testNonProxyCannotSetOriginalPrincipal() throws Exception {
+        try (PulsarAdmin admin = buildAdminClient("admin")) {
+            admin.tenants().createTenant("tenant1",
+                                         new TenantInfo(ImmutableSet.of("user1"),
+                                                        ImmutableSet.of("test")));
+            admin.namespaces().createNamespace("tenant1/ns1");
+        }
+        WebTarget root = buildWebClient("admin");
+        try {
+            root.path("/admin/v2/namespaces").path("tenant1")
+                .request(MediaType.APPLICATION_JSON)
+                .header("X-Original-Principal", "user1")
+                .get(new GenericType<List<String>>() {});
+            Assert.fail("admin shouldn't be able to act as proxy even if it is superuser");
+        } catch (NotAuthorizedException e) {
+            // expected
+        }
     }
 }
