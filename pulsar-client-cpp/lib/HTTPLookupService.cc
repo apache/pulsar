@@ -25,7 +25,6 @@ namespace pulsar {
 const static std::string V1_PATH = "/lookup/v2/destination/";
 const static std::string V2_PATH = "/lookup/v2/topic/";
 
-
 const static std::string ADMIN_PATH_V1 = "/admin/";
 const static std::string ADMIN_PATH_V2 = "/admin/v2";
 
@@ -60,13 +59,13 @@ Future<Result, LookupDataResultPtr> HTTPLookupService::lookupAsync(const std::st
 
     std::stringstream completeUrlStream;
     if (topicName->isV2Topic()) {
-        completeUrlStream << adminUrl_ << V2_PATH << topicName->getDomain() << "/" << topicName->getProperty() << '/'
-                      << topicName->getNamespacePortion() << '/'
-                      << topicName->getEncodedLocalName();
+        completeUrlStream << adminUrl_ << V2_PATH << topicName->getDomain() << "/" << topicName->getProperty()
+                          << '/' << topicName->getNamespacePortion() << '/'
+                          << topicName->getEncodedLocalName();
     } else {
-        completeUrlStream << adminUrl_ << V1_PATH << topicName->getDomain() << "/" << topicName->getProperty() << '/'
-                      << topicName->getCluster() << '/' << topicName->getNamespacePortion() << '/'
-                      << topicName->getEncodedLocalName();
+        completeUrlStream << adminUrl_ << V1_PATH << topicName->getDomain() << "/" << topicName->getProperty()
+                          << '/' << topicName->getCluster() << '/' << topicName->getNamespacePortion() << '/'
+                          << topicName->getEncodedLocalName();
     }
 
     executorProvider_->get()->postWork(boost::bind(&HTTPLookupService::sendHTTPRequest, shared_from_this(),
@@ -80,13 +79,14 @@ Future<Result, LookupDataResultPtr> HTTPLookupService::getPartitionMetadataAsync
     std::stringstream completeUrlStream;
 
     if (topicName->isV2Topic()) {
-        completeUrlStream << adminUrl_ << ADMIN_PATH_V2 << topicName->getDomain() << '/' << topicName->getProperty() << '/'
-                          << topicName->getNamespacePortion() << '/'
+        completeUrlStream << adminUrl_ << ADMIN_PATH_V2 << topicName->getDomain() << '/'
+                          << topicName->getProperty() << '/' << topicName->getNamespacePortion() << '/'
                           << topicName->getEncodedLocalName() << '/' << PARTITION_METHOD_NAME;
     } else {
-        completeUrlStream << adminUrl_ << ADMIN_PATH_V1 << topicName->getDomain() << '/' << topicName->getProperty() << '/'
-                          << topicName->getCluster() << '/' << topicName->getNamespacePortion() << '/'
-                          << topicName->getEncodedLocalName() << '/' << PARTITION_METHOD_NAME;
+        completeUrlStream << adminUrl_ << ADMIN_PATH_V1 << topicName->getDomain() << '/'
+                          << topicName->getProperty() << '/' << topicName->getCluster() << '/'
+                          << topicName->getNamespacePortion() << '/' << topicName->getEncodedLocalName()
+                          << '/' << PARTITION_METHOD_NAME;
     }
 
     executorProvider_->get()->postWork(boost::bind(&HTTPLookupService::sendHTTPRequest, shared_from_this(),
