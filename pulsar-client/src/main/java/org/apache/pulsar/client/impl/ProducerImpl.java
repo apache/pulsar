@@ -873,7 +873,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                             this.producerName = producerName;
                         }
 
-                        if (this.lastSequenceIdPublished == -1 && conf.getInitialSequenceId() == null) {
+                        if (this.msgIdGenerator == 0 && conf.getInitialSequenceId() == null) {
+                            // Only update sequence id generator if it wasn't already modified. That means we only want
+                            // to update the id generator the first time the producer gets established, and ignore the
+                            // sequence id sent by broker in subsequent producer reconnects
                             this.lastSequenceIdPublished = lastSequenceId;
                             this.msgIdGenerator = lastSequenceId + 1;
                         }
