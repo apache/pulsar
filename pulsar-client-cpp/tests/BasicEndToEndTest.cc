@@ -267,7 +267,6 @@ TEST(BasicEndToEndTest, testV2TopicProtobuf) {
     Result result = client.createProducer(topicName, producer);
     ASSERT_EQ(ResultOk, result);
 
-
     Consumer consumer;
     result = client.subscribe(topicName, "my-sub-name", consumer);
     ASSERT_EQ(ResultOk, result);
