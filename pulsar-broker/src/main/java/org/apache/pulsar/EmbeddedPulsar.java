@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -19,6 +19,7 @@
 package org.apache.pulsar;
 
 import com.google.common.collect.Sets;
+import lombok.Builder;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -28,55 +29,48 @@ import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.net.URL;
-import java.nio.file.Paths;
 import java.util.Optional;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
+@Builder(toBuilder = true)
 public class EmbeddedPulsar {
 
-    PulsarService broker;
-    PulsarAdmin admin;
-    LocalBookkeeperEnsemble bkEnsemble;
-    ServiceConfiguration config;
-    WorkerService fnWorkerService;
+    private static final Logger log = LoggerFactory.getLogger(EmbeddedPulsar.class);
 
+    private PulsarService broker;
+    private PulsarAdmin admin;
+    private LocalBookkeeperEnsemble bkEnsemble;
+    private ServiceConfiguration config;
+    private WorkerService fnWorkerService;
     private String configFile;
 
+    @Builder.Default
     private boolean wipeData = true;
-
+    @Builder.Default
     private int numOfBk = 1;
-
+    @Builder.Default
     private int zkPort = 2181;
-
+    @Builder.Default
     private int bkPort = 3181;
-
+    @Builder.Default
     private String zkDir = "data/standalone/zookeeper";
-
+    @Builder.Default
     private String bkDir = "data/standalone/bookkeeper";
-
+    @Builder.Default
     private boolean noBroker = false;
-
+    @Builder.Default
     private boolean onlyBroker = false;
-
-    //private boolean noFunctionsWorker = true;
-
-    //private String fnWorkerConfigFile = Paths.get("").toAbsolutePath().normalize().toString() + "/conf/functions_worker.yml";
-
+    @Builder.Default
     private String advertisedAddress = null;
 
-    private static final Logger log = LoggerFactory.getLogger(PulsarStandaloneStarter.class);
-
-
-    public EmbeddedPulsar() throws IOException {
+    public void start() throws Exception {
 
         this.config = PulsarConfigurationLoader.create((ClassLoader.class.getResourceAsStream("/embedded.conf")), ServiceConfiguration.class);
 
@@ -98,28 +92,6 @@ public class EmbeddedPulsar {
         config.setConfigurationStoreServers(zkServers + ":" + zkPort);
         config.setRunningStandalone(true);
 
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            try {
-                if (fnWorkerService != null) {
-                    fnWorkerService.stop();
-                }
-
-                if (broker != null) {
-                    broker.close();
-                }
-
-                if (bkEnsemble != null) {
-                    bkEnsemble.stop();
-                }
-            } catch (Exception e) {
-                log.error("Shutdown failed: {}", e.getMessage());
-            }
-        }));
-    }
-
-
-    public void start() throws Exception {
-
         if (config == null) {
             System.exit(1);
         }
@@ -128,34 +100,13 @@ public class EmbeddedPulsar {
 
         if (!onlyBroker) {
             // Start LocalBookKeeper
-            bkEnsemble = new LocalBookkeeperEnsemble(numOfBk, zkPort, bkPort, zkDir, bkDir, wipeData, config.getAdvertisedAddress());
+            bkEnsemble = new LocalBookkeeperEnsemble(numOfBk, zkPort, bkPort, zkDir, bkDir, wipeData, advertisedAddress);
             bkEnsemble.startStandalone();
         }
 
         if (noBroker) {
             return;
         }
-
-        // initialize the functions worker
-//        if (!noFunctionsWorker) {
-//            WorkerConfig workerConfig;
-//            if (isBlank(fnWorkerConfigFile)) {
-//                workerConfig = new WorkerConfig();
-//            } else {
-//                workerConfig = WorkerConfig.load(fnWorkerConfigFile);
-//            }
-//            // worker talks to local broker
-//            workerConfig.setPulsarServiceUrl("pulsar://127.0.0.1:" + config.getBrokerServicePort());
-//            workerConfig.setPulsarWebServiceUrl("http://127.0.0.1:" + config.getWebServicePort());
-//            String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(
-//                config.getAdvertisedAddress());
-//            workerConfig.setWorkerHostname(hostname);
-//            workerConfig.setWorkerId(
-//                "c-" + config.getClusterName()
-//                    + "-fw-" + hostname
-//                    + "-" + workerConfig.getWorkerPort());
-//            fnWorkerService = new WorkerService(workerConfig);
-//        }
 
         // Start Broker
         broker = new PulsarService(config, Optional.ofNullable(fnWorkerService));
@@ -218,8 +169,29 @@ public class EmbeddedPulsar {
         log.debug("--- setup completed ---");
     }
 
+
+    public void stop() {
+        try {
+            if (fnWorkerService != null) {
+                fnWorkerService.stop();
+            }
+
+            if (broker != null) {
+                broker.close();
+            }
+
+            if (bkEnsemble != null) {
+                bkEnsemble.stop();
+            }
+        } catch (Exception e) {
+            log.error("Shutdown failed: {}", e.getMessage());
+        }
+    }
+
+
     public static void main(String[] args) throws Exception {
-        EmbeddedPulsar embeddedPulsar =  new EmbeddedPulsar();
+        EmbeddedPulsar embeddedPulsar = EmbeddedPulsar.builder().build();
         embeddedPulsar.start();
+        embeddedPulsar.stop();
     }
 }
