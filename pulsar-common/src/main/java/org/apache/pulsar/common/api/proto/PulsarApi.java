@@ -22620,6 +22620,10 @@ public final class PulsarApi {
     // required string namespace = 2;
     boolean hasNamespace();
     String getNamespace();
+    
+    // optional .pulsar.proto.CommandGetTopicsOfNamespace.Mode mode = 3 [default = PERSISTENT];
+    boolean hasMode();
+    org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode getMode();
   }
   public static final class CommandGetTopicsOfNamespace extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -22653,6 +22657,50 @@ public final class PulsarApi {
     
     public CommandGetTopicsOfNamespace getDefaultInstanceForType() {
       return defaultInstance;
+    }
+    
+    public enum Mode
+        implements org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLite {
+      PERSISTENT(0, 0),
+      NON_PERSISTENT(1, 1),
+      ALL(2, 2),
+      ;
+      
+      public static final int PERSISTENT_VALUE = 0;
+      public static final int NON_PERSISTENT_VALUE = 1;
+      public static final int ALL_VALUE = 2;
+      
+      
+      public final int getNumber() { return value; }
+      
+      public static Mode valueOf(int value) {
+        switch (value) {
+          case 0: return PERSISTENT;
+          case 1: return NON_PERSISTENT;
+          case 2: return ALL;
+          default: return null;
+        }
+      }
+      
+      public static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<Mode>
+          internalGetValueMap() {
+        return internalValueMap;
+      }
+      private static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<Mode>
+          internalValueMap =
+            new org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<Mode>() {
+              public Mode findValueByNumber(int number) {
+                return Mode.valueOf(number);
+              }
+            };
+      
+      private final int value;
+      
+      private Mode(int index, int value) {
+        this.value = value;
+      }
+      
+      // @@protoc_insertion_point(enum_scope:pulsar.proto.CommandGetTopicsOfNamespace.Mode)
     }
     
     private int bitField0_;
@@ -22698,9 +22746,20 @@ public final class PulsarApi {
       }
     }
     
+    // optional .pulsar.proto.CommandGetTopicsOfNamespace.Mode mode = 3 [default = PERSISTENT];
+    public static final int MODE_FIELD_NUMBER = 3;
+    private org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode mode_;
+    public boolean hasMode() {
+      return ((bitField0_ & 0x00000004) == 0x00000004);
+    }
+    public org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode getMode() {
+      return mode_;
+    }
+    
     private void initFields() {
       requestId_ = 0L;
       namespace_ = "";
+      mode_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode.PERSISTENT;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -22733,6 +22792,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         output.writeBytes(2, getNamespaceBytes());
       }
+      if (((bitField0_ & 0x00000004) == 0x00000004)) {
+        output.writeEnum(3, mode_.getNumber());
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -22748,6 +22810,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeBytesSize(2, getNamespaceBytes());
+      }
+      if (((bitField0_ & 0x00000004) == 0x00000004)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeEnumSize(3, mode_.getNumber());
       }
       memoizedSerializedSize = size;
       return size;
@@ -22866,6 +22932,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000001);
         namespace_ = "";
         bitField0_ = (bitField0_ & ~0x00000002);
+        mode_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode.PERSISTENT;
+        bitField0_ = (bitField0_ & ~0x00000004);
         return this;
       }
       
@@ -22907,6 +22975,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000002;
         }
         result.namespace_ = namespace_;
+        if (((from_bitField0_ & 0x00000004) == 0x00000004)) {
+          to_bitField0_ |= 0x00000004;
+        }
+        result.mode_ = mode_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -22918,6 +22990,9 @@ public final class PulsarApi {
         }
         if (other.hasNamespace()) {
           setNamespace(other.getNamespace());
+        }
+        if (other.hasMode()) {
+          setMode(other.getMode());
         }
         return this;
       }
@@ -22964,6 +23039,15 @@ public final class PulsarApi {
             case 18: {
               bitField0_ |= 0x00000002;
               namespace_ = input.readBytes();
+              break;
+            }
+            case 24: {
+              int rawValue = input.readEnum();
+              org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode value = org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode.valueOf(rawValue);
+              if (value != null) {
+                bitField0_ |= 0x00000004;
+                mode_ = value;
+              }
               break;
             }
           }
@@ -23027,6 +23111,30 @@ public final class PulsarApi {
         bitField0_ |= 0x00000002;
         namespace_ = value;
         
+      }
+      
+      // optional .pulsar.proto.CommandGetTopicsOfNamespace.Mode mode = 3 [default = PERSISTENT];
+      private org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode mode_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode.PERSISTENT;
+      public boolean hasMode() {
+        return ((bitField0_ & 0x00000004) == 0x00000004);
+      }
+      public org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode getMode() {
+        return mode_;
+      }
+      public Builder setMode(org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        bitField0_ |= 0x00000004;
+        mode_ = value;
+        
+        return this;
+      }
+      public Builder clearMode() {
+        bitField0_ = (bitField0_ & ~0x00000004);
+        mode_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode.PERSISTENT;
+        
+        return this;
       }
       
       // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandGetTopicsOfNamespace)
