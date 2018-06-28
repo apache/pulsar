@@ -70,8 +70,6 @@ fi
 
 popd
 
-RES=0
-
 if [ $RES -eq 0 ]; then
     pushd python
     echo "---- Build Python Wheel file"
