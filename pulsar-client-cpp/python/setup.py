@@ -69,4 +69,7 @@ setup(
     description="Apache Pulsar Python client library",
     license="Apache License v2.0",
     url="http://pulsar.incubator.apache.org/",
+    install_requires=[
+        'grpcio', 'protobuf'
+    ],
 )
