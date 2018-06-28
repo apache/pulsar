@@ -767,6 +767,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetRetention(RetentionPolicies retention) {
+        validateAdminAccessForTenant(namespaceName.getTenant());
         validatePoliciesReadOnlyAccess();
 
         try {
@@ -804,6 +805,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetPersistence(PersistencePolicies persistence) {
+        validateAdminAccessForTenant(namespaceName.getTenant());
         validatePoliciesReadOnlyAccess();
         validatePersistencePolicies(persistence);
 
