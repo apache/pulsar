@@ -29,6 +29,7 @@ import static org.slf4j.bridge.SLF4JBridgeHandler.removeHandlersForRootLogger;
 import java.util.List;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.slf4j.Logger;
@@ -116,8 +117,10 @@ public class ProxyServiceStarter {
 
         java.security.Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
 
+        AuthenticationService authenticationService = new AuthenticationService(
+                PulsarConfigurationLoader.convertFrom(config));
         // create proxy service
-        ProxyService proxyService = new ProxyService(config);
+        ProxyService proxyService = new ProxyService(config, authenticationService);
         // create a web-service
         final WebServer server = new WebServer(config);
 

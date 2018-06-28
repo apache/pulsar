@@ -26,10 +26,12 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.apache.bookkeeper.test.PortManager;
+import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.proxy.server.ProxyRolesEnforcementTest.BasicAuthentication;
 import org.apache.pulsar.proxy.server.ProxyRolesEnforcementTest.BasicAuthenticationProvider;
@@ -114,7 +116,9 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
         providers.add(BasicAuthenticationProvider.class.getName());
         proxyConfig.setAuthenticationProviders(providers);
 
-        try (ProxyService proxyService = new ProxyService(proxyConfig);
+        AuthenticationService authenticationService = new AuthenticationService(
+                PulsarConfigurationLoader.convertFrom(proxyConfig));
+        try (ProxyService proxyService = new ProxyService(proxyConfig, authenticationService);
                 PulsarClient proxyClient = createPulsarClient(proxyServiceUrl, clientAuthParams)) {
             proxyService.start();
             proxyClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
@@ -125,7 +129,9 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
 
         // Step 3: Create proxy with forwardAuthData enabled
         proxyConfig.setForwardAuthorizationCredentials(true);
-        try (ProxyService proxyService = new ProxyService(proxyConfig);
+        authenticationService = new AuthenticationService(
+                PulsarConfigurationLoader.convertFrom(proxyConfig));
+        try (ProxyService proxyService = new ProxyService(proxyConfig, authenticationService);
                 PulsarClient proxyClient = createPulsarClient(proxyServiceUrl, clientAuthParams)) {
             proxyService.start();
             proxyClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe().close();
