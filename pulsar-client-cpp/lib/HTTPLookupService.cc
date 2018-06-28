@@ -26,7 +26,7 @@ const static std::string V1_PATH = "/lookup/v2/destination/";
 const static std::string V2_PATH = "/lookup/v2/topic/";
 
 const static std::string ADMIN_PATH_V1 = "/admin/";
-const static std::string ADMIN_PATH_V2 = "/admin/v2";
+const static std::string ADMIN_PATH_V2 = "/admin/v2/";
 
 const static int MAX_HTTP_REDIRECTS = 20;
 const static std::string PARTITION_METHOD_NAME = "partitions";
