@@ -543,6 +543,33 @@ class PulsarTest(TestCase):
         self.assertEqual(msg.data(), b'hello-0')
         client.close()
 
+    def test_v2_topics(self):
+        self._v2_topics(self.serviceUrl)
+
+    def test_v2_topics_http(self):
+        self._v2_topics(self.adminUrl)
+
+    def _v2_topics(self, url):
+        client = Client(url)
+        consumer = client.subscribe('my-v2-topic-producer-consumer',
+                                    'my-sub',
+                                    consumer_type=ConsumerType.Shared)
+        producer = client.create_producer('my-v2-topic-producer-consumer')
+        producer.send('hello')
+
+        msg = consumer.receive(1000)
+        self.assertTrue(msg)
+        self.assertEqual(msg.data(), b'hello')
+        consumer.acknowledge(msg)
+
+        try:
+            msg = consumer.receive(100)
+            self.assertTrue(False)  # Should not reach this point
+        except:
+            pass  # Exception is expected
+
+        client.close()
+
     def _check_value_error(self, fun):
         try:
             fun()
