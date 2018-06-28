@@ -52,7 +52,7 @@ public class RackAwareTest extends BrokerBkEnsemblesTests {
 
     @SuppressWarnings("deprecation")
     @BeforeClass
-    void setup() throws Exception {
+    protected void setup() throws Exception {
         super.setup();
 
         // Start bookies with specific racks
@@ -83,7 +83,7 @@ public class RackAwareTest extends BrokerBkEnsemblesTests {
     }
 
     @AfterClass
-    void shutdown() throws Exception {
+    protected void shutdown() throws Exception {
         super.shutdown();
 
         for (BookieServer bs : bookies) {
