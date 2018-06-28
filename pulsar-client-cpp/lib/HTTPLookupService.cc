@@ -21,8 +21,13 @@
 DECLARE_LOG_OBJECT()
 
 namespace pulsar {
-const static std::string V2_PATH = "/lookup/v2/destination/";
-const static std::string PARTITION_PATH = "/admin/persistent/";
+
+const static std::string V1_PATH = "/lookup/v2/destination/";
+const static std::string V2_PATH = "/lookup/v2/topic/";
+
+const static std::string ADMIN_PATH_V1 = "/admin/";
+const static std::string ADMIN_PATH_V2 = "/admin/v2/";
+
 const static int MAX_HTTP_REDIRECTS = 20;
 const static std::string PARTITION_METHOD_NAME = "partitions";
 const static int NUMBER_OF_LOOKUP_THREADS = 1;
@@ -53,9 +58,16 @@ Future<Result, LookupDataResultPtr> HTTPLookupService::lookupAsync(const std::st
     }
 
     std::stringstream completeUrlStream;
-    completeUrlStream << adminUrl_ << V2_PATH << "persistent/" << topicName->getProperty() << '/'
-                      << topicName->getCluster() << '/' << topicName->getNamespacePortion() << '/'
-                      << topicName->getEncodedLocalName();
+    if (topicName->isV2Topic()) {
+        completeUrlStream << adminUrl_ << V2_PATH << topicName->getDomain() << "/" << topicName->getProperty()
+                          << '/' << topicName->getNamespacePortion() << '/'
+                          << topicName->getEncodedLocalName();
+    } else {
+        completeUrlStream << adminUrl_ << V1_PATH << topicName->getDomain() << "/" << topicName->getProperty()
+                          << '/' << topicName->getCluster() << '/' << topicName->getNamespacePortion() << '/'
+                          << topicName->getEncodedLocalName();
+    }
+
     executorProvider_->get()->postWork(boost::bind(&HTTPLookupService::sendHTTPRequest, shared_from_this(),
                                                    promise, completeUrlStream.str(), Lookup));
     return promise.getFuture();
@@ -65,9 +77,18 @@ Future<Result, LookupDataResultPtr> HTTPLookupService::getPartitionMetadataAsync
     const TopicNamePtr &topicName) {
     LookupPromise promise;
     std::stringstream completeUrlStream;
-    completeUrlStream << adminUrl_ << PARTITION_PATH << topicName->getProperty() << '/'
-                      << topicName->getCluster() << '/' << topicName->getNamespacePortion() << '/'
-                      << topicName->getEncodedLocalName() << '/' << PARTITION_METHOD_NAME;
+
+    if (topicName->isV2Topic()) {
+        completeUrlStream << adminUrl_ << ADMIN_PATH_V2 << topicName->getDomain() << '/'
+                          << topicName->getProperty() << '/' << topicName->getNamespacePortion() << '/'
+                          << topicName->getEncodedLocalName() << '/' << PARTITION_METHOD_NAME;
+    } else {
+        completeUrlStream << adminUrl_ << ADMIN_PATH_V1 << topicName->getDomain() << '/'
+                          << topicName->getProperty() << '/' << topicName->getCluster() << '/'
+                          << topicName->getNamespacePortion() << '/' << topicName->getEncodedLocalName()
+                          << '/' << PARTITION_METHOD_NAME;
+    }
+
     executorProvider_->get()->postWork(boost::bind(&HTTPLookupService::sendHTTPRequest, shared_from_this(),
                                                    promise, completeUrlStream.str(), PartitionMetaData));
     return promise.getFuture();
