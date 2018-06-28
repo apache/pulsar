@@ -261,19 +261,23 @@ TEST(BasicEndToEndTest, testNonPersistentTopic) {
 }
 
 TEST(BasicEndToEndTest, testV2TopicProtobuf) {
-    std::string topicName = "my-topic";
+    std::string topicName = "testV2TopicProtobuf";
     Client client(lookupUrl);
     Producer producer;
     Result result = client.createProducer(topicName, producer);
     ASSERT_EQ(ResultOk, result);
 
+
     Consumer consumer;
     result = client.subscribe(topicName, "my-sub-name", consumer);
     ASSERT_EQ(ResultOk, result);
+
+    producer.close();
+    consumer.close();
 }
 
 TEST(BasicEndToEndTest, testV2TopicHttp) {
-    std::string topicName = "my-topic";
+    std::string topicName = "testV2TopicHttp";
     Client client(adminUrl);
     Producer producer;
     Result result = client.createProducer(topicName, producer);
@@ -282,6 +286,9 @@ TEST(BasicEndToEndTest, testV2TopicHttp) {
     Consumer consumer;
     result = client.subscribe(topicName, "my-sub-name", consumer);
     ASSERT_EQ(ResultOk, result);
+
+    producer.close();
+    consumer.close();
 }
 
 TEST(BasicEndToEndTest, testSingleClientMultipleSubscriptions) {
