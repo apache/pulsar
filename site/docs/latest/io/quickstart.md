@@ -1,5 +1,6 @@
 ---
-title: The Pulsar IO cookbook
+title: Getting started with Pulsar IO
+lead: Connecting your systems with Pulsar using Pulsar IO
 ---
 
 <!--
@@ -80,3 +81,4 @@ Instead of submitting a sink to run on an existing Pulsar cluster, you alternati
 At the moment, the following connectors are available for Pulsar:
 
 {% include connectors.html %}
+
