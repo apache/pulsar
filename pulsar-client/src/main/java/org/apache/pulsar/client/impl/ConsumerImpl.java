@@ -40,6 +40,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -62,6 +63,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.EncryptionContext.EncryptionKey;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarDecoder;
@@ -70,6 +72,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
+import org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
@@ -80,6 +83,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 
 public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandler.Connection {
     private static final int MAX_REDELIVER_UNACKNOWLEDGED = 1000;
@@ -732,10 +736,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         final int numMessages = msgMetadata.getNumMessagesInBatch();
 
-        // if message is not decryptable then add encryption-properties along with payload
+        // if message is not decryptable then it can't be parsed as a batch-message. so, add EncyrptionCtx to message
+        // and return undecrypted payload
         if (isMessageUndecryptable || (numMessages == 1 && !msgMetadata.hasNumMessagesInBatch())) {
             final MessageImpl<T> message = new MessageImpl<>(msgId, msgMetadata, uncompressedPayload,
-                    isMessageUndecryptable ? createEncryptionPropertiesOfUndecryptableMsg(msgMetadata) : null, cnx, schema);
+                    createEncryptionContext(msgMetadata), cnx, schema);
             uncompressedPayload.release();
             msgMetadata.recycle();
 
@@ -907,7 +912,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 BatchMessageIdImpl batchMessageIdImpl = new BatchMessageIdImpl(messageId.getLedgerId(),
                         messageId.getEntryId(), getPartitionIndex(), i, acker);
                 final MessageImpl<T> message = new MessageImpl<>(batchMessageIdImpl, msgMetadata,
-                        singleMessageMetadataBuilder.build(), singleMessagePayload, cnx, schema);
+                        singleMessageMetadataBuilder.build(), singleMessagePayload,
+                        createEncryptionContext(msgMetadata), cnx, schema);
                 lock.readLock().lock();
                 try {
                     if (pendingReceives.isEmpty()) {
@@ -1341,40 +1347,36 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     /**
-     * If crypto-reader is not configured at consumer and {@link ConsumerCryptoFailureAction} is configured to CONSUME message
-     * then create properties that can be used to uncompress and decrypt the payload.
+     * Create EncryptionContext if message payload is encrypted
      * 
      * @param msgMetadata
-     * @return if payload can't be decrypted then return properties with encryption metadata.
+     * @return {@link Optional}<{@link EncryptionContext}>
      */
-    private Map<String, String> createEncryptionPropertiesOfUndecryptableMsg(MessageMetadata msgMetadata) {
-        if (isMessageUndecryptable(msgMetadata)) {
-            Map<String, String> encryptionKeys = Maps.newHashMap();
+    private Optional<EncryptionContext> createEncryptionContext(MessageMetadata msgMetadata) {
 
+        EncryptionContext encryptionCtx = null;
+        if (msgMetadata.getEncryptionKeysCount() > 0) {
+            encryptionCtx = new EncryptionContext();
+            Map<String, EncryptionKey> keys = msgMetadata.getEncryptionKeysList().stream()
+                    .collect(
+                            Collectors.toMap(EncryptionKeys::getKey,
+                                    e -> new EncryptionKey(e.getValue().toByteArray(),
+                                            e.getMetadataList() != null
+                                                    ? e.getMetadataList().stream().collect(
+                                                            Collectors.toMap(KeyValue::getKey, KeyValue::getValue))
+                                                    : null)));
             byte[] encParam = new byte[MessageCrypto.ivLen];
             msgMetadata.getEncryptionParam().copyTo(encParam, 0);
-            encryptionKeys.put(ConsumerCryptoFailureAction.PULSAR_COMPRESSION_TYPE_PROP,
-                    msgMetadata.getCompression().toString());
-            encryptionKeys.put(ConsumerCryptoFailureAction.PULSAR_UNCOMPRESSED_MSG_SIZE_PROP,
-                    Integer.toString(msgMetadata.getUncompressedSize()));
-            encryptionKeys.put(ConsumerCryptoFailureAction.PULSAR_ENCRYPTION_PARAM_BASE64_ENCODED_PROP,
-                    getEncoder().encodeToString(encParam));
-            encryptionKeys.put(ConsumerCryptoFailureAction.PULSAR_ENCRYPTION_ALGO_PROP,
-                    msgMetadata.getEncryptionAlgo());
-            msgMetadata.getEncryptionKeysList().forEach(encryptionKey -> {
-                String msgDataKey = getEncoder().encodeToString(encryptionKey.getValue().toByteArray());
-                Map<String, String> metadata = encryptionKey.getMetadataList().stream()
-                        .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue));
-                encryptionKeys.put(ConsumerCryptoFailureAction.PULSAR_ENCRYPTION_KEY_PROP + encryptionKey.getKey(),
-                        (EncryptionProperties.toJson(new EncryptionProperties(msgDataKey, metadata))));
-            });
-            if (msgMetadata.hasNumMessagesInBatch()) {
-                encryptionKeys.put(ConsumerCryptoFailureAction.PULSAR_BATCH_SIZE_PROP,
-                        Integer.toString(msgMetadata.getNumMessagesInBatch()));
-            }
-            return encryptionKeys;
+            Optional<Integer> batchSize = Optional
+                    .ofNullable(msgMetadata.hasNumMessagesInBatch() ? msgMetadata.getNumMessagesInBatch() : null);
+            encryptionCtx.setKeys(keys);
+            encryptionCtx.setParam(encParam);
+            encryptionCtx.setAlgorithm(msgMetadata.getEncryptionAlgo());
+            encryptionCtx.setCompressionType(msgMetadata.getCompression());
+            encryptionCtx.setUncompressedMessageSize(msgMetadata.getUncompressedSize());
+            encryptionCtx.setBatchSize(batchSize);
         }
-        return null;
+        return Optional.ofNullable(encryptionCtx);
     }
 
     private int removeExpiredMessagesFromQueue(Set<MessageId> messageIds) {

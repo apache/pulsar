@@ -25,6 +25,7 @@ import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -50,6 +51,7 @@ public class MessageImpl<T> extends MessageRecordImpl<T, MessageId> {
     private ClientCnx cnx;
     private ByteBuf payload;
     private Schema<T> schema;
+    private Optional<EncryptionContext> encryptionCtx = Optional.empty();
 
     transient private Map<String, String> properties;
 
@@ -85,7 +87,7 @@ public class MessageImpl<T> extends MessageRecordImpl<T, MessageId> {
     }
     
     MessageImpl(MessageIdImpl messageId, MessageMetadata msgMetadata, ByteBuf payload,
-            Map<String, String> encryptionProperties, ClientCnx cnx, Schema<T> schema) {
+            Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema) {
         this.msgMetadataBuilder = MessageMetadata.newBuilder(msgMetadata);
         this.messageId = messageId;
         this.cnx = cnx;
@@ -94,14 +96,11 @@ public class MessageImpl<T> extends MessageRecordImpl<T, MessageId> {
         // release, since the Message is passed to the user. Also, the passed ByteBuf is coming from network and is
         // backed by a direct buffer which we could not expose as a byte[]
         this.payload = Unpooled.copiedBuffer(payload);
+        this.encryptionCtx = encryptionCtx;
 
-        if (msgMetadata.getPropertiesCount() > 0 || encryptionProperties != null) {
-            Map<String, String> props = msgMetadata.getPropertiesCount() > 0 ? msgMetadataBuilder.getPropertiesList()
-                    .stream().collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue)) : Maps.newHashMap();
-            if (encryptionProperties != null) {
-                props.putAll(encryptionProperties);
-            }
-            this.properties = Collections.unmodifiableMap(props);
+        if (msgMetadata.getPropertiesCount() > 0) {
+            this.properties = Collections.unmodifiableMap(msgMetadataBuilder.getPropertiesList().stream()
+                    .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue)));
         } else {
             properties = Collections.emptyMap();
         }
@@ -109,12 +108,14 @@ public class MessageImpl<T> extends MessageRecordImpl<T, MessageId> {
     }
 
     MessageImpl(BatchMessageIdImpl batchMessageIdImpl, MessageMetadata msgMetadata,
-            PulsarApi.SingleMessageMetadata singleMessageMetadata, ByteBuf payload, ClientCnx cnx, Schema<T> schema) {
+            PulsarApi.SingleMessageMetadata singleMessageMetadata, ByteBuf payload,
+            Optional<EncryptionContext> encryptionCtx, ClientCnx cnx, Schema<T> schema) {
         this.msgMetadataBuilder = MessageMetadata.newBuilder(msgMetadata);
         this.messageId = batchMessageIdImpl;
         this.cnx = cnx;
 
         this.payload = Unpooled.copiedBuffer(payload);
+        this.encryptionCtx = encryptionCtx;
 
         if (singleMessageMetadata.getPropertiesCount() > 0) {
             Map<String, String> properties = Maps.newTreeMap();
@@ -327,5 +328,9 @@ public class MessageImpl<T> extends MessageRecordImpl<T, MessageId> {
 
     void setMessageId(MessageIdImpl messageId) {
         this.messageId = messageId;
+    }
+    
+    public Optional<EncryptionContext> getEncryptionCtx() {
+        return encryptionCtx;
     }
 }

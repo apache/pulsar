@@ -19,8 +19,9 @@
 package org.apache.pulsar.client.impl;
 
 import java.util.Map;
+import java.util.Optional;
 
-import com.google.gson.Gson;
+import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -29,13 +30,23 @@ import lombok.Setter;
 
 @Getter
 @Setter
-@AllArgsConstructor
-@NoArgsConstructor
-public class EncryptionProperties {
-    String msgDataKeyBase64Encoded;
-    Map<String,String> metadata;
+public class EncryptionContext {
 
-    public static String toJson(EncryptionProperties encProps) {
-        return new Gson().toJson(encProps);
+    private Map<String, EncryptionKey> keys;
+    private byte[] param;
+    private Map<String, String> metadata;
+    private String algorithm;
+    private CompressionType compressionType;
+    private int uncompressedMessageSize;
+    private Optional<Integer> batchSize;
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class EncryptionKey {
+        private byte[] keyValue;
+        private Map<String, String> metadata;
     }
+
 }

@@ -19,6 +19,8 @@
 
 package org.apache.pulsar.client.api;
 
+import org.apache.pulsar.client.impl.EncryptionContext;
+
 public enum ConsumerCryptoFailureAction {
     FAIL, // This is the default option to fail consume until crypto succeeds
     DISCARD, // Message is silently acknowledged and not delivered to the application
@@ -30,29 +32,9 @@ public enum ConsumerCryptoFailureAction {
      * able to retrieve individual messages in the batch.
      * </pre>
      * 
-     * Delivered encrypted message will contain encrypted payload along with properties which can be used to uncompress
-     * and decrypt the payload. Message will contain following properties to decrypt message:
-     * 
-     * <ul>
-     * <li>{@value #PULSAR_ENCRYPTION_KEY_PROP}: Encryption keys in json format of {@link EncryptionKeyInfo}</li>
-     * <li>{@value #PULSAR_ENCRYPTION_PARAM_BASE64_ENCODED_PROP} : encryption param required to decrypt message</li>
-     * <li>{@value #PULSAR_ENCRYPTION_ALGO_PROP}: encryption algorithm</li>
-     * <li>{@value #PULSAR_COMPRESSION_TYPE_PROP}: compression type if message is already compressed
-     * {@link CompressionType} (null if message is not compressed).</li>
-     * <li>{@value #PULSAR_UNCOMPRESSED_MSG_SIZE_PROP}: uncompressed message size (null if message is not compressed).
-     * </li>
-     * <li>{@value #PULSAR_BATCH_SIZE_PROP}: number of messages present into batch message (null if message is not batch
-     * message).</li>
-     * </ul>
-     * 
+     * Delivered encrypted message contains {@link EncryptionContext} which contains encryption and compression
+     * information in it using which application can decrypt consumed message payload.
      * 
      */
     CONSUME;
-    
-    public static final String PULSAR_ENCRYPTION_KEY_PROP = "__pulsar_encryption_key__";
-    public static final String PULSAR_ENCRYPTION_PARAM_BASE64_ENCODED_PROP = "__pulsar_encryption_param_base64_encoded__";
-    public static final String PULSAR_ENCRYPTION_ALGO_PROP = "__pulsar_encryption_algo__";
-    public static final String PULSAR_COMPRESSION_TYPE_PROP = "__pulsar_compression_type__";
-    public static final String PULSAR_UNCOMPRESSED_MSG_SIZE_PROP = "__pulsar_uncompressed_msg_size__";
-    public static final String PULSAR_BATCH_SIZE_PROP = "__pulsar_batch_size__";
 }

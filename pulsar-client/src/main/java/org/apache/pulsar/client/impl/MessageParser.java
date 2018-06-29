@@ -25,6 +25,7 @@ import static org.apache.pulsar.common.api.Commands.readChecksum;
 import io.netty.buffer.ByteBuf;
 
 import java.io.IOException;
+import java.util.Optional;
 
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
@@ -175,7 +176,7 @@ public class MessageParser {
                 BatchMessageIdImpl batchMessageIdImpl = new BatchMessageIdImpl(messageId.getLedgerId(),
                         messageId.getEntryId(), partitionIndex, i, null);
                 final MessageImpl<?> message = new MessageImpl<>(batchMessageIdImpl, msgMetadata,
-                        singleMessageMetadataBuilder.build(), singleMessagePayload, cnx, null);
+                        singleMessageMetadataBuilder.build(), singleMessagePayload, Optional.empty(), cnx, null);
 
                 processor.process(batchMessageIdImpl, message, singleMessagePayload);
 
