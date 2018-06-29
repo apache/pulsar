@@ -29,8 +29,6 @@ import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
-import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
-import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
@@ -122,6 +120,60 @@ public class ReadOnlyCursorTest extends MockedBookKeeperTestCase {
 
         assertEquals(cursor.getNumberOfEntries(), N - 5);
         assertTrue(cursor.hasMoreEntries());
+
+        cursor.close();
+    }
+
+    @Test
+    void skipAll() throws Exception {
+        ManagedLedger ledger = factory.open("skip-all",
+                new ManagedLedgerConfig().setMaxEntriesPerLedger(7).setRetentionTime(1, TimeUnit.HOURS));
+
+        int N = 10;
+
+        for (int i = 0; i < N; i++) {
+            ledger.addEntry(("entry-" + i).getBytes());
+        }
+
+        ReadOnlyCursor cursor = factory.openReadOnlyCursor("skip-all", PositionImpl.earliest,
+                new ManagedLedgerConfig());
+
+        assertEquals(cursor.getNumberOfEntries(), N);
+        assertTrue(cursor.hasMoreEntries());
+
+        cursor.skipEntries(N);
+
+        assertEquals(cursor.getNumberOfEntries(), 0);
+        assertFalse(cursor.hasMoreEntries());
+
+        cursor.close();
+    }
+
+    @Test
+    void skipMultiple() throws Exception {
+        ManagedLedger ledger = factory.open("skip",
+                new ManagedLedgerConfig().setMaxEntriesPerLedger(7).setRetentionTime(1, TimeUnit.HOURS));
+
+        int N = 30;
+
+        for (int i = 0; i < N; i++) {
+            ledger.addEntry(("entry-" + i).getBytes());
+        }
+
+        ReadOnlyCursor cursor = factory.openReadOnlyCursor("skip", PositionImpl.earliest, new ManagedLedgerConfig());
+
+        assertEquals(cursor.getNumberOfEntries(), N);
+        assertTrue(cursor.hasMoreEntries());
+
+        cursor.skipEntries(25);
+
+        assertEquals(cursor.getNumberOfEntries(), 5);
+        assertTrue(cursor.hasMoreEntries());
+
+        cursor.skipEntries(5);
+
+        assertEquals(cursor.getNumberOfEntries(), 0);
+        assertFalse(cursor.hasMoreEntries());
 
         cursor.close();
     }

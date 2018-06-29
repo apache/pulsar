@@ -2377,7 +2377,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     currentEntryId = totalEntriesInCurrentLedger;
                     break;
                 } else {
-                    currentLedgerId = ledgers.ceilingKey(currentLedgerId + 1);
+                    Long lid = ledgers.ceilingKey(currentLedgerId + 1);
+                    currentLedgerId = lid != null ? lid : (ledgers.lastKey() + 1);
                     currentEntryId = 0;
                 }
             }
