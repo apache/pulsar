@@ -85,8 +85,6 @@ groups:
     endpoint: ZooKeeperBookKeeper
   - title: Geo-replication
     endpoint: GeoReplication
-  - title: Authentication and authorization
-    endpoint: Authz
   - title: Dashboard
     endpoint: Dashboard
   - title: Pulsar statistics
@@ -95,6 +93,20 @@ groups:
     endpoint: LoadDistribution
   - title: Pulsar proxy
     endpoint: Proxy
+
+- title: Security
+  dir: security
+  docs:
+  - title: Overview
+    endpoint: overview
+  - title: Encryption and Authentication using TLS
+    endpoint: tls
+  - title: Authentication using Authenz
+    endpoint: authenz
+  - title: Authorization and ACLs
+    endpoint: authorization
+  - title: End-to-End Encryption
+    endpoint: encryption
 
 - title: Client libraries
   dir: clients
