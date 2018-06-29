@@ -78,6 +78,8 @@ groups:
     endpoint: GeoReplication
   - title: Authentication and authorization
     endpoint: Authz
+  - title: Upgrade Guide
+    endpoint: Upgrade
   - title: Dashboard
     endpoint: Dashboard
   - title: Pulsar statistics
