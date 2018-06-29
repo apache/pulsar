@@ -1394,7 +1394,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     openFuture = config.getLedgerOffloader().readOffloaded(ledgerId, uid);
                 } else {
                     openFuture = bookKeeper.newOpenLedgerOp()
-                        .withRecovery(true)
+                        .withRecovery(!isReadOnly())
                         .withLedgerId(ledgerId)
                         .withDigestType(config.getDigestType())
                         .withPassword(config.getPassword()).execute();
@@ -2699,6 +2699,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     public long getCacheSize() {
         return entryCache.getSize();
+    }
+
+    protected boolean isReadOnly() {
+        // Default managed ledger implementation is read-write
+        return false;
     }
 
     /**

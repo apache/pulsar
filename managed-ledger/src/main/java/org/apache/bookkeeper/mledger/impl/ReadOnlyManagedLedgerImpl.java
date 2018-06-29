@@ -124,4 +124,7 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
         return cursor;
     }
 
+    protected boolean isReadOnly() {
+        return true;
+    }
 }
