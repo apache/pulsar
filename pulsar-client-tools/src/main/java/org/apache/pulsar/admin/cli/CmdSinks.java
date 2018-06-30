@@ -135,7 +135,7 @@ public class CmdSinks extends CmdBase {
                             .tlsAllowInsecureConnection(tlsAllowInsecureConnection)
                             .tlsHostnameVerificationEnable(tlsHostNameVerificationEnabled)
                             .tlsTrustCertsFilePath(tlsTrustCertFilePath).build(),
-                    jarFile, admin);
+                    sinkConfig.getJar(), admin);
         }
     }
 
@@ -144,9 +144,9 @@ public class CmdSinks extends CmdBase {
         @Override
         void runCmd() throws Exception {
             if (Utils.isFunctionPackageUrlSupported(jarFile)) {
-                admin.functions().createFunctionWithUrl(createSinkConfig(sinkConfig), jarFile);
+                admin.functions().createFunctionWithUrl(createSinkConfig(sinkConfig), sinkConfig.getJar());
             } else {
-                admin.functions().createFunction(createSinkConfig(sinkConfig), jarFile);
+                admin.functions().createFunction(createSinkConfig(sinkConfig), sinkConfig.getJar());
             }
             print("Created successfully");
         }
@@ -157,9 +157,9 @@ public class CmdSinks extends CmdBase {
         @Override
         void runCmd() throws Exception {
             if (Utils.isFunctionPackageUrlSupported(jarFile)) {
-                admin.functions().updateFunctionWithUrl(createSinkConfig(sinkConfig), jarFile);
+                admin.functions().updateFunctionWithUrl(createSinkConfig(sinkConfig), sinkConfig.getJar());
             } else {
-                admin.functions().updateFunction(createSinkConfig(sinkConfig), jarFile);
+                admin.functions().updateFunction(createSinkConfig(sinkConfig), sinkConfig.getJar());
             }
             print("Updated successfully");
         }
