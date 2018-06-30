@@ -52,6 +52,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
@@ -1176,11 +1177,26 @@ public class ServerCnx extends PulsarHandler {
     protected void handleGetTopicsOfNamespace(CommandGetTopicsOfNamespace commandGetTopicsOfNamespace) {
         final long requestId = commandGetTopicsOfNamespace.getRequestId();
         final String namespace = commandGetTopicsOfNamespace.getNamespace();
+        final CommandGetTopicsOfNamespace.Mode mode = commandGetTopicsOfNamespace.getMode();
 
         try {
-            List<String> topics = getBrokerService().pulsar()
-                .getNamespaceService()
-                .getListOfTopics(NamespaceName.get(namespace));
+            final List<String> topics;
+            final NamespaceService service = getBrokerService().pulsar().getNamespaceService();
+            final NamespaceName namespaceName = NamespaceName.get(namespace);
+
+
+            switch (mode) {
+                case ALL:
+                    topics = service.getFullListOfTopics(namespaceName);
+                    break;
+                case NON_PERSISTENT:
+                    topics = service.getListOfNonPersistentTopics(namespaceName);
+                    break;
+                case PERSISTENT:
+                default:
+                    topics = service.getListOfPersistentTopics(namespaceName);
+                    break;
+            }
 
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Received CommandGetTopicsOfNamespace for namespace [//{}] by {}, size:{}",

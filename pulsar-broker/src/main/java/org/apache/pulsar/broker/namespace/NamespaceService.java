@@ -24,6 +24,7 @@ import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace;
 import static org.apache.pulsar.common.naming.NamespaceBundleFactory.getBundlesData;
 import static org.apache.pulsar.zookeeper.ZooKeeperCache.cacheTimeOutInSec;
 
@@ -810,7 +811,13 @@ public class NamespaceService {
         return getBundle(topicName);
     }
 
-    public List<String> getListOfTopics(NamespaceName namespaceName) throws Exception {
+    public List<String> getFullListOfTopics(NamespaceName namespaceName) throws Exception {
+        List<String> topics = getListOfPersistentTopics(namespaceName);
+        topics.addAll(getListOfNonPersistentTopics(namespaceName));
+        return topics;
+    }
+
+    public List<String> getListOfPersistentTopics(NamespaceName namespaceName) throws Exception {
         List<String> topics = Lists.newArrayList();
 
         // For every topic there will be a managed ledger created.
@@ -827,19 +834,26 @@ public class NamespaceService {
             // NoNode means there are no persistent topics for this namespace
         }
 
-        // Non-persistent topics don't have managed ledges so we have to retrieve them from local cache.
-		synchronized (pulsar.getBrokerService().getMultiLayerTopicMap()) {
-			if (pulsar.getBrokerService().getMultiLayerTopicMap().containsKey(namespaceName.toString())) {
-				pulsar.getBrokerService().getMultiLayerTopicMap().get(namespaceName.toString()).values()
-						.forEach(bundle -> {
-							bundle.forEach((topicName, topic) -> {
-								if (topic instanceof NonPersistentTopic && ((NonPersistentTopic)topic).isActive()) {
-									topics.add(topicName);
-								}
-							});
-						});
-			}
-		}
+        topics.sort(null);
+        return topics;
+    }
+
+    public List<String> getListOfNonPersistentTopics(NamespaceName namespaceName) {
+        List<String> topics = Lists.newArrayList();
+
+        // Non-persistent topics don't have managed ledgers so we have to retrieve them from local cache.
+        synchronized (pulsar.getBrokerService().getMultiLayerTopicMap()) {
+            if (pulsar.getBrokerService().getMultiLayerTopicMap().containsKey(namespaceName.toString())) {
+                pulsar.getBrokerService().getMultiLayerTopicMap().get(namespaceName.toString()).values()
+                    .forEach(bundle -> {
+                        bundle.forEach((topicName, topic) -> {
+                            if (topic instanceof NonPersistentTopic && ((NonPersistentTopic)topic).isActive()) {
+                                topics.add(topicName);
+                            }
+                        });
+                    });
+            }
+        }
 
         topics.sort(null);
         return topics;

@@ -82,7 +82,7 @@ public class Namespaces extends NamespacesBase {
         getNamespacePolicies(namespaceName);
 
         try {
-            return pulsar().getNamespaceService().getListOfTopics(namespaceName);
+            return pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName);
         } catch (Exception e) {
             log.error("Failed to get topics list for namespace {}", namespaceName, e);
             throw new RestException(e);

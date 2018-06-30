@@ -18,13 +18,10 @@
  */
 package org.apache.pulsar.broker.admin.v1;
 
-import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES_ROOT;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 
 import javax.ws.rs.Consumes;
@@ -40,10 +37,8 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
 
-import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.admin.impl.NamespacesBase;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
@@ -54,7 +49,6 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -125,7 +119,7 @@ public class Namespaces extends NamespacesBase {
         getNamespacePolicies(namespaceName);
 
         try {
-            return pulsar().getNamespaceService().getListOfTopics(namespaceName);
+            return pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName);
         } catch (Exception e) {
             log.error("Failed to get topics list for namespace {}/{}/{}", property, cluster, namespace, e);
             throw new RestException(e);
