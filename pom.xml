@@ -1141,6 +1141,9 @@ flexible messaging model and an intuitive client API.</description>
           <artifactId>nifi-nar-maven-plugin</artifactId>
           <version>1.2.0</version>
           <extensions>true</extensions>
+          <configuration>
+            <finalName>${project.artifactId}-${project.version}</finalName>
+          </configuration>
           <executions>
             <execution>
               <id>default-nar</id>

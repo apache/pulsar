@@ -34,7 +34,12 @@
       <fileMode>644</fileMode>
     </file>
     <file>
-      <source>${basedir}/../server/src/assemble/README.bin.txt</source>
+      <source>${basedir}/../../LICENSE</source>
+      <outputDirectory>.</outputDirectory>
+      <fileMode>644</fileMode>
+    </file>
+    <file>
+      <source>${basedir}/src/assemble/README</source>
       <destName>README</destName>
       <outputDirectory>.</outputDirectory>
       <fileMode>644</fileMode>
@@ -42,37 +47,37 @@
 
     <file>
       <source>${basedir}/../../pulsar-io/cassandra/target/pulsar-io-cassandra.nar</source>
-      <outputDirectory>cassandra</outputDirectory>
+      <outputDirectory>connectors</outputDirectory>
       <fileMode>644</fileMode>
     </file>
 
     <file>
       <source>${basedir}/../../pulsar-io/twitter/target/pulsar-io-twitter.nar</source>
-      <outputDirectory>twitter</outputDirectory>
+      <outputDirectory>connectors</outputDirectory>
       <fileMode>644</fileMode>
     </file>
 
     <file>
       <source>${basedir}/../../pulsar-io/kafka/target/pulsar-io-kafka.nar</source>
-      <outputDirectory>kafka</outputDirectory>
+      <outputDirectory>connectors</outputDirectory>
       <fileMode>644</fileMode>
     </file>
 
     <file>
       <source>${basedir}/../../pulsar-io/kinesis/target/pulsar-io-kinesis.nar</source>
-      <outputDirectory>kinesis</outputDirectory>
+      <outputDirectory>connectors</outputDirectory>
       <fileMode>644</fileMode>
     </file>
 
     <file>
       <source>${basedir}/../../pulsar-io/rabbitmq/target/pulsar-io-rabbitmq.nar</source>
-      <outputDirectory>rabbitmq</outputDirectory>
+      <outputDirectory>connectors</outputDirectory>
       <fileMode>644</fileMode>
     </file>
 
     <file>
       <source>${basedir}/../../pulsar-io/aerospike/target/pulsar-io-aerospike.nar</source>
-      <outputDirectory>aerospike</outputDirectory>
+      <outputDirectory>connectors</outputDirectory>
       <fileMode>644</fileMode>
     </file>
   </files>
