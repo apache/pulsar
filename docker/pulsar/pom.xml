@@ -34,7 +34,7 @@
   <dependencies>
     <dependency>
       <groupId>org.apache.pulsar</groupId>
-      <artifactId>distribution</artifactId>
+      <artifactId>pulsar-server-distribution</artifactId>
       <version>${project.parent.version}</version>
       <classifier>bin</classifier>
       <type>tar.gz</type>
