@@ -1069,7 +1069,9 @@
 
 <p>Given that global topics exist in multiple regions, it’s not possible to directly delete a global topic. Instead, you should rely on automatic topic garbage collection.</p>
 
-<p>In Pulsar, a topic is automatically deleted when it’s no longer used, that is to say, when no producers or consumers are connected <em>and</em> there are no subscriptions. For global topics, each region will use a fault-tolerant mechanism to decide when it’s safe to delete the topic locally.</p>
+<p>In Pulsar, a topic is automatically deleted when it’s no longer used, that is to say, when no producers or consumers are connected <em>and</em> there are no subscriptions <em>and</em> no more messages are kept for retention. For global topics, each region will use a fault-tolerant mechanism to decide when it’s safe to delete the topic locally.</p>
+
+<p>You can explicitly disable topic garbage collection by setting <code class="highlighter-rouge">brokerDeleteInactiveTopicsEnabled</code> to <code class="highlighter-rouge">false</code> in your <a href="../../reference/Configuration/#Broker-ckhlfn">broker configuration</a>.</p>
 
 <p>To delete a global topic, close all producers and consumers on the topic and delete all its local subscriptions in every replication cluster. When Pulsar determines that no valid subscription for the topic remains across the system, it will garbage collect the topic.</p>
 
