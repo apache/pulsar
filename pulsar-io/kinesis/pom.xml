@@ -57,7 +57,7 @@
       <groupId>com.fasterxml.jackson.dataformat</groupId>
       <artifactId>jackson-dataformat-yaml</artifactId>
     </dependency>
-    
+
     <dependency>
       <groupId>com.google.code.gson</groupId>
       <artifactId>gson</artifactId>
@@ -67,7 +67,6 @@
 	<dependency>
     <groupId>com.amazonaws</groupId>
     <artifactId>aws-java-sdk-core</artifactId>
-    <version>1.11.46</version>
     </dependency>
 
     <dependency>
@@ -88,39 +87,12 @@
 	<!-- /kinesis dependencies -->
 
   </dependencies>
-  
+
   <build>
     <plugins>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-shade-plugin</artifactId>
-        <executions>
-          <execution>
-            <phase>package</phase>
-            <goals>
-              <goal>shade</goal>
-            </goals>
-            <configuration>
-              <createDependencyReducedPom>true</createDependencyReducedPom>
-              <promoteTransitiveDependencies>true</promoteTransitiveDependencies>
-              <minimizeJar>false</minimizeJar>
-              <artifactSet>
-                <includes>
-                  <include>com.amazonaws*:*</include>
-                  <include>com.google.protobuf*:*</include>
-                  <include>${project.groupId}:*</include>
-                  <include>com.fasterxml.jackson*:*</include>
-                </includes>
-              </artifactSet>
-              <relocations>
-                <relocation>
-                  <pattern>com.google.protobuf</pattern>
-                  <shadedPattern>org.apache.pulsar.replicator.com.google.protobuf</shadedPattern>
-                </relocation>
-              </relocations>
-            </configuration>
-          </execution>
-        </executions>
+        <groupId>org.apache.nifi</groupId>
+        <artifactId>nifi-nar-maven-plugin</artifactId>
       </plugin>
     </plugins>
   </build>

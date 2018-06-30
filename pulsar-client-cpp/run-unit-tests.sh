@@ -23,7 +23,7 @@
 
 rm -rf ./pulsar-dist
 mkdir pulsar-dist
-tar xfz ../all/target/apache-pulsar*bin.tar.gz  -C pulsar-dist --strip-components 1
+tar xfz ../distribution/server/target/apache-pulsar*bin.tar.gz  -C pulsar-dist --strip-components 1
 
 PULSAR_STANDALONE_CONF=$PWD/test-conf/standalone.conf pulsar-dist/bin/pulsar standalone --no-functions-worker --no-stream-storage > broker.log &
 standalone_pid=$!;

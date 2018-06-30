@@ -24,14 +24,14 @@
 
   <parent>
     <groupId>org.apache.pulsar</groupId>
-    <artifactId>pulsar</artifactId>
+    <artifactId>distribution</artifactId>
     <version>2.2.0-incubating-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
-  <artifactId>distribution</artifactId>
+  <artifactId>pulsar-server-distribution</artifactId>
   <packaging>pom</packaging>
-  <name>distribution</name>
+  <name>Pulsar :: Distribution :: Server</name>
 
   <dependencies>
     <dependency>

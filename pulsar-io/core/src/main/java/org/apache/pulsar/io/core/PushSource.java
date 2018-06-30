@@ -20,7 +20,6 @@ package org.apache.pulsar.io.core;
 
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.function.Consumer;
 
 /**
  * Pulsar's Push Source interface. PushSource read data from
