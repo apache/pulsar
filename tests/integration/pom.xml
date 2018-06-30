@@ -37,5 +37,6 @@
     <module>compaction</module>
     <module>cli</module>
     <module>s3-offload</module>
+    <module>semantics</module>
   </modules>
 </project>

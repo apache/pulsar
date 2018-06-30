@@ -27,51 +27,27 @@
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>org.apache.pulsar.tests</groupId>
-    <artifactId>tests-parent</artifactId>
+    <artifactId>integration</artifactId>
     <version>2.2.0-incubating-SNAPSHOT</version>
   </parent>
 
-  <groupId>org.apache.pulsar.tests</groupId>
-  <artifactId>integration-tests-utils</artifactId>
+  <groupId>org.apache.pulsar.tests.integration</groupId>
+  <artifactId>semantics</artifactId>
   <packaging>jar</packaging>
-
-  <name>Apache Pulsar :: Tests :: Utility module for Arquillian based integration tests</name>
+  <name>Apache Pulsar :: Tests :: Integration Tests :: Semantics</name>
 
   <dependencies>
     <dependency>
-      <groupId>org.apache.commons</groupId>
-      <artifactId>commons-compress</artifactId>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-client</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
     </dependency>
-
     <dependency>
-      <groupId>org.apache.zookeeper</groupId>
-      <artifactId>zookeeper</artifactId>
+      <groupId>org.apache.pulsar.tests</groupId>
+      <artifactId>integration-tests-topologies</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
     </dependency>
-
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-api</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.logging.log4j</groupId>
-      <artifactId>log4j-slf4j-impl</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-databind</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.fasterxml.jackson.dataformat</groupId>
-      <artifactId>jackson-dataformat-yaml</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.arquillian.cube</groupId>
-      <artifactId>arquillian-cube-docker</artifactId>
-    </dependency>
-
   </dependencies>
 </project>
