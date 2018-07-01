@@ -132,6 +132,7 @@ public class PulsarSource<T> implements Source<T> {
                 .partitionId(String.format("%s-%s", topicName, partitionId))
                 .recordSequence(Utils.getSequenceId(message.getMessageId()))
                 .topicName(topicName)
+                .properties(message.getProperties())
                 .ackFunction(() -> {
                     if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
                         inputConsumer.acknowledgeCumulativeAsync(message);
