@@ -715,8 +715,8 @@ public class CmdFunctions extends CmdBase {
     class CreateFunction extends FunctionDetailsCommand {
         @Override
         void runCmd() throws Exception {
-            if (Utils.isFunctionPackageUrlSupported(jarFile)) {
-                admin.functions().createFunctionWithUrl(convert(functionConfig), jarFile);
+            if (Utils.isFunctionPackageUrlSupported(functionConfig.getJar())) {
+                admin.functions().createFunctionWithUrl(convert(functionConfig), functionConfig.getJar());
             } else {
                 admin.functions().createFunction(convert(functionConfig), userCodeFile);
             }
@@ -758,8 +758,8 @@ public class CmdFunctions extends CmdBase {
     class UpdateFunction extends FunctionDetailsCommand {
         @Override
         void runCmd() throws Exception {
-            if (Utils.isFunctionPackageUrlSupported(jarFile)) {
-                admin.functions().updateFunctionWithUrl(convert(functionConfig), jarFile);
+            if (Utils.isFunctionPackageUrlSupported(functionConfig.getJar())) {
+                admin.functions().updateFunctionWithUrl(convert(functionConfig), functionConfig.getJar());
             } else {
                 admin.functions().updateFunction(convert(functionConfig), userCodeFile);
             }
