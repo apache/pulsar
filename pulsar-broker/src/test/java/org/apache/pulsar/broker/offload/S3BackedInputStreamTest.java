@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.s3offload;
+package org.apache.pulsar.broker.offload;
 
 import static org.mockito.Matchers.anyObject;
 import static org.mockito.Mockito.spy;
@@ -34,11 +34,9 @@ import java.util.Random;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.pulsar.broker.s3offload.impl.S3BackedInputStreamImpl;
+import org.apache.pulsar.broker.offload.impl.S3BackedInputStreamImpl;
 
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -96,7 +94,7 @@ class S3BackedInputStreamTest extends S3TestBase {
         metadata.setContentLength(objectSize);
         s3client.putObject(BUCKET, objectKey, toWrite, metadata);
 
-        S3BackedInputStream toTest = new S3BackedInputStreamImpl(s3client, BUCKET, objectKey,
+        BackedInputStream toTest = new S3BackedInputStreamImpl(s3client, BUCKET, objectKey,
                                                                  (key, md) -> {},
                                                                  objectSize, 1000);
         assertStreamsMatch(toTest, toCompare);
@@ -113,7 +111,7 @@ class S3BackedInputStreamTest extends S3TestBase {
         metadata.setContentLength(objectSize);
         s3client.putObject(BUCKET, objectKey, toWrite, metadata);
 
-        S3BackedInputStream toTest = new S3BackedInputStreamImpl(s3client, BUCKET, objectKey,
+        BackedInputStream toTest = new S3BackedInputStreamImpl(s3client, BUCKET, objectKey,
                                                                  (key, md) -> {},
                                                                  objectSize, 1000);
         assertStreamsMatchByBytes(toTest, toCompare);
@@ -121,7 +119,7 @@ class S3BackedInputStreamTest extends S3TestBase {
 
     @Test(expectedExceptions = IOException.class)
     public void testErrorOnS3Read() throws Exception {
-        S3BackedInputStream toTest = new S3BackedInputStreamImpl(s3client, BUCKET, "doesn't exist",
+        BackedInputStream toTest = new S3BackedInputStreamImpl(s3client, BUCKET, "doesn't exist",
                                                                  (key, md) -> {},
                                                                  1234, 1000);
         toTest.read();
@@ -147,7 +145,7 @@ class S3BackedInputStreamTest extends S3TestBase {
         metadata.setContentLength(objectSize);
         s3client.putObject(BUCKET, objectKey, toWrite, metadata);
 
-        S3BackedInputStream toTest = new S3BackedInputStreamImpl(s3client, BUCKET, objectKey,
+        BackedInputStream toTest = new S3BackedInputStreamImpl(s3client, BUCKET, objectKey,
                                                                  (key, md) -> {},
                                                                  objectSize, 1000);
         for (Map.Entry<Integer, InputStream> e : seeks.entrySet()) {
@@ -167,7 +165,7 @@ class S3BackedInputStreamTest extends S3TestBase {
         s3client.putObject(BUCKET, objectKey, toWrite, metadata);
 
         AmazonS3 spiedClient = spy(s3client);
-        S3BackedInputStream toTest = new S3BackedInputStreamImpl(spiedClient, BUCKET, objectKey,
+        BackedInputStream toTest = new S3BackedInputStreamImpl(spiedClient, BUCKET, objectKey,
                                                                  (key, md) -> {},
                                                                  objectSize, 1000);
 
@@ -208,7 +206,7 @@ class S3BackedInputStreamTest extends S3TestBase {
         metadata.setContentLength(objectSize);
         s3client.putObject(BUCKET, objectKey, toWrite, metadata);
 
-        S3BackedInputStream toTest = new S3BackedInputStreamImpl(s3client, BUCKET, objectKey,
+        BackedInputStream toTest = new S3BackedInputStreamImpl(s3client, BUCKET, objectKey,
                                                                  (key, md) -> {},
                                                                  objectSize, 1000);
 

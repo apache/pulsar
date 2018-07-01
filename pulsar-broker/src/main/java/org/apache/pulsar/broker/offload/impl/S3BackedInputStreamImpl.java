@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.s3offload.impl;
+package org.apache.pulsar.broker.offload.impl;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.s3.AmazonS3;
@@ -29,13 +29,13 @@ import io.netty.buffer.PooledByteBufAllocator;
 import java.io.InputStream;
 import java.io.IOException;
 
-import org.apache.pulsar.broker.s3offload.S3BackedInputStream;
-import org.apache.pulsar.broker.s3offload.S3ManagedLedgerOffloader.VersionCheck;
+import org.apache.pulsar.broker.offload.BackedInputStream;
+import org.apache.pulsar.broker.offload.impl.S3ManagedLedgerOffloader.VersionCheck;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class S3BackedInputStreamImpl extends S3BackedInputStream {
+public class S3BackedInputStreamImpl extends BackedInputStream {
     private static final Logger log = LoggerFactory.getLogger(S3BackedInputStreamImpl.class);
 
     private final AmazonS3 s3client;

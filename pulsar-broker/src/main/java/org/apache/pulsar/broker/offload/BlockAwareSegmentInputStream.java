@@ -16,9 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.s3offload;
+package org.apache.pulsar.broker.offload;
 
-import java.io.IOException;
 import java.io.InputStream;
 import org.apache.bookkeeper.client.api.ReadHandle;
 
