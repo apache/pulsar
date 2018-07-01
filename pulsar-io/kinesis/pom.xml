@@ -64,26 +64,21 @@
     </dependency>
 
     <!-- kinesis dependencies -->
-	<dependency>
-    <groupId>com.amazonaws</groupId>
-    <artifactId>aws-java-sdk-core</artifactId>
-    <version>1.11.46</version>
+    <dependency>
+      <groupId>com.amazonaws</groupId>
+      <artifactId>aws-java-sdk-core</artifactId>
     </dependency>
 
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>amazon-kinesis-client</artifactId>
-      <version>1.7.2</version>
+      <version>1.9.0</version>
     </dependency>
+    
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>amazon-kinesis-producer</artifactId>
       <version>0.12.8</version>
-    </dependency>
-    <dependency>
-      <groupId>com.google.protobuf</groupId>
-      <artifactId>protobuf-java</artifactId>
-      <version>2.6.1</version>
     </dependency>
 	<!-- /kinesis dependencies -->
 
@@ -106,10 +101,7 @@
               <minimizeJar>false</minimizeJar>
               <artifactSet>
                 <includes>
-                  <include>com.amazonaws*:*</include>
-                  <include>com.google.protobuf*:*</include>
-                  <include>${project.groupId}:*</include>
-                  <include>com.fasterxml.jackson*:*</include>
+                  <include>*:*</include>
                 </includes>
               </artifactSet>
               <relocations>
