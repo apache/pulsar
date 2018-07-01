@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.tests.topologies;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.tests.containers.PulsarContainer.CS_PORT;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -34,6 +36,7 @@ import org.apache.pulsar.tests.containers.CSContainer;
 import org.apache.pulsar.tests.containers.ProxyContainer;
 import org.apache.pulsar.tests.containers.PulsarContainer;
 import org.apache.pulsar.tests.containers.ZKContainer;
+import org.testcontainers.containers.Container.ExecResult;
 import org.testcontainers.containers.Network;
 
 /**
@@ -41,6 +44,8 @@ import org.testcontainers.containers.Network;
  */
 @Slf4j
 public class PulsarCluster {
+
+    protected static final String ADMIN_SCRIPT = "/pulsar/bin/pulsar-admin";
 
     /**
      * Pulsar Cluster Spec.
@@ -168,5 +173,33 @@ public class PulsarCluster {
         } catch (Exception e) {
             log.info("Failed to shutdown network for pulsar cluster {}", clusterName, e);
         }
+    }
+
+    public BrokerContainer getAnyBroker() {
+        List<BrokerContainer> brokerList = Lists.newArrayList();
+        brokerList.addAll(brokerContainers.values());
+        Collections.shuffle(brokerList);
+        checkArgument(!brokerList.isEmpty(), "No broker is alive");
+        return brokerList.get(0);
+    }
+
+    public ExecResult runAdminCommandOnAnyBroker(String...commands) throws Exception {
+        BrokerContainer container = getAnyBroker();
+        String[] cmds = new String[commands.length + 1];
+        cmds[0] = ADMIN_SCRIPT;
+        System.arraycopy(commands, 0, cmds, 1, commands.length);
+        return container.execCmd(cmds);
+    }
+
+    public ExecResult createNamespace(String nsName) throws Exception {
+        return runAdminCommandOnAnyBroker(
+            "namespaces", "create", "public/" + nsName,
+            "--clusters", clusterName);
+    }
+
+    public ExecResult enableDeduplication(String nsName, boolean enabled) throws Exception {
+        return runAdminCommandOnAnyBroker(
+            "namespaces", "set-deduplication", "public/" + nsName,
+            enabled ? "--enable" : "--disable");
     }
 }
