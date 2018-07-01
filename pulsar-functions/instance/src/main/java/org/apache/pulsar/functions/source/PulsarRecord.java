@@ -23,6 +23,9 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
+
+import java.util.Map;
+
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.io.core.Record;
 
@@ -38,6 +41,7 @@ public class PulsarRecord<T> implements Record<T> {
     private T value;
     private MessageId messageId;
     private String topicName;
+    private Map<String, String> properties;
     private Runnable failFunction;
     private Runnable ackFunction;
 

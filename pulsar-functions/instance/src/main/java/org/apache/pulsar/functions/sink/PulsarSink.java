@@ -221,10 +221,13 @@ public class PulsarSink<T> implements Sink<T> {
         msgBuilder.setContent(output);
         if (recordContext instanceof PulsarRecord) {
             PulsarRecord pulsarRecord = (PulsarRecord) recordContext;
-            msgBuilder
-                    .setProperty("__pfn_input_topic__", pulsarRecord.getTopicName())
-                    .setProperty("__pfn_input_msg_id__", new String(
-                            Base64.getEncoder().encode(pulsarRecord.getMessageId().toByteArray())));
+            // forward user properties to sink-topic
+            if (pulsarRecord.getProperties() != null) {
+                msgBuilder.setProperties(pulsarRecord.getProperties());
+            }
+            msgBuilder.setProperty("__pfn_input_topic__", pulsarRecord.getTopicName()).setProperty(
+                    "__pfn_input_msg_id__",
+                    new String(Base64.getEncoder().encode(pulsarRecord.getMessageId().toByteArray())));
         }
 
         this.pulsarSinkProcessor.sendOutputMessage(msgBuilder, recordContext);
