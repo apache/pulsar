@@ -64,7 +64,7 @@
     </dependency>
 
     <!-- kinesis dependencies -->
-	<dependency>
+    <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>aws-java-sdk-core</artifactId>
     </dependency>
