@@ -37,5 +37,55 @@
     <module>compaction</module>
     <module>cli</module>
     <module>s3-offload</module>
+    <module>semantics</module>
   </modules>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <!-- only run tests when -DintegrationTests is specified //-->
+          <skipTests>true</skipTests>
+          <systemPropertyVariables>
+            <currentVersion>${project.version}</currentVersion>
+            <maven.buildDirectory>${project.build.directory}</maven.buildDirectory>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+  <profiles>
+    <profile>
+      <id>integrationTests</id>
+      <activation>
+        <property>
+          <name>integrationTests</name>
+        </property>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <configuration>
+              <properties>
+                <property>
+                  <name>listener</name>
+                  <!-- AnnotationListener breaks arquillian, so don't use it //-->
+                  <value>org.apache.pulsar.tests.PulsarTestListener</value>
+                </property>
+              </properties>
+
+              <argLine>-Xmx2G -XX:MaxDirectMemorySize=8G
+              -Dio.netty.leakDetectionLevel=advanced
+              </argLine>
+              <skipTests>false</skipTests>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>
