@@ -20,26 +20,31 @@ package org.apache.pulsar.tests.integration.semantics;
 
 import static org.testng.Assert.assertEquals;
 
+import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.tests.topologies.PulsarClusterTestBase;
 import org.testng.annotations.Test;
 
 /**
  * Test pulsar produce/consume semantics
  */
+@Slf4j
 public class SemanticsTest extends PulsarClusterTestBase {
 
-    @Test
-    public void testPublishAndConsumePlainTextServiceUrl() throws Exception {
-        testPublishAndConsume(
-            pulsarCluster.getPlainTextServiceUrl(), "test-publish-consume-plain-text");
-    }
+    //
+    // Test Basic Publish & Consume Operations
+    //
 
-    private void testPublishAndConsume(String serviceUrl, String topicName) throws Exception {
+    @Test(dataProvider = "ServiceUrlAndTopics")
+    public void testPublishAndConsume(String serviceUrl, boolean isPersistent) throws Exception {
+        String topicName = generateTopicName("testpubconsume", isPersistent);
 
         int numMessages = 10;
 
@@ -69,5 +74,114 @@ public class SemanticsTest extends PulsarClusterTestBase {
         }
     }
 
+    @Test(dataProvider = "ServiceUrls")
+    public void testEffectivelyOnceDisabled(String serviceUrl) throws Exception {
+        String nsName = generateNamespaceName();
+        pulsarCluster.createNamespace(nsName);
 
+        String topicName = generateTopicName(nsName, "testeffectivelyonce", true);
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+            .serviceUrl(serviceUrl)
+            .build();
+
+        @Cleanup
+        Consumer<String> consumer = client.newConsumer(Schema.STRING)
+            .topic(topicName)
+            .subscriptionName("test-sub")
+            .ackTimeout(10, TimeUnit.SECONDS)
+            .subscriptionType(SubscriptionType.Exclusive)
+            .subscribe();
+
+        @Cleanup
+        Producer<String> producer = client.newProducer(Schema.STRING)
+            .topic(topicName)
+            .enableBatching(false)
+            .producerName("effectively-once-producer")
+            .initialSequenceId(1L)
+            .create();
+
+        // send messages
+        sendMessagesIdempotency(producer);
+
+        // checkout the result
+        checkMessagesIdempotencyDisabled(consumer);
+    }
+
+    private static void sendMessagesIdempotency(Producer<String> producer) throws Exception {
+        // sending message
+        producer.newMessage()
+            .sequenceId(1L)
+            .value("message-1")
+            .send();
+
+        // sending a duplicated message
+        producer.newMessage()
+            .sequenceId(1L)
+            .value("duplicated-message-1")
+            .send();
+
+        // sending a second message
+        producer.newMessage()
+            .sequenceId(2L)
+            .value("message-2")
+            .send();
+    }
+
+    private static void checkMessagesIdempotencyDisabled(Consumer<String> consumer) throws Exception {
+        receiveAndAssertMessage(consumer, 1L, "message-1");
+        receiveAndAssertMessage(consumer, 1L, "duplicated-message-1");
+        receiveAndAssertMessage(consumer, 2L, "message-2");
+    }
+
+    private static void receiveAndAssertMessage(Consumer<String> consumer,
+                                                long expectedSequenceId,
+                                                String expectedContent) throws Exception {
+        Message<String> msg = consumer.receive();
+        log.info("Received message {}", msg);
+        assertEquals(expectedSequenceId, msg.getSequenceId());
+        assertEquals(expectedContent, msg.getValue());
+    }
+
+    @Test(dataProvider = "ServiceUrls")
+    public void testEffectivelyOnceEnabled(String serviceUrl) throws Exception {
+        String nsName = generateNamespaceName();
+        pulsarCluster.createNamespace(nsName);
+        pulsarCluster.enableDeduplication(nsName, true);
+
+        String topicName = generateTopicName(nsName, "testeffectivelyonce", true);
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+            .serviceUrl(serviceUrl)
+            .build();
+
+        @Cleanup
+        Consumer<String> consumer = client.newConsumer(Schema.STRING)
+            .topic(topicName)
+            .subscriptionName("test-sub")
+            .ackTimeout(10, TimeUnit.SECONDS)
+            .subscriptionType(SubscriptionType.Exclusive)
+            .subscribe();
+
+        @Cleanup
+        Producer<String> producer = client.newProducer(Schema.STRING)
+            .topic(topicName)
+            .enableBatching(false)
+            .producerName("effectively-once-producer")
+            .initialSequenceId(1L)
+            .create();
+
+        // send messages
+        sendMessagesIdempotency(producer);
+
+        // checkout the result
+        checkMessagesIdempotencyEnabled(consumer);
+    }
+
+    private static void checkMessagesIdempotencyEnabled(Consumer<String> consumer) throws Exception {
+        receiveAndAssertMessage(consumer, 1L, "message-1");
+        receiveAndAssertMessage(consumer, 2L, "message-2");
+    }
 }
