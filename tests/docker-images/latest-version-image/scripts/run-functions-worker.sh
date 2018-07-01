@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,24 +18,14 @@
 # under the License.
 #
 
-FROM openjdk:8-jdk
+bin/apply-config-from-env.py conf/client.conf && \
+    bin/gen-yml-from-env.py conf/functions_worker.yml && \
+    bin/apply-config-from-env.py conf/pulsar_env.sh
 
-# Install some utilities
-RUN apt-get update && apt-get install -y netcat dnsutils python-kazoo python-yaml
+if [ -z "$NO_AUTOSTART" ]; then
+    sed -i 's/autostart=.*/autostart=true/' /etc/supervisord/conf.d/functions_worker.conf
+fi
 
-ARG PULSAR_TARBALL
+bin/watch-znode.py -z $zookeeperServers -p /initialized-$clusterName -w
+exec /usr/bin/supervisord -c /etc/supervisord.conf
 
-ADD ${PULSAR_TARBALL} /
-RUN mv /apache-pulsar-* /pulsar
-
-COPY scripts/apply-config-from-env.py /pulsar/bin
-COPY scripts/gen-yml-from-env.py /pulsar/bin
-COPY scripts/generate-zookeeper-config.sh /pulsar/bin
-COPY scripts/pulsar-zookeeper-ruok.sh /pulsar/bin
-COPY scripts/watch-znode.py /pulsar/bin
-
-WORKDIR /pulsar
-
-VOLUME  ["/pulsar/conf", "/pulsar/data"]
-
-ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE

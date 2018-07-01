@@ -68,10 +68,9 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
     @Override
     protected void configure() {
         if (httpPort > 0) {
-            addExposedPorts(
-                servicePort, httpPort
-            );
-        } else if (servicePort > 0) {
+            addExposedPorts(httpPort);
+        }
+        if (servicePort > 0) {
             addExposedPort(servicePort);
         }
     }
@@ -80,7 +79,7 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
     public void start() {
         if (httpPort > 0 || servicePort > 0) {
             this.waitStrategy = new HostPortWaitStrategy()
-                .withStartupTimeout(Duration.of(60, SECONDS));
+                .withStartupTimeout(Duration.of(300, SECONDS));
         }
         this.withCreateContainerCmdModifier(createContainerCmd -> {
             createContainerCmd.withHostName(hostname);
