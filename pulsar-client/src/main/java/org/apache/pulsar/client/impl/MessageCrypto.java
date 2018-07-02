@@ -97,7 +97,7 @@ public class MessageCrypto {
 
     private static KeyGenerator keyGenerator;
     private static final int tagLen = 16 * 8;
-    private static final int ivLen = 12;
+    public static final int ivLen = 12;
     private byte[] iv = new byte[ivLen];
     private Cipher cipher;
     MessageDigest digest;

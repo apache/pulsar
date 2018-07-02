@@ -16,42 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.source;
-
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.ToString;
-
-import java.util.Map;
-
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.io.core.Record;
-
-@Data
-@Builder
-@Getter
-@ToString
-@EqualsAndHashCode
-public class PulsarRecord<T> implements Record<T> {
-
-    private String partitionId;
-    private long recordSequence;
-    private T value;
-    private MessageId messageId;
-    private String topicName;
-    private Map<String, String> properties;
-    private Runnable failFunction;
-    private Runnable ackFunction;
-
-    @Override
-    public void ack() {
-        this.ackFunction.run();
-    }
-
-    @Override
-    public void fail() {
-        this.failFunction.run();
-    }
-}
+/**
+ * Test containers used for running integration tests.
+ */
+package org.apache.pulsar.tests.containers;

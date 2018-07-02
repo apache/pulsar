@@ -123,6 +123,9 @@ flexible messaging model and an intuitive client API.</description>
     <testRealAWS>false</testRealAWS>
     <testRetryCount>1</testRetryCount>
 
+    <!-- apache commons -->
+    <commons-compress.version>1.15</commons-compress.version>
+
     <bookkeeper.version>4.7.1</bookkeeper.version>
     <zookeeper.version>3.5.4-beta</zookeeper.version>
     <netty.version>4.1.22.Final</netty.version>
@@ -156,7 +159,10 @@ flexible messaging model and an intuitive client API.</description>
     <avro.version>1.8.2</avro.version>
 
     <!-- test dependencies -->
+    <arquillian-cube.version>1.15.1</arquillian-cube.version>
+    <arquillian-junit.version>1.1.14.Final</arquillian-junit.version>
     <disruptor.version>3.4.0</disruptor.version>
+    <testcontainers.version>1.8.0</testcontainers.version>
 
     <!-- Plugin dependencies -->
     <protobuf-maven-plugin.version>0.5.0</protobuf-maven-plugin.version>
@@ -389,6 +395,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-lang3</artifactId>
         <version>3.4</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-compress</artifactId>
+        <version>${commons-compress.version}</version>
       </dependency>
 
       <dependency>
@@ -783,6 +795,21 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>com.lmax</groupId>
         <artifactId>disruptor</artifactId>
         <version>${disruptor.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>testcontainers</artifactId>
+        <version>${testcontainers.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.arquillian.cube</groupId>
+        <artifactId>arquillian-cube-docker</artifactId>
+        <version>${arquillian-cube.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.jboss.arquillian.junit</groupId>
+        <artifactId>arquillian-junit-standalone</artifactId>
+        <version>${arquillian-junit.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

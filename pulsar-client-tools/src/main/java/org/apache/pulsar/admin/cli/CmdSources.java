@@ -130,7 +130,7 @@ public class CmdSources extends CmdBase {
                             .tlsAllowInsecureConnection(tlsAllowInsecureConnection)
                             .tlsHostnameVerificationEnable(tlsHostNameVerificationEnabled)
                             .tlsTrustCertsFilePath(tlsTrustCertFilePath).build(),
-                    jarFile, admin);
+                    sourceConfig.getJar(), admin);
         }
     }
 
@@ -138,10 +138,10 @@ public class CmdSources extends CmdBase {
     public class CreateSource extends SourceCommand {
         @Override
         void runCmd() throws Exception {
-            if (Utils.isFunctionPackageUrlSupported(jarFile)) {
-                admin.functions().createFunctionWithUrl(createSourceConfig(sourceConfig), jarFile);
+            if (Utils.isFunctionPackageUrlSupported(this.sourceConfig.getJar())) {
+                admin.functions().createFunctionWithUrl(createSourceConfig(sourceConfig), sourceConfig.getJar());
             } else {
-                admin.functions().createFunction(createSourceConfig(sourceConfig), jarFile);
+                admin.functions().createFunction(createSourceConfig(sourceConfig), sourceConfig.getJar());
             }
             print("Created successfully");
         }
@@ -151,10 +151,10 @@ public class CmdSources extends CmdBase {
     public class UpdateSource extends SourceCommand {
         @Override
         void runCmd() throws Exception {
-            if (Utils.isFunctionPackageUrlSupported(jarFile)) {
-                admin.functions().updateFunctionWithUrl(createSourceConfig(sourceConfig), jarFile);
+            if (Utils.isFunctionPackageUrlSupported(sourceConfig.getJar())) {
+                admin.functions().updateFunctionWithUrl(createSourceConfig(sourceConfig), sourceConfig.getJar());
             } else {
-                admin.functions().updateFunction(createSourceConfig(sourceConfig), jarFile);
+                admin.functions().updateFunction(createSourceConfig(sourceConfig), sourceConfig.getJar());
             }
             print("Updated successfully");
         }

@@ -36,5 +36,21 @@
   <packaging>jar</packaging>
 
   <name>Apache Pulsar :: Tests :: Common topologies for Arquillian based integration tests</name>
+  <dependencies>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.testng</groupId>
+      <artifactId>testng</artifactId>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.pulsar.tests</groupId>
+      <artifactId>integration-tests-utils</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+  </dependencies>
 
 </project>

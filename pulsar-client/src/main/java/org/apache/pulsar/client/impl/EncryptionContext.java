@@ -16,42 +16,37 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.source;
-
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.ToString;
+package org.apache.pulsar.client.impl;
 
 import java.util.Map;
+import java.util.Optional;
 
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.io.core.Record;
+import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
 
-@Data
-@Builder
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 @Getter
-@ToString
-@EqualsAndHashCode
-public class PulsarRecord<T> implements Record<T> {
+@Setter
+public class EncryptionContext {
 
-    private String partitionId;
-    private long recordSequence;
-    private T value;
-    private MessageId messageId;
-    private String topicName;
-    private Map<String, String> properties;
-    private Runnable failFunction;
-    private Runnable ackFunction;
+    private Map<String, EncryptionKey> keys;
+    private byte[] param;
+    private Map<String, String> metadata;
+    private String algorithm;
+    private CompressionType compressionType;
+    private int uncompressedMessageSize;
+    private Optional<Integer> batchSize;
 
-    @Override
-    public void ack() {
-        this.ackFunction.run();
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class EncryptionKey {
+        private byte[] keyValue;
+        private Map<String, String> metadata;
     }
 
-    @Override
-    public void fail() {
-        this.failFunction.run();
-    }
 }

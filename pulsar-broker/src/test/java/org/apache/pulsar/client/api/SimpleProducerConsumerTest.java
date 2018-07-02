@@ -35,6 +35,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
@@ -54,10 +55,22 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidConfigurationException;
 import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.client.impl.EncryptionContext;
+import org.apache.pulsar.client.impl.EncryptionContext.EncryptionKey;
+import org.apache.pulsar.client.impl.MessageCrypto;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarDecoder;
+import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata.Builder;
+import org.apache.pulsar.common.compression.CompressionCodec;
+import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -67,7 +80,11 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
 public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(SimpleProducerConsumerTest.class);
@@ -2222,10 +2239,13 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             producer2.send(message.getBytes());
         }
 
-        Message<byte[]> msg = null;
+        MessageImpl<byte[]> msg = null;
 
         for (int i = 0; i < totalMsg * 2; i++) {
-            msg = consumer.receive(5, TimeUnit.SECONDS);
+            msg = (MessageImpl<byte[]>) consumer.receive(5, TimeUnit.SECONDS);
+            // verify that encrypted message contains encryption-context
+            msg.getEncryptionCtx()
+                    .orElseThrow(() -> new IllegalStateException("encryption-ctx not present for encrypted message"));
             String receivedMessage = new String(msg.getData());
             log.debug("Received message: [{}]", receivedMessage);
             String expectedMessage = "my-message-" + i;
@@ -2276,7 +2296,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         final int totalMsg = 10;
 
-        Message<byte[]> msg = null;
+        MessageImpl<byte[]> msg = null;
         Set<String> messageSet = Sets.newHashSet();
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic("persistent://my-property/use/myenc-ns/myenc-topic1").subscriptionName("my-subscriber-name")
@@ -2307,7 +2327,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         // 3. KeyReder is not set by consumer
         // Receive should fail since key reader is not setup
-        msg = consumer.receive(5, TimeUnit.SECONDS);
+        msg = (MessageImpl<byte[]>) consumer.receive(5, TimeUnit.SECONDS);
         Assert.assertNull(msg, "Receive should have failed with no keyreader");
 
         // 4. Set consumer config to consume even if decryption fails
@@ -2319,7 +2339,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         int msgNum = 0;
         try {
             // Receive should proceed and deliver encrypted message
-            msg = consumer.receive(5, TimeUnit.SECONDS);
+            msg = (MessageImpl<byte[]>) consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
             String expectedMessage = "my-message-" + msgNum++;
             Assert.assertNotEquals(receivedMessage, expectedMessage, "Received encrypted message " + receivedMessage
@@ -2338,7 +2358,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .cryptoKeyReader(new EncKeyReader()).acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         for (int i = msgNum; i < totalMsg - 1; i++) {
-            msg = consumer.receive(5, TimeUnit.SECONDS);
+            msg = (MessageImpl<byte[]>) consumer.receive(5, TimeUnit.SECONDS);
+            // verify that encrypted message contains encryption-context
+            msg.getEncryptionCtx()
+                    .orElseThrow(() -> new IllegalStateException("encryption-ctx not present for encrypted message"));
             String receivedMessage = new String(msg.getData());
             log.debug("Received message: [{}]", receivedMessage);
             String expectedMessage = "my-message-" + i;
@@ -2355,10 +2378,134 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         // Receive should proceed and discard encrypted messages
-        msg = consumer.receive(5, TimeUnit.SECONDS);
+        msg = (MessageImpl<byte[]>) consumer.receive(5, TimeUnit.SECONDS);
         Assert.assertNull(msg, "Message received even aftet ConsumerCryptoFailureAction.DISCARD is set.");
 
         log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test(groups = "encryption")
+    public void testEncryptionConsumerWithoutCryptoReader() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        final String encryptionKeyName = "client-rsa.pem";
+        final String encryptionKeyVersion = "1.0";
+        Map<String, String> metadata = Maps.newHashMap();
+        metadata.put("version", encryptionKeyVersion);
+        class EncKeyReader implements CryptoKeyReader {
+            EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+
+            @Override
+            public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
+                String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
+                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                    try {
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        keyInfo.setMetadata(metadata);
+                        return keyInfo;
+                    } catch (IOException e) {
+                        Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                    }
+                } else {
+                    Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+                }
+                return null;
+            }
+
+            @Override
+            public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
+                String CERT_FILE_PATH = "./src/test/resources/certificate/private-key." + keyName;
+                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                    try {
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        keyInfo.setMetadata(metadata);
+                        return keyInfo;
+                    } catch (IOException e) {
+                        Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                    }
+                } else {
+                    Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+                }
+                return null;
+            }
+        }
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/myrsa-topic1")
+                .subscriptionName("my-subscriber-name").cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
+                .subscribe();
+
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/myrsa-topic1")
+                .addEncryptionKey(encryptionKeyName).compressionType(CompressionType.LZ4)
+                .cryptoKeyReader(new EncKeyReader()).create();
+
+        String message = "my-message";
+        producer.send(message.getBytes());
+
+        MessageImpl<byte[]> msg = (MessageImpl<byte[]>) consumer.receive(5, TimeUnit.SECONDS);
+
+        String receivedMessage = decryptMessage(msg, encryptionKeyName, new EncKeyReader());
+        assertEquals(message, receivedMessage);
+
+        consumer.close();
+        log.info("-- Exiting {} test --", methodName);
+    }
+    
+    private String decryptMessage(MessageImpl<byte[]> msg, String encryptionKeyName, CryptoKeyReader reader)
+            throws Exception {
+        Optional<EncryptionContext> ctx = msg.getEncryptionCtx();
+        Assert.assertTrue(ctx.isPresent());
+        EncryptionContext encryptionCtx = ctx
+                .orElseThrow(() -> new IllegalStateException("encryption-ctx not present for encrypted message"));
+
+        Map<String, EncryptionKey> keys = encryptionCtx.getKeys();
+        assertEquals(keys.size(), 1);
+        EncryptionKey encryptionKey = keys.get(encryptionKeyName);
+        byte[] dataKey = encryptionKey.getKeyValue();
+        Map<String, String> metadata = encryptionKey.getMetadata();
+        String version = metadata.get("version");
+        assertEquals(version, "1.0");
+
+        org.apache.pulsar.common.api.proto.PulsarApi.CompressionType compressionType = encryptionCtx
+                .getCompressionType();
+        int uncompressedSize = encryptionCtx.getUncompressedMessageSize();
+        byte[] encrParam = encryptionCtx.getParam();
+        String encAlgo = encryptionCtx.getAlgorithm();
+        int batchSize = encryptionCtx.getBatchSize().orElse(0);
+
+        ByteBuf payloadBuf = Unpooled.wrappedBuffer(msg.getData());
+        // try to decrypt
+        MessageCrypto crypto = new MessageCrypto("test", false);
+        Builder metadataBuilder = MessageMetadata.newBuilder();
+        org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys.Builder encKeyBuilder = EncryptionKeys.newBuilder();
+        encKeyBuilder.setKey(encryptionKeyName);
+        ByteString keyValue = ByteString.copyFrom(dataKey);
+        encKeyBuilder.setValue(keyValue);
+        EncryptionKeys encKey = encKeyBuilder.build();
+        metadataBuilder.setEncryptionParam(ByteString.copyFrom(encrParam));
+        metadataBuilder.setEncryptionAlgo(encAlgo);
+        metadataBuilder.setProducerName("test");
+        metadataBuilder.setSequenceId(123);
+        metadataBuilder.setPublishTime(12333453454L);
+        metadataBuilder.addEncryptionKeys(encKey);
+        metadataBuilder.setCompression(compressionType);
+        metadataBuilder.setUncompressedSize(uncompressedSize);
+        ByteBuf decryptedPayload = crypto.decrypt(metadataBuilder.build(), payloadBuf, reader);
+
+        // try to uncompress
+        CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
+        ByteBuf uncompressedPayload = codec.decode(decryptedPayload, uncompressedSize);
+
+        if (batchSize > 0) {
+            PulsarApi.SingleMessageMetadata.Builder singleMessageMetadataBuilder = PulsarApi.SingleMessageMetadata
+                    .newBuilder();
+            uncompressedPayload = Commands.deSerializeSingleMessageInBatch(uncompressedPayload,
+                    singleMessageMetadataBuilder, 0, batchSize);
+        }
+
+        byte[] data = new byte[uncompressedPayload.readableBytes()];
+        uncompressedPayload.readBytes(data);
+        uncompressedPayload.release();
+        return new String(data);
     }
 
     @Test

@@ -16,42 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.source;
+package org.apache.pulsar.tests.containers;
 
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.ToString;
+/**
+ * A pulsar container that runs bookkeeper.
+ */
+public class ProxyContainer extends PulsarContainer<ProxyContainer> {
 
-import java.util.Map;
-
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.io.core.Record;
-
-@Data
-@Builder
-@Getter
-@ToString
-@EqualsAndHashCode
-public class PulsarRecord<T> implements Record<T> {
-
-    private String partitionId;
-    private long recordSequence;
-    private T value;
-    private MessageId messageId;
-    private String topicName;
-    private Map<String, String> properties;
-    private Runnable failFunction;
-    private Runnable ackFunction;
-
-    @Override
-    public void ack() {
-        this.ackFunction.run();
+    public ProxyContainer(String clusterName, String hostName) {
+        super(
+            clusterName, hostName, hostName, "bin/run-proxy.sh", BROKER_PORT, BROKER_HTTP_PORT);
     }
 
-    @Override
-    public void fail() {
-        this.failFunction.run();
+    public String getPlainTextServiceUrl() {
+        return "pulsar://" + getContainerIpAddress() + ":" + getMappedPort(BROKER_PORT);
+    }
+
+    public String getHttpServiceUrl() {
+        return "http://" + getContainerIpAddress() + ":" + getMappedPort(BROKER_HTTP_PORT);
     }
 }

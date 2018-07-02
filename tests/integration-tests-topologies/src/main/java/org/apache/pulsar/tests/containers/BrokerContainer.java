@@ -16,42 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.source;
+package org.apache.pulsar.tests.containers;
 
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.ToString;
+/**
+ * A pulsar container that runs bookkeeper.
+ */
+public class BrokerContainer extends PulsarContainer<BrokerContainer> {
 
-import java.util.Map;
-
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.io.core.Record;
-
-@Data
-@Builder
-@Getter
-@ToString
-@EqualsAndHashCode
-public class PulsarRecord<T> implements Record<T> {
-
-    private String partitionId;
-    private long recordSequence;
-    private T value;
-    private MessageId messageId;
-    private String topicName;
-    private Map<String, String> properties;
-    private Runnable failFunction;
-    private Runnable ackFunction;
-
-    @Override
-    public void ack() {
-        this.ackFunction.run();
-    }
-
-    @Override
-    public void fail() {
-        this.failFunction.run();
+    public BrokerContainer(String clusterName, String hostName) {
+        super(
+            clusterName, hostName, hostName, "bin/run-broker.sh", BROKER_PORT, INVALID_PORT);
     }
 }
