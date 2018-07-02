@@ -25,22 +25,18 @@ import org.apache.pulsar.common.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 
 @SuppressWarnings("unused")
-public class JsonSchemaCompatibilityCheck implements SchemaCompatibilityCheck {
-    private final ObjectMapper objectMapper = new ObjectMapper();
+public class JsonSchemaCompatibilityCheck extends AvroSchemaCompatibilityCheck {
+
+    public JsonSchemaCompatibilityCheck () {
+        this(SchemaCompatibilityStrategy.FULL);
+    }
+
+    public JsonSchemaCompatibilityCheck(SchemaCompatibilityStrategy compatibilityStrategy) {
+        super(compatibilityStrategy);
+    }
 
     @Override
     public SchemaType getSchemaType() {
         return SchemaType.JSON;
-    }
-
-    @Override
-    public boolean isCompatible(SchemaData from, SchemaData to) {
-        try {
-            JsonSchema fromSchema = objectMapper.readValue(from.getData(), JsonSchema.class);
-            JsonSchema toSchema = objectMapper.readValue(to.getData(), JsonSchema.class);
-            return fromSchema.getId().equals(toSchema.getId());
-        } catch (IOException e) {
-            return false;
-        }
     }
 }

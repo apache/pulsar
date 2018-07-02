@@ -18,25 +18,20 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
-import org.apache.pulsar.common.schema.SchemaData;
-import org.apache.pulsar.common.schema.SchemaType;
-import org.testng.Assert;
-import org.testng.annotations.Test;
-
-public class AvroSchemaCompatibilityCheckTest extends BaseAvroSchemaCompatibilityTest{
+public class JsonSchemaCompatibilityCheckTest extends BaseAvroSchemaCompatibilityTest{
 
     @Override
     public SchemaCompatibilityCheck getBackwardsCompatibleSchemaCheck() {
-        return new AvroSchemaCompatibilityCheck(SchemaCompatibilityStrategy.BACKWARD);
+        return new JsonSchemaCompatibilityCheck(SchemaCompatibilityStrategy.BACKWARD);
     }
 
     @Override
     public SchemaCompatibilityCheck getForwardCompatibleSchemaCheck() {
-        return new AvroSchemaCompatibilityCheck(SchemaCompatibilityStrategy.FORWARD);
+        return new JsonSchemaCompatibilityCheck(SchemaCompatibilityStrategy.FORWARD);
     }
 
     @Override
     public SchemaCompatibilityCheck getFullCompatibleSchemaCheck() {
-        return new AvroSchemaCompatibilityCheck(SchemaCompatibilityStrategy.FULL);
+        return new JsonSchemaCompatibilityCheck(SchemaCompatibilityStrategy.FULL);
     }
 }
