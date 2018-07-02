@@ -36,6 +36,7 @@ import org.apache.pulsar.tests.containers.BrokerContainer;
 import org.apache.pulsar.tests.containers.CSContainer;
 import org.apache.pulsar.tests.containers.ProxyContainer;
 import org.apache.pulsar.tests.containers.PulsarContainer;
+import org.apache.pulsar.tests.containers.WorkerContainer;
 import org.apache.pulsar.tests.containers.ZKContainer;
 import org.testcontainers.containers.Container.ExecResult;
 import org.testcontainers.containers.Network;
@@ -67,6 +68,7 @@ public class PulsarCluster {
     private final CSContainer csContainer;
     private final Map<String, BKContainer> bookieContainers;
     private final Map<String, BrokerContainer> brokerContainers;
+    private final Map<String, WorkerContainer> workerContainers;
     private final ProxyContainer proxyContainer;
 
     private PulsarCluster(PulsarClusterSpec spec) {
@@ -86,9 +88,11 @@ public class PulsarCluster {
             .withNetworkAliases(CSContainer.NAME);
         this.bookieContainers = Maps.newTreeMap();
         this.brokerContainers = Maps.newTreeMap();
+        this.workerContainers = Maps.newTreeMap();
         this.proxyContainer = new ProxyContainer(clusterName, "pulsar-proxy")
             .withNetwork(network)
             .withNetworkAliases("pulsar-proxy")
+            .withEnv("zkServers", ZKContainer.NAME)
             .withEnv("zookeeperServers", ZKContainer.NAME)
             .withEnv("configurationStoreServers", CSContainer.NAME + ":" + CS_PORT)
             .withEnv("clusterName", clusterName);
@@ -132,6 +136,7 @@ public class PulsarCluster {
             runNumContainers("broker", spec.numBrokers(), (name) -> new BrokerContainer(clusterName, name)
                 .withNetwork(network)
                 .withNetworkAliases(name)
+                .withEnv("zkServers", ZKContainer.NAME)
                 .withEnv("zookeeperServers", ZKContainer.NAME)
                 .withEnv("configurationStoreServers", CSContainer.NAME + ":" + CS_PORT)
                 .withEnv("clusterName", clusterName)
@@ -166,6 +171,7 @@ public class PulsarCluster {
 
     public void stop() {
         proxyContainer.stop();
+        workerContainers.values().forEach(WorkerContainer::stop);
         brokerContainers.values().forEach(BrokerContainer::stop);
         bookieContainers.values().forEach(BKContainer::stop);
         csContainer.stop();
@@ -177,12 +183,48 @@ public class PulsarCluster {
         }
     }
 
+    public void startFunctionWorkers(int numFunctionWorkers) {
+        String serviceUrl = "pulsar://pulsar-broker-0:" + PulsarContainer.BROKER_PORT;
+        String httpServiceUrl = "http://pulsar-broker-0:" + PulsarContainer.BROKER_HTTP_PORT;
+        workerContainers.putAll(runNumContainers(
+            "functions-worker",
+            numFunctionWorkers,
+            (name) -> new WorkerContainer(clusterName, name)
+                .withNetwork(network)
+                .withNetworkAliases(name)
+                // worker settings
+                .withEnv("workerId", name)
+                .withEnv("workerHostname", name)
+                .withEnv("workerPort", "" + PulsarContainer.BROKER_HTTP_PORT)
+                .withEnv("pulsarFunctionsCluster", clusterName)
+                .withEnv("pulsarServiceUrl", serviceUrl)
+                .withEnv("pulsarWebServiceUrl", httpServiceUrl)
+                .withEnv("clusterName", clusterName)
+                // script
+                .withEnv("zookeeperServers", ZKContainer.NAME)
+                // bookkeeper tools
+                .withEnv("zkServers", ZKContainer.NAME)
+        ));
+    }
+
     public BrokerContainer getAnyBroker() {
-        List<BrokerContainer> brokerList = Lists.newArrayList();
-        brokerList.addAll(brokerContainers.values());
-        Collections.shuffle(brokerList);
-        checkArgument(!brokerList.isEmpty(), "No broker is alive");
-        return brokerList.get(0);
+        return getAnyContainer(brokerContainers, "broker");
+    }
+
+    public WorkerContainer getAnyWorker() {
+        return getAnyContainer(workerContainers, "functions-worker");
+    }
+
+    private <T> T getAnyContainer(Map<String, T> containers, String serviceName) {
+        List<T> containerList = Lists.newArrayList();
+        containerList.addAll(containers.values());
+        Collections.shuffle(containerList);
+        checkArgument(!containerList.isEmpty(), "No " + serviceName + " is alive");
+        return containerList.get(0);
+    }
+
+    public Collection<BrokerContainer> getBrokers() {
+        return brokerContainers.values();
     }
 
     public Collection<BrokerContainer> getBrokers() {
