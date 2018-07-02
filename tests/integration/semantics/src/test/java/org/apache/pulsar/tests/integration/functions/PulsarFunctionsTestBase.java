@@ -18,19 +18,31 @@
  */
 package org.apache.pulsar.tests.integration.functions;
 
+import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runtime;
 import org.apache.pulsar.tests.topologies.PulsarClusterTestBase;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 
 /**
  * A cluster to run pulsar functions for testing functions related features.
  */
 public class PulsarFunctionsTestBase extends PulsarClusterTestBase  {
 
+    public static final String EXCLAMATION_FUNC_CLASS =
+        "org.apache.pulsar.functions.api.examples.ExclamationFunction";
+
     @BeforeClass
     public static void setupCluster() throws Exception {
         PulsarClusterTestBase.setupCluster();
 
         pulsarCluster.startFunctionWorkers(1);
+    }
+
+    @DataProvider(name = "FunctionRuntimes")
+    public static Object[][] functionRuntimes() {
+        return new Object[][] {
+            new Object[] { Runtime.JAVA }
+        };
     }
 
 }
