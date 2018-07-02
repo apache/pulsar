@@ -20,6 +20,9 @@
 package org.apache.pulsar.client.api;
 
 import java.util.Map;
+import java.util.Optional;
+
+import org.apache.pulsar.client.impl.EncryptionContext;
 
 /**
  * The message abstraction used in Pulsar.
@@ -127,4 +130,12 @@ public interface Message<T> {
      * @return the key of the message
      */
     String getKey();
+    
+    /**
+     * {@link EncryptionContext} contains encryption and compression information in it using which application can
+     * decrypt consumed message with encrypted-payload.
+     * 
+     * @return
+     */
+    Optional<EncryptionContext> getEncryptionCtx();
 }

@@ -330,6 +330,7 @@ public class MessageImpl<T> extends MessageRecordImpl<T, MessageId> {
         this.messageId = messageId;
     }
     
+    @Override
     public Optional<EncryptionContext> getEncryptionCtx() {
         return encryptionCtx;
     }

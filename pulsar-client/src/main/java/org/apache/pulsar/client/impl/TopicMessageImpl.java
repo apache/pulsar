@@ -20,9 +20,10 @@
 package org.apache.pulsar.client.impl;
 
 import java.util.Map;
+import java.util.Optional;
+
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.SchemaSerializationException;
 
 public class TopicMessageImpl<T> extends MessageRecordImpl<T, TopicMessageIdImpl> {
 
@@ -106,5 +107,10 @@ public class TopicMessageImpl<T> extends MessageRecordImpl<T, TopicMessageIdImpl
     @Override
     public T getValue() {
         return msg.getValue();
+    }
+    
+    @Override
+    public Optional<EncryptionContext> getEncryptionCtx() {
+        return (msg instanceof MessageImpl) ? ((MessageImpl) msg).getEncryptionCtx() : Optional.empty();
     }
 }
