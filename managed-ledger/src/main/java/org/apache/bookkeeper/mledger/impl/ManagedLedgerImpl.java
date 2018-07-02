@@ -1417,7 +1417,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     void invalidateLedgerHandle(ReadHandle ledgerHandle, Throwable t) {
         long ledgerId = ledgerHandle.getId();
-        if (ledgerId != currentLedger.getId()) {
+        if (currentLedger != null && ledgerId != currentLedger.getId()) {
             // remove handle from ledger cache since we got a (read) error
             ledgerCache.remove(ledgerId);
             if (log.isDebugEnabled()) {
@@ -1474,11 +1474,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         ledger.getId(), lastEntryInLedger, firstEntry);
             }
 
-            if (ledger.getId() != currentLedger.getId()) {
+            if (currentLedger == null || ledger.getId() != currentLedger.getId()) {
                 // Cursor was placed past the end of one ledger, move it to the
                 // beginning of the next ledger
                 Long nextLedgerId = ledgers.ceilingKey(ledger.getId() + 1);
-                opReadEntry.updateReadPosition(new PositionImpl(nextLedgerId, 0));
+                if (nextLedgerId != null) {
+                    opReadEntry.updateReadPosition(new PositionImpl(nextLedgerId, 0));
+                } else {
+                    opReadEntry.updateReadPosition(new PositionImpl(ledger.getId() + 1, 0));
+                }
             }
 
             opReadEntry.checkReadCompletion();
