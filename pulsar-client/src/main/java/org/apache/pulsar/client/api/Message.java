@@ -22,7 +22,8 @@ package org.apache.pulsar.client.api;
 import java.util.Map;
 import java.util.Optional;
 
-import org.apache.pulsar.client.impl.EncryptionContext;
+import org.apache.pulsar.common.api.EncryptionContext;
+
 
 /**
  * The message abstraction used in Pulsar.

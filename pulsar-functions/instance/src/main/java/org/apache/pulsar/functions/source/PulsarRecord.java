@@ -28,7 +28,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.impl.EncryptionContext;
+import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.io.core.Record;
 
 @Data

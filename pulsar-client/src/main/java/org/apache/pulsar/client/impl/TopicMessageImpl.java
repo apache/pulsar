@@ -24,6 +24,7 @@ import java.util.Optional;
 
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.common.api.EncryptionContext;
 
 public class TopicMessageImpl<T> extends MessageRecordImpl<T, TopicMessageIdImpl> {
 
