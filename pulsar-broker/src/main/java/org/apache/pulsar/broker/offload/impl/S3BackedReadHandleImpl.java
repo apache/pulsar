@@ -16,12 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.s3offload.impl;
+package org.apache.pulsar.broker.offload.impl;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.GetObjectRequest;
-import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.S3Object;
 
 import io.netty.buffer.ByteBuf;
@@ -44,11 +43,11 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.LedgerEntriesImpl;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 
-import org.apache.pulsar.broker.s3offload.OffloadIndexBlock;
-import org.apache.pulsar.broker.s3offload.OffloadIndexBlockBuilder;
-import org.apache.pulsar.broker.s3offload.OffloadIndexEntry;
-import org.apache.pulsar.broker.s3offload.S3BackedInputStream;
-import org.apache.pulsar.broker.s3offload.S3ManagedLedgerOffloader.VersionCheck;
+import org.apache.pulsar.broker.offload.OffloadIndexBlock;
+import org.apache.pulsar.broker.offload.OffloadIndexBlockBuilder;
+import org.apache.pulsar.broker.offload.OffloadIndexEntry;
+import org.apache.pulsar.broker.offload.BackedInputStream;
+import org.apache.pulsar.broker.offload.impl.S3ManagedLedgerOffloader.VersionCheck;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,12 +57,12 @@ public class S3BackedReadHandleImpl implements ReadHandle {
 
     private final long ledgerId;
     private final OffloadIndexBlock index;
-    private final S3BackedInputStream inputStream;
+    private final BackedInputStream inputStream;
     private final DataInputStream dataStream;
     private final ExecutorService executor;
 
     private S3BackedReadHandleImpl(long ledgerId, OffloadIndexBlock index,
-                                   S3BackedInputStream inputStream,
+                                   BackedInputStream inputStream,
                                    ExecutorService executor) {
         this.ledgerId = ledgerId;
         this.index = index;
@@ -201,7 +200,7 @@ public class S3BackedReadHandleImpl implements ReadHandle {
             OffloadIndexBlockBuilder indexBuilder = OffloadIndexBlockBuilder.create();
             OffloadIndexBlock index = indexBuilder.fromStream(obj.getObjectContent());
 
-            S3BackedInputStream inputStream = new S3BackedInputStreamImpl(s3client, bucket, key,
+            BackedInputStream inputStream = new S3BackedInputStreamImpl(s3client, bucket, key,
                                                                           versionCheck,
                                                                           index.getDataObjectLength(),
                                                                           readBufferSize);

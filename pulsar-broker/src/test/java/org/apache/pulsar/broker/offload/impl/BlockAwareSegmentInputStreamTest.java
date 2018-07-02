@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.s3offload.impl;
+package org.apache.pulsar.broker.offload.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
@@ -27,7 +27,6 @@ import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.ByteArrayInputStream;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -35,7 +34,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 import lombok.Data;
@@ -45,7 +43,7 @@ import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
-import org.apache.pulsar.broker.s3offload.DataBlockHeader;
+import org.apache.pulsar.broker.offload.DataBlockHeader;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
 

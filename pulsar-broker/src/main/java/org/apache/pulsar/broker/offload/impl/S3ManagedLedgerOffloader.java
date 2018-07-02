@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.s3offload;
+package org.apache.pulsar.broker.offload.impl;
 
 import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
 import com.amazonaws.services.s3.AmazonS3;
@@ -32,7 +32,6 @@ import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.UploadPartRequest;
 import com.amazonaws.services.s3.model.UploadPartResult;
 import com.google.common.base.Strings;
-import java.io.InputStream;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
@@ -44,8 +43,9 @@ import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.s3offload.impl.BlockAwareSegmentInputStreamImpl;
-import org.apache.pulsar.broker.s3offload.impl.S3BackedReadHandleImpl;
+import org.apache.pulsar.broker.offload.BlockAwareSegmentInputStream;
+import org.apache.pulsar.broker.offload.OffloadIndexBlock;
+import org.apache.pulsar.broker.offload.OffloadIndexBlockBuilder;
 import org.apache.pulsar.utils.PulsarBrokerVersionStringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

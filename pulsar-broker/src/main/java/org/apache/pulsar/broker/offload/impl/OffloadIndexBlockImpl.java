@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.s3offload.impl;
+package org.apache.pulsar.broker.offload.impl;
 
 import static com.google.common.base.Preconditions.checkState;
 
@@ -31,7 +31,6 @@ import io.netty.util.Recycler.Handle;
 
 import java.io.DataInputStream;
 import java.io.IOException;
-import java.io.FilterInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -47,8 +46,8 @@ import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.proto.DataFormats;
 import org.apache.bookkeeper.proto.DataFormats.LedgerMetadataFormat;
 import org.apache.bookkeeper.proto.DataFormats.LedgerMetadataFormat.State;
-import org.apache.pulsar.broker.s3offload.OffloadIndexBlock;
-import org.apache.pulsar.broker.s3offload.OffloadIndexEntry;
+import org.apache.pulsar.broker.offload.OffloadIndexBlock;
+import org.apache.pulsar.broker.offload.OffloadIndexEntry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
