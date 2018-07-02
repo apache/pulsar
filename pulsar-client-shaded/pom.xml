@@ -89,6 +89,8 @@
                   <include>org.apache.httpcomponents:httpclient</include>
                   <include>commons-logging:commons-logging</include>
                   <include>org.apache.httpcomponents:httpcore</include>
+                  <include>org.objenesis:*</include>
+
                   <include>org.apache.avro:*</include>
                   <!-- Avro transitive dependencies-->
                   <include>org.codehaus.jackson:jackson-core-asl</include>
@@ -210,6 +212,10 @@
                 <relocation>
                   <pattern>com.yahoo.memory</pattern>
                   <shadedPattern>org.apache.pulsar.shade.com.yahoo.memory</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.objenesis</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.objenesis</shadedPattern>
                 </relocation>
               </relocations>
               <transformers>
