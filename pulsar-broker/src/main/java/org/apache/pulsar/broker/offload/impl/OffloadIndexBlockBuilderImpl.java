@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.s3offload.impl;
+package org.apache.pulsar.broker.offload.impl;
 
 import static com.google.common.base.Preconditions.checkState;
 
@@ -25,8 +25,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
-import org.apache.pulsar.broker.s3offload.OffloadIndexBlock;
-import org.apache.pulsar.broker.s3offload.OffloadIndexBlockBuilder;
+import org.apache.pulsar.broker.offload.OffloadIndexBlock;
+import org.apache.pulsar.broker.offload.OffloadIndexBlockBuilder;
 
 /**
  * Interface for builder of index block used for offload a ledger to long term storage.

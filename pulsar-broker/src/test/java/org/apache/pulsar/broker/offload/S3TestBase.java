@@ -16,18 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.s3offload;
+package org.apache.pulsar.broker.offload;
 
-import com.amazonaws.auth.AnonymousAWSCredentials;
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 
 import org.testng.annotations.BeforeMethod;
 
 public class S3TestBase {
-    final static String BUCKET = "pulsar-unittest";
+    public final static String BUCKET = "pulsar-unittest";
 
     protected AmazonS3 s3client = null;
 

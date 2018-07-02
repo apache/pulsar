@@ -16,12 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.s3offload;
+package org.apache.pulsar.broker.offload;
 
 import java.io.InputStream;
 import java.io.IOException;
 
-public abstract class S3BackedInputStream extends InputStream {
+public abstract class BackedInputStream extends InputStream {
     public abstract void seek(long position);
     public abstract void seekForward(long position) throws IOException;
 }
