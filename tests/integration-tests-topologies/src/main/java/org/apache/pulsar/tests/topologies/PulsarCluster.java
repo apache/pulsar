@@ -227,10 +227,6 @@ public class PulsarCluster {
         return brokerContainers.values();
     }
 
-    public Collection<BrokerContainer> getBrokers() {
-        return brokerContainers.values();
-    }
-
     public ExecResult runAdminCommandOnAnyBroker(String...commands) throws Exception {
         BrokerContainer container = getAnyBroker();
         String[] cmds = new String[commands.length + 1];
