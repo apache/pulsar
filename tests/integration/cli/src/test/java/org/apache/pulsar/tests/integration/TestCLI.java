@@ -18,47 +18,41 @@
  */
 package org.apache.pulsar.tests.integration;
 
-import static org.testng.Assert.fail;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 
-import com.github.dockerjava.api.DockerClient;
-
-import java.util.concurrent.TimeUnit;
-
-import org.apache.pulsar.tests.DockerUtils;
-import org.apache.pulsar.tests.PulsarClusterUtils;
-import org.jboss.arquillian.test.api.ArquillianResource;
-import org.jboss.arquillian.testng.Arquillian;
+import org.apache.pulsar.tests.containers.BrokerContainer;
+import org.apache.pulsar.tests.topologies.PulsarCluster;
+import org.apache.pulsar.tests.topologies.PulsarClusterTestBase;
+import org.testcontainers.containers.Container.ExecResult;
 import org.testng.Assert;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-public class TestCLI extends Arquillian {
-    private static String clusterName = "test";
-
-    @ArquillianResource
-    DockerClient docker;
-
-    @BeforeMethod
-    public void waitServicesUp() throws Exception {
-        Assert.assertTrue(PulsarClusterUtils.waitZooKeeperUp(docker, clusterName, 30, TimeUnit.SECONDS));
-        Assert.assertTrue(PulsarClusterUtils.waitAllBrokersUp(docker, clusterName));
-    }
+/**
+ * Test Pulsar CLI.
+ */
+public class TestCLI extends PulsarClusterTestBase {
 
     @Test
     public void testDeprecatedCommands() throws Exception {
-        String broker = PulsarClusterUtils.brokerSet(docker, clusterName).stream().findAny().get();
+        String tenantName = "test-deprecated-commands";
 
-        Assert.assertFalse(DockerUtils.runCommand(docker, broker, "/pulsar/bin/pulsar-admin", "--help")
-                           .contains("Usage: properties "));
-        Assert.assertTrue(DockerUtils.runCommand(docker, broker,
-                                                 "/pulsar/bin/pulsar-admin", "properties",
-                                                 "create", "compaction-test-cli", "--allowed-clusters", clusterName,
-                                                 "--admin-roles", "admin").contains("deprecated"));
-        Assert.assertTrue(DockerUtils.runCommand(docker, broker, "/pulsar/bin/pulsar-admin", "properties", "list")
-                          .contains("compaction-test-cli"));
-        Assert.assertTrue(DockerUtils.runCommand(docker, broker, "/pulsar/bin/pulsar-admin", "tenants", "list")
-                          .contains("compaction-test-cli"));
+        ExecResult result = pulsarCluster.runAdminCommandOnAnyBroker("--help");
+        assertFalse(result.getStdout().isEmpty());
+        assertFalse(result.getStdout().contains("Usage: properties "));
+        result = pulsarCluster.runAdminCommandOnAnyBroker(
+            "properties", "create", tenantName,
+            "--allowed-clusters", pulsarCluster.getClusterName(),
+            "--admin-roles", "admin"
+        );
+        assertTrue(result.getStderr().contains("deprecated"));
 
+        result = pulsarCluster.runAdminCommandOnAnyBroker(
+            "properties", "list");
+        assertTrue(result.getStdout().contains(tenantName));
+        result = pulsarCluster.runAdminCommandOnAnyBroker(
+            "tenants", "list");
+        assertTrue(result.getStdout().contains(tenantName));
     }
 
     @Test
@@ -68,119 +62,106 @@ public class TestCLI extends Arquillian {
         String subscriptionPrefix = "subscription-";
 
         int i = 0;
-        for (String b : PulsarClusterUtils.brokerSet(docker, clusterName)) {
-            Assert.assertTrue(
-                DockerUtils.runCommand(docker, b,
-                    "/pulsar/bin/pulsar-admin",
-                    "persistent",
-                    "create-subscription",
-                    "persistent://public/default/" + topic,
-                    "--subscription",
-                    subscriptionPrefix + i
-                ).isEmpty()
+        for (BrokerContainer container : pulsarCluster.getBrokers()) {
+            ExecResult result = container.execCmd(
+                PulsarCluster.ADMIN_SCRIPT,
+                "persistent",
+                "create-subscription",
+                "persistent://public/default/" + topic,
+                "--subscription",
+                "" + subscriptionPrefix + i
             );
+            assertTrue(result.getStdout().isEmpty());
+            assertTrue(result.getStderr().isEmpty());
             i++;
         }
     }
 
     @Test
     public void testTopicTerminationOnTopicsWithoutConnectedConsumers() throws Exception {
-        String broker = PulsarClusterUtils.brokerSet(docker, clusterName).stream().findAny().get();
-
-        Assert.assertTrue(DockerUtils.runCommand(
-            docker, broker,
-            "/pulsar/bin/pulsar-client",
+        String topicName = "persistent://public/default/test-topic-termination";
+        BrokerContainer container = pulsarCluster.getAnyBroker();
+        ExecResult result = container.execCmd(
+            PulsarCluster.CLIENT_SCRIPT,
             "produce",
             "-m",
             "\"test topic termination\"",
             "-n",
             "1",
-            "persistent://public/default/test-topic-termination"
-        ).contains("1 messages successfully produced"));
+            topicName);
+
+        Assert.assertTrue(result.getStdout().contains("1 messages successfully produced"));
 
         // terminate the topic
-        Assert.assertTrue(DockerUtils.runCommand(
-            docker, broker,
-            "/pulsar/bin/pulsar-admin",
+        result = container.execCmd(
+            PulsarCluster.ADMIN_SCRIPT,
             "persistent",
             "terminate",
-            "persistent://public/default/test-topic-termination"
-        ).contains("Topic succesfully terminated at"));
+            topicName);
+        Assert.assertTrue(result.getStdout().contains("Topic succesfully terminated at"));
 
         // try to produce should fail
-
-        try {
-            DockerUtils.runCommand(
-                docker, broker,
-                "/pulsar/bin/pulsar-client",
-                "produce",
-                "-m",
-                "\"test topic termination\"",
-                "-n",
-                "1",
-                "persistent://public/default/test-topic-termination"
-            );
-            fail("Should fail to produce messages to a terminated topic");
-        } catch (RuntimeException re) {
-            // expected
-        }
+        result = pulsarCluster.getAnyBroker().execCmd(
+            PulsarCluster.CLIENT_SCRIPT,
+            "produce",
+            "-m",
+            "\"test topic termination\"",
+            "-n",
+            "1",
+            topicName);
+        assertTrue(result.getStdout().contains("Topic was already terminated"));
     }
 
     @Test
     public void testSchemaCLI() throws Exception {
-        String broker = PulsarClusterUtils.brokerSet(docker, clusterName).stream().findAny().get();
+        BrokerContainer container = pulsarCluster.getAnyBroker();
+        String topicName = "persistent://public/default/test-schema-cli";
 
-        Assert.assertTrue(DockerUtils.runCommand(
-            docker, broker,
-            "/pulsar/bin/pulsar-client",
+        ExecResult result = container.execCmd(
+            PulsarCluster.CLIENT_SCRIPT,
             "produce",
             "-m",
             "\"test topic schema\"",
             "-n",
             "1",
-            "persistent://public/default/test-schema-cli"
-        ).contains("1 messages successfully produced"));
+            topicName);
+        Assert.assertTrue(result.getStdout().contains("1 messages successfully produced"));
 
-        Assert.assertTrue(DockerUtils.runCommand(
-            docker, broker,
-            "/pulsar/bin/pulsar-admin",
+        result = container.execCmd(
+            PulsarCluster.ADMIN_SCRIPT,
             "schemas",
             "upload",
-            "persistent://public/default/test-schema-cli",
+            topicName,
             "-f",
             "/pulsar/conf/schema_example.conf"
-        ).isEmpty());
+        );
+        Assert.assertTrue(result.getStdout().isEmpty());
+        Assert.assertTrue(result.getStderr().isEmpty());
 
         // get schema
-        Assert.assertTrue(DockerUtils.runCommand(
-            docker, broker,
-            "/pulsar/bin/pulsar-admin",
+        result = container.execCmd(
+            PulsarCluster.ADMIN_SCRIPT,
+            "schemas",
+            "get",
+            topicName);
+        Assert.assertTrue(result.getStdout().contains("\"type\" : \"STRING\""));
+
+        // delete the schema
+        result = container.execCmd(
+            PulsarCluster.ADMIN_SCRIPT,
+            "schemas",
+            "delete",
+            topicName);
+        Assert.assertTrue(result.getStdout().isEmpty());
+        Assert.assertTrue(result.getStderr().isEmpty());
+
+        // get schema again
+        result = container.execCmd(
+            PulsarCluster.ADMIN_SCRIPT,
             "schemas",
             "get",
             "persistent://public/default/test-schema-cli"
-        ).contains("\"type\" : \"STRING\""));
-
-        // delete the schema
-        Assert.assertTrue(DockerUtils.runCommand(
-            docker, broker,
-            "/pulsar/bin/pulsar-admin",
-            "schemas",
-            "delete",
-            "persistent://public/default/test-schema-cli"
-        ).isEmpty());
-
-        // get schema again
-        try {
-            DockerUtils.runCommand(
-                docker, broker,
-                "/pulsar/bin/pulsar-admin",
-                "schemas",
-                "get",
-                "persistent://public/default/test-schema-cli"
-            );
-            fail("Should fail to get schema if the schema is deleted");
-        } catch (RuntimeException re) {
-            // expected
-        }
+        );
+        assertTrue(result.getStderr().contains("Reason: HTTP 404 Not Found"));
     }
 }
