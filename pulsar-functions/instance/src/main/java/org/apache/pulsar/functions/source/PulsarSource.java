@@ -25,6 +25,7 @@ import net.jodah.typetools.TypeResolver;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
@@ -66,6 +67,8 @@ public class PulsarSource<T> implements Source<T> {
 
         // Setup pulsar consumer
         ConsumerBuilder<byte[]> consumerBuilder = this.pulsarClient.newConsumer()
+                //consume message even if can't decrypt and deliver it along with encryption-ctx
+                .cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)  
                 .subscriptionName(this.pulsarSourceConfig.getSubscriptionName())
                 .subscriptionType(this.pulsarSourceConfig.getSubscriptionType());
 
