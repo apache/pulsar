@@ -23,6 +23,7 @@ import static org.apache.pulsar.tests.containers.PulsarContainer.CS_PORT;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -45,7 +46,8 @@ import org.testcontainers.containers.Network;
 @Slf4j
 public class PulsarCluster {
 
-    protected static final String ADMIN_SCRIPT = "/pulsar/bin/pulsar-admin";
+    public static final String ADMIN_SCRIPT = "/pulsar/bin/pulsar-admin";
+    public static final String CLIENT_SCRIPT = "/pulsar/bin/pulsar-client";
 
     /**
      * Pulsar Cluster Spec.
@@ -181,6 +183,10 @@ public class PulsarCluster {
         Collections.shuffle(brokerList);
         checkArgument(!brokerList.isEmpty(), "No broker is alive");
         return brokerList.get(0);
+    }
+
+    public Collection<BrokerContainer> getBrokers() {
+        return brokerContainers.values();
     }
 
     public ExecResult runAdminCommandOnAnyBroker(String...commands) throws Exception {
