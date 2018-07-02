@@ -27,6 +27,18 @@
 import os, sys
 import yaml
 
+INT_KEYS = [
+    'workerPort',
+    'numFunctionPackageReplicas',
+    'failureCheckFreqMs',
+    'rescheduleTimeoutMs',
+    'initialBrokerReconnectMaxRetries',
+    'assignmentWriteMaxRetries',
+    'instanceLivenessCheckFreqMs'
+]
+
+PF_ENV_PREFIX = 'PF_'
+
 if len(sys.argv) < 2:
     print 'Usage: %s' % (sys.argv[0])
     sys.exit(1)
@@ -39,25 +51,29 @@ for conf_filename in conf_files:
     # update the config
     modified = False
     for k in sorted(os.environ.keys()):
-        key_parts = k.split('_')
+        if not k.startswith(PF_ENV_PREFIX):
+            continue
+
         v = os.environ[k]
+
+        k = k[len(PF_ENV_PREFIX):]
+        key_parts = k.split('_')
 
         i = 0
         conf_to_modify = conf
         while i < len(key_parts):
             key_part = key_parts[i]
-            if not key_part in conf_to_modify:
-                break
-
             if i == (len(key_parts) - 1):
-                if key_part == 'workerPort':
+                if key_part in INT_KEYS:
                     conf_to_modify[key_part] = int(v)
                 else:
                     conf_to_modify[key_part] = v
-
                 modified = True
             else:
+                if not key_part in conf_to_modify:
+                    conf_to_modify[key_part] = {}
                 conf_to_modify = conf_to_modify[key_part]
+                modified = True
             i += 1
     # Store back the updated config in the same file
     f = open(conf_filename , 'w')
