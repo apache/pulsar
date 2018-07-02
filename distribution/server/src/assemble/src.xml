@@ -29,7 +29,7 @@
   <includeBaseDirectory>true</includeBaseDirectory>
   <fileSets>
     <fileSet>
-      <directory>..</directory>
+      <directory>../..</directory>
       <useDefaultExcludes>true</useDefaultExcludes>
       <includes>
         <include>**/README.md</include>

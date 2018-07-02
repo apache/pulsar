@@ -97,7 +97,6 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-client-auth-athenz</module>
     <module>pulsar-client-kafka-compat</module>
     <module>pulsar-zookeeper</module>
-    <module>all</module>
     <module>docker</module>
     <module>tests</module>
     <module>pulsar-log4j2-appender</module>
@@ -108,6 +107,8 @@ flexible messaging model and an intuitive client API.</description>
 
     <!-- connector-related modules -->
     <module>pulsar-io</module>
+
+    <module>distribution</module>
   </modules>
 
   <issueManagement>
@@ -1161,6 +1162,24 @@ flexible messaging model and an intuitive client API.</description>
           <groupId>org.apache.maven</groupId>
           <artifactId>maven-archiver</artifactId>
           <version>2.5</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.nifi</groupId>
+          <artifactId>nifi-nar-maven-plugin</artifactId>
+          <version>1.2.0</version>
+          <extensions>true</extensions>
+          <configuration>
+            <finalName>${project.artifactId}-${project.version}</finalName>
+          </configuration>
+          <executions>
+            <execution>
+              <id>default-nar</id>
+              <phase>package</phase>
+              <goals>
+                <goal>nar</goal>
+              </goals>
+            </execution>
+          </executions>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
