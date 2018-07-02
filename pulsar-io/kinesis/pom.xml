@@ -57,7 +57,7 @@
       <groupId>com.fasterxml.jackson.dataformat</groupId>
       <artifactId>jackson-dataformat-yaml</artifactId>
     </dependency>
-    
+
     <dependency>
       <groupId>com.google.code.gson</groupId>
       <artifactId>gson</artifactId>
@@ -74,7 +74,7 @@
       <artifactId>amazon-kinesis-client</artifactId>
       <version>1.9.0</version>
     </dependency>
-    
+
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>amazon-kinesis-producer</artifactId>
@@ -83,36 +83,12 @@
 	<!-- /kinesis dependencies -->
 
   </dependencies>
-  
+
   <build>
     <plugins>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-shade-plugin</artifactId>
-        <executions>
-          <execution>
-            <phase>package</phase>
-            <goals>
-              <goal>shade</goal>
-            </goals>
-            <configuration>
-              <createDependencyReducedPom>true</createDependencyReducedPom>
-              <promoteTransitiveDependencies>true</promoteTransitiveDependencies>
-              <minimizeJar>false</minimizeJar>
-              <artifactSet>
-                <includes>
-                  <include>*:*</include>
-                </includes>
-              </artifactSet>
-              <relocations>
-                <relocation>
-                  <pattern>com.google.protobuf</pattern>
-                  <shadedPattern>org.apache.pulsar.replicator.com.google.protobuf</shadedPattern>
-                </relocation>
-              </relocations>
-            </configuration>
-          </execution>
-        </executions>
+        <groupId>org.apache.nifi</groupId>
+        <artifactId>nifi-nar-maven-plugin</artifactId>
       </plugin>
     </plugins>
   </build>

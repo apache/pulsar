@@ -34,23 +34,23 @@
   </moduleSets>
   <fileSets>
     <fileSet>
-      <directory>${basedir}/../conf</directory>
+      <directory>${basedir}/../../conf</directory>
     </fileSet>
     <fileSet>
-      <directory>${basedir}/../bin</directory>
+      <directory>${basedir}/../../bin</directory>
       <fileMode>755</fileMode>
     </fileSet>
     <fileSet>
       <directory>${basedir}/licenses</directory>
     </fileSet>
     <fileSet>
-      <directory>${basedir}/../pulsar-functions/runtime/target/python-instance</directory>
+      <directory>${basedir}/../../pulsar-functions/runtime/target/python-instance</directory>
       <outputDirectory>instances/python-instance</outputDirectory>
     </fileSet>
   </fileSets>
   <files>
     <file>
-      <source>${basedir}/../DISCLAIMER</source>
+      <source>${basedir}/../../DISCLAIMER</source>
       <outputDirectory>.</outputDirectory>
       <fileMode>644</fileMode>
     </file>
@@ -73,22 +73,22 @@
       <fileMode>644</fileMode>
     </file>
     <file>
-      <source>${basedir}/../pulsar-functions/runtime-all/target/java-instance.jar</source>
+      <source>${basedir}/../../pulsar-functions/runtime-all/target/java-instance.jar</source>
       <destName>java-instance.jar</destName>
       <outputDirectory>instances</outputDirectory>
     </file>
     <file>
-      <source>${basedir}/../pulsar-functions/java-examples/target/pulsar-functions-api-examples.jar</source>
+      <source>${basedir}/../../pulsar-functions/java-examples/target/pulsar-functions-api-examples.jar</source>
       <destName>api-examples.jar</destName>
       <outputDirectory>examples</outputDirectory>
     </file>
     <file>
-      <source>${basedir}/../pulsar-functions/java-examples/src/main/resources/example-function-config.yaml</source>
+      <source>${basedir}/../../pulsar-functions/java-examples/src/main/resources/example-function-config.yaml</source>
       <destName>example-function-config.yaml</destName>
       <outputDirectory>examples</outputDirectory>
     </file>
     <file>
-      <source>${basedir}/../pulsar-functions/java-examples/src/main/resources/example-window-function-config.yaml</source>
+      <source>${basedir}/../../pulsar-functions/java-examples/src/main/resources/example-window-function-config.yaml</source>
       <destName>example-window-function-config.yaml</destName>
       <outputDirectory>examples</outputDirectory>
     </file>

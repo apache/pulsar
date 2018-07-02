@@ -27,21 +27,18 @@ import com.datastax.driver.core.ResultSetFuture;
 import com.datastax.driver.core.Session;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
-import org.apache.pulsar.io.core.KeyValue;
-import org.apache.pulsar.io.core.SimpleSink;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+
+import org.apache.pulsar.io.core.KeyValue;
+import org.apache.pulsar.io.core.SimpleSink;
 
 /**
  * A Simple abstract class for Cassandra sink
  * Users need to implement extractKeyValue function to use this sink
  */
 public abstract class CassandraAbstractSink<K, V> extends SimpleSink<byte[]> {
-
-    private static final Logger LOG = LoggerFactory.getLogger(CassandraAbstractSink.class);
 
     // ----- Runtime fields
     private Cluster cluster;
