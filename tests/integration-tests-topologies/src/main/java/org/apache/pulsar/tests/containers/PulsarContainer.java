@@ -23,7 +23,11 @@ import static java.time.temporal.ChronoUnit.SECONDS;
 import java.time.Duration;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
+<<<<<<< HEAD
 import org.apache.pulsar.tests.DockerUtils;
+=======
+import org.testcontainers.containers.output.Slf4jLogConsumer;
+>>>>>>> Consolidate logging
 import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
 
 /**
@@ -43,7 +47,7 @@ public class PulsarContainer<SELF extends PulsarContainer<SELF>> extends ChaosCo
 
     private final String hostname;
     private final String serviceName;
-    private final String serviceEntrypoint;
+    private final String serviceEntryPoint;
     private final int servicePort;
     private final int httpPort;
 
@@ -56,7 +60,7 @@ public class PulsarContainer<SELF extends PulsarContainer<SELF>> extends ChaosCo
         super(clusterName, IMAGE_NAME);
         this.hostname = hostname;
         this.serviceName = serviceName;
-        this.serviceEntrypoint = serviceEntrypoint;
+        this.serviceEntryPoint = serviceEntrypoint;
         this.servicePort = servicePort;
         this.httpPort = httpPort;
     }
@@ -94,10 +98,11 @@ public class PulsarContainer<SELF extends PulsarContainer<SELF>> extends ChaosCo
             this.waitStrategy = new HostPortWaitStrategy()
                 .withStartupTimeout(Duration.of(300, SECONDS));
         }
+        this.withLogConsumer(new Slf4jLogConsumer(log).withPrefix(hostname));
         this.withCreateContainerCmdModifier(createContainerCmd -> {
             createContainerCmd.withHostName(hostname);
             createContainerCmd.withName(getContainerName());
-            createContainerCmd.withEntrypoint(serviceEntrypoint);
+            createContainerCmd.withEntrypoint(serviceEntryPoint);
         });
 
         super.start();

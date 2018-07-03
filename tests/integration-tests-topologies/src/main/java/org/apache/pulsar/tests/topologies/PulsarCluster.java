@@ -109,7 +109,6 @@ public class PulsarCluster {
 
         this.proxyContainer = new ProxyContainer(clusterName, ProxyContainer.NAME)
             .withNetwork(network)
-            .withLogConsumer(new Slf4jLogConsumer(log).withPrefix(ProxyContainer.NAME))
             .withNetworkAliases("pulsar-proxy")
             .withEnv("zkServers", ZKContainer.NAME)
             .withEnv("zookeeperServers", ZKContainer.NAME)
@@ -147,7 +146,6 @@ public class PulsarCluster {
                 .withEnv("zkServers", ZKContainer.NAME)
                 .withEnv("useHostNameAsBookieID", "true")
                 .withEnv("clusterName", clusterName)
-                .withLogConsumer(new Slf4jLogConsumer(log).withPrefix(name))
             )
         );
 

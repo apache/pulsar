@@ -59,7 +59,7 @@ public abstract class PulsarClusterTestBase {
     @BeforeClass
     public void setupCluster() throws Exception {
         PulsarClusterSpec spec = PulsarClusterSpec.builder()
-            .clusterName(this.getClass().getSimpleName())
+            .clusterName(this.getClass().getSimpleName() + "-" + randomName(5))
             .build();
 
         setupCluster(spec);
