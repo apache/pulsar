@@ -31,8 +31,23 @@ import org.testng.annotations.DataProvider;
 @Slf4j
 public abstract class PulsarFunctionsTestBase extends PulsarClusterTestBase  {
 
-    public static final String EXCLAMATION_FUNC_CLASS =
+    public static final String EXCLAMATION_JAVA_CLASS =
         "org.apache.pulsar.functions.api.examples.ExclamationFunction";
+
+    public static final String EXCLAMATION_PYTHON_CLASS =
+        "exclamation.Exclamation";
+
+    public static final String EXCLAMATION_PYTHON_FILE = "exclamation.py";
+
+    protected static String getExclamationClass(Runtime runtime) {
+        if (Runtime.JAVA == runtime) {
+            return EXCLAMATION_JAVA_CLASS;
+        } else if (Runtime.PYTHON == runtime) {
+            return EXCLAMATION_PYTHON_CLASS;
+        } else {
+            throw new IllegalArgumentException("Unsupported runtime : " + runtime);
+        }
+    }
 
     @BeforeClass
     public static void setupCluster() throws Exception {
@@ -47,7 +62,8 @@ public abstract class PulsarFunctionsTestBase extends PulsarClusterTestBase  {
     @DataProvider(name = "FunctionRuntimes")
     public static Object[][] functionRuntimes() {
         return new Object[][] {
-            new Object[] { Runtime.JAVA }
+            new Object[] { Runtime.JAVA },
+            new Object[] { Runtime.PYTHON }
         };
     }
 

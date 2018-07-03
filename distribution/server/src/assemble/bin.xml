@@ -47,6 +47,10 @@
       <directory>${basedir}/../../pulsar-functions/runtime/target/python-instance</directory>
       <outputDirectory>instances/python-instance</outputDirectory>
     </fileSet>
+    <fileSet>
+      <directory>${basedir}/../../pulsar-functions/python-examples</directory>
+      <outputDirectory>examples/python-examples</outputDirectory>
+    </fileSet>
   </fileSets>
   <files>
     <file>

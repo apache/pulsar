@@ -29,6 +29,10 @@ import org.testng.annotations.BeforeClass;
 @Slf4j
 public class PulsarFunctionsThreadRuntimeTest extends PulsarFunctionsRuntimeTest {
 
+    public PulsarFunctionsThreadRuntimeTest() {
+        super(ContainerFactory.THREAD);
+    }
+
     @BeforeClass
     public static void setupCluster() throws Exception {
         PulsarClusterTestBase.setupCluster();

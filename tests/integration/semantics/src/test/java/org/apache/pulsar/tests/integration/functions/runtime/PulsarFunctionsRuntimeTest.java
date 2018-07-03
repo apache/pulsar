@@ -40,12 +40,28 @@ import org.testng.annotations.Test;
  */
 public abstract class PulsarFunctionsRuntimeTest extends PulsarFunctionsTestBase {
 
+    protected enum ContainerFactory {
+        PROCESS,
+        THREAD
+    }
+
+    private final ContainerFactory containerFactory;
+
+    public PulsarFunctionsRuntimeTest(ContainerFactory containerFactory) {
+        this.containerFactory = containerFactory;
+    }
+
     //
     // Test CRUD functions on different runtimes.
     //
 
     @Test(dataProvider = "FunctionRuntimes")
     public void testExclamationFunction(Runtime runtime) throws Exception {
+        if (ContainerFactory.THREAD == containerFactory && Runtime.PYTHON == runtime) {
+            // python can only run on process mode
+            return;
+        }
+
         String inputTopicName = "test-exclamation-" + runtime + "-input-" + randomName(8);
         String outputTopicName = "test-exclamation-" + runtime + "-output-" + randomName(8);
         String functionName = "test-exclamation-fn-" + randomName(8);
@@ -53,7 +69,7 @@ public abstract class PulsarFunctionsRuntimeTest extends PulsarFunctionsTestBase
 
         // submit the exclamation function
         submitExclamationFunction(
-            inputTopicName, outputTopicName, functionName);
+            runtime, inputTopicName, outputTopicName, functionName);
 
         // get function info
         getFunctionInfoSuccess(functionName);
@@ -71,13 +87,23 @@ public abstract class PulsarFunctionsRuntimeTest extends PulsarFunctionsTestBase
         getFunctionInfoNotFound(functionName);
     }
 
-    private static void submitExclamationFunction(String inputTopicName,
+    private static void submitExclamationFunction(Runtime runtime,
+                                                  String inputTopicName,
                                                   String outputTopicName,
                                                   String functionName) throws Exception {
-        CommandGenerator generator = CommandGenerator.createDefaultGenerator(inputTopicName, EXCLAMATION_FUNC_CLASS);
+        CommandGenerator generator;
+        generator = CommandGenerator.createDefaultGenerator(inputTopicName, getExclamationClass(runtime));
         generator.setSinkTopic(outputTopicName);
         generator.setFunctionName(functionName);
-        String command = generator.generateCreateFunctionCommand();
+        String command;
+        if (Runtime.JAVA == runtime) {
+            command = generator.generateCreateFunctionCommand();
+        } else if (Runtime.PYTHON == runtime) {
+            generator.setRuntime(runtime);
+            command = generator.generateCreateFunctionCommand(EXCLAMATION_PYTHON_FILE);
+        } else {
+            throw new IllegalArgumentException("Unsupported runtime : " + runtime);
+        }
         String[] commands = {
             "sh", "-c", command
         };

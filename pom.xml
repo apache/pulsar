@@ -166,6 +166,7 @@ flexible messaging model and an intuitive client API.</description>
 
     <!-- Plugin dependencies -->
     <protobuf-maven-plugin.version>0.5.0</protobuf-maven-plugin.version>
+    <exec-maven-plugin.version>1.6.0</exec-maven-plugin.version>
   </properties>
 
   <dependencyManagement>
