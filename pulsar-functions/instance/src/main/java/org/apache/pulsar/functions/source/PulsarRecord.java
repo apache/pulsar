@@ -25,8 +25,10 @@ import lombok.Getter;
 import lombok.ToString;
 
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.io.core.Record;
 
 @Data
@@ -42,6 +44,7 @@ public class PulsarRecord<T> implements Record<T> {
     private MessageId messageId;
     private String topicName;
     private Map<String, String> properties;
+    private Optional<EncryptionContext> encryptionCtx = Optional.empty();
     private Runnable failFunction;
     private Runnable ackFunction;
 

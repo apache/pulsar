@@ -18,8 +18,13 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.util.Collections;
+import java.util.Map;
+import java.util.Optional;
+
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.io.core.Record;
 
 /**
@@ -61,5 +66,15 @@ public abstract class MessageRecordImpl<T, M extends MessageId> implements Messa
     @Override
     public void fail() {
         // no-op
+    }
+
+    @Override
+    public Map<String, String> getProperties() {
+        return Collections.emptyMap();
+    }
+
+    @Override
+    public Optional<EncryptionContext> getEncryptionCtx() {
+        return Optional.empty();
     }
 }

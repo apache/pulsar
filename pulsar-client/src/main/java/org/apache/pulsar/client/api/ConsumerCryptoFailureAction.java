@@ -19,7 +19,7 @@
 
 package org.apache.pulsar.client.api;
 
-import org.apache.pulsar.client.impl.EncryptionContext;
+import org.apache.pulsar.common.api.EncryptionContext;
 
 public enum ConsumerCryptoFailureAction {
     FAIL, // This is the default option to fail consume until crypto succeeds
