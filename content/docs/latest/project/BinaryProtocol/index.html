@@ -941,9 +941,9 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/project/BinaryProtocol/">Pulsar binary protocol specification</a></li>
+          
+          
           
           
           
@@ -1175,9 +1175,9 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/project/BinaryProtocol/">Pulsar binary protocol specification</a></li>
+          
+          
           
           
           
@@ -1977,8 +1977,9 @@ the messages due to: <code class="highlighter-rouge">UncompressedSizeCorruption<
 that were pushed to that particular consumer and not yet acknowledged.</p>
 
 <p>The protobuf object accepts a list of message ids that the consumer wants to
-be redelivered. If the list is empty, the broker will redeliver all the
-pending messages.</p>
+be redelivered. The message ids will be honored by the broker only if the
+subscription type is shared. For other subscription types or if the list
+is empty, the broker will redeliver all the pending messages.</p>
 
 <p>On redelivery, messages can be sent to the same consumer or, in the case of a
 shared subscription, spread across all available consumers.</p>
@@ -1994,18 +1995,18 @@ messages are coming from the consumer.</p>
 
 <h5 id="command-consumerstats">Command ConsumerStats</h5>
 
-<p>This command is sent by the client to retreive Subscriber and Consumer level 
+<p>This command is sent by the client to retrieve Subscriber and Consumer level
 stats from the broker.
 Parameters:</p>
 <ul>
-  <li><code class="highlighter-rouge">request_id</code> → Id of the request, used to correlate the request 
+  <li><code class="highlighter-rouge">request_id</code> → Id of the request, used to correlate the request
  		  and the response.</li>
   <li><code class="highlighter-rouge">consumer_id</code> → Id of an already established consumer.</li>
 </ul>
 
 <h5 id="command-consumerstatsresponse">Command ConsumerStatsResponse</h5>
 
-<p>This is the broker’s response to ConsumerStats request by the client. 
+<p>This is the broker’s response to ConsumerStats request by the client.
 It contains the Subscriber and Consumer level stats of the <code class="highlighter-rouge">consumer_id</code> sent in the request.
 If the <code class="highlighter-rouge">error_code</code> or the <code class="highlighter-rouge">error_message</code> field is set it indicates that the request has failed.</p>
 
