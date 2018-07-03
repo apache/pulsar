@@ -57,12 +57,12 @@ public class KinesisSinkConfig implements Serializable {
     }
     
     /**
-     * Message format in which kinesis-sink converts cms-message and publishes to kinesis stream.
+     * Message format in which kinesis-sink converts pulsar-message and publishes to kinesis stream.
      *
      */
     public static enum MessageFormat {
         /**
-         * Kinesis sink directly publishes cms-payload as a message into the kinesis-stream
+         * Kinesis sink directly publishes pulsar-payload as a message into the kinesis-stream
          */
         ONLY_RAW_PAYLOAD,
         /**
