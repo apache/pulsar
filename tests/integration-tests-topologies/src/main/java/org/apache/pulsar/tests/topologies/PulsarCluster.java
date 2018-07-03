@@ -282,12 +282,6 @@ public class PulsarCluster {
         return container.execCmd(cmds);
     }
 
-    public ExecResult createTenanantName(String tenantName, String clusterName, String roleName) throws Exception {
-        return runAdminCommandOnAnyBroker(
-            "tenants", "create", tenantName, "--allowed-clusters", clusterName,
-            "--admin-roles", roleName);
-    }
-
     public ExecResult createNamespace(String nsName) throws Exception {
         return runAdminCommandOnAnyBroker(
             "namespaces", "create", "public/" + nsName,

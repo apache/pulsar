@@ -26,6 +26,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.tests.topologies.PulsarClusterTestBase;
+import org.testcontainers.containers.Container;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -33,12 +34,12 @@ import java.util.concurrent.TimeUnit;
 
 public class SmokeTest extends PulsarClusterTestBase {
 
-    private static String clusterName = "test";
+    private final static String clusterName = "test";
 
     @Test
     public void testPublishAndConsume() throws Exception {
 
-        pulsarCluster.createTenanantName("smoke-test", clusterName, "smoke-admin");
+        this.createTenanantName("smoke-test", clusterName, "smoke-admin");
         pulsarCluster.createNamespace(clusterName);
         String topic = "persistent://smoke-test/test/ns1/topic1";
 
@@ -72,4 +73,11 @@ public class SmokeTest extends PulsarClusterTestBase {
         }
     }
 
+    private Container.ExecResult createTenanantName(String tenantName,
+                                                    String clusterName,
+                                                    String roleName) throws Exception {
+        return pulsarCluster.runAdminCommandOnAnyBroker(
+            "tenants", "create", tenantName, "--allowed-clusters", clusterName,
+            "--admin-roles", roleName);
+    }
 }
