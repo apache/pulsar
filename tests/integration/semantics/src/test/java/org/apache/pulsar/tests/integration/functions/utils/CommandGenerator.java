@@ -54,7 +54,7 @@ public class CommandGenerator {
 
     private Map<String, String> userConfig = new HashMap<>();
     private static final String JAVAJAR = "/pulsar/examples/api-examples.jar";
-    private static final String PYTHONBASE = "/pulsar/examples/python";
+    private static final String PYTHONBASE = "/pulsar/examples/python-examples/";
 
     public static CommandGenerator createDefaultGenerator(String sourceTopic, String functionClassName) {
         CommandGenerator generator = new CommandGenerator();
