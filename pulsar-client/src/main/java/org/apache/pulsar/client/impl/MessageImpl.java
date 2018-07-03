@@ -34,6 +34,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
@@ -330,6 +331,7 @@ public class MessageImpl<T> extends MessageRecordImpl<T, MessageId> {
         this.messageId = messageId;
     }
     
+    @Override
     public Optional<EncryptionContext> getEncryptionCtx() {
         return encryptionCtx;
     }
