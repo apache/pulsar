@@ -67,6 +67,8 @@ public class PulsarSource<T> implements Source<T> {
 
         // Setup pulsar consumer
         ConsumerBuilder<byte[]> consumerBuilder = this.pulsarClient.newConsumer()
+                //consume message even if can't decrypt and deliver it along with encryption-ctx
+                .cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)  
                 .subscriptionName(this.pulsarSourceConfig.getSubscriptionName())
                 .subscriptionType(this.pulsarSourceConfig.getSubscriptionType());
 
