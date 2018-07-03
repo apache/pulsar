@@ -23,6 +23,8 @@ package org.apache.pulsar.tests.containers;
  */
 public class BrokerContainer extends PulsarContainer<BrokerContainer> {
 
+    public static final String NAME = "pulsar-broker";
+
     public BrokerContainer(String clusterName, String hostName) {
         super(
             clusterName, hostName, hostName, "bin/run-broker.sh", BROKER_PORT, INVALID_PORT);

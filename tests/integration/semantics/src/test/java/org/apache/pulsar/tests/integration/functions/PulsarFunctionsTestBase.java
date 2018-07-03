@@ -50,8 +50,8 @@ public abstract class PulsarFunctionsTestBase extends PulsarClusterTestBase  {
     }
 
     @BeforeClass
-    public static void setupCluster() throws Exception {
-        PulsarClusterTestBase.setupCluster();
+    public void setupCluster() throws Exception {
+        this.setupCluster();
 
         pulsarCluster.startFunctionWorkersWithProcessContainerFactory(1);
 

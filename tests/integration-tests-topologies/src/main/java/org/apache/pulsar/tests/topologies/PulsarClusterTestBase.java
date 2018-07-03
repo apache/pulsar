@@ -18,14 +18,15 @@
  */
 package org.apache.pulsar.tests.topologies;
 
-import java.util.concurrent.ThreadLocalRandom;
 import lombok.extern.slf4j.Slf4j;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 
+import java.util.concurrent.ThreadLocalRandom;
+
 @Slf4j
-public class PulsarClusterTestBase {
+public abstract class PulsarClusterTestBase {
 
     @DataProvider(name = "ServiceUrlAndTopics")
     public static Object[][] serviceUrlAndTopics() {
@@ -56,19 +57,15 @@ public class PulsarClusterTestBase {
     protected static PulsarCluster pulsarCluster;
 
     @BeforeClass
-    public static void setupCluster() throws Exception {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < 8; i++) {
-            sb.append((char) (ThreadLocalRandom.current().nextInt(26) + 'a'));
-        }
+    public void setupCluster() throws Exception {
         PulsarClusterSpec spec = PulsarClusterSpec.builder()
-            .clusterName(sb.toString())
+            .clusterName(this.getClass().getSimpleName())
             .build();
 
         setupCluster(spec);
     }
 
-    protected static void setupCluster(PulsarClusterSpec spec) throws Exception {
+    protected void setupCluster(PulsarClusterSpec spec) throws Exception {
         log.info("Setting up cluster {} with {} bookies, {} brokers",
             spec.clusterName(), spec.numBookies(), spec.numBrokers());
 
@@ -79,14 +76,14 @@ public class PulsarClusterTestBase {
     }
 
     @AfterClass
-    public static void teardownCluster() {
+    public void tearDownCluster() {
         if (null != pulsarCluster) {
             pulsarCluster.stop();
         }
     }
 
     protected static String randomName(int numChars) {
-        StringBuilder sb = new StringBuilder();;;;
+        StringBuilder sb = new StringBuilder();
         for (int i = 0; i < 8; i++) {
             sb.append((char) (ThreadLocalRandom.current().nextInt(26) + 'a'));
         }

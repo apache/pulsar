@@ -30,7 +30,7 @@ import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
  * Abstract Test Container for Pulsar.
  */
 @Slf4j
-public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> extends ChaosContainer<SelfT> {
+public class PulsarContainer<SELF extends PulsarContainer<SELF>> extends ChaosContainer<SELF> {
 
     public static final int INVALID_PORT = -1;
     public static final int ZK_PORT = 2181;

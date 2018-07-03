@@ -34,8 +34,8 @@ public class PulsarFunctionsThreadRuntimeTest extends PulsarFunctionsRuntimeTest
     }
 
     @BeforeClass
-    public static void setupCluster() throws Exception {
-        PulsarClusterTestBase.setupCluster();
+    public void setupCluster() throws Exception {
+        this.setupCluster();
 
         pulsarCluster.startFunctionWorkersWithThreadContainerFactory(1);
 

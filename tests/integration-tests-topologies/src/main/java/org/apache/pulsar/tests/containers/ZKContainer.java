@@ -23,7 +23,7 @@ import org.apache.pulsar.tests.DockerUtils;
 /**
  * A pulsar container that runs zookeeper.
  */
-public class ZKContainer<SelfT extends ZKContainer<SelfT>> extends PulsarContainer<SelfT> {
+public class ZKContainer<SELF extends PulsarContainer<SELF>> extends PulsarContainer<SELF> {
 
     public static final String NAME = "zookeeper";
 
