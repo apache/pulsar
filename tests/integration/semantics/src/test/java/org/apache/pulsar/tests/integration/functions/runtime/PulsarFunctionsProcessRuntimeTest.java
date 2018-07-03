@@ -22,4 +22,7 @@ package org.apache.pulsar.tests.integration.functions.runtime;
  * Run runtime tests in process mode.
  */
 public class PulsarFunctionsProcessRuntimeTest extends PulsarFunctionsRuntimeTest {
+    public PulsarFunctionsProcessRuntimeTest() {
+        super(ContainerFactory.PROCESS);
+    }
 }
