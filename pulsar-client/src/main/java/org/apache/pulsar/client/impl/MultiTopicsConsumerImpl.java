@@ -484,14 +484,14 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         internalConsumerConfig.setPriorityLevel(conf.getPriorityLevel());
         internalConsumerConfig.setProperties(conf.getProperties());
         internalConsumerConfig.setReadCompacted(conf.isReadCompacted());
-
+        internalConsumerConfig.setCryptoFailureAction(conf.getCryptoFailureAction());
+        
         if (null != conf.getConsumerEventListener()) {
             internalConsumerConfig.setConsumerEventListener(conf.getConsumerEventListener());
         }
 
         if (conf.getCryptoKeyReader() != null) {
             internalConsumerConfig.setCryptoKeyReader(conf.getCryptoKeyReader());
-            internalConsumerConfig.setCryptoFailureAction(conf.getCryptoFailureAction());
         }
         if (conf.getAckTimeoutMillis() != 0) {
             internalConsumerConfig.setAckTimeoutMillis(conf.getAckTimeoutMillis());
