@@ -60,6 +60,7 @@ import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
 import org.apache.pulsar.client.impl.MessageCrypto;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarDecoder;
 import org.apache.pulsar.common.api.proto.PulsarApi;
@@ -2430,18 +2431,18 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             }
         }
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/myrsa-topic1")
-                .subscriptionName("my-subscriber-name").cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
-                .subscribe();
-
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/myrsa-topic1")
                 .addEncryptionKey(encryptionKeyName).compressionType(CompressionType.LZ4)
                 .cryptoKeyReader(new EncKeyReader()).create();
+        
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topicsPattern("persistent://my-property/my-ns/myrsa-topic1")
+                .subscriptionName("my-subscriber-name").cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
+                .subscribe();
 
         String message = "my-message";
         producer.send(message.getBytes());
 
-        MessageImpl<byte[]> msg = (MessageImpl<byte[]>) consumer.receive(5, TimeUnit.SECONDS);
+        TopicMessageImpl<byte[]> msg = (TopicMessageImpl<byte[]>) consumer.receive(5, TimeUnit.SECONDS);
 
         String receivedMessage = decryptMessage(msg, encryptionKeyName, new EncKeyReader());
         assertEquals(message, receivedMessage);
@@ -2450,7 +2451,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
     
-    private String decryptMessage(MessageImpl<byte[]> msg, String encryptionKeyName, CryptoKeyReader reader)
+    private String decryptMessage(TopicMessageImpl<byte[]> msg, String encryptionKeyName, CryptoKeyReader reader)
             throws Exception {
         Optional<EncryptionContext> ctx = msg.getEncryptionCtx();
         Assert.assertTrue(ctx.isPresent());
