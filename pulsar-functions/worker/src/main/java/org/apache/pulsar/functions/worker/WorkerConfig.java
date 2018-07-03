@@ -54,7 +54,6 @@ public class WorkerConfig implements Serializable {
     private String pulsarFunctionsCluster;
     private int numFunctionPackageReplicas;
     private String downloadDirectory;
-    private long snapshotFreqMs;
     private String stateStorageServiceUrl;
     private String functionAssignmentTopicName;
     private String schedulerClassName;
