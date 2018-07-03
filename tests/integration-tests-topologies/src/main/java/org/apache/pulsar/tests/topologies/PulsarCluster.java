@@ -75,7 +75,7 @@ public class PulsarCluster {
         this.spec = spec;
         this.clusterName = spec.clusterName();
         this.network = Network.newNetwork();
-        this.zkContainer = new ZKContainer(clusterName)
+        this.zkContainer = (ZKContainer) new ZKContainer(clusterName)
             .withNetwork(network)
             .withNetworkAliases(ZKContainer.NAME)
             .withEnv("clusterName", clusterName)

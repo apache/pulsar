@@ -21,7 +21,7 @@ package org.apache.pulsar.tests.containers;
 /**
  * A pulsar container that runs configuration store.
  */
-public class CSContainer extends PulsarContainer<CSContainer> {
+public class CSContainer extends ZKContainer<CSContainer> {
 
     public static final String NAME = "configuration-store";
 
