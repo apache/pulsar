@@ -147,10 +147,6 @@ public class PulsarCluster {
                 .withEnv("zkServers", ZKContainer.NAME)
                 .withEnv("useHostNameAsBookieID", "true")
                 .withEnv("clusterName", clusterName)
-                .withCreateContainerCmdModifier(createContainerCmd -> {
-                    createContainerCmd.withHostName(name);
-                    createContainerCmd.withName(name + "-" + clusterName);
-                })
                 .withLogConsumer(new Slf4jLogConsumer(log).withPrefix(name))
             )
         );
