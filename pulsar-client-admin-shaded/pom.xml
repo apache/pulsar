@@ -96,6 +96,7 @@
                   <include>com.google.auth:*</include>
                   <include>org.jvnet.mimepull:*</include>
                   <include>io.opencensus:*</include>
+                  <include>org.objenesis:*</include>
 
                   <include>org.apache.avro:*</include>
                   <!-- Avro transitive dependencies-->
@@ -252,6 +253,10 @@
                   <relocation>
                       <pattern>org.apache.http</pattern>
                       <shadedPattern>org.apache.pulsar.shade.org.apache.http</shadedPattern>
+                  </relocation>
+                  <relocation>
+                      <pattern>org.objenesis</pattern>
+                      <shadedPattern>org.apache.pulsar.shade.org.objenesis</shadedPattern>
                   </relocation>
               </relocations>
               <transformers>
