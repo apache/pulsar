@@ -58,14 +58,18 @@ public abstract class PulsarClusterTestBase {
 
     @BeforeClass
     public void setupCluster() throws Exception {
+        this.setupCluster("");
+    }
+
+    public void setupCluster(String namePrefix) throws Exception {
         PulsarClusterSpec spec = PulsarClusterSpec.builder()
-            .clusterName(this.getClass().getSimpleName() + "-" + randomName(5))
+            .clusterName(this.getClass().getSimpleName() + "-" + namePrefix + "-" + randomName(5))
             .build();
 
         setupCluster(spec);
     }
 
-    protected void setupCluster(PulsarClusterSpec spec) throws Exception {
+    private void setupCluster(PulsarClusterSpec spec) throws Exception {
         log.info("Setting up cluster {} with {} bookies, {} brokers",
             spec.clusterName(), spec.numBookies(), spec.numBrokers());
 

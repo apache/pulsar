@@ -19,6 +19,7 @@
 package org.apache.pulsar.tests.integration.functions;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.tests.integration.functions.runtime.PulsarFunctionsRuntimeTest;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runtime;
 import org.apache.pulsar.tests.topologies.PulsarClusterTestBase;
 import org.testcontainers.containers.Container.ExecResult;
@@ -51,10 +52,19 @@ public abstract class PulsarFunctionsTestBase extends PulsarClusterTestBase  {
 
     @BeforeClass
     public void setupCluster() throws Exception {
-        super.setupCluster();
+        setupClusterForProcess();
+    }
 
+    public void setupClusterForProcess() throws Exception {
+        super.setupCluster(PulsarFunctionsRuntimeTest.FunctionProcessingMode.PROCESS.toString());
         pulsarCluster.startFunctionWorkersWithProcessContainerFactory(1);
+        ExecResult result = pulsarCluster.getAnyWorker().execCmd("cat", "/pulsar/conf/functions_worker.yml");
+        log.info("Functions Worker Config : \n{}", result.getStdout());
+    }
 
+    public void setupClusterForThreaded() throws Exception {
+        super.setupCluster(PulsarFunctionsRuntimeTest.FunctionProcessingMode.THREAD.toString());
+        pulsarCluster.startFunctionWorkersWithThreadContainerFactory(1);
         ExecResult result = pulsarCluster.getAnyWorker().execCmd("cat", "/pulsar/conf/functions_worker.yml");
         log.info("Functions Worker Config : \n{}", result.getStdout());
     }

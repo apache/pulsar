@@ -18,11 +18,18 @@
  */
 package org.apache.pulsar.tests.integration.functions.runtime;
 
+import org.testng.annotations.BeforeClass;
+
 /**
  * Run runtime tests in process mode.
  */
 public class PulsarFunctionsProcessRuntimeTest extends PulsarFunctionsRuntimeTest {
     public PulsarFunctionsProcessRuntimeTest() {
-        super(ContainerFactory.PROCESS);
+        super(FunctionProcessingMode.PROCESS);
+    }
+
+    @BeforeClass
+    public void setupCluster() throws Exception {
+        super.setupClusterForProcess();
     }
 }

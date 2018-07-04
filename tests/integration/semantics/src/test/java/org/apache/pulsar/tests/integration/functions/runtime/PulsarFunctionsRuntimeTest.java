@@ -33,6 +33,7 @@ import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runtime;
 import org.apache.pulsar.tests.topologies.PulsarCluster;
 import org.testcontainers.containers.Container.ExecResult;
+import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 /**
@@ -40,15 +41,15 @@ import org.testng.annotations.Test;
  */
 public abstract class PulsarFunctionsRuntimeTest extends PulsarFunctionsTestBase {
 
-    protected enum ContainerFactory {
+    public enum FunctionProcessingMode {
         PROCESS,
         THREAD
     }
 
-    private final ContainerFactory containerFactory;
+    private final FunctionProcessingMode functionProcessingMode;
 
-    public PulsarFunctionsRuntimeTest(ContainerFactory containerFactory) {
-        this.containerFactory = containerFactory;
+    public PulsarFunctionsRuntimeTest(FunctionProcessingMode functionProcessingMode) {
+        this.functionProcessingMode = functionProcessingMode;
     }
 
     //
@@ -57,7 +58,7 @@ public abstract class PulsarFunctionsRuntimeTest extends PulsarFunctionsTestBase
 
     @Test(dataProvider = "FunctionRuntimes")
     public void testExclamationFunction(Runtime runtime) throws Exception {
-        if (ContainerFactory.THREAD == containerFactory && Runtime.PYTHON == runtime) {
+        if (functionProcessingMode == FunctionProcessingMode.THREAD && runtime == Runtime.PYTHON) {
             // python can only run on process mode
             return;
         }
