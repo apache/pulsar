@@ -57,6 +57,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.Commands.ChecksumType;
@@ -66,6 +67,8 @@ import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 import org.slf4j.Logger;
@@ -845,9 +848,28 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         long requestId = client.newRequestId();
 
+        SchemaInfo schemaInfo = null;
+        if (schema != null) {
+            if (schema.getSchemaInfo() != null) {
+                if (schema.getSchemaInfo().getType() == SchemaType.JSON) {
+                    // for backwards compatibility purposes
+                    // JSONSchema originally generated a schema for pojo based of of the JSON schema standard
+                    // but now we have standardized on every schema to generate an Avro based schema
+                    if (Commands.peerSupportJsonSchemaAvroFormat(cnx.getRemoteEndpointProtocolVersion())) {
+                        schemaInfo = schema.getSchemaInfo();
+                    } else {
+                        JSONSchema jsonSchema = (JSONSchema) schema;
+                        schemaInfo = jsonSchema.getBackwardsCompatibleJsonSchemaInfo();
+                    }
+                } else {
+                    schemaInfo = schema.getSchemaInfo();
+                }
+            }
+        }
+
         cnx.sendRequestWithId(
                 Commands.newProducer(topic, producerId, requestId, producerName, conf.isEncryptionEnabled(), metadata,
-                    schema == null ? null : schema.getSchemaInfo()),
+                       schemaInfo),
                 requestId).thenAccept(response -> {
                     String producerName = response.getProducerName();
                     long lastSequenceId = response.getLastSequenceId();

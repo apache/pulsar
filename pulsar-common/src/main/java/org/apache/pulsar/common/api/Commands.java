@@ -1074,4 +1074,7 @@ public class Commands {
         return peerVersion >= ProtocolVersion.v12.getNumber();
     }
 
+    public static boolean peerSupportJsonSchemaAvroFormat(int peerVersion) {
+        return peerVersion >= ProtocolVersion.v13.getNumber();
+    }
 }
