@@ -23,6 +23,7 @@ import static java.time.temporal.ChronoUnit.SECONDS;
 import java.time.Duration;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.tests.DockerUtils;
 import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
 
 /**
@@ -58,6 +59,18 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
         this.serviceEntrypoint = serviceEntrypoint;
         this.servicePort = servicePort;
         this.httpPort = httpPort;
+    }
+
+    @Override
+    protected void beforeStop() {
+        super.beforeStop();
+        if (null != containerId) {
+            DockerUtils.dumpContainerDirToTargetCompressed(
+                getDockerClient(),
+                containerId,
+                "/var/log/pulsar"
+            );
+        }
     }
 
     @Override
