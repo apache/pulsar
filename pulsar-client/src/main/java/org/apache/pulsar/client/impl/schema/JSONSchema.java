@@ -41,10 +41,6 @@ public class JSONSchema<T> implements Schema<T>{
     private final Class<T> pojo;
     private Map<String, String> properties;
 
-    public enum SchemaFormat {
-        AVRO,
-    }
-
     private JSONSchema(Class<T> pojo, Map<String, String> properties) {
         this.pojo = pojo;
         this.properties = properties;
