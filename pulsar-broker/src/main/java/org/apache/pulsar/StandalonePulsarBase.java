@@ -21,8 +21,6 @@ package org.apache.pulsar;
 import com.beust.jcommander.Parameter;
 import com.ea.agentloader.AgentLoader;
 import com.google.common.collect.Sets;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -35,6 +33,8 @@ import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.aspectj.weaver.loadtime.Agent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.URL;
 import java.nio.file.Paths;
@@ -42,15 +42,75 @@ import java.util.Optional;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
-@Getter
-@Slf4j
 public abstract class StandalonePulsarBase {
+
+    private static final Logger log = LoggerFactory.getLogger(StandalonePulsarBase.class);
 
     PulsarService broker;
     PulsarAdmin admin;
     LocalBookkeeperEnsemble bkEnsemble;
     ServiceConfiguration config;
     WorkerService fnWorkerService;
+
+    public String getConfigFile() {
+        return configFile;
+    }
+
+    public boolean isWipeData() {
+        return wipeData;
+    }
+
+    public int getNumOfBk() {
+        return numOfBk;
+    }
+
+    public int getZkPort() {
+        return zkPort;
+    }
+
+    public int getBkPort() {
+        return bkPort;
+    }
+
+    public String getZkDir() {
+        return zkDir;
+    }
+
+    public String getBkDir() {
+        return bkDir;
+    }
+
+    public boolean isNoBroker() {
+        return noBroker;
+    }
+
+    public boolean isOnlyBroker() {
+        return onlyBroker;
+    }
+
+    public boolean isNoFunctionsWorker() {
+        return noFunctionsWorker;
+    }
+
+    public String getFnWorkerConfigFile() {
+        return fnWorkerConfigFile;
+    }
+
+    public boolean isNoStreamStorage() {
+        return noStreamStorage;
+    }
+
+    public int getStreamStoragePort() {
+        return streamStoragePort;
+    }
+
+    public String getAdvertisedAddress() {
+        return advertisedAddress;
+    }
+
+    public boolean isHelp() {
+        return help;
+    }
 
     @Parameter(names = { "-c", "--config" }, description = "Configuration file path", required = true)
     private String configFile;
