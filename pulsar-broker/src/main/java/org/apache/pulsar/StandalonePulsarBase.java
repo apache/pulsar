@@ -52,6 +52,91 @@ public abstract class StandalonePulsarBase {
     ServiceConfiguration config;
     WorkerService fnWorkerService;
 
+    public void setBroker(PulsarService broker) {
+        this.broker = broker;
+    }
+
+    public void setAdmin(PulsarAdmin admin) {
+        this.admin = admin;
+    }
+
+    public void setBkEnsemble(LocalBookkeeperEnsemble bkEnsemble) {
+        this.bkEnsemble = bkEnsemble;
+    }
+
+    public void setBkPort(int bkPort) {
+        this.bkPort = bkPort;
+    }
+
+    public void setBkDir(String bkDir) {
+        this.bkDir = bkDir;
+    }
+
+    public void setAdvertisedAddress(String advertisedAddress) {
+        this.advertisedAddress = advertisedAddress;
+    }
+
+    public void setConfig(ServiceConfiguration config) {
+
+        this.config = config;
+    }
+
+    public void setFnWorkerService(WorkerService fnWorkerService) {
+        this.fnWorkerService = fnWorkerService;
+    }
+
+    public void setConfigFile(String configFile) {
+        this.configFile = configFile;
+    }
+
+    public void setWipeData(boolean wipeData) {
+        this.wipeData = wipeData;
+    }
+
+    public void setNumOfBk(int numOfBk) {
+        this.numOfBk = numOfBk;
+    }
+
+    public void setZkPort(int zkPort) {
+        this.zkPort = zkPort;
+    }
+
+    public void setZkDir(String zkDir) {
+        this.zkDir = zkDir;
+    }
+
+    public void setNoBroker(boolean noBroker) {
+        this.noBroker = noBroker;
+    }
+
+    public void setOnlyBroker(boolean onlyBroker) {
+        this.onlyBroker = onlyBroker;
+    }
+
+    public void setNoFunctionsWorker(boolean noFunctionsWorker) {
+        this.noFunctionsWorker = noFunctionsWorker;
+    }
+
+    public void setFnWorkerConfigFile(String fnWorkerConfigFile) {
+        this.fnWorkerConfigFile = fnWorkerConfigFile;
+    }
+
+    public void setNoStreamStorage(boolean noStreamStorage) {
+        this.noStreamStorage = noStreamStorage;
+    }
+
+    public void setStreamStoragePort(int streamStoragePort) {
+        this.streamStoragePort = streamStoragePort;
+    }
+
+    public void setHelp(boolean help) {
+        this.help = help;
+    }
+
+    public ServiceConfiguration getConfig() {
+        return config;
+    }
+
     public String getConfigFile() {
         return configFile;
     }
@@ -218,6 +303,24 @@ public abstract class StandalonePulsarBase {
         createDeafultNameSpace(cluster);
 
         log.debug("--- setup completed ---");
+    }
+
+    void stop() {
+        try {
+            if (fnWorkerService != null) {
+                fnWorkerService.stop();
+            }
+
+            if (broker != null) {
+                broker.close();
+            }
+
+            if (bkEnsemble != null) {
+                bkEnsemble.stop();
+            }
+        } catch (Exception e) {
+            log.error("Shutdown failed: {}", e.getMessage());
+        }
     }
 
     private void createDeafultNameSpace(String cluster) {
