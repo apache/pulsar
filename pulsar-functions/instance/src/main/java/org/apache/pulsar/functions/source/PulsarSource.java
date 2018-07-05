@@ -42,22 +42,28 @@ import org.apache.pulsar.io.core.Source;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
 public class PulsarSource<T> implements Source<T> {
 
-    private PulsarClient pulsarClient;
-    private PulsarSourceConfig pulsarSourceConfig;
+    private final PulsarClient pulsarClient;
+    private final PulsarSourceConfig pulsarSourceConfig;
+    private final ScheduledExecutorService executor;
     private Map<String, SerDe> topicToSerDeMap = new HashMap<>();
     private boolean isTopicsPattern;
+    private static final long RETRY_BACKOFF_MS = 10 * 1000; // 10 seconds
+    private static final int MAX_ACK_RETRY = 20;
 
     @Getter
     private org.apache.pulsar.client.api.Consumer inputConsumer;
 
-    public PulsarSource(PulsarClient pulsarClient, PulsarSourceConfig pulsarConfig) {
+    public PulsarSource(PulsarClient pulsarClient, PulsarSourceConfig pulsarConfig, ScheduledExecutorService executor) {
         this.pulsarClient = pulsarClient;
         this.pulsarSourceConfig = pulsarConfig;
+        this.executor = executor;
     }
 
     @Override
@@ -138,11 +144,7 @@ public class PulsarSource<T> implements Source<T> {
                 .properties(message.getProperties())
                 .encryptionCtx(message.getEncryptionCtx())
                 .ackFunction(() -> {
-                    if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
-                        inputConsumer.acknowledgeCumulativeAsync(message);
-                    } else {
-                        inputConsumer.acknowledgeAsync(message);
-                    }
+                    ackWithRetry(message, 0);
                 }).failFunction(() -> {
                     if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
                         throw new RuntimeException("Failed to process message: " + message.getMessageId());
@@ -150,6 +152,28 @@ public class PulsarSource<T> implements Source<T> {
                 })
                 .build();
         return pulsarMessage;
+    }
+
+    private void ackWithRetry(org.apache.pulsar.client.api.Message<T> message, int retry) {
+        if (retry >= MAX_ACK_RETRY) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Failed to ack {} after {} retry", inputConsumer.getTopic(), message.getMessageId(),
+                        retry);
+            }
+            return;
+        }
+        CompletableFuture<T> ackResult = null;
+        if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+            ackResult = inputConsumer.acknowledgeCumulativeAsync(message);
+        } else {
+            ackResult = inputConsumer.acknowledgeAsync(message);
+        }
+        ackResult.exceptionally(ex -> {
+            if (executor != null) {
+                executor.schedule(() -> ackWithRetry(message, retry + 1), RETRY_BACKOFF_MS, TimeUnit.MILLISECONDS);
+            }
+            return null;
+        });
     }
 
     @Override

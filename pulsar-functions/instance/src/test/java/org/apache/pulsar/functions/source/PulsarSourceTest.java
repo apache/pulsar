@@ -118,7 +118,7 @@ public class PulsarSourceTest {
         PulsarSourceConfig pulsarConfig = getPulsarConfigs();
         // set type to void
         pulsarConfig.setTypeClassName(Void.class.getName());
-        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig);
+        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig, null);
 
         try {
             pulsarSource.open(new HashMap<>());
@@ -143,7 +143,7 @@ public class PulsarSourceTest {
         Map<String, String> topicSerdeClassNameMap = new HashMap<>();
         topicSerdeClassNameMap.put("persistent://sample/standalone/ns1/test_result", TestSerDe.class.getName());
         pulsarConfig.setTopicSerdeClassNameMap(topicSerdeClassNameMap);
-        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig);
+        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig, null);
         try {
             pulsarSource.open(new HashMap<>());
             fail("Should fail constructing java instance if function type is inconsistent with serde type");
@@ -167,7 +167,7 @@ public class PulsarSourceTest {
         pulsarConfig.setTypeClassName(String.class.getName());
         topicSerdeClassNameMap.put("persistent://sample/standalone/ns1/test_result", null);
         pulsarConfig.setTopicSerdeClassNameMap(topicSerdeClassNameMap);
-        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig);
+        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig, null);
 
         pulsarSource.open(new HashMap<>());
     }
@@ -182,7 +182,7 @@ public class PulsarSourceTest {
         pulsarConfig.setTypeClassName(String.class.getName());
         topicSerdeClassNameMap.put("persistent://sample/standalone/ns1/test_result", DefaultSerDe.class.getName());
         pulsarConfig.setTopicSerdeClassNameMap(topicSerdeClassNameMap);
-        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig);
+        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig, null);
 
         pulsarSource.open(new HashMap<>());
     }
@@ -194,7 +194,7 @@ public class PulsarSourceTest {
         pulsarConfig.setTypeClassName(ComplexUserDefinedType.class.getName());
         topicSerdeClassNameMap.put("persistent://sample/standalone/ns1/test_result",ComplexSerDe.class.getName());
         pulsarConfig.setTopicSerdeClassNameMap(topicSerdeClassNameMap);
-        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig);
+        PulsarSource pulsarSource = new PulsarSource(getPulsarClient(), pulsarConfig, null);
 
         try {
             pulsarSource.setupSerDe();
