@@ -62,6 +62,7 @@ public abstract class PulsarClusterTestBase {
     @BeforeClass
     public void setupCluster() throws Exception {
         this.setupCluster("");
+        pulsarCluster.startFunctionWorkersWithProcessContainerFactory(1);
     }
 
     public void setupCluster(String namePrefix) throws Exception {
