@@ -49,6 +49,15 @@ groups:
   - title: Metrics for Pulsar Functions
     endpoint: metrics
 
+- title: Pulsar IO
+  dir: io
+  new: true
+  docs:
+  - title: Pulsar IO overview
+    endpoint: overview
+  - title: Getting started with Pulsar IO
+    endpoint: quickstart
+
 - title: Deployment
   dir: deployment
   docs:
@@ -69,7 +78,7 @@ groups:
   - title: Monitoring
     endpoint: Monitoring
 
-- title: Pulsar administration
+- title: Administration
   dir: admin
   docs:
   - title: ZooKeeper and BookKeeper
@@ -136,8 +145,6 @@ groups:
 - title: Cookbooks
   dir: cookbooks
   docs:
-  - title: Pulsar IO
-    endpoint: pulsar-io
   - title: Tiered Storage
     endpoint: tiered-storage
   - title: Topic compaction
