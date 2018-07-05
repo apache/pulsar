@@ -42,9 +42,9 @@ import java.util.Optional;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
-public abstract class StandalonePulsarBase {
+public class PulsarStandalone {
 
-    private static final Logger log = LoggerFactory.getLogger(StandalonePulsarBase.class);
+    private static final Logger log = LoggerFactory.getLogger(PulsarStandalone.class);
 
     PulsarService broker;
     PulsarAdmin admin;
@@ -248,7 +248,7 @@ public abstract class StandalonePulsarBase {
             System.exit(1);
         }
 
-        log.debug("--- setup PulsarStandaloneStarter ---");
+        log.debug("--- setup PulsarStarter ---");
 
         // load aspectj-weaver agent for instrumentation
         AgentLoader.loadAgentClass(Agent.class.getName(), null);
@@ -372,4 +372,20 @@ public abstract class StandalonePulsarBase {
             log.info(e.getMessage());
         }
     }
+    
+    /** this methods gets a buidler to use to build and an embedded pulsar instance `
+     * i.e.
+     * <pre>
+     * <code>
+     * PulsarStandalone pulsarStandalone = PulsarStandalone.builder().build();
+     * pulsarStandalone.start();
+     * pulsarStandalone.stop();
+     * </code>
+     * </pre>
+     * @return PulsarStandaloneBuilder instance
+     */
+    public static PulsarStandaloneBuilder builder(){
+        return PulsarStandaloneBuilder.instance();
+    }
+
 }
