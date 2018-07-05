@@ -395,6 +395,37 @@
     
     
     <div class="card">
+      <div class="card-header" role="tab" id="heading-pulsar-io">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-pulsar-io" aria-controls="collapse-pulsar-io">
+            Pulsar IO
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-pulsar-io" role="tabpanel" aria-labelledby="heading-pulsar-io">
+        <ul>
+          
+          
+          <li>
+            <a href="../../io/overview">
+              Pulsar IO overview
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../io/quickstart">
+              Getting started with Pulsar IO
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
       <div class="card-header" role="tab" id="heading-deployment">
         <h5>
           <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-deployment" aria-controls="collapse-deployment">
@@ -468,15 +499,15 @@
     
     
     <div class="card">
-      <div class="card-header" role="tab" id="heading-pulsar-administration">
+      <div class="card-header" role="tab" id="heading-administration">
         <h5>
-          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-pulsar-administration" aria-controls="collapse-pulsar-administration">
-            Pulsar administration
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-administration" aria-controls="collapse-administration">
+            Administration
           </a>
         </h5>
       </div>
 
-      <div class="sidebar-group collapse" id="collapse-pulsar-administration" role="tabpanel" aria-labelledby="heading-pulsar-administration">
+      <div class="sidebar-group collapse" id="collapse-administration" role="tabpanel" aria-labelledby="heading-administration">
         <ul>
           
           
@@ -714,13 +745,6 @@
 
       <div class="sidebar-group collapse" id="collapse-cookbooks" role="tabpanel" aria-labelledby="heading-cookbooks">
         <ul>
-          
-          
-          <li>
-            <a href="../../cookbooks/pulsar-io">
-              Pulsar IO
-            </a>
-          </li>
           
           
           <li>
@@ -4483,7 +4507,7 @@
           <h5>
             <code class="highlighter-rouge get">GET</code>
           </h5>
-          <p>Get all namespaces that are grouped by given anti-affinity group in a given cluster. api can be only accessed by admin of any of the existing tenant</p>
+          <p>Get all namespaces that are grouped by given anti-affinity group in a given cluster. api can be only accessed by admin of any of the existing property</p>
           
           <h5>URL parameters</h5>
           <table>
@@ -4512,7 +4536,7 @@
               </tr>
               
               <tr>
-                <td><code class="highlighter-rouge">tenant</code></td>
+                <td><code class="highlighter-rouge">property</code></td>
                 <td>query</td>
                 <td>false</td>
                 <td>string</td>

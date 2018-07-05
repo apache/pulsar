@@ -396,6 +396,37 @@
     
     
     <div class="card">
+      <div class="card-header" role="tab" id="heading-pulsar-io">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-pulsar-io" aria-controls="collapse-pulsar-io">
+            Pulsar IO
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-pulsar-io" role="tabpanel" aria-labelledby="heading-pulsar-io">
+        <ul>
+          
+          
+          <li>
+            <a href="../../io/overview">
+              Pulsar IO overview
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../io/quickstart">
+              Getting started with Pulsar IO
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
       <div class="card-header" role="tab" id="heading-deployment">
         <h5>
           <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-deployment" aria-controls="collapse-deployment">
@@ -469,15 +500,15 @@
     
     
     <div class="card">
-      <div class="card-header" role="tab" id="heading-pulsar-administration">
+      <div class="card-header" role="tab" id="heading-administration">
         <h5>
-          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-pulsar-administration" aria-controls="collapse-pulsar-administration">
-            Pulsar administration
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-administration" aria-controls="collapse-administration">
+            Administration
           </a>
         </h5>
       </div>
 
-      <div class="sidebar-group collapse" id="collapse-pulsar-administration" role="tabpanel" aria-labelledby="heading-pulsar-administration">
+      <div class="sidebar-group collapse" id="collapse-administration" role="tabpanel" aria-labelledby="heading-administration">
         <ul>
           
           
@@ -715,13 +746,6 @@
 
       <div class="sidebar-group collapse" id="collapse-cookbooks" role="tabpanel" aria-labelledby="heading-cookbooks">
         <ul>
-          
-          
-          <li>
-            <a href="../../cookbooks/pulsar-io">
-              Pulsar IO
-            </a>
-          </li>
           
           
           <li>
@@ -1130,6 +1154,8 @@
           
           
           
+          
+          
         </ul>
       </div>
     </div>
@@ -1326,6 +1352,8 @@
           
           
           <li><a href="/docs/latest/cookbooks/message-deduplication/">Message deduplication</a></li>
+          
+          
           
           
           
@@ -3222,223 +3250,6 @@
 
   </div>
 </div>
-
-<h2 id="pulsar-io">Pulsar IO</h2>
-
-<p>Messaging systems are most powerful when you can easily use them in conjunction with external systems like databases and other messaging systems. <strong>Pulsar IO</strong> is a feature of Pulsar that enables you to easily create, deploy, and manage Pulsar <strong>connectors</strong> that interact with external systems, such as <a href="https://cassandra.apache.org">Apache Cassandra</a>, <a href="https://www.aerospike.com">Aerospike</a>, and many others.</p>
-
-<!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<div class="admonition">
-  <div class="info">
-    <span class="admonition-title"><p>Pulsar IO and Pulsar Functions</p>
-</span>
-    <p>Under the hood, Pulsar IO connectors are specialized <a href="#pulsar-functions">Pulsar Functions</a> purpose-built to interface with external systems. The <a href="../../cookbooks/pulsar-io">administrative interface</a> for Pulsar IO is, in fact, quite similar to that of Pulsar Functions.</p>
-
-  </div>
-</div>
-
-<h3 id="sources-and-sinks">Sources and sinks</h3>
-
-<p>Pulsar IO connectors come in two types:</p>
-
-<ul>
-  <li><strong>Sources</strong> feed data <em>into</em> Pulsar from other systems. Common sources include other messaging systems and “firehose”-style data pipeline APIs.</li>
-  <li><strong>Sinks</strong> are fed data <em>from</em> Pulsar. Common sinks include other messaging systems and SQL and NoSQL databases.</li>
-</ul>
-
-<p>This diagram illustrates the relationship between sources, sinks, and Pulsar:</p>
-
-<!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<figure>
-    <img src="/img/pulsar-io.png" width="80%" alt="Pulsar IO diagram" />
-    
-    <figcaption>
-        Pulsar IO connectors (sources and sinks)
-    </figcaption>
-    
-</figure>
-
-<h3 id="working-with-connectors">Working with connectors</h3>
-
-<p>Pulsar IO connectors can be managed via the <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> CLI tool, in particular the <a href="../../reference/CliTools#pulsar-admin-source"><code class="highlighter-rouge">source</code></a> and <a href="../../reference/CliTools#pulsar-admin-sink"><code class="highlighter-rouge">sink</code></a> commands.</p>
-
-<!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<div class="admonition">
-  <div class="info">
-    
-    <p>For a guide to managing connectors in your Pulsar installation, see the <a href="../../cookbooks/pulsar-io#managing-connectors">Pulsar IO cookbook</a>.</p>
-
-  </div>
-</div>
-
-<p>The following connectors are currently available for Pulsar:</p>
-
-<!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<table>
-    <thead>
-    <tr>
-        <th>Name</th>
-        <th>Java class</th>
-    </tr>
-    </thead>
-    <tbody>
-    
-    <tr>
-        <td>
-            <a href="https://www.aerospike.com/">
-                Aerospike sink
-            </a>
-        </td>
-        <td>
-            <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/aerospike/src/main/java/org/apache/pulsar/connect/aerospike/AerospikeSink.java">
-                <code>org.apache.pulsar.io.aerospike.AerospikeSink</code>
-            </a>
-        </td>
-    </tr>
-    
-    <tr>
-        <td>
-            <a href="https://cassandra.apache.org">
-                Cassandra sink
-            </a>
-        </td>
-        <td>
-            <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/cassandra/src/main/java/org/apache/pulsar/connect/cassandra/CassandraSink.java">
-                <code>org.apache.pulsar.io.cassandra.CassandraSink</code>
-            </a>
-        </td>
-    </tr>
-    
-    <tr>
-        <td>
-            <a href="https://kafka.apache.org">
-                Kafka source
-            </a>
-        </td>
-        <td>
-            <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/kafka/src/main/java/org/apache/pulsar/connect/kafka/KafkaSource.java">
-                <code>org.apache.pulsar.io.kafka.KafkaSource</code>
-            </a>
-        </td>
-    </tr>
-    
-    <tr>
-        <td>
-            <a href="https://kafka.apache.org">
-                Kafka sink
-            </a>
-        </td>
-        <td>
-            <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/kafka/src/main/java/org/apache/pulsar/connect/kafka/KafkaSink.java">
-                <code>org.apache.pulsar.io.kafka.KafkaSink</code>
-            </a>
-        </td>
-    </tr>
-    
-    <tr>
-        <td>
-            <a href="https://www.rabbitmq.com">
-                RabbitMQ source
-            </a>
-        </td>
-        <td>
-            <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/rabbitmq/src/main/java/org/apache/pulsar/connect/rabbitmq/RabbitMQSource.java">
-                <code>org.apache.pulsar.io.rabbitmq.RabbitMQSource</code>
-            </a>
-        </td>
-    </tr>
-    
-    <tr>
-        <td>
-            <a href="https://developer.twitter.com/en/docs">
-                Twitter Firehose source
-            </a>
-        </td>
-        <td>
-            <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/twitter/src/main/java/org/apache/pulsar/connect/twitter/TwitterFireHose.java">
-                <code>org.apache.pulsar.io.twitter.TwitterFireHose</code>
-            </a>
-        </td>
-    </tr>
-    
-    </tbody>
-</table>
 
 <h2 id="schema-registry">Schema registry</h2>
 
