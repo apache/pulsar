@@ -42,14 +42,14 @@ public class ZKContainer<SELF extends PulsarContainer<SELF>> extends PulsarConta
     public ZKContainer(String clusterName,
                        String hostname,
                        String serviceName,
-                       String serviceEntrypoint,
+                       String serviceEntryPoint,
                        int servicePort,
                        int httpPort) {
         super(
             clusterName,
             hostname,
             serviceName,
-            serviceEntrypoint,
+            serviceEntryPoint,
             servicePort,
             httpPort);
     }

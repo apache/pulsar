@@ -23,11 +23,8 @@ import static java.time.temporal.ChronoUnit.SECONDS;
 import java.time.Duration;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
-<<<<<<< HEAD
 import org.apache.pulsar.tests.DockerUtils;
-=======
 import org.testcontainers.containers.output.Slf4jLogConsumer;
->>>>>>> Consolidate logging
 import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
 
 /**
@@ -54,13 +51,13 @@ public class PulsarContainer<SELF extends PulsarContainer<SELF>> extends ChaosCo
     public PulsarContainer(String clusterName,
                            String hostname,
                            String serviceName,
-                           String serviceEntrypoint,
+                           String serviceEntryPoint,
                            int servicePort,
                            int httpPort) {
         super(clusterName, IMAGE_NAME);
         this.hostname = hostname;
         this.serviceName = serviceName;
-        this.serviceEntryPoint = serviceEntrypoint;
+        this.serviceEntryPoint = serviceEntryPoint;
         this.servicePort = servicePort;
         this.httpPort = httpPort;
     }
@@ -98,12 +95,15 @@ public class PulsarContainer<SELF extends PulsarContainer<SELF>> extends ChaosCo
             this.waitStrategy = new HostPortWaitStrategy()
                 .withStartupTimeout(Duration.of(300, SECONDS));
         }
-        this.withLogConsumer(new Slf4jLogConsumer(log).withPrefix(hostname));
         this.withCreateContainerCmdModifier(createContainerCmd -> {
             createContainerCmd.withHostName(hostname);
             createContainerCmd.withName(getContainerName());
             createContainerCmd.withEntrypoint(serviceEntryPoint);
         });
+
+        if(Boolean.getBoolean("containerLogs")) {
+            this.withLogConsumer(new Slf4jLogConsumer(log).withPrefix(hostname));
+        }
 
         super.start();
         log.info("Start pulsar service {} at container {}", serviceName, containerName);

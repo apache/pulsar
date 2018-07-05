@@ -50,25 +50,6 @@ public abstract class PulsarFunctionsTestBase extends PulsarClusterTestBase  {
         }
     }
 
-    @BeforeClass
-    public void setupCluster() throws Exception {
-        setupClusterForProcess();
-    }
-
-    public void setupClusterForProcess() throws Exception {
-        super.setupCluster(PulsarFunctionsRuntimeTest.FunctionProcessingMode.PROCESS.toString());
-        pulsarCluster.startFunctionWorkersWithProcessContainerFactory(1);
-        ExecResult result = pulsarCluster.getAnyWorker().execCmd("cat", "/pulsar/conf/functions_worker.yml");
-        log.info("Functions Worker Config : \n{}", result.getStdout());
-    }
-
-    public void setupClusterForThreaded() throws Exception {
-        super.setupCluster(PulsarFunctionsRuntimeTest.FunctionProcessingMode.THREAD.toString());
-        pulsarCluster.startFunctionWorkersWithThreadContainerFactory(1);
-        ExecResult result = pulsarCluster.getAnyWorker().execCmd("cat", "/pulsar/conf/functions_worker.yml");
-        log.info("Functions Worker Config : \n{}", result.getStdout());
-    }
-
     @DataProvider(name = "FunctionRuntimes")
     public static Object[][] functionRuntimes() {
         return new Object[][] {

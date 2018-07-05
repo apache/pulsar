@@ -24,6 +24,9 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Stream;
+
+import static java.util.stream.Collectors.joining;
 
 @Slf4j
 public abstract class PulsarClusterTestBase {
@@ -63,7 +66,9 @@ public abstract class PulsarClusterTestBase {
 
     public void setupCluster(String namePrefix) throws Exception {
         PulsarClusterSpec spec = PulsarClusterSpec.builder()
-            .clusterName(this.getClass().getSimpleName() + "-" + namePrefix + "-" + randomName(5))
+            .clusterName(Stream.of(this.getClass().getSimpleName(), namePrefix, randomName(5))
+                .filter(s -> s != null && !s.isEmpty())
+                .collect(joining("-")))
             .build();
 
         setupCluster(spec);

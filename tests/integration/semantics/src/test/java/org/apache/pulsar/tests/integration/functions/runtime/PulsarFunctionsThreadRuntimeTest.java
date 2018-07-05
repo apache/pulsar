@@ -29,12 +29,15 @@ import org.testng.annotations.BeforeClass;
 public class PulsarFunctionsThreadRuntimeTest extends PulsarFunctionsRuntimeTest {
 
     public PulsarFunctionsThreadRuntimeTest() {
-        super(FunctionProcessingMode.THREAD);
+        super(RuntimeFactory.THREAD);
     }
 
     @BeforeClass
     public void setupCluster() throws Exception {
-        super.setupClusterForThreaded();
+        super.setupCluster(RuntimeFactory.THREAD.toString());
+        pulsarCluster.startFunctionWorkersWithThreadContainerFactory(1);
+        ExecResult result = pulsarCluster.getAnyWorker().execCmd("cat", "/pulsar/conf/functions_worker.yml");
+        log.info("Functions Worker Config : \n{}", result.getStdout());
     }
 
 }

@@ -36,16 +36,16 @@ public class SmokeTest extends PulsarClusterTestBase {
 
     private final static String clusterName = "test";
 
-    @Test
-    public void testPublishAndConsume() throws Exception {
+    @Test(dataProvider = "ServiceUrls")
+    public void testPublishAndConsume(String serviceUrl) throws Exception {
 
-        this.createTenanantName("smoke-test", clusterName, "smoke-admin");
+        this.createTenantName("smoke-test", clusterName, "smoke-admin");
         pulsarCluster.createNamespace(clusterName);
         String topic = "persistent://smoke-test/test/ns1/topic1";
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
-            .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+            .serviceUrl(serviceUrl)
             .build();
 
         @Cleanup
@@ -73,9 +73,9 @@ public class SmokeTest extends PulsarClusterTestBase {
         }
     }
 
-    private Container.ExecResult createTenanantName(String tenantName,
-                                                    String clusterName,
-                                                    String roleName) throws Exception {
+    private Container.ExecResult createTenantName(String tenantName,
+                                                  String clusterName,
+                                                  String roleName) throws Exception {
         return pulsarCluster.runAdminCommandOnAnyBroker(
             "tenants", "create", tenantName, "--allowed-clusters", clusterName,
             "--admin-roles", roleName);

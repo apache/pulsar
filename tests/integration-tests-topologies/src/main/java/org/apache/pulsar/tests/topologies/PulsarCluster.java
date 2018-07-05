@@ -84,7 +84,6 @@ public class PulsarCluster {
 
     private PulsarCluster(PulsarClusterSpec spec) {
 
-        ZKContainer zkContainer1 = new ZKContainer("test");
         this.spec = spec;
         this.clusterName = spec.clusterName();
         this.network = Network.newNetwork();
