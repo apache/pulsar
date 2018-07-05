@@ -98,7 +98,6 @@ public class PulsarCluster {
             .withEnv("pulsarNode", "pulsar-broker-0");
 
         this.csContainer = new CSContainer(clusterName)
-            .withLogConsumer(new Slf4jLogConsumer(log).withPrefix(CSContainer.NAME))
             .withNetwork(network)
             .withNetworkAliases(CSContainer.NAME);
 

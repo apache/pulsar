@@ -31,7 +31,7 @@ import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
  * Abstract Test Container for Pulsar.
  */
 @Slf4j
-public class PulsarContainer<SELF extends PulsarContainer<SELF>> extends ChaosContainer<SELF> {
+public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> extends ChaosContainer<SelfT> {
 
     public static final int INVALID_PORT = -1;
     public static final int ZK_PORT = 2181;
@@ -100,11 +100,7 @@ public class PulsarContainer<SELF extends PulsarContainer<SELF>> extends ChaosCo
             createContainerCmd.withName(getContainerName());
             createContainerCmd.withEntrypoint(serviceEntryPoint);
         });
-
-        if(Boolean.getBoolean("containerLogs")) {
-            this.withLogConsumer(new Slf4jLogConsumer(log).withPrefix(hostname));
-        }
-
+        
         super.start();
         log.info("Start pulsar service {} at container {}", serviceName, containerName);
     }

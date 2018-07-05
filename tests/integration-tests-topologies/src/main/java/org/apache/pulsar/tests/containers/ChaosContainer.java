@@ -35,7 +35,7 @@ import org.testcontainers.containers.GenericContainer;
  * A base container provides chaos capability.
  */
 @Slf4j
-public class ChaosContainer<SELF extends ChaosContainer<SELF>> extends GenericContainer<SELF> {
+public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends GenericContainer<SelfT> {
 
     protected final String clusterName;
 
