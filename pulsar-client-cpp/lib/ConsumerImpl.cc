@@ -449,6 +449,7 @@ void ConsumerImpl::internalListener() {
         // This will only happen when the connection got reset and we cleared the queue
         return;
     }
+    unAckedMessageTrackerPtr_->add(msg.getMessageId());
     try {
         consumerStatsBasePtr_->receivedMessage(msg, ResultOk);
         messageListener_(Consumer(shared_from_this()), msg);
