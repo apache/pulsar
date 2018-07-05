@@ -30,6 +30,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ScheduledExecutorService;
 
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -68,6 +69,7 @@ import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.io.core.Record;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.Source;
+import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManagerImpl;
 
 /**
  * A function container implemented using java thread.
@@ -468,12 +470,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 pulsarSourceConfig.setTimeoutMs(sourceSpec.getTimeoutMs());
             }
 
-            Object[] params = {this.client, pulsarSourceConfig};
-            Class[] paramTypes = {PulsarClient.class, PulsarSourceConfig.class};
-
-            object = Reflections.createInstance(
-                    PulsarSource.class.getName(),
-                    PulsarSource.class.getClassLoader(), params, paramTypes);
+            ScheduledExecutorService executor = ((FunctionCacheManagerImpl) fnCache).getExecutor();
+            object = new PulsarSource<>(this.client, pulsarSourceConfig, executor);
 
         } else {
             object = Reflections.createInstance(

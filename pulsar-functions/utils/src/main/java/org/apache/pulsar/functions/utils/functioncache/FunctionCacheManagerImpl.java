@@ -21,12 +21,16 @@ package org.apache.pulsar.functions.utils.functioncache;
 
 import org.apache.pulsar.functions.utils.Exceptions;
 
+import io.netty.util.concurrent.DefaultThreadFactory;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 /**
  * An implementation of {@link FunctionCacheManager}.
@@ -35,9 +39,11 @@ public class FunctionCacheManagerImpl implements FunctionCacheManager {
 
     /** Registered Functions **/
     private final Map<String, FunctionCacheEntry> cacheFunctions;
+    private final ScheduledExecutorService executor;
 
     public FunctionCacheManagerImpl() {
         this.cacheFunctions = new ConcurrentHashMap<>();
+        this.executor = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("function-cache-executor"));
     }
 
     Map<String, FunctionCacheEntry> getCacheFunctions() {
@@ -60,11 +66,8 @@ public class FunctionCacheManagerImpl implements FunctionCacheManager {
     }
 
     @Override
-    public void registerFunctionInstance(String fid,
-                                         String eid,
-                                         List<String> requiredJarFiles,
-                                         List<URL> requiredClasspaths)
-            throws IOException {
+    public void registerFunctionInstance(String fid, String eid, List<String> requiredJarFiles,
+            List<URL> requiredClasspaths) throws IOException {
         if (fid == null) {
             throw new NullPointerException("FunctionID not set");
         }
@@ -86,28 +89,18 @@ public class FunctionCacheManagerImpl implements FunctionCacheManager {
                         urls[count++] = url;
                     }
 
-                    cacheFunctions.put(
-                        fid,
-                        new FunctionCacheEntry(
-                            requiredJarFiles,
-                            requiredClasspaths,
-                            urls,
-                            eid));
+                    cacheFunctions.put(fid, new FunctionCacheEntry(requiredJarFiles, requiredClasspaths, urls, eid));
                 } catch (Throwable cause) {
                     Exceptions.rethrowIOException(cause);
                 }
             } else {
-                entry.register(
-                    eid,
-                    requiredJarFiles,
-                    requiredClasspaths);
+                entry.register(eid, requiredJarFiles, requiredClasspaths);
             }
         }
     }
 
     @Override
-    public void unregisterFunctionInstance(String fid,
-                                           String eid) {
+    public void unregisterFunctionInstance(String fid, String eid) {
         synchronized (cacheFunctions) {
             FunctionCacheEntry entry = cacheFunctions.get(fid);
 
@@ -125,7 +118,10 @@ public class FunctionCacheManagerImpl implements FunctionCacheManager {
         synchronized (cacheFunctions) {
             cacheFunctions.values().forEach(FunctionCacheEntry::close);
         }
+        executor.shutdown();
     }
 
-
+    public ScheduledExecutorService getExecutor() {
+        return executor;
+    }
 }
