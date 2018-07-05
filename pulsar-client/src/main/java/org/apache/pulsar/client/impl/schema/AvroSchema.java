@@ -45,7 +45,7 @@ public class AvroSchema<T> implements Schema<T> {
     private BinaryEncoder encoder;
     private ByteArrayOutputStream byteArrayOutputStream;
 
-    public AvroSchema(Class<T> pojo, Map<String, String> properties) {
+    private AvroSchema(Class<T> pojo, Map<String, String> properties) {
         this.schema = ReflectData.AllowNull.get().getSchema(pojo);
 
         this.schemaInfo = new SchemaInfo();
