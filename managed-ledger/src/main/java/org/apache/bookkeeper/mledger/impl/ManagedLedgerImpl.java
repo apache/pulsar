@@ -29,7 +29,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Range;
 import com.google.common.util.concurrent.RateLimiter;
-import com.google.protobuf.ByteString;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -50,8 +49,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
@@ -73,8 +72,8 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OffloadCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -98,9 +97,9 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.Stat;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.OffloadContext;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.OffloadContext;
 import org.apache.bookkeeper.mledger.util.CallbackMutex;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.commons.lang3.tuple.Pair;
@@ -118,15 +117,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private final static long maxActiveCursorBacklogEntries = 100;
     private static long maxMessageCacheRetentionTimeMillis = 10 * 1000;
 
-    private final BookKeeper bookKeeper;
-    private final String name;
+    protected final BookKeeper bookKeeper;
+    protected final String name;
     private final BookKeeper.DigestType digestType;
 
-    private ManagedLedgerConfig config;
-    private final MetaStore store;
+    protected ManagedLedgerConfig config;
+    protected final MetaStore store;
 
     private final ConcurrentLongHashMap<CompletableFuture<ReadHandle>> ledgerCache = new ConcurrentLongHashMap<>();
-    private final NavigableMap<Long, LedgerInfo> ledgers = new ConcurrentSkipListMap<>();
+    protected final NavigableMap<Long, LedgerInfo> ledgers = new ConcurrentSkipListMap<>();
     private volatile Stat ledgersStat;
 
     private final ManagedCursorContainer cursors = new ManagedCursorContainer();
@@ -209,13 +208,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private static final AtomicReferenceFieldUpdater<ManagedLedgerImpl, State> STATE_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(ManagedLedgerImpl.class, State.class, "state");
-    private volatile State state = null;
+    protected volatile State state = null;
 
     private final OrderedScheduler scheduledExecutor;
     private final OrderedExecutor executor;
     final ManagedLedgerFactoryImpl factory;
     protected final ManagedLedgerMBeanImpl mbean;
-    private final Clock clock;
+    protected final Clock clock;
 
     /**
      * Queue of pending entries to be added to the managed ledger. Typically entries are queued when a new ledger is
@@ -1344,7 +1343,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         LedgerHandle currentLedger = this.currentLedger;
 
-        if (ledgerId == currentLedger.getId()) {
+        if (currentLedger != null && ledgerId == currentLedger.getId()) {
             // Current writing ledger is not in the cache (since we don't want
             // it to be automatically evicted), and we cannot use 2 different
             // ledger handles (read & write)for the same ledger.
@@ -1395,7 +1394,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     openFuture = config.getLedgerOffloader().readOffloaded(ledgerId, uid);
                 } else {
                     openFuture = bookKeeper.newOpenLedgerOp()
-                        .withRecovery(true)
+                        .withRecovery(!isReadOnly())
                         .withLedgerId(ledgerId)
                         .withDigestType(config.getDigestType())
                         .withPassword(config.getPassword()).execute();
@@ -1418,7 +1417,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     void invalidateLedgerHandle(ReadHandle ledgerHandle, Throwable t) {
         long ledgerId = ledgerHandle.getId();
-        if (ledgerId != currentLedger.getId()) {
+        if (currentLedger != null && ledgerId != currentLedger.getId()) {
             // remove handle from ledger cache since we got a (read) error
             ledgerCache.remove(ledgerId);
             if (log.isDebugEnabled()) {
@@ -1475,11 +1474,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         ledger.getId(), lastEntryInLedger, firstEntry);
             }
 
-            if (ledger.getId() != currentLedger.getId()) {
+            if (currentLedger == null || ledger.getId() != currentLedger.getId()) {
                 // Cursor was placed past the end of one ledger, move it to the
                 // beginning of the next ledger
                 Long nextLedgerId = ledgers.ceilingKey(ledger.getId() + 1);
-                opReadEntry.updateReadPosition(new PositionImpl(nextLedgerId, 0));
+                if (nextLedgerId != null) {
+                    opReadEntry.updateReadPosition(new PositionImpl(nextLedgerId, 0));
+                } else {
+                    opReadEntry.updateReadPosition(new PositionImpl(ledger.getId() + 1, 0));
+                }
             }
 
             opReadEntry.checkReadCompletion();
@@ -2356,7 +2359,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         while (entriesToSkip >= 0) {
             // for the current ledger, the number of entries written is deduced from the lastConfirmedEntry
             // for previous ledgers, LedgerInfo in ZK has the number of entries
-            if (currentLedgerId == currentLedger.getId()) {
+            if (currentLedger != null && currentLedgerId == currentLedger.getId()) {
                 lastLedger = true;
                 totalEntriesInCurrentLedger = lastConfirmedEntry.getEntryId() + 1;
             } else {
@@ -2378,7 +2381,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     currentEntryId = totalEntriesInCurrentLedger;
                     break;
                 } else {
-                    currentLedgerId = ledgers.ceilingKey(currentLedgerId + 1);
+                    Long lid = ledgers.ceilingKey(currentLedgerId + 1);
+                    currentLedgerId = lid != null ? lid : (ledgers.lastKey() + 1);
                     currentEntryId = 0;
                 }
             }
@@ -2699,6 +2703,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     public long getCacheSize() {
         return entryCache.getSize();
+    }
+
+    protected boolean isReadOnly() {
+        // Default managed ledger implementation is read-write
+        return false;
     }
 
     /**
