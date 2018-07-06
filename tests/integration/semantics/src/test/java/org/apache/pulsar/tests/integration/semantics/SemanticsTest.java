@@ -236,10 +236,15 @@ public class SemanticsTest extends PulsarClusterTestBase {
 
                 for (int i = 0; i < numTopics * numMessages; i++) {
                     Message<String> m = consumer.receive();
-                    String topic = ((TopicMessageIdImpl) m.getMessageId()).getTopicName();
+                    int topicIdx;
+                    if (numTopics > 1) {
+                        String topic = ((TopicMessageIdImpl) m.getMessageId()).getTopicName();
 
-                    String[] topicParts = StringUtils.split(topic, '-');
-                    int topicIdx = Integer.parseInt(topicParts[topicParts.length - 1]);
+                        String[] topicParts = StringUtils.split(topic, '-');
+                        topicIdx = Integer.parseInt(topicParts[topicParts.length - 1]);
+                    } else {
+                        topicIdx = 0;
+                    }
                     int topicSeq = topicCounters.get(topicIdx).getAndIncrement();
 
                     assertEquals("sip-topic-" + topicIdx + "-message-" + topicSeq, m.getValue());
