@@ -201,7 +201,6 @@ public class SemanticsTest extends PulsarClusterTestBase {
         testSubscriptionInitialPosition(2);
     }
 
-    @Test
     private void testSubscriptionInitialPosition(int numTopics) throws Exception {
         String topicName = generateTopicName("test-subscription-initial-pos", true);
 
