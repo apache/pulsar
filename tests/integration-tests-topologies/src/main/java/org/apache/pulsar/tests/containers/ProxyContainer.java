@@ -23,6 +23,8 @@ package org.apache.pulsar.tests.containers;
  */
 public class ProxyContainer extends PulsarContainer<ProxyContainer> {
 
+    public static final String NAME = "pulsar-proxy";
+
     public ProxyContainer(String clusterName, String hostName) {
         super(
             clusterName, hostName, hostName, "bin/run-proxy.sh", BROKER_PORT, BROKER_HTTP_PORT);

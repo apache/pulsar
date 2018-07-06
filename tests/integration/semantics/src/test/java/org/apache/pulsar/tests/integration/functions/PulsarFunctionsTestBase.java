@@ -19,6 +19,7 @@
 package org.apache.pulsar.tests.integration.functions;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.tests.integration.functions.runtime.PulsarFunctionsRuntimeTest;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runtime;
 import org.apache.pulsar.tests.topologies.PulsarClusterTestBase;
 import org.testcontainers.containers.Container.ExecResult;
@@ -47,16 +48,6 @@ public abstract class PulsarFunctionsTestBase extends PulsarClusterTestBase  {
         } else {
             throw new IllegalArgumentException("Unsupported runtime : " + runtime);
         }
-    }
-
-    @BeforeClass
-    public static void setupCluster() throws Exception {
-        PulsarClusterTestBase.setupCluster();
-
-        pulsarCluster.startFunctionWorkersWithProcessContainerFactory(1);
-
-        ExecResult result = pulsarCluster.getAnyWorker().execCmd("cat", "/pulsar/conf/functions_worker.yml");
-        log.info("Functions Worker Config : \n{}", result.getStdout());
     }
 
     @DataProvider(name = "FunctionRuntimes")

@@ -104,13 +104,13 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
     public ExecResult execCmd(String... cmd) throws Exception {
         String cmdString = StringUtils.join(cmd, " ");
 
-        log.info("DOCKER.exec({}:{}): Executing ...", containerId, cmdString);
+        log.info("DOCKER.exec({}:{}): Executing ...", containerName.substring(1), cmdString);
 
         ExecResult result = execInContainer(cmd);
 
-        log.info("Docker.exec({}:{}): Done", containerId, cmdString);
-        log.info("Docker.exec({}:{}): Stdout -\n{}", containerId, cmdString, result.getStdout());
-        log.info("Docker.exec({}:{}): Stderr -\n{}", containerId, cmdString, result.getStderr());
+        log.info("Docker.exec({}:{}): Done", containerName.substring(1), cmdString);
+        log.info("Docker.exec({}:{}): Stdout -\n{}", containerName.substring(1), cmdString, result.getStdout());
+        log.info("Docker.exec({}:{}): Stderr -\n{}", containerName.substring(1), cmdString, result.getStderr());
 
         return result;
     }

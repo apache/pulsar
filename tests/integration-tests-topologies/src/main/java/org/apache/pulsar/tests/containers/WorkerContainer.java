@@ -23,6 +23,8 @@ package org.apache.pulsar.tests.containers;
  */
 public class WorkerContainer extends PulsarContainer<WorkerContainer> {
 
+    public static final String NAME = "pulsar-worker";
+
     public WorkerContainer(String clusterName, String hostname) {
         super(
             clusterName, hostname, hostname, "bin/run-functions-worker.sh", -1, BROKER_HTTP_PORT);
