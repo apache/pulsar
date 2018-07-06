@@ -704,8 +704,10 @@ public class FunctionsImpl {
             }
             return functionDetails;
         } catch (IllegalArgumentException ex) {
+            log.error("ex: {}", ex);
             throw ex;
         } catch (Exception ex) {
+            log.error("ex: {}", ex);
             throw new IllegalArgumentException("Invalid FunctionDetails");
         }
     }

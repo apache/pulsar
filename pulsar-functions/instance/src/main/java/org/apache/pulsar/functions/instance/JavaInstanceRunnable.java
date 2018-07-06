@@ -47,6 +47,7 @@ import org.apache.logging.log4j.ThreadContext;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -68,6 +69,8 @@ import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.io.core.Record;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.Source;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A function container implemented using java thread.
@@ -121,7 +124,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     /**
      * NOTE: this method should be called in the instance thread, in order to make class loading work.
      */
-    JavaInstance setupJavaInstance() throws Exception {
+    JavaInstance setupJavaInstance(ContextImpl contextImpl) throws Exception {
         // initialize the thread context
         ThreadContext.put("function", FunctionDetailsUtils.getFullyQualifiedName(instanceConfig.getFunctionDetails()));
         ThreadContext.put("functionname", instanceConfig.getFunctionDetails().getName());
@@ -143,13 +146,24 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         // start the state table
         setupStateTable();
         // start the output producer
-        setupOutput();
+        setupOutput(contextImpl);
         // start the input consumer
-        setupInput();
+        setupInput(contextImpl);
         // start any log topic handler
         setupLogHandler();
 
-        return new JavaInstance(instanceConfig, object, clsLoader, client, this.source);
+        return new JavaInstance(contextImpl, object);
+    }
+
+    ContextImpl setupContext() {
+        Consumer consumer = null;
+        if (source instanceof PulsarSource) {
+            consumer = ((PulsarSource) source).getInputConsumer();
+        }
+        Logger instanceLog = LoggerFactory.getLogger(
+                "function-" + instanceConfig.getFunctionDetails().getName());
+        return new ContextImpl(instanceConfig, instanceLog, client,
+                Thread.currentThread().getContextClassLoader(), consumer);
     }
 
     /**
@@ -158,7 +172,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     @Override
     public void run() {
         try {
-            javaInstance = setupJavaInstance();
+            ContextImpl contextImpl = setupContext();
+            javaInstance = setupJavaInstance(contextImpl);
             if (null != stateTable) {
                 StateContextImpl stateContext = new StateContextImpl(stateTable);
                 javaInstance.getContext().setStateContext(stateContext);
@@ -438,7 +453,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         config.getRootLogger().removeAppender(logAppender.getName());
     }
 
-    public void setupInput() throws Exception {
+    public void setupInput(ContextImpl contextImpl) throws Exception {
 
         SourceSpec sourceSpec = this.instanceConfig.getFunctionDetails().getSource();
         Object object;
@@ -491,14 +506,14 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         this.source = (Source) object;
 
         if (sourceSpec.getConfigs().isEmpty()) {
-            this.source.open(new HashMap<>());
+            this.source.open(new HashMap<>(), contextImpl);
         } else {
             this.source.open(new Gson().fromJson(sourceSpec.getConfigs(),
-                    new TypeToken<Map<String, Object>>(){}.getType()));
+                    new TypeToken<Map<String, Object>>(){}.getType()), contextImpl);
         }
     }
 
-    public void setupOutput() throws Exception {
+    public void setupOutput(ContextImpl contextImpl) throws Exception {
 
         SinkSpec sinkSpec = this.instanceConfig.getFunctionDetails().getSink();
         Object object;
@@ -529,10 +544,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             throw new RuntimeException("Sink does not implement correct interface");
         }
         if (sinkSpec.getConfigs().isEmpty()) {
-            this.sink.open(new HashMap<>());
+            this.sink.open(new HashMap<>(), contextImpl);
         } else {
             this.sink.open(new Gson().fromJson(sinkSpec.getConfigs(),
-                    new TypeToken<Map<String, Object>>() {}.getType()));
+                    new TypeToken<Map<String, Object>>() {}.getType()), contextImpl);
         }
     }
 }

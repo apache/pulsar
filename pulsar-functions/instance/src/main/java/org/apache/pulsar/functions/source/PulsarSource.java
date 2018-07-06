@@ -38,6 +38,7 @@ import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.io.core.Record;
 import org.apache.pulsar.io.core.Source;
+import org.apache.pulsar.io.core.SourceContext;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -61,7 +62,7 @@ public class PulsarSource<T> implements Source<T> {
     }
 
     @Override
-    public void open(Map<String, Object> config) throws Exception {
+    public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
         // Setup Serialization/Deserialization
         setupSerDe();
 

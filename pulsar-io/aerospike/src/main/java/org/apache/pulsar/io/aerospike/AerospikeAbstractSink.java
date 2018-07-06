@@ -33,6 +33,7 @@ import com.aerospike.client.policy.ClientPolicy;
 import com.aerospike.client.policy.WritePolicy;
 import org.apache.pulsar.io.core.KeyValue;
 import org.apache.pulsar.io.core.SimpleSink;
+import org.apache.pulsar.io.core.SinkContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,7 +58,7 @@ public abstract class AerospikeAbstractSink<K, V> extends SimpleSink<byte[]> {
     private EventLoop eventLoop;
 
     @Override
-    public void open(Map<String, Object> config) throws Exception {
+    public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
         aerospikeSinkConfig = AerospikeSinkConfig.load(config);
         if (aerospikeSinkConfig.getSeedHosts() == null
                 || aerospikeSinkConfig.getKeyspace() == null
