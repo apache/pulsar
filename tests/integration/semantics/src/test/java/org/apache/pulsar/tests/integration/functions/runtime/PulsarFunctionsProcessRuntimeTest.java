@@ -18,11 +18,24 @@
  */
 package org.apache.pulsar.tests.integration.functions.runtime;
 
+import lombok.extern.slf4j.Slf4j;
+import org.testcontainers.containers.Container;
+import org.testng.annotations.BeforeClass;
+
 /**
  * Run runtime tests in process mode.
  */
+@Slf4j
 public class PulsarFunctionsProcessRuntimeTest extends PulsarFunctionsRuntimeTest {
     public PulsarFunctionsProcessRuntimeTest() {
-        super(ContainerFactory.PROCESS);
+        super(RuntimeFactory.PROCESS);
+    }
+
+    @BeforeClass
+    public void setupCluster() throws Exception {
+        super.setupCluster(RuntimeFactory.PROCESS.toString());
+        pulsarCluster.startFunctionWorkersWithProcessContainerFactory(1);
+        Container.ExecResult result = pulsarCluster.getAnyWorker().execCmd("cat", "/pulsar/conf/functions_worker.yml");
+        log.info("Functions Worker Config : \n{}", result.getStdout());
     }
 }
