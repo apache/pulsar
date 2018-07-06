@@ -356,6 +356,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     op.setNumMessagesInBatch(1);
                     op.setBatchSizeByte(encryptedPayload.readableBytes());
                     pendingMessages.put(op);
+                    lastSendFuture = callback.getFuture();
 
                     // Read the connection before validating if it's still connected, so that we avoid reading a null
                     // value
