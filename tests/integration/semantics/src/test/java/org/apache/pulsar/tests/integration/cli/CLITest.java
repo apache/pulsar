@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.tests.integration;
+package org.apache.pulsar.tests.integration.cli;
 
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -31,7 +31,7 @@ import org.testng.annotations.Test;
 /**
  * Test Pulsar CLI.
  */
-public class TestCLI extends PulsarClusterTestBase {
+public class CLITest extends PulsarClusterTestBase {
 
     @Test
     public void testDeprecatedCommands() throws Exception {
