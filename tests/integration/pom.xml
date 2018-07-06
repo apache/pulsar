@@ -33,9 +33,7 @@
   <artifactId>integration</artifactId>
   <name>Apache Pulsar :: Tests :: Integration</name>
   <modules>
-    <module>smoke</module>
     <module>compaction</module>
-    <module>cli</module>
     <module>s3-offload</module>
     <module>semantics</module>
   </modules>
