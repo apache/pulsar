@@ -23,6 +23,8 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
+
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.Message;
@@ -242,6 +244,10 @@ public class PulsarSink<T> implements Sink<T> {
 
     @VisibleForTesting
     void setupSerDe() throws ClassNotFoundException {
+        if (StringUtils.isEmpty(this.pulsarSinkConfig.getTypeClassName())) {
+            this.outputSerDe = InstanceUtils.initializeDefaultSerDe(byte[].class);
+            return;
+        }
 
         Class<?> typeArg = Reflections.loadClass(this.pulsarSinkConfig.getTypeClassName(),
                 Thread.currentThread().getContextClassLoader());

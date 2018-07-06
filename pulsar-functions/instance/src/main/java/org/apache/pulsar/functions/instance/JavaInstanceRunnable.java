@@ -51,6 +51,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
@@ -95,7 +96,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private JavaInstance javaInstance;
     @Getter
-    private Exception deathException;
+    private Throwable deathException;
 
     // function stats
     private final FunctionStats stats;
@@ -164,7 +165,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 javaInstance.getContext().setStateContext(stateContext);
             }
             while (true) {
-
                 currentRecord = readInput();
 
                 if (instanceConfig.getFunctionDetails().getProcessingGuarantees() == org.apache.pulsar.functions
@@ -187,12 +187,15 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     messageId = pulsarRecord.getMessageId();
                     topicName = pulsarRecord.getTopicName();
                 }
+
                 result = javaInstance.handleMessage(messageId, topicName, currentRecord.getValue());
 
                 removeLogTopicHandler();
 
                 long doneProcessing = System.currentTimeMillis();
-                log.debug("Got result: {}", result.getResult());
+                if (log.isDebugEnabled()) {
+                    log.debug("Got result: {}", result.getResult());
+                }
 
                 try {
                     processResult(currentRecord, result, processAt, doneProcessing);
@@ -201,23 +204,32 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     currentRecord.fail();
                 }
             }
-        } catch (Exception ex) {
-            log.error("Uncaught exception in Java Instance", ex);
-            deathException = ex;
+        } catch (Throwable t) {
+            log.error("Uncaught exception in Java Instance", t);
+            deathException = (Exception) t;
             return;
         } finally {
+            log.info("Closing instance");
             close();
         }
     }
 
     private void loadJars() throws Exception {
-        log.info("Loading JAR files for function {} from jarFile {}", instanceConfig, jarFile);
-        // create the function class loader
-        fnCache.registerFunctionInstance(
-                instanceConfig.getFunctionId(),
-                instanceConfig.getInstanceId(),
-                Arrays.asList(jarFile),
-                Collections.emptyList());
+
+        if (jarFile.endsWith(".nar")) {
+            // The functions code is contained in a NAR archive
+            fnCache.registerFunctionInstanceWithArchive(instanceConfig.getFunctionId(), instanceConfig.getInstanceId(),
+                    jarFile);
+        } else {
+            log.info("Loading JAR files for function {} from archive {}", instanceConfig, jarFile);
+            // create the function class loader
+            fnCache.registerFunctionInstance(
+                    instanceConfig.getFunctionId(),
+                    instanceConfig.getInstanceId(),
+                    Arrays.asList(jarFile),
+                    Collections.emptyList());
+        }
+
         log.info("Initialize function class loader for function {} at function cache manager",
                 instanceConfig.getFunctionDetails().getName());
 

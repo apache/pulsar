@@ -55,7 +55,7 @@ public class Utils {
 
     public static String HTTP = "http";
     public static String FILE = "file";
-    
+
     public static final long getSequenceId(MessageId messageId) {
         MessageIdImpl msgId = (MessageIdImpl) ((messageId instanceof TopicMessageIdImpl)
                 ? ((TopicMessageIdImpl) messageId).getInnerMessageId()
@@ -182,8 +182,12 @@ public class Utils {
     }
 
     public static Class<?> getSourceType(String className) {
+        return getSourceType(className, Thread.currentThread().getContextClassLoader());
+    }
 
-        Object userClass = Reflections.createInstance(className, Thread.currentThread().getContextClassLoader());
+    public static Class<?> getSourceType(String className, ClassLoader classloader) {
+
+        Object userClass = Reflections.createInstance(className, classloader);
         Class<?> typeArg;
         Source source = (Source) userClass;
         if (source == null) {
@@ -196,8 +200,12 @@ public class Utils {
     }
 
     public static Class<?> getSinkType(String className) {
+        return getSinkType(className, Thread.currentThread().getContextClassLoader());
+    }
 
-        Object userClass = Reflections.createInstance(className, Thread.currentThread().getContextClassLoader());
+    public static Class<?> getSinkType(String className, ClassLoader classLoader) {
+
+        Object userClass = Reflections.createInstance(className, classLoader);
         Class<?> typeArg;
         Sink sink = (Sink) userClass;
         if (sink == null) {
@@ -212,7 +220,7 @@ public class Utils {
     public static boolean fileExists(String file) {
         return new File(file).exists();
     }
-    
+
     public static boolean isFunctionPackageUrlSupported(String functionPkgUrl) {
         return isNotBlank(functionPkgUrl)
                 && (functionPkgUrl.startsWith(Utils.HTTP) || functionPkgUrl.startsWith(Utils.FILE));
