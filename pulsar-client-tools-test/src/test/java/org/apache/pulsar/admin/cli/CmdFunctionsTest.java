@@ -296,7 +296,7 @@ public class CmdFunctionsTest {
         consoleOutputCapturer.stop();
         String output = consoleOutputCapturer.getStderr();
 
-        assertTrue(output.contains("Failed to download jar"));
+        assertTrue(output.contains("Failed to download archive"));
         assertEquals(url, creater.archive);
     }
 
@@ -321,7 +321,7 @@ public class CmdFunctionsTest {
         consoleOutputCapturer.stop();
         String output = consoleOutputCapturer.getStderr();
 
-        assertTrue(output.contains("Failed to download jar"));
+        assertTrue(output.contains("Failed to download archive"));
         assertEquals(url, creater.archive);
     }
 
