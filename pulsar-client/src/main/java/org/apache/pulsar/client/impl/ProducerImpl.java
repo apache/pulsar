@@ -207,6 +207,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         sendAsync(message, new SendCallback() {
             SendCallback nextCallback = null;
+            MessageImpl<?> nextMsg = null;
             long createdAt = System.nanoTime();
 
             @Override
@@ -220,6 +221,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
 
             @Override
+            public MessageImpl<?> getNextMessage() {
+                return nextMsg;
+            }
+
+            @Override
             public void sendComplete(Exception e) {
                 if (e != null) {
                     stats.incrementSendFailed();
@@ -230,20 +236,22 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 }
                 while (nextCallback != null) {
                     SendCallback sendCallback = nextCallback;
+                    MessageImpl<?> msg = nextMsg;
                     if (e != null) {
                         stats.incrementSendFailed();
                         sendCallback.getFuture().completeExceptionally(e);
                     } else {
-                        sendCallback.getFuture().complete(message.getMessageId());
+                        sendCallback.getFuture().complete(msg.getMessageId());
                         stats.incrementNumAcksReceived(System.nanoTime() - createdAt);
                     }
+                    nextMsg = nextCallback.getNextMessage();
                     nextCallback = nextCallback.getNextSendCallback();
-                    sendCallback = null;
                 }
             }
 
             @Override
-            public void addCallback(SendCallback scb) {
+            public void addCallback(MessageImpl<?> msg, SendCallback scb) {
+                nextMsg = msg;
                 nextCallback = scb;
             }
         });
