@@ -1,5 +1,5 @@
 ---
-title: Encryption and Authentication using TLS
+title: Authentication using Athenz
 ---
 
 <!--

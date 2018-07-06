@@ -47,11 +47,11 @@ role token is then used for [Authorization and ACLs](../authorization) to determ
 Currently Pulsar supports two authentication providers:
 
 * [TLS Authentication](../tls)
-* [Athenz](../authenz)
+* [Athenz](../athenz)
 
 ## Contents
 
 - [Encryption and Authentication using TLS](../tls)
-- [Authentication using Authenz](../authenz)
+- [Authentication using Athenz](../athenz)
 - [Authorization and ACLs](../authorization)
 - [End-to-End Encryption](../encryption)

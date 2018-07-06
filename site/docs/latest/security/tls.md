@@ -33,7 +33,7 @@ To encrypt communication, it is recommended to configure all the Apache Pulsar c
 
 TLS can be configured for encryption or authentication. You may configure just TLS encryption
 (by default TLS encryption includes certificate authentication of the server) and independently choose a separate mechanism
-for client authentication, e.g. TLS, [Authenz](../../authenz), etc. Note that TLS encryption, technically speaking, already enables
+for client authentication, e.g. TLS, [Athenz](../../athenz), etc. Note that TLS encryption, technically speaking, already enables
 1-way authentication in which the client authenticates the server certificate. So when referring to TLS authentication, it is really
 referring to 2-way authentication in which the broker also authenticates the client certificate.
 

@@ -101,12 +101,14 @@ groups:
     endpoint: overview
   - title: Encryption and Authentication using TLS
     endpoint: tls
-  - title: Authentication using Authenz
-    endpoint: authenz
+  - title: Authentication using Athenz
+    endpoint: athenz
   - title: Authorization and ACLs
     endpoint: authorization
   - title: End-to-End Encryption
     endpoint: encryption
+  - title: Extending Authentication and Authorization
+    endpoint: extending
 
 - title: Client libraries
   dir: clients
@@ -199,5 +201,3 @@ groups:
     endpoint: CliTools
   - title: Pulsar configuration
     endpoint: Configuration
-  - title: Authn & Authz plugins
-    endpoint: CustomAuth
