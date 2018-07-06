@@ -19,18 +19,25 @@
 package org.apache.pulsar.tests.integration.semantics;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.tests.topologies.PulsarClusterTestBase;
 import org.testng.annotations.Test;
+import org.testng.collections.Lists;
 
 /**
  * Test pulsar produce/consume semantics
@@ -183,5 +190,62 @@ public class SemanticsTest extends PulsarClusterTestBase {
     private static void checkMessagesIdempotencyEnabled(Consumer<String> consumer) throws Exception {
         receiveAndAssertMessage(consumer, 1L, "message-1");
         receiveAndAssertMessage(consumer, 2L, "message-2");
+    }
+
+    @Test(dataProvider = "ServiceUrls")
+    public void testBatchProducing(String serviceUrl) throws Exception {
+        String topicName = generateTopicName("testbatchproducing", true);
+
+        int numMessages = 10;
+
+        List<MessageId> producedMsgIds;
+
+        try (PulsarClient client = PulsarClient.builder()
+            .serviceUrl(serviceUrl)
+            .build()) {
+
+            try (Consumer<String> consumer = client.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("my-sub")
+                .subscribe()) {
+
+                try (Producer<String> producer = client.newProducer(Schema.STRING)
+                    .topic(topicName)
+                    .enableBatching(true)
+                    .batchingMaxMessages(5)
+                    .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                    .create()) {
+
+                    List<CompletableFuture<MessageId>> sendFutures = Lists.newArrayList();
+                    for (int i = 0; i < numMessages; i++) {
+                        sendFutures.add(producer.sendAsync("batch-message-" + i));
+                    }
+                    CompletableFuture.allOf(sendFutures.toArray(new CompletableFuture[numMessages])).get();
+                    producedMsgIds = sendFutures.stream().map(future -> future.join()).collect(Collectors.toList());
+                }
+
+                for (int i = 0; i < numMessages; i++) {
+                    Message<String> m = consumer.receive();
+                    assertEquals(producedMsgIds.get(i), m.getMessageId());
+                    assertEquals("batch-message-" + i, m.getValue());
+                }
+            }
+        }
+
+        // inspect the message ids
+        for (int i = 0; i < 5; i++) {
+            assertTrue(producedMsgIds.get(i) instanceof BatchMessageIdImpl);
+            BatchMessageIdImpl mid = (BatchMessageIdImpl) producedMsgIds.get(i);
+            log.info("Message {} id : {}", i, mid);
+
+            assertEquals(i, mid.getBatchIndex());
+        }
+        for (int i = 5; i < 10; i++) {
+            assertTrue(producedMsgIds.get(i) instanceof BatchMessageIdImpl);
+            BatchMessageIdImpl mid = (BatchMessageIdImpl) producedMsgIds.get(i);
+            log.info("Message {} id : {}", i, mid);
+
+            assertEquals(i - 5, mid.getBatchIndex());
+        }
     }
 }

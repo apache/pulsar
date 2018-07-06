@@ -24,6 +24,7 @@ import java.time.Duration;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.tests.DockerUtils;
+import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
 
 /**
@@ -43,20 +44,20 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
 
     private final String hostname;
     private final String serviceName;
-    private final String serviceEntrypoint;
+    private final String serviceEntryPoint;
     private final int servicePort;
     private final int httpPort;
 
     public PulsarContainer(String clusterName,
                            String hostname,
                            String serviceName,
-                           String serviceEntrypoint,
+                           String serviceEntryPoint,
                            int servicePort,
                            int httpPort) {
         super(clusterName, IMAGE_NAME);
         this.hostname = hostname;
         this.serviceName = serviceName;
-        this.serviceEntrypoint = serviceEntrypoint;
+        this.serviceEntryPoint = serviceEntryPoint;
         this.servicePort = servicePort;
         this.httpPort = httpPort;
     }
@@ -97,9 +98,9 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
         this.withCreateContainerCmdModifier(createContainerCmd -> {
             createContainerCmd.withHostName(hostname);
             createContainerCmd.withName(getContainerName());
-            createContainerCmd.withEntrypoint(serviceEntrypoint);
+            createContainerCmd.withEntrypoint(serviceEntryPoint);
         });
-
+        
         super.start();
         log.info("Start pulsar service {} at container {}", serviceName, containerName);
     }

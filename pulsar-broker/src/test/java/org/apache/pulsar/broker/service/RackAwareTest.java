@@ -50,7 +50,6 @@ public class RackAwareTest extends BrokerBkEnsemblesTests {
         super(0);
     }
 
-    @SuppressWarnings("deprecation")
     @BeforeClass
     protected void setup() throws Exception {
         super.setup();
@@ -121,10 +120,12 @@ public class RackAwareTest extends BrokerBkEnsemblesTests {
         }
     }
 
+    @Test(enabled = false)
     public void testCrashBrokerWithoutCursorLedgerLeak() throws Exception {
         // Ignore test
     }
 
+    @Test(enabled = false)
     public void testSkipCorruptDataLedger() throws Exception {
         // Ignore test
     }

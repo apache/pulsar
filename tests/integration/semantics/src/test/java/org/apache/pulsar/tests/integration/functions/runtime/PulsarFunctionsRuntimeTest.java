@@ -40,15 +40,15 @@ import org.testng.annotations.Test;
  */
 public abstract class PulsarFunctionsRuntimeTest extends PulsarFunctionsTestBase {
 
-    protected enum ContainerFactory {
+    public enum RuntimeFactory {
         PROCESS,
         THREAD
     }
 
-    private final ContainerFactory containerFactory;
+    private final RuntimeFactory runtimeFactory;
 
-    public PulsarFunctionsRuntimeTest(ContainerFactory containerFactory) {
-        this.containerFactory = containerFactory;
+    public PulsarFunctionsRuntimeTest(RuntimeFactory runtimeFactory) {
+        this.runtimeFactory = runtimeFactory;
     }
 
     //
@@ -57,7 +57,7 @@ public abstract class PulsarFunctionsRuntimeTest extends PulsarFunctionsTestBase
 
     @Test(dataProvider = "FunctionRuntimes")
     public void testExclamationFunction(Runtime runtime) throws Exception {
-        if (ContainerFactory.THREAD == containerFactory && Runtime.PYTHON == runtime) {
+        if (runtimeFactory == RuntimeFactory.THREAD && runtime == Runtime.PYTHON) {
             // python can only run on process mode
             return;
         }
