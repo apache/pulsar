@@ -467,7 +467,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             if (sourceSpec.getTimeoutMs() > 0 ) {
                 pulsarSourceConfig.setTimeoutMs(sourceSpec.getTimeoutMs());
             }
-            object = new PulsarSource(this.client, pulsarSourceConfig);
+
+            object = new PulsarSource(this.client, pulsarSourceConfig, instanceConfig);
         } else {
             object = Reflections.createInstance(
                     sourceSpec.getClassName(),

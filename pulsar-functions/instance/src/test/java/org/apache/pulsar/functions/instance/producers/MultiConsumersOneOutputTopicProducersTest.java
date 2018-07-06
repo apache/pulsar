@@ -43,6 +43,7 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -199,7 +200,7 @@ public class MultiConsumersOneOutputTopicProducersTest {
         when(mockClient.newProducer())
             .thenReturn(new MockProducerBuilder());
 
-        producers = new MultiConsumersOneOuputTopicProducers(mockClient, TEST_OUTPUT_TOPIC);
+        producers = new MultiConsumersOneOuputTopicProducers(mockClient, TEST_OUTPUT_TOPIC, new InstanceConfig());
         producers.initialize();
     }
 

@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
+import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.instance.producers.AbstractOneOuputTopicProducers;
 import org.apache.pulsar.functions.instance.producers.MultiConsumersOneOuputTopicProducers;
@@ -48,14 +49,16 @@ import java.util.Map;
 @Slf4j
 public class PulsarSink<T> implements Sink<T> {
 
-    private PulsarClient client;
-    private PulsarSinkConfig pulsarSinkConfig;
+    private final PulsarClient client;
+    private final PulsarSinkConfig pulsarSinkConfig;
+    private final InstanceConfig instanceConfig;
     private SerDe<T> outputSerDe;
+
 
     private PulsarSinkProcessor pulsarSinkProcessor;
 
     private interface PulsarSinkProcessor {
-        void initializeOutputProducer(String outputTopic) throws Exception;
+        void initializeOutputProducer(String outputTopic, InstanceConfig instanceConfig) throws Exception;
 
         void sendOutputMessage(MessageBuilder outputMsgBuilder,
                                RecordContext recordContext) throws Exception;
@@ -67,9 +70,9 @@ public class PulsarSink<T> implements Sink<T> {
         private Producer<byte[]> producer;
 
         @Override
-        public void initializeOutputProducer(String outputTopic) throws Exception {
+        public void initializeOutputProducer(String outputTopic, InstanceConfig instanceConfig) throws Exception {
             this.producer = AbstractOneOuputTopicProducers.createProducer(
-                    client, pulsarSinkConfig.getTopic());
+                    client, pulsarSinkConfig.getTopic(), instanceConfig);
         }
 
         @Override
@@ -95,9 +98,9 @@ public class PulsarSink<T> implements Sink<T> {
         private Producer<byte[]> producer;
 
         @Override
-        public void initializeOutputProducer(String outputTopic) throws Exception {
+        public void initializeOutputProducer(String outputTopic, InstanceConfig instanceConfig) throws Exception {
             this.producer = AbstractOneOuputTopicProducers.createProducer(
-                    client, pulsarSinkConfig.getTopic());
+                    client, pulsarSinkConfig.getTopic(), instanceConfig);
         }
 
         @Override
@@ -125,8 +128,8 @@ public class PulsarSink<T> implements Sink<T> {
         protected Producers outputProducer;
 
         @Override
-        public void initializeOutputProducer(String outputTopic) throws Exception {
-            outputProducer = new MultiConsumersOneOuputTopicProducers(client, outputTopic);
+        public void initializeOutputProducer(String outputTopic, InstanceConfig instanceConfig) throws Exception {
+            outputProducer = new MultiConsumersOneOuputTopicProducers(client, outputTopic, instanceConfig);
             outputProducer.initialize();
         }
 
@@ -181,9 +184,10 @@ public class PulsarSink<T> implements Sink<T> {
         }
     }
 
-    public PulsarSink(PulsarClient client, PulsarSinkConfig pulsarSinkConfig) {
+    public PulsarSink(PulsarClient client, PulsarSinkConfig pulsarSinkConfig, InstanceConfig instanceConfig) {
         this.client = client;
         this.pulsarSinkConfig = pulsarSinkConfig;
+        this.instanceConfig = instanceConfig;
     }
 
     @Override
@@ -204,7 +208,7 @@ public class PulsarSink<T> implements Sink<T> {
                 this.pulsarSinkProcessor = new PulsarSinkEffectivelyOnceProcessor();
                 break;
         }
-        this.pulsarSinkProcessor.initializeOutputProducer(this.pulsarSinkConfig.getTopic());
+        this.pulsarSinkProcessor.initializeOutputProducer(this.pulsarSinkConfig.getTopic(), instanceConfig);
     }
 
     @Override

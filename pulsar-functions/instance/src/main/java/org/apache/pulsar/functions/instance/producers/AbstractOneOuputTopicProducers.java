@@ -28,20 +28,24 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.instance.FunctionResultRouter;
+import org.apache.pulsar.functions.instance.InstanceConfig;
 
 public abstract class AbstractOneOuputTopicProducers implements Producers {
 
     protected final PulsarClient client;
     protected final String outputTopic;
+    private final InstanceConfig instanceConfig;
 
     AbstractOneOuputTopicProducers(PulsarClient client,
-                                   String outputTopic)
+                                   String outputTopic,
+                                   InstanceConfig instanceConfig)
             throws PulsarClientException {
         this.client = client;
         this.outputTopic = outputTopic;
+        this.instanceConfig = instanceConfig;
     }
 
-    static ProducerBuilder<byte[]> newProducerBuilder(PulsarClient client) {
+    static ProducerBuilder<byte[]> newProducerBuilder(PulsarClient client, InstanceConfig instanceConfig) {
         // use function result router to deal with different processing guarantees.
         return client.newProducer() //
                 .blockIfQueueFull(true) //
@@ -50,26 +54,29 @@ public abstract class AbstractOneOuputTopicProducers implements Producers {
                 .compressionType(CompressionType.LZ4) //
                 .hashingScheme(HashingScheme.Murmur3_32Hash) //
                 .messageRoutingMode(MessageRoutingMode.CustomPartition) //
-                .messageRouter(FunctionResultRouter.of());
+                .messageRouter(FunctionResultRouter.of())
+                .property("function-id", instanceConfig.getFunctionId())
+                .property("function-version", instanceConfig.getFunctionVersion())
+                .property("instance-id", instanceConfig.getInstanceId());
     }
 
     protected Producer<byte[]> createProducer(String topic)
             throws PulsarClientException {
-        return createProducer(client, topic);
+        return createProducer(client, topic, instanceConfig);
     }
 
-    public static Producer<byte[]> createProducer(PulsarClient client, String topic)
+    public static Producer<byte[]> createProducer(PulsarClient client, String topic, InstanceConfig instanceConfig)
             throws PulsarClientException {
-        return newProducerBuilder(client).topic(topic).create();
+        return newProducerBuilder(client, instanceConfig).topic(topic).create();
     }
 
     protected Producer<byte[]> createProducer(String topic, String producerName)
             throws PulsarClientException {
-        return createProducer(client, topic, producerName);
+        return createProducer(client, topic, producerName, instanceConfig);
     }
 
-    public static Producer<byte[]> createProducer(PulsarClient client, String topic, String producerName)
+    public static Producer<byte[]> createProducer(PulsarClient client, String topic, String producerName, InstanceConfig instanceConfig)
             throws PulsarClientException {
-        return newProducerBuilder(client).topic(topic).producerName(producerName).create();
+        return newProducerBuilder(client, instanceConfig).topic(topic).producerName(producerName).create();
     }
 }

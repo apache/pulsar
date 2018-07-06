@@ -18,12 +18,18 @@
  */
 package org.apache.pulsar.functions.source;
 
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
 import com.google.common.annotations.VisibleForTesting;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import net.jodah.typetools.TypeResolver;
 
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -32,6 +38,7 @@ import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
+import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.Reflections;
@@ -39,25 +46,25 @@ import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.io.core.Record;
 import org.apache.pulsar.io.core.Source;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
+import net.jodah.typetools.TypeResolver;
 
 @Slf4j
 public class PulsarSource<T> implements Source<T> {
 
-    private PulsarClient pulsarClient;
-    private PulsarSourceConfig pulsarSourceConfig;
-    private Map<String, SerDe> topicToSerDeMap = new HashMap<>();
+    private final PulsarClient pulsarClient;
+    private final PulsarSourceConfig pulsarSourceConfig;
+    private final Map<String, SerDe> topicToSerDeMap = new HashMap<>();
+    private final InstanceConfig instanceConfig;
+
     private boolean isTopicsPattern;
 
     @Getter
     private org.apache.pulsar.client.api.Consumer inputConsumer;
 
-    public PulsarSource(PulsarClient pulsarClient, PulsarSourceConfig pulsarConfig) {
+    public PulsarSource(PulsarClient pulsarClient, PulsarSourceConfig pulsarConfig, InstanceConfig instanceConfig) {
         this.pulsarClient = pulsarClient;
         this.pulsarSourceConfig = pulsarConfig;
+        this.instanceConfig = instanceConfig;
     }
 
     @Override
@@ -68,17 +75,21 @@ public class PulsarSource<T> implements Source<T> {
         // Setup pulsar consumer
         ConsumerBuilder<byte[]> consumerBuilder = this.pulsarClient.newConsumer()
                 //consume message even if can't decrypt and deliver it along with encryption-ctx
-                .cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)  
+                .cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
                 .subscriptionName(this.pulsarSourceConfig.getSubscriptionName())
-                .subscriptionType(this.pulsarSourceConfig.getSubscriptionType());
+                .subscriptionType(this.pulsarSourceConfig.getSubscriptionType())
+                .property("function-id", instanceConfig.getFunctionId())
+                .property("function-version", instanceConfig.getFunctionVersion())
+                .property("instance-id", instanceConfig.getInstanceId());
+
 
         if(isNotBlank(this.pulsarSourceConfig.getTopicsPattern())) {
-            consumerBuilder.topicsPattern(this.pulsarSourceConfig.getTopicsPattern());    
+            consumerBuilder.topicsPattern(this.pulsarSourceConfig.getTopicsPattern());
             isTopicsPattern = true;
         }else {
-            consumerBuilder.topics(new ArrayList<>(this.pulsarSourceConfig.getTopicSerdeClassNameMap().keySet()));    
+            consumerBuilder.topics(new ArrayList<>(this.pulsarSourceConfig.getTopicSerdeClassNameMap().keySet()));
         }
-        
+
         if (pulsarSourceConfig.getTimeoutMs() != null) {
             consumerBuilder.ackTimeout(pulsarSourceConfig.getTimeoutMs(), TimeUnit.MILLISECONDS);
         }

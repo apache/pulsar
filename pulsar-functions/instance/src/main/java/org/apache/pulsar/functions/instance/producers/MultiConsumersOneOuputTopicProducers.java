@@ -19,7 +19,6 @@
 package org.apache.pulsar.functions.instance.producers;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -31,6 +30,7 @@ import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.functions.instance.InstanceConfig;
 
 @Slf4j
 public class MultiConsumersOneOuputTopicProducers extends AbstractOneOuputTopicProducers {
@@ -41,9 +41,10 @@ public class MultiConsumersOneOuputTopicProducers extends AbstractOneOuputTopicP
 
 
     public MultiConsumersOneOuputTopicProducers(PulsarClient client,
-                                                String outputTopic)
+                                                String outputTopic,
+                                                InstanceConfig instanceConfig)
             throws PulsarClientException {
-        super(client, outputTopic);
+        super(client, outputTopic, instanceConfig);
         this.producers = new ConcurrentHashMap<>();
     }
 
