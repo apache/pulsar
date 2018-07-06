@@ -188,12 +188,6 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.apache.httpcomponents</groupId>
         <artifactId>httpclient</artifactId>
         <version>4.5.5</version>
-        <exclusions>
-          <exclusion>
-            <groupId>*</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-        </exclusions>
       </dependency>
 
       <dependency>
