@@ -70,6 +70,7 @@ import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.DateFormatter;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,7 +92,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private long createProducerTimeout;
     private final int maxNumMessagesInBatch;
     private final BatchMessageContainer batchMessageContainer;
-    private OpSendMsg lastSendOp;
+    private CompletableFuture<MessageId> lastSendFuture;
 
     // Globally unique producer name
     private String producerName;
@@ -334,6 +335,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     // batch size and/or max message size
                     if (batchMessageContainer.hasSpaceInBatch(msg)) {
                         batchMessageContainer.add(msg, callback);
+                        lastSendFuture = callback.getFuture();
                         payload.release();
                         if (batchMessageContainer.numMessagesInBatch == maxNumMessagesInBatch
                                 || batchMessageContainer.currentBatchSizeBytes >= BatchMessageContainer.MAX_MESSAGE_BATCH_SIZE_BYTES) {
@@ -354,7 +356,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     op.setNumMessagesInBatch(1);
                     op.setBatchSizeByte(encryptedPayload.readableBytes());
                     pendingMessages.put(op);
-                    lastSendOp = op;
 
                     // Read the connection before validating if it's still connected, so that we avoid reading a null
                     // value
@@ -429,6 +430,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
         batchMessageAndSend();
         batchMessageContainer.add(msg, callback);
+        lastSendFuture = callback.getFuture();
         payload.release();
     }
 
@@ -1220,7 +1222,22 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     };
 
     @Override
-    protected void flush() {
+    public CompletableFuture<Void> flushAsync() {
+        if (isBatchMessagingEnabled()) {
+            CompletableFuture<MessageId> lastSendFuture;
+            synchronized (ProducerImpl.this) {
+                batchMessageAndSend();
+                lastSendFuture = this.lastSendFuture;
+            }
+            if (null != lastSendFuture) {
+                return lastSendFuture.thenApply(ignored -> null);
+            }
+        }
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    protected void triggerFlush() {
         if (isBatchMessagingEnabled()) {
             synchronized (ProducerImpl.this) {
                 batchMessageAndSend();
@@ -1254,7 +1271,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 batchMessageContainer.clear();
 
                 pendingMessages.put(op);
-                lastSendOp = op;
 
                 if (isConnected()) {
                     // If we do have a connection, the message is sent immediately, otherwise we'll try again once a new

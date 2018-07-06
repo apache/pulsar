@@ -75,6 +75,27 @@ public interface Producer<T> extends Closeable {
     CompletableFuture<MessageId> sendAsync(T message);
 
     /**
+     * Flush all the messages buffered in the client when {@link ProducerBuilder#enableBatching(boolean)} is enabled.
+     * It is a no-op if batching is disabled.
+     *
+     * @throws PulsarClientException
+     * @since 2.1.0
+     * @see #flushAsync()
+     */
+    void flush() throws PulsarClientException;
+
+    /**
+     * Flush all the messages buffered in the client when {@link ProducerBuilder#enableBatching(boolean)} is enabled.
+     *
+     * <p>It is a no-op if batching is disabled.
+     *
+     * @return a future that can be used to track when all the messages have been safely persisted.
+     * @since 2.1.0
+     * @see #flush()
+     */
+    CompletableFuture<Void> flushAsync();
+
+    /**
      * Create a new message builder
      *
      * This message builder allows to specify additional properties on the message. For example:
