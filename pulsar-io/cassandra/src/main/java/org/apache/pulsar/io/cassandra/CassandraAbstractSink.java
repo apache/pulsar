@@ -33,6 +33,7 @@ import java.util.concurrent.CompletableFuture;
 
 import org.apache.pulsar.io.core.KeyValue;
 import org.apache.pulsar.io.core.SimpleSink;
+import org.apache.pulsar.io.core.SinkContext;
 
 /**
  * A Simple abstract class for Cassandra sink
@@ -47,7 +48,7 @@ public abstract class CassandraAbstractSink<K, V> extends SimpleSink<byte[]> {
     private PreparedStatement statement;
 
     @Override
-    public void open(Map<String, Object> config) throws Exception {
+    public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
         cassandraSinkConfig = CassandraSinkConfig.load(config);
         if (cassandraSinkConfig.getRoots() == null
                 || cassandraSinkConfig.getKeyspace() == null

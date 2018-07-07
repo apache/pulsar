@@ -36,6 +36,7 @@ import java.util.Map;
 
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.Record;
+import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,7 +53,7 @@ public class TwitterFireHose extends PushSource<String> {
     private Object waitObject;
 
     @Override
-    public void open(Map<String, Object> config) throws IOException {
+    public void open(Map<String, Object> config, SourceContext sourceContext) throws IOException {
         TwitterFireHoseConfig hoseConfig = TwitterFireHoseConfig.load(config);
         if (hoseConfig.getConsumerKey() == null
                 || hoseConfig.getConsumerSecret() == null
