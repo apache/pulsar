@@ -16,30 +16,36 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.pulsar.functions.utils.io;
 
-package org.apache.pulsar.functions.runtime;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-import org.apache.pulsar.functions.proto.InstanceCommunication;
+@Data
+@NoArgsConstructor
+public class ConnectorDefinition {
 
-import java.util.concurrent.CompletableFuture;
+    /**
+     * The name of the connector type
+     */
+    private String name;
 
-/**
- * A function container is an environment for invoking functions.
- */
-public interface Runtime {
+    /**
+     * Description to be used for user help
+     */
+    private String description;
 
-    void start();
+    /**
+     * The class name for the connector source implementation.
+     * <p>
+     * If not defined, it will be assumed this connector cannot act as a data source
+     */
+    private String sourceClass;
 
-    void join() throws Exception;
-
-    void stop();
-
-    boolean isAlive();
-
-    Throwable getDeathException();
-
-    CompletableFuture<InstanceCommunication.FunctionStatus> getFunctionStatus();
-
-    CompletableFuture<InstanceCommunication.MetricsData> getAndResetMetrics();
-
+    /**
+     * The class name for the connector sink implementation.
+     * <p>
+     * If not defined, it will be assumed this connector cannot act as a data si
+     */
+    private String sinkClass;
 }

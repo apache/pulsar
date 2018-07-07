@@ -48,8 +48,7 @@ public class SinkConfig {
     private String namespace;
     @NotNull
     private String name;
-    @NotNull
-    private String className;
+
     @isMapEntryCustom(keyValidatorClasses = { ValidatorImpls.TopicNameValidator.class },
             valueValidatorClasses = { ValidatorImpls.SerdeValidator.class })
     private Map<String, String> topicToSerdeClassName;
@@ -61,6 +60,7 @@ public class SinkConfig {
     private FunctionConfig.ProcessingGuarantees processingGuarantees;
     @isValidResources
     private Resources resources;
+
     @isFileExists
-    private String jar;
+    private String archive;
 }
