@@ -34,7 +34,6 @@ public class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     // Tests on uploading/downloading function packages.
     //
 
-    @Test
     public String checkUpload() throws Exception {
         String bkPkgPath = String.format("%s/%s/%s",
             "tenant-" + randomName(8),
