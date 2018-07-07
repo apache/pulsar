@@ -30,11 +30,11 @@ import org.slf4j.LoggerFactory;
 
 import com.beust.jcommander.JCommander;
 
-public class PulsarStarter extends PulsarStandalone {
+public class PulsarStandaloneStarter extends PulsarStandalone {
 
-    private static final Logger log = LoggerFactory.getLogger(PulsarStarter.class);
+    private static final Logger log = LoggerFactory.getLogger(PulsarStandaloneStarter.class);
 
-    public PulsarStarter(String[] args) throws Exception {
+    public PulsarStandaloneStarter(String[] args) throws Exception {
 
         JCommander jcommander = new JCommander();
         try {
@@ -98,7 +98,7 @@ public class PulsarStarter extends PulsarStandalone {
 
     public static void main(String args[]) throws Exception {
         // Start standalone
-        PulsarStarter standalone = new PulsarStarter(args);
+        PulsarStandaloneStarter standalone = new PulsarStandaloneStarter(args);
         standalone.start();
     }
 }

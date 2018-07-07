@@ -248,7 +248,7 @@ public class PulsarStandalone {
             System.exit(1);
         }
 
-        log.debug("--- setup PulsarStarter ---");
+        log.debug("--- setup PulsarStandaloneStarter ---");
 
         // load aspectj-weaver agent for instrumentation
         AgentLoader.loadAgentClass(Agent.class.getName(), null);
