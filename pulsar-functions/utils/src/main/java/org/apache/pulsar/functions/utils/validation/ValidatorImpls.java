@@ -644,6 +644,11 @@ public class ValidatorImpls {
         @Override
         public void validateField(String name, Object o) {
             SourceConfig sourceConfig = (SourceConfig) o;
+            if (sourceConfig.getArchive().startsWith(Utils.BUILTIN)) {
+                // We don't have to check the archive, since it's provided on the worker itself
+                return;
+            }
+
             String sourceClassName;
             try {
                 sourceClassName = ConnectorUtils.getIOSourceClass(sourceConfig.getArchive());
@@ -715,6 +720,11 @@ public class ValidatorImpls {
         @Override
         public void validateField(String name, Object o) {
             SinkConfig sinkConfig = (SinkConfig) o;
+            if (sinkConfig.getArchive().startsWith(Utils.BUILTIN)) {
+                // We don't have to check the archive, since it's provided on the worker itself
+                return;
+            }
+
             // if function-pkg url is present eg: file://xyz.jar then admin-tool might not have access of the file at
             // the same location so, need to rely on server side validation.
             if (Utils.isFunctionPackageUrlSupported(sinkConfig.getArchive())) {
@@ -795,7 +805,7 @@ public class ValidatorImpls {
 
             if(!Utils.isFunctionPackageUrlSupported(path)) {
                 // check file existence if path is not url and local path
-                if (!fileExists(path)) {
+                if (!path.startsWith(Utils.BUILTIN) && !fileExists(path)) {
                     throw new IllegalArgumentException
                             (String.format("File %s specified in field '%s' does not exist", path, name));
                 }

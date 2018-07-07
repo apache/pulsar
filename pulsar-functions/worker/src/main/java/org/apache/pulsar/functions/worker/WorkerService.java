@@ -102,12 +102,14 @@ public class WorkerService {
             this.functionMetaDataManager = new FunctionMetaDataManager(
                     this.workerConfig, this.schedulerManager, this.client);
 
+            this.connectorsManager = new ConnectorsManager(workerConfig);
+
             //create membership manager
             this.membershipManager = new MembershipManager(this.workerConfig, this.client);
 
             // create function runtime manager
             this.functionRuntimeManager = new FunctionRuntimeManager(
-                    this.workerConfig, this.client, this.dlogNamespace, this.membershipManager);
+                    this.workerConfig, this.client, this.dlogNamespace, this.membershipManager, connectorsManager);
 
             // Setting references to managers in scheduler
             this.schedulerManager.setFunctionMetaDataManager(this.functionMetaDataManager);
@@ -135,8 +137,6 @@ public class WorkerService {
 
             // indicate function worker service is done intializing
             this.isInitialized = true;
-
-            this.connectorsManager = new ConnectorsManager(workerConfig);
 
         } catch (Throwable t) {
             log.error("Error Starting up in worker", t);

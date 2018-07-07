@@ -27,6 +27,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.client.Entity;
@@ -37,6 +39,7 @@ import javax.ws.rs.core.Response;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
@@ -110,7 +113,10 @@ public class FunctionsImpl extends BaseResource implements Functions {
         try {
             final FormDataMultiPart mp = new FormDataMultiPart();
 
-            mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
+            if (!fileName.startsWith("builtin://")) {
+                // If the function code is built in, we don't need to submit here
+                mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
+            }
 
             mp.bodyPart(new FormDataBodyPart("functionDetails",
                 printJson(functionDetails),
@@ -153,9 +159,12 @@ public class FunctionsImpl extends BaseResource implements Functions {
     public void updateFunction(FunctionDetails functionDetails, String fileName) throws PulsarAdminException {
         try {
             final FormDataMultiPart mp = new FormDataMultiPart();
-            if (fileName != null) {
+
+            if (!fileName.startsWith("builtin://") && fileName != null) {
+                // If the function code is built in, we don't need to submit here
                 mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
             }
+
             mp.bodyPart(new FormDataBodyPart("functionDetails",
                 printJson(functionDetails),
                 MediaType.APPLICATION_JSON_TYPE));
@@ -249,6 +258,18 @@ public class FunctionsImpl extends BaseResource implements Functions {
         } catch (Exception e) {
             throw getApiException(e);
         }
+    }
+
+    @Override
+    public Set<String> getSources() throws PulsarAdminException {
+        return getConnectorsList().stream().filter(c -> !StringUtils.isEmpty(c.getSourceClass()))
+                .map(ConnectorDefinition::getName).collect(Collectors.toSet());
+    }
+
+    @Override
+    public Set<String> getSinks() throws PulsarAdminException {
+        return getConnectorsList().stream().filter(c -> !StringUtils.isEmpty(c.getSinkClass()))
+                .map(ConnectorDefinition::getName).collect(Collectors.toSet());
     }
 
     public static void mergeJson(String json, Builder builder) throws IOException {

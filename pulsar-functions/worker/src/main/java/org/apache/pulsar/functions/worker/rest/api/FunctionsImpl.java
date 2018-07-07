@@ -25,6 +25,8 @@ import static org.apache.pulsar.functions.utils.Utils.HTTP;
 import static org.apache.pulsar.functions.utils.Utils.isFunctionPackageUrlSupported;
 import static org.apache.pulsar.functions.utils.functioncache.FunctionClassLoaders.create;
 
+import com.google.gson.Gson;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -51,6 +53,8 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Message;
@@ -64,6 +68,8 @@ import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
+import org.apache.pulsar.functions.proto.Function.SinkSpec;
+import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.utils.functioncache.FunctionClassLoaders;
@@ -77,9 +83,6 @@ import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.Source;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 
-import com.google.gson.Gson;
-
-import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
 
 @Slf4j
@@ -148,12 +151,17 @@ public class FunctionsImpl {
         FunctionMetaData.Builder functionMetaDataBuilder = FunctionMetaData.newBuilder()
                 .setFunctionDetails(functionDetails).setCreateTime(System.currentTimeMillis()).setVersion(0);
 
-        PackageLocationMetaData.Builder packageLocationMetaDataBuilder = PackageLocationMetaData.newBuilder()
-                .setPackagePath(isPkgUrlProvided ? functionPkgUrl
-                        : createPackagePath(tenant, namespace, functionName, fileDetail.getFileName()));
-        functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
+        PackageLocationMetaData.Builder packageLocationMetaDataBuilder = PackageLocationMetaData.newBuilder();
+        boolean isBuiltin = isFunctionCodeBuiltin(functionDetails);
+        if (isBuiltin) {
+            packageLocationMetaDataBuilder.setPackagePath("builtin://" + getFunctionCodeBuiltin(functionDetails));
+        } else {
+            packageLocationMetaDataBuilder.setPackagePath(isPkgUrlProvided ? functionPkgUrl
+                    : createPackagePath(tenant, namespace, functionName, fileDetail.getFileName()));
+        }
 
-        return isPkgUrlProvided ? updateRequest(functionMetaDataBuilder.build())
+        functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
+        return (isPkgUrlProvided || isBuiltin) ? updateRequest(functionMetaDataBuilder.build())
                 : updateRequest(functionMetaDataBuilder.build(), uploadedInputStream);
     }
 
@@ -193,12 +201,17 @@ public class FunctionsImpl {
         FunctionMetaData.Builder functionMetaDataBuilder = FunctionMetaData.newBuilder()
                 .setFunctionDetails(functionDetails).setCreateTime(System.currentTimeMillis()).setVersion(0);
 
-        PackageLocationMetaData.Builder packageLocationMetaDataBuilder = PackageLocationMetaData.newBuilder()
-                .setPackagePath(isPkgUrlProvided ? functionPkgUrl
-                        : createPackagePath(tenant, namespace, functionName, fileDetail.getFileName()));
-        functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
+        PackageLocationMetaData.Builder packageLocationMetaDataBuilder = PackageLocationMetaData.newBuilder();
 
-        return isPkgUrlProvided ? updateRequest(functionMetaDataBuilder.build())
+        boolean isBuiltin = isFunctionCodeBuiltin(functionDetails);
+        if (isBuiltin) {
+            packageLocationMetaDataBuilder.setPackagePath("builtin://" + getFunctionCodeBuiltin(functionDetails));
+        } else {
+            packageLocationMetaDataBuilder.setPackagePath(isPkgUrlProvided ? functionPkgUrl
+                    : createPackagePath(tenant, namespace, functionName, fileDetail.getFileName()));
+        }
+
+        return (isPkgUrlProvided || isBuiltin) ? updateRequest(functionMetaDataBuilder.build())
                 : updateRequest(functionMetaDataBuilder.build(), uploadedInputStream);
     }
 
@@ -659,11 +672,52 @@ public class FunctionsImpl {
     private FunctionDetails validateUpdateRequestParams(String tenant, String namespace, String functionName,
             InputStream uploadedInputStream, FormDataContentDisposition fileDetail, String functionDetailsJson)
             throws IllegalArgumentException {
-        if (uploadedInputStream == null || fileDetail == null) {
+
+        FunctionDetails functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
+                functionDetailsJson, null);
+        if (!isFunctionCodeBuiltin(functionDetails) && (uploadedInputStream == null || fileDetail == null)) {
             throw new IllegalArgumentException("Function Package is not provided");
         }
-        return validateUpdateRequestParams(tenant, namespace, functionName, functionDetailsJson, null);
+
+        return functionDetails;
     }
+
+    private boolean isFunctionCodeBuiltin(FunctionDetails functionDetails) {
+        if (functionDetails.hasSource()) {
+            SourceSpec sourceSpec = functionDetails.getSource();
+            if (!StringUtils.isEmpty(sourceSpec.getBuiltin())) {
+                return true;
+            }
+        }
+
+        if (functionDetails.hasSink()) {
+            SinkSpec sinkSpec = functionDetails.getSink();
+            if (!StringUtils.isEmpty(sinkSpec.getBuiltin())) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private String getFunctionCodeBuiltin(FunctionDetails functionDetails) {
+        if (functionDetails.hasSource()) {
+            SourceSpec sourceSpec = functionDetails.getSource();
+            if (!StringUtils.isEmpty(sourceSpec.getBuiltin())) {
+                return sourceSpec.getBuiltin();
+            }
+        }
+
+        if (functionDetails.hasSink()) {
+            SinkSpec sinkSpec = functionDetails.getSink();
+            if (!StringUtils.isEmpty(sinkSpec.getBuiltin())) {
+                return sinkSpec.getBuiltin();
+            }
+        }
+
+        return null;
+    }
+
 
     private FunctionDetails validateUpdateRequestParams(String tenant, String namespace, String functionName,
             String functionDetailsJson, File jarWithFileUrl) throws IllegalArgumentException {
