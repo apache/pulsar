@@ -18,26 +18,11 @@
  */
 package org.apache.pulsar.io.core;
 
-import java.util.Map;
-
-/**
- * Generic sink interface users can implement to run Sink on top of Pulsar Functions
- */
-public interface Sink<T> extends AutoCloseable{
+public interface SourceContext {
     /**
-     * Open connector with configuration
-     *
-     * @param config initialization config
-     * @param sinkContext
-     * @throws Exception IO type exceptions when opening a connector
+     * Record a user defined metric
+     * @param metricName The name of the metric
+     * @param value The value of the metric
      */
-    void open(final Map<String, Object> config, SinkContext sinkContext) throws Exception;
-    
-    /**
-     * Write a message to Sink
-     * @param inputRecordContext Context of value
-     * @param value value to write to sink
-     * @throws Exception
-     */
-    void write(RecordContext inputRecordContext, T value) throws Exception;
+    void recordMetric(String metricName, double value);
 }

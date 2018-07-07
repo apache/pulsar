@@ -36,6 +36,8 @@ import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.instance.state.StateContextImpl;
 import org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData;
 import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.io.core.SinkContext;
+import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
 
 import java.io.IOException;
@@ -56,7 +58,7 @@ import static com.google.common.base.Preconditions.checkState;
 /**
  * This class implements the Context interface exposed to the user.
  */
-class ContextImpl implements Context {
+class ContextImpl implements Context, SinkContext, SourceContext {
     private InstanceConfig config;
     private Logger logger;
 

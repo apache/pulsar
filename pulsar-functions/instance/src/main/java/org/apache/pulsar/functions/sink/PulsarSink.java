@@ -41,6 +41,7 @@ import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.io.core.RecordContext;
 import org.apache.pulsar.io.core.Sink;
+import org.apache.pulsar.io.core.SinkContext;
 
 import java.util.Base64;
 import java.util.Map;
@@ -187,7 +188,7 @@ public class PulsarSink<T> implements Sink<T> {
     }
 
     @Override
-    public void open(Map<String, Object> config) throws Exception {
+    public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
 
         // Setup Serialization/Deserialization
         setupSerDe();
