@@ -22,8 +22,26 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.isNull;
 import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
+import static org.apache.commons.lang.StringUtils.isBlank;
+import static org.apache.commons.lang.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
+import static org.apache.pulsar.functions.utils.Utils.fileExists;
+import static org.apache.pulsar.functions.worker.Utils.downloadFromHttpUrl;
+
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
+import com.beust.jcommander.Parameters;
+import com.beust.jcommander.converters.StringConverter;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonParser;
+import com.google.gson.reflect.TypeToken;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.Unpooled;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -41,16 +59,15 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.bookkeeper.api.StorageClient;
 import org.apache.bookkeeper.api.kv.Table;
 import org.apache.bookkeeper.api.kv.result.KeyValue;
 import org.apache.bookkeeper.clients.StorageClientBuilder;
 import org.apache.bookkeeper.clients.config.StorageClientSettings;
 import org.apache.commons.lang.StringUtils;
-import static org.apache.commons.lang.StringUtils.isNotBlank;
-import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.apache.commons.lang.StringUtils.isBlank;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.internal.FunctionsImpl;
@@ -73,26 +90,6 @@ import org.apache.pulsar.functions.utils.validation.ConfigValidation;
 import org.apache.pulsar.functions.utils.validation.ValidatorImpls.ImplementsClassesValidator;
 import org.apache.pulsar.functions.windowing.WindowFunctionExecutor;
 import org.apache.pulsar.functions.windowing.WindowUtils;
-
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
-import com.beust.jcommander.Parameters;
-import com.beust.jcommander.converters.StringConverter;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonParser;
-import com.google.gson.reflect.TypeToken;
-
-import static org.apache.pulsar.functions.utils.Utils.fileExists;
-import static org.apache.pulsar.functions.utils.Utils.getSinkType;
-import static org.apache.pulsar.functions.worker.Utils.downloadFromHttpUrl;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
-import io.netty.buffer.Unpooled;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Parameters(commandDescription = "Interface for managing Pulsar Functions (lightweight, Lambda-style compute processes that work with Pulsar)")
@@ -384,7 +381,7 @@ public class CmdFunctions extends CmdBase {
             if (null != pyFile) {
                 functionConfig.setPy(pyFile);
             }
-            
+
             if (functionConfig.getJar() != null) {
                 userCodeFile = functionConfig.getJar();
             } else if (functionConfig.getPy() != null) {
@@ -427,13 +424,13 @@ public class CmdFunctions extends CmdBase {
                 }
             } else {
                 if (!fileExists(userCodeFile)) {
-                    throw new ParameterException("File " + userCodeFile + " does not exist");    
+                    throw new ParameterException("File " + userCodeFile + " does not exist");
                 }
                 jarFilePath = userCodeFile;
             }
 
             if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
-                
+
                 if (jarFilePath != null) {
                     File file = new File(jarFilePath);
                     ClassLoader userJarLoader;
@@ -676,22 +673,22 @@ public class CmdFunctions extends CmdBase {
 
         @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker")
         protected String brokerServiceUrl;
-        
+
         @Parameter(names = "--clientAuthPlugin", description = "Client authentication plugin using which function-process can connect to broker")
         protected String clientAuthPlugin;
-        
+
         @Parameter(names = "--clientAuthParams", description = "Client authentication param")
         protected String clientAuthParams;
-        
+
         @Parameter(names = "--use_tls", description = "Use tls connection\n")
         protected boolean useTls;
 
         @Parameter(names = "--tls_allow_insecure", description = "Allow insecure tls connection\n")
         protected boolean tlsAllowInsecureConnection;
-        
+
         @Parameter(names = "--hostname_verification_enabled", description = "Enable hostname verification")
         protected boolean tlsHostNameVerificationEnabled;
-        
+
         @Parameter(names = "--tls_trust_cert_path", description = "tls trust cert file path")
         protected String tlsTrustCertFilePath;
 
