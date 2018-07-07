@@ -16,33 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.worker;
+package org.apache.pulsar.functions.utils.io;
 
-import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+
+import lombok.Data;
 
 import org.apache.pulsar.common.io.ConnectorDefinition;
-import org.apache.pulsar.functions.utils.io.ConnectorUtils;
-import org.apache.pulsar.functions.utils.io.Connectors;
 
-public class ConnectorsManager {
-
-    private final Connectors connectors;
-
-    public ConnectorsManager(WorkerConfig workerConfig) throws IOException {
-        this.connectors = ConnectorUtils.searchForConnectors(workerConfig.getConnectorsDirectory());
-    }
-
-    public List<ConnectorDefinition> getConnectors() {
-        return connectors.getConnectors();
-    }
-
-    public Path getSourceArchive(String sourceType) {
-        return connectors.getSources().get(sourceType);
-    }
-
-    public Path getSinkArchive(String sinkType) {
-        return connectors.getSinks().get(sinkType);
-    }
+@Data
+public class Connectors {
+    final List<ConnectorDefinition> connectors = new ArrayList<>();
+    final Map<String, Path> sources = new TreeMap<>();
+    final Map<String, Path> sinks = new TreeMap<>();
 }
