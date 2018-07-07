@@ -40,6 +40,8 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.util.FutureUtil;
 
 import com.google.common.collect.Lists;
@@ -237,7 +239,13 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 		return this;
 	}
 
-	public ConsumerConfigurationData<T> getConf() {
+    @Override
+    public ConsumerBuilder<T> subscriptionTopicsMode(Mode mode) {
+        conf.setSubscriptionTopicsMode(mode);
+        return this;
+    }
+
+    public ConsumerConfigurationData<T> getConf() {
 	    return conf;
 	}
 }

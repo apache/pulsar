@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.lookup.data.LookupData;
@@ -97,12 +98,13 @@ class HttpLookupService implements LookupService {
     }
 
     @Override
-    public CompletableFuture<List<String>> getTopicsUnderNamespace(NamespaceName namespace) {
+    public CompletableFuture<List<String>> getTopicsUnderNamespace(NamespaceName namespace, Mode mode) {
         CompletableFuture<List<String>> future = new CompletableFuture<>();
 
-        String format = namespace.isV2() ? "admin/v2/namespaces/%s/destinations" : "admin/namespaces/%s/destinations";
+        String format = namespace.isV2()
+            ? "admin/v2/namespaces/%s/destinations" : "admin/namespaces/%s/destinations?mode=%s";
         httpClient
-            .get(String.format(format, namespace), String[].class)
+            .get(String.format(format, namespace, mode.toString()), String[].class)
             .thenAccept(topics -> {
                 List<String> result = Lists.newArrayList();
                 // do not keep partition part of topic name

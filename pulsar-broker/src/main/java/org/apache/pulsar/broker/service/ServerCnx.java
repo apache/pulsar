@@ -1180,23 +1180,10 @@ public class ServerCnx extends PulsarHandler {
         final CommandGetTopicsOfNamespace.Mode mode = commandGetTopicsOfNamespace.getMode();
 
         try {
-            final List<String> topics;
-            final NamespaceService service = getBrokerService().pulsar().getNamespaceService();
             final NamespaceName namespaceName = NamespaceName.get(namespace);
 
-
-            switch (mode) {
-                case ALL:
-                    topics = service.getFullListOfTopics(namespaceName);
-                    break;
-                case NON_PERSISTENT:
-                    topics = service.getListOfNonPersistentTopics(namespaceName);
-                    break;
-                case PERSISTENT:
-                default:
-                    topics = service.getListOfPersistentTopics(namespaceName);
-                    break;
-            }
+            final List<String> topics = getBrokerService().pulsar().getNamespaceService()
+                .getListOfTopics(namespaceName, mode);
 
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Received CommandGetTopicsOfNamespace for namespace [//{}] by {}, size:{}",

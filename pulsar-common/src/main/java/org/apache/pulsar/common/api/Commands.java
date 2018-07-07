@@ -53,6 +53,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageId;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
@@ -716,9 +717,9 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newGetTopicsOfNamespaceRequest(String namespace, long requestId) {
+    public static ByteBuf newGetTopicsOfNamespaceRequest(String namespace, long requestId, Mode mode) {
         CommandGetTopicsOfNamespace.Builder topicsBuilder = CommandGetTopicsOfNamespace.newBuilder();
-        topicsBuilder.setNamespace(namespace).setRequestId(requestId);
+        topicsBuilder.setNamespace(namespace).setRequestId(requestId).setMode(mode);
 
         CommandGetTopicsOfNamespace topicsCommand = topicsBuilder.build();
         ByteBuf res = serializeWithSize(
