@@ -406,7 +406,7 @@ More in-depth information can be found in [this post](https://blog.streaml.io/pu
 
 ## Multi-tenancy
 
-Pulsar was created from the ground up as a {% popover multi-tenant %} system. To support multi-tenancy, Pulsar has a concept of {% popover tenants %}. Tenants can be spread across {% popover clusters %} and can each have their own [authentication and authorization](../../admin/Authz) scheme applied to them. They are also the administrative unit at which storage quotas, [message TTL](../../cookbooks/RetentionExpiry#time-to-live-ttl), and isolation policies can be managed.
+Pulsar was created from the ground up as a {% popover multi-tenant %} system. To support multi-tenancy, Pulsar has a concept of {% popover tenants %}. Tenants can be spread across {% popover clusters %} and can each have their own [authentication and authorization](../../security/overview) scheme applied to them. They are also the administrative unit at which storage quotas, [message TTL](../../cookbooks/RetentionExpiry#time-to-live-ttl), and isolation policies can be managed.
 
 The multi-tenant nature of Pulsar is reflected mostly visibly in topic URLs, which have this structure:
 
@@ -420,7 +420,7 @@ As you can see, the tenant is the most basic unit of categorization for topics (
 
 ## Authentication and Authorization
 
-Pulsar supports a pluggable [authentication](../../admin/Authz) mechanism which can be configured at broker and it also supports authorization to identify client and its access rights on topics and tenants.
+Pulsar supports a pluggable [authentication](../../security/overview) mechanism which can be configured at broker and it also supports authorization to identify client and its access rights on topics and tenants.
 
 ## Client interface
 
@@ -464,7 +464,7 @@ For documentation on using the Pulsar proxy, see the [Pulsar proxy admin documen
 Some important things to know about the Pulsar proxy:
 
 * Connecting clients don't need to provide *any* specific configuration to use the Pulsar proxy. You won't need to update the client configuration for existing applications beyond updating the IP used for the service URL (for example if you're running a load balancer over the Pulsar proxy).
-* [TLS encryption and authentication](../../admin/Authz/#tls-client-auth) is supported by the Pulsar proxy
+* [TLS encryption and authentication](../../security/tls) is supported by the Pulsar proxy
 
 ## Service discovery
 
