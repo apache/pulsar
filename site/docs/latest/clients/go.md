@@ -432,7 +432,7 @@ Parameter | Description
 
 ## TLS encryption and authentication {#tls}
 
-In order to use [TLS encryption](../../admin/Authz#), you'll need to configure your client to do so:
+In order to use [TLS encryption](../../security/tls), you'll need to configure your client to do so:
 
  * Use `pulsar+ssl` URL type
  * Set `TLSTrustCertsFilePath` to the path to the TLS certs used by your client and the Pulsar {% popover broker %}
