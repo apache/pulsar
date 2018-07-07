@@ -34,7 +34,6 @@ public class EncryptionContext {
 
     private Map<String, EncryptionKey> keys;
     private byte[] param;
-    private Map<String, String> metadata;
     private String algorithm;
     private CompressionType compressionType;
     private int uncompressedMessageSize;
