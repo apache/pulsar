@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.utils.io;
+package org.apache.pulsar.common.io;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;

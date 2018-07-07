@@ -45,6 +45,7 @@ public class WorkerConfig implements Serializable {
     private String workerId;
     private String workerHostname;
     private int workerPort;
+    private String connectorsDirectory;
     private String functionMetadataTopicName;
     private String pulsarServiceUrl;
     private String pulsarWebServiceUrl;
@@ -68,7 +69,7 @@ public class WorkerConfig implements Serializable {
     private String tlsTrustCertsFilePath = "";
     private boolean tlsAllowInsecureConnection = false;
     private boolean tlsHostnameVerificationEnable = false;
-    
+
     @Data
     @Setter
     @Getter

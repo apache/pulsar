@@ -25,6 +25,7 @@ import java.util.Collections;
 import lombok.experimental.UtilityClass;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.utils.Exceptions;
