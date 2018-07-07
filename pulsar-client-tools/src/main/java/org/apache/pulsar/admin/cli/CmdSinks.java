@@ -339,8 +339,8 @@ public class CmdSinks extends CmdBase {
                 try {
                     ConnectorDefinition connector = ConnectorUtils.getConnectorDefinition(archivePath);
                     log.info("Connector: {}", connector);
-                    // Validate source class
-                    ConnectorUtils.getIOSourceClass(archivePath);
+                    // Validate sink class
+                    ConnectorUtils.getIOSinkClass(archivePath);
                 } catch (IOException e) {
                     throw new ParameterException("Failed to validate connector from " + archivePath, e);
                 }
