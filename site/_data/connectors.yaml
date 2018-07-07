@@ -21,22 +21,22 @@
   url: https://www.aerospike.com/
   class:
     group: aerospike
-    name: AerospikeSink
+    name: AerospikeStringSink
 - name: Cassandra sink
   url: https://cassandra.apache.org
   class:
     group: cassandra
-    name: CassandraSink
+    name: CassandraStringSink
 - name: Kafka source
   url: https://kafka.apache.org
   class:
     group: kafka
-    name: KafkaSource
+    name: KafkaStringSource
 - name: Kafka sink
   url: https://kafka.apache.org
   class:
     group: kafka
-    name: KafkaSink
+    name: KafkaStringSink
 - name: RabbitMQ source
   url: https://www.rabbitmq.com
   class:
