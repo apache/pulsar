@@ -40,6 +40,7 @@ import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.InstanceUtils;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.Utils;
@@ -78,6 +79,7 @@ public class PulsarSource<T> implements Source<T> {
                 .cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
                 .subscriptionName(this.pulsarSourceConfig.getSubscriptionName())
                 .subscriptionType(this.pulsarSourceConfig.getSubscriptionType())
+                .property("function-name", getFunctionNameString(instanceConfig.getFunctionDetails()))
                 .property("function-id", instanceConfig.getFunctionId())
                 .property("function-version", instanceConfig.getFunctionVersion())
                 .property("instance-id", instanceConfig.getInstanceId());
@@ -204,5 +206,13 @@ public class PulsarSource<T> implements Source<T> {
                 }
             }
         }
+    }
+
+    public static String getFunctionNameString(FunctionDetails fd) {
+        if (fd == null) {
+            return "";
+        }
+
+        return String.format("%s/%s/%s", fd.getTenant(), fd.getNamespace(), fd.getName());
     }
 }

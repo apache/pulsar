@@ -29,6 +29,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.instance.FunctionResultRouter;
 import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.source.PulsarSource;
 
 public abstract class AbstractOneOuputTopicProducers implements Producers {
 
@@ -55,6 +56,7 @@ public abstract class AbstractOneOuputTopicProducers implements Producers {
                 .hashingScheme(HashingScheme.Murmur3_32Hash) //
                 .messageRoutingMode(MessageRoutingMode.CustomPartition) //
                 .messageRouter(FunctionResultRouter.of())
+                .property("function-name", PulsarSource.getFunctionNameString(instanceConfig.getFunctionDetails()))
                 .property("function-id", instanceConfig.getFunctionId())
                 .property("function-version", instanceConfig.getFunctionVersion())
                 .property("instance-id", instanceConfig.getInstanceId());
