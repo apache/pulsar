@@ -112,7 +112,6 @@ public class TestCmdSinks {
         sinkConfig.setTenant(TENANT);
         sinkConfig.setNamespace(NAMESPACE);
         sinkConfig.setName(NAME);
-//        sinkConfig.setClassName(CLASS_NAME);
 
         Map<String, String> topicsToSerDeClassName = new HashMap<>();
         createSink.parseInputs(INPUTS, topicsToSerDeClassName);
@@ -218,29 +217,6 @@ public class TestCmdSinks {
                 sinkConfig
         );
     }
-
-//    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'className' cannot be null!")
-//    public void testMissingClassname() throws Exception {
-//        SinkConfig sinkConfig = getSinkConfig();
-//        sinkConfig.setClassName(null);
-//        testCmdSinkCliMissingArgs(
-//                TENANT,
-//                NAMESPACE,
-//                NAME,
-//                null,
-//                INPUTS,
-//                TOPIC_PATTERN,
-//                CUSTOM_SERDE_INPUT_STRING,
-//                PROCESSING_GUARANTEES,
-//                PARALLELISM,
-//                JAR_FILE_PATH,
-//                CPU,
-//                RAM,
-//                DISK,
-//                SINK_CONFIG_STRING,
-//                sinkConfig
-//        );
-//    }
 
     @Test
     public void testMissingInput() throws Exception {
@@ -478,54 +454,6 @@ public class TestCmdSinks {
         );
     }
 
-//    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Cannot find/load class org.company.Foo")
-//    public void testClassNotInJar() throws Exception {
-//        SinkConfig sinkConfig = getSinkConfig();
-//        String fakeClass = "org.company.Foo";
-//        sinkConfig.setClassName(fakeClass);
-//        testCmdSinkCliMissingArgs(
-//                TENANT,
-//                NAMESPACE,
-//                NAME,
-//                fakeClass,
-//                INPUTS,
-//                TOPIC_PATTERN,
-//                CUSTOM_SERDE_INPUT_STRING,
-//                PROCESSING_GUARANTEES,
-//                PARALLELISM,
-//                JAR_FILE_PATH,
-//                CPU,
-//                RAM,
-//                DISK,
-//                SINK_CONFIG_STRING,
-//                sinkConfig
-//        );
-//    }
-
-//    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'className' with value.*.does not implement org.apache.pulsar.io.core.Sink")
-//    public void testClassNotImplementSinkJar() throws Exception {
-//        SinkConfig sinkConfig = getSinkConfig();
-//        String wrongClass = this.getClass().getName();
-//        sinkConfig.setClassName(wrongClass);
-//        testCmdSinkCliMissingArgs(
-//                TENANT,
-//                NAMESPACE,
-//                NAME,
-//                wrongClass,
-//                INPUTS,
-//                TOPIC_PATTERN,
-//                CUSTOM_SERDE_INPUT_STRING,
-//                PROCESSING_GUARANTEES,
-//                PARALLELISM,
-//                JAR_FILE_PATH,
-//                CPU,
-//                RAM,
-//                DISK,
-//                SINK_CONFIG_STRING,
-//                sinkConfig
-//        );
-//    }
-
     @Test
     public void testMissingCpu() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
@@ -639,7 +567,6 @@ public class TestCmdSinks {
         createSink.tenant = tenant;
         createSink.namespace = namespace;
         createSink.name = name;
-//        createSink.className = className;
         createSink.inputs = inputs;
         createSink.topicsPattern = topicPattern;
         createSink.customSerdeInputString = customSerdeInputString;
@@ -659,7 +586,6 @@ public class TestCmdSinks {
         updateSink.tenant = tenant;
         updateSink.namespace = namespace;
         updateSink.name = name;
-//        updateSink.className = className;
         updateSink.inputs = inputs;
         updateSink.topicsPattern = topicPattern;
         updateSink.customSerdeInputString = customSerdeInputString;
@@ -679,7 +605,6 @@ public class TestCmdSinks {
         localSinkRunner.tenant = tenant;
         localSinkRunner.namespace = namespace;
         localSinkRunner.name = name;
-//        localSinkRunner.className = className;
         localSinkRunner.inputs = inputs;
         localSinkRunner.topicsPattern = topicPattern;
         localSinkRunner.customSerdeInputString = customSerdeInputString;
@@ -736,16 +661,6 @@ public class TestCmdSinks {
         expectedSinkConfig.setName(null);
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
-
-//    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'className' cannot be null!")
-//    public void testCmdSinkConfigFileMissingClassName() throws Exception {
-//        SinkConfig testSinkConfig = getSinkConfig();
-//        testSinkConfig.setClassName(null);
-//
-//        SinkConfig expectedSinkConfig = getSinkConfig();
-//        expectedSinkConfig.setClassName(null);
-//        testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
-//    }
 
     @Test
     public void testCmdSinkConfigFileMissingTopicToSerdeClassName() throws Exception {
@@ -849,26 +764,6 @@ public class TestCmdSinks {
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
-//    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Cannot find/load class org.com.Foo")
-//    public void testCmdSinkConfigFileClassNotInJar() throws Exception {
-//        SinkConfig testSinkConfig = getSinkConfig();
-//        testSinkConfig.setClassName("org.com.Foo");
-//
-//        SinkConfig expectedSinkConfig = getSinkConfig();
-//        expectedSinkConfig.setClassName("org.com.Foo");
-//        testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
-//    }
-
-//    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Field 'className' with value.*.does not implement org.apache.pulsar.io.core.Sink")
-//    public void testCmdSinkConfigFileClassDoesNotImplementSinkJar() throws Exception {
-//        SinkConfig testSinkConfig = getSinkConfig();
-//        testSinkConfig.setClassName(this.getClass().getName());
-//
-//        SinkConfig expectedSinkConfig = getSinkConfig();
-//        expectedSinkConfig.setClassName(this.getClass().getName());
-//        testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
-//    }
-
     public void testCmdSinkConfigFile(SinkConfig testSinkConfig, SinkConfig expectedSinkConfig) throws Exception {
 
         File file = Files.createTempFile("", "").toFile();
@@ -908,7 +803,6 @@ public class TestCmdSinks {
         testSinkConfig.setTenant(TENANT + "-prime");
         testSinkConfig.setNamespace(NAMESPACE + "-prime");
         testSinkConfig.setName(NAME + "-prime");
-//        testSinkConfig.setClassName(CLASS_NAME + "-prime");
 
         Map<String, String> topicsToSerDeClassName = new HashMap<>();
         createSink.parseInputs(INPUTS + ",test-src-prime", topicsToSerDeClassName);
@@ -975,7 +869,6 @@ public class TestCmdSinks {
         createSink.tenant = tenant;
         createSink.namespace = namespace;
         createSink.name = name;
-//        createSink.className = className;
         createSink.inputs = inputs;
         createSink.topicsPattern = topicPattern;
         createSink.customSerdeInputString = customSerdeInputString;
@@ -996,7 +889,6 @@ public class TestCmdSinks {
         updateSink.tenant = tenant;
         updateSink.namespace = namespace;
         updateSink.name = name;
-//        updateSink.className = className;
         updateSink.inputs = inputs;
         updateSink.topicsPattern = topicPattern;
         updateSink.customSerdeInputString = customSerdeInputString;
@@ -1018,7 +910,6 @@ public class TestCmdSinks {
         localSinkRunner.tenant = tenant;
         localSinkRunner.namespace = namespace;
         localSinkRunner.name = name;
-//        localSinkRunner.className = className;
         localSinkRunner.inputs = inputs;
         localSinkRunner.topicsPattern = topicPattern;
         localSinkRunner.customSerdeInputString = customSerdeInputString;
