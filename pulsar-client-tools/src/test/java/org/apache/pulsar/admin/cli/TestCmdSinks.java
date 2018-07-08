@@ -40,6 +40,7 @@ import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
 import java.io.File;
+import java.net.URL;
 import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
@@ -103,7 +104,13 @@ public class TestCmdSinks {
 
         mockStatic(CmdFunctions.class);
         PowerMockito.doNothing().when(CmdFunctions.class, "startLocalRun", Mockito.any(), Mockito.anyInt(), Mockito.anyInt(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
-        JAR_FILE_PATH = Thread.currentThread().getContextClassLoader().getResource(JAR_FILE_NAME).getFile();
+        log.info("loading archive: {}", JAR_FILE_NAME);
+        URL file = Thread.currentThread().getContextClassLoader().getResource(JAR_FILE_NAME);
+        log.info("Archive URL: {}", file);
+        if (file == null)  {
+            throw new RuntimeException("Failed to file required test archive: " + JAR_FILE_NAME);
+        }
+        JAR_FILE_PATH = file.getFile();
         Thread.currentThread().setContextClassLoader(Reflections.loadJar(new File(JAR_FILE_PATH)));
     }
 
