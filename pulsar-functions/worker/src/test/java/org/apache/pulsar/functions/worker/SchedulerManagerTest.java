@@ -18,7 +18,28 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import lombok.extern.slf4j.Slf4j;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyBoolean;
+import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -34,27 +55,7 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.lang.reflect.Method;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyBoolean;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class SchedulerManagerTest {
@@ -145,8 +146,8 @@ public class SchedulerManagerTest {
         doReturn(version).when(functionRuntimeManager).getCurrentAssignmentVersion();
 
         // single node
-        List<MembershipManager.WorkerInfo> workerInfoList = new LinkedList<>();
-        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "workerHostname-1", 5000));
+        List<WorkerInfo> workerInfoList = new LinkedList<>();
+        workerInfoList.add(WorkerInfo.of("worker-1", "workerHostname-1", 5000));
         doReturn(workerInfoList).when(membershipManager).getCurrentMembership();
 
         // i am not leader
@@ -189,8 +190,8 @@ public class SchedulerManagerTest {
         doReturn(version).when(functionRuntimeManager).getCurrentAssignmentVersion();
 
         // single node
-        List<MembershipManager.WorkerInfo> workerInfoList = new LinkedList<>();
-        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "workerHostname-1", 5000));
+        List<WorkerInfo> workerInfoList = new LinkedList<>();
+        workerInfoList.add(WorkerInfo.of("worker-1", "workerHostname-1", 5000));
         doReturn(workerInfoList).when(membershipManager).getCurrentMembership();
 
         // i am leader
@@ -245,8 +246,8 @@ public class SchedulerManagerTest {
         doReturn(version).when(functionRuntimeManager).getCurrentAssignmentVersion();
 
         // single node
-        List<MembershipManager.WorkerInfo> workerInfoList = new LinkedList<>();
-        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "workerHostname-1", 5000));
+        List<WorkerInfo> workerInfoList = new LinkedList<>();
+        workerInfoList.add(WorkerInfo.of("worker-1", "workerHostname-1", 5000));
         doReturn(workerInfoList).when(membershipManager).getCurrentMembership();
 
         // i am leader
@@ -316,8 +317,8 @@ public class SchedulerManagerTest {
         doReturn(version).when(functionRuntimeManager).getCurrentAssignmentVersion();
 
         // single node
-        List<MembershipManager.WorkerInfo> workerInfoList = new LinkedList<>();
-        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "workerHostname-1", 5000));
+        List<WorkerInfo> workerInfoList = new LinkedList<>();
+        workerInfoList.add(WorkerInfo.of("worker-1", "workerHostname-1", 5000));
         doReturn(workerInfoList).when(membershipManager).getCurrentMembership();
 
         // i am leader
@@ -375,8 +376,8 @@ public class SchedulerManagerTest {
         doReturn(version).when(functionRuntimeManager).getCurrentAssignmentVersion();
 
         // single node
-        List<MembershipManager.WorkerInfo> workerInfoList = new LinkedList<>();
-        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "workerHostname-1", 5000));
+        List<WorkerInfo> workerInfoList = new LinkedList<>();
+        workerInfoList.add(WorkerInfo.of("worker-1", "workerHostname-1", 5000));
         doReturn(workerInfoList).when(membershipManager).getCurrentMembership();
 
         // i am leader
@@ -481,8 +482,8 @@ public class SchedulerManagerTest {
         doReturn(version).when(functionRuntimeManager).getCurrentAssignmentVersion();
 
         // single node
-        List<MembershipManager.WorkerInfo> workerInfoList = new LinkedList<>();
-        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "workerHostname-1", 5000));
+        List<WorkerInfo> workerInfoList = new LinkedList<>();
+        workerInfoList.add(WorkerInfo.of("worker-1", "workerHostname-1", 5000));
         doReturn(workerInfoList).when(membershipManager).getCurrentMembership();
 
         // i am leader
@@ -590,8 +591,8 @@ public class SchedulerManagerTest {
         doReturn(version).when(functionRuntimeManager).getCurrentAssignmentVersion();
 
         // single node
-        List<MembershipManager.WorkerInfo> workerInfoList = new LinkedList<>();
-        workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "workerHostname-1", 5000));
+        List<WorkerInfo> workerInfoList = new LinkedList<>();
+        workerInfoList.add(WorkerInfo.of("worker-1", "workerHostname-1", 5000));
         doReturn(workerInfoList).when(membershipManager).getCurrentMembership();
 
         // i am leader
