@@ -20,11 +20,17 @@ package org.apache.pulsar.functions.utils.io;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collections;
 
 import lombok.experimental.UtilityClass;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.utils.Exceptions;
@@ -32,6 +38,7 @@ import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.Source;
 
 @UtilityClass
+@Slf4j
 public class ConnectorUtils {
 
     private static final String PULSAR_IO_SERVICE_NAME = "pulsar-io.yaml";
@@ -100,5 +107,47 @@ public class ConnectorUtils {
 
             return ObjectMapperFactory.getThreadLocalYaml().readValue(configStr, ConnectorDefinition.class);
         }
+    }
+
+    public static Connectors searchForConnectors(String connectorsDirectory) throws IOException {
+        Path path = Paths.get(connectorsDirectory).toAbsolutePath();
+        log.info("Searching for connectors in {}", path);
+
+        Connectors connectors = new Connectors();
+
+        if (!path.toFile().exists()) {
+            log.warn("Connectors archive directory not found");
+            return connectors;
+        }
+
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(path, "*.nar")) {
+            for (Path archive : stream) {
+                try {
+                    ConnectorDefinition cntDef = ConnectorUtils.getConnectorDefinition(archive.toString());
+                    log.info("Found connector {} from {}", cntDef, archive);
+
+                    if (!StringUtils.isEmpty(cntDef.getSourceClass())) {
+                        // Validate source class to be present and of the right type
+                        ConnectorUtils.getIOSourceClass(archive.toString());
+                        connectors.sources.put(cntDef.getName(), archive);
+                    }
+
+                    if (!StringUtils.isEmpty(cntDef.getSinkClass())) {
+                        // Validate sinkclass to be present and of the right type
+                        ConnectorUtils.getIOSinkClass(archive.toString());
+                        connectors.sinks.put(cntDef.getName(), archive);
+                    }
+
+                    connectors.connectors.add(cntDef);
+                } catch (Throwable t) {
+                    log.warn("Failed to load connector from {}", archive, t);
+                }
+            }
+        }
+
+        Collections.sort(connectors.connectors,
+                (c1, c2) -> String.CASE_INSENSITIVE_ORDER.compare(c1.getName(), c2.getName()));
+
+        return connectors;
     }
 }
