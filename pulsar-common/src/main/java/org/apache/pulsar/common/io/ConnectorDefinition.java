@@ -16,20 +16,36 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.admin.v2;
+package org.apache.pulsar.common.io;
 
-import com.wordnik.swagger.annotations.Api;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-import javax.ws.rs.Consumes;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
+@Data
+@NoArgsConstructor
+public class ConnectorDefinition {
 
-import org.apache.pulsar.broker.admin.impl.FunctionsBase;
+    /**
+     * The name of the connector type
+     */
+    private String name;
 
-@Path("/functions")
-@Api(value = "/functions", description = "Functions admin apis", tags = "functions")
-@Produces(MediaType.APPLICATION_JSON)
-@Consumes(MediaType.APPLICATION_JSON)
-public class Functions extends FunctionsBase {
+    /**
+     * Description to be used for user help
+     */
+    private String description;
+
+    /**
+     * The class name for the connector source implementation.
+     * <p>
+     * If not defined, it will be assumed this connector cannot act as a data source
+     */
+    private String sourceClass;
+
+    /**
+     * The class name for the connector sink implementation.
+     * <p>
+     * If not defined, it will be assumed this connector cannot act as a data si
+     */
+    private String sinkClass;
 }

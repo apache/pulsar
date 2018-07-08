@@ -43,9 +43,11 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.text.WordUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.internal.FunctionsImpl;
+import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
@@ -56,7 +58,6 @@ import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.SourceConfig;
 import org.apache.pulsar.functions.utils.Utils;
-import org.apache.pulsar.functions.utils.io.ConnectorDefinition;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.functions.utils.validation.ConfigValidation;
 
@@ -81,6 +82,7 @@ public class CmdSources extends CmdBase {
         jcommander.addCommand("update", updateSource);
         jcommander.addCommand("delete", deleteSource);
         jcommander.addCommand("localrun", localSourceRunner);
+        jcommander.addCommand("available-sources", new ListSources());
     }
 
     /**
@@ -426,4 +428,18 @@ public class CmdSources extends CmdBase {
             print("Delete source successfully");
         }
     }
+
+    @Parameters(commandDescription = "Get the list of Pulsar IO connector sources supported by Pulsar cluster")
+    public class ListSources extends SourceCommand {
+        @Override
+        void runCmd() throws Exception {
+            admin.functions().getConnectorsList().stream().filter(x -> !StringUtils.isEmpty(x.getSourceClass()))
+                    .forEach(connector -> {
+                        System.out.println(connector.getName());
+                        System.out.println(WordUtils.wrap(connector.getDescription(), 80));
+                        System.out.println("----------------------------------------");
+                    });
+        }
+    }
+
 }
