@@ -111,7 +111,7 @@
             </goals>
             <configuration>
               <tasks>
-                <echo>building python instance</echo>
+                <echo>copy test sink package</echo>
                 <mkdir dir="${basedir}/src/test/resources"/>
                 <copy file="${basedir}/../pulsar-io/cassandra/target/pulsar-io-cassandra-${project.version}.nar" tofile="${basedir}/src/test/resources/pulsar-io-cassandra.nar"/>
               </tasks>
