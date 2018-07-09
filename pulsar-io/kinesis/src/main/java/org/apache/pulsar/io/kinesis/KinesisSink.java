@@ -35,6 +35,8 @@ import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 import org.apache.pulsar.io.core.RecordContext;
 import org.apache.pulsar.io.core.Sink;
+import org.apache.pulsar.io.core.SinkContext;
+import org.apache.pulsar.io.kinesis.KinesisSinkConfig.MessageFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,8 +68,16 @@ import io.netty.util.Recycler.Handle;
  *      which accepts json-map of credentials in awsCredentialPluginParam 
  *      eg: awsCredentialPluginParam = {"accessKey":"my-access-key","secretKey":"my-secret-key"}
  * 5. <b>awsCredentialPluginParam:</b> json-parameters to initialize {@link AwsCredentialProviderPlugin}
- * 
+ * 6. messageFormat: enum:["ONLY_RAW_PAYLOAD","FULL_MESSAGE_IN_JSON"]
+ *   a. ONLY_RAW_PAYLOAD:     publishes raw payload to stream
+ *   b. FULL_MESSAGE_IN_JSON: publish full message (encryptionCtx + properties + payload) in json format
+ *   json-schema:
+ *   {"type":"object","properties":{"encryptionCtx":{"type":"object","properties":{"metadata":{"type":"object","additionalProperties":{"type":"string"}},"uncompressedMessageSize":{"type":"integer"},"keysMetadataMap":{"type":"object","additionalProperties":{"type":"object","additionalProperties":{"type":"string"}}},"keysMapBase64":{"type":"object","additionalProperties":{"type":"string"}},"encParamBase64":{"type":"string"},"compressionType":{"type":"string","enum":["NONE","LZ4","ZLIB"]},"batchSize":{"type":"integer"},"algorithm":{"type":"string"}}},"payloadBase64":{"type":"string"},"properties":{"type":"object","additionalProperties":{"type":"string"}}}}
+ *   Example:
+ *   {"payloadBase64":"cGF5bG9hZA==","properties":{"prop1":"value"},"encryptionCtx":{"keysMapBase64":{"key1":"dGVzdDE=","key2":"dGVzdDI="},"keysMetadataMap":{"key1":{"ckms":"cmks-1","version":"v1"},"key2":{"ckms":"cmks-2","version":"v2"}},"metadata":{"ckms":"cmks-1","version":"v1"},"encParamBase64":"cGFyYW0=","algorithm":"algo","compressionType":"LZ4","uncompressedMessageSize":10,"batchSize":10}}
  * </pre>
+ * 
+ * 
  * 
  */
 public class KinesisSink implements Sink<byte[]> {
@@ -92,7 +102,8 @@ public class KinesisSink implements Sink<byte[]> {
                 ? partitionedKey.substring(0, maxPartitionedKeyLength - 1)
                 : partitionedKey; // partitionedKey Length must be at least one, and at most 256
         ListenableFuture<UserRecordResult> addRecordResult = kinesisProducer.addUserRecord(this.streamName,
-                partitionedKey, ByteBuffer.wrap(value));
+                partitionedKey,
+                ByteBuffer.wrap(createKinesisMessage(kinesisSinkConfig.getMessageFormat(), inputRecordContext, value)));
         addCallback(addRecordResult,
                 ProducerSendCallback.create(this.streamName, inputRecordContext, System.nanoTime()), directExecutor());
         if (LOG.isDebugEnabled()) {
@@ -110,7 +121,7 @@ public class KinesisSink implements Sink<byte[]> {
     }
 
     @Override
-    public void open(Map<String, Object> config) throws Exception {
+    public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
         kinesisSinkConfig = KinesisSinkConfig.load(config);
 
         checkArgument(isNotBlank(kinesisSinkConfig.getAwsKinesisStreamName()), "empty kinesis-stream name");
@@ -263,4 +274,13 @@ public class KinesisSink implements Sink<byte[]> {
         };
     }
 
+    public static byte[] createKinesisMessage(MessageFormat msgFormat, RecordContext recordCtx, byte[] data) {
+        if (MessageFormat.FULL_MESSAGE_IN_JSON.equals(msgFormat)) {
+            return Utils.serializeRecordToJson(recordCtx, data).getBytes();
+        } else {
+            // send raw-message
+            return data;
+        }
+    }
+    
 }

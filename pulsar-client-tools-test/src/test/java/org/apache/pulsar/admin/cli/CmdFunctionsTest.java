@@ -110,7 +110,7 @@ public class CmdFunctionsTest {
             return null;
         }
     }
-    
+
     private String generateCustomSerdeInputs(String topic, String serde) {
         Map<String, String> map = new HashMap<>();
         map.put(topic, serde);
@@ -213,16 +213,16 @@ public class CmdFunctionsTest {
         verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
 
     }
-    
+
     @Test
     public void testCreateFunctionWithHttpUrl() throws Exception {
         String fnName = TEST_NAME + "-function";
         String inputTopicName = TEST_NAME + "-input-topic";
         String outputTopicName = TEST_NAME + "-output-topic";
-        
+
         ConsoleOutputCapturer consoleOutputCapturer = new ConsoleOutputCapturer();
         consoleOutputCapturer.start();
-        
+
         final String url = "http://localhost:1234/test";
         cmd.run(new String[] {
             "create",
@@ -236,10 +236,10 @@ public class CmdFunctionsTest {
         });
 
         CreateFunction creater = cmd.getCreater();
-        
+
         consoleOutputCapturer.stop();
         String output = consoleOutputCapturer.getStderr();
-        
+
         assertTrue(output.contains("Failed to download jar"));
         assertEquals(fnName, creater.getFunctionName());
         assertEquals(inputTopicName, creater.getInputs());
@@ -251,7 +251,7 @@ public class CmdFunctionsTest {
         String fnName = TEST_NAME + "-function";
         String inputTopicName = TEST_NAME + "-input-topic";
         String outputTopicName = TEST_NAME + "-output-topic";
-        
+
         final String url = "file:/usr/temp/myfile.jar";
         cmd.run(new String[] {
             "create",
@@ -265,19 +265,19 @@ public class CmdFunctionsTest {
         });
 
         CreateFunction creater = cmd.getCreater();
-        
+
         assertEquals(fnName, creater.getFunctionName());
         assertEquals(inputTopicName, creater.getInputs());
         assertEquals(outputTopicName, creater.getOutput());
         verify(functions, times(1)).createFunctionWithUrl(any(FunctionDetails.class), anyString());
     }
-    
+
     @Test
     public void testCreateSink() throws Exception {
         String fnName = TEST_NAME + "-function";
         String inputTopicName = TEST_NAME + "-input-topic";
-        
-        
+
+
         ConsoleOutputCapturer consoleOutputCapturer = new ConsoleOutputCapturer();
         consoleOutputCapturer.start();
 
@@ -286,26 +286,24 @@ public class CmdFunctionsTest {
             "create",
             "--name", fnName,
             "--inputs", inputTopicName,
-            "--jar", url,
+            "--archive", url,
             "--tenant", "sample",
-            "--namespace", "ns1",
-            "--className", "DummySink"
+            "--namespace", "ns1"
         });
 
         CreateSink creater = cmdSinks.getCreateSink();
-        
+
         consoleOutputCapturer.stop();
         String output = consoleOutputCapturer.getStderr();
-        
-        assertTrue(output.contains("Failed to download jar"));
-        assertEquals("DummySink", creater.className);
-        assertEquals(url, creater.jarFile);
+
+        assertTrue(output.contains("Failed to download archive"));
+        assertEquals(url, creater.archive);
     }
-    
+
     @Test
     public void testCreateSource() throws Exception {
         String fnName = TEST_NAME + "-function";
-        
+
         ConsoleOutputCapturer consoleOutputCapturer = new ConsoleOutputCapturer();
         consoleOutputCapturer.start();
 
@@ -313,22 +311,20 @@ public class CmdFunctionsTest {
         cmdSources.run(new String[] {
             "create",
             "--name", fnName,
-            "--jar", url,
+            "--archive", url,
             "--tenant", "sample",
             "--namespace", "ns1",
-            "--className", "DummySink"
         });
 
         CreateSource creater = cmdSources.getCreateSource();
-        
+
         consoleOutputCapturer.stop();
         String output = consoleOutputCapturer.getStderr();
-        
-        assertTrue(output.contains("Failed to download jar"));
-        assertEquals("DummySink", creater.className);
-        assertEquals(url, creater.jarFile);
+
+        assertTrue(output.contains("Failed to download archive"));
+        assertEquals(url, creater.archive);
     }
-    
+
     @Test
     public void testCreateFunctionWithTopicPatterns() throws Exception {
         String fnName = TEST_NAME + "-function";
@@ -353,7 +349,7 @@ public class CmdFunctionsTest {
         verify(functions, times(1)).createFunction(any(FunctionDetails.class), anyString());
 
     }
-    
+
     @Test
     public void testCreateWithoutTenant() throws Exception {
         String fnName = TEST_NAME + "-function";

@@ -57,6 +57,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.Commands.ChecksumType;
@@ -66,6 +67,8 @@ import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 import org.slf4j.Logger;
@@ -204,6 +207,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         sendAsync(message, new SendCallback() {
             SendCallback nextCallback = null;
+            MessageImpl<?> nextMsg = null;
             long createdAt = System.nanoTime();
 
             @Override
@@ -217,6 +221,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
 
             @Override
+            public MessageImpl<?> getNextMessage() {
+                return nextMsg;
+            }
+
+            @Override
             public void sendComplete(Exception e) {
                 if (e != null) {
                     stats.incrementSendFailed();
@@ -227,20 +236,22 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 }
                 while (nextCallback != null) {
                     SendCallback sendCallback = nextCallback;
+                    MessageImpl<?> msg = nextMsg;
                     if (e != null) {
                         stats.incrementSendFailed();
                         sendCallback.getFuture().completeExceptionally(e);
                     } else {
-                        sendCallback.getFuture().complete(message.getMessageId());
+                        sendCallback.getFuture().complete(msg.getMessageId());
                         stats.incrementNumAcksReceived(System.nanoTime() - createdAt);
                     }
+                    nextMsg = nextCallback.getNextMessage();
                     nextCallback = nextCallback.getNextSendCallback();
-                    sendCallback = null;
                 }
             }
 
             @Override
-            public void addCallback(SendCallback scb) {
+            public void addCallback(MessageImpl<?> msg, SendCallback scb) {
+                nextMsg = msg;
                 nextCallback = scb;
             }
         });
@@ -845,9 +856,28 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         long requestId = client.newRequestId();
 
+        SchemaInfo schemaInfo = null;
+        if (schema != null) {
+            if (schema.getSchemaInfo() != null) {
+                if (schema.getSchemaInfo().getType() == SchemaType.JSON) {
+                    // for backwards compatibility purposes
+                    // JSONSchema originally generated a schema for pojo based of of the JSON schema standard
+                    // but now we have standardized on every schema to generate an Avro based schema
+                    if (Commands.peerSupportJsonSchemaAvroFormat(cnx.getRemoteEndpointProtocolVersion())) {
+                        schemaInfo = schema.getSchemaInfo();
+                    } else {
+                        JSONSchema jsonSchema = (JSONSchema) schema;
+                        schemaInfo = jsonSchema.getBackwardsCompatibleJsonSchemaInfo();
+                    }
+                } else {
+                    schemaInfo = schema.getSchemaInfo();
+                }
+            }
+        }
+
         cnx.sendRequestWithId(
                 Commands.newProducer(topic, producerId, requestId, producerName, conf.isEncryptionEnabled(), metadata,
-                    schema == null ? null : schema.getSchemaInfo()),
+                       schemaInfo),
                 requestId).thenAccept(response -> {
                     String producerName = response.getProducerName();
                     long lastSequenceId = response.getLastSequenceId();

@@ -25,6 +25,7 @@ import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -117,8 +118,10 @@ public class ProcessRuntimeTest {
 
         ProcessRuntime container = factory.createContainer(config, userJarFile);
         List<String> args = container.getProcessArgs();
-        assertEquals(args.size(), 55);
-        String expectedArgs = "java -cp " + javaInstanceJarFile + " -Dlog4j.configurationFile=java_instance_log4j2.yml "
+        assertEquals(args.size(), 56);
+        String expectedArgs = "java -cp " + javaInstanceJarFile
+                + " -Dpulsar.functions.java.instance.jar=" + javaInstanceJarFile
+                + " -Dlog4j.configurationFile=java_instance_log4j2.yml "
                 + "-Dpulsar.log.dir=" + logDirectory + "/functions" + " -Dpulsar.log.file=" + config.getFunctionDetails().getName()
                 + " org.apache.pulsar.functions.runtime.JavaInstanceMain"
                 + " --jar " + userJarFile + " --instance_id "
@@ -131,7 +134,7 @@ public class ProcessRuntimeTest {
                 + " --auto_ack false"
                 + " --processing_guarantees ATLEAST_ONCE"
                 + " --pulsar_serviceurl " + pulsarServiceUrl
-                + " --max_buffered_tuples 1024 --port " + args.get(34)
+                + " --max_buffered_tuples 1024 --port " + args.get(35)
                 + " --source_classname " + config.getFunctionDetails().getSource().getClassName()
                 + " --source_type_classname " + config.getFunctionDetails().getSource().getTypeClassName()
                 + " --source_subscription_type " + config.getFunctionDetails().getSource().getSubscriptionType().name()

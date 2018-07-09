@@ -124,7 +124,7 @@ class ThreadRuntime implements Runtime {
     }
 
     @Override
-    public Exception getDeathException() {
+    public Throwable getDeathException() {
         if (isAlive()) {
             return null;
         } else if (null != javaInstanceRunnable) {

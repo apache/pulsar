@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.admin.impl;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
 import java.util.function.Supplier;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -37,6 +38,7 @@ import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
@@ -268,6 +270,21 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     @Path("/download")
     public Response downloadFunction(final @QueryParam("path") String path) {
         return functions.downloadFunction(path);
+    }
+
+    @GET
+    @ApiOperation(
+            value = "Fetches a list of supported Pulsar IO connectors currently running in cluster mode",
+            response = List.class
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 408, message = "Request timeout")
+    })
+    @Path("/connectors")
+    public List<ConnectorDefinition> getConnectorsList() throws IOException {
+        return functions.getListOfConnectors();
     }
 
 }

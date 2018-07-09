@@ -38,6 +38,7 @@ import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
+import org.apache.pulsar.functions.utils.functioncache.FunctionCacheEntry;
 
 import java.io.InputStream;
 import java.util.*;
@@ -59,7 +60,7 @@ class ProcessRuntime implements Runtime {
     private List<String> processArgs;
     private int instancePort;
     @Getter
-    private Exception deathException;
+    private Throwable deathException;
     private ManagedChannel channel;
     private InstanceControlGrpc.InstanceControlFutureStub stub;
     private ScheduledExecutorService timer;
@@ -90,6 +91,10 @@ class ProcessRuntime implements Runtime {
             args.add("java");
             args.add("-cp");
             args.add(instanceFile);
+
+            // Keep the same env property pointing to the Java instance file so that it can be picked up
+            // by the child process and manually added to classpath
+            args.add(String.format("-D%s=%s", FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY, instanceFile));
             args.add("-Dlog4j.configurationFile=java_instance_log4j2.yml");
             args.add("-Dpulsar.log.dir=" + logDirectory);
             args.add("-Dpulsar.log.file=" + instanceConfig.getFunctionDetails().getName());

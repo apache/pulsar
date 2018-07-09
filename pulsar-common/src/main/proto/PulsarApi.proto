@@ -160,6 +160,7 @@ enum ProtocolVersion {
 	v12 = 12;// Added get topic's last messageId from broker
 			 // Added CommandActiveConsumerChange
 			 // Added CommandGetTopicsOfNamespace
+	v13 = 13;
 }
 
 message CommandConnect {

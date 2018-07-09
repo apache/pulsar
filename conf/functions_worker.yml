@@ -20,6 +20,9 @@
 workerId: standalone
 workerHostname: localhost
 workerPort: 6750
+
+connectorsDirectory: ./connectors
+
 functionMetadataTopicName: metadata
 functionMetadataSnapshotsTopicPath: snapshots
 clusterCoordinationTopicName: coordinate
@@ -33,7 +36,7 @@ downloadDirectory: /tmp/pulsar_functions
 #  threadGroupName: "Thread Function Container Group"
 processContainerFactory:
   logDirectory:
-  
+
 schedulerClassName: "org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler"
 functionAssignmentTopicName: "assignments"
 failureCheckFreqMs: 30000

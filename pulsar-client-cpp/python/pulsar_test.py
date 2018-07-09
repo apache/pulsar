@@ -21,6 +21,7 @@
 
 from unittest import TestCase, main
 import time
+import os
 from pulsar import Client, MessageId, \
             CompressionType, ConsumerType, PartitionsRoutingMode, \
             AuthenticationTLS
@@ -125,7 +126,9 @@ class PulsarTest(TestCase):
         client.close()
 
     def test_tls_auth(self):
-        certs_dir = "../../pulsar-broker/src/test/resources/authentication/tls/"
+        certs_dir = '/pulsar/pulsar-broker/src/test/resources/authentication/tls/'
+        if not os.path.exists(certs_dir):
+            certs_dir = "../../pulsar-broker/src/test/resources/authentication/tls/"
         client = Client(self.serviceUrlTls,
                         tls_trust_certs_file_path=certs_dir + 'cacert.pem',
                         tls_allow_insecure_connection=False,
