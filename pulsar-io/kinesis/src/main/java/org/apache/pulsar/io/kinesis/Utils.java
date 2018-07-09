@@ -21,12 +21,12 @@ package org.apache.pulsar.io.kinesis;
 
 import static java.util.Base64.getEncoder;
 
+import com.google.gson.JsonObject;
+
 import java.util.Map;
 
 import org.apache.pulsar.common.api.EncryptionContext;
-import org.apache.pulsar.io.core.RecordContext;
-
-import com.google.gson.JsonObject;
+import org.apache.pulsar.io.core.Record;
 
 public class Utils {
 
@@ -45,25 +45,26 @@ public class Utils {
     /**
      * Serializes sink-record into json format. It encodes encryption-keys, encryption-param and payload in base64
      * format so, it can be sent in json.
-     * 
+     *
      * @param inputRecordContext
      * @param data
      * @return
      */
-    public static String serializeRecordToJson(RecordContext inputRecordContext, byte[] data) {
-        if (inputRecordContext == null) {
+    public static String serializeRecordToJson(Record<byte[]> record) {
+        if (record == null) {
             return null;
         }
         JsonObject result = new JsonObject();
-        result.addProperty(PAYLOAD_FIELD, getEncoder().encodeToString(data));
-        if (inputRecordContext.getProperties() != null) {
+        result.addProperty(PAYLOAD_FIELD, getEncoder().encodeToString(record.getValue()));
+        if (record.getProperties() != null) {
             JsonObject properties = new JsonObject();
-            inputRecordContext.getProperties().entrySet()
+            record.getProperties().entrySet()
                     .forEach(e -> properties.addProperty(e.getKey(), e.getValue()));
             result.add(PROPERTIES_FIELD, properties);
         }
-        if (inputRecordContext.getEncryptionCtx().isPresent()) {
-            EncryptionContext encryptionCtx = inputRecordContext.getEncryptionCtx().get();
+
+        if (record.getEncryptionCtx().isPresent()) {
+            EncryptionContext encryptionCtx = record.getEncryptionCtx().get();
             JsonObject encryptionCtxJson = new JsonObject();
             JsonObject keyBase64Map = new JsonObject();
             JsonObject keyMetadataMap = new JsonObject();

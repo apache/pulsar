@@ -45,11 +45,9 @@ import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 import org.apache.pulsar.io.core.Record;
-import org.apache.pulsar.io.core.RecordContext;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.kinesis.KinesisSinkConfig.MessageFormat;
@@ -95,19 +93,18 @@ public class KinesisSink implements Sink<byte[]> {
     public static final String SECRET_KEY_NAME = "secretKey";
 
     @Override
-    public void write(RecordContext inputRecordContext, Record<byte[]> record) throws Exception {
-        byte[] value = record.getValue();
+    public void write(Record<byte[]> record) throws Exception {
         String partitionedKey = record.getKey().orElse(defaultPartitionedKey);
         partitionedKey = partitionedKey.length() > maxPartitionedKeyLength
                 ? partitionedKey.substring(0, maxPartitionedKeyLength - 1)
                 : partitionedKey; // partitionedKey Length must be at least one, and at most 256
         ListenableFuture<UserRecordResult> addRecordResult = kinesisProducer.addUserRecord(this.streamName,
                 partitionedKey,
-                ByteBuffer.wrap(createKinesisMessage(kinesisSinkConfig.getMessageFormat(), inputRecordContext, value)));
+                ByteBuffer.wrap(createKinesisMessage(kinesisSinkConfig.getMessageFormat(), record)));
         addCallback(addRecordResult,
-                ProducerSendCallback.create(this.streamName, inputRecordContext, System.nanoTime()), directExecutor());
+                ProducerSendCallback.create(this.streamName, record, System.nanoTime()), directExecutor());
         if (LOG.isDebugEnabled()) {
-            LOG.debug("Published message to kinesis stream {} with size {}", streamName, value.length);
+            LOG.debug("Published message to kinesis stream {} with size {}", streamName, record.getValue().length);
         }
     }
 
@@ -157,7 +154,7 @@ public class KinesisSink implements Sink<byte[]> {
 
     private static final class ProducerSendCallback implements FutureCallback<UserRecordResult> {
 
-        private RecordContext resultContext;
+        private Record<byte[]> resultContext;
         private String streamName;
         private long startTime = 0;
         private final Handle<ProducerSendCallback> recyclerHandle;
@@ -166,9 +163,9 @@ public class KinesisSink implements Sink<byte[]> {
             this.recyclerHandle = recyclerHandle;
         }
 
-        static ProducerSendCallback create(String streamName, RecordContext result, long startTime) {
+        static ProducerSendCallback create(String streamName, Record<byte[]> resultContext, long startTime) {
             ProducerSendCallback sendCallback = RECYCLER.get();
-            sendCallback.resultContext = result;
+            sendCallback.resultContext = resultContext;
             sendCallback.streamName = streamName;
             sendCallback.startTime = startTime;
             return sendCallback;
@@ -274,12 +271,12 @@ public class KinesisSink implements Sink<byte[]> {
         };
     }
 
-    public static byte[] createKinesisMessage(MessageFormat msgFormat, RecordContext recordCtx, byte[] data) {
+    public static byte[] createKinesisMessage(MessageFormat msgFormat, Record<byte[]> record) {
         if (MessageFormat.FULL_MESSAGE_IN_JSON.equals(msgFormat)) {
-            return Utils.serializeRecordToJson(recordCtx, data).getBytes();
+            return Utils.serializeRecordToJson(record).getBytes();
         } else {
             // send raw-message
-            return data;
+            return record.getValue();
         }
     }
 

@@ -140,13 +140,13 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
             this.value = value;
         }
         @Override
-        public String getPartitionId() {
-            return Integer.toString(record.partition());
+        public Optional<String> getPartitionId() {
+            return Optional.of(Integer.toString(record.partition()));
         }
 
         @Override
-        public long getRecordSequence() {
-            return record.offset();
+        public Optional<Long> getRecordSequence() {
+            return Optional.of(record.offset());
         }
 
         @Override

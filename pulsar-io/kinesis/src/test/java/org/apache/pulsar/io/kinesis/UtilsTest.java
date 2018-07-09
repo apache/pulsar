@@ -20,23 +20,23 @@ package org.apache.pulsar.io.kinesis;
 
 import static java.util.Base64.getDecoder;
 
+import com.google.gson.Gson;
+
 import java.util.Map;
 import java.util.Optional;
+
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
 import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
-import org.apache.pulsar.io.core.RecordContext;
+import org.apache.pulsar.io.core.Record;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 import org.testng.collections.Maps;
-
-import com.google.gson.Gson;
-
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
 
 /**
  * Unit test of {@link UtilsTest}.
@@ -82,8 +82,8 @@ public class UtilsTest {
         byte[] data = "payload".getBytes();
         Map<String, String> properties = Maps.newHashMap();
         properties.put("prop1", "value");
-        RecordContext recordCtx = new RecordContextImpl(properties, ctx);
-        String json = Utils.serializeRecordToJson(recordCtx, data);
+        RecordContextImpl recordCtx = new RecordContextImpl(properties, ctx, data);
+        String json = Utils.serializeRecordToJson(recordCtx);
         System.out.println(json);
 
         // deserialize from json and assert
@@ -101,11 +101,13 @@ public class UtilsTest {
 
     }
 
-    class RecordContextImpl implements RecordContext {
+    class RecordContextImpl implements Record<byte[]> {
+        byte[] data;
         Map<String, String> properties;
         Optional<EncryptionContext> ectx;
 
-        public RecordContextImpl(Map<String, String> properties, EncryptionContext ectx) {
+        public RecordContextImpl(Map<String, String> properties, EncryptionContext ectx, byte[] data) {
+            this.data = data;
             this.properties = properties;
             this.ectx = Optional.of(ectx);
         }
@@ -116,6 +118,16 @@ public class UtilsTest {
 
         public Optional<EncryptionContext> getEncryptionCtx() {
             return ectx;
+        }
+
+        @Override
+        public Optional<String> getKey() {
+            return Optional.empty();
+        }
+
+        @Override
+        public byte[] getValue() {
+            return data;
         }
     }
 

@@ -35,9 +35,9 @@ public interface Sink<T> extends AutoCloseable {
 
     /**
      * Write a message to Sink
-     * @param inputRecordContext Context of value
+     * @param inputRecordContext Context of input record from the source
      * @param record record to write to sink
      * @throws Exception
      */
-    void write(RecordContext inputRecordContext, Record<T> value) throws Exception;
+    void write(Record<T> record) throws Exception;
 }

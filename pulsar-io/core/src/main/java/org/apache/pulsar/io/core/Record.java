@@ -18,13 +18,16 @@
  */
 package org.apache.pulsar.io.core;
 
+import java.util.Collections;
+import java.util.Map;
 import java.util.Optional;
 
+import org.apache.pulsar.common.api.EncryptionContext;
+
 /**
- * Pulsar Connect's Record interface. Record encapsulates the
- * information about a record being read from a Source.
+ * Pulsar Connect's Record interface. Record encapsulates the information about a record being read from a Source.
  */
-public interface Record<T> extends RecordContext {
+public interface Record<T> {
 
     /**
      * Return a key if the key has one associated
@@ -33,7 +36,56 @@ public interface Record<T> extends RecordContext {
 
     /**
      * Retrieves the actual data of the record
+     *
      * @return The record data
      */
     T getValue();
+
+    /**
+     * Retrieves the partition information if any of the record.
+     *
+     * @return The partition id where the
+     */
+    default Optional<String> getPartitionId() {
+        return Optional.empty();
+    }
+
+    /**
+     * Retrieves the sequence of the record from a source partition.
+     *
+     * @return Sequence Id associated with the record
+     */
+    default Optional<Long> getRecordSequence() {
+        return Optional.empty();
+    }
+
+    /**
+     * Retrieves encryption-context that is attached to record.
+     *
+     * @return {@link Optional}<{@link EncryptionContext}>
+     */
+    default public Optional<EncryptionContext> getEncryptionCtx() {
+        return Optional.empty();
+    }
+
+    /**
+     * Retrieves user-defined properties attached to record.
+     *
+     * @return Map of user-properties
+     */
+    default Map<String, String> getProperties() {
+        return Collections.emptyMap();
+    }
+
+    /**
+     * Acknowledge that this record is fully processed
+     */
+    default void ack() {
+    }
+
+    /**
+     * To indicate that this record has failed to be processed
+     */
+    default void fail() {
+    }
 }
