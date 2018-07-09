@@ -113,7 +113,7 @@
               <tasks>
                 <echo>copy test sink package</echo>
                 <mkdir dir="${basedir}/src/test/resources"/>
-                <copy file="${basedir}/../pulsar-io/cassandra/target/pulsar-io-cassandra-${project.version}.nar" tofile="pulsar-io-cassandra.nar"/>
+                <copy file="${basedir}/../pulsar-io/cassandra/target/pulsar-io-cassandra-${project.version}.nar" tofile="${basedir}/src/test/resources/pulsar-io-cassandra.nar"/>
                 <echo>test resource dir: ${basedir}/src/test/resources/</echo>
 
                 <property name="compile_classpath" refid="maven.compile.classpath"/>
