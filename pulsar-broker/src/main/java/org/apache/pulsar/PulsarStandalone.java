@@ -42,7 +42,7 @@ import java.util.Optional;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
-public class PulsarStandalone {
+public class PulsarStandalone implements AutoCloseable {
 
     private static final Logger log = LoggerFactory.getLogger(PulsarStandalone.class);
 
@@ -76,10 +76,7 @@ public class PulsarStandalone {
         this.advertisedAddress = advertisedAddress;
     }
 
-    public void setConfig(ServiceConfiguration config) {
-
-        this.config = config;
-    }
+    public void setConfig(ServiceConfiguration config) { this.config = config; }
 
     public void setFnWorkerService(WorkerService fnWorkerService) {
         this.fnWorkerService = fnWorkerService;
@@ -300,30 +297,12 @@ public class PulsarStandalone {
         final String cluster = config.getClusterName();
 
         createSampleNameSpace(webServiceUrl, brokerServiceUrl, cluster);
-        createDeafultNameSpace(cluster);
+        createDefaultNameSpace(cluster);
 
         log.debug("--- setup completed ---");
     }
 
-    void stop() {
-        try {
-            if (fnWorkerService != null) {
-                fnWorkerService.stop();
-            }
-
-            if (broker != null) {
-                broker.close();
-            }
-
-            if (bkEnsemble != null) {
-                bkEnsemble.stop();
-            }
-        } catch (Exception e) {
-            log.error("Shutdown failed: {}", e.getMessage());
-        }
-    }
-
-    private void createDeafultNameSpace(String cluster) {
+    private void createDefaultNameSpace(String cluster) {
         // Create a public tenant and default namespace
         final String publicTenant = TopicName.PUBLIC_TENANT;
         final String defaultNamespace = TopicName.PUBLIC_TENANT + "/" + TopicName.DEFAULT_NAMESPACE;
@@ -388,4 +367,22 @@ public class PulsarStandalone {
         return PulsarStandaloneBuilder.instance();
     }
 
+    @Override
+    public void close() {
+        try {
+            if (fnWorkerService != null) {
+                fnWorkerService.stop();
+            }
+
+            if (broker != null) {
+                broker.close();
+            }
+
+            if (bkEnsemble != null) {
+                bkEnsemble.stop();
+            }
+        } catch (Exception e) {
+            log.error("Shutdown failed: {}", e.getMessage());
+        }
+    }
 }
