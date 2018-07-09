@@ -113,7 +113,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
         try {
             final FormDataMultiPart mp = new FormDataMultiPart();
 
-            if (!fileName.startsWith("builtin://")) {
+            if (fileName != null && !fileName.startsWith("builtin://")) {
                 // If the function code is built in, we don't need to submit here
                 mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
             }
@@ -160,7 +160,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
         try {
             final FormDataMultiPart mp = new FormDataMultiPart();
 
-            if (!fileName.startsWith("builtin://") && fileName != null) {
+            if (fileName != null && !fileName.startsWith("builtin://")) {
                 // If the function code is built in, we don't need to submit here
                 mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
             }
