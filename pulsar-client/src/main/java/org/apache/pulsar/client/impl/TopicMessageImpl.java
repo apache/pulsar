@@ -26,10 +26,11 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.api.EncryptionContext;
 
-public class TopicMessageImpl<T> extends MessageRecordImpl<T, TopicMessageIdImpl> {
+public class TopicMessageImpl<T> implements Message<T> {
 
     private final String topicName;
     private final Message<T> msg;
+    private final TopicMessageIdImpl messageId;
 
     TopicMessageImpl(String topicName,
                      Message<T> msg) {
@@ -109,9 +110,9 @@ public class TopicMessageImpl<T> extends MessageRecordImpl<T, TopicMessageIdImpl
     public T getValue() {
         return msg.getValue();
     }
-    
+
     @Override
     public Optional<EncryptionContext> getEncryptionCtx() {
-        return (msg instanceof MessageImpl) ? ((MessageImpl) msg).getEncryptionCtx() : Optional.empty();
+        return msg.getEncryptionCtx();
     }
 }

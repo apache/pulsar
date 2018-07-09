@@ -24,6 +24,7 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.pulsar.io.core.KeyValue;
+import org.apache.pulsar.io.core.Record;
 import org.apache.pulsar.io.core.SimpleSink;
 import org.apache.pulsar.io.core.SinkContext;
 import org.slf4j.Logger;
@@ -49,8 +50,8 @@ public abstract class KafkaAbstractSink<K, V> extends SimpleSink<byte[]> {
     private KafkaSinkConfig kafkaSinkConfig;
 
     @Override
-    public CompletableFuture<Void> write(byte[] message) {
-        KeyValue<K, V> keyValue = extractKeyValue(message);
+    public CompletableFuture<Void> write(Record<byte[]> sourceRecord) {
+        KeyValue<K, V> keyValue = extractKeyValue(sourceRecord);
         ProducerRecord<K, V> record = new ProducerRecord<>(kafkaSinkConfig.getTopic(), keyValue.getKey(), keyValue.getValue());
         LOG.debug("Record sending to kafka, record={}.", record);
         Future f = producer.send(record);
@@ -96,5 +97,5 @@ public abstract class KafkaAbstractSink<K, V> extends SimpleSink<byte[]> {
         LOG.info("Kafka sink started.");
     }
 
-    public abstract KeyValue<K, V> extractKeyValue(byte[] message);
+    public abstract KeyValue<K, V> extractKeyValue(Record<byte[]> message);
 }

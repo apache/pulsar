@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.io.core;
 
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -28,8 +27,8 @@ import java.util.concurrent.CompletableFuture;
 public abstract class SimpleSink<T> implements Sink<T> {
 
     @Override
-    public void write(RecordContext inputRecordContext, T value) throws Exception {
-        write(value)
+    public void write(RecordContext inputRecordContext, Record<T> record) throws Exception {
+        write(record)
                 .thenAccept(ignored -> inputRecordContext.ack())
                 .exceptionally(cause -> {
                     inputRecordContext.fail();
@@ -43,5 +42,5 @@ public abstract class SimpleSink<T> implements Sink<T> {
      * @param value output value
      * @return Completable future fo async publish request
      */
-    public abstract CompletableFuture<Void> write(T value);
+    public abstract CompletableFuture<Void> write(Record<T> record);
 }

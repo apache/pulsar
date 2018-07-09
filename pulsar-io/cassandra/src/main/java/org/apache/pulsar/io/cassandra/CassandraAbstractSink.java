@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.pulsar.io.core.KeyValue;
+import org.apache.pulsar.io.core.Record;
 import org.apache.pulsar.io.core.SimpleSink;
 import org.apache.pulsar.io.core.SinkContext;
 
@@ -69,7 +70,7 @@ public abstract class CassandraAbstractSink<K, V> extends SimpleSink<byte[]> {
     }
 
     @Override
-    public CompletableFuture<Void> write(byte[] record) {
+    public CompletableFuture<Void> write(Record<byte[]> record) {
         KeyValue<K, V> keyValue = extractKeyValue(record);
         BoundStatement bound = statement.bind(keyValue.getKey(), keyValue.getValue());
         ResultSetFuture future = session.executeAsync(bound);
@@ -107,5 +108,5 @@ public abstract class CassandraAbstractSink<K, V> extends SimpleSink<byte[]> {
         session.execute("USE " + cassandraSinkConfig.getKeyspace());
     }
 
-    public abstract KeyValue<K, V> extractKeyValue(byte[] message);
+    public abstract KeyValue<K, V> extractKeyValue(Record<byte[]> record);
 }

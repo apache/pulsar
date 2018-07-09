@@ -31,16 +31,18 @@ import com.aerospike.client.async.NioEventLoops;
 import com.aerospike.client.listener.WriteListener;
 import com.aerospike.client.policy.ClientPolicy;
 import com.aerospike.client.policy.WritePolicy;
-import org.apache.pulsar.io.core.KeyValue;
-import org.apache.pulsar.io.core.SimpleSink;
-import org.apache.pulsar.io.core.SinkContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingDeque;
+
+import org.apache.pulsar.io.core.KeyValue;
+import org.apache.pulsar.io.core.Record;
+import org.apache.pulsar.io.core.SimpleSink;
+import org.apache.pulsar.io.core.SinkContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A Simple abstract class for Aerospike sink
@@ -84,7 +86,7 @@ public abstract class AerospikeAbstractSink<K, V> extends SimpleSink<byte[]> {
     }
 
     @Override
-    public CompletableFuture<Void> write(byte[] record) {
+    public CompletableFuture<Void> write(Record<byte[]> record) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         KeyValue<K, V> keyValue = extractKeyValue(record);
         Key key = new Key(aerospikeSinkConfig.getKeyspace(), aerospikeSinkConfig.getKeySet(), keyValue.getKey().toString());
@@ -157,5 +159,5 @@ public abstract class AerospikeAbstractSink<K, V> extends SimpleSink<byte[]> {
         }
     }
 
-    public abstract KeyValue<K, V> extractKeyValue(byte[] message);
+    public abstract KeyValue<K, V> extractKeyValue(Record<byte[]> message);
 }

@@ -18,35 +18,68 @@
  */
 package org.apache.pulsar.functions.source;
 
+import java.util.Map;
+import java.util.Optional;
+
 import lombok.Builder;
-import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 
-import java.util.Map;
-import java.util.Optional;
-
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.api.EncryptionContext;
+import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.io.core.Record;
 
-@Data
 @Builder
 @Getter
 @ToString
 @EqualsAndHashCode
 public class PulsarRecord<T> implements Record<T> {
 
-    private String partitionId;
-    private long recordSequence;
-    private T value;
-    private MessageId messageId;
-    private String topicName;
-    private Map<String, String> properties;
-    private Optional<EncryptionContext> encryptionCtx = Optional.empty();
-    private Runnable failFunction;
-    private Runnable ackFunction;
+    private final String topicName;
+    private final int partition;
+
+    // TODO: When we switch to schema for functions, we should just rely on the message object value
+    private final T value;
+    private final Message<byte[]> message;
+
+    private final Runnable failFunction;
+    private final Runnable ackFunction;
+
+    @Override
+    public Optional<String> getKey() {
+        if (message.hasKey()) {
+            return Optional.of(message.getKey());
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    @Override
+    public String getPartitionId() {
+        return String.format("%s-%s", topicName, partition);
+    }
+
+    @Override
+    public long getRecordSequence() {
+        return Utils.getSequenceId(message.getMessageId());
+    }
+
+    @Override
+    public Optional<EncryptionContext> getEncryptionCtx() {
+        return message.getEncryptionCtx();
+    }
+
+    @Override
+    public Map<String, String> getProperties() {
+        return message.getProperties();
+    }
+
+    public MessageId getMessageId() {
+        return message.getMessageId();
+    }
 
     @Override
     public void ack() {

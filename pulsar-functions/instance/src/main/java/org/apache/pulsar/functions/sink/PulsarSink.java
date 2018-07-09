@@ -19,10 +19,13 @@
 package org.apache.pulsar.functions.sink;
 
 import com.google.common.annotations.VisibleForTesting;
+
+import java.util.Base64;
+import java.util.Map;
+
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import net.jodah.typetools.TypeResolver;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Consumer;
@@ -41,12 +44,12 @@ import org.apache.pulsar.functions.instance.producers.Producers;
 import org.apache.pulsar.functions.source.PulsarRecord;
 import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.io.core.Record;
 import org.apache.pulsar.io.core.RecordContext;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 
-import java.util.Base64;
-import java.util.Map;
+import net.jodah.typetools.TypeResolver;
 
 @Slf4j
 public class PulsarSink<T> implements Sink<T> {
@@ -211,16 +214,21 @@ public class PulsarSink<T> implements Sink<T> {
     }
 
     @Override
-    public void write(RecordContext recordContext, T value) throws Exception {
+    public void write(RecordContext recordContext, Record<T> record) throws Exception {
 
         byte[] output;
         try {
-            output = this.outputSerDe.serialize(value);
+            output = this.outputSerDe.serialize(record.getValue());
         } catch (Exception e) {
             //TODO Add serialization exception stats
             throw new RuntimeException("Error occured when attempting to serialize output:", e);
         }
+
         MessageBuilder msgBuilder = MessageBuilder.create();
+        if (record.getKey().isPresent()) {
+            msgBuilder.setKey(record.getKey().get());
+        }
+
         msgBuilder.setContent(output);
         if (recordContext instanceof PulsarRecord) {
             PulsarRecord pulsarRecord = (PulsarRecord) recordContext;

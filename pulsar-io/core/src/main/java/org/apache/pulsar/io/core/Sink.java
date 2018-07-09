@@ -23,7 +23,7 @@ import java.util.Map;
 /**
  * Generic sink interface users can implement to run Sink on top of Pulsar Functions
  */
-public interface Sink<T> extends AutoCloseable{
+public interface Sink<T> extends AutoCloseable {
     /**
      * Open connector with configuration
      *
@@ -32,12 +32,12 @@ public interface Sink<T> extends AutoCloseable{
      * @throws Exception IO type exceptions when opening a connector
      */
     void open(final Map<String, Object> config, SinkContext sinkContext) throws Exception;
-    
+
     /**
      * Write a message to Sink
      * @param inputRecordContext Context of value
-     * @param value value to write to sink
+     * @param record record to write to sink
      * @throws Exception
      */
-    void write(RecordContext inputRecordContext, T value) throws Exception;
+    void write(RecordContext inputRecordContext, Record<T> value) throws Exception;
 }

@@ -18,11 +18,19 @@
  */
 package org.apache.pulsar.io.core;
 
+import java.util.Optional;
+
 /**
  * Pulsar Connect's Record interface. Record encapsulates the
  * information about a record being read from a Source.
  */
 public interface Record<T> extends RecordContext {
+
+    /**
+     * Return a key if the key has one associated
+     */
+    Optional<String> getKey();
+
     /**
      * Retrieves the actual data of the record
      * @return The record data

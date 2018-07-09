@@ -38,7 +38,7 @@ public class SinkTest {
         }
 
         @Override
-        public void write(RecordContext inputRecordContext, String value) throws Exception {
+        public void write(RecordContext inputRecordContext, Record<String> record) throws Exception {
 
         }
 

@@ -29,6 +29,9 @@ import static org.powermock.api.mockito.PowerMockito.doThrow;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.testng.Assert.assertEquals;
 
+import com.google.common.collect.Lists;
+import com.google.gson.Gson;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -47,6 +50,7 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.api.Context;
@@ -55,16 +59,16 @@ import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
-import org.apache.pulsar.functions.proto.Function.ProcessingGuarantees;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
-import org.apache.pulsar.functions.proto.Function.SubscriptionType;
+import org.apache.pulsar.functions.utils.FunctionConfig.ProcessingGuarantees;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.Utils;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
+import org.apache.pulsar.io.core.Record;
 import org.apache.pulsar.io.core.RecordContext;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
@@ -76,9 +80,6 @@ import org.testng.IObjectFactory;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Lists;
-import com.google.gson.Gson;
 
 /**
  * Unit test of {@link FunctionApiV2Resource}.
@@ -98,7 +99,7 @@ public class FunctionApiV2ResourceTest {
             return input;
         }
     }
-    
+
     public static final class TestSink implements Sink<byte[]> {
 
         @Override
@@ -110,7 +111,7 @@ public class FunctionApiV2ResourceTest {
         }
 
         @Override
-        public void write(RecordContext inputRecordContext, byte[] value) throws Exception {
+        public void write(RecordContext inputRecordContext, Record<byte[]> record) throws Exception {
         }
     }
 
@@ -670,7 +671,7 @@ public class FunctionApiV2ResourceTest {
 
         String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         String filePackageUrl = "file://" + fileLocation;
-        
+
         SinkSpec sinkSpec = SinkSpec.newBuilder()
                 .setTopic(outputTopic)
                 .setSerDeClassName(outputSerdeClassName).build();
@@ -681,14 +682,14 @@ public class FunctionApiV2ResourceTest {
                 .setParallelism(parallelism)
                 .setSource(SourceSpec.newBuilder().setSubscriptionType(subscriptionType)
                         .putAllTopicsToSerDeClassName(topicsToSerDeClassName)).build();
-        
+
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
         RequestResult rr = new RequestResult()
                 .setSuccess(true)
                 .setMessage("function registered");
             CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
             when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
-        
+
         Response response = resource.updateFunction(
             tenant,
             namespace,
@@ -697,10 +698,10 @@ public class FunctionApiV2ResourceTest {
             null,
             filePackageUrl,
             org.apache.pulsar.functions.utils.Utils.printJson(functionDetails));
-        
+
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
     }
-    
+
     @Test
     public void testUpdateFunctionFailure() throws Exception {
         mockStatic(Utils.class);
@@ -990,7 +991,7 @@ public class FunctionApiV2ResourceTest {
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
         assertEquals(new Gson().toJson(functions), response.getEntity());
     }
-    
+
     @Test
     public void testDownloadFunctionHttpUrl() throws Exception {
         String jarHttpUrl = "http://central.maven.org/maven2/org/apache/pulsar/pulsar-common/1.22.0-incubating/pulsar-common-1.22.0-incubating.jar";
@@ -1006,7 +1007,7 @@ public class FunctionApiV2ResourceTest {
             pkgFile.delete();
         }
     }
-    
+
     @Test
     public void testDownloadFunctionFile() throws Exception {
         String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
@@ -1022,7 +1023,7 @@ public class FunctionApiV2ResourceTest {
             pkgFile.delete();
         }
     }
-    
+
     @Test
     public void testRegisterFunctionFileUrlWithValidSinkClass() throws IOException {
         Configurator.setRootLevel(Level.DEBUG);
