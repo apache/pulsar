@@ -37,7 +37,9 @@ public class WebSocketReaderServlet extends WebSocketServlet {
     @Override
     public void configure(WebSocketServletFactory factory) {
         factory.getPolicy().setMaxTextMessageSize(WebSocketService.MaxTextFrameSize);
-
+        if (service.getConfig().getWebSocketSessionIdleTimeoutMillis() > 0) {
+            factory.getPolicy().setIdleTimeout(service.getConfig().getWebSocketSessionIdleTimeoutMillis());
+        }
         factory.setCreator(
                 (request, response) -> new ReaderHandler(service, request.getHttpServletRequest(), response));
     }

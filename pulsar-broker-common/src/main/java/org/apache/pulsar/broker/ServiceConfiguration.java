@@ -464,6 +464,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int webSocketNumIoThreads = Runtime.getRuntime().availableProcessors();
     // Number of connections per Broker in Pulsar Client used in WebSocket proxy
     private int webSocketConnectionsPerBroker = Runtime.getRuntime().availableProcessors();
+    // Time in milliseconds that idle WebSocket session times out
+    private int webSocketSessionIdleTimeoutMillis = 300000;
 
     /**** --- Metrics --- ****/
     // If true, export topic level metrics otherwise namespace level
@@ -1581,6 +1583,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public int getWebSocketConnectionsPerBroker() { return webSocketConnectionsPerBroker; }
 
     public void setWebSocketConnectionsPerBroker(int webSocketConnectionsPerBroker) { this.webSocketConnectionsPerBroker = webSocketConnectionsPerBroker; }
+
+    public int getWebSocketSessionIdleTimeoutMillis() {
+        return webSocketSessionIdleTimeoutMillis;
+    }
+
+    public void setWebSocketSessionIdleTimeoutMillis(int webSocketSessionIdleTimeoutMillis) {
+        this.webSocketSessionIdleTimeoutMillis = webSocketSessionIdleTimeoutMillis;
+    }
 
     public boolean exposeTopicLevelMetricsInPrometheus() {
         return exposeTopicLevelMetricsInPrometheus;
