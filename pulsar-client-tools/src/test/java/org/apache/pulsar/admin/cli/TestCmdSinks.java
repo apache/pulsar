@@ -106,32 +106,12 @@ public class TestCmdSinks {
 
         mockStatic(CmdFunctions.class);
         PowerMockito.doNothing().when(CmdFunctions.class, "startLocalRun", Mockito.any(), Mockito.anyInt(), Mockito.anyInt(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
-        log.info("loading archive: {}", JAR_FILE_NAME);
-        log.info("Current directory: {}", System.getProperty("user.dir"));
-        log.info("test resources dir: {}", System.getProperty("user.dir") + "/src/test/resources");
-        log.info("test resources dir contents: {}", getAllFiles(new File( System.getProperty("user.dir") + "/src/test/resources")));
-
         URL file = Thread.currentThread().getContextClassLoader().getResource(JAR_FILE_NAME);
-        log.info("Archive URL: {}", file);
         if (file == null)  {
             throw new RuntimeException("Failed to file required test archive: " + JAR_FILE_NAME);
         }
         JAR_FILE_PATH = file.getFile();
         Thread.currentThread().setContextClassLoader(Reflections.loadJar(new File(JAR_FILE_PATH)));
-    }
-
-    private List<String> getAllFiles(File curDir) {
-
-        List<String> ret = new LinkedList<>();
-        File[] filesList = curDir.listFiles();
-        for(File f : filesList){
-            if(f.isDirectory())
-                getAllFiles(f);
-            if(f.isFile()){
-                ret.add(f.getName());
-            }
-        }
-        return ret;
     }
 
     public SinkConfig getSinkConfig() {
