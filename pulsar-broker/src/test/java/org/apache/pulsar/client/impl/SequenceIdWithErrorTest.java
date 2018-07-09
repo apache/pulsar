@@ -32,21 +32,9 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class SequenceIdWithErrorTest extends BrokerBkEnsemblesTests {
-    @Override
-    @BeforeMethod
-    public void setup() throws Exception {
-        super.setup();
-    }
-
-    @AfterMethod
-    public void cleanup() throws Exception {
-        super.shutdown();
-    }
 
     /**
      * Test that sequence id from a producer is correct when there are send errors
@@ -90,12 +78,12 @@ public class SequenceIdWithErrorTest extends BrokerBkEnsemblesTests {
         client.close();
     }
 
-    @Override
+    @Test(enabled = false)
     public void testCrashBrokerWithoutCursorLedgerLeak() throws Exception {
         // Ignore test
     }
 
-    @Override
+    @Test(enabled = false)
     public void testSkipCorruptDataLedger() throws Exception {
         // Ignore test
     }

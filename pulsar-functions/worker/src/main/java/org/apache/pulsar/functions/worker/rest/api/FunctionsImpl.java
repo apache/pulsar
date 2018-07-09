@@ -45,6 +45,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
+import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
@@ -56,6 +57,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.functions.proto.Function;
@@ -417,6 +419,16 @@ public class FunctionsImpl {
         }
 
         return Response.status(Status.OK).build();
+    }
+
+    public List<ConnectorDefinition> getListOfConnectors() {
+        if (!isWorkerServiceAvailable()) {
+            throw new WebApplicationException(
+                    Response.status(Status.SERVICE_UNAVAILABLE).type(MediaType.APPLICATION_JSON)
+                            .entity(new ErrorData("Function worker service is not avaialable")).build());
+        }
+
+        return this.worker().getConnectorsManager().getConnectors();
     }
 
     public Response getCluster() {

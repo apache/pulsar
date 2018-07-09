@@ -182,7 +182,7 @@ func main() {
         producer.SendAsync(ctx, asyncMsg, func(msg pulsar.ProducerMessage, err error) {
             if err != nil { log.Fatal(err) }
 
-            fmt.Printf("Message %s succesfully published", msg.ID())
+            fmt.Printf("Message %s successfully published", msg.Payload)
         })
     }
 }

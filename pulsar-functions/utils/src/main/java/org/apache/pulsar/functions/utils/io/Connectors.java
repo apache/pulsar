@@ -18,34 +18,19 @@
  */
 package org.apache.pulsar.functions.utils.io;
 
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+
 import lombok.Data;
-import lombok.NoArgsConstructor;
+
+import org.apache.pulsar.common.io.ConnectorDefinition;
 
 @Data
-@NoArgsConstructor
-public class ConnectorDefinition {
-
-    /**
-     * The name of the connector type
-     */
-    private String name;
-
-    /**
-     * Description to be used for user help
-     */
-    private String description;
-
-    /**
-     * The class name for the connector source implementation.
-     * <p>
-     * If not defined, it will be assumed this connector cannot act as a data source
-     */
-    private String sourceClass;
-
-    /**
-     * The class name for the connector sink implementation.
-     * <p>
-     * If not defined, it will be assumed this connector cannot act as a data si
-     */
-    private String sinkClass;
+public class Connectors {
+    final List<ConnectorDefinition> connectors = new ArrayList<>();
+    final Map<String, Path> sources = new TreeMap<>();
+    final Map<String, Path> sinks = new TreeMap<>();
 }
