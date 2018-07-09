@@ -38,6 +38,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.instance.InstanceUtils;
+import org.apache.pulsar.functions.instance.SinkRecord;
 import org.apache.pulsar.functions.instance.producers.AbstractOneOuputTopicProducers;
 import org.apache.pulsar.functions.instance.producers.MultiConsumersOneOuputTopicProducers;
 import org.apache.pulsar.functions.instance.producers.Producers;
@@ -45,7 +46,6 @@ import org.apache.pulsar.functions.source.PulsarRecord;
 import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.io.core.Record;
-import org.apache.pulsar.io.core.RecordContext;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 
@@ -60,16 +60,16 @@ public class PulsarSink<T> implements Sink<T> {
 
     private PulsarSinkProcessor pulsarSinkProcessor;
 
-    private interface PulsarSinkProcessor {
+    private interface PulsarSinkProcessor<T> {
         void initializeOutputProducer(String outputTopic) throws Exception;
 
         void sendOutputMessage(MessageBuilder outputMsgBuilder,
-                               RecordContext recordContext) throws Exception;
+                               Record<T> recordContext) throws Exception;
 
         void close() throws Exception;
     }
 
-    private class PulsarSinkAtMostOnceProcessor implements PulsarSinkProcessor {
+    private class PulsarSinkAtMostOnceProcessor implements PulsarSinkProcessor<T> {
         private Producer<byte[]> producer;
 
         @Override
@@ -80,7 +80,7 @@ public class PulsarSink<T> implements Sink<T> {
 
         @Override
         public void sendOutputMessage(MessageBuilder outputMsgBuilder,
-                                      RecordContext recordContext) throws Exception {
+                                      Record<T> recordContext) throws Exception {
             Message<byte[]> outputMsg = outputMsgBuilder.build();
             this.producer.sendAsync(outputMsg);
         }
@@ -97,7 +97,7 @@ public class PulsarSink<T> implements Sink<T> {
         }
     }
 
-    private class PulsarSinkAtLeastOnceProcessor implements PulsarSinkProcessor {
+    private class PulsarSinkAtLeastOnceProcessor implements PulsarSinkProcessor<T> {
         private Producer<byte[]> producer;
 
         @Override
@@ -108,7 +108,7 @@ public class PulsarSink<T> implements Sink<T> {
 
         @Override
         public void sendOutputMessage(MessageBuilder outputMsgBuilder,
-                                      RecordContext recordContext) throws Exception {
+                                      Record<T> recordContext) throws Exception {
             Message<byte[]> outputMsg = outputMsgBuilder.build();
             this.producer.sendAsync(outputMsg).thenAccept(messageId -> recordContext.ack());
         }
@@ -125,7 +125,7 @@ public class PulsarSink<T> implements Sink<T> {
         }
     }
 
-    private class PulsarSinkEffectivelyOnceProcessor implements PulsarSinkProcessor, ConsumerEventListener {
+    private class PulsarSinkEffectivelyOnceProcessor implements PulsarSinkProcessor<T>, ConsumerEventListener {
 
         @Getter(AccessLevel.PACKAGE)
         protected Producers outputProducer;
@@ -137,15 +137,16 @@ public class PulsarSink<T> implements Sink<T> {
         }
 
         @Override
-        public void sendOutputMessage(MessageBuilder outputMsgBuilder, RecordContext recordContext)
+        public void sendOutputMessage(MessageBuilder outputMsgBuilder, Record<T> recordContext)
                 throws Exception {
 
             // assign sequence id to output message for idempotent producing
-            outputMsgBuilder = outputMsgBuilder
-                    .setSequenceId(recordContext.getRecordSequence());
+            if (recordContext.getRecordSequence().isPresent()) {
+                outputMsgBuilder.setSequenceId(recordContext.getRecordSequence().get());
+            }
 
             // currently on PulsarRecord
-            Producer producer = outputProducer.getProducer(recordContext.getPartitionId());
+            Producer producer = outputProducer.getProducer(recordContext.getPartitionId().get());
 
             org.apache.pulsar.client.api.Message outputMsg = outputMsgBuilder.build();
             producer.sendAsync(outputMsg)
@@ -214,7 +215,7 @@ public class PulsarSink<T> implements Sink<T> {
     }
 
     @Override
-    public void write(RecordContext recordContext, Record<T> record) throws Exception {
+    public void write(Record<T> record) throws Exception {
 
         byte[] output;
         try {
@@ -230,18 +231,21 @@ public class PulsarSink<T> implements Sink<T> {
         }
 
         msgBuilder.setContent(output);
-        if (recordContext instanceof PulsarRecord) {
-            PulsarRecord pulsarRecord = (PulsarRecord) recordContext;
+
+        if (!record.getProperties().isEmpty()) {
+            msgBuilder.setProperties(record.getProperties());
+        }
+
+        SinkRecord<T> sinkRecord = (SinkRecord<T>) record;
+        if (sinkRecord.getSourceRecord() instanceof PulsarRecord) {
+            PulsarRecord<T> pulsarRecord = (PulsarRecord<T>) sinkRecord.getSourceRecord();
             // forward user properties to sink-topic
-            if (pulsarRecord.getProperties() != null) {
-                msgBuilder.setProperties(pulsarRecord.getProperties());
-            }
             msgBuilder.setProperty("__pfn_input_topic__", pulsarRecord.getTopicName()).setProperty(
                     "__pfn_input_msg_id__",
                     new String(Base64.getEncoder().encode(pulsarRecord.getMessageId().toByteArray())));
         }
 
-        this.pulsarSinkProcessor.sendOutputMessage(msgBuilder, recordContext);
+        this.pulsarSinkProcessor.sendOutputMessage(msgBuilder, record);
     }
 
     @Override

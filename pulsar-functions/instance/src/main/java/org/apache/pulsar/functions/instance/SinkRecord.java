@@ -34,6 +34,10 @@ public class SinkRecord<T> implements Record<T> {
     private final Record<T> sourceRecord;
     private final T value;
 
+    public Record<T> getSourceRecord() {
+        return sourceRecord;
+    }
+
     @Override
     public Optional<String> getKey() {
         return sourceRecord.getKey();
