@@ -347,6 +347,50 @@ class ProcessRuntime implements Runtime {
         return retval;
     }
 
+    @Override
+    public CompletableFuture<Void> resetMetrics() {
+        CompletableFuture<Void> retval = new CompletableFuture<>();
+        if (stub == null) {
+            retval.completeExceptionally(new RuntimeException("Not alive"));
+            return retval;
+        }
+        ListenableFuture<Empty> response = stub.resetMetrics(Empty.newBuilder().build());
+        Futures.addCallback(response, new FutureCallback<Empty>() {
+            @Override
+            public void onFailure(Throwable throwable) {
+                retval.completeExceptionally(throwable);
+            }
+
+            @Override
+            public void onSuccess(Empty t) {
+                retval.complete(null);
+            }
+        });
+        return retval;
+    }
+
+    @Override
+    public CompletableFuture<InstanceCommunication.MetricsData> getMetrics() {
+        CompletableFuture<InstanceCommunication.MetricsData> retval = new CompletableFuture<>();
+        if (stub == null) {
+            retval.completeExceptionally(new RuntimeException("Not alive"));
+            return retval;
+        }
+        ListenableFuture<InstanceCommunication.MetricsData> response = stub.getMetrics(Empty.newBuilder().build());
+        Futures.addCallback(response, new FutureCallback<InstanceCommunication.MetricsData>() {
+            @Override
+            public void onFailure(Throwable throwable) {
+                retval.completeExceptionally(throwable);
+            }
+
+            @Override
+            public void onSuccess(InstanceCommunication.MetricsData t) {
+                retval.complete(t);
+            }
+        });
+        return retval;
+    }
+    
     public CompletableFuture<InstanceCommunication.HealthCheckResult> healthCheck() {
         CompletableFuture<InstanceCommunication.HealthCheckResult> retval = new CompletableFuture<>();
         if (stub == null) {

@@ -76,4 +76,12 @@ public class JavaInstance implements AutoCloseable {
     public InstanceCommunication.MetricsData getAndResetMetrics() {
         return context.getAndResetMetrics();
     }
+
+    public void resetMetrics() {
+        context.resetMetrics();
+    }
+
+    public InstanceCommunication.MetricsData getMetrics() {
+        return context.getMetrics();
+    }
 }
