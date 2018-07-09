@@ -105,7 +105,7 @@
         <artifactId>maven-antrun-plugin</artifactId>
         <executions>
           <execution>
-            <phase>test-compile</phase>
+            <phase>compile</phase>
             <goals>
               <goal>run</goal>
             </goals>
