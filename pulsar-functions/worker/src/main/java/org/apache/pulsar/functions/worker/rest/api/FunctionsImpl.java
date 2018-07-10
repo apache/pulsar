@@ -211,6 +211,7 @@ public class FunctionsImpl {
                     : createPackagePath(tenant, namespace, functionName, fileDetail.getFileName()));
         }
 
+        functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
         return (isPkgUrlProvided || isBuiltin) ? updateRequest(functionMetaDataBuilder.build())
                 : updateRequest(functionMetaDataBuilder.build(), uploadedInputStream);
     }
