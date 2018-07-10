@@ -26,7 +26,7 @@ cd $SRC_ROOT_DIR/pulsar-client-cpp/pkg/deb
 
 POM_VERSION=`cat ../../../pom.xml | xmllint --format - | sed "s/xmlns=\".*\"//g" | xmllint --stream --pattern /project/version --debug - |  grep -A 2 "matches pattern" |  grep text |  sed "s/.* [0-9] //g"`
 # Sanitize VERSION by removing `SNAPSHOT` if any since it's not legal in DEB
-VERSION=`echo $POM_VERSION | awk -F-  '{print $1}'`-1_incubating
+VERSION=`echo $POM_VERSION | awk -F-  '{print $1}'`-incubating
 
 ROOT_DIR=apache-pulsar-$POM_VERSION
 CPP_DIR=$ROOT_DIR/pulsar-client-cpp
@@ -87,8 +87,8 @@ cp $DEST_DIR/usr/share/doc/pulsar-client-$VERSION/* $DEVEL_DEST_DIR/usr/share/do
 
 
 ## Build actual debian packages
-dpkg-deb --build pulsar-client
-dpkg-deb --build pulsar-client-dev
+dpkg-deb --build $DEST_DIR
+dpkg-deb --build $DEVEL_DEST_DIR
 
 mkdir DEB
 mv *.deb DEB
