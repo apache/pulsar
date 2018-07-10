@@ -18,22 +18,9 @@
  */
 package org.apache.pulsar.functions.utils.validation;
 
-import static org.apache.pulsar.functions.utils.Utils.fileExists;
-import static org.apache.pulsar.functions.utils.Utils.getSinkType;
-import static org.apache.pulsar.functions.utils.Utils.getSourceType;
-
-import java.io.File;
-import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Map;
-
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
+import net.jodah.typetools.TypeResolver;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.nar.NarClassLoader;
@@ -48,7 +35,19 @@ import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.functions.utils.WindowConfig;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 
-import net.jodah.typetools.TypeResolver;
+import java.io.File;
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Map;
+
+import static org.apache.commons.lang.StringUtils.isBlank;
+import static org.apache.pulsar.functions.utils.Utils.fileExists;
+import static org.apache.pulsar.functions.utils.Utils.getSinkType;
+import static org.apache.pulsar.functions.utils.Utils.getSourceType;
 
 @Slf4j
 public class ValidatorImpls {
@@ -110,7 +109,7 @@ public class ValidatorImpls {
         @Override
         public void validateField(String name, Object o) {
             if (o == null) {
-               throw new IllegalArgumentException(String.format("Field '%s' cannot be null!", name));
+                throw new IllegalArgumentException(String.format("Field '%s' cannot be null!", name));
             }
 
             if (o instanceof Resources) {
@@ -208,7 +207,7 @@ public class ValidatorImpls {
 
             if (!this.classImplements.isAssignableFrom(objectClass)) {
                 throw new IllegalArgumentException(
-                        String.format("Field '%s' with value '%s' does not implement %s ",
+                        String.format("Field '%s' with value '%s' does not implement %s",
                                 name, o, this.classImplements.getName()));
             }
         }
@@ -721,62 +720,73 @@ public class ValidatorImpls {
                 return;
             }
 
+            // make we sure we have one source of input
+            if ((sinkConfig.getTopicToSerdeClassName() == null || sinkConfig.getTopicToSerdeClassName().isEmpty())
+                    && isBlank(sinkConfig.getTopicsPattern())) {
+                throw new IllegalArgumentException("Must specify at least one topic of input via inputs, " +
+                        "customSerdeInputs, or topicPattern");
+            }
+
 
             try (NarClassLoader clsLoader = NarClassLoader.getFromArchive(new File(sinkConfig.getArchive()),
                     Collections.emptySet())) {
                 String sinkClassName = ConnectorUtils.getIOSinkClass(sinkConfig.getArchive());
                 Class<?> typeArg = getSinkType(sinkClassName, clsLoader);
 
-                sinkConfig.getTopicToSerdeClassName().forEach((topicName, serdeClassname) -> {
-                    if (StringUtils.isEmpty(serdeClassname)) {
-                        serdeClassname = DefaultSerDe.class.getName();
-                    }
-
-                    try {
-                        loadClass(serdeClassname);
-                    } catch (ClassNotFoundException e) {
-                        throw new IllegalArgumentException(String.format(
-                                "The input serialization/deserialization class %s does not exist", serdeClassname));
-                    }
-
-                    try {
-                        new ValidatorImpls.ImplementsClassValidator(SerDe.class).validateField(name, serdeClassname);
-                    } catch (IllegalArgumentException ex) {
-                        throw new IllegalArgumentException(String.format(
-                                "The input serialization/deserialization class %s does not not " + "implement %s",
-                                serdeClassname, SerDe.class.getCanonicalName()));
-                    }
-
-                    if (serdeClassname.equals(DefaultSerDe.class.getName())) {
-                        if (!DefaultSerDe.IsSupportedType(typeArg)) {
-                            throw new IllegalArgumentException("The default Serializer does not support type " + typeArg);
+                if (sinkConfig.getTopicToSerdeClassName() != null) {
+                    sinkConfig.getTopicToSerdeClassName().forEach((topicName, serdeClassname) -> {
+                        if (StringUtils.isEmpty(serdeClassname)) {
+                            serdeClassname = DefaultSerDe.class.getName();
                         }
-                    } else {
-                        SerDe serDe = (SerDe) Reflections.createInstance(serdeClassname, clsLoader);
-                        if (serDe == null) {
-                            throw new IllegalArgumentException(
-                                    String.format("The SerDe class %s does not exist", serdeClassname));
-                        }
-                        Class<?>[] serDeTypes = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
 
-                        // type inheritance information seems to be lost in generic type
-                        // load the actual type class for verification
-                        Class<?> fnInputClass;
-                        Class<?> serdeInputClass;
                         try {
-                            fnInputClass = Class.forName(typeArg.getName(), true, clsLoader);
-                            // get input serde
-                            serdeInputClass = Class.forName(serDeTypes[0].getName(), true, clsLoader);
+                            loadClass(serdeClassname);
                         } catch (ClassNotFoundException e) {
-                            throw new IllegalArgumentException("Failed to load type class", e);
+                            throw new IllegalArgumentException(String.format(
+                                    "The input serialization/deserialization class %s does not exist", serdeClassname));
                         }
 
-                        if (!fnInputClass.isAssignableFrom(serdeInputClass)) {
-                            throw new IllegalArgumentException(
-                                    "Serializer type mismatch " + typeArg + " vs " + serDeTypes[0]);
+                        try {
+                            new ValidatorImpls.ImplementsClassValidator(SerDe.class).validateField(name, serdeClassname);
+
+                        } catch (IllegalArgumentException ex) {
+                            throw new IllegalArgumentException(String.format(
+                                    "The input serialization/deserialization class %s does not not " + "implement %s",
+                                    serdeClassname, SerDe.class.getCanonicalName()));
                         }
-                    }
-                });
+
+                        if (serdeClassname.equals(DefaultSerDe.class.getName())) {
+                            if (!DefaultSerDe.IsSupportedType(typeArg)) {
+                                throw new IllegalArgumentException("The default Serializer does not support type " +
+                                        typeArg);
+                            }
+                        } else {
+                            SerDe serDe = (SerDe) Reflections.createInstance(serdeClassname, clsLoader);
+                            if (serDe == null) {
+                                throw new IllegalArgumentException(
+                                        String.format("The SerDe class %s does not exist", serdeClassname));
+                            }
+                            Class<?>[] serDeTypes = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
+
+                            // type inheritance information seems to be lost in generic type
+                            // load the actual type class for verification
+                            Class<?> fnInputClass;
+                            Class<?> serdeInputClass;
+                            try {
+                                fnInputClass = Class.forName(typeArg.getName(), true, clsLoader);
+                                // get input serde
+                                serdeInputClass = Class.forName(serDeTypes[0].getName(), true, clsLoader);
+                            } catch (ClassNotFoundException e) {
+                                throw new IllegalArgumentException("Failed to load type class", e);
+                            }
+
+                            if (!fnInputClass.isAssignableFrom(serdeInputClass)) {
+                                throw new IllegalArgumentException(
+                                        "Serializer type mismatch " + typeArg + " vs " + serDeTypes[0]);
+                            }
+                        }
+                    });
+                }
             } catch (IOException e) {
                 throw new IllegalArgumentException(e);
             }
