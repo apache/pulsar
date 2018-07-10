@@ -19,6 +19,7 @@
 package org.apache.pulsar.proxy.server;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
@@ -39,6 +40,7 @@ import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarHandler;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
@@ -235,6 +237,13 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
         checkArgument(state == State.ProxyLookupRequests);
 
         lookupProxyHandler.handlePartitionMetadataResponse(partitionMetadata);
+    }
+
+    @Override
+    protected void handleGetTopicsOfNamespace(CommandGetTopicsOfNamespace commandGetTopicsOfNamespace) {
+        checkArgument(state == State.ProxyLookupRequests);
+
+        lookupProxyHandler.handleGetTopicsOfNamespace(commandGetTopicsOfNamespace);
     }
 
     /**

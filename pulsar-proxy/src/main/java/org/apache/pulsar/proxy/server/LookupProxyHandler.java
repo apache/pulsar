@@ -26,6 +26,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
@@ -54,12 +55,22 @@ public class LookupProxyHandler {
             .build("pulsar_proxy_partitions_metadata_requests", "Counter of partitions metadata requests").create()
             .register();
 
+    private static final Counter getTopicsOfNamespaceRequestss = Counter
+            .build("pulsar_proxy_get_topics_of_namespace_requests", "Counter of getTopicsOfNamespace requests")
+            .create()
+            .register();
+
     static final Counter rejectedLookupRequests = Counter.build("pulsar_proxy_rejected_lookup_requests",
             "Counter of topic lookup requests rejected due to throttling").create().register();
 
     static final Counter rejectedPartitionsMetadataRequests = Counter
             .build("pulsar_proxy_rejected_partitions_metadata_requests",
                     "Counter of partitions metadata requests rejected due to throttling")
+            .create().register();
+
+    static final Counter rejectedGetTopicsOfNamespaceRequests = Counter
+            .build("pulsar_proxy_rejected_get_topics_of_namespace_requests",
+                    "Counter of getTopicsOfNamespace requests rejected due to throttling")
             .create().register();
 
     public LookupProxyHandler(ProxyService proxy, ProxyConnection proxyConnection) {
@@ -243,6 +254,50 @@ public class LookupProxyHandler {
                         ex.getMessage(), clientRequestId));
                 return null;
             });
+        }
+    }
+
+    public void handleGetTopicsOfNamespace(CommandGetTopicsOfNamespace commandGetTopicsOfNamespace) {
+        getTopicsOfNamespaceRequestss.inc();
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Received GetTopicsOfNamespace", clientAddress);
+        }
+
+        final long requestId = commandGetTopicsOfNamespace.getRequestId();
+        final String namespace = commandGetTopicsOfNamespace.getNamespace();
+
+        if (this.service.getLookupRequestSemaphore().tryAcquire()) {
+            handleGetTopicsOfNamespace(commandGetTopicsOfNamespace, requestId);
+            this.service.getLookupRequestSemaphore().release();
+        } else {
+            rejectedGetTopicsOfNamespaceRequests.inc();
+            if (log.isDebugEnabled()) {
+                log.debug("GetTopicsOfNamespace Request ID {} from {} rejected - {}.", requestId, clientAddress,
+                    throttlingErrorMessage);
+            }
+            proxyConnection.ctx().writeAndFlush(Commands.newGetTopicsOfNamespaceResponse(
+                ServerError.ServiceNotReady, throttlingErrorMessage, requestId
+            ))
+        }
+
+        try {
+            List<String> topics = getBrokerService().pulsar()
+                .getNamespaceService()
+                .getListOfTopics(NamespaceName.get(namespace));
+
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Received CommandGetTopicsOfNamespace for namespace [//{}] by {}, size:{}",
+                    remoteAddress, namespace, requestId, topics.size());
+            }
+
+            ctx.writeAndFlush(Commands.newGetTopicsOfNamespaceResponse(topics, requestId));
+        } catch (Exception e) {
+            log.warn("[{]] Error GetTopicsOfNamespace for namespace [//{}] by {}",
+                remoteAddress, namespace, requestId);
+            ctx.writeAndFlush(
+                Commands.newError(requestId,
+                    BrokerServiceException.getClientErrorCode(new ServerMetadataException(e)),
+                    e.getMessage()));
         }
     }
 

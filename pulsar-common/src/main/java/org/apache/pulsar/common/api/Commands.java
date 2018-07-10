@@ -728,6 +728,24 @@ public class Commands {
         return res;
     }
 
+    public static ByteBuf newGetTopicsOfNamespaceResponse(ServerError error, String errorMsg, long requestId) {
+        CommandGetTopicsOfNamespaceResponse.Builder getTopicsOfNamespaceResponseBuilder =
+            CommandGetTopicsOfNamespaceResponse.newBuilder();
+        getTopicsOfNamespaceResponseBuilder.setRequestId(requestId);
+        getTopicsOfNamespaceResponseBuilder.(error);
+        getTopicsOfNamespaceResponseBuilder.setResponse(CommandPartitionedTopicMetadataResponse.LookupType.Failed);
+        if (errorMsg != null) {
+            partitionMetadataResponseBuilder.setMessage(errorMsg);
+        }
+
+        CommandPartitionedTopicMetadataResponse partitionMetadataResponse = partitionMetadataResponseBuilder.build();
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.PARTITIONED_METADATA_RESPONSE)
+                .setPartitionMetadataResponse(partitionMetadataResponse));
+        partitionMetadataResponseBuilder.recycle();
+        partitionMetadataResponse.recycle();
+        return res;
+    }
+
     public static ByteBuf newGetTopicsOfNamespaceResponse(List<String> topics, long requestId) {
         CommandGetTopicsOfNamespaceResponse.Builder topicsResponseBuilder =
             CommandGetTopicsOfNamespaceResponse.newBuilder();
