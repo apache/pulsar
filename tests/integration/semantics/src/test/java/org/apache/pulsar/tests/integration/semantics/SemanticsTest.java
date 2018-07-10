@@ -21,20 +21,26 @@ package org.apache.pulsar.tests.integration.semantics;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
+import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.tests.topologies.PulsarClusterTestBase;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
@@ -190,6 +196,68 @@ public class SemanticsTest extends PulsarClusterTestBase {
     private static void checkMessagesIdempotencyEnabled(Consumer<String> consumer) throws Exception {
         receiveAndAssertMessage(consumer, 1L, "message-1");
         receiveAndAssertMessage(consumer, 2L, "message-2");
+    }
+
+    @Test
+    public void testSubscriptionInitialPositionOneTopic() throws Exception {
+        testSubscriptionInitialPosition(1);
+    }
+
+    @Test
+    public void testSubscriptionInitialPositionTwoTopics() throws Exception {
+        testSubscriptionInitialPosition(2);
+    }
+
+    private void testSubscriptionInitialPosition(int numTopics) throws Exception {
+        String topicName = generateTopicName("test-subscription-initial-pos", true);
+
+        int numMessages = 10;
+
+        try (PulsarClient client = PulsarClient.builder()
+            .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+            .build()) {
+
+            for (int t = 0; t < numTopics; t++) {
+                try (Producer<String> producer = client.newProducer(Schema.STRING)
+                    .topic(topicName + "-" + t)
+                    .create()) {
+
+                    for (int i = 0; i < numMessages; i++) {
+                        producer.send("sip-topic-" + t + "-message-" + i);
+                    }
+                }
+            }
+
+            String[] topics = new String[numTopics];
+            Map<Integer, AtomicInteger> topicCounters = new HashMap<>(numTopics);
+            for (int i = 0; i < numTopics; i++) {
+                topics[i] = topicName + "-" + i;
+                topicCounters.put(i, new AtomicInteger(0));
+            }
+
+            try (Consumer<String> consumer = client.newConsumer(Schema.STRING)
+                .topic(topics)
+                .subscriptionName("my-sub")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe()) {
+
+                for (int i = 0; i < numTopics * numMessages; i++) {
+                    Message<String> m = consumer.receive();
+                    int topicIdx;
+                    if (numTopics > 1) {
+                        String topic = ((TopicMessageIdImpl) m.getMessageId()).getTopicName();
+
+                        String[] topicParts = StringUtils.split(topic, '-');
+                        topicIdx = Integer.parseInt(topicParts[topicParts.length - 1]);
+                    } else {
+                        topicIdx = 0;
+                    }
+                    int topicSeq = topicCounters.get(topicIdx).getAndIncrement();
+
+                    assertEquals("sip-topic-" + topicIdx + "-message-" + topicSeq, m.getValue());
+                }
+            }
+        }
     }
 
     @Test(dataProvider = "ServiceUrls")

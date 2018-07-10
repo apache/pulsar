@@ -40,6 +40,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
@@ -137,7 +138,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
             throw getApiException(e);
         }
     }
-    
+
     @Override
     public void deleteFunction(String cluster, String namespace, String function) throws PulsarAdminException {
         try {
@@ -181,7 +182,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
             throw getApiException(e);
         }
     }
-    
+
     @Override
     public String triggerFunction(String tenant, String namespace, String functionName, String topic, String triggerValue, String triggerFile) throws PulsarAdminException {
         try {
@@ -231,6 +232,20 @@ public class FunctionsImpl extends BaseResource implements Functions {
                         targetFile.toPath(),
                         StandardCopyOption.REPLACE_EXISTING);
             }
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public List<ConnectorDefinition> getConnectorsList() throws PulsarAdminException {
+        try {
+            Response response = request(functions.path("connectors")).get();
+            if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                throw new ClientErrorException(response);
+            }
+            return response.readEntity(new GenericType<List<ConnectorDefinition>>() {
+            });
         } catch (Exception e) {
             throw getApiException(e);
         }

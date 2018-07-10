@@ -50,6 +50,8 @@ public class WorkerService {
     private SchedulerManager schedulerManager;
     private boolean isInitialized = false;
 
+    private ConnectorsManager connectorsManager;
+
     public WorkerService(WorkerConfig workerConfig) {
         this.workerConfig = workerConfig;
     }
@@ -134,9 +136,11 @@ public class WorkerService {
             // indicate function worker service is done intializing
             this.isInitialized = true;
 
-        } catch (Exception e) {
-            log.error("Error Starting up in worker", e);
-            throw new RuntimeException(e);
+            this.connectorsManager = new ConnectorsManager(workerConfig);
+
+        } catch (Throwable t) {
+            log.error("Error Starting up in worker", t);
+            throw new RuntimeException(t);
         }
     }
 

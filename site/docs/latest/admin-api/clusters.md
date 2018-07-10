@@ -96,7 +96,7 @@ bin/pulsar initialize-cluster-metadata \
   --broker-service-url-tls pulsar+ssl://pulsar.us-west.example.com:6651/
 ```
 
-You'll need to use `--*-tls` flags only if you're using [TLS authentication](../../admin/Authz#tls-client-auth) in your instance.
+You'll need to use `--*-tls` flags only if you're using [TLS authentication](../../security/tls) in your instance.
 
 ### Get configuration
 

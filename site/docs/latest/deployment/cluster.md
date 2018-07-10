@@ -157,9 +157,9 @@ Flag | Description
 `--zookeeper` | A "local" ZooKeeper connection string for the cluster. This connection string only needs to include *one* machine in the ZooKeeper cluster.
 `--configuration-store` | The {% popover configuration store %} connection string for the entire instance. As with the `--zookeeper` flag, this connection string only needs to include *one* machine in the ZooKeeper cluster.
 `--web-service-url` | The web service URL for the cluster, plus a port. This URL should be a standard DNS name. The default port is 8080 (we don't recommend using a different port).
-`--web-service-url-tls` | If you're using [TLS](../../../admin/Authz#tls-client-auth), you'll also need to specify a TLS web service URL for the cluster. The default port is 8443 (we don't recommend using a different port).
+`--web-service-url-tls` | If you're using [TLS](../../../security/tls), you'll also need to specify a TLS web service URL for the cluster. The default port is 8443 (we don't recommend using a different port).
 `--broker-service-url` | A broker service URL enabling interaction with the {% popover brokers %} in the cluster. This URL should use the same DNS name as the web service URL but should use the `pulsar` scheme instead. The default port is 6650 (we don't recommend using a different port).
-`--broker-service-url-tls` | If you're using [TLS](../../../admin/Authz#tls-client-auth), you'll also need to specify a TLS web service URL for the cluster as well as a TLS broker service URL for the brokers in the cluster. The default port is 6651 (we don't recommend using a different port).
+`--broker-service-url-tls` | If you're using [TLS](../../../security/tls), you'll also need to specify a TLS web service URL for the cluster as well as a TLS broker service URL for the brokers in the cluster. The default port is 6651 (we don't recommend using a different port).
 
 ## Deploying a BookKeeper cluster
 

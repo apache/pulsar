@@ -23,6 +23,7 @@ import java.util.List;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
+import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
 
@@ -76,7 +77,7 @@ public interface Functions {
     FunctionDetails getFunction(String tenant, String namespace, String function) throws PulsarAdminException;
 
     /**
-     * Create a new function. 
+     * Create a new function.
      *
      * @param functionDetails
      *            the function configuration object
@@ -85,7 +86,7 @@ public interface Functions {
      *             Unexpected error
      */
     void createFunction(FunctionDetails functionDetails, String fileName) throws PulsarAdminException;
-    
+
     /**
      * <pre>
      * Create a new function by providing url from which fun-pkg can be downloaded. supported url: http/file
@@ -93,7 +94,7 @@ public interface Functions {
      * File: file:/dir/fileName.jar
      * Http: http://www.repo.com/fileName.jar
      * </pre>
-     * 
+     *
      * @param functionDetails
      *            the function configuration object
      * @param pkgUrl
@@ -117,7 +118,7 @@ public interface Functions {
      *             Unexpected error
      */
     void updateFunction(FunctionDetails functionDetails, String fileName) throws PulsarAdminException;
-    
+
     /**
      * Update the configuration for a function.
      * <pre>
@@ -126,7 +127,7 @@ public interface Functions {
      * File: file:/dir/fileName.jar
      * Http: http://www.repo.com/fileName.jar
      * </pre>
-     * 
+     *
      * @param functionDetails
      *            the function configuration object
      * @param pkgUrl
@@ -222,4 +223,13 @@ public interface Functions {
      *             Unexpected error
      */
     void downloadFunction(String destinationFile, String path) throws PulsarAdminException;
+
+    /**
+     * Fetches a list of supported Pulsar IO connectors currently running in cluster mode
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     *
+     */
+    List<ConnectorDefinition> getConnectorsList() throws PulsarAdminException;
 }

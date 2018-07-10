@@ -69,7 +69,7 @@ import (
 )
 
 func main() {
-    client, err := pulsar.NewClient(pulsar.ClientOptions
+    client, err := pulsar.NewClient(pulsar.ClientOptions{
         URL: "pulsar://localhost:6650",
         OperationTimeoutSeconds: 5,
         MessageListenerThreads: runtime.NumCPU(),
@@ -182,7 +182,7 @@ func main() {
         producer.SendAsync(ctx, asyncMsg, func(msg pulsar.ProducerMessage, err error) {
             if err != nil { log.Fatal(err) }
 
-            fmt.Printf("Message %s succesfully published", msg.ID())
+            fmt.Printf("Message %s successfully published", msg.Payload)
         })
     }
 }
@@ -432,7 +432,7 @@ Parameter | Description
 
 ## TLS encryption and authentication {#tls}
 
-In order to use [TLS encryption](../../admin/Authz#), you'll need to configure your client to do so:
+In order to use [TLS encryption](../../security/tls), you'll need to configure your client to do so:
 
  * Use `pulsar+ssl` URL type
  * Set `TLSTrustCertsFilePath` to the path to the TLS certs used by your client and the Pulsar {% popover broker %}

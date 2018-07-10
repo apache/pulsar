@@ -246,7 +246,8 @@ public class PulsarClientImpl implements PulsarClient {
         String topic = conf.getTopicName();
 
         if (!TopicName.isValid(topic)) {
-            return FutureUtil.failedFuture(new PulsarClientException.InvalidTopicNameException("Invalid topic name"));
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.InvalidTopicNameException("Invalid topic name: '" + topic + "'"));
         }
 
         CompletableFuture<Producer<T>> producerCreatedFuture = new CompletableFuture<>();
