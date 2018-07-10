@@ -20,6 +20,7 @@
 
 import sys, getopt, time, logging
 from kazoo.client import KazooClient
+from kazoo.exceptions import NodeExistsError
 from kazoo.retry import KazooRetry
 
 logging.getLogger('kazoo.client').addHandler(logging.StreamHandler())
@@ -80,19 +81,26 @@ if (not watch and not create and not exists):
     usage()
     sys.exit(5)
 
-zk = KazooClient(hosts=zookeeper, timeout=1, connection_retry=KazooRetry(max_tries=-1))
-zk.start()
-
-if create:
-    zk.create(znode)
-elif watch:
-    while not zk.exists(znode):
-        print "Waiting for %s" % znode
-        time.sleep(1)
-elif exists:
-    if zk.exists(znode):
-        sys.exit(0)
-    else:
-        sys.exit(-1)
-
-zk.stop()
+while True:
+    zk = KazooClient(hosts=zookeeper, timeout=1, connection_retry=KazooRetry(max_tries=-1))
+    try:
+        zk.start()
+        if create:
+            try:
+                zk.create(znode)
+            except NodeExistsError:
+                pass
+            sys.exit(0)
+        elif watch:
+            while not zk.exists(znode):
+                print "Waiting for %s" % znode
+                time.sleep(1)
+            sys.exit(0)
+        elif exists:
+            if zk.exists(znode):
+                sys.exit(0)
+            else:
+                sys.exit(-1)
+    finally:
+        zk.stop()
+        zk.close()
