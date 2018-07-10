@@ -18,30 +18,14 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
-import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
-import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
-import static org.apache.pulsar.functions.utils.Utils.fileExists;
-import static org.apache.pulsar.functions.utils.Utils.getSourceType;
-import static org.apache.pulsar.functions.worker.Utils.downloadFromHttpUrl;
-
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.StringConverter;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.lang.reflect.Type;
-import java.util.Collections;
-import java.util.Map;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.text.WordUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
@@ -60,6 +44,20 @@ import org.apache.pulsar.functions.utils.SourceConfig;
 import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.functions.utils.validation.ConfigValidation;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.lang.reflect.Type;
+import java.util.Collections;
+import java.util.Map;
+
+import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
+import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
+import static org.apache.pulsar.functions.utils.Utils.convertProcessingGuarantee;
+import static org.apache.pulsar.functions.utils.Utils.fileExists;
+import static org.apache.pulsar.functions.utils.Utils.getSourceType;
+import static org.apache.pulsar.functions.worker.Utils.downloadFromHttpUrl;
 
 @Getter
 @Parameters(commandDescription = "Interface for managing Pulsar IO Sources (ingress data into Pulsar)")
@@ -103,7 +101,7 @@ public class CmdSources extends CmdBase {
     }
 
     @Parameters(commandDescription = "Run a Pulsar IO source connector locally (rather than deploying it to the Pulsar cluster)")
-    class LocalSourceRunner extends CreateSource {
+    protected class LocalSourceRunner extends CreateSource {
 
         @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker")
         protected String brokerServiceUrl;
@@ -140,7 +138,7 @@ public class CmdSources extends CmdBase {
     }
 
     @Parameters(commandDescription = "Submit a Pulsar IO source connector to run in a Pulsar cluster")
-    public class CreateSource extends SourceCommand {
+    protected class CreateSource extends SourceCommand {
         @Override
         void runCmd() throws Exception {
             if (Utils.isFunctionPackageUrlSupported(this.sourceConfig.getArchive())) {
@@ -153,7 +151,7 @@ public class CmdSources extends CmdBase {
     }
 
     @Parameters(commandDescription = "Update a Pulsar IO source connector")
-    public class UpdateSource extends SourceCommand {
+    protected class UpdateSource extends SourceCommand {
         @Override
         void runCmd() throws Exception {
             if (Utils.isFunctionPackageUrlSupported(sourceConfig.getArchive())) {
@@ -234,15 +232,34 @@ public class CmdSources extends CmdBase {
                 sourceConfig.setArchive(archive);
             }
 
-            sourceConfig.setResources(new org.apache.pulsar.functions.utils.Resources(cpu, ram, disk));
+            org.apache.pulsar.functions.utils.Resources resources = sourceConfig.getResources();
+            if (resources == null) {
+                resources = new org.apache.pulsar.functions.utils.Resources();
+            }
+            if (cpu != null) {
+                resources.setCpu(cpu);
+            }
+
+            if (ram != null) {
+                resources.setRam(ram);
+            }
+
+            if (disk != null) {
+                resources.setDisk(disk);
+            }
+            sourceConfig.setResources(resources);
 
             if (null != sourceConfigString) {
-                Type type = new TypeToken<Map<String, String>>(){}.getType();
-                Map<String, Object> sourceConfigMap = new Gson().fromJson(sourceConfigString, type);
-                sourceConfig.setConfigs(sourceConfigMap);
+                sourceConfig.setConfigs(parseConfigs(sourceConfigString));
             }
 
             inferMissingArguments(sourceConfig);
+        }
+
+        protected Map<String, Object> parseConfigs(String str) {
+            Type type = new TypeToken<Map<String, String>>() {
+            }.getType();
+            return new Gson().fromJson(str, type);
         }
 
         private void inferMissingArguments(SourceConfig sourceConfig) {
@@ -296,7 +313,7 @@ public class CmdSources extends CmdBase {
                     // Validate source class
                     ConnectorUtils.getIOSourceClass(archivePath);
                 } catch (IOException e) {
-                    throw new ParameterException("Failed to validate connector from " + archivePath, e);
+                    throw new ParameterException("Connector from " + archivePath + " has error: " + e.getMessage());
                 }
             }
 
@@ -304,8 +321,7 @@ public class CmdSources extends CmdBase {
              // Need to load jar and set context class loader before calling
                 ConfigValidation.validateConfig(sourceConfig, FunctionConfig.Runtime.JAVA.name());
             } catch (Exception e) {
-                e.printStackTrace();
-                throw new ParameterException(e);
+                throw new ParameterException(e.getMessage());
             }
         }
 
@@ -396,7 +412,7 @@ public class CmdSources extends CmdBase {
     }
 
     @Parameters(commandDescription = "Stops a Pulsar IO source connector")
-    class DeleteSource extends BaseCommand {
+    protected class DeleteSource extends BaseCommand {
 
         @Parameter(names = "--tenant", description = "The tenant of a sink or source")
         protected String tenant;
@@ -411,7 +427,7 @@ public class CmdSources extends CmdBase {
         void processArguments() throws Exception {
             super.processArguments();
             if (null == name) {
-                throw new RuntimeException(
+                throw new ParameterException(
                         "You must specify a name for the source");
             }
             if (tenant == null) {
