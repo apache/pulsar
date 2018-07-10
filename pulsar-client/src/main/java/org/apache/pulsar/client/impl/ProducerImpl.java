@@ -92,7 +92,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private long createProducerTimeout;
     private final int maxNumMessagesInBatch;
     private final BatchMessageContainer batchMessageContainer;
-    private CompletableFuture<MessageId> lastSendFuture;
+    private CompletableFuture<MessageId> lastSendFuture = CompletableFuture.completedFuture(null);
 
     // Globally unique producer name
     private String producerName;
@@ -1224,17 +1224,14 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     @Override
     public CompletableFuture<Void> flushAsync() {
-        if (isBatchMessagingEnabled()) {
-            CompletableFuture<MessageId> lastSendFuture;
-            synchronized (ProducerImpl.this) {
+        CompletableFuture<MessageId> lastSendFuture;
+        synchronized (ProducerImpl.this) {
+            if (isBatchMessagingEnabled()) {
                 batchMessageAndSend();
-                lastSendFuture = this.lastSendFuture;
             }
-            if (null != lastSendFuture) {
-                return lastSendFuture.thenApply(ignored -> null);
-            }
+            lastSendFuture = this.lastSendFuture;
         }
-        return CompletableFuture.completedFuture(null);
+        return lastSendFuture.thenApply(ignored -> null);
     }
 
     @Override
