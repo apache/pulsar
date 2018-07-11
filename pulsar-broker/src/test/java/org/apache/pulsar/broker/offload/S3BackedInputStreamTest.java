@@ -29,7 +29,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.offload.impl.S3BackedInputStreamImpl;
+import org.apache.pulsar.broker.offload.impl.BackedInputStreamImpl;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.io.Payload;
@@ -101,7 +101,7 @@ class S3BackedInputStreamTest extends BlobStoreTestBase {
         String ret = blobStore.putBlob(BUCKET, blob);
         log.debug("put blob: {} in Bucket: {}, in blobStore, result: {}", objectKey, BUCKET, ret);
 
-        BackedInputStream toTest = new S3BackedInputStreamImpl(blobStore, BUCKET, objectKey,
+        BackedInputStream toTest = new BackedInputStreamImpl(blobStore, BUCKET, objectKey,
                                                                  (key, md) -> {},
                                                                  objectSize, 1000);
         assertStreamsMatch(toTest, toCompare);
@@ -123,7 +123,7 @@ class S3BackedInputStreamTest extends BlobStoreTestBase {
         String ret = blobStore.putBlob(BUCKET, blob);
         log.debug("put blob: {} in Bucket: {}, in blobStore, result: {}", objectKey, BUCKET, ret);
 
-        BackedInputStream toTest = new S3BackedInputStreamImpl(blobStore, BUCKET, objectKey,
+        BackedInputStream toTest = new BackedInputStreamImpl(blobStore, BUCKET, objectKey,
                                                                  (key, md) -> {},
                                                                  objectSize, 1000);
         assertStreamsMatchByBytes(toTest, toCompare);
@@ -131,7 +131,7 @@ class S3BackedInputStreamTest extends BlobStoreTestBase {
 
     @Test(expectedExceptions = IOException.class)
     public void testErrorOnS3Read() throws Exception {
-        BackedInputStream toTest = new S3BackedInputStreamImpl(blobStore, BUCKET, "doesn't exist",
+        BackedInputStream toTest = new BackedInputStreamImpl(blobStore, BUCKET, "doesn't exist",
                                                                  (key, md) -> {},
                                                                  1234, 1000);
         toTest.read();
@@ -162,7 +162,7 @@ class S3BackedInputStreamTest extends BlobStoreTestBase {
         String ret = blobStore.putBlob(BUCKET, blob);
         log.debug("put blob: {} in Bucket: {}, in blobStore, result: {}", objectKey, BUCKET, ret);
 
-        BackedInputStream toTest = new S3BackedInputStreamImpl(blobStore, BUCKET, objectKey,
+        BackedInputStream toTest = new BackedInputStreamImpl(blobStore, BUCKET, objectKey,
                                                                  (key, md) -> {},
                                                                  objectSize, 1000);
         for (Map.Entry<Integer, InputStream> e : seeks.entrySet()) {
@@ -189,7 +189,7 @@ class S3BackedInputStreamTest extends BlobStoreTestBase {
         //BlobStore spiedBlobStore = spy(blobStore);
         BlobStore spiedBlobStore = mock(BlobStore.class, delegatesTo(blobStore));
 
-        BackedInputStream toTest = new S3BackedInputStreamImpl(spiedBlobStore, BUCKET, objectKey,
+        BackedInputStream toTest = new BackedInputStreamImpl(spiedBlobStore, BUCKET, objectKey,
                                                                  (key, md) -> {},
                                                                  objectSize, 1000);
 
@@ -235,7 +235,7 @@ class S3BackedInputStreamTest extends BlobStoreTestBase {
         String ret = blobStore.putBlob(BUCKET, blob);
         log.debug("put blob: {} in Bucket: {}, in blobStore, result: {}", objectKey, BUCKET, ret);
 
-        BackedInputStream toTest = new S3BackedInputStreamImpl(blobStore, BUCKET, objectKey,
+        BackedInputStream toTest = new BackedInputStreamImpl(blobStore, BUCKET, objectKey,
                                                                  (key, md) -> {},
                                                                  objectSize, 1000);
 

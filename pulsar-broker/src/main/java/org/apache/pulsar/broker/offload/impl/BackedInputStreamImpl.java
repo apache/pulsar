@@ -23,14 +23,14 @@ import io.netty.buffer.PooledByteBufAllocator;
 import java.io.IOException;
 import java.io.InputStream;
 import org.apache.pulsar.broker.offload.BackedInputStream;
-import org.apache.pulsar.broker.offload.impl.S3ManagedLedgerOffloader.VersionCheck;
+import org.apache.pulsar.broker.offload.impl.ManagedLedgerOffloader.VersionCheck;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.domain.Blob;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class S3BackedInputStreamImpl extends BackedInputStream {
-    private static final Logger log = LoggerFactory.getLogger(S3BackedInputStreamImpl.class);
+public class BackedInputStreamImpl extends BackedInputStream {
+    private static final Logger log = LoggerFactory.getLogger(BackedInputStreamImpl.class);
 
     private final BlobStore blobStore;
     private final String bucket;
@@ -44,9 +44,9 @@ public class S3BackedInputStreamImpl extends BackedInputStream {
     private long bufferOffsetStart;
     private long bufferOffsetEnd;
 
-    public S3BackedInputStreamImpl(BlobStore blobStore, String bucket, String key,
-                                   VersionCheck versionCheck,
-                                   long objectLen, int bufferSize) {
+    public BackedInputStreamImpl(BlobStore blobStore, String bucket, String key,
+                                 VersionCheck versionCheck,
+                                 long objectLen, int bufferSize) {
         this.blobStore = blobStore;
         this.bucket = bucket;
         this.key = key;

@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.broker.offload.impl;
 
-import static org.apache.pulsar.broker.offload.impl.S3ManagedLedgerOffloader.dataBlockOffloadKey;
-import static org.apache.pulsar.broker.offload.impl.S3ManagedLedgerOffloader.indexBlockOffloadKey;
+import static org.apache.pulsar.broker.offload.impl.ManagedLedgerOffloader.dataBlockOffloadKey;
+import static org.apache.pulsar.broker.offload.impl.ManagedLedgerOffloader.indexBlockOffloadKey;
 import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
@@ -118,14 +118,14 @@ class S3ManagedLedgerOffloaderTest extends BlobStoreTestBase {
 
     @Test
     public void testHappyCase() throws Exception {
-        LedgerOffloader offloader = new S3ManagedLedgerOffloader(blobStore, BUCKET, scheduler,
+        LedgerOffloader offloader = new ManagedLedgerOffloader(blobStore, BUCKET, scheduler,
                 DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
         offloader.offload(buildReadHandle(), UUID.randomUUID(), new HashMap<>()).get();
     }
 
     @Test
     public void testBucketDoesNotExist() throws Exception {
-        LedgerOffloader offloader = new S3ManagedLedgerOffloader(blobStore, "no-bucket", scheduler,
+        LedgerOffloader offloader = new ManagedLedgerOffloader(blobStore, "no-bucket", scheduler,
                                                                  DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
         try {
             offloader.offload(buildReadHandle(), UUID.randomUUID(), new HashMap<>()).get();
@@ -143,7 +143,7 @@ class S3ManagedLedgerOffloaderTest extends BlobStoreTestBase {
         conf.setS3ManagedLedgerOffloadBucket(BUCKET);
 
         try {
-            S3ManagedLedgerOffloader.create(conf, scheduler);
+            ManagedLedgerOffloader.create(conf, scheduler);
             Assert.fail("Should have thrown exception");
         } catch (PulsarServerException pse) {
             // correct
@@ -157,7 +157,7 @@ class S3ManagedLedgerOffloaderTest extends BlobStoreTestBase {
         conf.setS3ManagedLedgerOffloadRegion("eu-west-1");
 
         try {
-            S3ManagedLedgerOffloader.create(conf, scheduler);
+            ManagedLedgerOffloader.create(conf, scheduler);
             Assert.fail("Should have thrown exception");
         } catch (PulsarServerException pse) {
             // correct
@@ -173,7 +173,7 @@ class S3ManagedLedgerOffloaderTest extends BlobStoreTestBase {
         conf.setS3ManagedLedgerOffloadMaxBlockSizeInBytes(1024);
 
         try {
-            S3ManagedLedgerOffloader.create(conf, scheduler);
+            ManagedLedgerOffloader.create(conf, scheduler);
             Assert.fail("Should have thrown exception");
         } catch (PulsarServerException pse) {
             // correct
@@ -183,7 +183,7 @@ class S3ManagedLedgerOffloaderTest extends BlobStoreTestBase {
     @Test
     public void testOffloadAndRead() throws Exception {
         ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 3);
-        LedgerOffloader offloader = new S3ManagedLedgerOffloader(blobStore, BUCKET, scheduler,
+        LedgerOffloader offloader = new ManagedLedgerOffloader(blobStore, BUCKET, scheduler,
                                                                  DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
         UUID uuid = UUID.randomUUID();
         offloader.offload(toWrite, uuid, new HashMap<>()).get();
@@ -224,7 +224,7 @@ class S3ManagedLedgerOffloaderTest extends BlobStoreTestBase {
                 .doThrow(new RuntimeException(failureString))
                 .when(spiedBlobStore).initiateMultipartUpload(any(), any(), any());
 
-            LedgerOffloader offloader = new S3ManagedLedgerOffloader(spiedBlobStore, BUCKET, scheduler,
+            LedgerOffloader offloader = new ManagedLedgerOffloader(spiedBlobStore, BUCKET, scheduler,
                                                                      DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
             offloader.offload(readHandle, uuid, new HashMap<>()).get();
             Assert.fail("Should throw exception when initiateMultipartUpload");
@@ -250,7 +250,7 @@ class S3ManagedLedgerOffloaderTest extends BlobStoreTestBase {
                 .doThrow(new RuntimeException(failureString))
                 .when(spiedBlobStore).uploadMultipartPart(any(), anyInt(), any());
 
-            LedgerOffloader offloader = new S3ManagedLedgerOffloader(spiedBlobStore, BUCKET, scheduler,
+            LedgerOffloader offloader = new ManagedLedgerOffloader(spiedBlobStore, BUCKET, scheduler,
                 DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
             offloader.offload(readHandle, uuid, new HashMap<>()).get();
             Assert.fail("Should throw exception for when uploadPart");
@@ -279,7 +279,7 @@ class S3ManagedLedgerOffloaderTest extends BlobStoreTestBase {
                 .doNothing()
                 .when(spiedBlobStore).abortMultipartUpload(any());
 
-            LedgerOffloader offloader = new S3ManagedLedgerOffloader(spiedBlobStore, BUCKET, scheduler,
+            LedgerOffloader offloader = new ManagedLedgerOffloader(spiedBlobStore, BUCKET, scheduler,
                 DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
             offloader.offload(readHandle, uuid, new HashMap<>()).get();
 
@@ -306,7 +306,7 @@ class S3ManagedLedgerOffloaderTest extends BlobStoreTestBase {
                 .doThrow(new RuntimeException(failureString))
                 .when(spiedBlobStore).putBlob(any(), any());
 
-            LedgerOffloader offloader = new S3ManagedLedgerOffloader(spiedBlobStore, BUCKET, scheduler,
+            LedgerOffloader offloader = new ManagedLedgerOffloader(spiedBlobStore, BUCKET, scheduler,
                 DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
             offloader.offload(readHandle, uuid, new HashMap<>()).get();
 
@@ -337,7 +337,7 @@ class S3ManagedLedgerOffloaderTest extends BlobStoreTestBase {
             randomAccesses[i][1] = second;
         }
 
-        LedgerOffloader offloader = new S3ManagedLedgerOffloader(blobStore, BUCKET, scheduler,
+        LedgerOffloader offloader = new ManagedLedgerOffloader(blobStore, BUCKET, scheduler,
                                                                  DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
         UUID uuid = UUID.randomUUID();
         offloader.offload(toWrite, uuid, new HashMap<>()).get();
@@ -369,7 +369,7 @@ class S3ManagedLedgerOffloaderTest extends BlobStoreTestBase {
     @Test
     public void testOffloadReadInvalidEntryIds() throws Exception {
         ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
-        LedgerOffloader offloader = new S3ManagedLedgerOffloader(blobStore, BUCKET, scheduler,
+        LedgerOffloader offloader = new ManagedLedgerOffloader(blobStore, BUCKET, scheduler,
                                                                  DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
         UUID uuid = UUID.randomUUID();
         offloader.offload(toWrite, uuid, new HashMap<>()).get();
@@ -394,7 +394,7 @@ class S3ManagedLedgerOffloaderTest extends BlobStoreTestBase {
     public void testDeleteOffloaded() throws Exception {
         ReadHandle readHandle = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
         UUID uuid = UUID.randomUUID();
-        LedgerOffloader offloader = new S3ManagedLedgerOffloader(blobStore, BUCKET, scheduler,
+        LedgerOffloader offloader = new ManagedLedgerOffloader(blobStore, BUCKET, scheduler,
                                                                  DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
 
         // verify object exist after offload
@@ -419,7 +419,7 @@ class S3ManagedLedgerOffloaderTest extends BlobStoreTestBase {
             .doThrow(new RuntimeException(failureString))
             .when(spiedBlobStore).removeBlob(any(), any());
 
-        LedgerOffloader offloader = new S3ManagedLedgerOffloader(spiedBlobStore, BUCKET, scheduler,
+        LedgerOffloader offloader = new ManagedLedgerOffloader(spiedBlobStore, BUCKET, scheduler,
             DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
 
         try {
@@ -451,7 +451,7 @@ class S3ManagedLedgerOffloaderTest extends BlobStoreTestBase {
         Mockito.doReturn(1234L).when(readHandle).getId();
 
         UUID uuid = UUID.randomUUID();
-        LedgerOffloader offloader = new S3ManagedLedgerOffloader(blobStore, BUCKET, scheduler,
+        LedgerOffloader offloader = new ManagedLedgerOffloader(blobStore, BUCKET, scheduler,
                                                                  DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
         try {
             offloader.offload(readHandle, uuid, new HashMap<>()).get();
@@ -464,7 +464,7 @@ class S3ManagedLedgerOffloaderTest extends BlobStoreTestBase {
     @Test
     public void testReadUnknownDataVersion() throws Exception {
         ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
-        LedgerOffloader offloader = new S3ManagedLedgerOffloader(blobStore, BUCKET, scheduler,
+        LedgerOffloader offloader = new ManagedLedgerOffloader(blobStore, BUCKET, scheduler,
                                                                  DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
         UUID uuid = UUID.randomUUID();
         offloader.offload(toWrite, uuid, new HashMap<>()).get();
@@ -472,7 +472,7 @@ class S3ManagedLedgerOffloaderTest extends BlobStoreTestBase {
         String dataKey = dataBlockOffloadKey(toWrite.getId(), uuid);
 
         Map<String, String> userMeta = blobStore.blobMetadata(BUCKET, dataKey).getUserMetadata();
-        userMeta.put(S3ManagedLedgerOffloader.METADATA_FORMAT_VERSION_KEY, String.valueOf(-12345));
+        userMeta.put(ManagedLedgerOffloader.METADATA_FORMAT_VERSION_KEY, String.valueOf(-12345));
         blobStore.copyBlob(BUCKET, dataKey, BUCKET, dataKey, CopyOptions.builder().userMetadata(userMeta).build());
 
         try (ReadHandle toRead = offloader.readOffloaded(toWrite.getId(), uuid).get()) {
@@ -484,7 +484,7 @@ class S3ManagedLedgerOffloaderTest extends BlobStoreTestBase {
             Assert.assertTrue(e.getCause().getMessage().contains("Error reading from BlobStore"));
         }
 
-        userMeta.put(S3ManagedLedgerOffloader.METADATA_FORMAT_VERSION_KEY, String.valueOf(12345));
+        userMeta.put(ManagedLedgerOffloader.METADATA_FORMAT_VERSION_KEY, String.valueOf(12345));
         blobStore.copyBlob(BUCKET, dataKey, BUCKET, dataKey, CopyOptions.builder().userMetadata(userMeta).build());
 
         try (ReadHandle toRead = offloader.readOffloaded(toWrite.getId(), uuid).get()) {
@@ -499,7 +499,7 @@ class S3ManagedLedgerOffloaderTest extends BlobStoreTestBase {
     @Test
     public void testReadUnknownIndexVersion() throws Exception {
         ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
-        LedgerOffloader offloader = new S3ManagedLedgerOffloader(blobStore, BUCKET, scheduler,
+        LedgerOffloader offloader = new ManagedLedgerOffloader(blobStore, BUCKET, scheduler,
                                                                  DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
         UUID uuid = UUID.randomUUID();
         offloader.offload(toWrite, uuid, new HashMap<>()).get();
@@ -507,7 +507,7 @@ class S3ManagedLedgerOffloaderTest extends BlobStoreTestBase {
         String indexKey = indexBlockOffloadKey(toWrite.getId(), uuid);
 
         Map<String, String> userMeta = blobStore.blobMetadata(BUCKET, indexKey).getUserMetadata();
-        userMeta.put(S3ManagedLedgerOffloader.METADATA_FORMAT_VERSION_KEY, String.valueOf(-12345));
+        userMeta.put(ManagedLedgerOffloader.METADATA_FORMAT_VERSION_KEY, String.valueOf(-12345));
         blobStore.copyBlob(BUCKET, indexKey, BUCKET, indexKey, CopyOptions.builder().userMetadata(userMeta).build());
 
         try {
@@ -518,7 +518,7 @@ class S3ManagedLedgerOffloaderTest extends BlobStoreTestBase {
             Assert.assertTrue(e.getCause().getMessage().contains("Invalid object version"));
         }
 
-        userMeta.put(S3ManagedLedgerOffloader.METADATA_FORMAT_VERSION_KEY, String.valueOf(12345));
+        userMeta.put(ManagedLedgerOffloader.METADATA_FORMAT_VERSION_KEY, String.valueOf(12345));
         blobStore.copyBlob(BUCKET, indexKey, BUCKET, indexKey, CopyOptions.builder().userMetadata(userMeta).build());
 
         try {
