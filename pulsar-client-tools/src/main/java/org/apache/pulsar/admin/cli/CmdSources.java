@@ -207,8 +207,6 @@ public class CmdSources extends CmdBase {
 
         @Parameter(names = "--processingGuarantees", description = "The processing guarantees (aka delivery semantics) applied to the Source")
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
-        @Parameter(names = "--className", description = "The source's class name")
-        protected String className;
         @Parameter(names = "--destinationTopicName", description = "The Pulsar topic to which data is sent")
         protected String destinationTopicName;
         @Parameter(names = "--deserializationClassName", description = "The SerDe classname for the source")
@@ -422,7 +420,7 @@ public class CmdSources extends CmdBase {
 
             // set source spec
             SourceSpec.Builder sourceSpecBuilder = SourceSpec.newBuilder();
-            if (className != null) {
+            if (sourceClassName != null) {
                 sourceSpecBuilder.setClassName(sourceClassName);
             }
 
