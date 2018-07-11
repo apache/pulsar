@@ -18,29 +18,31 @@
  */
 package org.apache.pulsar.broker.offload;
 
-import static org.mockito.Matchers.anyObject;
-import static org.mockito.Mockito.spy;
+import static org.mockito.AdditionalAnswers.delegatesTo;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-
-import java.io.InputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.broker.offload.impl.S3BackedInputStreamImpl;
-
+import org.jclouds.blobstore.BlobStore;
+import org.jclouds.blobstore.domain.Blob;
+import org.jclouds.io.Payload;
+import org.jclouds.io.Payloads;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 @Slf4j
-class S3BackedInputStreamTest extends S3TestBase {
+class S3BackedInputStreamTest extends BlobStoreTestBase {
+    private static final Logger log = LoggerFactory.getLogger(S3BackedInputStreamTest.class);
+
     class RandomInputStream extends InputStream {
         final Random r;
         int bytesRemaining;
@@ -85,16 +87,21 @@ class S3BackedInputStreamTest extends S3TestBase {
 
     @Test
     public void testReadingFullObject() throws Exception {
-        String objectKey = "foobar";
+        String objectKey = "testReadingFull";
         int objectSize = 12345;
         RandomInputStream toWrite = new RandomInputStream(0, objectSize);
         RandomInputStream toCompare = new RandomInputStream(0, objectSize);
 
-        ObjectMetadata metadata = new ObjectMetadata();
-        metadata.setContentLength(objectSize);
-        s3client.putObject(BUCKET, objectKey, toWrite, metadata);
+        Payload payload = Payloads.newInputStreamPayload(toWrite);
+        payload.getContentMetadata().setContentLength((long)objectSize);
+        Blob blob = blobStore.blobBuilder(objectKey)
+            .payload(payload)
+            .contentLength((long)objectSize)
+            .build();
+        String ret = blobStore.putBlob(BUCKET, blob);
+        log.debug("put blob: {} in Bucket: {}, in blobStore, result: {}", objectKey, BUCKET, ret);
 
-        BackedInputStream toTest = new S3BackedInputStreamImpl(s3client, BUCKET, objectKey,
+        BackedInputStream toTest = new S3BackedInputStreamImpl(blobStore, BUCKET, objectKey,
                                                                  (key, md) -> {},
                                                                  objectSize, 1000);
         assertStreamsMatch(toTest, toCompare);
@@ -102,16 +109,21 @@ class S3BackedInputStreamTest extends S3TestBase {
 
     @Test
     public void testReadingFullObjectByBytes() throws Exception {
-        String objectKey = "foobar";
+        String objectKey = "testReadingFull2";
         int objectSize = 12345;
         RandomInputStream toWrite = new RandomInputStream(0, objectSize);
         RandomInputStream toCompare = new RandomInputStream(0, objectSize);
 
-        ObjectMetadata metadata = new ObjectMetadata();
-        metadata.setContentLength(objectSize);
-        s3client.putObject(BUCKET, objectKey, toWrite, metadata);
+        Payload payload = Payloads.newInputStreamPayload(toWrite);
+        payload.getContentMetadata().setContentLength((long)objectSize);
+        Blob blob = blobStore.blobBuilder(objectKey)
+            .payload(payload)
+            .contentLength((long)objectSize)
+            .build();
+        String ret = blobStore.putBlob(BUCKET, blob);
+        log.debug("put blob: {} in Bucket: {}, in blobStore, result: {}", objectKey, BUCKET, ret);
 
-        BackedInputStream toTest = new S3BackedInputStreamImpl(s3client, BUCKET, objectKey,
+        BackedInputStream toTest = new S3BackedInputStreamImpl(blobStore, BUCKET, objectKey,
                                                                  (key, md) -> {},
                                                                  objectSize, 1000);
         assertStreamsMatchByBytes(toTest, toCompare);
@@ -119,7 +131,7 @@ class S3BackedInputStreamTest extends S3TestBase {
 
     @Test(expectedExceptions = IOException.class)
     public void testErrorOnS3Read() throws Exception {
-        BackedInputStream toTest = new S3BackedInputStreamImpl(s3client, BUCKET, "doesn't exist",
+        BackedInputStream toTest = new S3BackedInputStreamImpl(blobStore, BUCKET, "doesn't exist",
                                                                  (key, md) -> {},
                                                                  1234, 1000);
         toTest.read();
@@ -128,7 +140,7 @@ class S3BackedInputStreamTest extends S3TestBase {
 
     @Test
     public void testSeek() throws Exception {
-        String objectKey = "foobar";
+        String objectKey = "testSeek";
         int objectSize = 12345;
         RandomInputStream toWrite = new RandomInputStream(0, objectSize);
 
@@ -141,11 +153,16 @@ class S3BackedInputStreamTest extends S3TestBase {
             seeks.put(seek, stream);
         }
 
-        ObjectMetadata metadata = new ObjectMetadata();
-        metadata.setContentLength(objectSize);
-        s3client.putObject(BUCKET, objectKey, toWrite, metadata);
+        Payload payload = Payloads.newInputStreamPayload(toWrite);
+        payload.getContentMetadata().setContentLength((long)objectSize);
+        Blob blob = blobStore.blobBuilder(objectKey)
+            .payload(payload)
+            .contentLength((long)objectSize)
+            .build();
+        String ret = blobStore.putBlob(BUCKET, blob);
+        log.debug("put blob: {} in Bucket: {}, in blobStore, result: {}", objectKey, BUCKET, ret);
 
-        BackedInputStream toTest = new S3BackedInputStreamImpl(s3client, BUCKET, objectKey,
+        BackedInputStream toTest = new S3BackedInputStreamImpl(blobStore, BUCKET, objectKey,
                                                                  (key, md) -> {},
                                                                  objectSize, 1000);
         for (Map.Entry<Integer, InputStream> e : seeks.entrySet()) {
@@ -156,16 +173,23 @@ class S3BackedInputStreamTest extends S3TestBase {
 
     @Test
     public void testSeekWithinCurrent() throws Exception {
-        String objectKey = "foobar";
+        String objectKey = "testSeekWithinCurrent";
         int objectSize = 12345;
         RandomInputStream toWrite = new RandomInputStream(0, objectSize);
 
-        ObjectMetadata metadata = new ObjectMetadata();
-        metadata.setContentLength(objectSize);
-        s3client.putObject(BUCKET, objectKey, toWrite, metadata);
+        Payload payload = Payloads.newInputStreamPayload(toWrite);
+        payload.getContentMetadata().setContentLength((long)objectSize);
+        Blob blob = blobStore.blobBuilder(objectKey)
+            .payload(payload)
+            .contentLength((long)objectSize)
+            .build();
+        String ret = blobStore.putBlob(BUCKET, blob);
+        log.debug("put blob: {} in Bucket: {}, in blobStore, result: {}", objectKey, BUCKET, ret);
 
-        AmazonS3 spiedClient = spy(s3client);
-        BackedInputStream toTest = new S3BackedInputStreamImpl(spiedClient, BUCKET, objectKey,
+        //BlobStore spiedBlobStore = spy(blobStore);
+        BlobStore spiedBlobStore = mock(BlobStore.class, delegatesTo(blobStore));
+
+        BackedInputStream toTest = new S3BackedInputStreamImpl(spiedBlobStore, BUCKET, objectKey,
                                                                  (key, md) -> {},
                                                                  objectSize, 1000);
 
@@ -193,20 +217,25 @@ class S3BackedInputStreamTest extends S3TestBase {
             Assert.assertEquals(thirdSeek.read(), toTest.read());
         }
 
-        verify(spiedClient, times(1)).getObject(anyObject());
+        verify(spiedBlobStore, times(1)).getBlob(BUCKET, objectKey);
     }
 
     @Test
     public void testSeekForward() throws Exception {
-        String objectKey = "foobar";
+        String objectKey = "testSeekForward";
         int objectSize = 12345;
         RandomInputStream toWrite = new RandomInputStream(0, objectSize);
 
-        ObjectMetadata metadata = new ObjectMetadata();
-        metadata.setContentLength(objectSize);
-        s3client.putObject(BUCKET, objectKey, toWrite, metadata);
+        Payload payload = Payloads.newInputStreamPayload(toWrite);
+        payload.getContentMetadata().setContentLength((long)objectSize);
+        Blob blob = blobStore.blobBuilder(objectKey)
+            .payload(payload)
+            .contentLength((long)objectSize)
+            .build();
+        String ret = blobStore.putBlob(BUCKET, blob);
+        log.debug("put blob: {} in Bucket: {}, in blobStore, result: {}", objectKey, BUCKET, ret);
 
-        BackedInputStream toTest = new S3BackedInputStreamImpl(s3client, BUCKET, objectKey,
+        BackedInputStream toTest = new S3BackedInputStreamImpl(blobStore, BUCKET, objectKey,
                                                                  (key, md) -> {},
                                                                  objectSize, 1000);
 

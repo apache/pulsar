@@ -100,6 +100,8 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-zookeeper</module>
     <module>pulsar-log4j2-appender</module>
     <module>protobuf-shaded</module>
+    <!-- jclouds shaded for gson conflict: https://issues.apache.org/jira/browse/JCLOUDS-1166 -->
+    <module>jclouds-shaded</module>
 
     <!-- functions-related modules -->
     <module>pulsar-functions</module>
