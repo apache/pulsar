@@ -54,7 +54,7 @@ public class SourceConfig {
     private String topicName;
     @isImplementationOfClass(implementsClass = SerDe.class)
     private String serdeClassName;
-    private Map<String, Object> configs = new HashMap<>();
+    private Map<String, Object> configs;
     @isPositiveNumber
     private int parallelism = 1;
     private FunctionConfig.ProcessingGuarantees processingGuarantees;

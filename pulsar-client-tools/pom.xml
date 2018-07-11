@@ -94,6 +94,13 @@
       <scope>test</scope>
     </dependency>
 
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-io-twitter</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+
   </dependencies>
 
   <build>
@@ -114,6 +121,9 @@
                 <echo>copy test sink package</echo>
                 <mkdir dir="${basedir}/src/test/resources"/>
                 <copy file="${basedir}/../pulsar-io/cassandra/target/pulsar-io-cassandra-${project.version}.nar" tofile="${basedir}/src/test/resources/pulsar-io-cassandra.nar"/>
+                <echo>copy test source package</echo>
+                <mkdir dir="${basedir}/src/test/resources"/>
+                <copy file="${basedir}/../pulsar-io/twitter/target/pulsar-io-twitter-${project.version}.nar" tofile="${basedir}/src/test/resources/pulsar-io-twitter.nar"/>
               </tasks>
             </configuration>
           </execution>
