@@ -30,7 +30,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 import lombok.extern.slf4j.Slf4j;
+<<<<<<< HEAD:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/BlobStoreBackedInputStreamTest.java
 import org.apache.pulsar.broker.offload.impl.BlobStoreBackedInputStreamImpl;
+=======
+import org.apache.pulsar.broker.offload.impl.BackedInputStreamImpl;
+>>>>>>> rename S3 before filenames:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/S3BackedInputStreamTest.java
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.blobstore.options.GetOptions;
@@ -105,7 +109,11 @@ class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         String ret = blobStore.putBlob(BUCKET, blob);
         log.debug("put blob: {} in Bucket: {}, in blobStore, result: {}", objectKey, BUCKET, ret);
 
+<<<<<<< HEAD:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/BlobStoreBackedInputStreamTest.java
         BackedInputStream toTest = new BlobStoreBackedInputStreamImpl(blobStore, BUCKET, objectKey,
+=======
+        BackedInputStream toTest = new BackedInputStreamImpl(blobStore, BUCKET, objectKey,
+>>>>>>> rename S3 before filenames:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/S3BackedInputStreamTest.java
                                                                  (key, md) -> {},
                                                                  objectSize, 1000);
         assertStreamsMatch(toTest, toCompare);
@@ -127,15 +135,24 @@ class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         String ret = blobStore.putBlob(BUCKET, blob);
         log.debug("put blob: {} in Bucket: {}, in blobStore, result: {}", objectKey, BUCKET, ret);
 
+<<<<<<< HEAD:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/BlobStoreBackedInputStreamTest.java
         BackedInputStream toTest = new BlobStoreBackedInputStreamImpl(blobStore, BUCKET, objectKey,
+=======
+        BackedInputStream toTest = new BackedInputStreamImpl(blobStore, BUCKET, objectKey,
+>>>>>>> rename S3 before filenames:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/S3BackedInputStreamTest.java
                                                                  (key, md) -> {},
                                                                  objectSize, 1000);
         assertStreamsMatchByBytes(toTest, toCompare);
     }
 
     @Test(expectedExceptions = IOException.class)
+<<<<<<< HEAD:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/BlobStoreBackedInputStreamTest.java
     public void testErrorOnRead() throws Exception {
         BackedInputStream toTest = new BlobStoreBackedInputStreamImpl(blobStore, BUCKET, "doesn't exist",
+=======
+    public void testErrorOnS3Read() throws Exception {
+        BackedInputStream toTest = new BackedInputStreamImpl(blobStore, BUCKET, "doesn't exist",
+>>>>>>> rename S3 before filenames:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/S3BackedInputStreamTest.java
                                                                  (key, md) -> {},
                                                                  1234, 1000);
         toTest.read();
@@ -166,7 +183,11 @@ class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         String ret = blobStore.putBlob(BUCKET, blob);
         log.debug("put blob: {} in Bucket: {}, in blobStore, result: {}", objectKey, BUCKET, ret);
 
+<<<<<<< HEAD:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/BlobStoreBackedInputStreamTest.java
         BackedInputStream toTest = new BlobStoreBackedInputStreamImpl(blobStore, BUCKET, objectKey,
+=======
+        BackedInputStream toTest = new BackedInputStreamImpl(blobStore, BUCKET, objectKey,
+>>>>>>> rename S3 before filenames:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/S3BackedInputStreamTest.java
                                                                  (key, md) -> {},
                                                                  objectSize, 1000);
         for (Map.Entry<Integer, InputStream> e : seeks.entrySet()) {
@@ -193,7 +214,11 @@ class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         //BlobStore spiedBlobStore = spy(blobStore);
         BlobStore spiedBlobStore = mock(BlobStore.class, delegatesTo(blobStore));
 
+<<<<<<< HEAD:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/BlobStoreBackedInputStreamTest.java
         BackedInputStream toTest = new BlobStoreBackedInputStreamImpl(spiedBlobStore, BUCKET, objectKey,
+=======
+        BackedInputStream toTest = new BackedInputStreamImpl(spiedBlobStore, BUCKET, objectKey,
+>>>>>>> rename S3 before filenames:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/S3BackedInputStreamTest.java
                                                                  (key, md) -> {},
                                                                  objectSize, 1000);
 
@@ -240,7 +265,11 @@ class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         String ret = blobStore.putBlob(BUCKET, blob);
         log.debug("put blob: {} in Bucket: {}, in blobStore, result: {}", objectKey, BUCKET, ret);
 
+<<<<<<< HEAD:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/BlobStoreBackedInputStreamTest.java
         BackedInputStream toTest = new BlobStoreBackedInputStreamImpl(blobStore, BUCKET, objectKey,
+=======
+        BackedInputStream toTest = new BackedInputStreamImpl(blobStore, BUCKET, objectKey,
+>>>>>>> rename S3 before filenames:pulsar-broker/src/test/java/org/apache/pulsar/broker/offload/S3BackedInputStreamTest.java
                                                                  (key, md) -> {},
                                                                  objectSize, 1000);
 
