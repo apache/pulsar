@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,14 +18,14 @@
 # under the License.
 #
 
-tenant: "test"
-namespace: "test-namespace"
-name: "stateful-example"
-className: "org.apache.pulsar.functions.api.examples.WordCountFunction"
-inputs: ["test_stateful_src"]
-userConfig:
-  "PublishTopic": "test_stateful_result"
 
-output: "test_stateful_result"
-autoAck: true
-parallelism: 1
+from pulsar import Function
+
+# The classic ExclamationFunction that appends an exclamation at the end
+# of the input
+class ExclamationFunction(Function):
+  def __init__(self):
+    pass
+
+  def process(self, input, context):
+    return input + '!'
