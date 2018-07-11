@@ -333,6 +333,18 @@ public class TopicName implements ServiceUnitId {
             + "/" + getLocalName();
     }
 
+    /**
+     * Get the full name for the topic.
+     * E.g. persistent://public/default/topic1
+     */
+    public String getFullName() {
+        if (isV2()) {
+            return String.format("%s://%s/%s/%s", domain, tenant, namespacePortion, getEncodedLocalName());
+        } else {
+            return String.format("%s://%s/%s/%s/%s", domain, tenant, cluster, namespacePortion, getEncodedLocalName());
+        }
+    }
+
     @Override
     public String toString() {
         return completeTopicName;

@@ -131,6 +131,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private final SubscriptionInitialPosition subscriptionInitialPosition;
     private final ConnectionHandler connectionHandler;
 
+    private final TopicName topicName;
+
     enum SubscriptionMode {
         // Make the subscription to be backed by a durable cursor that will retain messages and persist the current
         // position
@@ -160,7 +162,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.readCompacted = conf.isReadCompacted();
         this.subscriptionInitialPosition = conf.getSubscriptionInitialPosition();
 
-        TopicName topicName = TopicName.get(topic);
+        this.topicName = TopicName.get(topic);
         if (topicName.isPersistent()) {
             this.acknowledgmentsGroupingTracker =
                 new PersistentAcknowledgmentsGroupingTracker(this, conf, client.eventLoopGroup());
@@ -739,8 +741,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // if message is not decryptable then it can't be parsed as a batch-message. so, add EncyrptionCtx to message
         // and return undecrypted payload
         if (isMessageUndecryptable || (numMessages == 1 && !msgMetadata.hasNumMessagesInBatch())) {
-            final MessageImpl<T> message = new MessageImpl<>(msgId, msgMetadata, uncompressedPayload,
-                    createEncryptionContext(msgMetadata), cnx, schema);
+            final MessageImpl<T> message = new MessageImpl<>(topicName.getFullName(), msgId,
+                                                             msgMetadata, uncompressedPayload,
+                                                             createEncryptionContext(msgMetadata), cnx, schema);
             uncompressedPayload.release();
             msgMetadata.recycle();
 
@@ -911,8 +914,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
                 BatchMessageIdImpl batchMessageIdImpl = new BatchMessageIdImpl(messageId.getLedgerId(),
                         messageId.getEntryId(), getPartitionIndex(), i, acker);
-                final MessageImpl<T> message = new MessageImpl<>(batchMessageIdImpl, msgMetadata,
-                        singleMessageMetadataBuilder.build(), singleMessagePayload,
+                final MessageImpl<T> message = new MessageImpl<>(topicName.getFullName(), batchMessageIdImpl,
+                        msgMetadata, singleMessageMetadataBuilder.build(), singleMessagePayload,
                         createEncryptionContext(msgMetadata), cnx, schema);
                 lock.readLock().lock();
                 try {

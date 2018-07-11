@@ -28,12 +28,10 @@ import org.apache.pulsar.common.api.EncryptionContext;
 
 public class TopicMessageImpl<T> extends MessageRecordImpl<T, TopicMessageIdImpl> {
 
-    private final String topicName;
     private final Message<T> msg;
 
     TopicMessageImpl(String topicName,
                      Message<T> msg) {
-        this.topicName = topicName;
         this.msg = msg;
         this.messageId = new TopicMessageIdImpl(topicName, msg.getMessageId());
     }
@@ -42,8 +40,9 @@ public class TopicMessageImpl<T> extends MessageRecordImpl<T, TopicMessageIdImpl
      * Get the topic name of this message.
      * @return the name of the topic on which this message was published
      */
+    @Override
     public String getTopicName() {
-        return topicName;
+        return msg.getTopicName();
     }
 
     @Override
