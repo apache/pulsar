@@ -28,9 +28,10 @@ public interface Sink<T> extends AutoCloseable{
      * Open connector with configuration
      *
      * @param config initialization config
+     * @param sinkContext
      * @throws Exception IO type exceptions when opening a connector
      */
-    void open(final Map<String, Object> config) throws Exception;
+    void open(final Map<String, Object> config, SinkContext sinkContext) throws Exception;
     
     /**
      * Write a message to Sink

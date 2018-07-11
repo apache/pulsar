@@ -25,6 +25,7 @@ import net.jodah.typetools.TypeResolver;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
@@ -37,6 +38,7 @@ import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.io.core.Record;
 import org.apache.pulsar.io.core.Source;
+import org.apache.pulsar.io.core.SourceContext;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -60,12 +62,14 @@ public class PulsarSource<T> implements Source<T> {
     }
 
     @Override
-    public void open(Map<String, Object> config) throws Exception {
+    public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
         // Setup Serialization/Deserialization
         setupSerDe();
 
         // Setup pulsar consumer
         ConsumerBuilder<byte[]> consumerBuilder = this.pulsarClient.newConsumer()
+                //consume message even if can't decrypt and deliver it along with encryption-ctx
+                .cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)  
                 .subscriptionName(this.pulsarSourceConfig.getSubscriptionName())
                 .subscriptionType(this.pulsarSourceConfig.getSubscriptionType());
 
@@ -132,6 +136,8 @@ public class PulsarSource<T> implements Source<T> {
                 .partitionId(String.format("%s-%s", topicName, partitionId))
                 .recordSequence(Utils.getSequenceId(message.getMessageId()))
                 .topicName(topicName)
+                .properties(message.getProperties())
+                .encryptionCtx(message.getEncryptionCtx())
                 .ackFunction(() -> {
                     if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
                         inputConsumer.acknowledgeCumulativeAsync(message);

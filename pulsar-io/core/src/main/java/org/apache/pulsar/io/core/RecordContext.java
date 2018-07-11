@@ -18,6 +18,12 @@
  */
 package org.apache.pulsar.io.core;
 
+import java.util.Collections;
+import java.util.Map;
+import java.util.Optional;
+
+import org.apache.pulsar.common.api.EncryptionContext;
+
 /**
  * A source context that can be used by the runtime to interact with source.
  */
@@ -34,6 +40,20 @@ public interface RecordContext {
      * @return Sequence Id associated with the record
      */
     default long getRecordSequence() { return -1L; }
+    
+    /**
+     * Retrieves user-properties attached to record. 
+     * 
+     * @return Map of user-properties
+     */
+    default Map<String, String> getProperties() { return Collections.emptyMap();}
+    
+    /**
+     * Retrieves encryption-context that is attached to record. 
+     * 
+     * @return {@link Optional}<{@link EncryptionContext}>
+     */
+    default Optional<EncryptionContext> getEncryptionCtx() { return Optional.empty();}
 
     /**
      * Acknowledge that this record is fully processed

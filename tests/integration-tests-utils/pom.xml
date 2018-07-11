@@ -37,16 +37,10 @@
 
   <name>Apache Pulsar :: Tests :: Utility module for Arquillian based integration tests</name>
 
-  <properties>
-    <arquillian-cube.version>1.15.1</arquillian-cube.version>
-    <commons-compress.version>1.15</commons-compress.version>
-  </properties>
-
   <dependencies>
     <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-compress</artifactId>
-      <version>${commons-compress.version}</version>
     </dependency>
 
     <dependency>
@@ -77,7 +71,6 @@
     <dependency>
       <groupId>org.arquillian.cube</groupId>
       <artifactId>arquillian-cube-docker</artifactId>
-      <version>${arquillian-cube.version}</version>
     </dependency>
 
   </dependencies>

@@ -27,12 +27,12 @@ import com.rabbitmq.client.DefaultConsumer;
 import com.rabbitmq.client.Envelope;
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.Record;
+import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.function.Consumer;
 
 /**
  * A simple connector to consume messages from a RabbitMQ queue
@@ -46,7 +46,7 @@ public class RabbitMQSource extends PushSource<byte[]> {
     private RabbitMQConfig rabbitMQConfig;
 
     @Override
-    public void open(Map<String, Object> config) throws Exception {
+    public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
         rabbitMQConfig = RabbitMQConfig.load(config);
         if (rabbitMQConfig.getAmqUri() == null
                 || rabbitMQConfig.getQueueName() == null) {

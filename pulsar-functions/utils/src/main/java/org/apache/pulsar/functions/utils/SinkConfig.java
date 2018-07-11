@@ -48,19 +48,19 @@ public class SinkConfig {
     private String namespace;
     @NotNull
     private String name;
-    @NotNull
-    private String className;
+
     @isMapEntryCustom(keyValidatorClasses = { ValidatorImpls.TopicNameValidator.class },
             valueValidatorClasses = { ValidatorImpls.SerdeValidator.class })
     private Map<String, String> topicToSerdeClassName;
     @isValidTopicName
     private String topicsPattern;
-    private Map<String, Object> configs = new HashMap<>();
+    private Map<String, Object> configs;
     @isPositiveNumber
     private int parallelism = 1;
     private FunctionConfig.ProcessingGuarantees processingGuarantees;
     @isValidResources
     private Resources resources;
+
     @isFileExists
-    private String jar;
+    private String archive;
 }

@@ -31,7 +31,6 @@ import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isValidResources;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isValidSourceConfig;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isValidTopicName;
-import org.apache.pulsar.io.core.Source;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -49,19 +48,19 @@ public class SourceConfig {
     private String namespace;
     @NotNull
     private String name;
-    @NotNull
-    private String className;
+
     @NotNull
     @isValidTopicName
     private String topicName;
     @isImplementationOfClass(implementsClass = SerDe.class)
     private String serdeClassName;
-    private Map<String, Object> configs = new HashMap<>();
+    private Map<String, Object> configs;
     @isPositiveNumber
     private int parallelism = 1;
     private FunctionConfig.ProcessingGuarantees processingGuarantees;
     @isValidResources
     private Resources resources;
+
     @isFileExists
-    private String jar;
+    private String archive;
 }

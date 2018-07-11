@@ -413,11 +413,11 @@ The following schema formats are currently available for Java:
 
 ## Authentication
 
-Pulsar currently supports two authentication schemes: [TLS](../../admin/Authz#tls-client-auth) and [Athenz](../../admin/Authz#athenz). The Pulsar Java client can be used with both.
+Pulsar currently supports two authentication schemes: [TLS](../../security/tls) and [Athenz](../../security/athenz). The Pulsar Java client can be used with both.
 
 ### TLS Authentication
 
-To use [TLS](../../admin/Authz#tls-client-auth), you need to set TLS to `true` using the `setUseTls` method, point your Pulsar client to a TLS cert path, and provide paths to cert and key files.
+To use [TLS](../../security/tls), you need to set TLS to `true` using the `setUseTls` method, point your Pulsar client to a TLS cert path, and provide paths to cert and key files.
 
 Here's an example configuration:
 
@@ -439,7 +439,7 @@ PulsarClient client = PulsarClient.builder()
 
 ### Athenz
 
-To use [Athenz](../../admin/Authz#athenz) as an authentication provider, you need to [use TLS](#tls-authentication) and provide values for four parameters in a hash:
+To use [Athenz](../../security/athenz) as an authentication provider, you need to [use TLS](#tls-authentication) and provide values for four parameters in a hash:
 
 * `tenantDomain`
 * `tenantService`

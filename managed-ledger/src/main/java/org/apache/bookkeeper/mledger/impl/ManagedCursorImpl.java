@@ -171,7 +171,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     private static final AtomicReferenceFieldUpdater<ManagedCursorImpl, State> STATE_UPDATER =
         AtomicReferenceFieldUpdater.newUpdater(ManagedCursorImpl.class, State.class, "state");
-    private volatile State state = null;
+    protected volatile State state = null;
 
     @SuppressWarnings("checkstyle:javadoctype")
     public interface VoidCallback {
@@ -1014,7 +1014,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         return alreadyAcknowledgedPositions;
     }
 
-    private long getNumberOfEntries(Range<PositionImpl> range) {
+    protected long getNumberOfEntries(Range<PositionImpl> range) {
         long allEntries = ledger.getNumberOfEntries(range);
 
         if (log.isDebugEnabled()) {

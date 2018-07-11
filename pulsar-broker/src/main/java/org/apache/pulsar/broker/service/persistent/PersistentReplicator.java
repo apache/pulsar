@@ -381,12 +381,17 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
         };
 
         @Override
-        public void addCallback(SendCallback scb) {
+        public void addCallback(MessageImpl<?> msg, SendCallback scb) {
             // noop
         }
 
         @Override
         public SendCallback getNextSendCallback() {
+            return null;
+        }
+
+        @Override
+        public MessageImpl<?> getNextMessage() {
             return null;
         }
 

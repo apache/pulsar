@@ -23,6 +23,8 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
+
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.Message;
@@ -41,6 +43,7 @@ import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.io.core.RecordContext;
 import org.apache.pulsar.io.core.Sink;
+import org.apache.pulsar.io.core.SinkContext;
 
 import java.util.Base64;
 import java.util.Map;
@@ -187,7 +190,7 @@ public class PulsarSink<T> implements Sink<T> {
     }
 
     @Override
-    public void open(Map<String, Object> config) throws Exception {
+    public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
 
         // Setup Serialization/Deserialization
         setupSerDe();
@@ -221,10 +224,13 @@ public class PulsarSink<T> implements Sink<T> {
         msgBuilder.setContent(output);
         if (recordContext instanceof PulsarRecord) {
             PulsarRecord pulsarRecord = (PulsarRecord) recordContext;
-            msgBuilder
-                    .setProperty("__pfn_input_topic__", pulsarRecord.getTopicName())
-                    .setProperty("__pfn_input_msg_id__", new String(
-                            Base64.getEncoder().encode(pulsarRecord.getMessageId().toByteArray())));
+            // forward user properties to sink-topic
+            if (pulsarRecord.getProperties() != null) {
+                msgBuilder.setProperties(pulsarRecord.getProperties());
+            }
+            msgBuilder.setProperty("__pfn_input_topic__", pulsarRecord.getTopicName()).setProperty(
+                    "__pfn_input_msg_id__",
+                    new String(Base64.getEncoder().encode(pulsarRecord.getMessageId().toByteArray())));
         }
 
         this.pulsarSinkProcessor.sendOutputMessage(msgBuilder, recordContext);
@@ -239,6 +245,10 @@ public class PulsarSink<T> implements Sink<T> {
 
     @VisibleForTesting
     void setupSerDe() throws ClassNotFoundException {
+        if (StringUtils.isEmpty(this.pulsarSinkConfig.getTypeClassName())) {
+            this.outputSerDe = InstanceUtils.initializeDefaultSerDe(byte[].class);
+            return;
+        }
 
         Class<?> typeArg = Reflections.loadClass(this.pulsarSinkConfig.getTypeClassName(),
                 Thread.currentThread().getContextClassLoader());

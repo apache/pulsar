@@ -32,10 +32,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.test.PortManager;
@@ -49,9 +45,12 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
@@ -80,7 +79,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 
-import io.netty.util.concurrent.DefaultThreadFactory;
 import jersey.repackaged.com.google.common.collect.Lists;
 
 /**
@@ -240,22 +238,26 @@ public class PulsarSinkE2ETest {
     @Test(timeOut = 20000)
     public void testE2EPulsarSink() throws Exception {
 
-        final String namespacePortion = "myReplNs";
+        final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
         final String sourceTopic = "persistent://" + replNamespace + "/my-topic1";
+        final String sinkTopic = "persistent://" + replNamespace + "/output";
+        final String propertyKey = "key";
+        final String propertyValue = "value";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
 
         // create a producer that creates a topic at broker
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(sourceTopic);
-        Producer<byte[]> producer = producerBuilder.create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(sourceTopic).create();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(sinkTopic).subscriptionName("sub").subscribe();
 
         String jarFilePathUrl = Utils.FILE + ":"
                 + PulsarSink.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        FunctionDetails functionDetails = createSinkConfig(jarFilePathUrl, tenant, namespacePortion, "PulsarSink-test");
+        FunctionDetails functionDetails = createSinkConfig(jarFilePathUrl, tenant, namespacePortion, "PulsarSink-test",
+                sinkTopic);
         admin.functions().createFunctionWithUrl(functionDetails, jarFilePathUrl);
-        
+
         // try to update function to test: update-function functionality
         admin.functions().updateFunctionWithUrl(functionDetails, jarFilePathUrl);
 
@@ -271,8 +273,8 @@ public class PulsarSinkE2ETest {
 
         int totalMsgs = 5;
         for (int i = 0; i < totalMsgs; i++) {
-            String message = "my-message-" + i;
-            producer.send(message.getBytes());
+            String data = "my-message-" + i;
+            producer.newMessage().property(propertyKey, propertyValue).value(data.getBytes()).send();
         }
         retryStrategically((test) -> {
             try {
@@ -283,14 +285,20 @@ public class PulsarSinkE2ETest {
                 return false;
             }
         }, 5, 150);
+
+        Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
+        String receivedPropertyValue = msg.getProperty(propertyKey);
+        Assert.assertEquals(propertyValue, receivedPropertyValue);
+
         // validate pulsar-sink consumer has consumed all messages and delivered to Pulsar sink but unacked messages
         // due to publish failure
         Assert.assertNotEquals(
-                admin.topics().getStats(sourceTopic).subscriptions.values().iterator().next().unackedMessages, totalMsgs);
+                admin.topics().getStats(sourceTopic).subscriptions.values().iterator().next().unackedMessages,
+                totalMsgs);
 
     }
 
-    protected FunctionDetails createSinkConfig(String jarFile, String tenant, String namespace, String sinkName) {
+    protected FunctionDetails createSinkConfig(String jarFile, String tenant, String namespace, String sinkName, String sinkTopic) {
 
         File file = new File(jarFile);
         try {
@@ -322,7 +330,7 @@ public class PulsarSinkE2ETest {
         // set up sink spec
         SinkSpec.Builder sinkSpecBuilder = SinkSpec.newBuilder();
         // sinkSpecBuilder.setClassName(PulsarSink.class.getName());
-        sinkSpecBuilder.setTopic(String.format("persistent://%s/%s/%s", tenant, namespace, "output"));
+        sinkSpecBuilder.setTopic(sinkTopic);
         Map<String, Object> sinkConfigMap = Maps.newHashMap();
         sinkSpecBuilder.setConfigs(new Gson().toJson(sinkConfigMap));
         sinkSpecBuilder.setTypeClassName(typeArg.getName());

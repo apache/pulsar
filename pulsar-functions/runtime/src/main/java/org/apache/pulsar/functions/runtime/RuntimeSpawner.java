@@ -49,7 +49,7 @@ public class RuntimeSpawner implements AutoCloseable {
     private Timer processLivenessCheckTimer;
     private int numRestarts;
     private long instanceLivenessCheckFreqMs;
-    private Exception runtimeDeathException;
+    private Throwable runtimeDeathException;
 
 
     public RuntimeSpawner(InstanceConfig instanceConfig,
@@ -65,7 +65,7 @@ public class RuntimeSpawner implements AutoCloseable {
     public void start() throws Exception {
         log.info("RuntimeSpawner starting function {} - {}", this.instanceConfig.getFunctionDetails().getName(),
                 this.instanceConfig.getInstanceId());
-        
+
         if (instanceConfig.getFunctionDetails().getRuntime() == PYTHON
                 && instanceConfig.getFunctionDetails().getSource() != null
                 && StringUtils.isNotBlank(instanceConfig.getFunctionDetails().getSource().getTopicsPattern())) {

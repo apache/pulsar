@@ -27,6 +27,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.Record;
+import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,7 +50,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
     Thread runnerThread;
 
     @Override
-    public void open(Map<String, Object> config) throws Exception {
+    public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
         kafkaSourceConfig = KafkaSourceConfig.load(config);
         if (kafkaSourceConfig.getTopic() == null
                 || kafkaSourceConfig.getBootstrapServers() == null

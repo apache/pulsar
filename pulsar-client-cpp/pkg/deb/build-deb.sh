@@ -34,7 +34,7 @@ CPP_DIR=$ROOT_DIR/pulsar-client-cpp
 rm -rf BUILD
 mkdir BUILD
 cd BUILD
-tar xfz $SRC_ROOT_DIR/all/target/apache-pulsar-$POM_VERSION-src.tar.gz
+tar xfz $SRC_ROOT_DIR/distribution/server/target/apache-pulsar-$POM_VERSION-src.tar.gz
 pushd $CPP_DIR
 
 cmake . -DBUILD_TESTS=OFF -DLINK_STATIC=ON

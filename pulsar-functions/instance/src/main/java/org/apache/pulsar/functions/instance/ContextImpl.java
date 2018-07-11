@@ -18,11 +18,8 @@
  */
 package org.apache.pulsar.functions.instance;
 
-import static com.google.common.base.Preconditions.checkState;
-
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import java.nio.ByteBuffer;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.lang.StringUtils;
@@ -36,15 +33,19 @@ import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
-import org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData;
 import org.apache.pulsar.functions.instance.state.StateContextImpl;
+import org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData;
 import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.io.core.SinkContext;
+import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -52,10 +53,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
+import static com.google.common.base.Preconditions.checkState;
+
 /**
  * This class implements the Context interface exposed to the user.
  */
-class ContextImpl implements Context {
+class ContextImpl implements Context, SinkContext, SourceContext {
     private InstanceConfig config;
     private Logger logger;
 
@@ -141,6 +144,9 @@ class ContextImpl implements Context {
 
     @Override
     public Collection<String> getInputTopics() {
+        if (inputConsumer == null) {
+            return new LinkedList<>();
+        }
         if (inputConsumer instanceof MultiTopicsConsumerImpl) {
             return ((MultiTopicsConsumerImpl) inputConsumer).getTopics();
         } else {
@@ -302,6 +308,10 @@ class ContextImpl implements Context {
     //TODO remove topic argument
     @Override
     public CompletableFuture<Void> ack(byte[] messageId) {
+        // if inputConsumer is null, then ack is a no-op
+        if (inputConsumer == null) {
+            return CompletableFuture.completedFuture(null);
+        }
         MessageId actualMessageId = null;
         try {
             actualMessageId = MessageId.fromByteArray(messageId);

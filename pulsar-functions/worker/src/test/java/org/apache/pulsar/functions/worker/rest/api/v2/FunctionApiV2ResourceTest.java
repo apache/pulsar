@@ -67,6 +67,7 @@ import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
 import org.apache.pulsar.io.core.RecordContext;
 import org.apache.pulsar.io.core.Sink;
+import org.apache.pulsar.io.core.SinkContext;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -105,7 +106,7 @@ public class FunctionApiV2ResourceTest {
         }
 
         @Override
-        public void open(Map config) throws Exception {
+        public void open(Map config, SinkContext sinkContext) throws Exception {
         }
 
         @Override

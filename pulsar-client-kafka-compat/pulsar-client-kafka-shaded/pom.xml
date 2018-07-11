@@ -82,6 +82,7 @@
                   <include>com.google.code.gson:gson</include>
                   <include>com.fasterxml.jackson.core</include>
                   <include>com.fasterxml.jackson.module</include>
+                  <include>com.fasterxml.jackson.dataformat</include>
                   <include>io.netty:netty</include>
                   <include>io.netty:netty-*</include>
                   <include>org.apache.pulsar:pulsar-common</include>
@@ -94,7 +95,9 @@
                   <include>org.eclipse.jetty:*</include>
                   <include>com.yahoo.datasketches:*</include>
                   <include>commons-*:*</include>
-                  
+                  <include>org.yaml:snakeyaml</include>
+                  <include>org.objenesis:*</include>
+
                   <include>org.apache.avro:*</include>
                   <!-- Avro transitive dependencies-->
                   <include>org.codehaus.jackson:jackson-core-asl</include>
@@ -221,6 +224,14 @@
                 <relocation>
                   <pattern>com.yahoo.memory</pattern>
                   <shadedPattern>org.apache.pulsar.shade.com.yahoo.memory</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.objenesis</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.objenesis</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.yaml</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.yaml</shadedPattern>
                 </relocation>
               </relocations>
               <filters>

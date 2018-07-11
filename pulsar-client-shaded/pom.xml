@@ -75,6 +75,8 @@
                   <include>com.google.code.gson:gson</include>
                   <include>com.fasterxml.jackson.core</include>
                   <include>com.fasterxml.jackson.module</include>
+                  <include>com.fasterxml.jackson.core:jackson-core</include>
+                  <include>com.fasterxml.jackson.dataformat</include>
                   <include>io.netty:netty</include>
                   <include>io.netty:netty-all</include>
                   <include>io.netty:netty-tcnative-boringssl-static</include>
@@ -89,6 +91,9 @@
                   <include>org.apache.httpcomponents:httpclient</include>
                   <include>commons-logging:commons-logging</include>
                   <include>org.apache.httpcomponents:httpcore</include>
+                  <include>org.objenesis:*</include>
+                  <include>org.yaml:snakeyaml</include>
+
                   <include>org.apache.avro:*</include>
                   <!-- Avro transitive dependencies-->
                   <include>org.codehaus.jackson:jackson-core-asl</include>
@@ -210,6 +215,14 @@
                 <relocation>
                   <pattern>com.yahoo.memory</pattern>
                   <shadedPattern>org.apache.pulsar.shade.com.yahoo.memory</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.objenesis</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.objenesis</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.yaml</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.yaml</shadedPattern>
                 </relocation>
               </relocations>
               <transformers>

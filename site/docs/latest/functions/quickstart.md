@@ -17,9 +17,9 @@ In order to follow along with this tutorial, you'll need to have [Maven](https:/
 In order to run our Pulsar Functions, we'll need to run a Pulsar cluster locally first. The easiest way to do that is to run Pulsar in {% popover standalone %} mode. Follow these steps to start up a standalone cluster:
 
 ```bash
-$ wget https://repository.apache.org/content/repositories/snapshots/org/apache/pulsar/distribution/2.0.0-incubating-SNAPSHOT/distribution-2.0.0-incubating-{{ site.preview_version_id }}-bin.tar.gz
-$ tar xvf distribution-2.0.0-incubating-{{ site.preview_version_id }}-bin.tar.gz
-$ cd apache-pulsar-2.0.0-incubating-SNAPSHOT
+$ wget 'https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=incubator/pulsar/pulsar-{{ site.current_version }}/apache-pulsar-{{ site.current_version }}-bin.tar.gz' -O apache-pulsar-{{ site.current_version }}-bin.tar.gz
+$ tar xvf apache-pulsar-{{ site.current_version }}-bin.tar.gz
+$ cd apache-pulsar-{{ site.current_version }}
 $ bin/pulsar standalone \
   --advertised-address 127.0.0.1
 ```
