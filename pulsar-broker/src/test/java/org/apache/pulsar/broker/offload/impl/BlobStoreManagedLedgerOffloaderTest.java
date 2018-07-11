@@ -65,6 +65,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
 
     private static final int DEFAULT_BLOCK_SIZE = 5*1024*1024;
     private static final int DEFAULT_READ_BUFFER_SIZE = 1*1024*1024;
+    private final String driver = "s3";
     final OrderedScheduler scheduler;
     final MockBookKeeper bk;
 
