@@ -258,6 +258,18 @@ public class PulsarCluster {
         return getAnyContainer(workerContainers, "functions-worker");
     }
 
+    public Collection<BKContainer> getAllBookies() {
+        return bookieContainers.values();
+    }
+
+    public ZKContainer getZKContainer() {
+        return zkContainer;
+    }
+
+    public String getZKConnectionString() {
+        return "localhost:" + zkContainer.getMappedPort(ZKContainer.ZK_PORT);
+    }
+
     private <T> T getAnyContainer(Map<String, T> containers, String serviceName) {
         List<T> containerList = Lists.newArrayList();
         containerList.addAll(containers.values());

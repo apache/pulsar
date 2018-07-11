@@ -59,6 +59,9 @@ public abstract class PulsarClusterTestBase {
 
     protected static PulsarCluster pulsarCluster;
 
+    protected static int NUM_BROKERS = 2;
+    protected static int NUM_BOOKIES = 3;
+
     @BeforeClass
     public void setupCluster() throws Exception {
         this.setupCluster("");
@@ -70,6 +73,8 @@ public abstract class PulsarClusterTestBase {
             .clusterName(Stream.of(this.getClass().getSimpleName(), namePrefix, randomName(5))
                 .filter(s -> s != null && !s.isEmpty())
                 .collect(joining("-")))
+            .numBrokers(NUM_BROKERS)
+            .numBookies(NUM_BOOKIES)
             .build();
 
         setupCluster(spec);
