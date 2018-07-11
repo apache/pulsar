@@ -527,13 +527,6 @@
           
           
           <li>
-            <a href="../../admin/Authz">
-              Authentication and authorization
-            </a>
-          </li>
-          
-          
-          <li>
             <a href="../../admin/Dashboard">
               Dashboard
             </a>
@@ -557,6 +550,65 @@
           <li>
             <a href="../../admin/Proxy">
               Pulsar proxy
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-security">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-security" aria-controls="collapse-security">
+            Security
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-security" role="tabpanel" aria-labelledby="heading-security">
+        <ul>
+          
+          
+          <li>
+            <a href="../../security/overview">
+              Overview
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/tls">
+              Encryption and Authentication using TLS
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/athenz">
+              Authentication using Athenz
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/authorization">
+              Authorization and ACLs
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/encryption">
+              End-to-End Encryption
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/extending">
+              Extending Authentication and Authorization
             </a>
           </li>
           
@@ -900,13 +952,6 @@
             </a>
           </li>
           
-          
-          <li>
-            <a href="../../reference/CustomAuth">
-              Authn & Authz plugins
-            </a>
-          </li>
-          
         </ul>
       </div>
     </div>
@@ -1033,11 +1078,19 @@
           
           
           
-          
-          
-          
-          
           <li><a href="/docs/latest/cookbooks/PartitionedTopics/">Partitioned topics</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           
           
           
@@ -1269,11 +1322,19 @@
           
           
           
-          
-          
-          
-          
           <li><a href="/docs/latest/cookbooks/PartitionedTopics/">Partitioned topics</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           
           
           
@@ -1435,10 +1496,6 @@
           
           
           
-          <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
-          
-          
-          
           
           
           
@@ -1446,8 +1503,6 @@
           
           
           <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
-          
-          
           
           
           
@@ -1563,6 +1618,12 @@
           
           
           
+          
+          
+          <li><a href="/docs/latest/security/authorization/">Authentication and authorization in Pulsar</a></li>
+          
+          
+          
           <li><a href="/docs/latest/deployment/aws-cluster/">Deploying a Pulsar cluster on AWS using Terraform and Ansible</a></li>
           
           
@@ -1576,6 +1637,10 @@
           
           
           <li><a href="/docs/latest/cookbooks/compaction/">Topic compaction cookbook</a></li>
+          
+          
+          
+          
           
           
           
@@ -1645,7 +1710,11 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/cookbooks/tiered-storage/">Tiered Storage</a></li>
+          
+          
           
           
         </ul>
@@ -1685,10 +1754,6 @@
       </div>
       <div class="modal-body">
         <ul>
-          
-          
-          
-          
           
           
           
@@ -1825,6 +1890,10 @@
           
           
           
+          
+          
+          
+          
           <li><a href="/docs/latest/cookbooks/compaction/">Topic compaction cookbook</a></li>
           
           
@@ -1841,6 +1910,12 @@
           
           
           
+          <li><a href="/docs/latest/security/encryption/">Pulsar Encryption</a></li>
+          
+          
+          
+          
+          
           
           
           
@@ -1852,6 +1927,10 @@
           
           
           <li><a href="/docs/latest/cookbooks/message-queue/">Using Pulsar as a message queue</a></li>
+          
+          
+          
+          
           
           
           
@@ -1929,10 +2008,6 @@
       </div>
       <div class="modal-body">
         <ul>
-          
-          
-          
-          
           
           
           
@@ -2087,6 +2162,16 @@
           
           
           
+          <li><a href="/docs/latest/security/encryption/">Pulsar Encryption</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
           
           
           
@@ -2096,6 +2181,10 @@
           
           
           <li><a href="/docs/latest/cookbooks/message-queue/">Using Pulsar as a message queue</a></li>
+          
+          
+          
+          
           
           
           
@@ -2257,11 +2346,11 @@
 
 -->
 
-<p>Each of Pulsar’s three admin interfaces—the <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> CLI tool, the <a href="/api/admin">Java admin API</a>, and the <a href="../../reference/RestApi">REST API</a>—requires some special setup if you have <a href="../../admin/Authz#authentication-providers">authentication</a> enabled in your Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span>.</p>
+<p>Each of Pulsar’s three admin interfaces—the <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> CLI tool, the <a href="/api/admin">Java admin API</a>, and the <a href="../../reference/RestApi">REST API</a>—requires some special setup if you have <a href="../../security/overview#authentication-providers">authentication</a> enabled in your Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span>.</p>
 
 <h3 id="pulsar-admin">pulsar-admin</h3>
 
-<p>If you have <a href="../../admin/Authz#authentication-providers">authentication</a> enabled, you will need to provide an auth configuration to use the <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> tool. By default, the configuration for the <code class="highlighter-rouge">pulsar-admin</code> tool is found in the <a href="../../reference/Configuration#client"><code class="highlighter-rouge">conf/client.conf</code></a> file. Here are the available parameters:</p>
+<p>If you have <a href="../../security/overview#authentication-providers">authentication</a> enabled, you will need to provide an auth configuration to use the <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> tool. By default, the configuration for the <code class="highlighter-rouge">pulsar-admin</code> tool is found in the <a href="../../reference/Configuration#client"><code class="highlighter-rouge">conf/client.conf</code></a> file. Here are the available parameters:</p>
 
 <!--
 

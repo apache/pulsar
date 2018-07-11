@@ -526,13 +526,6 @@
           
           
           <li>
-            <a href="../../admin/Authz">
-              Authentication and authorization
-            </a>
-          </li>
-          
-          
-          <li>
             <a href="../../admin/Dashboard">
               Dashboard
             </a>
@@ -556,6 +549,65 @@
           <li>
             <a href="../../admin/Proxy">
               Pulsar proxy
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-security">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-security" aria-controls="collapse-security">
+            Security
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-security" role="tabpanel" aria-labelledby="heading-security">
+        <ul>
+          
+          
+          <li>
+            <a href="../../security/overview">
+              Overview
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/tls">
+              Encryption and Authentication using TLS
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/athenz">
+              Authentication using Athenz
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/authorization">
+              Authorization and ACLs
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/encryption">
+              End-to-End Encryption
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/extending">
+              Extending Authentication and Authorization
             </a>
           </li>
           
@@ -899,13 +951,6 @@
             </a>
           </li>
           
-          
-          <li>
-            <a href="../../reference/CustomAuth">
-              Authn & Authz plugins
-            </a>
-          </li>
-          
         </ul>
       </div>
     </div>
@@ -1088,6 +1133,10 @@
         
         
         <li><a href="/admin/functions/cluster"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>functions<span class="slash">/</span>cluster</code></a></li>
+        
+        
+        
+        <li><a href="/admin/functions/connectors"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>functions<span class="slash">/</span>connectors</code></a></li>
         
         
         
@@ -3806,6 +3855,59 @@
               <tr>
                 <td>403</td>
                 <td>The requester doesn't have admin permissions</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/functions/connectors">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>functions<span class="slash">/</span>connectors</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge get">GET</code>
+          </h5>
+          <p>Fetches a list of supported Pulsar IO connectors currently running in cluster mode</p>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>200</td>
+                <td>successful operation</td>
+              </tr>
+              
+              <tr>
+                <td>400</td>
+                <td>Invalid request</td>
+              </tr>
+              
+              <tr>
+                <td>403</td>
+                <td>The requester doesn't have admin permissions</td>
+              </tr>
+              
+              <tr>
+                <td>408</td>
+                <td>Request timeout</td>
               </tr>
                <!-- for param in parameters -->
             </tbody>

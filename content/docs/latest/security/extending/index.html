@@ -43,7 +43,7 @@
     under the License.
 
 -->
-<title>Custom schema storage</title>
+<title>Extending Authentication and Authorization in Pulsar</title>
 
 <meta charset="utf-8">
 
@@ -965,15 +965,15 @@
     <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
       <section class="docs-header">
         <h1 class="docs-title">
-          Custom schema storage
+          Extending Authentication and Authorization in Pulsar
           
           
         </h1>
         
         <section class="tags">
           
-          <!-- <span class="badge badge-pill badge-primary">schema</span> -->
-          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-schema">schema</button>
+          <!-- <span class="badge badge-pill badge-primary">authentication</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-authentication">authentication</button>
           <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -994,11 +994,11 @@
     under the License.
 
 -->
-<div class="modal fade" id="modal-schema">
+<div class="modal fade" id="modal-authentication">
   <div class="modal-dialog" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Pages with the <strong>schema</strong> tag</h5>
+        <h5 class="modal-title">Pages with the <strong>authentication</strong> tag</h5>
       </div>
       <div class="modal-body">
         <ul>
@@ -1054,7 +1054,6 @@
           
           
           
-          <li><a href="/docs/latest/clients/Java/">The Pulsar Java client</a></li>
           
           
           
@@ -1127,6 +1126,7 @@
           
           
           
+          <li><a href="/docs/latest/security/authorization/">Authentication and authorization in Pulsar</a></li>
           
           
           
@@ -1154,6 +1154,7 @@
           
           
           
+          <li><a href="/docs/latest/security/extending/">Extending Authentication and Authorization in Pulsar</a></li>
           
           
           
@@ -1198,7 +1199,6 @@
           
           
           
-          <li><a href="/docs/latest/project/schema-storage/">Custom schema storage</a></li>
           
           
           
@@ -1218,8 +1218,8 @@
 </div>
 
           
-          <!-- <span class="badge badge-pill badge-primary">schema registry</span> -->
-          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-schema-registry">schema registry</button>
+          <!-- <span class="badge badge-pill badge-primary">authorization</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-authorization">authorization</button>
           <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -1240,11 +1240,11 @@
     under the License.
 
 -->
-<div class="modal fade" id="modal-schema-registry">
+<div class="modal fade" id="modal-authorization">
   <div class="modal-dialog" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Pages with the <strong>schema registry</strong> tag</h5>
+        <h5 class="modal-title">Pages with the <strong>authorization</strong> tag</h5>
       </div>
       <div class="modal-body">
         <ul>
@@ -1300,7 +1300,6 @@
           
           
           
-          <li><a href="/docs/latest/clients/Java/">The Pulsar Java client</a></li>
           
           
           
@@ -1373,6 +1372,7 @@
           
           
           
+          <li><a href="/docs/latest/security/authorization/">Authentication and authorization in Pulsar</a></li>
           
           
           
@@ -1400,6 +1400,7 @@
           
           
           
+          <li><a href="/docs/latest/security/extending/">Extending Authentication and Authorization in Pulsar</a></li>
           
           
           
@@ -1444,7 +1445,6 @@
           
           
           
-          <li><a href="/docs/latest/project/schema-storage/">Custom schema storage</a></li>
           
           
           
@@ -1470,38 +1470,7 @@
       </section>
 
       <section class="content">
-        <p>By default, Pulsar stores data type <a href="../../getting-started/ConceptsAndArchitecture#schema-registry">schemas</a> in <a href="https://bookkeeper.apache.org">Apache BookKeeper</a> (which is deployed alongside Pulsar). You can, however, use another storage system if you wish. This doc walks you through creating your own schema storage implementation.</p>
-
-<h2 id="interface">Interface</h2>
-
-<p>In order to use a non-default (i.e. non-BookKeeper) storage system for Pulsar schemas, you need to implement two Java interfaces: <a href="#schema-storage"><code class="highlighter-rouge">SchemaStorage</code></a> and <a href="#schema-storage-factory"><code class="highlighter-rouge">SchemaStorageFactory</code></a>.</p>
-
-<h3 id="schema-storage">The <code class="highlighter-rouge">SchemaStorage</code> interface</h3>
-
-<p>The <code class="highlighter-rouge">SchemaStorage</code> interface has the following methods:</p>
-
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">interface</span> <span class="nc">SchemaStorage</span> <span class="o">{</span>
-    <span class="c1">// How schemas are updated</span>
-    <span class="n">CompletableFuture</span><span class="o">&lt;</span><span class="n">SchemaVersion</span><span class="o">&gt;</span> <span class="nf">put</span><span class="o">(</span><span class="n">String</span> <span class="n">key</span><span class="o">,</span> <span class="kt">byte</span><span class="o">[]</span> <span class="n">value</span><span class="o">,</span> <span class="kt">byte</span><span class="o">[]</span> <span class="n">hash</span><span class="o">);</span>
-
-    <span class="c1">// How schemas are fetched from storage</span>
-    <span class="n">CompletableFuture</span><span class="o">&lt;</span><span class="n">StoredSchema</span><span class="o">&gt;</span> <span class="nf">get</span><span class="o">(</span><span class="n">String</span> <span class="n">key</span><span class="o">,</span> <span class="n">SchemaVersion</span> <span class="n">version</span><span class="o">);</span>
-
-    <span class="c1">// How schemas are deleted</span>
-    <span class="n">CompletableFuture</span><span class="o">&lt;</span><span class="n">SchemaVersion</span><span class="o">&gt;</span> <span class="nf">delete</span><span class="o">(</span><span class="n">String</span> <span class="n">key</span><span class="o">);</span>
-
-    <span class="c1">// Utility method for converting a schema version byte array to a SchemaVersion object</span>
-    <span class="n">SchemaVersion</span> <span class="nf">versionFromBytes</span><span class="o">(</span><span class="kt">byte</span><span class="o">[]</span> <span class="n">version</span><span class="o">);</span>
-
-    <span class="c1">// Startup behavior for the schema storage client</span>
-    <span class="kt">void</span> <span class="nf">start</span><span class="o">()</span> <span class="kd">throws</span> <span class="n">Exception</span><span class="o">;</span>
-
-    <span class="c1">// Shutdown behavior for the schema storage client</span>
-    <span class="kt">void</span> <span class="nf">close</span><span class="o">()</span> <span class="kd">throws</span> <span class="n">Exception</span><span class="o">;</span>
-<span class="o">}</span>
-</code></pre></div></div>
-
-<!--
+        <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
@@ -1521,62 +1490,206 @@
     under the License.
 
 -->
-<div class="admonition">
-  <div class="info">
-    <span class="admonition-title"><p>Example implementation</p>
-</span>
-    <p>For a full-fledged example schema storage implementation, see the <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/service/schema/BookkeeperSchemaStorage.java"><code class="highlighter-rouge">BookKeeperSchemaStorage</code></a> class.</p>
 
-  </div>
-</div>
+<p>Pulsar provides a way to use custom authentication and authorization mechanisms</p>
 
-<h3 id="schema-storage-factory">The <code class="highlighter-rouge">SchemaStorageFactory</code> interface</h3>
+<h2 id="authentication">Authentication</h2>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">interface</span> <span class="nc">SchemaStorageFactory</span> <span class="o">{</span>
-    <span class="nd">@NotNull</span>
-    <span class="n">SchemaStorage</span> <span class="nf">create</span><span class="o">(</span><span class="n">PulsarService</span> <span class="n">pulsar</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">Exception</span><span class="o">;</span>
+<p>Pulsar support mutual TLS and Athenz authentication plugins, and these can be used as described
+in <a href="../../overview">Security</a>.</p>
+
+<p>It is possible to use a custom authentication mechanism by providing the implementation in the
+form of two plugins one for the Client library and the other for the Pulsar Broker to validate
+the credentials.</p>
+
+<h3 id="client-authentication-plugin">Client authentication plugin</h3>
+
+<p>For client library, you will need to implement <code class="highlighter-rouge">org.apache.pulsar.client.api.Authentication</code>. This class can then be passed
+when creating a Pulsar client:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">builder</span><span class="o">()</span>
+    <span class="o">.</span><span class="na">serviceUrl</span><span class="o">(</span><span class="s">"pulsar://localhost:6650"</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">authentication</span><span class="o">(</span><span class="k">new</span> <span class="n">MyAuthentication</span><span class="o">())</span>
+    <span class="o">.</span><span class="na">build</span><span class="o">();</span>
+</code></pre></div></div>
+
+<p>For reference, there are 2 interfaces to implement on the client side:</p>
+<ul>
+  <li><code class="highlighter-rouge">Authentication</code> -&gt; http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/Authentication.html</li>
+  <li><code class="highlighter-rouge">AuthenticationDataProvider</code> -&gt; http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/AuthenticationDataProvider.html</li>
+</ul>
+
+<p>This in turn will need to provide the client credentials in the form of <code class="highlighter-rouge">org.apache.pulsar.client.api.AuthenticationDataProvider</code>. This will leave
+the chance to return different kinds of authentication token for different
+type of connection or by passing a certificate chain to use for TLS.</p>
+
+<p>Examples for client authentication providers can be found at:</p>
+
+<ul>
+  <li>Mutual TLS Auth – https://github.com/apache/incubator-pulsar/tree/master/pulsar-client/src/main/java/org/apache/pulsar/client/impl/auth</li>
+  <li>Athenz – https://github.com/apache/incubator-pulsar/tree/master/pulsar-client-auth-athenz/src/main/java/org/apache/pulsar/client/impl/auth</li>
+</ul>
+
+<h3 id="broker-authentication-plugin">Broker authentication plugin</h3>
+
+<p>On broker side, we need the corresponding plugin to validate the credentials
+passed by the client. Broker can support multiple authentication providers
+at the same time.</p>
+
+<p>In <code class="highlighter-rouge">conf/broker.conf</code> it’s possible to specify a list of valid providers:</p>
+
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Autentication provider name list, which is comma separated list of class names
+</span><span class="py">authenticationProviders</span><span class="p">=</span>
+</code></pre></div></div>
+
+<p>There is one single interface to implement <code class="highlighter-rouge">org.apache.pulsar.broker.authentication.AuthenticationProvider</code>:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/**
+ * Provider of authentication mechanism
+ */</span>
+<span class="kd">public</span> <span class="kd">interface</span> <span class="nc">AuthenticationProvider</span> <span class="kd">extends</span> <span class="n">Closeable</span> <span class="o">{</span>
+
+    <span class="cm">/**
+     * Perform initialization for the authentication provider
+     *
+     * @param config
+     *            broker config object
+     * @throws IOException
+     *             if the initialization fails
+     */</span>
+    <span class="kt">void</span> <span class="nf">initialize</span><span class="o">(</span><span class="n">ServiceConfiguration</span> <span class="n">config</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">IOException</span><span class="o">;</span>
+
+    <span class="cm">/**
+     * @return the authentication method name supported by this provider
+     */</span>
+    <span class="n">String</span> <span class="nf">getAuthMethodName</span><span class="o">();</span>
+
+    <span class="cm">/**
+     * Validate the authentication for the given credentials with the specified authentication data
+     *
+     * @param authData
+     *            provider specific authentication data
+     * @return the "role" string for the authenticated connection, if the authentication was successful
+     * @throws AuthenticationException
+     *             if the credentials are not valid
+     */</span>
+    <span class="n">String</span> <span class="nf">authenticate</span><span class="o">(</span><span class="n">AuthenticationDataSource</span> <span class="n">authData</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">AuthenticationException</span><span class="o">;</span>
+
 <span class="o">}</span>
 </code></pre></div></div>
 
-<!--
+<p>Example for Broker authentication plugins:</p>
 
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
+<ul>
+  <li>Mutual TLS – https://github.com/apache/incubator-pulsar/blob/master/pulsar-broker-common/src/main/java/org/apache/pulsar/broker/authentication/AuthenticationProviderTls.java</li>
+  <li>Athenz – https://github.com/apache/incubator-pulsar/blob/master/pulsar-broker-auth-athenz/src/main/java/org/apache/pulsar/broker/authentication/AuthenticationProviderAthenz.java</li>
+</ul>
 
-      http://www.apache.org/licenses/LICENSE-2.0
+<h2 id="authorization">Authorization</h2>
 
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
+<p>Authorization is the operation that checks whether a particular “role” or “principal” is
+allowed to perform a certain operation.</p>
 
--->
-<div class="admonition">
-  <div class="info">
-    <span class="admonition-title"><p>Example implementation</p>
-</span>
-    <p>For a full-fledged example schema storage factory implementation, see the <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-broker/src/main/java/org/apache/pulsar/broker/service/schema/BookkeeperSchemaStorageFactory.java"><code class="highlighter-rouge">BookKeeperSchemaStorageFactory</code></a> class.</p>
+<p>By default, Pulsar provides an embedded authorization, though it’s possible to
+configure a different one through a plugin.</p>
 
-  </div>
-</div>
+<p>To provide a custom provider, one needs to implement the
+ <code class="highlighter-rouge">org.apache.pulsar.broker.authorization.AuthorizationProvider</code> interface, have this class in the
+ Pulsar broker classpath and configure it in <code class="highlighter-rouge">conf/broker.conf</code>:</p>
 
-<h2 id="deployment">Deployment</h2>
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code> <span class="c"># Authorization provider fully qualified class-name
+</span> <span class="py">authorizationProvider</span><span class="p">=</span><span class="s">org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider</span>
+</code></pre></div></div>
 
-<p>In order to use your custom schema storage implementation, you’ll need to:</p>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/**
+ * Provider of authorization mechanism
+ */</span>
+<span class="kd">public</span> <span class="kd">interface</span> <span class="nc">AuthorizationProvider</span> <span class="kd">extends</span> <span class="n">Closeable</span> <span class="o">{</span>
 
-<ol>
-  <li>Package the implementation in a <a href="https://docs.oracle.com/javase/tutorial/deployment/jar/basicsindex.html">JAR</a> file.</li>
-  <li>Add that jar to the <code class="highlighter-rouge">lib</code> folder in your Pulsar <a href="../../getting-started/LocalCluster#installing-pulsar">binary or source distribution</a>.</li>
-  <li>Change the <code class="highlighter-rouge">schemaRegistryStorageClassName</code> configuration in <a href="../../reference/Configuration#broker"><code class="highlighter-rouge">broker.conf</code></a> to your custom factory class (i.e. the <code class="highlighter-rouge">SchemaStorageFactory</code> implementation, not the <code class="highlighter-rouge">SchemaStorage</code> implementation).</li>
-  <li>Start up Pulsar.</li>
-</ol>
+    <span class="cm">/**
+     * Perform initialization for the authorization provider
+     *
+     * @param config
+     *            broker config object
+     * @param configCache
+     *            pulsar zk configuration cache service
+     * @throws IOException
+     *             if the initialization fails
+     */</span>
+    <span class="kt">void</span> <span class="nf">initialize</span><span class="o">(</span><span class="n">ServiceConfiguration</span> <span class="n">conf</span><span class="o">,</span> <span class="n">ConfigurationCacheService</span> <span class="n">configCache</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">IOException</span><span class="o">;</span>
+
+    <span class="cm">/**
+     * Check if the specified role has permission to send messages to the specified fully qualified topic name.
+     *
+     * @param topicName
+     *            the fully qualified topic name associated with the topic.
+     * @param role
+     *            the app id used to send messages to the topic.
+     */</span>
+    <span class="n">CompletableFuture</span><span class="o">&lt;</span><span class="n">Boolean</span><span class="o">&gt;</span> <span class="nf">canProduceAsync</span><span class="o">(</span><span class="n">TopicName</span> <span class="n">topicName</span><span class="o">,</span> <span class="n">String</span> <span class="n">role</span><span class="o">,</span>
+            <span class="n">AuthenticationDataSource</span> <span class="n">authenticationData</span><span class="o">);</span>
+
+    <span class="cm">/**
+     * Check if the specified role has permission to receive messages from the specified fully qualified topic name.
+     *
+     * @param topicName
+     *            the fully qualified topic name associated with the topic.
+     * @param role
+     *            the app id used to receive messages from the topic.
+     * @param subscription
+     *            the subscription name defined by the client
+     */</span>
+    <span class="n">CompletableFuture</span><span class="o">&lt;</span><span class="n">Boolean</span><span class="o">&gt;</span> <span class="nf">canConsumeAsync</span><span class="o">(</span><span class="n">TopicName</span> <span class="n">topicName</span><span class="o">,</span> <span class="n">String</span> <span class="n">role</span><span class="o">,</span>
+            <span class="n">AuthenticationDataSource</span> <span class="n">authenticationData</span><span class="o">,</span> <span class="n">String</span> <span class="n">subscription</span><span class="o">);</span>
+
+    <span class="cm">/**
+     * Check whether the specified role can perform a lookup for the specified topic.
+     *
+     * For that the caller needs to have producer or consumer permission.
+     *
+     * @param topicName
+     * @param role
+     * @return
+     * @throws Exception
+     */</span>
+    <span class="n">CompletableFuture</span><span class="o">&lt;</span><span class="n">Boolean</span><span class="o">&gt;</span> <span class="nf">canLookupAsync</span><span class="o">(</span><span class="n">TopicName</span> <span class="n">topicName</span><span class="o">,</span> <span class="n">String</span> <span class="n">role</span><span class="o">,</span>
+            <span class="n">AuthenticationDataSource</span> <span class="n">authenticationData</span><span class="o">);</span>
+
+    <span class="cm">/**
+     *
+     * Grant authorization-action permission on a namespace to the given client
+     *
+     * @param namespace
+     * @param actions
+     * @param role
+     * @param authDataJson
+     *            additional authdata in json format
+     * @return CompletableFuture
+     * @completesWith &lt;br/&gt;
+     *                IllegalArgumentException when namespace not found&lt;br/&gt;
+     *                IllegalStateException when failed to grant permission
+     */</span>
+    <span class="n">CompletableFuture</span><span class="o">&lt;</span><span class="n">Void</span><span class="o">&gt;</span> <span class="nf">grantPermissionAsync</span><span class="o">(</span><span class="n">NamespaceName</span> <span class="n">namespace</span><span class="o">,</span> <span class="n">Set</span><span class="o">&lt;</span><span class="n">AuthAction</span><span class="o">&gt;</span> <span class="n">actions</span><span class="o">,</span> <span class="n">String</span> <span class="n">role</span><span class="o">,</span>
+            <span class="n">String</span> <span class="n">authDataJson</span><span class="o">);</span>
+
+    <span class="cm">/**
+     * Grant authorization-action permission on a topic to the given client
+     *
+     * @param topicName
+     * @param role
+     * @param authDataJson
+     *            additional authdata in json format
+     * @return CompletableFuture
+     * @completesWith &lt;br/&gt;
+     *                IllegalArgumentException when namespace not found&lt;br/&gt;
+     *                IllegalStateException when failed to grant permission
+     */</span>
+    <span class="n">CompletableFuture</span><span class="o">&lt;</span><span class="n">Void</span><span class="o">&gt;</span> <span class="nf">grantPermissionAsync</span><span class="o">(</span><span class="n">TopicName</span> <span class="n">topicName</span><span class="o">,</span> <span class="n">Set</span><span class="o">&lt;</span><span class="n">AuthAction</span><span class="o">&gt;</span> <span class="n">actions</span><span class="o">,</span> <span class="n">String</span> <span class="n">role</span><span class="o">,</span>
+            <span class="n">String</span> <span class="n">authDataJson</span><span class="o">);</span>
+
+<span class="o">}</span>
+
+</code></pre></div></div>
 
       </section>
     </article>
@@ -1584,7 +1697,7 @@
     <nav class="toc-bar hidden-md-down col-lg-2">
       
       <div id="toc">
-        <h4>Custom schema storage</h4>
+        <h4>Extending Authentication and Authorization in Pulsar</h4>
       </div>
       
     </nav>

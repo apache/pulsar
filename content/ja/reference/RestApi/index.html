@@ -818,6 +818,10 @@
         
         
         
+        <li><a href="/admin/functions/connectors"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>functions<span class="slash">/</span>connectors</code></a></li>
+        
+        
+        
         <li><a href="/admin/functions/:tenant/:namespace"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>functions<span class="slash">/</span><span class="endpoint">:tenant</span><span class="slash">/</span><span class="endpoint">:namespace</span></code></a></li>
         
         
@@ -3533,6 +3537,59 @@
               <tr>
                 <td>403</td>
                 <td>The requester doesn't have admin permissions</td>
+              </tr>
+               <!-- for param in parameters -->
+            </tbody>
+          </table>
+           <!-- if method_info.responses -->
+        </div>
+         <!-- for method in route[1] -->
+      </div>
+  </div>
+  
+  
+  
+  <div class="card" id="/admin/functions/connectors">
+    <div class="card-title">
+      <h5 class="swagger-path"><code class="highlighter-rouge"><span class="slash">/</span>admin<span class="slash">/</span>functions<span class="slash">/</span>connectors</code></h5>
+    </div>
+    <div class="card-group">
+        
+        <div class="card">
+          <h5>
+            <code class="highlighter-rouge get">GET</code>
+          </h5>
+          <p>Fetches a list of supported Pulsar IO connectors currently running in cluster mode</p>
+           <!-- if method_info.parameters -->
+          
+          <h5>Responses</h5>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+              <tr>
+                <td>200</td>
+                <td>successful operation</td>
+              </tr>
+              
+              <tr>
+                <td>400</td>
+                <td>Invalid request</td>
+              </tr>
+              
+              <tr>
+                <td>403</td>
+                <td>The requester doesn't have admin permissions</td>
+              </tr>
+              
+              <tr>
+                <td>408</td>
+                <td>Request timeout</td>
               </tr>
                <!-- for param in parameters -->
             </tbody>

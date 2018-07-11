@@ -527,13 +527,6 @@
           
           
           <li>
-            <a href="../../admin/Authz">
-              Authentication and authorization
-            </a>
-          </li>
-          
-          
-          <li>
             <a href="../../admin/Dashboard">
               Dashboard
             </a>
@@ -557,6 +550,65 @@
           <li>
             <a href="../../admin/Proxy">
               Pulsar proxy
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-security">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-security" aria-controls="collapse-security">
+            Security
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-security" role="tabpanel" aria-labelledby="heading-security">
+        <ul>
+          
+          
+          <li>
+            <a href="../../security/overview">
+              Overview
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/tls">
+              Encryption and Authentication using TLS
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/athenz">
+              Authentication using Athenz
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/authorization">
+              Authorization and ACLs
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/encryption">
+              End-to-End Encryption
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/extending">
+              Extending Authentication and Authorization
             </a>
           </li>
           
@@ -900,13 +952,6 @@
             </a>
           </li>
           
-          
-          <li>
-            <a href="../../reference/CustomAuth">
-              Authn & Authz plugins
-            </a>
-          </li>
-          
         </ul>
       </div>
     </div>
@@ -1015,11 +1060,19 @@
           
           
           
-          
-          
-          
-          
           <li><a href="/docs/latest/deployment/Kubernetes/">Deploying Pulsar on Kubernetes</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           
           
           
@@ -1251,11 +1304,19 @@
           
           
           
-          
-          
-          
-          
           <li><a href="/docs/latest/deployment/Kubernetes/">Deploying Pulsar on Kubernetes</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           
           
           
@@ -1664,7 +1725,7 @@ zk-2      0/1       Running            6          15m
   <div class="info">
     
     
-<p>This step is not strictly required if Pulsar <a href="../../admin/Authz">authentication and authorization</a> is turned on, though it allows you to change <a href="../../admin/PropertiesNamespaces#managing-namespaces">policies</a> for each of the namespaces later.</p>
+<p>This step is not strictly required if Pulsar <a href="../../security/overview">authentication and authorization</a> is turned on, though it allows you to change <a href="../../admin/PropertiesNamespaces#managing-namespaces">policies</a> for each of the namespaces later.</p>
 
   </div>
 </div>

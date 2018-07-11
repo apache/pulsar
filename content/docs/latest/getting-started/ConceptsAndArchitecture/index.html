@@ -527,13 +527,6 @@
           
           
           <li>
-            <a href="../../admin/Authz">
-              Authentication and authorization
-            </a>
-          </li>
-          
-          
-          <li>
             <a href="../../admin/Dashboard">
               Dashboard
             </a>
@@ -557,6 +550,65 @@
           <li>
             <a href="../../admin/Proxy">
               Pulsar proxy
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-security">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-security" aria-controls="collapse-security">
+            Security
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-security" role="tabpanel" aria-labelledby="heading-security">
+        <ul>
+          
+          
+          <li>
+            <a href="../../security/overview">
+              Overview
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/tls">
+              Encryption and Authentication using TLS
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/athenz">
+              Authentication using Athenz
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/authorization">
+              Authorization and ACLs
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/encryption">
+              End-to-End Encryption
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/extending">
+              Extending Authentication and Authorization
             </a>
           </li>
           
@@ -900,13 +952,6 @@
             </a>
           </li>
           
-          
-          <li>
-            <a href="../../reference/CustomAuth">
-              Authn & Authz plugins
-            </a>
-          </li>
-          
         </ul>
       </div>
     </div>
@@ -985,9 +1030,17 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/getting-started/ConceptsAndArchitecture/">Pulsar concepts and architecture</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           
           
           
@@ -1221,8 +1274,6 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/getting-started/ConceptsAndArchitecture/">Pulsar concepts and architecture</a></li>
           
           
@@ -1351,7 +1402,17 @@
           
           
           
+          
+          
+          
+          
+          
+          
           <li><a href="/docs/latest/cookbooks/message-deduplication/">Message deduplication</a></li>
+          
+          
+          
+          
           
           
           
@@ -2652,7 +2713,7 @@
 
 <h2 id="multi-tenancy">Multi-tenancy</h2>
 
-<p>Pulsar was created from the ground up as a <span class="popover-term" tabindex="0" title="What is multi-tenancy?" data-placement="top" data-content="The ability to isolate namespaces, specify quotas, and configure authentication and authorization on a per-property basis." data-toggle="popover" data-trigger="focus">multi-tenant</span> system. To support multi-tenancy, Pulsar has a concept of <span class="popover-term" tabindex="0" title="What is a tenant?" data-placement="top" data-content="An administrative unit for allocating capacity and enforcing an authentication/authorization scheme. Tenants in Pulsar are managed at the property level." data-toggle="popover" data-trigger="focus">tenants</span>. Tenants can be spread across <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">clusters</span> and can each have their own <a href="../../admin/Authz">authentication and authorization</a> scheme applied to them. They are also the administrative unit at which storage quotas, <a href="../../cookbooks/RetentionExpiry#time-to-live-ttl">message TTL</a>, and isolation policies can be managed.</p>
+<p>Pulsar was created from the ground up as a <span class="popover-term" tabindex="0" title="What is multi-tenancy?" data-placement="top" data-content="The ability to isolate namespaces, specify quotas, and configure authentication and authorization on a per-property basis." data-toggle="popover" data-trigger="focus">multi-tenant</span> system. To support multi-tenancy, Pulsar has a concept of <span class="popover-term" tabindex="0" title="What is a tenant?" data-placement="top" data-content="An administrative unit for allocating capacity and enforcing an authentication/authorization scheme. Tenants in Pulsar are managed at the property level." data-toggle="popover" data-trigger="focus">tenants</span>. Tenants can be spread across <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">clusters</span> and can each have their own <a href="../../security/overview">authentication and authorization</a> scheme applied to them. They are also the administrative unit at which storage quotas, <a href="../../cookbooks/RetentionExpiry#time-to-live-ttl">message TTL</a>, and isolation policies can be managed.</p>
 
 <p>The multi-tenant nature of Pulsar is reflected mostly visibly in topic URLs, which have this structure:</p>
 
@@ -2712,7 +2773,7 @@
 <p>To each property in a Pulsar instance you can assign:</p>
 
 <ul>
-  <li>An <a href="../../admin/Authz#authorization">authorization</a> scheme</li>
+  <li>An <a href="../../security/authorization">authorization</a> scheme</li>
   <li>The set of <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">clusters</span> to which the tenant’s configuration applies</li>
 </ul>
 
@@ -2801,7 +2862,7 @@
 
 <h2 id="authentication-and-authorization">Authentication and Authorization</h2>
 
-<p>Pulsar supports a pluggable <a href="../../admin/Authz">authentication</a> mechanism which can be configured at broker and it also supports authorization to identify client and its access rights on topics and tenants.</p>
+<p>Pulsar supports a pluggable <a href="../../security/overview">authentication</a> mechanism which can be configured at broker and it also supports authorization to identify client and its access rights on topics and tenants.</p>
 
 <h2 id="client-interface">Client interface</h2>
 
@@ -2925,7 +2986,7 @@
 
 <ul>
   <li>Connecting clients don’t need to provide <em>any</em> specific configuration to use the Pulsar proxy. You won’t need to update the client configuration for existing applications beyond updating the IP used for the service URL (for example if you’re running a load balancer over the Pulsar proxy).</li>
-  <li><a href="../../admin/Authz/#tls-client-auth">TLS encryption and authentication</a> is supported by the Pulsar proxy</li>
+  <li><a href="../../security/tls">TLS encryption and authentication</a> is supported by the Pulsar proxy</li>
 </ul>
 
 <h2 id="service-discovery">Service discovery</h2>

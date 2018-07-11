@@ -527,13 +527,6 @@
           
           
           <li>
-            <a href="../../admin/Authz">
-              Authentication and authorization
-            </a>
-          </li>
-          
-          
-          <li>
             <a href="../../admin/Dashboard">
               Dashboard
             </a>
@@ -557,6 +550,65 @@
           <li>
             <a href="../../admin/Proxy">
               Pulsar proxy
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-security">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-security" aria-controls="collapse-security">
+            Security
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-security" role="tabpanel" aria-labelledby="heading-security">
+        <ul>
+          
+          
+          <li>
+            <a href="../../security/overview">
+              Overview
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/tls">
+              Encryption and Authentication using TLS
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/athenz">
+              Authentication using Athenz
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/authorization">
+              Authorization and ACLs
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/encryption">
+              End-to-End Encryption
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/extending">
+              Extending Authentication and Authorization
             </a>
           </li>
           
@@ -900,13 +952,6 @@
             </a>
           </li>
           
-          
-          <li>
-            <a href="../../reference/CustomAuth">
-              Authn & Authz plugins
-            </a>
-          </li>
-          
         </ul>
       </div>
     </div>
@@ -969,8 +1014,6 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
           
           
@@ -1000,8 +1043,6 @@
           
           
           <li><a href="/docs/latest/clients/Cpp/">The Pulsar C++ client</a></li>
-          
-          
           
           
           
@@ -1115,7 +1156,19 @@
           
           
           
+          
+          
+          
+          
+          
+          
+          
+          
           <li><a href="/docs/latest/clients/go/">The Pulsar Go client</a></li>
+          
+          
+          
+          
           
           
           
@@ -1204,12 +1257,6 @@
       <div class="modal-body">
         <ul>
           
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
           
           
           
@@ -1339,6 +1386,16 @@
           
           
           
+          <li><a href="/docs/latest/security/authorization/">Authentication and authorization in Pulsar</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
           
           
           
@@ -1382,6 +1439,10 @@
           
           
           <li><a href="/docs/latest/admin-api/overview/">The Pulsar admin interface</a></li>
+          
+          
+          
+          
           
           
           
@@ -1501,10 +1562,6 @@
           
           
           
-          
-          
-          
-          
           <li><a href="/docs/latest/clients/Java/">The Pulsar Java client</a></li>
           
           
@@ -1639,7 +1696,19 @@
           
           
           
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           <li><a href="/docs/latest/project/schema-storage/">Custom schema storage</a></li>
+          
+          
           
           
           
@@ -1739,10 +1808,6 @@
           
           
           
-          
-          
-          
-          
           <li><a href="/docs/latest/clients/Java/">The Pulsar Java client</a></li>
           
           
@@ -1877,7 +1942,19 @@
           
           
           
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
           <li><a href="/docs/latest/project/schema-storage/">Custom schema storage</a></li>
+          
+          
           
           
           
@@ -2015,7 +2092,7 @@
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pulsar://pulsar.us-west.example.com:6650
 </code></pre></div></div>
 
-<p>If you’re using <a href="../../admin/Authz#tls-client-auth">TLS</a> authentication, the URL will look like something like this:</p>
+<p>If you’re using <a href="../../security/tls">TLS</a> authentication, the URL will look like something like this:</p>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pulsar+ssl://pulsar.us-west.example.com:6651
 </code></pre></div></div>
@@ -2423,11 +2500,11 @@ get a future returned.</p>
 
 <h2 id="authentication">Authentication</h2>
 
-<p>Pulsar currently supports two authentication schemes: <a href="../../admin/Authz#tls-client-auth">TLS</a> and <a href="../../admin/Authz#athenz">Athenz</a>. The Pulsar Java client can be used with both.</p>
+<p>Pulsar currently supports two authentication schemes: <a href="../../security/tls">TLS</a> and <a href="../../security/athenz">Athenz</a>. The Pulsar Java client can be used with both.</p>
 
 <h3 id="tls-authentication">TLS Authentication</h3>
 
-<p>To use <a href="../../admin/Authz#tls-client-auth">TLS</a>, you need to set TLS to <code class="highlighter-rouge">true</code> using the <code class="highlighter-rouge">setUseTls</code> method, point your Pulsar client to a TLS cert path, and provide paths to cert and key files.</p>
+<p>To use <a href="../../security/tls">TLS</a>, you need to set TLS to <code class="highlighter-rouge">true</code> using the <code class="highlighter-rouge">setUseTls</code> method, point your Pulsar client to a TLS cert path, and provide paths to cert and key files.</p>
 
 <p>Here’s an example configuration:</p>
 
@@ -2448,7 +2525,7 @@ get a future returned.</p>
 
 <h3 id="athenz">Athenz</h3>
 
-<p>To use <a href="../../admin/Authz#athenz">Athenz</a> as an authentication provider, you need to <a href="#tls-authentication">use TLS</a> and provide values for four parameters in a hash:</p>
+<p>To use <a href="../../security/athenz">Athenz</a> as an authentication provider, you need to <a href="#tls-authentication">use TLS</a> and provide values for four parameters in a hash:</p>
 
 <ul>
   <li><code class="highlighter-rouge">tenantDomain</code></li>

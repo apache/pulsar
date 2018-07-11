@@ -527,13 +527,6 @@
           
           
           <li>
-            <a href="../../admin/Authz">
-              Authentication and authorization
-            </a>
-          </li>
-          
-          
-          <li>
             <a href="../../admin/Dashboard">
               Dashboard
             </a>
@@ -557,6 +550,65 @@
           <li>
             <a href="../../admin/Proxy">
               Pulsar proxy
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-security">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-security" aria-controls="collapse-security">
+            Security
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-security" role="tabpanel" aria-labelledby="heading-security">
+        <ul>
+          
+          
+          <li>
+            <a href="../../security/overview">
+              Overview
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/tls">
+              Encryption and Authentication using TLS
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/athenz">
+              Authentication using Athenz
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/authorization">
+              Authorization and ACLs
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/encryption">
+              End-to-End Encryption
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/extending">
+              Extending Authentication and Authorization
             </a>
           </li>
           
@@ -900,13 +952,6 @@
             </a>
           </li>
           
-          
-          <li>
-            <a href="../../reference/CustomAuth">
-              Authn & Authz plugins
-            </a>
-          </li>
-          
         </ul>
       </div>
     </div>
@@ -994,7 +1039,7 @@
 <div class="admonition">
   <div class="warning">
     
-    <p>Please note that this operation requires <a href="../../admin/Authz#superusers">superuser</a> privileges.</p>
+    <p>Please note that this operation requires <a href="../../security/authorization#superusers">superuser</a> privileges.</p>
 
   </div>
 </div>
@@ -1081,7 +1126,7 @@
   <span class="nt">--broker-service-url-tls</span> pulsar+ssl://pulsar.us-west.example.com:6651/
 </code></pre></div></div>
 
-<p>You’ll need to use <code class="highlighter-rouge">--*-tls</code> flags only if you’re using <a href="../../admin/Authz#tls-client-auth">TLS authentication</a> in your instance.</p>
+<p>You’ll need to use <code class="highlighter-rouge">--*-tls</code> flags only if you’re using <a href="../../security/tls">TLS authentication</a> in your instance.</p>
 
 <h3 id="get-configuration">Get configuration</h3>
 

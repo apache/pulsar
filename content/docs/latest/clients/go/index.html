@@ -527,13 +527,6 @@
           
           
           <li>
-            <a href="../../admin/Authz">
-              Authentication and authorization
-            </a>
-          </li>
-          
-          
-          <li>
             <a href="../../admin/Dashboard">
               Dashboard
             </a>
@@ -557,6 +550,65 @@
           <li>
             <a href="../../admin/Proxy">
               Pulsar proxy
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-security">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-security" aria-controls="collapse-security">
+            Security
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-security" role="tabpanel" aria-labelledby="heading-security">
+        <ul>
+          
+          
+          <li>
+            <a href="../../security/overview">
+              Overview
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/tls">
+              Encryption and Authentication using TLS
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/athenz">
+              Authentication using Athenz
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/authorization">
+              Authorization and ACLs
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/encryption">
+              End-to-End Encryption
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/extending">
+              Extending Authentication and Authorization
             </a>
           </li>
           
@@ -900,13 +952,6 @@
             </a>
           </li>
           
-          
-          <li>
-            <a href="../../reference/CustomAuth">
-              Authn & Authz plugins
-            </a>
-          </li>
-          
         </ul>
       </div>
     </div>
@@ -969,8 +1014,6 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
           
           
@@ -1000,8 +1043,6 @@
           
           
           <li><a href="/docs/latest/clients/Cpp/">The Pulsar C++ client</a></li>
-          
-          
           
           
           
@@ -1115,7 +1156,19 @@
           
           
           
+          
+          
+          
+          
+          
+          
+          
+          
           <li><a href="/docs/latest/clients/go/">The Pulsar Go client</a></li>
+          
+          
+          
+          
           
           
           
@@ -1351,7 +1404,15 @@
           
           
           
+          
+          
+          
+          
           <li><a href="/docs/latest/clients/go/">The Pulsar Go client</a></li>
+          
+          
+          
+          
           
           
           
@@ -1587,7 +1648,15 @@
           
           
           
+          
+          
+          
+          
           <li><a href="/docs/latest/clients/go/">The Pulsar Go client</a></li>
+          
+          
+          
+          
           
           
           
@@ -1758,7 +1827,7 @@ through RPM, Deb or Homebrew packages.</p>
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pulsar://pulsar.us-west.example.com:6650
 </code></pre></div></div>
 
-<p>If you’re using <a href="../../admin/Authz#tls-client-auth">TLS</a> authentication, the URL will look like something like this:</p>
+<p>If you’re using <a href="../../security/tls">TLS</a> authentication, the URL will look like something like this:</p>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pulsar+ssl://pulsar.us-west.example.com:6651
 </code></pre></div></div>
@@ -1775,7 +1844,7 @@ through RPM, Deb or Homebrew packages.</p>
 </span><span class="p">)</span><span class="x">
 
 </span><span class="k">func</span><span class="x"> </span><span class="n">main</span><span class="p">()</span><span class="x"> </span><span class="p">{</span><span class="x">
-    </span><span class="n">client</span><span class="p">,</span><span class="x"> </span><span class="n">err</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">pulsar</span><span class="o">.</span><span class="n">NewClient</span><span class="p">(</span><span class="n">pulsar</span><span class="o">.</span><span class="n">ClientOptions</span><span class="x">
+    </span><span class="n">client</span><span class="p">,</span><span class="x"> </span><span class="n">err</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">pulsar</span><span class="o">.</span><span class="n">NewClient</span><span class="p">(</span><span class="n">pulsar</span><span class="o">.</span><span class="n">ClientOptions</span><span class="p">{</span><span class="x">
         </span><span class="n">URL</span><span class="o">:</span><span class="x"> </span><span class="s">"pulsar://localhost:6650"</span><span class="p">,</span><span class="x">
         </span><span class="n">OperationTimeoutSeconds</span><span class="o">:</span><span class="x"> </span><span class="m">5</span><span class="p">,</span><span class="x">
         </span><span class="n">MessageListenerThreads</span><span class="o">:</span><span class="x"> </span><span class="n">runtime</span><span class="o">.</span><span class="n">NumCPU</span><span class="p">(),</span><span class="x">
@@ -1991,7 +2060,7 @@ through RPM, Deb or Homebrew packages.</p>
         </span><span class="n">producer</span><span class="o">.</span><span class="n">SendAsync</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span><span class="x"> </span><span class="n">asyncMsg</span><span class="p">,</span><span class="x"> </span><span class="k">func</span><span class="p">(</span><span class="n">msg</span><span class="x"> </span><span class="n">pulsar</span><span class="o">.</span><span class="n">ProducerMessage</span><span class="p">,</span><span class="x"> </span><span class="n">err</span><span class="x"> </span><span class="kt">error</span><span class="p">)</span><span class="x"> </span><span class="p">{</span><span class="x">
             </span><span class="k">if</span><span class="x"> </span><span class="n">err</span><span class="x"> </span><span class="o">!=</span><span class="x"> </span><span class="no">nil</span><span class="x"> </span><span class="p">{</span><span class="x"> </span><span class="n">log</span><span class="o">.</span><span class="n">Fatal</span><span class="p">(</span><span class="n">err</span><span class="p">)</span><span class="x"> </span><span class="p">}</span><span class="x">
 
-            </span><span class="n">fmt</span><span class="o">.</span><span class="n">Printf</span><span class="p">(</span><span class="s">"Message %s succesfully published"</span><span class="p">,</span><span class="x"> </span><span class="n">msg</span><span class="o">.</span><span class="n">ID</span><span class="p">())</span><span class="x">
+            </span><span class="n">fmt</span><span class="o">.</span><span class="n">Printf</span><span class="p">(</span><span class="s">"Message %s successfully published"</span><span class="p">,</span><span class="x"> </span><span class="n">msg</span><span class="o">.</span><span class="n">Payload</span><span class="p">)</span><span class="x">
         </span><span class="p">})</span><span class="x">
     </span><span class="p">}</span><span class="x">
 </span><span class="p">}</span><span class="x">
@@ -2282,7 +2351,7 @@ through RPM, Deb or Homebrew packages.</p>
 
 <h2 id="readers">Readers</h2>
 
-<p>Pulsar &lt;span class=”popover-term” tabindex=”0” title=”What is a Pulsar reader?” data-placement=”top” data-content=”“Pulsar readers are message processors much like Pulsar consumers but with two crucial differences: (1) you can specify <em>where</em> on a topic readers begin processing messages (consumers always begin with the latest available unacked message); and (2) readers don’t retain data or acknowledge messages.”” data-toggle=”popover” data-trigger=”focus”&gt;readers&lt;/span&gt; process messages from Pulsar <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span>. Readers are different from consumers because with readers you need to explicitly specify which message in the stream you want to begin with (consumers, on the other hand, automatically begin with the most recent unacked message). You can <a href="#reader-configuration">configure</a> Go readers using a <code class="highlighter-rouge">ReaderOptions</code> object. Here’s an example:</p>
+<p>Pulsar <span class="popover-term" tabindex="0" title="What is a Pulsar reader?" data-placement="top" data-content="Pulsar readers are message processors much like Pulsar consumers but with two crucial differences: (1) you can specify *where* on a topic readers begin processing messages (consumers always begin with the latest available unacked message); and (2) readers don't retain data or acknowledge messages." data-toggle="popover" data-trigger="focus">readers</span> process messages from Pulsar <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span>. Readers are different from consumers because with readers you need to explicitly specify which message in the stream you want to begin with (consumers, on the other hand, automatically begin with the most recent unacked message). You can <a href="#reader-configuration">configure</a> Go readers using a <code class="highlighter-rouge">ReaderOptions</code> object. Here’s an example:</p>
 
 <div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">reader</span><span class="p">,</span><span class="x"> </span><span class="n">err</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">client</span><span class="o">.</span><span class="n">CreateReader</span><span class="p">(</span><span class="n">pulsar</span><span class="o">.</span><span class="n">ReaderOptions</span><span class="p">{</span><span class="x">
     </span><span class="n">Topic</span><span class="o">:</span><span class="x"> </span><span class="s">"my-golang-topic"</span><span class="p">,</span><span class="x">
@@ -2499,7 +2568,7 @@ through RPM, Deb or Homebrew packages.</p>
 
 <h2 id="tls">TLS encryption and authentication</h2>
 
-<p>In order to use <a href="../../admin/Authz#">TLS encryption</a>, you’ll need to configure your client to do so:</p>
+<p>In order to use <a href="../../security/tls">TLS encryption</a>, you’ll need to configure your client to do so:</p>
 
 <ul>
   <li>Use <code class="highlighter-rouge">pulsar+ssl</code> URL type</li>

@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -150,6 +150,12 @@ var activeTableTab = "activeTableTab";
 </td>
 </tr>
 <tr id="i4" class="altColor">
+<td class="colFirst"><code>List&lt;ConnectorDefinition&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#getConnectorsList--">getConnectorsList</a></span>()</code>
+<div class="block">Fetches a list of supported Pulsar IO connectors currently running in cluster mode</div>
+</td>
+</tr>
+<tr id="i5" class="rowColor">
 <td class="colFirst"><code>FunctionDetails</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#getFunction-java.lang.String-java.lang.String-java.lang.String-">getFunction</a></span>(String&nbsp;tenant,
            String&nbsp;namespace,
@@ -157,14 +163,14 @@ var activeTableTab = "activeTableTab";
 <div class="block">Get the configuration for the specified function.</div>
 </td>
 </tr>
-<tr id="i5" class="rowColor">
+<tr id="i6" class="altColor">
 <td class="colFirst"><code>List&lt;String&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#getFunctions-java.lang.String-java.lang.String-">getFunctions</a></span>(String&nbsp;tenant,
             String&nbsp;namespace)</code>
 <div class="block">Get the list of functions.</div>
 </td>
 </tr>
-<tr id="i6" class="altColor">
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code>FunctionStatusList</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#getFunctionStatus-java.lang.String-java.lang.String-java.lang.String-">getFunctionStatus</a></span>(String&nbsp;tenant,
                  String&nbsp;namespace,
@@ -172,7 +178,7 @@ var activeTableTab = "activeTableTab";
 <div class="block">Gets the current status of a function.</div>
 </td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i8" class="altColor">
 <td class="colFirst"><code>String</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#triggerFunction-java.lang.String-java.lang.String-java.lang.String-java.lang.String-java.lang.String-java.lang.String-">triggerFunction</a></span>(String&nbsp;tenant,
                String&nbsp;namespace,
@@ -183,21 +189,21 @@ var activeTableTab = "activeTableTab";
 <div class="block">Triggers the function by writing to the input topic.</div>
 </td>
 </tr>
-<tr id="i8" class="altColor">
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#updateFunction-FunctionDetails-java.lang.String-">updateFunction</a></span>(FunctionDetails&nbsp;functionDetails,
               String&nbsp;fileName)</code>
 <div class="block">Update the configuration for a function.</div>
 </td>
 </tr>
-<tr id="i9" class="rowColor">
+<tr id="i10" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#updateFunctionWithUrl-FunctionDetails-java.lang.String-">updateFunctionWithUrl</a></span>(FunctionDetails&nbsp;functionDetails,
                      String&nbsp;pkgUrl)</code>
 <div class="block">Update the configuration for a function.</div>
 </td>
 </tr>
-<tr id="i10" class="altColor">
+<tr id="i11" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Functions.html#uploadFunction-java.lang.String-java.lang.String-">uploadFunction</a></span>(String&nbsp;sourceFile,
               String&nbsp;path)</code>
@@ -460,7 +466,7 @@ var activeTableTab = "activeTableTab";
 <a name="downloadFunction-java.lang.String-java.lang.String-">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>downloadFunction</h4>
 <pre>void&nbsp;downloadFunction(String&nbsp;destinationFile,
@@ -471,6 +477,21 @@ var activeTableTab = "activeTableTab";
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>destinationFile</code> - file where data should be downloaded to</dd>
 <dd><code>path</code> - Path where data is located</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code> - Unexpected error</dd>
+</dl>
+</li>
+</ul>
+<a name="getConnectorsList--">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>getConnectorsList</h4>
+<pre>List&lt;ConnectorDefinition&gt;&nbsp;getConnectorsList()
+                                     throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<div class="block">Fetches a list of supported Pulsar IO connectors currently running in cluster mode</div>
+<dl>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code> - Unexpected error</dd>
 </dl>

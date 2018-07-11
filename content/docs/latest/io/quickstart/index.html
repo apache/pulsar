@@ -527,13 +527,6 @@
           
           
           <li>
-            <a href="../../admin/Authz">
-              Authentication and authorization
-            </a>
-          </li>
-          
-          
-          <li>
             <a href="../../admin/Dashboard">
               Dashboard
             </a>
@@ -557,6 +550,65 @@
           <li>
             <a href="../../admin/Proxy">
               Pulsar proxy
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
+      <div class="card-header" role="tab" id="heading-security">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-security" aria-controls="collapse-security">
+            Security
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-security" role="tabpanel" aria-labelledby="heading-security">
+        <ul>
+          
+          
+          <li>
+            <a href="../../security/overview">
+              Overview
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/tls">
+              Encryption and Authentication using TLS
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/athenz">
+              Authentication using Athenz
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/authorization">
+              Authorization and ACLs
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/encryption">
+              End-to-End Encryption
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../security/extending">
+              Extending Authentication and Authorization
             </a>
           </li>
           
@@ -900,13 +952,6 @@
             </a>
           </li>
           
-          
-          <li>
-            <a href="../../reference/CustomAuth">
-              Authn & Authz plugins
-            </a>
-          </li>
-          
         </ul>
       </div>
     </div>
@@ -1040,8 +1085,8 @@
             </a>
         </td>
         <td>
-            <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/aerospike/src/main/java/org/apache/pulsar/connect/aerospike/AerospikeSink.java">
-                <code>org.apache.pulsar.io.aerospike.AerospikeSink</code>
+            <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/aerospike/src/main/java/org/apache/pulsar/io/aerospike/AerospikeStringSink.java">
+                <code>org.apache.pulsar.io.aerospike.AerospikeStringSink</code>
             </a>
         </td>
     </tr>
@@ -1053,8 +1098,8 @@
             </a>
         </td>
         <td>
-            <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/cassandra/src/main/java/org/apache/pulsar/connect/cassandra/CassandraSink.java">
-                <code>org.apache.pulsar.io.cassandra.CassandraSink</code>
+            <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/cassandra/src/main/java/org/apache/pulsar/io/cassandra/CassandraStringSink.java">
+                <code>org.apache.pulsar.io.cassandra.CassandraStringSink</code>
             </a>
         </td>
     </tr>
@@ -1066,8 +1111,8 @@
             </a>
         </td>
         <td>
-            <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/kafka/src/main/java/org/apache/pulsar/connect/kafka/KafkaSource.java">
-                <code>org.apache.pulsar.io.kafka.KafkaSource</code>
+            <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/kafka/src/main/java/org/apache/pulsar/io/kafka/KafkaStringSource.java">
+                <code>org.apache.pulsar.io.kafka.KafkaStringSource</code>
             </a>
         </td>
     </tr>
@@ -1079,8 +1124,8 @@
             </a>
         </td>
         <td>
-            <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/kafka/src/main/java/org/apache/pulsar/connect/kafka/KafkaSink.java">
-                <code>org.apache.pulsar.io.kafka.KafkaSink</code>
+            <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/kafka/src/main/java/org/apache/pulsar/io/kafka/KafkaStringSink.java">
+                <code>org.apache.pulsar.io.kafka.KafkaStringSink</code>
             </a>
         </td>
     </tr>
@@ -1092,7 +1137,7 @@
             </a>
         </td>
         <td>
-            <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/rabbitmq/src/main/java/org/apache/pulsar/connect/rabbitmq/RabbitMQSource.java">
+            <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/rabbitmq/src/main/java/org/apache/pulsar/io/rabbitmq/RabbitMQSource.java">
                 <code>org.apache.pulsar.io.rabbitmq.RabbitMQSource</code>
             </a>
         </td>
@@ -1105,7 +1150,7 @@
             </a>
         </td>
         <td>
-            <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/twitter/src/main/java/org/apache/pulsar/connect/twitter/TwitterFireHose.java">
+            <a href="https://github.com/apache/incubator-pulsar/blob/master/pulsar-io/twitter/src/main/java/org/apache/pulsar/io/twitter/TwitterFireHose.java">
                 <code>org.apache.pulsar.io.twitter.TwitterFireHose</code>
             </a>
         </td>
