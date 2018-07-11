@@ -94,7 +94,7 @@ pulsar-functions:
   def: Pulsar Functions are lightweight functions that can consume messages from Pulsar topics, apply custom processing logic, and, if desired, publish results to topics.
 reader:
   q: What is a Pulsar reader?
-  def: |
+  def:
     "Pulsar readers are message processors much like Pulsar consumers but with two crucial differences: (1) you can specify *where* on a topic readers begin processing messages (consumers always begin with the latest available unacked message); and (2) readers don't retain data or acknowledge messages."
 retention-policy:
   q: What is a retention policy?
