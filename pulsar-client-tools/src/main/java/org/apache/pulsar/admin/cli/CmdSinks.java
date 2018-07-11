@@ -304,7 +304,7 @@ public class CmdSinks extends CmdBase {
         protected void validateSinkConfigs(SinkConfig sinkConfig) {
 
             if (isBlank(sinkConfig.getArchive())) {
-                throw new ParameterException("Sink jar not specfied");
+                throw new ParameterException("Sink archive not specfied");
             }
 
             boolean isArchivePathUrl = Utils.isFunctionPackageUrlSupported(sinkConfig.getArchive());
@@ -342,7 +342,7 @@ public class CmdSinks extends CmdBase {
                     // Validate sink class
                     ConnectorUtils.getIOSinkClass(archivePath);
                 } catch (IOException e) {
-                    throw new ParameterException("Failed to validate connector from " + archivePath, e);
+                    throw new ParameterException("Connector from " + archivePath + " has error: " + e.getMessage());
                 }
             }
 
