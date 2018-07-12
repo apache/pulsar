@@ -43,8 +43,6 @@ import java.io.File;
 import java.net.URL;
 import java.nio.file.Files;
 import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
@@ -77,11 +75,13 @@ public class TestCmdSinks {
             = FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE;
     private static final Integer PARALLELISM = 1;
     private static final String JAR_FILE_NAME = "pulsar-io-cassandra.nar";
+    private static final String WRONG_JAR_FILE_NAME = "pulsar-io-twitter.nar";
     private String JAR_FILE_PATH;
+    private String WRONG_JAR_PATH;
     private static final Double CPU = 100.0;
     private static final Long RAM = 1024L * 1024L;
     private static final Long DISK = 1024L * 1024L * 1024L;
-    private static final String SINK_CONFIG_STRING = "{\"created_at\":\"Mon Jul 02 00:33:15 +0000 2018\"}";
+    private static final String SINK_CONFIG_STRING = "{\"created_at\":\"Mon Jul 02 00:33:15 0000 2018\"}";
 
     private PulsarAdmin pulsarAdmin;
     private Functions functions;
@@ -111,6 +111,7 @@ public class TestCmdSinks {
             throw new RuntimeException("Failed to file required test archive: " + JAR_FILE_NAME);
         }
         JAR_FILE_PATH = file.getFile();
+        WRONG_JAR_PATH = Thread.currentThread().getContextClassLoader().getResource(WRONG_JAR_FILE_NAME).getFile();
         Thread.currentThread().setContextClassLoader(Reflections.loadJar(new File(JAR_FILE_PATH)));
     }
 
@@ -141,7 +142,6 @@ public class TestCmdSinks {
                 TENANT,
                 NAMESPACE,
                 NAME,
-                CLASS_NAME,
                 INPUTS,
                 TOPIC_PATTERN,
                 CUSTOM_SERDE_INPUT_STRING,
@@ -164,7 +164,6 @@ public class TestCmdSinks {
                 null,
                 NAMESPACE,
                 NAME,
-                CLASS_NAME,
                 INPUTS,
                 TOPIC_PATTERN,
                 CUSTOM_SERDE_INPUT_STRING,
@@ -187,7 +186,6 @@ public class TestCmdSinks {
                 TENANT,
                 null,
                 NAME,
-                CLASS_NAME,
                 INPUTS,
                 TOPIC_PATTERN,
                 CUSTOM_SERDE_INPUT_STRING,
@@ -210,7 +208,6 @@ public class TestCmdSinks {
                 TENANT,
                 NAMESPACE,
                 null,
-                CLASS_NAME,
                 INPUTS,
                 TOPIC_PATTERN,
                 CUSTOM_SERDE_INPUT_STRING,
@@ -235,7 +232,6 @@ public class TestCmdSinks {
                 TENANT,
                 NAMESPACE,
                 NAME,
-                CLASS_NAME,
                 null,
                 TOPIC_PATTERN,
                 CUSTOM_SERDE_INPUT_STRING,
@@ -260,7 +256,6 @@ public class TestCmdSinks {
                 TENANT,
                 NAMESPACE,
                 NAME,
-                CLASS_NAME,
                 INPUTS,
                 TOPIC_PATTERN,
                 null,
@@ -283,7 +278,6 @@ public class TestCmdSinks {
                 TENANT,
                 NAMESPACE,
                 NAME,
-                CLASS_NAME,
                 INPUTS,
                 null,
                 CUSTOM_SERDE_INPUT_STRING,
@@ -307,7 +301,6 @@ public class TestCmdSinks {
                 TENANT,
                 NAMESPACE,
                 NAME,
-                CLASS_NAME,
                 null,
                 null,
                 null,
@@ -330,7 +323,6 @@ public class TestCmdSinks {
                 TENANT,
                 NAMESPACE,
                 NAME,
-                CLASS_NAME,
                 INPUTS,
                 TOPIC_PATTERN,
                 CUSTOM_SERDE_INPUT_STRING,
@@ -353,7 +345,6 @@ public class TestCmdSinks {
                 TENANT,
                 NAMESPACE,
                 NAME,
-                CLASS_NAME,
                 INPUTS,
                 TOPIC_PATTERN,
                 CUSTOM_SERDE_INPUT_STRING,
@@ -376,7 +367,6 @@ public class TestCmdSinks {
                 TENANT,
                 NAMESPACE,
                 NAME,
-                CLASS_NAME,
                 INPUTS,
                 TOPIC_PATTERN,
                 CUSTOM_SERDE_INPUT_STRING,
@@ -399,7 +389,6 @@ public class TestCmdSinks {
                 TENANT,
                 NAMESPACE,
                 NAME,
-                CLASS_NAME,
                 INPUTS,
                 TOPIC_PATTERN,
                 CUSTOM_SERDE_INPUT_STRING,
@@ -414,7 +403,7 @@ public class TestCmdSinks {
         );
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink jar not specfied")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink archive not specfied")
     public void testMissingArchive() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
         sinkConfig.setArchive(null);
@@ -422,7 +411,6 @@ public class TestCmdSinks {
                 TENANT,
                 NAMESPACE,
                 NAME,
-                CLASS_NAME,
                 INPUTS,
                 TOPIC_PATTERN,
                 CUSTOM_SERDE_INPUT_STRING,
@@ -437,7 +425,30 @@ public class TestCmdSinks {
         );
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Archive file /tmp/foo.jar does not exist")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Connector from .*.pulsar-io-twitter.nar has error: The 'twitter' connector does not provide a sink implementation")
+    public void testInvalidJarWithNoSource() throws Exception {
+        SinkConfig sinkConfig = getSinkConfig();
+        sinkConfig.setArchive(WRONG_JAR_PATH);
+        testCmdSinkCliMissingArgs(
+                TENANT,
+                NAMESPACE,
+                NAME,
+                INPUTS,
+                TOPIC_PATTERN,
+                CUSTOM_SERDE_INPUT_STRING,
+                PROCESSING_GUARANTEES,
+                PARALLELISM,
+                WRONG_JAR_PATH,
+                CPU,
+                RAM,
+                DISK,
+                SINK_CONFIG_STRING,
+                sinkConfig
+        );
+    }
+
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Archive file /tmp/foo.jar" +
+            " does not exist")
     public void testInvalidJar() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
         String fakeJar = "/tmp/foo.jar";
@@ -446,7 +457,6 @@ public class TestCmdSinks {
                 TENANT,
                 NAMESPACE,
                 NAME,
-                CLASS_NAME,
                 INPUTS,
                 TOPIC_PATTERN,
                 CUSTOM_SERDE_INPUT_STRING,
@@ -469,7 +479,6 @@ public class TestCmdSinks {
                 TENANT,
                 NAMESPACE,
                 NAME,
-                CLASS_NAME,
                 INPUTS,
                 TOPIC_PATTERN,
                 CUSTOM_SERDE_INPUT_STRING,
@@ -492,7 +501,6 @@ public class TestCmdSinks {
                 TENANT,
                 NAMESPACE,
                 NAME,
-                CLASS_NAME,
                 INPUTS,
                 TOPIC_PATTERN,
                 CUSTOM_SERDE_INPUT_STRING,
@@ -515,7 +523,6 @@ public class TestCmdSinks {
                 TENANT,
                 NAMESPACE,
                 NAME,
-                CLASS_NAME,
                 INPUTS,
                 TOPIC_PATTERN,
                 CUSTOM_SERDE_INPUT_STRING,
@@ -538,7 +545,6 @@ public class TestCmdSinks {
                 TENANT,
                 NAMESPACE,
                 NAME,
-                CLASS_NAME,
                 INPUTS,
                 TOPIC_PATTERN,
                 CUSTOM_SERDE_INPUT_STRING,
@@ -557,7 +563,6 @@ public class TestCmdSinks {
             String tenant,
             String namespace,
             String name,
-            String className,
             String inputs,
             String topicPattern,
             String customSerdeInputString,
@@ -751,7 +756,7 @@ public class TestCmdSinks {
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink jar not specfied")
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink archive not specfied")
     public void testCmdSinkConfigFileMissingJar() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
         testSinkConfig.setArchive(null);
@@ -768,6 +773,16 @@ public class TestCmdSinks {
 
         SinkConfig expectedSinkConfig = getSinkConfig();
         expectedSinkConfig.setArchive("/tmp/foo.jar");
+        testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
+    }
+
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Connector from .*.pulsar-io-twitter.nar has error: The 'twitter' connector does not provide a sink implementation")
+    public void testCmdSinkConfigFileInvalidJarNoSink() throws Exception {
+        SinkConfig testSinkConfig = getSinkConfig();
+        testSinkConfig.setArchive(WRONG_JAR_PATH);
+
+        SinkConfig expectedSinkConfig = getSinkConfig();
+        expectedSinkConfig.setArchive(WRONG_JAR_PATH);
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 

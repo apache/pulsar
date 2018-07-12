@@ -135,7 +135,8 @@ public class MembershipManagerTest {
                 workerConfig,
                 pulsarClient,
                 mock(Namespace.class),
-                mock(MembershipManager.class)
+                mock(MembershipManager.class),
+                mock(ConnectorsManager.class)
         ));
         FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
         MembershipManager membershipManager = spy(new MembershipManager(workerConfig, mockPulsarClient()));
@@ -199,7 +200,8 @@ public class MembershipManagerTest {
                 workerConfig,
                 pulsarClient,
                 mock(Namespace.class),
-                mock(MembershipManager.class)
+                mock(MembershipManager.class),
+                mock(ConnectorsManager.class)
         ));
 
         FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
@@ -288,7 +290,8 @@ public class MembershipManagerTest {
                 workerConfig,
                 pulsarClient,
                 mock(Namespace.class),
-                mock(MembershipManager.class)
+                mock(MembershipManager.class),
+                mock(ConnectorsManager.class)
         ));
         FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
         MembershipManager membershipManager = spy(new MembershipManager(workerConfig, mockPulsarClient()));

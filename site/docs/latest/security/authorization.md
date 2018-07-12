@@ -24,11 +24,11 @@ tags: [admin, authentication, authorization, athenz, tls, java, cpp]
 
 -->
 
-In Pulsar, the [authentication provider](../../overview#authentication-providers) is charged with properly identifying clients and
-associating them with [role tokens](../../overview#role-tokens). *Authorization* is the process that determines *what* clients are able to do.
+In Pulsar, the [authentication provider](../overview#authentication-providers) is charged with properly identifying clients and
+associating them with [role tokens](../overview#role-tokens). *Authorization* is the process that determines *what* clients are able to do.
 
 Authorization in Pulsar is managed at the {% popover tenant %} level, which means that you can have multiple authorization schemes active
-in a single Pulsar instance. You could, for example, create a `shopping` tenant that has one set of [roles](../../overview#role-tokens)
+in a single Pulsar instance. You could, for example, create a `shopping` tenant that has one set of [roles](../overview#role-tokens)
 and applies to a shopping application used by your company, while an `inventory` tenant would be used only by an inventory application.
 
 {% include message.html id="properties_multiple_clusters" %}
