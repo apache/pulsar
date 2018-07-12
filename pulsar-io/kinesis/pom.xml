@@ -81,6 +81,12 @@
       <version>0.12.8</version>
     </dependency>
 	<!-- /kinesis dependencies -->
+	
+    <dependency>
+      <groupId>com.google.flatbuffers</groupId>
+      <artifactId>flatbuffers-java</artifactId>
+      <version>1.9.0</version>
+    </dependency>
 
   </dependencies>
 

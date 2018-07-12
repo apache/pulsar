@@ -103,7 +103,7 @@ public class KinesisSink implements Sink<byte[]> {
                 : partitionedKey; // partitionedKey Length must be at least one, and at most 256
         ListenableFuture<UserRecordResult> addRecordResult = kinesisProducer.addUserRecord(this.streamName,
                 partitionedKey,
-                ByteBuffer.wrap(createKinesisMessage(kinesisSinkConfig.getMessageFormat(), inputRecordContext, value)));
+                createKinesisMessage(kinesisSinkConfig.getMessageFormat(), inputRecordContext, value));
         addCallback(addRecordResult,
                 ProducerSendCallback.create(this.streamName, inputRecordContext, System.nanoTime()), directExecutor());
         if (LOG.isDebugEnabled()) {
@@ -274,12 +274,14 @@ public class KinesisSink implements Sink<byte[]> {
         };
     }
 
-    public static byte[] createKinesisMessage(MessageFormat msgFormat, RecordContext recordCtx, byte[] data) {
+    public static ByteBuffer createKinesisMessage(MessageFormat msgFormat, RecordContext recordCtx, byte[] data) {
         if (MessageFormat.FULL_MESSAGE_IN_JSON.equals(msgFormat)) {
-            return Utils.serializeRecordToJson(recordCtx, data).getBytes();
+            return ByteBuffer.wrap(Utils.serializeRecordToJson(recordCtx, data).getBytes());
+        } else if (MessageFormat.FULL_MESSAGE_IN_FB.equals(msgFormat)) {
+            return Utils.serializeRecordToFlatBuffer(recordCtx, data);
         } else {
             // send raw-message
-            return data;
+            return ByteBuffer.wrap(data);
         }
     }
     
