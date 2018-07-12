@@ -20,6 +20,7 @@ package org.apache.pulsar.tests;
 
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallback;
+import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.command.InspectExecResponse;
 import com.github.dockerjava.api.model.Frame;
 import com.github.dockerjava.api.model.ContainerNetwork;
@@ -61,11 +62,15 @@ public class DockerUtils {
         return directory;
     }
 
-    public static void dumpContainerLogToTarget(DockerClient docker, String containerId) {
-        File output = new File(getTargetDirectory(containerId), "docker.log");
+    public static void dumpContainerLogToTarget(DockerClient dockerClient, String containerId) {
+        InspectContainerResponse inspectContainerResponse = dockerClient.inspectContainerCmd(containerId).exec();
+        // docker api returns names prefixed with "/", it's part of it's legacy design,
+        // this removes it to be consistent with what docker ps shows.
+        final String containerName = inspectContainerResponse.getName().replace("/","");
+        File output = new File(getTargetDirectory(containerName), "docker.log");
         try (FileOutputStream os = new FileOutputStream(output)) {
             CompletableFuture<Boolean> future = new CompletableFuture<>();
-            docker.logContainerCmd(containerId).withStdOut(true)
+            dockerClient.logContainerCmd(containerName).withStdOut(true)
                 .withStdErr(true).withTimestamps(true).exec(new ResultCallback<Frame>() {
                         @Override
                         public void close() {}
@@ -94,20 +99,23 @@ public class DockerUtils {
                     });
             future.get();
         } catch (RuntimeException|ExecutionException|IOException e) {
-            LOG.error("Error dumping log for {}", containerId, e);
+            LOG.error("Error dumping log for {}", containerName, e);
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
-            LOG.info("Interrupted dumping log from container {}", containerId, ie);
+            LOG.info("Interrupted dumping log from container {}", containerName, ie);
         }
     }
 
-    public static void dumpContainerDirToTargetCompressed(DockerClient docker, String containerId,
+    public static void dumpContainerDirToTargetCompressed(DockerClient dockerClient, String containerId,
                                                           String path) {
         final int READ_BLOCK_SIZE = 10000;
-
+        InspectContainerResponse inspectContainerResponse = dockerClient.inspectContainerCmd(containerId).exec();
+        // docker api returns names prefixed with "/", it's part of it's legacy design,
+        // this removes it to be consistent with what docker ps shows.
+        final String containerName = inspectContainerResponse.getName().replace("/","");
         File output = new File(getTargetDirectory(containerId),
                                (path.replace("/", "-") + ".tar.gz").replaceAll("^-", ""));
-        try (InputStream dockerStream = docker.copyArchiveFromContainerCmd(containerId, path).exec();
+        try (InputStream dockerStream = dockerClient.copyArchiveFromContainerCmd(containerId, path).exec();
              OutputStream os = new GZIPOutputStream(new FileOutputStream(output))) {
             byte[] block = new byte[READ_BLOCK_SIZE];
             int read = dockerStream.read(block, 0, READ_BLOCK_SIZE);
@@ -116,7 +124,7 @@ public class DockerUtils {
                 read = dockerStream.read(block, 0, READ_BLOCK_SIZE);
             }
         } catch (RuntimeException|IOException e) {
-            LOG.error("Error reading dir from container {}", containerId, e);
+            LOG.error("Error reading dir from container {}", containerName, e);
         }
     }
 
