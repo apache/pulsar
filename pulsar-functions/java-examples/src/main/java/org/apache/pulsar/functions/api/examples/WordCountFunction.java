@@ -20,18 +20,19 @@ package org.apache.pulsar.functions.api.examples;
 
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
+
+import java.util.Arrays;
 
 /**
- * Example function that uses the built in publish function in the context
- * to publish to a desired topic based on config
+ * The classic word count example done using pulsar functions
+ * Each input message is a sentence that split into words and each word counted.
+ * The built in counter state is used to keep track of the word count in a
+ * persistent and consistent manner.
  */
-public class PublishFunction implements Function<String, Void> {
+public class WordCountFunction implements Function<String, Void> {
     @Override
-    public Void process(String input, Context context) {
-        String publishTopic = (String) context.getUserConfigValueOrDefault("publish-topic", "publishtopic");
-        String output = String.format("%s!", input);
-        context.publish(publishTopic, output);
+    public Void process(String input, Context context) throws Exception {
+        Arrays.asList(input.split("\\.")).forEach(word -> context.incrCounter(word, 1));
         return null;
     }
 }
