@@ -22,6 +22,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.worker.rest.FunctionApiResource;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
+import org.apache.pulsar.common.io.ConnectorDefinition;
+import java.util.List;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -158,4 +160,9 @@ public class FunctionApiV2Resource extends FunctionApiResource {
         return functions.downloadFunction(path);
     }
 
+    @GET
+    @Path("/connectors")
+    public List<ConnectorDefinition> getConnectorsList() throws IOException {
+        return functions.getListOfConnectors();
+    }
 }
