@@ -29,6 +29,6 @@ class ConfigBasedAppendFunction(Function):
   def process(self, input, context):
     key = "config-key"
     append_value = "!"
-    if key in context.get_user_config_map:
-      append_value = context.get_user_config_value(append_value)
+    if key in context.get_user_config_map():
+      append_value = context.get_user_config_value(key)
     return input + append_value
