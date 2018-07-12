@@ -24,12 +24,23 @@ import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.StringConverter;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.lang.reflect.Type;
+import java.nio.file.Paths;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Set;
+
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.text.WordUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.nar.NarClassLoader;
@@ -43,6 +54,7 @@ import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.SourceConfig;
 import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
+import org.apache.pulsar.functions.utils.io.Connectors;
 import org.apache.pulsar.functions.utils.validation.ConfigValidation;
 
 import java.io.File;
@@ -135,6 +147,25 @@ public class CmdSources extends CmdBase {
                             .tlsTrustCertsFilePath(tlsTrustCertFilePath).build(),
                     sourceConfig.getArchive(), admin);
         }
+
+        @Override
+        protected String validateSourceType(String sourceType) throws IOException {
+            // Validate the connector source type from the locally available connectors
+            String pulsarHome = System.getenv("PULSAR_HOME");
+            if (pulsarHome == null) {
+                pulsarHome = Paths.get("").toAbsolutePath().toString();
+            }
+            String connectorsDir = Paths.get(pulsarHome, "connectors").toString();
+            Connectors connectors = ConnectorUtils.searchForConnectors(connectorsDir);
+
+            if (!connectors.getSources().containsKey(sourceType)) {
+                throw new ParameterException("Invalid source type '" + sourceType + "' -- Available sources are: "
+                        + connectors.getSources().keySet());
+            }
+
+            // Source type is a valid built-in connector type. For local-run we'll fill it up with its own archive path
+            return connectors.getSources().get(sourceType).toString();
+        }
     }
 
     @Parameters(commandDescription = "Submit a Pulsar IO source connector to run in a Pulsar cluster")
@@ -170,10 +201,12 @@ public class CmdSources extends CmdBase {
         protected String namespace;
         @Parameter(names = "--name", description = "The source's name")
         protected String name;
+
+        @Parameter(names = { "-t", "--source-type" }, description = "The source's connector provider")
+        protected String sourceType;
+
         @Parameter(names = "--processingGuarantees", description = "The processing guarantees (aka delivery semantics) applied to the Source")
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
-        @Parameter(names = "--className", description = "The source's class name")
-        protected String className;
         @Parameter(names = "--destinationTopicName", description = "The Pulsar topic to which data is sent")
         protected String destinationTopicName;
         @Parameter(names = "--deserializationClassName", description = "The SerDe classname for the source")
@@ -228,8 +261,16 @@ public class CmdSources extends CmdBase {
                 sourceConfig.setParallelism(parallelism);
             }
 
+            if (archive != null && sourceType != null) {
+                throw new ParameterException("Cannot specify both archive and source-type");
+            }
+
             if (archive != null) {
                 sourceConfig.setArchive(archive);
+            }
+
+            if (sourceType != null) {
+                sourceConfig.setArchive(validateSourceType(sourceType));
             }
 
             org.apache.pulsar.functions.utils.Resources resources = sourceConfig.getResources();
@@ -276,6 +317,7 @@ public class CmdSources extends CmdBase {
                 throw new ParameterException("Source archive not specfied");
             }
 
+            boolean isConnectorBuiltin = sourceConfig.getArchive().startsWith(Utils.BUILTIN);
             boolean isArchivePathUrl = Utils.isFunctionPackageUrlSupported(sourceConfig.getArchive());
 
             String archivePath = null;
@@ -295,6 +337,9 @@ public class CmdSources extends CmdBase {
                                 + ", due to =" + e.getMessage());
                     }
                 }
+            } else if (isConnectorBuiltin) {
+                // Ignore local checks when submitting built-in connector
+                archivePath = null;
             } else {
                 archivePath = sourceConfig.getArchive();
             }
@@ -338,16 +383,23 @@ public class CmdSources extends CmdBase {
             // check if source configs are valid
             validateSourceConfigs(sourceConfig);
 
-            String sourceClassName = ConnectorUtils.getIOSourceClass(sourceConfig.getArchive());
-
-            String typeArg;
-            try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(sourceConfig.getArchive()),
-                    Collections.emptySet())) {
-                typeArg = sourceConfig.getArchive().startsWith(Utils.FILE) ? null
-                        : getSourceType(sourceClassName, ncl).getName();
-            }
+            String sourceClassName = null;
+            String typeArg = null;
 
             FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
+
+            boolean isBuiltin = sourceConfig.getArchive().startsWith(Utils.BUILTIN);
+
+            if (!isBuiltin) {
+                sourceClassName = ConnectorUtils.getIOSourceClass(sourceConfig.getArchive());
+
+                try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(sourceConfig.getArchive()),
+                        Collections.emptySet())) {
+                    typeArg = sourceConfig.getArchive().startsWith(Utils.FILE) ? null
+                            : getSourceType(sourceClassName, ncl).getName();
+                }
+            }
+
             if (sourceConfig.getTenant() != null) {
                 functionDetailsBuilder.setTenant(sourceConfig.getTenant());
             }
@@ -368,7 +420,14 @@ public class CmdSources extends CmdBase {
 
             // set source spec
             SourceSpec.Builder sourceSpecBuilder = SourceSpec.newBuilder();
-            sourceSpecBuilder.setClassName(sourceClassName);
+            if (sourceClassName != null) {
+                sourceSpecBuilder.setClassName(sourceClassName);
+            }
+
+            if (isBuiltin) {
+                String builtin = sourceConfig.getArchive().replaceFirst("^builtin://", "");
+                sourceSpecBuilder.setBuiltin(builtin);
+            }
 
             if (sourceConfig.getConfigs() != null) {
                 sourceSpecBuilder.setConfigs(new Gson().toJson(sourceConfig.getConfigs()));
@@ -409,6 +468,23 @@ public class CmdSources extends CmdBase {
 
             return functionDetailsBuilder.build();
         }
+
+        protected String validateSourceType(String sourceType) throws IOException {
+            Set<String> availableSources;
+            try {
+                availableSources = admin.functions().getSources();
+            } catch (PulsarAdminException e) {
+                throw new IOException(e);
+            }
+
+            if (!availableSources.contains(sourceType)) {
+                throw new ParameterException(
+                        "Invalid source type '" + sourceType + "' -- Available sources are: " + availableSources);
+            }
+
+            // Source type is a valid built-in connector type
+            return "builtin://" + sourceType;
+        }
     }
 
     @Parameters(commandDescription = "Stops a Pulsar IO source connector")
@@ -446,7 +522,7 @@ public class CmdSources extends CmdBase {
     }
 
     @Parameters(commandDescription = "Get the list of Pulsar IO connector sources supported by Pulsar cluster")
-    public class ListSources extends SourceCommand {
+    public class ListSources extends BaseCommand {
         @Override
         void runCmd() throws Exception {
             admin.functions().getConnectorsList().stream().filter(x -> !StringUtils.isEmpty(x.getSourceClass()))
@@ -457,5 +533,4 @@ public class CmdSources extends CmdBase {
                     });
         }
     }
-
 }
