@@ -71,6 +71,10 @@ message SourceSpec {
     map<string,string> topicsToSerDeClassName = 4;
     uint64 timeoutMs = 6;
     string topicsPattern = 7;
+
+    /* If specified, this will refer to an archive that is
+     * already present in the server */
+    string builtin = 8;
 }
 
 message SinkSpec {
@@ -82,6 +86,10 @@ message SinkSpec {
     // configs used only when functions output to sink
     string topic = 3;
     string serDeClassName = 4;
+
+    /* If specified, this will refer to an archive that is
+     * already present in the server */
+    string builtin = 6;
 }
 
 message PackageLocationMetaData {

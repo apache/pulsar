@@ -24,12 +24,26 @@ import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.StringConverter;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.lang.reflect.Type;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.text.WordUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.nar.NarClassLoader;
@@ -44,6 +58,7 @@ import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.SinkConfig;
 import org.apache.pulsar.functions.utils.Utils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
+import org.apache.pulsar.functions.utils.io.Connectors;
 import org.apache.pulsar.functions.utils.validation.ConfigValidation;
 
 import java.io.File;
@@ -139,6 +154,25 @@ public class CmdSinks extends CmdBase {
                             .tlsTrustCertsFilePath(tlsTrustCertFilePath).build(),
                     sinkConfig.getArchive(), admin);
         }
+
+        @Override
+        protected String validateSinkType(String sinkType) throws IOException {
+            // Validate the connector sink type from the locally available connectors
+            String pulsarHome = System.getenv("PULSAR_HOME");
+            if (pulsarHome == null) {
+                pulsarHome = Paths.get("").toAbsolutePath().toString();
+            }
+            String connectorsDir = Paths.get(pulsarHome, "connectors").toString();
+            Connectors connectors = ConnectorUtils.searchForConnectors(connectorsDir);
+
+            if (!connectors.getSinks().containsKey(sinkType)) {
+                throw new ParameterException("Invalid sink type '" + sinkType + "' -- Available sinks are: "
+                        + connectors.getSinks().keySet());
+            }
+
+            // Sink type is a valid built-in connector type. For local-run we'll fill it up with its own archive path
+            return connectors.getSinks().get(sinkType).toString();
+        }
     }
 
     @Parameters(commandDescription = "Submit a Pulsar IO sink connector to run in a Pulsar cluster")
@@ -174,6 +208,10 @@ public class CmdSinks extends CmdBase {
         protected String namespace;
         @Parameter(names = "--name", description = "The sink's name")
         protected String name;
+
+        @Parameter(names = { "-t", "--sink-type" }, description = "The sinks's connector provider")
+        protected String sinkType;
+
         @Parameter(names = "--inputs", description = "The sink's input topic or topics (multiple topics can be specified as a comma-separated list)")
         protected String inputs;
         @Parameter(names = "--topicsPattern", description = "TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. Add SerDe class name for a pattern in --customSerdeInputs  (supported for java fun only)")
@@ -246,8 +284,16 @@ public class CmdSinks extends CmdBase {
                 sinkConfig.setParallelism(parallelism);
             }
 
+            if (archive != null && sinkType != null) {
+                throw new ParameterException("Cannot specify both archive and sink-type");
+            }
+
             if (null != archive) {
                 sinkConfig.setArchive(archive);
+            }
+
+            if (sinkType != null) {
+                sinkConfig.setArchive(validateSinkType(sinkType));
             }
 
             org.apache.pulsar.functions.utils.Resources resources = sinkConfig.getResources();
@@ -307,6 +353,7 @@ public class CmdSinks extends CmdBase {
                 throw new ParameterException("Sink archive not specfied");
             }
 
+            boolean isConnectorBuiltin = sinkConfig.getArchive().startsWith(Utils.BUILTIN);
             boolean isArchivePathUrl = Utils.isFunctionPackageUrlSupported(sinkConfig.getArchive());
 
             String archivePath = null;
@@ -326,6 +373,9 @@ public class CmdSinks extends CmdBase {
                                 + ", due to =" + e.getMessage());
                     }
                 }
+            } else if (isConnectorBuiltin) {
+                // Ignore local checks when submitting built-in connector
+                archivePath = null;
             } else {
                 archivePath = sinkConfig.getArchive();
             }
@@ -339,6 +389,7 @@ public class CmdSinks extends CmdBase {
                 try {
                     ConnectorDefinition connector = ConnectorUtils.getConnectorDefinition(archivePath);
                     log.info("Connector: {}", connector);
+
                     // Validate sink class
                     ConnectorUtils.getIOSinkClass(archivePath);
                 } catch (IOException e) {
@@ -368,16 +419,23 @@ public class CmdSinks extends CmdBase {
             // check if configs are valid
             validateSinkConfigs(sinkConfig);
 
-            String sinkClassName = ConnectorUtils.getIOSinkClass(sinkConfig.getArchive());
-
-            String typeArg;
-            try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(sinkConfig.getArchive()),
-                    Collections.emptySet())) {
-                typeArg = sinkConfig.getArchive().startsWith(Utils.FILE) ? null
-                        : Utils.getSinkType(sinkClassName, ncl).getName();
-            }
+            String sinkClassName = null;
+            String typeArg = null;
 
             FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
+
+            boolean isBuiltin = sinkConfig.getArchive().startsWith(Utils.BUILTIN);
+
+            if (!isBuiltin) {
+                sinkClassName = ConnectorUtils.getIOSinkClass(sinkConfig.getArchive());
+
+                try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(sinkConfig.getArchive()),
+                        Collections.emptySet())) {
+                    typeArg = sinkConfig.getArchive().startsWith(Utils.FILE) ? null
+                            : Utils.getSinkType(sinkClassName, ncl).getName();
+                }
+            }
+
             if (sinkConfig.getTenant() != null) {
                 functionDetailsBuilder.setTenant(sinkConfig.getTenant());
             }
@@ -414,7 +472,15 @@ public class CmdSinks extends CmdBase {
 
             // set up sink spec
             SinkSpec.Builder sinkSpecBuilder = SinkSpec.newBuilder();
-            sinkSpecBuilder.setClassName(sinkClassName);
+            if (sinkClassName != null) {
+                sinkSpecBuilder.setClassName(sinkClassName);
+            }
+
+            if (isBuiltin) {
+                String builtin = sinkConfig.getArchive().replaceFirst("^builtin://", "");
+                sinkSpecBuilder.setBuiltin(builtin);
+            }
+
             if (sinkConfig.getConfigs() != null) {
                 sinkSpecBuilder.setConfigs(new Gson().toJson(sinkConfig.getConfigs()));
             }
@@ -437,6 +503,23 @@ public class CmdSinks extends CmdBase {
                 functionDetailsBuilder.setResources(bldr.build());
             }
             return functionDetailsBuilder.build();
+        }
+
+        protected String validateSinkType(String sinkType) throws IOException {
+            Set<String> availableSinks;
+            try {
+                availableSinks = admin.functions().getSinks();
+            } catch (PulsarAdminException e) {
+                throw new IOException(e);
+            }
+
+            if (!availableSinks.contains(sinkType)) {
+                throw new ParameterException(
+                        "Invalid sink type '" + sinkType + "' -- Available sinks are: " + availableSinks);
+            }
+
+            // Source type is a valid built-in connector type
+            return "builtin://" + sinkType;
         }
     }
 
@@ -475,7 +558,7 @@ public class CmdSinks extends CmdBase {
     }
 
     @Parameters(commandDescription = "Get the list of Pulsar IO connector sinks supported by Pulsar cluster")
-    public class ListSinks extends SinkCommand {
+    public class ListSinks extends BaseCommand {
         @Override
         void runCmd() throws Exception {
             admin.functions().getConnectorsList().stream().filter(x -> !StringUtils.isEmpty(x.getSinkClass()))

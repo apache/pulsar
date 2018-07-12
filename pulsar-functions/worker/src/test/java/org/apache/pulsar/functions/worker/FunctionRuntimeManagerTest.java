@@ -92,7 +92,8 @@ public class FunctionRuntimeManagerTest {
                 workerConfig,
                 pulsarClient,
                 mock(Namespace.class),
-                mock(MembershipManager.class)
+                mock(MembershipManager.class),
+                mock(ConnectorsManager.class)
         ));
 
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
@@ -185,7 +186,8 @@ public class FunctionRuntimeManagerTest {
                 workerConfig,
                 pulsarClient,
                 mock(Namespace.class),
-                mock(MembershipManager.class)
+                mock(MembershipManager.class),
+                mock(ConnectorsManager.class)
         ));
 
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
@@ -282,7 +284,8 @@ public class FunctionRuntimeManagerTest {
                 workerConfig,
                 pulsarClient,
                 mock(Namespace.class),
-                mock(MembershipManager.class)
+                mock(MembershipManager.class),
+                mock(ConnectorsManager.class)
         ));
 
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(

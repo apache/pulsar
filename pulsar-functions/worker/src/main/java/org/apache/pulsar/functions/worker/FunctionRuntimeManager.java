@@ -78,13 +78,16 @@ public class FunctionRuntimeManager implements AutoCloseable{
     private RuntimeFactory runtimeFactory;
 
     private MembershipManager membershipManager;
+    private final ConnectorsManager connectorsManager;
 
 
     public FunctionRuntimeManager(WorkerConfig workerConfig,
                                   PulsarClient pulsarClient,
                                   Namespace dlogNamespace,
-                                  MembershipManager membershipManager) throws Exception {
+                                  MembershipManager membershipManager,
+                                  ConnectorsManager connectorsManager) throws Exception {
         this.workerConfig = workerConfig;
+        this.connectorsManager = connectorsManager;
 
         Reader<byte[]> reader = pulsarClient.newReader()
                 .topic(this.workerConfig.getFunctionAssignmentTopic())
@@ -99,7 +102,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
                 .tlsTrustCertsFilePath(workerConfig.getTlsTrustCertsFilePath())
                 .useTls(workerConfig.isUseTls()).tlsAllowInsecureConnection(workerConfig.isTlsAllowInsecureConnection())
                 .tlsHostnameVerificationEnable(workerConfig.isTlsHostnameVerificationEnable()).build();
-        
+
         if (workerConfig.getThreadContainerFactory() != null) {
             this.runtimeFactory = new ThreadRuntimeFactory(
                     workerConfig.getThreadContainerFactory().getThreadGroupName(),
@@ -121,7 +124,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
         this.actionQueue = new LinkedBlockingQueue<>();
 
         this.functionActioner = new FunctionActioner(this.workerConfig, runtimeFactory,
-                dlogNamespace, actionQueue);
+                dlogNamespace, actionQueue, connectorsManager);
 
         this.membershipManager = membershipManager;
     }
