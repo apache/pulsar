@@ -104,13 +104,8 @@ class Context(object):
     pass
 
   @abstractmethod
-  def publish(self, topic_name, message, serde_class_name):
+  def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe"):
     """Publishes message to topic_name by first serializing the message using serde_class_name serde"""
-    pass
-
-  @abstractmethod
-  def publish(self, topic_name, message):
-    """Publishes message to topic_name by first serializing the message using IdentitySerDe"""
     pass
 
   @abstractmethod
