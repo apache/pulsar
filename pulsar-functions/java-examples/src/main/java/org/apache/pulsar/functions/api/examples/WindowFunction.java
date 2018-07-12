@@ -21,20 +21,15 @@ package org.apache.pulsar.functions.api.examples;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Collection;
-import java.util.function.BinaryOperator;
 import java.util.function.Function;
 
+/**
+ * Example Function that acts on a window of tuples at a time rather than per tuple basis.
+ */
 @Slf4j
 public class WindowFunction implements Function <Collection<Integer>, Integer> {
     @Override
     public Integer apply(Collection<Integer> integers) {
-
-        int sum = integers.stream().reduce(new BinaryOperator<Integer>() {
-            @Override
-            public Integer apply(Integer integer, Integer integer2) {
-                return integer + integer2;
-            }
-        }).get();
-        return sum;
+        return integers.stream().reduce(0, (x, y) -> x + y);
     }
 }

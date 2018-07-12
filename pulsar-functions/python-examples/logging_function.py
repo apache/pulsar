@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,14 +18,17 @@
 # under the License.
 #
 
-tenant: "test"
-namespace: "test-namespace"
-name: "stateful-example"
-className: "org.apache.pulsar.functions.api.examples.WordCountFunction"
-inputs: ["test_stateful_src"]
-userConfig:
-  "PublishTopic": "test_stateful_result"
 
-output: "test_stateful_result"
-autoAck: true
-parallelism: 1
+from pulsar import Function
+
+# A function that demonstrates how to redirect logging to a topic.
+# In this particular example, for every input string, the function
+# does some logging. If --logTopic topic is specified, these log
+# statements end up in that specified pulsar topic
+class LoggingFunction(Function):
+  def __init__(self):
+    pass
+
+  def process(self, input, context):
+    context.get_logger().info(input + '-log')
+    return input + '!'
