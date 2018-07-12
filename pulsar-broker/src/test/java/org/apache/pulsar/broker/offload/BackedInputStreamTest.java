@@ -40,8 +40,8 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 @Slf4j
-class S3BackedInputStreamTest extends BlobStoreTestBase {
-    private static final Logger log = LoggerFactory.getLogger(S3BackedInputStreamTest.class);
+class BackedInputStreamTest extends BlobStoreTestBase {
+    private static final Logger log = LoggerFactory.getLogger(BackedInputStreamTest.class);
 
     class RandomInputStream extends InputStream {
         final Random r;
@@ -130,7 +130,7 @@ class S3BackedInputStreamTest extends BlobStoreTestBase {
     }
 
     @Test(expectedExceptions = IOException.class)
-    public void testErrorOnS3Read() throws Exception {
+    public void testErrorOnRead() throws Exception {
         BackedInputStream toTest = new BackedInputStreamImpl(blobStore, BUCKET, "doesn't exist",
                                                                  (key, md) -> {},
                                                                  1234, 1000);

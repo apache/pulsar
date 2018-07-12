@@ -60,16 +60,15 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 @Slf4j
-class S3ManagedLedgerOffloaderTest extends BlobStoreTestBase {
-    private static final Logger log = LoggerFactory.getLogger(S3ManagedLedgerOffloaderTest.class);
+class ManagedLedgerOffloaderTest extends BlobStoreTestBase {
+    private static final Logger log = LoggerFactory.getLogger(ManagedLedgerOffloaderTest.class);
 
     private static final int DEFAULT_BLOCK_SIZE = 5*1024*1024;
     private static final int DEFAULT_READ_BUFFER_SIZE = 1*1024*1024;
-    private final String driver = "s3";
     final OrderedScheduler scheduler;
     final MockBookKeeper bk;
 
-    S3ManagedLedgerOffloaderTest() throws Exception {
+    ManagedLedgerOffloaderTest() throws Exception {
         scheduler = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("offloader").build();
         bk = new MockBookKeeper(MockedPulsarServiceBaseTest.createMockZooKeeper());
     }
