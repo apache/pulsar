@@ -52,7 +52,7 @@ Sequence ID | Each Pulsar message belongs to an ordered sequence on its {% popov
 Publish time | The timestamp of when the message was published (automatically applied by the {% popover producer %})
 Event time | An optional timestamp that applications can attach to the message representing when something happened, e.g. when the message was processed. The event time of a message is 0 if none is explicitly set.
 
-{% include admonition.html type="info" content="For a more in-depth breakdown of Pulsar message contents, see the documentation on Pulsar's [binary protocol](../../reference/BinaryProtocol)." %}
+{% include admonition.html type="info" content="For a more in-depth breakdown of Pulsar message contents, see the documentation on Pulsar's [binary protocol](../../project/BinaryProtocol)." %}
 
 ## Producers, consumers, topics, and subscriptions
 
@@ -263,7 +263,7 @@ At the broader {% popover instance %} level, an instance-wide ZooKeeper cluster 
 The Pulsar message {% popover broker %} is a stateless component that's primarily responsible for running two other components:
 
 * An HTTP server that exposes a REST API for both [administrative tasks](../../reference/RestApi) and [topic lookup](#client-setup-phase) for producers and consumers
-* A {% popover dispatcher %}, which is an asynchronous TCP server over a custom [binary protocol](../../reference/BinaryProtocol) used for all data transfers
+* A {% popover dispatcher %}, which is an asynchronous TCP server over a custom [binary protocol](../../project/BinaryProtocol) used for all data transfers
 
 Messages are typically dispatched out of a [managed ledger](#managed-ledger) cache for the sake of performance, *unless* the backlog exceeds the cache size. If the backlog grows too large for the cache, the broker will start reading entries from {% popover BookKeeper %}.
 
@@ -575,7 +575,7 @@ After the initial compaction operation, the Pulsar {% popover broker %} that own
 
 Pulsar's segment oriented architecture allows for topic backlogs to grow very large, effectively without limit. However, this can become expensive over time.
 
-One way to alleviate this cost is to use Tiered Storage. With tiered storage, older messages in the backlog can be moved from bookkeeper to a cheaper storage mechanism, while still allowing clients to access the backlog as if nothing had changed. 
+One way to alleviate this cost is to use Tiered Storage. With tiered storage, older messages in the backlog can be moved from bookkeeper to a cheaper storage mechanism, while still allowing clients to access the backlog as if nothing had changed.
 
 {% include figure.html src="/img/pulsar-tiered-storage.png" alt="Tiered Storage" width="80" %}
 

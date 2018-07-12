@@ -52,6 +52,7 @@ public class FunctionStatsGeneratorTest {
 
         WorkerService workerService = mock(WorkerService.class);
         doReturn(functionRuntimeManager).when(workerService).getFunctionRuntimeManager();
+        doReturn(new WorkerConfig()).when(workerService).getWorkerConfig();
 
         CompletableFuture<InstanceCommunication.MetricsData> metricsDataCompletableFuture = new CompletableFuture<>();
         InstanceCommunication.MetricsData metricsData = InstanceCommunication.MetricsData.newBuilder()
@@ -66,7 +67,7 @@ public class FunctionStatsGeneratorTest {
 
         metricsDataCompletableFuture.complete(metricsData);
         Runtime runtime = mock(Runtime.class);
-        doReturn(metricsDataCompletableFuture).when(runtime).getAndResetMetrics();
+        doReturn(metricsDataCompletableFuture).when(runtime).getMetrics();
 
         RuntimeSpawner runtimeSpawner = mock(RuntimeSpawner.class);
         doReturn(runtime).when(runtimeSpawner).getRuntime();

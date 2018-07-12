@@ -54,7 +54,7 @@ public class SinkConfig {
     private Map<String, String> topicToSerdeClassName;
     @isValidTopicName
     private String topicsPattern;
-    private Map<String, Object> configs = new HashMap<>();
+    private Map<String, Object> configs;
     @isPositiveNumber
     private int parallelism = 1;
     private FunctionConfig.ProcessingGuarantees processingGuarantees;

@@ -54,6 +54,7 @@ class ContextImpl(pulsar.Context):
     self.pulsar_client = pulsar_client
     self.user_code_dir = os.path.dirname(user_code)
     self.consumers = consumers
+    self.current_accumulated_metrics = {}
     self.accumulated_metrics = {}
     self.publish_producers = {}
     self.publish_serializers = {}
@@ -107,9 +108,9 @@ class ContextImpl(pulsar.Context):
     return self.user_config
 
   def record_metric(self, metric_name, metric_value):
-    if not metric_name in self.accumulated_metrics:
-      self.accumulated_metrics[metric_name] = AccumulatedMetricDatum()
-    self.accumulated_metrics[metric_name].update(metric_value)
+    if not metric_name in self.current_accumulated_metrics:
+      self.current_accumulated_metrics[metric_name] = AccumulatedMetricDatum()
+    self.current_accumulated_metrics[metric_name].update(metric_value)
 
   def get_output_topic(self):
     return self.instance_config.function_details.output
@@ -117,10 +118,7 @@ class ContextImpl(pulsar.Context):
   def get_output_serde_class_name(self):
     return self.instance_config.function_details.outputSerdeClassName
 
-  def publish(self, topic_name, message):
-    return self.publish(topic_name, message, "serde.IdentitySerDe")
-
-  def publish(self, topic_name, message, serde_class_name):
+  def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe"):
     # Just make sure that user supplied values are properly typed
     topic_name = str(topic_name)
     serde_class_name = str(serde_class_name)
@@ -146,6 +144,18 @@ class ContextImpl(pulsar.Context):
     self.consumers[topic].acknowledge(msgid)
 
   def get_and_reset_metrics(self):
+    metrics = self.get_metrics()
+    # TODO(sanjeev):- Make this thread safe
+    self.reset_metrics()
+    return metrics
+
+  def reset_metrics(self):
+    # TODO: Make it thread safe
+    self.accumulated_metrics.clear()
+    self.accumulated_metrics.update(self.current_accumulated_metrics)
+    self.current_accumulated_metrics.clear()
+
+  def get_metrics(self):
     metrics = InstanceCommunication_pb2.MetricsData()
     for metric_name, accumulated_metric in self.accumulated_metrics.items():
       m = InstanceCommunication_pb2.MetricsData.DataDigest()
@@ -154,6 +164,4 @@ class ContextImpl(pulsar.Context):
       m.max = accumulated_metric.max
       m.min = accumulated_metric.min
       metrics.metrics[metric_name] = m
-    # TODO(sanjeev):- Make this thread safe
-    self.accumulated_metrics.clear()
     return metrics

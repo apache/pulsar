@@ -36,9 +36,9 @@ public abstract class PulsarFunctionsTestBase extends PulsarClusterTestBase  {
         "org.apache.pulsar.functions.api.examples.ExclamationFunction";
 
     public static final String EXCLAMATION_PYTHON_CLASS =
-        "exclamation.Exclamation";
+        "exclamation.ExclamationFunction";
 
-    public static final String EXCLAMATION_PYTHON_FILE = "exclamation.py";
+    public static final String EXCLAMATION_PYTHON_FILE = "exclamation_function.py";
 
     protected static String getExclamationClass(Runtime runtime) {
         if (Runtime.JAVA == runtime) {

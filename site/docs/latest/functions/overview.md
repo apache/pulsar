@@ -144,7 +144,7 @@ class RoutingFunction(Function):
 Pulsar Functions are managed using the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) CLI tool (in particular the [`functions`](../../reference/CliTools#pulsar-admin-functions) command). Here's an example command that would run a function in [local run mode](#local-run):
 
 ```bash
-$ bin/pulsar-functions localrun \
+$ bin/pulsar-admin functions localrun \
   --inputs persistent://public/default/test_src \
   --output persistent://public/default/test_result \
   --jar examples/api-examples.jar \

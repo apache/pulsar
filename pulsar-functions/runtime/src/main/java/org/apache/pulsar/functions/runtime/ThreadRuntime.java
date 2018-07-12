@@ -113,6 +113,18 @@ class ThreadRuntime implements Runtime {
     public CompletableFuture<InstanceCommunication.MetricsData> getAndResetMetrics() {
         return CompletableFuture.completedFuture(javaInstanceRunnable.getAndResetMetrics());
     }
+    
+    
+    @Override
+    public CompletableFuture<InstanceCommunication.MetricsData> getMetrics() {
+        return CompletableFuture.completedFuture(javaInstanceRunnable.getMetrics());
+    }
+
+    @Override
+    public CompletableFuture<Void> resetMetrics() {
+        javaInstanceRunnable.resetMetrics();
+        return CompletableFuture.completedFuture(null);
+    }
 
     @Override
     public boolean isAlive() {

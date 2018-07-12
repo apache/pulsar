@@ -31,6 +31,7 @@ import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.Request.AssignmentsUpdate;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.ProcessRuntimeFactory;
+import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.runtime.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 
@@ -42,6 +43,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -78,13 +80,16 @@ public class FunctionRuntimeManager implements AutoCloseable{
     private RuntimeFactory runtimeFactory;
 
     private MembershipManager membershipManager;
+    private final ConnectorsManager connectorsManager;
 
 
     public FunctionRuntimeManager(WorkerConfig workerConfig,
                                   PulsarClient pulsarClient,
                                   Namespace dlogNamespace,
-                                  MembershipManager membershipManager) throws Exception {
+                                  MembershipManager membershipManager,
+                                  ConnectorsManager connectorsManager) throws Exception {
         this.workerConfig = workerConfig;
+        this.connectorsManager = connectorsManager;
 
         Reader<byte[]> reader = pulsarClient.newReader()
                 .topic(this.workerConfig.getFunctionAssignmentTopic())
@@ -99,7 +104,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
                 .tlsTrustCertsFilePath(workerConfig.getTlsTrustCertsFilePath())
                 .useTls(workerConfig.isUseTls()).tlsAllowInsecureConnection(workerConfig.isTlsAllowInsecureConnection())
                 .tlsHostnameVerificationEnable(workerConfig.isTlsHostnameVerificationEnable()).build();
-        
+
         if (workerConfig.getThreadContainerFactory() != null) {
             this.runtimeFactory = new ThreadRuntimeFactory(
                     workerConfig.getThreadContainerFactory().getThreadGroupName(),
@@ -121,7 +126,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
         this.actionQueue = new LinkedBlockingQueue<>();
 
         this.functionActioner = new FunctionActioner(this.workerConfig, runtimeFactory,
-                dlogNamespace, actionQueue);
+                dlogNamespace, actionQueue, connectorsManager);
 
         this.membershipManager = membershipManager;
     }
@@ -434,6 +439,22 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
     public Map<String, FunctionRuntimeInfo> getFunctionRuntimeInfos() {
         return this.functionRuntimeInfoMap;
+    }
+    
+    public void updateRates() {
+        for (Entry<String, FunctionRuntimeInfo> entry : this.functionRuntimeInfoMap.entrySet()) {
+            RuntimeSpawner functionRuntimeSpawner = entry.getValue().getRuntimeSpawner();
+            if (functionRuntimeSpawner != null) {
+                Runtime functionRuntime = functionRuntimeSpawner.getRuntime();
+                if (functionRuntime != null) {
+                    try {
+                        functionRuntime.resetMetrics().get();
+                    } catch (Exception e) {
+                        log.error("Failed to update stats for {}-{}", entry.getKey(), e.getMessage());
+                    }
+                }
+            }
+        }
     }
     /**
      * Private methods for internal use.  Should not be used outside of this class

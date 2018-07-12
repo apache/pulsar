@@ -22,6 +22,7 @@
 #include <lib/LogUtils.h>
 #include <pulsar/MessageBuilder.h>
 #include <lib/Commands.h>
+#include <lib/Latch.h>
 #include <sstream>
 #include "boost/date_time/posix_time/posix_time.hpp"
 #include "CustomRoutingPolicy.h"
@@ -48,6 +49,13 @@ static std::string adminUrl = "http://localhost:8765/";
 static void messageListenerFunction(Consumer consumer, const Message& msg) {
     globalCount++;
     consumer.acknowledge(msg);
+}
+
+static void messageListenerFunctionWithoutAck(Consumer consumer, const Message& msg, Latch& latch,
+                                              const std::string& content) {
+    globalCount++;
+    ASSERT_EQ(content, msg.getDataAsString());
+    latch.countdown();
 }
 
 static void sendCallBack(Result r, const Message& msg, std::string prefix) {
@@ -1426,4 +1434,77 @@ TEST(BasicEndToEndTest, testSeek) {
     ASSERT_EQ(ResultAlreadyClosed, consumer.close());
     ASSERT_EQ(ResultOk, producer.close());
     ASSERT_EQ(ResultOk, client.close());
+}
+
+TEST(BasicEndToEndTest, testUnAckedMessageTimeout) {
+    Client client(lookupUrl);
+    std::string topicName = "persistent://prop/unit/ns1/testUnAckedMessageTimeout";
+    std::string subName = "my-sub-name";
+    std::string content = "msg-content";
+
+    Producer producer;
+    Result result = client.createProducer(topicName, producer);
+    ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer;
+    ConsumerConfiguration consConfig;
+    consConfig.setUnAckedMessagesTimeoutMs(10 * 1000);
+    result = client.subscribe(topicName, subName, consConfig, consumer);
+    ASSERT_EQ(ResultOk, result);
+
+    Message msg = MessageBuilder().setContent(content).build();
+    result = producer.send(msg);
+    ASSERT_EQ(ResultOk, result);
+
+    Message receivedMsg1;
+    MessageId msgId1;
+    consumer.receive(receivedMsg1);
+    msgId1 = receivedMsg1.getMessageId();
+    ASSERT_EQ(content, receivedMsg1.getDataAsString());
+
+    Message receivedMsg2;
+    MessageId msgId2;
+    consumer.receive(receivedMsg2, 30 * 1000);
+    msgId2 = receivedMsg2.getMessageId();
+    ASSERT_EQ(content, receivedMsg2.getDataAsString());
+
+    ASSERT_EQ(msgId1, msgId2);
+
+    consumer.unsubscribe();
+    consumer.close();
+    producer.close();
+    client.close();
+}
+
+TEST(BasicEndToEndTest, testUnAckedMessageTimeoutListener) {
+    Client client(lookupUrl);
+    std::string topicName = "persistent://prop/unit/ns1/testUnAckedMessageTimeoutListener";
+    std::string subName = "my-sub-name";
+    std::string content = "msg-content";
+
+    Producer producer;
+    Result result = client.createProducer(topicName, producer);
+    ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer;
+    ConsumerConfiguration consConfig;
+    consConfig.setUnAckedMessagesTimeoutMs(10 * 1000);
+    Latch latch(2);
+    consConfig.setMessageListener(boost::bind(messageListenerFunctionWithoutAck, _1, _2, latch, content));
+    result = client.subscribe(topicName, subName, consConfig, consumer);
+    ASSERT_EQ(ResultOk, result);
+
+    globalCount = 0;
+
+    Message msg = MessageBuilder().setContent(content).build();
+    result = producer.send(msg);
+    ASSERT_EQ(ResultOk, result);
+
+    ASSERT_TRUE(latch.wait(milliseconds(30 * 1000)));
+    ASSERT_GE(globalCount, 2);
+
+    consumer.unsubscribe();
+    consumer.close();
+    producer.close();
+    client.close();
 }

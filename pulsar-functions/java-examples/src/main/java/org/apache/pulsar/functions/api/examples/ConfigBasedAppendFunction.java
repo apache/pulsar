@@ -21,13 +21,21 @@ package org.apache.pulsar.functions.api.examples;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 
-import java.util.Arrays;
+import java.util.Optional;
 
-public class CounterFunction implements Function<String, Void> {
+/**
+ * Function that appends something to incoming input based on config supplied
+ */
+public class ConfigBasedAppendFunction implements Function<String, String> {
     @Override
-    public Void process(String input, Context context) throws Exception {
-        Arrays.asList(input.split("\\.")).forEach(word -> context.incrCounter(word, 1));
+    public String process(String input, Context context) {
+        String key = "config-key";
+        Optional<Object> appendValue = context.getUserConfigValue(key);
 
-        return null;
+        if (appendValue.isPresent()) {
+            return input + (String) appendValue.get();
+        } else {
+            return input + "!";
+        }
     }
 }

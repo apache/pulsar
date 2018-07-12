@@ -33,7 +33,9 @@ import javax.ws.rs.client.WebTarget;
 
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.configuration.VipStatus;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.glassfish.jersey.client.ClientConfig;
@@ -72,7 +74,8 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setZookeeperServers(DUMMY_VALUE);
         proxyConfig.setGlobalZookeeperServers(DUMMY_VALUE);
 
-        webServer = new WebServer(proxyConfig);
+        webServer = new WebServer(proxyConfig, new AuthenticationService(
+                                          PulsarConfigurationLoader.convertFrom(proxyConfig)));
 
         discoveryProvider = spy(new BrokerDiscoveryProvider(proxyConfig, mockZooKeeperClientFactory));
         adminProxyHandler = new AdminProxyWrapper(proxyConfig, discoveryProvider);

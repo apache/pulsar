@@ -24,6 +24,10 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+
+import org.apache.commons.lang3.StringUtils;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -69,6 +73,7 @@ public class WorkerConfig implements Serializable {
     private String tlsTrustCertsFilePath = "";
     private boolean tlsAllowInsecureConnection = false;
     private boolean tlsHostnameVerificationEnable = false;
+    private int metricsSamplingPeriodSec = 60;
 
     @Data
     @Setter
@@ -107,5 +112,27 @@ public class WorkerConfig implements Serializable {
     public static WorkerConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         return mapper.readValue(new File(yamlFile), WorkerConfig.class);
+    }
+
+    public String getWorkerId() {
+        if (StringUtils.isBlank(this.workerId)) {
+            this.workerId = getWorkerHostname();
+        }
+        return this.workerId;
+    }
+
+    public String getWorkerHostname() {
+        if (StringUtils.isBlank(this.workerHostname)) {
+            this.workerHostname = unsafeLocalhostResolve();
+        }
+        return this.workerHostname;
+    }
+    
+    public static String unsafeLocalhostResolve() {
+        try {
+            return InetAddress.getLocalHost().getHostName();
+        } catch (UnknownHostException ex) {
+            throw new IllegalStateException("Failed to resolve localhost name.", ex);
+        }
     }
 }
