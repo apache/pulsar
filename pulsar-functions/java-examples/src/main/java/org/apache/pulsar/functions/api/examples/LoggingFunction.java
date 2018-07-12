@@ -18,28 +18,20 @@
  */
 package org.apache.pulsar.functions.api.examples;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
-import org.slf4j.Logger;
 
 /**
- * A function with logging example.
+ * A function that demonstrates how to redirect logging to a topic.
+ * In this particular example, for every input string, the function
+ * does some logging. If --logTopic topic is specified, these log statements
+ * end up in that specified pulsar topic
  */
 public class LoggingFunction implements Function<String, String> {
 
-    private final AtomicInteger counter = new AtomicInteger(0);
-
     @Override
     public String process(String input, Context context) {
-        Logger LOG = context.getLogger();
-
-        int counterLocal = counter.incrementAndGet();
-        if ((counterLocal & Integer.MAX_VALUE) % 100000 == 0) {
-            LOG.info("Handled {} messages", counterLocal);
-        }
-
+        context.getLogger().info(input + "-log");
         return String.format("%s!", input);
     }
 

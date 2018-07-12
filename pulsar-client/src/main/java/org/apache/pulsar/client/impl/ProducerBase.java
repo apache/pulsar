@@ -78,8 +78,8 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
             CompletableFuture<MessageId> sendFuture = internalSendAsync(message);
 
             if (!sendFuture.isDone()) {
-                // the send request wasn't completed yet (e.g. not failing at enqueuing), then attempt to flush it out
-                flush();
+                // the send request wasn't completed yet (e.g. not failing at enqueuing), then attempt to triggerFlush it out
+                triggerFlush();
             }
 
             return sendFuture.get();
@@ -96,7 +96,24 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
         }
     }
 
-    abstract void flush();
+    @Override
+    public void flush() throws PulsarClientException {
+        try {
+            flushAsync().get();
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof PulsarClientException) {
+                throw (PulsarClientException) cause;
+            } else {
+                throw new PulsarClientException(cause);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarClientException(e);
+        }
+    }
+
+    abstract void triggerFlush();
 
     @Override
     public void close() throws PulsarClientException {

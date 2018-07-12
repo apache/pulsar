@@ -21,10 +21,14 @@
 
 from pulsar import Function
 
-class LogFunction(Function):
+# Function that appends something to incoming input based on config supplied
+class ConfigBasedAppendFunction(Function):
   def __init__(self):
     pass
 
   def process(self, input, context):
-    context.get_logger().info(input)
-    return input + '!'
+    key = "config-key"
+    append_value = "!"
+    if key in context.get_user_config_map:
+      append_value = context.get_user_config_value(append_value)
+    return input + append_value

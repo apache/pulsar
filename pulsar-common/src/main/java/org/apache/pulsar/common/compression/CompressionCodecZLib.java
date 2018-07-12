@@ -39,12 +39,22 @@ public class CompressionCodecZLib implements CompressionCodec {
         protected Deflater initialValue() throws Exception {
             return new Deflater();
         }
+
+        @Override
+        protected void onRemoval(Deflater deflater) throws Exception {
+            deflater.end();
+        }
     };
 
     private final FastThreadLocal<Inflater> inflater = new FastThreadLocal<Inflater>() {
         @Override
         protected Inflater initialValue() throws Exception {
             return new Inflater();
+        }
+
+        @Override
+        protected void onRemoval(Inflater inflater) throws Exception {
+            inflater.end();
         }
     };
 
