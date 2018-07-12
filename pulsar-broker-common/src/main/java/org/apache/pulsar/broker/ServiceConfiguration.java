@@ -502,6 +502,24 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(minValue = 1024)
     private int s3ManagedLedgerOffloadReadBufferSizeInBytes = 1024 * 1024; // 1MB
 
+    // For Google Cloud Storage ledger offload, AWS region
+    private String gcsManagedLedgerOffloadRegion = null;
+
+    // For Google Cloud Storage ledger offload, Bucket to place offloaded ledger into
+    private String gcsManagedLedgerOffloadBucket = null;
+
+    // For Google Cloud Storage ledger offload, Max block size in bytes.
+    @FieldContext(minValue = 5242880) // 5MB
+    private int gcsManagedLedgerOffloadMaxBlockSizeInBytes = 64 * 1024 * 1024; // 64MB
+
+    // For Google Cloud Storage ledger offload, Read buffer size in bytes.
+    @FieldContext(minValue = 1024)
+    private int gcsManagedLedgerOffloadReadBufferSizeInBytes = 1024 * 1024; // 1MB
+
+    // For Google Cloud Storage credentials of service account key path
+    // reference this page for more details of service account key: https://support.google.com/googleapi/answer/6158849
+    private String gcsManagedLedgerOffloadServiceAccountKeyPath = null;
+
     public String getZookeeperServers() {
         return zookeeperServers;
     }
@@ -1731,6 +1749,46 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public int getS3ManagedLedgerOffloadReadBufferSizeInBytes() {
         return this.s3ManagedLedgerOffloadReadBufferSizeInBytes;
+    }
+
+    public void setGcsManagedLedgerOffloadRegion(String region) {
+        this.gcsManagedLedgerOffloadRegion = region;
+    }
+
+    public String getGcsManagedLedgerOffloadRegion() {
+        return this.gcsManagedLedgerOffloadRegion;
+    }
+
+    public void setGcsManagedLedgerOffloadBucket(String bucket) {
+        this.gcsManagedLedgerOffloadBucket = bucket;
+    }
+
+    public String getGcsManagedLedgerOffloadBucket() {
+        return this.gcsManagedLedgerOffloadBucket;
+    }
+
+    public void setGcsManagedLedgerOffloadMaxBlockSizeInBytes(int blockSizeInBytes) {
+        this.gcsManagedLedgerOffloadMaxBlockSizeInBytes = blockSizeInBytes;
+    }
+
+    public int getGcsManagedLedgerOffloadMaxBlockSizeInBytes() {
+        return this.gcsManagedLedgerOffloadMaxBlockSizeInBytes;
+    }
+
+    public void setGcsManagedLedgerOffloadReadBufferSizeInBytes(int readBufferSizeInBytes) {
+        this.gcsManagedLedgerOffloadReadBufferSizeInBytes = readBufferSizeInBytes;
+    }
+
+    public int getGcsManagedLedgerOffloadReadBufferSizeInBytes() {
+        return this.gcsManagedLedgerOffloadReadBufferSizeInBytes;
+    }
+
+    public void setGcsManagedLedgerOffloadServiceAccountKeyPath(String keyPath) {
+        this.gcsManagedLedgerOffloadServiceAccountKeyPath = keyPath;
+    }
+
+    public String getGcsManagedLedgerOffloadServiceAccountKeyPath() {
+        return this.gcsManagedLedgerOffloadServiceAccountKeyPath;
     }
 
     public void setBrokerServiceCompactionMonitorIntervalInSeconds(int interval) {
