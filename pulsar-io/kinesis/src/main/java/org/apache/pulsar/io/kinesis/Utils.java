@@ -19,13 +19,22 @@
 
 package org.apache.pulsar.io.kinesis;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.Base64.getEncoder;
 
+import java.nio.ByteBuffer;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Optional;
 
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.io.core.RecordContext;
+import org.apache.pulsar.io.kinesis.fbs.EncryptionCtx;
+import org.apache.pulsar.io.kinesis.fbs.EncryptionKey;
+import org.apache.pulsar.io.kinesis.fbs.KeyValue;
+import org.apache.pulsar.io.kinesis.fbs.Message;
 
+import com.google.flatbuffers.FlatBufferBuilder;
 import com.google.gson.JsonObject;
 
 public class Utils {
@@ -34,13 +43,121 @@ public class Utils {
     private static final String PROPERTIES_FIELD = "properties";
     private static final String KEY_MAP_FIELD = "keysMapBase64";
     private static final String KEY_METADATA_MAP_FIELD = "keysMetadataMap";
-    private static final String METADATA_FIELD = "metadata";
     private static final String ENCRYPTION_PARAM_FIELD = "encParamBase64";
     private static final String ALGO_FIELD = "algorithm";
     private static final String COMPRESSION_TYPE_FIELD = "compressionType";
     private static final String UNCPRESSED_MSG_SIZE_FIELD = "uncompressedMessageSize";
     private static final String BATCH_SIZE_FIELD = "batchSize";
     private static final String ENCRYPTION_CTX_FIELD = "encryptionCtx";
+    
+    private static final FlatBufferBuilder DEFAULT_FB_BUILDER = new FlatBufferBuilder(0);
+
+    /**
+     * Serialize record to flat-buffer. it's not a thread-safe method.
+     * 
+     * @param inputRecordContext
+     * @param data
+     * @return
+     */
+    public static ByteBuffer serializeRecordToFlatBuffer(RecordContext inputRecordContext, byte[] data) {
+        DEFAULT_FB_BUILDER.clear();
+        return serializeRecordToFlatBuffer(DEFAULT_FB_BUILDER, inputRecordContext, data);
+    }
+    
+    public static ByteBuffer serializeRecordToFlatBuffer(FlatBufferBuilder builder, RecordContext inputRecordContext, byte[] data) {
+        checkNotNull(inputRecordContext, "record-context can't be null");
+        Optional<EncryptionContext> encryptionCtx = inputRecordContext.getEncryptionCtx();
+        Map<String, String> properties = inputRecordContext.getProperties();
+
+        int encryptionCtxOffset = -1;
+        int propertiesOffset = -1;
+
+        if (properties != null && !properties.isEmpty()) {
+            int[] propertiesOffsetArray = new int[properties.size()];
+            int i = 0;
+            for (Entry<String, String> property : properties.entrySet()) {
+                propertiesOffsetArray[i++] = KeyValue.createKeyValue(builder, builder.createString(property.getKey()),
+                        builder.createString(property.getValue()));
+            }
+            propertiesOffset = Message.createPropertiesVector(builder, propertiesOffsetArray);
+        }
+
+        if (encryptionCtx.isPresent()) {
+            encryptionCtxOffset = createEncryptionCtxOffset(builder, encryptionCtx);
+        }
+
+        int payloadOffset = Message.createPayloadVector(builder, data);
+        Message.startMessage(builder);
+        Message.addPayload(builder, payloadOffset);
+        if (encryptionCtxOffset != -1) {
+            Message.addEncryptionCtx(builder, encryptionCtxOffset);
+        }
+        if (propertiesOffset != -1) {
+            Message.addProperties(builder, propertiesOffset);
+        }
+        int endMessage = Message.endMessage(builder);
+        builder.finish(endMessage);
+        ByteBuffer bb = builder.dataBuffer();
+        
+        // to avoid copying of data, use same byte[] wrapped by ByteBuffer. But, ByteBuffer.array() returns entire array
+        // so, it requires to read from offset:
+        // builder.sizedByteArray()=>copies buffer: sizedByteArray(space, bb.capacity() - space)
+        int space = bb.capacity() - builder.offset(); 
+        return ByteBuffer.wrap(bb.array(), space, bb.capacity() - space);
+    }
+
+    private static int createEncryptionCtxOffset(final FlatBufferBuilder builder, Optional<EncryptionContext> encryptionCtx) {
+        if (!encryptionCtx.isPresent()) {
+            return -1;
+        }
+        // Message.addEncryptionCtx(builder, encryptionCtxOffset);
+        EncryptionContext ctx = encryptionCtx.get();
+        int[] keysOffsets = new int[ctx.getKeys().size()];
+        int keyIndex = 0;
+        for (Entry<String, org.apache.pulsar.common.api.EncryptionContext.EncryptionKey> entry : ctx.getKeys()
+                .entrySet()) {
+            int key = builder.createString(entry.getKey());
+            int value = EncryptionKey.createValueVector(builder, entry.getValue().getKeyValue());
+            Map<String, String> metadata = entry.getValue().getMetadata();
+            int[] metadataOffsets = new int[metadata.size()];
+            int i = 0;
+            for (Entry<String, String> m : metadata.entrySet()) {
+                metadataOffsets[i++] = KeyValue.createKeyValue(builder, builder.createString(m.getKey()),
+                        builder.createString(m.getValue()));
+            }
+            int metadataOffset = -1;
+            if (metadata.size() > 0) {
+                metadataOffset = EncryptionKey.createMetadataVector(builder, metadataOffsets);
+            }
+            EncryptionKey.startEncryptionKey(builder);
+            EncryptionKey.addKey(builder, key);
+            EncryptionKey.addValue(builder, value);
+            if(metadataOffset!=-1) {
+                EncryptionKey.addMetadata(builder, metadataOffset);                
+            }
+            keysOffsets[keyIndex++] = EncryptionKey.endEncryptionKey(builder);
+        }
+
+        int keysOffset = EncryptionCtx.createKeysVector(builder, keysOffsets);
+        int param = EncryptionCtx.createParamVector(builder, ctx.getParam());
+        int algo = builder.createString(ctx.getAlgorithm());
+        int batchSize = ctx.getBatchSize().isPresent() ? ctx.getBatchSize().get() : 1;
+        byte compressionType;
+        switch (ctx.getCompressionType()) {
+        case LZ4:
+            compressionType = org.apache.pulsar.io.kinesis.fbs.CompressionType.LZ4;
+            break;
+        case ZLIB:
+            compressionType = org.apache.pulsar.io.kinesis.fbs.CompressionType.ZLIB;
+            break;
+        default:
+            compressionType = org.apache.pulsar.io.kinesis.fbs.CompressionType.NONE;
+
+        }
+        return EncryptionCtx.createEncryptionCtx(builder, keysOffset, param, algo, compressionType,
+                ctx.getUncompressedMessageSize(), batchSize, ctx.getBatchSize().isPresent());
+    
+    }
 
     /**
      * Serializes sink-record into json format. It encodes encryption-keys, encryption-param and payload in base64
@@ -51,9 +168,7 @@ public class Utils {
      * @return
      */
     public static String serializeRecordToJson(RecordContext inputRecordContext, byte[] data) {
-        if (inputRecordContext == null) {
-            return null;
-        }
+        checkNotNull(inputRecordContext, "record-context can't be null");
         JsonObject result = new JsonObject();
         result.addProperty(PAYLOAD_FIELD, getEncoder().encodeToString(data));
         if (inputRecordContext.getProperties() != null) {
@@ -79,12 +194,6 @@ public class Utils {
             });
             encryptionCtxJson.add(KEY_MAP_FIELD, keyBase64Map);
             encryptionCtxJson.add(KEY_METADATA_MAP_FIELD, keyMetadataMap);
-            Map<String, String> metadataMap = encryptionCtx.getMetadata();
-            if (metadataMap != null && !metadataMap.isEmpty()) {
-                JsonObject metadata = new JsonObject();
-                encryptionCtx.getMetadata().entrySet().forEach(m -> metadata.addProperty(m.getKey(), m.getValue()));
-                encryptionCtxJson.add(METADATA_FIELD, metadata);
-            }
             encryptionCtxJson.addProperty(ENCRYPTION_PARAM_FIELD,
                     getEncoder().encodeToString(encryptionCtx.getParam()));
             encryptionCtxJson.addProperty(ALGO_FIELD, encryptionCtx.getAlgorithm());
