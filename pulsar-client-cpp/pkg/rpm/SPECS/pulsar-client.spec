@@ -17,8 +17,8 @@
 # under the License.
 #
 
-%define name        pulsar-client
-%define release     1
+%define name        apache-pulsar-client
+%define release     1_incubating
 %define buildroot   %{_topdir}/%{name}-%{version}-root
 
 BuildRoot:      %{buildroot}
@@ -33,7 +33,8 @@ Prefix:         /usr
 
 %package devel
 Summary:        Apache Pulsar client library
-Provides:       pulsar-client-devel
+Provides:       apache-pulsar-client-devel
+Requires:       apache-pulsar-client
 
 %description
 The Apache Pulsar client contains a C++ and C APIs to interact
