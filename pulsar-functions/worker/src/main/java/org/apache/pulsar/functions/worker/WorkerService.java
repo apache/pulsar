@@ -20,7 +20,14 @@ package org.apache.pulsar.functions.worker;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import io.netty.util.concurrent.DefaultThreadFactory;
+
 import java.net.URI;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -49,11 +56,14 @@ public class WorkerService {
     private MembershipManager membershipManager;
     private SchedulerManager schedulerManager;
     private boolean isInitialized = false;
+    private final ScheduledExecutorService statsUpdater;
 
     private ConnectorsManager connectorsManager;
 
     public WorkerService(WorkerConfig workerConfig) {
         this.workerConfig = workerConfig;
+        this.statsUpdater = Executors
+                .newSingleThreadScheduledExecutor(new DefaultThreadFactory("worker-stats-updater"));
     }
 
     public void start(URI dlogUri) throws InterruptedException {
@@ -137,6 +147,14 @@ public class WorkerService {
 
             // indicate function worker service is done intializing
             this.isInitialized = true;
+
+            this.connectorsManager = new ConnectorsManager(workerConfig);
+            
+            int metricsSamplingPeriodSec = this.workerConfig.getMetricsSamplingPeriodSec();
+            if (metricsSamplingPeriodSec > 0) {
+                this.statsUpdater.scheduleAtFixedRate(() -> this.functionRuntimeManager.updateRates(),
+                        metricsSamplingPeriodSec, metricsSamplingPeriodSec, TimeUnit.SECONDS);
+            }
 
         } catch (Throwable t) {
             log.error("Error Starting up in worker", t);

@@ -91,6 +91,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         }
     }
 
+    private ConcurrentMap<String, AccumulatedMetricDatum> currentAccumulatedMetrics;
     private ConcurrentMap<String, AccumulatedMetricDatum> accumulatedMetrics;
 
     private Map<String, Producer> publishProducers;
@@ -110,6 +111,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         this.logger = logger;
         this.pulsarClient = client;
         this.classLoader = classLoader;
+        this.currentAccumulatedMetrics = new ConcurrentHashMap<>();
         this.accumulatedMetrics = new ConcurrentHashMap<>();
         this.publishProducers = new HashMap<>();
         this.publishSerializers = new HashMap<>();
@@ -324,11 +326,23 @@ class ContextImpl implements Context, SinkContext, SourceContext {
 
     @Override
     public void recordMetric(String metricName, double value) {
-        accumulatedMetrics.putIfAbsent(metricName, new AccumulatedMetricDatum());
-        accumulatedMetrics.get(metricName).update(value);
+        currentAccumulatedMetrics.putIfAbsent(metricName, new AccumulatedMetricDatum());
+        currentAccumulatedMetrics.get(metricName).update(value);
     }
 
     public MetricsData getAndResetMetrics() {
+        MetricsData retval = getMetrics();
+        resetMetrics();
+        return retval;
+    }
+
+    public void resetMetrics() {
+        this.accumulatedMetrics.clear();
+        this.accumulatedMetrics.putAll(currentAccumulatedMetrics);
+        this.currentAccumulatedMetrics.clear();
+    }
+    
+    public MetricsData getMetrics() {
         MetricsData.Builder metricsDataBuilder = MetricsData.newBuilder();
         for (String metricName : accumulatedMetrics.keySet()) {
             MetricsData.DataDigest.Builder bldr = MetricsData.DataDigest.newBuilder();
@@ -339,7 +353,6 @@ class ContextImpl implements Context, SinkContext, SourceContext {
             metricsDataBuilder.putMetrics(metricName, bldr.build());
         }
         MetricsData retval = metricsDataBuilder.build();
-        accumulatedMetrics.clear();
         return retval;
     }
 }

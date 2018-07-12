@@ -349,6 +349,36 @@ public class JavaInstanceMain implements AutoCloseable {
         }
 
         @Override
+        public void getMetrics(com.google.protobuf.Empty request,
+                                       io.grpc.stub.StreamObserver<org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData> responseObserver) {
+            Runtime runtime = runtimeSpawner.getRuntime();
+            if (runtime != null) {
+                try {
+                    InstanceCommunication.MetricsData metrics = runtime.getMetrics().get();
+                    responseObserver.onNext(metrics);
+                    responseObserver.onCompleted();
+                } catch (InterruptedException | ExecutionException e) {
+                    log.error("Exception in JavaInstance doing getAndResetMetrics", e);
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+
+        public void resetMetrics(com.google.protobuf.Empty request,
+                io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
+            Runtime runtime = runtimeSpawner.getRuntime();
+            if (runtime != null) {
+                try {
+                    runtime.resetMetrics().get();
+                    responseObserver.onCompleted();
+                } catch (InterruptedException | ExecutionException e) {
+                    log.error("Exception in JavaInstance doing getAndResetMetrics", e);
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+        
+        @Override
         public void healthCheck(com.google.protobuf.Empty request,
                                 io.grpc.stub.StreamObserver<org.apache.pulsar.functions.proto.InstanceCommunication.HealthCheckResult> responseObserver) {
             log.debug("Recieved health check request...");

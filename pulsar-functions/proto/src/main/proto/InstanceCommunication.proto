@@ -72,5 +72,7 @@ message HealthCheckResult {
 service InstanceControl {
     rpc GetFunctionStatus(google.protobuf.Empty) returns (FunctionStatus) {}
     rpc GetAndResetMetrics(google.protobuf.Empty) returns (MetricsData) {}
+    rpc ResetMetrics(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+    rpc GetMetrics(google.protobuf.Empty) returns (MetricsData) {}
     rpc HealthCheck(google.protobuf.Empty) returns (HealthCheckResult) {}
 }

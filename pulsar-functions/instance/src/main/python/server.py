@@ -42,6 +42,15 @@ class InstanceCommunicationServicer(InstanceCommunication_pb2_grpc.InstanceContr
     Log.info("Came in GetAndResetMetrics")
     return self.pyinstance.get_and_reset_metrics()
 
+  def ResetMetrics(self, request, context):
+    Log.info("Came in ResetMetrics")
+    self.pyinstance.reset_metrics()
+    return request
+
+  def GetMetrics(self, request, context):
+    Log.info("Came in GetMetrics")
+    return self.pyinstance.get_metrics()
+
   def HealthCheck(self, request, context):
     return self.pyinstance.health_check()
 
