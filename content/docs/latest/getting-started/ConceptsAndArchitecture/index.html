@@ -1028,9 +1028,9 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/getting-started/ConceptsAndArchitecture/">Pulsar concepts and architecture</a></li>
-          
-          
           
           
           
@@ -1272,9 +1272,9 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/getting-started/ConceptsAndArchitecture/">Pulsar concepts and architecture</a></li>
-          
-          
           
           
           
@@ -1568,7 +1568,7 @@
 <div class="admonition">
   <div class="info">
     
-    <p>For a more in-depth breakdown of Pulsar message contents, see the documentation on Pulsar’s <a href="../../reference/BinaryProtocol">binary protocol</a>.</p>
+    <p>For a more in-depth breakdown of Pulsar message contents, see the documentation on Pulsar’s <a href="../../project/BinaryProtocol">binary protocol</a>.</p>
 
   </div>
 </div>
@@ -2309,7 +2309,7 @@
 
 <ul>
   <li>An HTTP server that exposes a REST API for both <a href="../../reference/RestApi">administrative tasks</a> and <a href="#client-setup-phase">topic lookup</a> for producers and consumers</li>
-  <li>A <span class="popover-term" tabindex="0" title="What is a dispatcher?" data-placement="top" data-content="An asynchronous TCP server used for all data transfers in a Pulsar cluster. The Pulsar dispatcher uses a custom binary protocol for all communications." data-toggle="popover" data-trigger="focus">dispatcher</span>, which is an asynchronous TCP server over a custom <a href="../../reference/BinaryProtocol">binary protocol</a> used for all data transfers</li>
+  <li>A <span class="popover-term" tabindex="0" title="What is a dispatcher?" data-placement="top" data-content="An asynchronous TCP server used for all data transfers in a Pulsar cluster. The Pulsar dispatcher uses a custom binary protocol for all communications." data-toggle="popover" data-trigger="focus">dispatcher</span>, which is an asynchronous TCP server over a custom <a href="../../project/BinaryProtocol">binary protocol</a> used for all data transfers</li>
 </ul>
 
 <p>Messages are typically dispatched out of a <a href="#managed-ledger">managed ledger</a> cache for the sake of performance, <em>unless</em> the backlog exceeds the cache size. If the backlog grows too large for the cache, the broker will start reading entries from <span class="popover-term" tabindex="0" title="What is BookKeeper?" data-placement="top" data-content="Apache BookKeeper is a persistent log storage system that Pulsar uses to store message data." data-toggle="popover" data-trigger="focus">BookKeeper</span>.</p>
