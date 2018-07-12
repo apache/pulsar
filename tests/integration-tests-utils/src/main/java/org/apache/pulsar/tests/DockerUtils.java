@@ -64,6 +64,8 @@ public class DockerUtils {
 
     public static void dumpContainerLogToTarget(DockerClient dockerClient, String containerId) {
         InspectContainerResponse inspectContainerResponse = dockerClient.inspectContainerCmd(containerId).exec();
+        // docker api returns names prefixed with "/", it's part of it's legacy design,
+        // this removes it to be consistent with what docker ps shows.
         final String containerName = inspectContainerResponse.getName().replace("/","");
         File output = new File(getTargetDirectory(containerName), "docker.log");
         try (FileOutputStream os = new FileOutputStream(output)) {
@@ -108,6 +110,8 @@ public class DockerUtils {
                                                           String path) {
         final int READ_BLOCK_SIZE = 10000;
         InspectContainerResponse inspectContainerResponse = dockerClient.inspectContainerCmd(containerId).exec();
+        // docker api returns names prefixed with "/", it's part of it's legacy design,
+        // this removes it to be consistent with what docker ps shows.
         final String containerName = inspectContainerResponse.getName().replace("/","");
         File output = new File(getTargetDirectory(containerId),
                                (path.replace("/", "-") + ".tar.gz").replaceAll("^-", ""));
