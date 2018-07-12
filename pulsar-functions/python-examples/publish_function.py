@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,14 +18,18 @@
 # under the License.
 #
 
-tenant: "test"
-namespace: "test-namespace"
-name: "stateful-example"
-className: "org.apache.pulsar.functions.api.examples.WordCountFunction"
-inputs: ["test_stateful_src"]
-userConfig:
-  "PublishTopic": "test_stateful_result"
 
-output: "test_stateful_result"
-autoAck: true
-parallelism: 1
+from pulsar import Function
+
+# Example function that uses the built in publish function in the context
+# to publish to a desired topic based on config
+class PublishFunction(Function):
+  def __init__(self):
+    pass
+
+  def process(self, input, context):
+    publish_topic = "publishtopic"
+    if "publish-topic" in context.get_user_config_map:
+      publish_topic = context.get_user_config_value("publish-topic")
+    context.publish(publish_topic, input + '!')
+    return

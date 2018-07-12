@@ -20,18 +20,15 @@ package org.apache.pulsar.functions.api.examples;
 
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
+import org.apache.pulsar.functions.api.examples.serde.CustomObject;
 
 /**
- * Example function that uses the built in publish function in the context
- * to publish to a desired topic based on config
+ * Function that deals with custom objects
  */
-public class PublishFunction implements Function<String, Void> {
+public class CustomObjectFunction implements Function<CustomObject, CustomObject> {
+
     @Override
-    public Void process(String input, Context context) {
-        String publishTopic = (String) context.getUserConfigValueOrDefault("publish-topic", "publishtopic");
-        String output = String.format("%s!", input);
-        context.publish(publishTopic, output);
-        return null;
+    public CustomObject process(CustomObject input, Context context) {
+        return new CustomObject(input.getValue() + 100);
     }
 }

@@ -16,28 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.examples;
+package org.apache.pulsar.functions.api.examples.serde;
 
-import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.Function;
-import org.slf4j.Logger;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
 
-import java.util.Optional;
-
-public class UserConfigFunction implements Function<String, Void> {
-    @Override
-    public Void process(String input, Context context) {
-        String key = "config-key";
-        Optional<Object> maybeValue = context.getUserConfigValue(key);
-        Logger LOG = context.getLogger();
-
-        if (maybeValue.isPresent()) {
-            String value = (String) maybeValue.get();
-            LOG.info("The config value is {}", value);
-        } else {
-            LOG.error("No value present for the key {}", key);
-        }
-
-        return null;
-    }
+/**
+ * This class simulates a user defined POJO
+ */
+@Getter
+@Setter
+@AllArgsConstructor
+public class CustomObject {
+    private long value;
 }

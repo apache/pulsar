@@ -55,6 +55,7 @@ public class Utils {
 
     public static String HTTP = "http";
     public static String FILE = "file";
+    public static String BUILTIN = "builtin";
 
     public static final long getSequenceId(MessageId messageId) {
         MessageIdImpl msgId = (MessageIdImpl) ((messageId instanceof TopicMessageIdImpl)
@@ -222,7 +223,7 @@ public class Utils {
     }
 
     public static boolean isFunctionPackageUrlSupported(String functionPkgUrl) {
-        return isNotBlank(functionPkgUrl)
-                && (functionPkgUrl.startsWith(Utils.HTTP) || functionPkgUrl.startsWith(Utils.FILE));
+        return isNotBlank(functionPkgUrl) && (functionPkgUrl.startsWith(Utils.HTTP)
+                || functionPkgUrl.startsWith(Utils.FILE));
     }
 }

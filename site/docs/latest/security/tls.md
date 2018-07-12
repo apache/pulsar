@@ -33,7 +33,7 @@ To encrypt communication, it is recommended to configure all the Apache Pulsar c
 
 TLS can be configured for encryption or authentication. You may configure just TLS encryption
 (by default TLS encryption includes certificate authentication of the server) and independently choose a separate mechanism
-for client authentication, e.g. TLS, [Athenz](../../athenz), etc. Note that TLS encryption, technically speaking, already enables
+for client authentication, e.g. TLS, [Athenz](../athenz), etc. Note that TLS encryption, technically speaking, already enables
 1-way authentication in which the client authenticates the server certificate. So when referring to TLS authentication, it is really
 referring to 2-way authentication in which the broker also authenticates the client certificate.
 
@@ -105,7 +105,7 @@ At this point, you should have a `broker-cert.pem` and `broker-key.pem` file. Th
 
 To create a client certificate, repeat the steps in the previous section, but did create `client-cert.pem` and `client-key.pem` files instead.
 
-For the client common name, you need to use a string that you intend to use as the [role token](#role-tokens) for this client, though it doesn't need to match the client hostname.
+For the client common name, you need to use a string that you intend to use as the [role token](../overview#role-tokens) for this client, though it doesn't need to match the client hostname.
 
 ## Configure the broker for TLS
 

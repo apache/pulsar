@@ -16,22 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.examples;
+package org.apache.pulsar.functions.api.examples.serde;
 
-import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
+import org.apache.pulsar.functions.api.SerDe;
+
+import java.nio.ByteBuffer;
 
 /**
- * Example function that uses the built in publish function in the context
- * to publish to a desired topic based on config
+ * This class takes care of serializing/deserializing CustomObject
  */
-public class PublishFunction implements Function<String, Void> {
+public class CustomObjectSerde implements SerDe<CustomObject> {
     @Override
-    public Void process(String input, Context context) {
-        String publishTopic = (String) context.getUserConfigValueOrDefault("publish-topic", "publishtopic");
-        String output = String.format("%s!", input);
-        context.publish(publishTopic, output);
-        return null;
+    public CustomObject deserialize(byte[] bytes) {
+        ByteBuffer buffer =  ByteBuffer.wrap(bytes);
+        return new CustomObject(buffer.getLong());
+    }
+
+    @Override
+    public byte[] serialize(CustomObject object) {
+        ByteBuffer buffer = ByteBuffer.allocate(8);
+        buffer.putLong(object.getValue());
+        return buffer.array();
     }
 }
