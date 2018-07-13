@@ -22,20 +22,21 @@ package org.apache.pulsar.io.kinesis;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.Base64.getEncoder;
 
+import com.google.gson.JsonObject;
+
 import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 
 import org.apache.pulsar.common.api.EncryptionContext;
-import org.apache.pulsar.io.core.RecordContext;
+import org.apache.pulsar.io.core.Record;
 import org.apache.pulsar.io.kinesis.fbs.EncryptionCtx;
 import org.apache.pulsar.io.kinesis.fbs.EncryptionKey;
 import org.apache.pulsar.io.kinesis.fbs.KeyValue;
 import org.apache.pulsar.io.kinesis.fbs.Message;
 
 import com.google.flatbuffers.FlatBufferBuilder;
-import com.google.gson.JsonObject;
 
 public class Utils {
 
@@ -49,25 +50,25 @@ public class Utils {
     private static final String UNCPRESSED_MSG_SIZE_FIELD = "uncompressedMessageSize";
     private static final String BATCH_SIZE_FIELD = "batchSize";
     private static final String ENCRYPTION_CTX_FIELD = "encryptionCtx";
-    
+
     private static final FlatBufferBuilder DEFAULT_FB_BUILDER = new FlatBufferBuilder(0);
 
     /**
      * Serialize record to flat-buffer. it's not a thread-safe method.
-     * 
-     * @param inputRecordContext
+     *
+     * @param record
      * @param data
      * @return
      */
-    public static ByteBuffer serializeRecordToFlatBuffer(RecordContext inputRecordContext, byte[] data) {
+    public static ByteBuffer serializeRecordToFlatBuffer(Record<byte[]> record) {
         DEFAULT_FB_BUILDER.clear();
-        return serializeRecordToFlatBuffer(DEFAULT_FB_BUILDER, inputRecordContext, data);
+        return serializeRecordToFlatBuffer(DEFAULT_FB_BUILDER, record);
     }
-    
-    public static ByteBuffer serializeRecordToFlatBuffer(FlatBufferBuilder builder, RecordContext inputRecordContext, byte[] data) {
-        checkNotNull(inputRecordContext, "record-context can't be null");
-        Optional<EncryptionContext> encryptionCtx = inputRecordContext.getEncryptionCtx();
-        Map<String, String> properties = inputRecordContext.getProperties();
+
+    public static ByteBuffer serializeRecordToFlatBuffer(FlatBufferBuilder builder, Record<byte[]> record) {
+        checkNotNull(record, "record-context can't be null");
+        Optional<EncryptionContext> encryptionCtx = record.getEncryptionCtx();
+        Map<String, String> properties = record.getProperties();
 
         int encryptionCtxOffset = -1;
         int propertiesOffset = -1;
@@ -86,7 +87,7 @@ public class Utils {
             encryptionCtxOffset = createEncryptionCtxOffset(builder, encryptionCtx);
         }
 
-        int payloadOffset = Message.createPayloadVector(builder, data);
+        int payloadOffset = Message.createPayloadVector(builder, record.getValue());
         Message.startMessage(builder);
         Message.addPayload(builder, payloadOffset);
         if (encryptionCtxOffset != -1) {
@@ -98,11 +99,11 @@ public class Utils {
         int endMessage = Message.endMessage(builder);
         builder.finish(endMessage);
         ByteBuffer bb = builder.dataBuffer();
-        
+
         // to avoid copying of data, use same byte[] wrapped by ByteBuffer. But, ByteBuffer.array() returns entire array
         // so, it requires to read from offset:
         // builder.sizedByteArray()=>copies buffer: sizedByteArray(space, bb.capacity() - space)
-        int space = bb.capacity() - builder.offset(); 
+        int space = bb.capacity() - builder.offset();
         return ByteBuffer.wrap(bb.array(), space, bb.capacity() - space);
     }
 
@@ -133,7 +134,7 @@ public class Utils {
             EncryptionKey.addKey(builder, key);
             EncryptionKey.addValue(builder, value);
             if(metadataOffset!=-1) {
-                EncryptionKey.addMetadata(builder, metadataOffset);                
+                EncryptionKey.addMetadata(builder, metadataOffset);
             }
             keysOffsets[keyIndex++] = EncryptionKey.endEncryptionKey(builder);
         }
@@ -156,29 +157,31 @@ public class Utils {
         }
         return EncryptionCtx.createEncryptionCtx(builder, keysOffset, param, algo, compressionType,
                 ctx.getUncompressedMessageSize(), batchSize, ctx.getBatchSize().isPresent());
-    
+
     }
 
     /**
      * Serializes sink-record into json format. It encodes encryption-keys, encryption-param and payload in base64
      * format so, it can be sent in json.
-     * 
+     *
      * @param inputRecordContext
      * @param data
      * @return
      */
-    public static String serializeRecordToJson(RecordContext inputRecordContext, byte[] data) {
-        checkNotNull(inputRecordContext, "record-context can't be null");
+    public static String serializeRecordToJson(Record<byte[]> record) {
+        checkNotNull(record, "record can't be null");
+
         JsonObject result = new JsonObject();
-        result.addProperty(PAYLOAD_FIELD, getEncoder().encodeToString(data));
-        if (inputRecordContext.getProperties() != null) {
+        result.addProperty(PAYLOAD_FIELD, getEncoder().encodeToString(record.getValue()));
+        if (record.getProperties() != null) {
             JsonObject properties = new JsonObject();
-            inputRecordContext.getProperties().entrySet()
+            record.getProperties().entrySet()
                     .forEach(e -> properties.addProperty(e.getKey(), e.getValue()));
             result.add(PROPERTIES_FIELD, properties);
         }
-        if (inputRecordContext.getEncryptionCtx().isPresent()) {
-            EncryptionContext encryptionCtx = inputRecordContext.getEncryptionCtx().get();
+
+        if (record.getEncryptionCtx().isPresent()) {
+            EncryptionContext encryptionCtx = record.getEncryptionCtx().get();
             JsonObject encryptionCtxJson = new JsonObject();
             JsonObject keyBase64Map = new JsonObject();
             JsonObject keyMetadataMap = new JsonObject();
