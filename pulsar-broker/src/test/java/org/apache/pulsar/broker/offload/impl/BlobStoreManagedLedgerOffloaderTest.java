@@ -199,9 +199,9 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
     public void testGcsNoBucketConfigured() throws Exception {
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setManagedLedgerOffloadDriver("google-cloud-storage");
-        //conf.setGcsManagedLedgerOffloadServiceAccountKeyPath("~/Downloads/project-804d5e6a6f33.json");
+        //conf.setGcsManagedLedgerOffloadServiceAccountKeyFile("~/Downloads/project-804d5e6a6f33.json");
         File tmpKeyFile = File.createTempFile("gcsOffload", "json");
-        conf.setGcsManagedLedgerOffloadServiceAccountKeyPath(tmpKeyFile.getAbsolutePath());
+        conf.setGcsManagedLedgerOffloadServiceAccountKeyFile(tmpKeyFile.getAbsolutePath());
 
         try {
             ManagedLedgerOffloader.create(conf, scheduler);
@@ -217,7 +217,7 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setManagedLedgerOffloadDriver("google-cloud-storage");
         File tmpKeyFile = File.createTempFile("gcsOffload", "json");
-        conf.setGcsManagedLedgerOffloadServiceAccountKeyPath(tmpKeyFile.getAbsolutePath());
+        conf.setGcsManagedLedgerOffloadServiceAccountKeyFile(tmpKeyFile.getAbsolutePath());
         conf.setGcsManagedLedgerOffloadBucket(BUCKET);
         conf.setGcsManagedLedgerOffloadMaxBlockSizeInBytes(1024);
 

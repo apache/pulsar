@@ -518,7 +518,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     // For Google Cloud Storage credentials of service account key path
     // reference this page for more details of service account key: https://support.google.com/googleapi/answer/6158849
-    private String gcsManagedLedgerOffloadServiceAccountKeyPath = null;
+    private String gcsManagedLedgerOffloadServiceAccountKeyFile = null;
 
     public String getZookeeperServers() {
         return zookeeperServers;
@@ -1783,12 +1783,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         return this.gcsManagedLedgerOffloadReadBufferSizeInBytes;
     }
 
-    public void setGcsManagedLedgerOffloadServiceAccountKeyPath(String keyPath) {
-        this.gcsManagedLedgerOffloadServiceAccountKeyPath = keyPath;
+    public void setGcsManagedLedgerOffloadServiceAccountKeyFile(String keyPath) {
+        this.gcsManagedLedgerOffloadServiceAccountKeyFile = keyPath;
     }
 
-    public String getGcsManagedLedgerOffloadServiceAccountKeyPath() {
-        return this.gcsManagedLedgerOffloadServiceAccountKeyPath;
+    public String getGcsManagedLedgerOffloadServiceAccountKeyFile() {
+        return this.gcsManagedLedgerOffloadServiceAccountKeyFile;
     }
 
     public void setBrokerServiceCompactionMonitorIntervalInSeconds(int interval) {

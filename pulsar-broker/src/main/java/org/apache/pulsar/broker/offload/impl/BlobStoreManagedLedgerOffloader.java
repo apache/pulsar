@@ -125,7 +125,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         }
 
         String endpoint = conf.getS3ManagedLedgerOffloadServiceEndpoint();
-        String gcsKeyPath = conf.getGcsManagedLedgerOffloadServiceAccountKeyPath();
+        String gcsKeyPath = conf.getGcsManagedLedgerOffloadServiceAccountKeyFile();
         String gcsKeyContent = null;
 
         String region = isS3Driver(driver) ?
