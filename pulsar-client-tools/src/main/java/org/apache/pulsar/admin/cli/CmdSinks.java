@@ -224,6 +224,8 @@ public class CmdSinks extends CmdBase {
         protected Integer parallelism;
         @Parameter(names = {"-a", "--archive"}, description = "Path to the archive file for the sink. It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.", listConverter = StringConverter.class)
         protected String archive;
+        @Parameter(names = "--className", description = "The sink's class name if archive is file-url-path (file://)")
+        protected String className;
 
         @Parameter(names = "--sinkConfigFile", description = "The path to a YAML config file specifying the "
                 + "sink's configuration")
@@ -257,6 +259,10 @@ public class CmdSinks extends CmdBase {
                 sinkConfig.setNamespace(namespace);
             }
 
+            if (null != className) {
+                sinkConfig.setClassName(className);
+            }
+            
             if (null != name) {
                 sinkConfig.setName(name);
             }
@@ -427,12 +433,17 @@ public class CmdSinks extends CmdBase {
             boolean isBuiltin = sinkConfig.getArchive().startsWith(Utils.BUILTIN);
 
             if (!isBuiltin) {
-                sinkClassName = ConnectorUtils.getIOSinkClass(sinkConfig.getArchive());
-
-                try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(sinkConfig.getArchive()),
-                        Collections.emptySet())) {
-                    typeArg = sinkConfig.getArchive().startsWith(Utils.FILE) ? null
-                            : Utils.getSinkType(sinkClassName, ncl).getName();
+                if (sinkConfig.getArchive().startsWith(Utils.FILE)) {
+                    if (StringUtils.isBlank(sinkConfig.getClassName())) {
+                        throw new ParameterException("Class-name must be present for archive with file-url");
+                    }
+                    sinkClassName = sinkConfig.getClassName(); // server derives the arg-type by loading a class
+                } else {
+                    sinkClassName = ConnectorUtils.getIOSinkClass(sinkConfig.getArchive());
+                    try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(sinkConfig.getArchive()),
+                            Collections.emptySet())) {
+                        typeArg = Utils.getSinkType(sinkClassName, ncl).getName();
+                    }
                 }
             }
 
