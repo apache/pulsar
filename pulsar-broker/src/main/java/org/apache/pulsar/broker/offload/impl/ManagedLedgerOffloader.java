@@ -166,8 +166,7 @@ public class ManagedLedgerOffloader implements LedgerOffloader {
             this.location = new LocationBuilder().scope(LocationScope.REGION).id(region).description(region).build();
         }
 
-        log.info("Constructor driver: {}, host: {}, [id: {}, key: {}], container: {}, region: {} ",
-            driver, endpoint, id, key, bucket, region);
+        log.info("Constructor driver: {}, host: {}, container: {}, region: {} ",  driver, endpoint, bucket, region);
 
         contextBuilder.overrides(overrides);
         this.context = contextBuilder.buildView(BlobStoreContext.class);
