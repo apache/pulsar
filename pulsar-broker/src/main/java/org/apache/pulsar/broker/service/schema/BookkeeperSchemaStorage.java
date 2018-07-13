@@ -124,7 +124,9 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     private CompletableFuture<StoredSchema> getSchema(String schemaId) {
         // There's already a schema read operation in progress. Just piggyback on that
         return readSchemaOperations.computeIfAbsent(schemaId, key -> {
-            CompletableFuture<StoredSchema> future = getSchemaLocator(getSchemaPath(schemaId)).thenCompose(locator -> {
+            CompletableFuture<StoredSchema> future = new CompletableFuture<>();
+
+            getSchemaLocator(getSchemaPath(schemaId)).thenCompose(locator -> {
                 if (!locator.isPresent()) {
                     return completedFuture(null);
                 }
@@ -133,11 +135,14 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 return readSchemaEntry(schemaLocator.getInfo().getPosition())
                         .thenApply(entry -> new StoredSchema(entry.getSchemaData().toByteArray(),
                                 new LongSchemaVersion(schemaLocator.getInfo().getVersion())));
-            });
-
-            // Cleanup the pending ops from the map
-            future.handleAsync((res, ex) -> {
+            }).handleAsync((res, ex) -> {
+                // Cleanup the pending ops from the map
                 readSchemaOperations.remove(schemaId, future);
+                if (ex != null) {
+                    future.completeExceptionally(ex);
+                } else {
+                    future.complete(res);
+                }
                 return null;
             });
 
@@ -348,7 +353,9 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     private CompletableFuture<LocatorEntry> getOrCreateSchemaLocator(String schema) {
         // Protect from concurrent schema locator creation
         return locatorEntries.computeIfAbsent(schema, key -> {
-            CompletableFuture<LocatorEntry> future = getSchemaLocator(schema).thenCompose(schemaLocatorStatEntry -> {
+            CompletableFuture<LocatorEntry> future = new CompletableFuture<>();
+
+            getSchemaLocator(schema).thenCompose(schemaLocatorStatEntry -> {
                 if (schemaLocatorStatEntry.isPresent()) {
                     return completedFuture(schemaLocatorStatEntry.get());
                 } else {
@@ -372,17 +379,18 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
                     return zkFuture;
                 }
-            });
-
-            // Cleanup the pending ops from the map
-            future.handleAsync((res, ex) -> {
+            }).handleAsync((res, ex) -> {
+                // Cleanup the pending ops from the map
                 locatorEntries.remove(schema, future);
+                if (ex != null) {
+                    future.completeExceptionally(ex);
+                } else {
+                    future.complete(res);
+                }
                 return null;
             });
 
-            return future.thenApply(x -> {
-                return x;
-            });
+            return future;
         });
     }
 
