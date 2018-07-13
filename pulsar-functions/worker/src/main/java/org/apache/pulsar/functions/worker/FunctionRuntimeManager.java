@@ -275,9 +275,9 @@ public class FunctionRuntimeManager implements AutoCloseable{
         } else {
             // query other worker
 
-            List<MembershipManager.WorkerInfo> workerInfoList = this.membershipManager.getCurrentMembership();
-            MembershipManager.WorkerInfo workerInfo = null;
-            for (MembershipManager.WorkerInfo entry: workerInfoList) {
+            List<WorkerInfo> workerInfoList = this.membershipManager.getCurrentMembership();
+            WorkerInfo workerInfo = null;
+            for (WorkerInfo entry: workerInfoList) {
                 if (assignment.getWorkerId().equals(entry.getWorkerId())) {
                     workerInfo = entry;
                 }
