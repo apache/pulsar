@@ -22,4 +22,4 @@ FROM apachepulsar/pulsar:latest
 ARG PULSAR_IO_TARBALL
 
 ADD ${PULSAR_IO_TARBALL} /
-RUN mv /apache-pulsar-io-connectors-* /pulsar/io
+RUN mv /apache-pulsar-io-connectors-*/connectors /pulsar/connectors
