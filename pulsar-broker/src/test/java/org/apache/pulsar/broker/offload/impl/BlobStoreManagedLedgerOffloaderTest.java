@@ -579,42 +579,5 @@ class BlobStoreManagedLedgerOffloaderTest extends BlobStoreTestBase {
             Assert.assertTrue(e.getCause().getMessage().contains("Invalid object version"));
         }
     }
-
-    @Test
-    public void testGcsRealOffload() throws Exception {
-        String bucket = "jia-project-174301.appspot.com";
-        ServiceConfiguration conf = new ServiceConfiguration();
-        conf.setManagedLedgerOffloadDriver("google-cloud-storage");
-        conf.setGcsManagedLedgerOffloadServiceAccountKeyPath("/Users/jia/Downloads/project-804d5e6a6f33.json");
-        conf.setGcsManagedLedgerOffloadBucket(bucket);
-        conf.setGcsManagedLedgerOffloadMaxBlockSizeInBytes(DEFAULT_BLOCK_SIZE);
-        ManagedLedgerOffloader offloader = ManagedLedgerOffloader.create(conf, scheduler);
-
-        ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
-
-        UUID uuid = UUID.randomUUID();
-        offloader.offload(toWrite, uuid, new HashMap<>()).get();
-
-        ReadHandle toTest = offloader.readOffloaded(toWrite.getId(), uuid).get();
-        Assert.assertEquals(toTest.getLastAddConfirmed(), toWrite.getLastAddConfirmed());
-
-        try (LedgerEntries toWriteEntries = toWrite.read(0, toWrite.getLastAddConfirmed());
-             LedgerEntries toTestEntries = toTest.read(0, toTest.getLastAddConfirmed())) {
-            Iterator<LedgerEntry> toWriteIter = toWriteEntries.iterator();
-            Iterator<LedgerEntry> toTestIter = toTestEntries.iterator();
-
-            while (toWriteIter.hasNext() && toTestIter.hasNext()) {
-                LedgerEntry toWriteEntry = toWriteIter.next();
-                LedgerEntry toTestEntry = toTestIter.next();
-
-                Assert.assertEquals(toWriteEntry.getLedgerId(), toTestEntry.getLedgerId());
-                Assert.assertEquals(toWriteEntry.getEntryId(), toTestEntry.getEntryId());
-                Assert.assertEquals(toWriteEntry.getLength(), toTestEntry.getLength());
-                Assert.assertEquals(toWriteEntry.getEntryBuffer(), toTestEntry.getEntryBuffer());
-            }
-            Assert.assertFalse(toWriteIter.hasNext());
-            Assert.assertFalse(toTestIter.hasNext());
-        }
-    }
 }
 
