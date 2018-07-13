@@ -1732,14 +1732,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 } else if (overRetentionQuota) {
                     log.debug("[{}] Ledger {} is over quota", name, ls.getLedgerId());
                     ledgersToDelete.add(ls);
-                } else if (isOffloadedNeedsDelete(ls.getOffloadContext())) {
+                } else {
+                    log.debug("[{}] Ledger {} not deleted. Neither expired nor over-quota",
+                              name, ls.getLedgerId());
+                    break;
+                }
+            }
+            for (LedgerInfo ls : ledgers.values()) {
+                if (isOffloadedNeedsDelete(ls.getOffloadContext()) && !ledgersToDelete.contains(ls)) {
                     log.debug("[{}] Ledger {} has been offloaded, bookkeeper ledger needs to be deleted",
                               name, ls.getLedgerId());
                     offloadedLedgersToDelete.add(ls);
-                } else {
-                    log.debug("[{}] Nothing done for ledger {}. Neither expired, over-quota nor offloaded",
-                              name, ls.getLedgerId());
-                    break;
                 }
             }
 
