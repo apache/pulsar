@@ -5,6 +5,8 @@ tags: [admin, tiered-storage]
 
 Pulsar's **Tiered Storage** feature allows older backlog data to be offloaded to long term storage, thereby freeing up space in BookKeeper and reducing storage costs. This cookbook walks you through using tiered storage in your Pulsar cluster.
 
+Tiered storage currently leverage [Apache Jclouds](https://jclouds.apache.org) to supports [S3](https://aws.amazon.com/s3/) and [Google Cloud Storage](https://cloud.google.com/storage/)(GCS for short) for long term storage. And by Jclouds, it is easy to add more [supported](https://jclouds.apache.org/reference/providers/#blobstore-providers) cloud storage provider in the future.
+
 ## When should I use Tiered Storage?
 
 Tiered storage should be used when you have a topic for which you want to keep a very long backlog for a long time. For example, if you have a topic containing user actions which you use to train your recommendation systems, you may want to keep that data for a long time, so that if you change your recommendation algorithm you can rerun it against your full user history.
@@ -17,42 +19,63 @@ A topic in Pulsar is backed by a log, known as a managed ledger. This log is com
 
 The Tiered Storage offloading mechanism takes advantage of this segment oriented architecture. When offloading is requested, the segments of the log are copied, one-by-one, to tiered storage. All segments of the log, apart from the segment currently being written to can be offloaded.
 
-## Amazon S3
+On the broker, the administrator must configure the bucket or credentials for the cloud storage service. The configured bucket must exist before attempting to offload. If it does not exist, the offload operation will fail.
 
-Tiered storage currently supports S3 for long term storage. On the broker, the administrator must configure a S3 bucket and the AWS region where the bucket exists. Offloaded data will be placed into this bucket.
+Pulsar users multi-part objects to update the segment data. It is possible that a broker could crash while uploading the data. We recommend you add a life cycle rule your bucket to expire incomplete multi-part upload after a day or two to avoid getting charged for incomplete uploads.
 
-The configured S3 bucket must exist before attempting to offload. If it does not exist, the offload operation will fail.
-
-Pulsar users multipart objects to update the segment data. It is possible that a broker could crash while uploading the data. We recommend you add a lifecycle rule your S3 bucket to expire incomplete multipart upload after a day or two to avoid getting charged for incomplete uploads.
-
-### Configuring the broker
+## Configuring for S3 and GCS in the broker
 
 Offloading is configured in ```broker.conf```. 
 
-At a minimum, the user must configure the driver, the region and the bucket.
+At a minimum, the administrator must configure the driver, the bucket and the authenticating.  There is also some other knobs to configure, like the bucket regions, the max block size in backed storage, etc.
+
+### Configure the driver
+
+Currently we support driver of types: { "S3", "aws-s3", "google-cloud-storage" }, 
+{% include admonition.html type="warning" content="The chars are case ignored for driver's name. "s3" and "aws-s3" are similar, with "aws-s3" you just don't need to define the url of the endpoint because it will know to use `s3.amazonaws.com`." %}
 
 ```conf
 managedLedgerOffloadDriver=S3
-s3ManagedLedgerOffloadRegion=eu-west-3
+```
+
+### Configure the Bucket
+
+On the broker, the administrator must configure the bucket or credentials for the cloud storage service. The configured bucket must exist before attempting to offload. If it does not exist, the offload operation will fail.
+
+- Regarding driver type "S3" or "aws-s3", the administrator should configure `s3ManagedLedgerOffloadBucket`.
+
+```conf
 s3ManagedLedgerOffloadBucket=pulsar-topic-offload
 ```
 
-It is also possible to specify the s3 endpoint directly, using ```s3ManagedLedgerOffloadServiceEndpoint```. This is useful if you are using a non-AWS storage service which provides an S3 compatible API. 
+- While regarding driver type "google-cloud-storage", the administrator should configure `gcsManagedLedgerOffloadBucket`.
+```conf
+gcsManagedLedgerOffloadBucket=pulsar-topic-offload
+```
 
-{% include admonition.html type="warning" content="If the endpoint is specified directly, then the region must _not_ be set." %}
+### Configure the Bucket Region
 
-{% include admonition.html type="warning" content="The broker.conf of all brokers must have the same configuration for driver, region and bucket for offload to avoid data becoming unavailable as topics move from one broker to another." %}
+Bucket Region is the region where bucket located. 
 
-Pulsar also provides some knobs to configure the size of requests sent to S3.
+Regarding AWS S3, the default region is `US East (N. Virginia)`. Page [AWS Regions and Endpoints](https://docs.aws.amazon.com/general/latest/gr/rande.html) contains more information.
 
-- ```s3ManagedLedgerOffloadMaxBlockSizeInBytes``` configures the maximum size of a "part" sent during a multipart upload. This cannot be smaller than 5MB. Default is 64MB.
-- ```s3ManagedLedgerOffloadReadBufferSizeInBytes``` configures the block size for each individual read when reading back data from S3. Default is 1MB.
+Regarding GCS, buckets are default created in the `us multi-regional location`,  page [Bucket Locations](https://cloud.google.com/storage/docs/bucket-locations) contains more information.
 
-In both cases, these should not be touched unless you know what you are doing.
+- AWS S3 Region example:
 
-{% include admonition.html type="warning" content="The broker must be rebooted for any changes in the configuration to take effect." %}
+```conf
+s3ManagedLedgerOffloadRegion=eu-west-3
+```
 
-### Authenticating with S3
+- GCS Region example:
+
+```conf
+gcsManagedLedgerOffloadRegion=europe-west3
+```
+
+### Configure the Authenticating
+
+#### Authenticating with AWS S3
 
 To be able to access S3, you need to authenticate with S3. Pulsar does not provide any direct means of configuring authentication for S3, but relies on the mechanisms supported by the [DefaultAWSCredentialsProviderChain](https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/auth/DefaultAWSCredentialsProviderChain.html).
 
@@ -85,6 +108,33 @@ aws_secret_access_key=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c
 If you are running in EC2 you can also use instance profile credentials, provided through the EC2 metadata service, but that is out of scope for this cookbook.
 
 {% include admonition.html type="warning" content="The broker must be rebooted for credentials specified in pulsar_env to take effect." %}
+
+#### Authenticating with GCS
+
+The administrator need configure `gcsManagedLedgerOffloadServiceAccountKeyFile` in `broker.conf` to get GCS service available.  It is a Json file, which contains GCS credentials of service account key. 
+[This page](https://support.google.com/googleapi/answer/6158849) contains more information of how to create this key file for authentication. You could also get more information regarding google cloud [IAM](https://cloud.google.com/storage/docs/access-control/iam).
+
+Usually these are the steps to create the authentication file:
+1. Open the API Console Credentials page.
+2. If it's not already selected, select the project that you're creating credentials for.
+3. To set up a new service account, click New credentials and then select Service account key.
+4. Choose the service account to use for the key.
+5. Choose whether to download the service account's public/private key as a JSON file that can be loaded by a Google API client library.
+
+Here is an example:
+```conf
+gcsManagedLedgerOffloadServiceAccountKeyFile="/Users/jia/Downloads/project-804d5e6a6f33.json"
+```
+
+### Configure the size of block read/write
+
+Pulsar also provides some knobs to configure the size of requests sent to S3/GCS.
+
+- ```s3ManagedLedgerOffloadMaxBlockSizeInBytes``` and ```gcsManagedLedgerOffloadMaxBlockSizeInBytes``` configures the maximum size of a "part" sent during a multipart upload. This cannot be smaller than 5MB. Default is 64MB.
+- ```s3ManagedLedgerOffloadReadBufferSizeInBytes``` and ```gcsManagedLedgerOffloadReadBufferSizeInBytes``` configures the block size for each individual read when reading back data from S3/GCS. Default is 1MB.
+
+In both cases, these should not be touched unless you know what you are doing.
+
 
 ## Configuring offload to run automatically
 
