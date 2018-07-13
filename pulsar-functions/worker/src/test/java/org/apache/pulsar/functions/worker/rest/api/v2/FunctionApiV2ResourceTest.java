@@ -69,7 +69,6 @@ import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
 import org.apache.pulsar.io.core.Record;
-import org.apache.pulsar.io.core.RecordContext;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
@@ -111,7 +110,7 @@ public class FunctionApiV2ResourceTest {
         }
 
         @Override
-        public void write(RecordContext inputRecordContext, Record<byte[]> record) throws Exception {
+        public void write(Record<byte[]> record) throws Exception {
         }
     }
 
