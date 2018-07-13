@@ -77,6 +77,7 @@ import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.MembershipManager;
 import org.apache.pulsar.functions.worker.Utils;
+import org.apache.pulsar.functions.worker.WorkerInfo;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.apache.pulsar.io.core.Sink;
@@ -445,6 +446,15 @@ public class FunctionsImpl {
         return this.worker().getConnectorsManager().getConnectors();
     }
 
+    public List<WorkerInfo> getWorkers() {
+        if (!isWorkerServiceAvailable()) {
+            throw new WebApplicationException(
+                    Response.status(Status.SERVICE_UNAVAILABLE).type(MediaType.APPLICATION_JSON)
+                            .entity(new ErrorData("Function worker service is not avaialable")).build());
+        }
+        return worker().getMembershipManager().getCurrentMembership();
+    }
+
     public Response getCluster() {
 
         if (!isWorkerServiceAvailable()) {
@@ -452,7 +462,7 @@ public class FunctionsImpl {
         }
 
         MembershipManager membershipManager = worker().getMembershipManager();
-        List<MembershipManager.WorkerInfo> members = membershipManager.getCurrentMembership();
+        List<WorkerInfo> members = membershipManager.getCurrentMembership();
         return Response.status(Status.OK).entity(new Gson().toJson(members)).build();
     }
 
@@ -883,4 +893,5 @@ public class FunctionsImpl {
         return String.format("%s/%s/%s/%s", tenant, namespace, Codec.encode(functionName),
                 Utils.getUniquePackageName(Codec.encode(fileName)));
     }
+
 }

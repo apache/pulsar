@@ -16,36 +16,37 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.api;
+package org.apache.pulsar.functions.worker;
 
-import java.util.Map;
-import java.util.Optional;
-
-import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
-
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.ToString;
 
 @Getter
-@Setter
-public class EncryptionContext {
+@AllArgsConstructor(access=AccessLevel.PRIVATE)
+@NoArgsConstructor
+@ToString
+public class WorkerInfo {
+    private String workerId;
+    private String workerHostname;
+    private int port;
 
-    private Map<String, EncryptionKey> keys;
-    private byte[] param;
-    private String algorithm;
-    private CompressionType compressionType;
-    private int uncompressedMessageSize;
-    private Optional<Integer> batchSize;
-
-    @Getter
-    @Setter
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class EncryptionKey {
-        private byte[] keyValue;
-        private Map<String, String> metadata;
+    public static WorkerInfo of(String workerId, String workerHostname, int port) {
+        return new WorkerInfo(workerId, workerHostname, port);
     }
 
+    public static WorkerInfo parseFrom(String str) {
+        String[] tokens = str.split(":");
+        if (tokens.length != 3) {
+            throw new IllegalArgumentException("Invalid string to parse WorkerInfo : " + str);
+        }
+
+        String workerId = tokens[0];
+        String workerHostname = tokens[1];
+        int port = Integer.parseInt(tokens[2]);
+
+        return new WorkerInfo(workerId, workerHostname, port);
+    }
 }
