@@ -39,7 +39,7 @@ public class SequenceIdWithErrorTest extends BrokerBkEnsemblesTests {
     /**
      * Test that sequence id from a producer is correct when there are send errors
      */
-    @Test(enabled = false)
+    @Test
     public void testCheckSequenceId() throws Exception {
         admin.namespaces().createNamespace("prop/my-test", Collections.singleton("usc"));
 
