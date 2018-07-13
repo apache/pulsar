@@ -34,12 +34,12 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.testng.annotations.Test;
 
-public class PartitionedTopicsSchema extends BrokerBkEnsemblesTests {
+public class PartitionedTopicsSchemaTest extends BrokerBkEnsemblesTests {
 
     /**
      * Test that sequence id from a producer is correct when there are send errors
      */
-    @Test(invocationCount = 100, skipFailedInvocations = true)
+    @Test
     public void partitionedTopicWithSchema() throws Exception {
         admin.namespaces().createNamespace("prop/my-test", Collections.singleton("usc"));
 
