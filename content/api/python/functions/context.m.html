@@ -1124,13 +1124,8 @@ class Context(object):
     pass
 
   @abstractmethod
-  def publish(self, topic_name, message, serde_class_name):
+  def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe"):
     """Publishes message to topic_name by first serializing the message using serde_class_name serde"""
-    pass
-
-  @abstractmethod
-  def publish(self, topic_name, message):
-    """Publishes message to topic_name by first serializing the message using IdentitySerDe"""
     pass
 
   @abstractmethod
@@ -1227,13 +1222,8 @@ class Context(object):
     pass
 
   @abstractmethod
-  def publish(self, topic_name, message, serde_class_name):
+  def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe"):
     """Publishes message to topic_name by first serializing the message using serde_class_name serde"""
-    pass
-
-  @abstractmethod
-  def publish(self, topic_name, message):
-    """Publishes message to topic_name by first serializing the message using IdentitySerDe"""
     pass
 
   @abstractmethod
@@ -1586,19 +1576,19 @@ def get_user_config_value(self, key):
             
   <div class="item">
     <div class="name def" id="pulsar.functions.context.Context.publish">
-    <p>def <span class="ident">publish</span>(</p><p>self, topic_name, message)</p>
+    <p>def <span class="ident">publish</span>(</p><p>self, topic_name, message, serde_class_name=&#39;serde.IdentitySerDe&#39;)</p>
     </div>
     
 
     
   
-    <div class="desc"><p>Publishes message to topic_name by first serializing the message using IdentitySerDe</p></div>
+    <div class="desc"><p>Publishes message to topic_name by first serializing the message using serde_class_name serde</p></div>
   <div class="source_cont">
   <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.functions.context.Context.publish', this);">Show source &equiv;</a></p>
   <div id="source-pulsar.functions.context.Context.publish" class="source">
     <pre><code>@abstractmethod
-def publish(self, topic_name, message):
-  """Publishes message to topic_name by first serializing the message using IdentitySerDe"""
+def publish(self, topic_name, message, serde_class_name="serde.IdentitySerDe"):
+  """Publishes message to topic_name by first serializing the message using serde_class_name serde"""
   pass
 </code></pre>
   </div>

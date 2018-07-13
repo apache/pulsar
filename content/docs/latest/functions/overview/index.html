@@ -1128,7 +1128,7 @@
 
 <p>Pulsar Functions are managed using the <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> CLI tool (in particular the <a href="../../reference/CliTools#pulsar-admin-functions"><code class="highlighter-rouge">functions</code></a> command). Here’s an example command that would run a function in <a href="#local-run">local run mode</a>:</p>
 
-<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-functions localrun <span class="se">\</span>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions localrun <span class="se">\</span>
   <span class="nt">--inputs</span> persistent://public/default/test_src <span class="se">\</span>
   <span class="nt">--output</span> persistent://public/default/test_result <span class="se">\</span>
   <span class="nt">--jar</span> examples/api-examples.jar <span class="se">\</span>
