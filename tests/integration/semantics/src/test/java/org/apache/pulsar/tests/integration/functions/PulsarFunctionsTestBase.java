@@ -18,9 +18,14 @@
  */
 package org.apache.pulsar.tests.integration.functions;
 
+import static java.util.stream.Collectors.joining;
+
+import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.tests.integration.functions.runtime.PulsarFunctionsRuntimeTest;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runtime;
+import org.apache.pulsar.tests.topologies.FunctionRuntimeType;
+import org.apache.pulsar.tests.topologies.PulsarClusterSpec;
 import org.apache.pulsar.tests.topologies.PulsarClusterTestBase;
 import org.testcontainers.containers.Container.ExecResult;
 import org.testng.annotations.BeforeClass;
@@ -31,6 +36,34 @@ import org.testng.annotations.DataProvider;
  */
 @Slf4j
 public abstract class PulsarFunctionsTestBase extends PulsarClusterTestBase  {
+
+    protected final FunctionRuntimeType functionRuntimeType;
+
+    public PulsarFunctionsTestBase() {
+        this(FunctionRuntimeType.PROCESS);
+    }
+
+    protected PulsarFunctionsTestBase(FunctionRuntimeType functionRuntimeType) {
+        this.functionRuntimeType = functionRuntimeType;
+    }
+
+    @BeforeClass
+    @Override
+    public void setupCluster() throws Exception {
+        PulsarClusterSpec spec = PulsarClusterSpec.builder()
+            .clusterName(Stream.of(this.getClass().getSimpleName(), randomName(5))
+                .filter(s -> s != null && !s.isEmpty())
+                .collect(joining("-")))
+            .functionRuntimeType(functionRuntimeType)
+            .numFunctionWorkers(2)
+            .build();
+
+        super.setupCluster(spec);
+    }
+
+    //
+    // Common Variables used by functions test
+    //
 
     public static final String EXCLAMATION_JAVA_CLASS =
         "org.apache.pulsar.functions.api.examples.ExclamationFunction";

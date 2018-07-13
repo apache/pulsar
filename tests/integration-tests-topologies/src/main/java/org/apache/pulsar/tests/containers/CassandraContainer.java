@@ -16,28 +16,33 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.tests.integration.functions.runtime;
+package org.apache.pulsar.tests.containers;
 
 import lombok.extern.slf4j.Slf4j;
-import org.testcontainers.containers.Container.ExecResult;
-import org.testng.annotations.BeforeClass;
+import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
 
 /**
- * Run the runtime test cases in thread mode.
+ * Cassandra Container.
  */
 @Slf4j
-public class PulsarFunctionsThreadRuntimeTest extends PulsarFunctionsRuntimeTest {
+public class CassandraContainer<SelfT extends ChaosContainer<SelfT>> extends ChaosContainer<SelfT> {
 
-    public PulsarFunctionsThreadRuntimeTest() {
-        super(RuntimeFactory.THREAD);
+    public static final String NAME = "cassandra";
+    public static final int PORT = 9042;
+
+    public CassandraContainer(String clusterName) {
+        super(clusterName, "cassandra:3");
     }
 
-    @BeforeClass
-    public void setupCluster() throws Exception {
-        super.setupCluster(RuntimeFactory.THREAD.toString());
-        pulsarCluster.startFunctionWorkersWithThreadContainerFactory(1);
-        ExecResult result = pulsarCluster.getAnyWorker().execCmd("cat", "/pulsar/conf/functions_worker.yml");
-        log.info("Functions Worker Config : \n{}", result.getStdout());
+    @Override
+    protected void configure() {
+        super.configure();
+        this.withNetworkAliases(NAME)
+            .withExposedPorts(PORT)
+            .withCreateContainerCmdModifier(createContainerCmd -> {
+                createContainerCmd.withHostName(NAME);
+                createContainerCmd.withName(clusterName + "-" + NAME);
+            })
+            .waitingFor(new HostPortWaitStrategy());
     }
-
 }
