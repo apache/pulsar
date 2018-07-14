@@ -21,74 +21,55 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <parent>
-    <groupId>org.apache.pulsar.tests</groupId>
+    <groupId>org.apache.pulsar</groupId>
     <artifactId>docker-images</artifactId>
     <version>2.2.0-incubating-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
-  <groupId>org.apache.pulsar.tests</groupId>
-  <artifactId>latest-version-image</artifactId>
-  <name>Apache Pulsar :: Tests :: Docker Images :: Latest Version Testing</name>
+  <groupId>org.apache.pulsar</groupId>
+  <artifactId>pulsar-all-docker-image</artifactId>
+  <name>Apache Pulsar :: Docker Images :: Pulsar Latest Version (Include All Components)</name>
   <packaging>pom</packaging>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-io-distribution</artifactId>
+      <version>${project.parent.version}</version>
+      <classifier>bin</classifier>
+      <type>tar.gz</type>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
 
   <profiles>
     <profile>
       <id>docker</id>
-      <activation>
-        <property>
-          <name>integrationTests</name>
-        </property>
-      </activation>
+      <!-- include the docker image only when docker profile is active -->
       <dependencies>
         <dependency>
           <groupId>org.apache.pulsar</groupId>
-          <artifactId>pulsar-all-docker-image</artifactId>
+          <artifactId>pulsar-docker-image</artifactId>
           <version>${project.parent.version}</version>
           <classifier>docker-info</classifier>
         </dependency>
       </dependencies>
       <build>
-        <!-- build cpp client, copy the wheel file and then build docker image -->
         <plugins>
           <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>exec-maven-plugin</artifactId>
-            <version>${exec-maven-plugin.version}</version>
-            <executions>
-              <execution>
-                <id>build-pulsar-clients</id>
-                <phase>compile</phase>
-                <goals>
-                  <goal>exec</goal>
-                </goals>
-                <configuration>
-                  <skip>${skipBuildPythonClient}</skip>
-                  <workingDirectory>${project.basedir}/target</workingDirectory>
-                  <executable>${project.basedir}/../../../pulsar-client-cpp/docker/build-wheels.sh</executable>
-                  <arguments>
-                    <!-- build python 2.7 -->
-                    <argument>2.7 cp27-cp27mu</argument>
-                  </arguments>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-          <plugin>
             <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-antrun-plugin</artifactId>
+            <artifactId>maven-dependency-plugin</artifactId>
             <executions>
               <execution>
-                <phase>compile</phase>
+                <id>copy-io-tarball</id>
                 <goals>
-                  <goal>run</goal>
+                  <goal>copy-dependencies</goal>
                 </goals>
+                <phase>generate-resources</phase>
                 <configuration>
-                  <skip>${skipBuildPythonClient}</skip>
-                  <tasks>
-                    <echo>copy python wheel file</echo>
-                    <mkdir dir="${basedir}/target/python-client"/>
-                    <copydir src="${basedir}/../../../pulsar-client-cpp/python/wheelhouse" dest="${basedir}/target/python-client"/>
-                  </tasks>
+                  <outputDirectory>${project.build.directory}/</outputDirectory>
+                  <includeArtifactIds>pulsar-io-distribution</includeArtifactIds>
+                  <excludeTransitive>true</excludeTransitive>
                 </configuration>
               </execution>
             </executions>
@@ -100,28 +81,29 @@
             <executions>
               <execution>
                 <id>default</id>
-                <phase>package</phase>
                 <goals>
                   <goal>build</goal>
                 </goals>
               </execution>
               <execution>
-                <id>add-latest-tag</id>
-                <phase>package</phase>
+                <id>tag-and-push-latest</id>
                 <goals>
                   <goal>tag</goal>
+                  <goal>push</goal>
                 </goals>
                 <configuration>
-                  <repository>apachepulsar/pulsar-test-latest-version</repository>
+                  <repository>${docker.organization}/pulsar-all</repository>
                   <tag>latest</tag>
                 </configuration>
               </execution>
             </executions>
             <configuration>
-              <repository>apachepulsar/pulsar-test-latest-version</repository>
-              <tag>${project.version}</tag>
+              <repository>${docker.organization}/pulsar-all</repository>
               <pullNewerImage>false</pullNewerImage>
-              <noCache>true</noCache>
+              <tag>${project.version}</tag>
+              <buildArgs>
+                <PULSAR_IO_TARBALL>target/pulsar-io-distribution-${project.version}-bin.tar.gz</PULSAR_IO_TARBALL>
+              </buildArgs>
             </configuration>
           </plugin>
         </plugins>
