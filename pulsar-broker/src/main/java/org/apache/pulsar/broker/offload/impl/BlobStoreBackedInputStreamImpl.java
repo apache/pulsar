@@ -26,11 +26,14 @@ import org.apache.pulsar.broker.offload.BackedInputStream;
 import org.apache.pulsar.broker.offload.impl.ManagedLedgerOffloader.VersionCheck;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.domain.Blob;
+import org.jclouds.io.Payload;
+import org.jclouds.io.PayloadSlicer;
+import org.jclouds.io.internal.BasePayloadSlicer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class BackedInputStreamImpl extends BackedInputStream {
-    private static final Logger log = LoggerFactory.getLogger(BackedInputStreamImpl.class);
+public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
+    private static final Logger log = LoggerFactory.getLogger(BlobStoreBackedInputStreamImpl.class);
 
     private final BlobStore blobStore;
     private final String bucket;
@@ -44,9 +47,9 @@ public class BackedInputStreamImpl extends BackedInputStream {
     private long bufferOffsetStart;
     private long bufferOffsetEnd;
 
-    public BackedInputStreamImpl(BlobStore blobStore, String bucket, String key,
-                                 VersionCheck versionCheck,
-                                 long objectLen, int bufferSize) {
+    public BlobStoreBackedInputStreamImpl(BlobStore blobStore, String bucket, String key,
+                                          VersionCheck versionCheck,
+                                          long objectLen, int bufferSize) {
         this.blobStore = blobStore;
         this.bucket = bucket;
         this.key = key;
@@ -74,18 +77,21 @@ public class BackedInputStreamImpl extends BackedInputStream {
             try {
                 Blob blob = blobStore.getBlob(bucket, key);
                 versionCheck.check(key, blob);
+                PayloadSlicer slicer = new BasePayloadSlicer();
 
-                InputStream payload = blob.getPayload().openStream();
-                payload.skip(startRange);
-                buffer.clear();
-                bufferOffsetStart = startRange;
-                bufferOffsetEnd = endRange;
-                long bytesRead = endRange - startRange + 1;
-                int bytesToCopy = (int)bytesRead;
-                while (bytesToCopy > 0) {
-                    bytesToCopy -= buffer.writeBytes(payload, bytesToCopy);
+                try (Payload payload = slicer.slice(blob.getPayload(), startRange, endRange - startRange + 1);
+                     InputStream slice = payload.openStream()) {
+
+                    buffer.clear();
+                    bufferOffsetStart = startRange;
+                    bufferOffsetEnd = endRange;
+                    long bytesRead = endRange - startRange + 1;
+                    int bytesToCopy = (int) bytesRead;
+                    while (bytesToCopy > 0) {
+                        bytesToCopy -= buffer.writeBytes(slice, bytesToCopy);
+                    }
+                    cursor += buffer.readableBytes();
                 }
-                cursor += buffer.readableBytes();
             } catch (Throwable e) {
                 throw new IOException("Error reading from BlobStore", e);
             }

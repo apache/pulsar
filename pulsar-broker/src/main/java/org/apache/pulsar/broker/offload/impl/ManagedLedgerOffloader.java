@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.offload.impl;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import java.io.IOException;
@@ -191,10 +192,6 @@ public class ManagedLedgerOffloader implements LedgerOffloader {
         return String.format("%s-ledger-%d-index", uuid.toString(), ledgerId);
     }
 
-    public boolean createBucket() {
-        return blobStore.createContainerInLocation(location, bucket);
-    }
-
     // upload DataBlock to s3 using MultiPartUpload, and indexBlock in a new Block,
     @Override
     public CompletableFuture<Void> offload(ReadHandle readHandle,
@@ -242,7 +239,7 @@ public class ManagedLedgerOffloader implements LedgerOffloader {
 
                         Payload partPayload = Payloads.newInputStreamPayload(blockStream);
                         partPayload.getContentMetadata().setContentLength((long)blockSize);
-                        partPayload.getContentMetadata().setContentType("text/plain");
+                        partPayload.getContentMetadata().setContentType("application/octet-stream");
                         parts.add(blobStore.uploadMultipartPart(mpu, partId, partPayload));
                         log.debug("UploadMultipartPart. container: {}, blobName: {}, partId: {}, mpu: {}",
                             bucket, dataBlockKey, partId, mpu.id());
@@ -285,7 +282,7 @@ public class ManagedLedgerOffloader implements LedgerOffloader {
                 addVersionInfo(blobBuilder);
                 Payload indexPayload = Payloads.newInputStreamPayload(indexStream);
                 indexPayload.getContentMetadata().setContentLength((long)indexStream.getStreamSize());
-                indexPayload.getContentMetadata().setContentType("text/plain");
+                indexPayload.getContentMetadata().setContentType("application/octet-stream");
 
                 Blob blob = blobBuilder
                     .payload(indexPayload)
@@ -335,11 +332,8 @@ public class ManagedLedgerOffloader implements LedgerOffloader {
         CompletableFuture<Void> promise = new CompletableFuture<>();
         scheduler.chooseThread(ledgerId).submit(() -> {
             try {
-                blobStore.removeBlob(bucket, dataBlockOffloadKey(ledgerId, uid));
-                blobStore.removeBlob(bucket, indexBlockOffloadKey(ledgerId, uid));
-                // adobe/s3mock not support removeBlobs well.
-                /*blobStore.removeBlobs(bucket,
-                    ImmutableList.of(dataBlockOffloadKey(ledgerId, uid), indexBlockOffloadKey(ledgerId, uid)));*/
+                blobStore.removeBlobs(bucket,
+                    ImmutableList.of(dataBlockOffloadKey(ledgerId, uid), indexBlockOffloadKey(ledgerId, uid)));
                 promise.complete(null);
             } catch (Throwable t) {
                 log.error("Failed delete Blob", t);

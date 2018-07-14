@@ -416,7 +416,7 @@ class ManagedLedgerOffloaderTest extends BlobStoreTestBase {
 
         Mockito
             .doThrow(new RuntimeException(failureString))
-            .when(spiedBlobStore).removeBlob(any(), any());
+            .when(spiedBlobStore).removeBlobs(any(), any());
 
         LedgerOffloader offloader = new ManagedLedgerOffloader(spiedBlobStore, BUCKET, scheduler,
             DEFAULT_BLOCK_SIZE, DEFAULT_READ_BUFFER_SIZE);
