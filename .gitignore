@@ -9,6 +9,7 @@ pulsar-broker/tmp.*
 pulsar-broker/src/test/resources/log4j2.yaml
 pulsar-functions/worker/test-tenant/
 *.log
+*.nar
 
 *.versionsBackup
 */bin
