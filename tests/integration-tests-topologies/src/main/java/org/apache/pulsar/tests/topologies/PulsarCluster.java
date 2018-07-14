@@ -21,20 +21,15 @@ package org.apache.pulsar.tests.topologies;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.tests.containers.PulsarContainer.CS_PORT;
 
-import com.github.dockerjava.api.command.CreateContainerCmd;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import lombok.Getter;
@@ -49,7 +44,6 @@ import org.apache.pulsar.tests.containers.ZKContainer;
 import org.testcontainers.containers.Container.ExecResult;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
-import org.testcontainers.containers.output.Slf4jLogConsumer;
 
 /**
  * Pulsar Cluster in containers.
@@ -167,6 +161,27 @@ public class PulsarCluster {
         log.info("Pulsar cluster {} is up running:", clusterName);
         log.info("\tBinary Service Url : {}", getPlainTextServiceUrl());
         log.info("\tHttp Service Url : {}", getHttpServiceUrl());
+
+        // start function workers
+        if (spec.numFunctionWorkers() > 0) {
+            switch (spec.functionRuntimeType()) {
+                case THREAD:
+                    startFunctionWorkersWithThreadContainerFactory(spec.numFunctionWorkers());
+                    break;
+                case PROCESS:
+                    startFunctionWorkersWithProcessContainerFactory(spec.numFunctionWorkers());
+                    break;
+            }
+        }
+
+        // start external services
+        Map<String, GenericContainer<?>> externalServices = spec.externalServices;
+        if (null != externalServices) {
+            externalServices.entrySet().forEach(service -> {
+                service.getValue().start();
+                log.info("Successfully start external service {}.", service.getKey());
+            });
+        }
     }
 
     private static <T extends PulsarContainer> Map<String, T> runNumContainers(String serviceName,
@@ -186,13 +201,15 @@ public class PulsarCluster {
     }
 
     public void stop() {
-
-        Stream<GenericContainer> list1 = Stream.of(proxyContainer, csContainer, zkContainer);
-        Stream<GenericContainer> list2 =
-            Stream.of(workerContainers.values(), brokerContainers.values(), bookieContainers.values())
-                .flatMap(Collection::stream);
-        Stream<GenericContainer> list3 = Stream.concat(list1, list2);
-        list3.parallel().forEach(GenericContainer::stop);
+        Stream.of(proxyContainer, csContainer, zkContainer).parallel().forEach(GenericContainer::stop);
+        workerContainers.values().parallelStream().forEach(GenericContainer::stop);
+        brokerContainers.values().parallelStream().forEach(GenericContainer::stop);
+        bookieContainers.values().parallelStream().forEach(GenericContainer::stop);
+        if (null != spec.externalServices()) {
+            spec.externalServices().values()
+                .parallelStream()
+                .forEach(GenericContainer::stop);
+        }
 
         try {
             network.close();
@@ -201,7 +218,7 @@ public class PulsarCluster {
         }
     }
 
-    public void startFunctionWorkersWithProcessContainerFactory(int numFunctionWorkers) {
+    private void startFunctionWorkersWithProcessContainerFactory(int numFunctionWorkers) {
         String serviceUrl = "pulsar://pulsar-broker-0:" + PulsarContainer.BROKER_PORT;
         String httpServiceUrl = "http://pulsar-broker-0:" + PulsarContainer.BROKER_HTTP_PORT;
         workerContainers.putAll(runNumContainers(
@@ -225,7 +242,7 @@ public class PulsarCluster {
         ));
     }
 
-    public void startFunctionWorkersWithThreadContainerFactory(int numFunctionWorkers) {
+    private void startFunctionWorkersWithThreadContainerFactory(int numFunctionWorkers) {
         String serviceUrl = "pulsar://pulsar-broker-0:" + PulsarContainer.BROKER_PORT;
         String httpServiceUrl = "http://pulsar-broker-0:" + PulsarContainer.BROKER_HTTP_PORT;
         workerContainers.putAll(runNumContainers(

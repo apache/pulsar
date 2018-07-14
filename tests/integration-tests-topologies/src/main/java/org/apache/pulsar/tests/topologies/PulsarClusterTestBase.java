@@ -62,7 +62,6 @@ public abstract class PulsarClusterTestBase {
     @BeforeClass
     public void setupCluster() throws Exception {
         this.setupCluster("");
-        pulsarCluster.startFunctionWorkersWithProcessContainerFactory(1);
     }
 
     public void setupCluster(String namePrefix) throws Exception {
@@ -75,7 +74,7 @@ public abstract class PulsarClusterTestBase {
         setupCluster(spec);
     }
 
-    private void setupCluster(PulsarClusterSpec spec) throws Exception {
+    protected void setupCluster(PulsarClusterSpec spec) throws Exception {
         log.info("Setting up cluster {} with {} bookies, {} brokers",
             spec.clusterName(), spec.numBookies(), spec.numBrokers());
 
