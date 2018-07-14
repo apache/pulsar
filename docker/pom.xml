@@ -37,5 +37,6 @@
   <modules>
     <module>pulsar</module>
     <module>grafana</module>
+    <module>pulsar-all</module>
   </modules>
 </project>
