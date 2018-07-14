@@ -16,26 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.tests.integration.functions.runtime;
-
-import lombok.extern.slf4j.Slf4j;
-import org.testcontainers.containers.Container;
-import org.testng.annotations.BeforeClass;
+package org.apache.pulsar.tests.topologies;
 
 /**
- * Run runtime tests in process mode.
+ * Runtime type to run functions.
  */
-@Slf4j
-public class PulsarFunctionsProcessRuntimeTest extends PulsarFunctionsRuntimeTest {
-    public PulsarFunctionsProcessRuntimeTest() {
-        super(RuntimeFactory.PROCESS);
-    }
-
-    @BeforeClass
-    public void setupCluster() throws Exception {
-        super.setupCluster(RuntimeFactory.PROCESS.toString());
-        pulsarCluster.startFunctionWorkersWithProcessContainerFactory(1);
-        Container.ExecResult result = pulsarCluster.getAnyWorker().execCmd("cat", "/pulsar/conf/functions_worker.yml");
-        log.info("Functions Worker Config : \n{}", result.getStdout());
-    }
+public enum FunctionRuntimeType {
+    PROCESS,
+    THREAD
 }

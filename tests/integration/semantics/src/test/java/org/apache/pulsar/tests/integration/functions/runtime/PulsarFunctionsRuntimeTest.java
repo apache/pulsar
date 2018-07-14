@@ -31,24 +31,29 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.tests.integration.functions.PulsarFunctionsTestBase;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runtime;
+import org.apache.pulsar.tests.topologies.FunctionRuntimeType;
 import org.apache.pulsar.tests.topologies.PulsarCluster;
 import org.testcontainers.containers.Container.ExecResult;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 /**
  * The tests that run over different container mode.
  */
-public abstract class PulsarFunctionsRuntimeTest extends PulsarFunctionsTestBase {
+public class PulsarFunctionsRuntimeTest extends PulsarFunctionsTestBase {
 
-    public enum RuntimeFactory {
-        PROCESS,
-        THREAD
+    @DataProvider(name = "FunctionRuntimeTypes")
+    public static Object[][] getData() {
+        return new Object[][] {
+            { FunctionRuntimeType.PROCESS },
+            { FunctionRuntimeType.THREAD }
+        };
     }
 
-    private final RuntimeFactory runtimeFactory;
-
-    public PulsarFunctionsRuntimeTest(RuntimeFactory runtimeFactory) {
-        this.runtimeFactory = runtimeFactory;
+    @Factory(dataProvider = "FunctionRuntimeTypes")
+    PulsarFunctionsRuntimeTest(FunctionRuntimeType functionRuntimeType) {
+        super(functionRuntimeType);
     }
 
     //
@@ -57,7 +62,7 @@ public abstract class PulsarFunctionsRuntimeTest extends PulsarFunctionsTestBase
 
     @Test(dataProvider = "FunctionRuntimes")
     public void testExclamationFunction(Runtime runtime) throws Exception {
-        if (runtimeFactory == RuntimeFactory.THREAD && runtime == Runtime.PYTHON) {
+        if (functionRuntimeType == FunctionRuntimeType.THREAD && runtime == Runtime.PYTHON) {
             // python can only run on process mode
             return;
         }
