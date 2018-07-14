@@ -192,10 +192,6 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         return String.format("%s-ledger-%d-index", uuid.toString(), ledgerId);
     }
 
-    public boolean createBucket() {
-        return blobStore.createContainerInLocation(location, bucket);
-    }
-
     // upload DataBlock to s3 using MultiPartUpload, and indexBlock in a new Block,
     @Override
     public CompletableFuture<Void> offload(ReadHandle readHandle,
