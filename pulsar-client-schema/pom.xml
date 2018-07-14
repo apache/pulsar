@@ -38,6 +38,13 @@
             <groupId>${project.groupId}</groupId>
             <artifactId>pulsar-common</artifactId>
             <version>${project.parent.version}</version>
+            <!--<exclusions>-->
+            <!--<exclusion>-->
+                <!--<groupId>com.fasterxml.jackson.core</groupId>-->
+                <!--<artifactId>*</artifactId>-->
+            <!--</exclusion>-->
+            <!--</exclusions>-->
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
@@ -55,12 +62,12 @@
             <groupId>org.apache.avro</groupId>
             <artifactId>avro-protobuf</artifactId>
             <version>${avro.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>*</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-            </exclusions>
+            <!--<exclusions>-->
+                <!--<exclusion>-->
+                    <!--<groupId>*</groupId>-->
+                    <!--<artifactId>*</artifactId>-->
+                <!--</exclusion>-->
+            <!--</exclusions>-->
         </dependency>
 
         <dependency>
@@ -154,7 +161,7 @@
                                     <include>com.fasterxml.jackson.core</include>
                                     <include>io.netty:netty</include>
                                     <include>io.netty:netty-all</include>
-                                    <!--<include>org.apache.pulsar:pulsar-common</include>-->
+                                    <include>org.apache.pulsar:pulsar-common</include>
                                     <include>org.apache.bookkeeper:circe-checksum</include>
                                     <include>net.jpountz.lz4:lz4</include>
                                     <include>com.yahoo.datasketches:sketches-core</include>
@@ -205,12 +212,12 @@
                                         <include>**</include>
                                     </includes>
                                 </filter>
-                                <filter>
-                                    <artifact>org.apache.pulsar:pulsar-common</artifact>
-                                    <includes>
-                                        <include>**</include>
-                                    </includes>
-                                </filter>
+                                <!--<filter>-->
+                                    <!--<artifact>org.apache.pulsar:pulsar-common</artifact>-->
+                                    <!--<includes>-->
+                                        <!--<include>**</include>-->
+                                    <!--</includes>-->
+                                <!--</filter>-->
                             </filters>
                             <relocations>
                                 <relocation>

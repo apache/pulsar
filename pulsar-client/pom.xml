@@ -43,6 +43,16 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-schema</artifactId>
       <version>${project.parent.version}</version>
+      <!--<exclusions>-->
+        <!--<exclusion>-->
+          <!--<groupId>${project.groupId}</groupId>-->
+          <!--<artifactId>pulsar-common</artifactId>-->
+        <!--</exclusion>-->
+        <!--<exclusion>-->
+          <!--<groupId>com.fasterxml.jackson.core</groupId>-->
+          <!--<artifactId>*</artifactId>-->
+        <!--</exclusion>-->
+      <!--</exclusions>-->
     </dependency>
 
     <dependency>
