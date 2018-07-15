@@ -1012,6 +1012,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
           
           
@@ -1130,8 +1132,6 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/security/authorization/">Authentication and authorization in Pulsar</a></li>
           
           
@@ -1192,11 +1192,11 @@
           
           
           
-          
-          
-          
-          
           <li><a href="/docs/latest/admin-api/overview/">The Pulsar admin interface</a></li>
+          
+          
+          
+          
           
           
           
@@ -1292,9 +1292,9 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/getting-started/ConceptsAndArchitecture/">Pulsar concepts and architecture</a></li>
-          
-          
           
           
           
@@ -1588,6 +1588,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/cookbooks/PartitionedTopics/">Partitioned topics</a></li>
           
           
@@ -1617,8 +1619,6 @@
           
           
           <li><a href="/docs/latest/cookbooks/RetentionExpiry/">Message retention and expiry</a></li>
-          
-          
           
           
           
@@ -1827,19 +1827,19 @@
 
 <h3 id="enabling">Enabling message deduplication</h3>
 
-<p>You can enable message deduplication on specific namespaces, regardless of the the <a href="#default">default</a> for the broker, using the <a href="../../CliTools#pulsar-admin-namespace-set-deduplication"><code class="highlighter-rouge">pulsar-admin namespace set-deduplication</code></a> command. You can use the <code class="highlighter-rouge">--enable</code>/<code class="highlighter-rouge">-e</code> flag and specify the namespace. Here’s an example:</p>
+<p>You can enable message deduplication on specific namespaces, regardless of the the <a href="#default">default</a> for the broker, using the <a href="../../CliTools#pulsar-admin-namespace-set-deduplication"><code class="highlighter-rouge">pulsar-admin namespace set-deduplication</code></a> command. You can use the <code class="highlighter-rouge">--enable</code>/<code class="highlighter-rouge">-e</code> flag and specify the namespace. Here’s an example with <tenant>/<namespace>:</namespace></tenant></p>
 
 <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin namespaces set-deduplication <span class="se">\</span>
-  persistent://public/default/topic-1 <span class="se">\</span>
+  public/default <span class="se">\</span>
   <span class="nt">--enable</span> <span class="c"># or just -e</span>
 </code></pre></div></div>
 
 <h3 id="disabling">Disabling message deduplication</h3>
 
-<p>You can disable message deduplication on a specific namespace using the same method shown <a href="#enabling">above</a>, except using the <code class="highlighter-rouge">--disable</code>/<code class="highlighter-rouge">-d</code> flag instead. Here’s an example:</p>
+<p>You can disable message deduplication on a specific namespace using the same method shown <a href="#enabling">above</a>, except using the <code class="highlighter-rouge">--disable</code>/<code class="highlighter-rouge">-d</code> flag instead. Here’s an example with <tenant>/<namespace>:</namespace></tenant></p>
 
 <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin namespaces set-deduplication <span class="se">\</span>
-  persistent://public/default/topic-1 <span class="se">\</span>
+  public/default <span class="se">\</span>
   <span class="nt">--disable</span> <span class="c"># or just -d</span>
 </code></pre></div></div>
 
