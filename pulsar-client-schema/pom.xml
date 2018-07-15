@@ -38,12 +38,6 @@
             <groupId>${project.groupId}</groupId>
             <artifactId>pulsar-common</artifactId>
             <version>${project.parent.version}</version>
-            <!--<exclusions>-->
-            <!--<exclusion>-->
-                <!--<groupId>com.fasterxml.jackson.core</groupId>-->
-                <!--<artifactId>*</artifactId>-->
-            <!--</exclusion>-->
-            <!--</exclusions>-->
             <scope>provided</scope>
         </dependency>
 
@@ -62,19 +56,13 @@
             <groupId>org.apache.avro</groupId>
             <artifactId>avro-protobuf</artifactId>
             <version>${avro.version}</version>
-            <!--<exclusions>-->
-                <!--<exclusion>-->
-                    <!--<groupId>*</groupId>-->
-                    <!--<artifactId>*</artifactId>-->
-                <!--</exclusion>-->
-            <!--</exclusions>-->
         </dependency>
 
         <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
             <version>${protobuf3.version}</version>
-            <scope>provided</scope>
+            <scope>compile</scope>
         </dependency>
 
         <dependency>
@@ -89,13 +77,6 @@
             <version>${project.parent.version}</version>
             <scope>test</scope>
         </dependency>
-
-        <!--<dependency>-->
-            <!--<groupId>org.apache.pulsar</groupId>-->
-            <!--<artifactId>pulsar-client-original</artifactId>-->
-            <!--<version>${project.parent.version}</version>-->
-            <!--<scope>test</scope>-->
-        <!--</dependency>-->
     </dependencies>
 
     <build>
@@ -212,12 +193,6 @@
                                         <include>**</include>
                                     </includes>
                                 </filter>
-                                <!--<filter>-->
-                                    <!--<artifact>org.apache.pulsar:pulsar-common</artifact>-->
-                                    <!--<includes>-->
-                                        <!--<include>**</include>-->
-                                    <!--</includes>-->
-                                <!--</filter>-->
                             </filters>
                             <relocations>
                                 <relocation>

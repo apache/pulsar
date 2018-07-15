@@ -43,16 +43,12 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-schema</artifactId>
       <version>${project.parent.version}</version>
-      <!--<exclusions>-->
-        <!--<exclusion>-->
-          <!--<groupId>${project.groupId}</groupId>-->
-          <!--<artifactId>pulsar-common</artifactId>-->
-        <!--</exclusion>-->
-        <!--<exclusion>-->
-          <!--<groupId>com.fasterxml.jackson.core</groupId>-->
-          <!--<artifactId>*</artifactId>-->
-        <!--</exclusion>-->
-      <!--</exclusions>-->
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.avro</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
@@ -106,31 +102,6 @@
          </exclusion>
       </exclusions>
     </dependency>
-
-    <!--<dependency>-->
-      <!--<groupId>org.apache.avro</groupId>-->
-      <!--<artifactId>avro</artifactId>-->
-      <!--<version>${avro.version}</version>-->
-    <!--</dependency>-->
-
-    <!--<dependency>-->
-      <!--<groupId>org.apache.avro</groupId>-->
-      <!--<artifactId>avro-protobuf</artifactId>-->
-      <!--<version>${avro.version}</version>-->
-      <!--<exclusions>-->
-        <!--<exclusion>-->
-          <!--<groupId>*</groupId>-->
-          <!--<artifactId>*</artifactId>-->
-        <!--</exclusion>-->
-      <!--</exclusions>-->
-    <!--</dependency>-->
-
-    <!--<dependency>-->
-      <!--<groupId>com.google.protobuf</groupId>-->
-      <!--<artifactId>protobuf-java</artifactId>-->
-      <!--<version>${protobuf3.version}</version>-->
-      <!--<scope>provided</scope>-->
-    <!--</dependency>-->
     
     <!-- httpclient-hostname-verification depends on below dependencies  --> 
     <dependency>
@@ -143,11 +114,6 @@
       <artifactId>httpcore</artifactId>
       <version>4.4.9</version>
     </dependency>
-
-    <!--<dependency>-->
-      <!--<groupId>com.fasterxml.jackson.module</groupId>-->
-      <!--<artifactId>jackson-module-jsonSchema</artifactId>-->
-    <!--</dependency>-->
 
     <!-- Testing dependencies -->
     <dependency>
