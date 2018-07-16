@@ -264,7 +264,6 @@ public class LookupProxyHandler {
         }
 
         final long requestId = commandGetTopicsOfNamespace.getRequestId();
-        final String namespace = commandGetTopicsOfNamespace.getNamespace();
 
         if (this.service.getLookupRequestSemaphore().tryAcquire()) {
             handleGetTopicsOfNamespace(commandGetTopicsOfNamespace, requestId);
@@ -275,30 +274,80 @@ public class LookupProxyHandler {
                 log.debug("GetTopicsOfNamespace Request ID {} from {} rejected - {}.", requestId, clientAddress,
                     throttlingErrorMessage);
             }
-            proxyConnection.ctx().writeAndFlush(Commands.newGetTopicsOfNamespaceResponse(
-                ServerError.ServiceNotReady, throttlingErrorMessage, requestId
-            ))
+            proxyConnection.ctx().writeAndFlush(Commands.newError(
+                requestId, ServerError.ServiceNotReady, throttlingErrorMessage
+            ));
         }
+    }
 
-        try {
-            List<String> topics = getBrokerService().pulsar()
-                .getNamespaceService()
-                .getListOfTopics(NamespaceName.get(namespace));
 
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Received CommandGetTopicsOfNamespace for namespace [//{}] by {}, size:{}",
-                    remoteAddress, namespace, requestId, topics.size());
+    private void handleGetTopicsOfNamespace(CommandGetTopicsOfNamespace commandGetTopicsOfNamespace,
+                                            long clientRequestId) {
+        String serviceUrl;
+        if (isBlank(brokerServiceURL)) {
+            ServiceLookupData availableBroker;
+            try {
+                availableBroker = service.getDiscoveryProvider().nextBroker();
+            } catch (Exception e) {
+                log.warn("[{}] Failed to get next active broker {}", clientAddress, e.getMessage(), e);
+                proxyConnection.ctx().writeAndFlush(Commands.newError(
+                    clientRequestId, ServerError.ServiceNotReady, e.getMessage()
+                ));
+                return;
             }
-
-            ctx.writeAndFlush(Commands.newGetTopicsOfNamespaceResponse(topics, requestId));
-        } catch (Exception e) {
-            log.warn("[{]] Error GetTopicsOfNamespace for namespace [//{}] by {}",
-                remoteAddress, namespace, requestId);
-            ctx.writeAndFlush(
-                Commands.newError(requestId,
-                    BrokerServiceException.getClientErrorCode(new ServerMetadataException(e)),
-                    e.getMessage()));
+            serviceUrl = this.connectWithTLS ?
+                availableBroker.getPulsarServiceUrlTls() : availableBroker.getPulsarServiceUrl();
+        } else {
+            serviceUrl = this.connectWithTLS ?
+                service.getConfiguration().getBrokerServiceURLTLS() : service.getConfiguration().getBrokerServiceURL();
         }
+        performGetTopicsOfNamespace(clientRequestId, commandGetTopicsOfNamespace.getNamespace(), serviceUrl, 10);
+    }
+
+    private void performGetTopicsOfNamespace(long clientRequestId,
+                                             String namespaceName,
+                                             String brokerServiceUrl,
+                                             int numberOfRetries) {
+        if (numberOfRetries == 0) {
+            proxyConnection.ctx().writeAndFlush(Commands.newError(clientRequestId, ServerError.ServiceNotReady,
+                    "Reached max number of redirections"));
+            return;
+        }
+
+        URI brokerURI;
+        try {
+            brokerURI = new URI(brokerServiceUrl);
+        } catch (URISyntaxException e) {
+            proxyConnection.ctx().writeAndFlush(
+                    Commands.newError(clientRequestId, ServerError.MetadataError, e.getMessage()));
+            return;
+        }
+
+        InetSocketAddress addr = InetSocketAddress.createUnresolved(brokerURI.getHost(), brokerURI.getPort());
+        if (log.isDebugEnabled()) {
+            log.debug("Getting connections to '{}' for getting TopicsOfNamespace '{}' with clientReq Id '{}'",
+                addr, namespaceName, clientRequestId);
+        }
+        proxyConnection.getConnectionPool().getConnection(addr).thenAccept(clientCnx -> {
+            // Connected to backend broker
+            long requestId = proxyConnection.newRequestId();
+            ByteBuf command;
+            command = Commands.newGetTopicsOfNamespaceRequest(namespaceName, requestId);
+            clientCnx.newGetTopicsOfNamespace(command, requestId).thenAccept(topicList ->
+                proxyConnection.ctx().writeAndFlush(
+                    Commands.newGetTopicsOfNamespaceResponse(topicList, clientRequestId))
+            ).exceptionally(ex -> {
+                log.warn("[{}] Failed to get TopicsOfNamespace {}: {}", clientAddress, namespaceName, ex.getMessage());
+                proxyConnection.ctx().writeAndFlush(
+                        Commands.newError(clientRequestId, ServerError.ServiceNotReady, ex.getMessage()));
+                return null;
+            });
+        }).exceptionally(ex -> {
+            // Failed to connect to backend broker
+            proxyConnection.ctx().writeAndFlush(
+                    Commands.newError(clientRequestId, ServerError.ServiceNotReady, ex.getMessage()));
+            return null;
+        });
     }
 
     private static final Logger log = LoggerFactory.getLogger(LookupProxyHandler.class);
