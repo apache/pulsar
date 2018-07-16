@@ -623,7 +623,7 @@ public class TopicsImpl extends BaseResource implements Topics, PersistentTopics
                     @Override
                     public void completed(Response response) {
                         try {
-                            future.complete(getMessageFromHttpResponse(tn.getFullName(), response));
+                            future.complete(getMessageFromHttpResponse(tn.toString(), response));
                         } catch (Exception e) {
                             future.completeExceptionally(getApiException(e));
                         }

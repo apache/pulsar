@@ -741,7 +741,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // if message is not decryptable then it can't be parsed as a batch-message. so, add EncyrptionCtx to message
         // and return undecrypted payload
         if (isMessageUndecryptable || (numMessages == 1 && !msgMetadata.hasNumMessagesInBatch())) {
-            final MessageImpl<T> message = new MessageImpl<>(topicName.getFullName(), msgId,
+            final MessageImpl<T> message = new MessageImpl<>(topicName.toString(), msgId,
                                                              msgMetadata, uncompressedPayload,
                                                              createEncryptionContext(msgMetadata), cnx, schema);
             uncompressedPayload.release();
@@ -914,7 +914,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
                 BatchMessageIdImpl batchMessageIdImpl = new BatchMessageIdImpl(messageId.getLedgerId(),
                         messageId.getEntryId(), getPartitionIndex(), i, acker);
-                final MessageImpl<T> message = new MessageImpl<>(topicName.getFullName(), batchMessageIdImpl,
+                final MessageImpl<T> message = new MessageImpl<>(topicName.toString(), batchMessageIdImpl,
                         msgMetadata, singleMessageMetadataBuilder.build(), singleMessagePayload,
                         createEncryptionContext(msgMetadata), cnx, schema);
                 lock.readLock().lock();

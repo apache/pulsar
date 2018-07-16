@@ -93,7 +93,7 @@ public class MessageParser {
             final int numMessages = msgMetadata.getNumMessagesInBatch();
 
             if (numMessages == 1 && !msgMetadata.hasNumMessagesInBatch()) {
-                final MessageImpl<?> message = new MessageImpl<>(topicName.getFullName(),
+                final MessageImpl<?> message = new MessageImpl<>(topicName.toString(),
                                                                  msgId, msgMetadata, uncompressedPayload,
                                                                  null, null);
                 processor.process(msgId, message, uncompressedPayload);
@@ -102,7 +102,7 @@ public class MessageParser {
 
             } else {
                 // handle batch message enqueuing; uncompressed payload has all messages in batch
-                receiveIndividualMessagesFromBatch(topicName.getFullName(), msgMetadata, uncompressedPayload,
+                receiveIndividualMessagesFromBatch(topicName.toString(), msgMetadata, uncompressedPayload,
                                                    messageId, null, -1, processor);
                 uncompressedPayload.release();
             }

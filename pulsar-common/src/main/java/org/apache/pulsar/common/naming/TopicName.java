@@ -120,7 +120,6 @@ public class TopicName implements ServiceUnitId {
                         + "<tenant>/<namespace>/<topic> or <topic>");
                 }
             }
-            this.completeTopicName = completeTopicName;
 
             // The fully qualified topic name can be in two different forms:
             // new:    persistent://tenant/namespace/topic
@@ -164,10 +163,18 @@ public class TopicName implements ServiceUnitId {
             if (localName == null || localName.isEmpty()) {
                 throw new IllegalArgumentException("Invalid topic name: " + completeTopicName);
             }
+
         } catch (NullPointerException e) {
             throw new IllegalArgumentException("Invalid topic name: " + completeTopicName, e);
         }
-
+        if (isV2()) {
+            this.completeTopicName = String.format("%s://%s/%s/%s",
+                                                   domain, tenant, namespacePortion, getEncodedLocalName());
+        } else {
+            this.completeTopicName = String.format("%s://%s/%s/%s/%s",
+                                                   domain, tenant, cluster,
+                                                   namespacePortion, getEncodedLocalName());
+        }
     }
 
     public boolean isPersistent() {
@@ -331,18 +338,6 @@ public class TopicName implements ServiceUnitId {
         return getTenant()
             + "/" + getNamespacePortion()
             + "/" + getLocalName();
-    }
-
-    /**
-     * Get the full name for the topic.
-     * E.g. persistent://public/default/topic1
-     */
-    public String getFullName() {
-        if (isV2()) {
-            return String.format("%s://%s/%s/%s", domain, tenant, namespacePortion, getEncodedLocalName());
-        } else {
-            return String.format("%s://%s/%s/%s/%s", domain, tenant, cluster, namespacePortion, getEncodedLocalName());
-        }
     }
 
     @Override
