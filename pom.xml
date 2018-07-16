@@ -162,6 +162,7 @@ flexible messaging model and an intuitive client API.</description>
     <!-- test dependencies -->
     <arquillian-cube.version>1.15.1</arquillian-cube.version>
     <arquillian-junit.version>1.1.14.Final</arquillian-junit.version>
+    <cassandra.version>3.5.0</cassandra.version>
     <disruptor.version>3.4.0</disruptor.version>
     <testcontainers.version>1.8.0</testcontainers.version>
 
@@ -806,6 +807,11 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.jboss.arquillian.junit</groupId>
         <artifactId>arquillian-junit-standalone</artifactId>
         <version>${arquillian-junit.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.datastax.cassandra</groupId>
+        <artifactId>cassandra-driver-core</artifactId>
+        <version>${cassandra.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

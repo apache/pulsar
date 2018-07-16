@@ -45,4 +45,8 @@ public class CassandraContainer<SelfT extends ChaosContainer<SelfT>> extends Cha
             })
             .waitingFor(new HostPortWaitStrategy());
     }
+
+    public int getCassandraPort() {
+        return getMappedPort(PORT);
+    }
 }

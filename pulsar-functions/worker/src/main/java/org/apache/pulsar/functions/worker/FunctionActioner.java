@@ -163,6 +163,9 @@ public class FunctionActioner implements AutoCloseable {
         instanceConfig.setInstanceId(String.valueOf(instanceId));
         instanceConfig.setMaxBufferedTuples(1024);
         instanceConfig.setPort(org.apache.pulsar.functions.utils.Utils.findAvailablePort());
+
+        log.info("start process with instance config {}", instanceConfig);
+
         RuntimeSpawner runtimeSpawner = new RuntimeSpawner(instanceConfig, pkgFile.getAbsolutePath(),
                 runtimeFactory, workerConfig.getInstanceLivenessCheckFreqMs());
 
@@ -317,6 +320,13 @@ public class FunctionActioner implements AutoCloseable {
             SourceSpec.Builder sourceBuilder = SourceSpec.newBuilder(functionDetails.getSource());
             sourceBuilder.setTypeClassName(typeArg);
             functionDetails.setSource(sourceBuilder);
+
+            SinkSpec sinkSpec = functionDetails.getSink();
+            if (null == sinkSpec || StringUtils.isEmpty(sinkSpec.getTypeClassName())) {
+                SinkSpec.Builder sinkBuilder = SinkSpec.newBuilder(sinkSpec);
+                sinkBuilder.setTypeClassName(typeArg);
+                functionDetails.setSink(sinkBuilder);
+            }
         }
     }
 
@@ -328,6 +338,13 @@ public class FunctionActioner implements AutoCloseable {
             SinkSpec.Builder sinkBuilder = SinkSpec.newBuilder(functionDetails.getSink());
             sinkBuilder.setTypeClassName(typeArg);
             functionDetails.setSink(sinkBuilder);
+
+            SourceSpec sourceSpec = functionDetails.getSource();
+            if (null == sourceSpec || StringUtils.isEmpty(sourceSpec.getTypeClassName())) {
+                SourceSpec.Builder sourceBuilder = SourceSpec.newBuilder(sourceSpec);
+                sourceBuilder.setTypeClassName(typeArg);
+                functionDetails.setSource(sourceBuilder);
+            }
         }
     }
 

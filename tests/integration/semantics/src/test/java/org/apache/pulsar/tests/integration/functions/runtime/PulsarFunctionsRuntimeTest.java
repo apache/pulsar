@@ -43,14 +43,6 @@ import org.testng.annotations.Test;
  */
 public class PulsarFunctionsRuntimeTest extends PulsarFunctionsTestBase {
 
-    @DataProvider(name = "FunctionRuntimeTypes")
-    public static Object[][] getData() {
-        return new Object[][] {
-            { FunctionRuntimeType.PROCESS },
-            { FunctionRuntimeType.THREAD }
-        };
-    }
-
     @Factory(dataProvider = "FunctionRuntimeTypes")
     PulsarFunctionsRuntimeTest(FunctionRuntimeType functionRuntimeType) {
         super(functionRuntimeType);
