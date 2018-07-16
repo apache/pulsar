@@ -22,6 +22,7 @@ import static org.testng.Assert.assertTrue;
 
 import com.google.common.base.Stopwatch;
 import com.google.gson.Gson;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
@@ -52,7 +53,9 @@ public class PulsarIOSinkTest extends PulsarFunctionsTestBase {
     public static Object[][] getData() {
         return new Object[][] {
             { FunctionRuntimeType.PROCESS,  new CassandraSinkTester() },
-            { FunctionRuntimeType.THREAD, new CassandraSinkTester() }
+            { FunctionRuntimeType.THREAD, new CassandraSinkTester() },
+            { FunctionRuntimeType.PROCESS, new KafkaSinkTester() },
+            { FunctionRuntimeType.THREAD, new KafkaSinkTester() }
         };
     }
 
@@ -68,7 +71,7 @@ public class PulsarIOSinkTest extends PulsarFunctionsTestBase {
     protected PulsarClusterSpecBuilder beforeSetupCluster(String clusterName,
                                                           PulsarClusterSpecBuilder specBuilder) {
         Map<String, GenericContainer<?>> externalServices = Maps.newHashMap();
-        externalServices.put(tester.sinkType, tester.newSinkService(clusterName));
+        externalServices.putAll(tester.newSinkService(clusterName));
         return super.beforeSetupCluster(clusterName, specBuilder)
             .externalServices(externalServices);
     }
@@ -109,7 +112,7 @@ public class PulsarIOSinkTest extends PulsarFunctionsTestBase {
         getSinkInfoNotFound(tenant, namespace, sinkName);
     }
 
-    protected void prepareSink() {
+    protected void prepareSink() throws Exception {
         tester.prepareSink();
     }
 
@@ -146,7 +149,7 @@ public class PulsarIOSinkTest extends PulsarFunctionsTestBase {
         ExecResult result = pulsarCluster.getAnyWorker().execCmd(commands);
         log.info("Get sink info : {}", result.getStdout());
         assertTrue(
-            result.getStdout().contains("\"builtin\": \"cassandra\""),
+            result.getStdout().contains("\"builtin\": \"" + tester.sinkType + "\""),
             result.getStdout()
         );
     }
@@ -181,7 +184,7 @@ public class PulsarIOSinkTest extends PulsarFunctionsTestBase {
         Producer<String> producer = client.newProducer(Schema.STRING)
             .topic(inputTopicName)
             .create();
-        Map<String, String> kvs = Maps.newHashMap();
+        LinkedHashMap<String, String> kvs = new LinkedHashMap<>();
         for (int i = 0; i < numMessages; i++) {
             String key = "key-" + i;
             String value = "value-" + i;

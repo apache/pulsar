@@ -25,17 +25,20 @@ import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
+import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.tests.containers.CassandraContainer;
 import org.apache.pulsar.tests.integration.utils.TestUtils;
+import org.testcontainers.containers.GenericContainer;
+import org.testng.collections.Maps;
 
 /**
  * A tester for testing cassandra sink.
  */
 @Slf4j
-public class CassandraSinkTester extends SinkTester<CassandraContainer> {
+public class CassandraSinkTester extends SinkTester {
 
     private static final String ROOTS = "cassandra";
     private static final String KEY = "key";
@@ -64,9 +67,11 @@ public class CassandraSinkTester extends SinkTester<CassandraContainer> {
     }
 
     @Override
-    protected CassandraContainer newSinkService(String clusterName) {
+    protected Map<String, GenericContainer<?>> newSinkService(String clusterName) {
         this.cassandraCluster = new CassandraContainer(clusterName);
-        return this.cassandraCluster;
+        Map<String, GenericContainer<?>> containers = Maps.newHashMap();
+        containers.put(CassandraContainer.NAME, cassandraCluster);
+        return containers;
     }
 
     @Override

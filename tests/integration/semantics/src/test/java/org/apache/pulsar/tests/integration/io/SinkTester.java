@@ -25,7 +25,7 @@ import org.testng.collections.Maps;
 /**
  * A tester used for testing a specific sink.
  */
-public abstract class SinkTester<SINK_SERVICE_CONTAINER extends GenericContainer> {
+public abstract class SinkTester {
 
     protected final String sinkType;
     protected final Map<String, Object> sinkConfig;
@@ -35,7 +35,7 @@ public abstract class SinkTester<SINK_SERVICE_CONTAINER extends GenericContainer
         this.sinkConfig = Maps.newHashMap();
     }
 
-    protected abstract SINK_SERVICE_CONTAINER newSinkService(String clusterName);
+    protected abstract Map<String, GenericContainer<?>> newSinkService(String clusterName);
 
     protected String sinkType() {
         return sinkType;
@@ -45,7 +45,7 @@ public abstract class SinkTester<SINK_SERVICE_CONTAINER extends GenericContainer
         return sinkConfig;
     }
 
-    protected abstract void prepareSink();
+    protected abstract void prepareSink() throws Exception;
 
     protected abstract void validateSinkResult(Map<String, String> kvs);
 
