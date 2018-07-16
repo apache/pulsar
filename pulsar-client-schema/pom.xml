@@ -142,7 +142,6 @@
                                     <include>com.fasterxml.jackson.core</include>
                                     <include>io.netty:netty</include>
                                     <include>io.netty:netty-all</include>
-                                    <include>org.apache.pulsar:pulsar-common</include>
                                     <include>org.apache.bookkeeper:circe-checksum</include>
                                     <include>net.jpountz.lz4:lz4</include>
                                     <include>com.yahoo.datasketches:sketches-core</include>
