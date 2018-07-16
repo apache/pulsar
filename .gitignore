@@ -64,4 +64,6 @@ pulsar-client-cpp/python/pkg/osx/**/*.whl
 pulsar-client-cpp/python/pkg/osx/**/*.template2
 pulsar-client-cpp/python/wheelhouse
 
-
+# CI generated files
+.repository
+docker.debug-info
