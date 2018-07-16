@@ -18,21 +18,20 @@
  */
 package org.apache.pulsar.functions.utils;
 
+import java.util.Map;
+import java.util.TreeMap;
+
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
+
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.NotNull;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isFileExists;
-import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isMapEntryCustom;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isPositiveNumber;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isValidResources;
 import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isValidSinkConfig;
-import org.apache.pulsar.functions.utils.validation.ConfigValidationAnnotations.isValidTopicName;
-import org.apache.pulsar.functions.utils.validation.ValidatorImpls;
-
-import java.util.Map;
 
 @Getter
 @Setter
@@ -41,6 +40,8 @@ import java.util.Map;
 @ToString
 @isValidSinkConfig
 public class SinkConfig {
+
+
     @NotNull
     private String tenant;
     @NotNull
@@ -50,11 +51,8 @@ public class SinkConfig {
     private String className;
     private String sourceSubscriptionName;
 
-    @isMapEntryCustom(keyValidatorClasses = { ValidatorImpls.TopicNameValidator.class },
-            valueValidatorClasses = { ValidatorImpls.SerdeValidator.class })
-    private Map<String, String> topicToSerdeClassName;
-    @isValidTopicName
-    private String topicsPattern;
+    private final Map<String, ConsumerConfig> topicsToSchema = new TreeMap<>();
+
     private Map<String, Object> configs;
     @isPositiveNumber
     private int parallelism = 1;

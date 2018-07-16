@@ -66,6 +66,7 @@ import org.apache.pulsar.functions.sink.PulsarSinkConfig;
 import org.apache.pulsar.functions.source.PulsarRecord;
 import org.apache.pulsar.functions.source.PulsarSource;
 import org.apache.pulsar.functions.source.PulsarSourceConfig;
+import org.apache.pulsar.functions.utils.ConsumerConfig;
 import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
 import org.apache.pulsar.functions.utils.Reflections;
@@ -108,7 +109,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     // function stats
     private final FunctionStats stats;
 
-    private Record currentRecord;
+    private Record<?> currentRecord;
 
     private Source source;
     private Sink sink;
@@ -175,8 +176,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
         Logger instanceLog = LoggerFactory.getLogger(
                 "function-" + instanceConfig.getFunctionDetails().getName());
-        return new ContextImpl(instanceConfig, instanceLog, client,
-                Thread.currentThread().getContextClassLoader(), inputTopics);
+        return new ContextImpl(instanceConfig, instanceLog, client, inputTopics);
     }
 
     /**
@@ -507,8 +507,14 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         // If source classname is not set, we default pulsar source
         if (sourceSpec.getClassName().isEmpty()) {
             PulsarSourceConfig pulsarSourceConfig = new PulsarSourceConfig();
-            pulsarSourceConfig.setTopicSerdeClassNameMap(sourceSpec.getTopicsToSerDeClassNameMap());
-            pulsarSourceConfig.setTopicsPattern(sourceSpec.getTopicsPattern());
+            sourceSpec.getTopicsToSchemaMap().forEach((topic, conf) -> {
+                pulsarSourceConfig.getTopicSchema().put(topic,
+                        ConsumerConfig.builder()
+                            .schemaTypeOrClassName(conf.getSchemaTypeOrClassName())
+                            .isRegexPattern(conf.getIsRegexPattern())
+                            .build());
+            });
+
             pulsarSourceConfig.setSubscriptionName(
                     StringUtils.isNotBlank(sourceSpec.getSubscriptionName()) ? sourceSpec.getSubscriptionName()
                             : FunctionDetailsUtils.getFullyQualifiedName(this.instanceConfig.getFunctionDetails()));
@@ -544,7 +550,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         } else {
             throw new RuntimeException("Source does not implement correct interface");
         }
-        this.source = (Source) object;
+        this.source = (Source<?>) object;
 
         if (sourceSpec.getConfigs().isEmpty()) {
             this.source.open(new HashMap<>(), contextImpl);
@@ -564,11 +570,17 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             pulsarSinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.valueOf(
                     this.instanceConfig.getFunctionDetails().getProcessingGuarantees().name()));
             pulsarSinkConfig.setTopic(sinkSpec.getTopic());
-            pulsarSinkConfig.setSerDeClassName(sinkSpec.getSerDeClassName());
+
+            if (!StringUtils.isEmpty(sinkSpec.getSchemaTypeOrClassName())) {
+                pulsarSinkConfig.setSchemaTypeOrClassName(sinkSpec.getSchemaTypeOrClassName());
+            } else if (!StringUtils.isEmpty(sinkSpec.getSerDeClassName())) {
+                pulsarSinkConfig.setSchemaTypeOrClassName(sinkSpec.getSerDeClassName());
+            }
+
             pulsarSinkConfig.setTypeClassName(sinkSpec.getTypeClassName());
 
             Object[] params = {this.client, pulsarSinkConfig};
-            Class[] paramTypes = {PulsarClient.class, PulsarSinkConfig.class};
+            Class<?>[] paramTypes = {PulsarClient.class, PulsarSinkConfig.class};
 
             object = Reflections.createInstance(
                     PulsarSink.class.getName(),

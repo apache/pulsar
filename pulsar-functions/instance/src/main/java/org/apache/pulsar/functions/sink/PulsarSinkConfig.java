@@ -29,6 +29,6 @@ import org.apache.pulsar.functions.utils.FunctionConfig;
 public class PulsarSinkConfig {
     private FunctionConfig.ProcessingGuarantees processingGuarantees;
     private String topic;
-    private String serDeClassName;
+    private String schemaTypeOrClassName;
     private String typeClassName;
 }

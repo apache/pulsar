@@ -24,11 +24,15 @@ import static org.mockito.Matchers.same;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.ProducerBuilderImpl;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.functions.instance.state.StateContextImpl;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.junit.Before;
@@ -42,8 +46,7 @@ public class ContextImplTest {
 
     private InstanceConfig config;
     private Logger logger;
-    private PulsarClient client;
-    private ClassLoader classLoader;
+    private PulsarClientImpl client;
     private ContextImpl context;
 
     @Before
@@ -54,13 +57,13 @@ public class ContextImplTest {
             .build();
         config.setFunctionDetails(functionDetails);
         logger = mock(Logger.class);
-        client = mock(PulsarClient.class);
-        classLoader = getClass().getClassLoader();
+        client = mock(PulsarClientImpl.class);
+        when(client.newProducer()).thenReturn(new ProducerBuilderImpl(client, Schema.BYTES));
+
         context = new ContextImpl(
             config,
             logger,
             client,
-            classLoader,
             new ArrayList<>()
         );
     }

@@ -19,31 +19,32 @@
 package org.apache.pulsar.functions.source;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
-import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.utils.FunctionConfig;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.TreeMap;
 
-@Getter
-@Setter
-@ToString
+import lombok.Data;
+
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.functions.utils.ConsumerConfig;
+import org.apache.pulsar.functions.utils.FunctionConfig;
+
+@Data
 public class PulsarSourceConfig {
 
     private FunctionConfig.ProcessingGuarantees processingGuarantees;
     SubscriptionType subscriptionType;
     private String subscriptionName;
-    private Map<String, String> topicSerdeClassNameMap;
-    private String topicsPattern;
+
+    private Map<String, ConsumerConfig> topicSchema = new TreeMap<>();
+
     private String typeClassName;
     private Long timeoutMs;
 
     public static PulsarSourceConfig load(Map<String, Object> map) throws IOException {
-        ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = ObjectMapperFactory.getThreadLocal();
         return mapper.readValue(new ObjectMapper().writeValueAsString(map), PulsarSourceConfig.class);
     }
 }

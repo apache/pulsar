@@ -25,6 +25,9 @@ import org.apache.pulsar.common.schema.SchemaType;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
+/**
+ * Schema definition for Strings encoded in UTF-8 format.
+ */
 public class StringSchema implements Schema<String> {
     private final Charset charset;
     private static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;

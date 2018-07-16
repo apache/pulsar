@@ -41,6 +41,7 @@ import org.apache.pulsar.functions.utils.validation.ValidatorImpls;
 
 import java.util.Collection;
 import java.util.Map;
+import java.util.TreeMap;
 
 @Getter
 @Setter
@@ -55,7 +56,7 @@ public class FunctionConfig {
         ATMOST_ONCE,
         EFFECTIVELY_ONCE
     }
-    
+
     public enum Runtime {
         JAVA,
         PYTHON
@@ -71,18 +72,18 @@ public class FunctionConfig {
     @NotNull
     @isImplementationOfClasses(implementsClasses = {Function.class, java.util.function.Function.class})
     private String className;
-    @isListEntryCustom(entryValidatorClasses = {ValidatorImpls.TopicNameValidator.class})
-    private Collection<String> inputs;
-    @isMapEntryCustom(keyValidatorClasses = { ValidatorImpls.TopicNameValidator.class },
-            valueValidatorClasses = { ValidatorImpls.SerdeValidator.class }, targetRuntime = ConfigValidation.Runtime.JAVA)
-    @isMapEntryCustom(keyValidatorClasses = { ValidatorImpls.TopicNameValidator.class }, targetRuntime = ConfigValidation.Runtime.PYTHON)
-    private Map<String, String> customSerdeInputs;
-    @isValidTopicName
-    private String topicsPattern;
+
+    private Map<String, ConsumerConfig> topicsSchema = new TreeMap<>();
+
     @isValidTopicName
     private String output;
-    @isImplementationOfClass(implementsClass = SerDe.class)
-    private String outputSerdeClassName;
+
+    /**
+     * Represents either a builtin schema type (eg: 'avro', 'json', ect) or the class name for a Schema or SerDe
+     * implementation
+     */
+    private String outputSchemaOrClassName;
+
     @isValidTopicName
     private String logTopic;
     private ProcessingGuarantees processingGuarantees;

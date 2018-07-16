@@ -27,9 +27,10 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.functions.instance.FunctionResultRouter;
 
-public abstract class AbstractOneOuputTopicProducers implements Producers {
+public abstract class AbstractOneOuputTopicProducers<T> implements Producers<T> {
 
     protected final PulsarClient client;
     protected final String outputTopic;
@@ -41,9 +42,9 @@ public abstract class AbstractOneOuputTopicProducers implements Producers {
         this.outputTopic = outputTopic;
     }
 
-    static ProducerBuilder<byte[]> newProducerBuilder(PulsarClient client) {
+    static <T> ProducerBuilder<T> newProducerBuilder(PulsarClient client, Schema<T> schema) {
         // use function result router to deal with different processing guarantees.
-        return client.newProducer() //
+        return client.newProducer(schema) //
                 .blockIfQueueFull(true) //
                 .enableBatching(true) //
                 .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS) //
@@ -53,23 +54,23 @@ public abstract class AbstractOneOuputTopicProducers implements Producers {
                 .messageRouter(FunctionResultRouter.of());
     }
 
-    protected Producer<byte[]> createProducer(String topic)
+    protected Producer<T> createProducer(String topic, Schema<T> schema)
             throws PulsarClientException {
-        return createProducer(client, topic);
+        return createProducer(client, topic, schema);
     }
 
-    public static Producer<byte[]> createProducer(PulsarClient client, String topic)
+    public static <T> Producer<T> createProducer(PulsarClient client, String topic, Schema<T> schema)
             throws PulsarClientException {
-        return newProducerBuilder(client).topic(topic).create();
+        return newProducerBuilder(client, schema).topic(topic).create();
     }
 
-    protected Producer<byte[]> createProducer(String topic, String producerName)
+    protected Producer<T> createProducer(String topic, String producerName, Schema<T> schema)
             throws PulsarClientException {
-        return createProducer(client, topic, producerName);
+        return createProducer(client, topic, schema, producerName);
     }
 
-    public static Producer<byte[]> createProducer(PulsarClient client, String topic, String producerName)
+    public static <T> Producer<T> createProducer(PulsarClient client, String topic, Schema<T> schema, String producerName)
             throws PulsarClientException {
-        return newProducerBuilder(client).topic(topic).producerName(producerName).create();
+        return newProducerBuilder(client, schema).topic(topic).producerName(producerName).create();
     }
 }

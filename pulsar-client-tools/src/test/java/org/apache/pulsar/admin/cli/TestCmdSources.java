@@ -18,13 +18,26 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
+import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.powermock.api.mockito.PowerMockito.mockStatic;
+
 import com.beust.jcommander.ParameterException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
+
+import java.io.File;
+import java.nio.file.Files;
+
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.utils.FunctionConfig;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.Resources;
@@ -38,20 +51,6 @@ import org.testng.IObjectFactory;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
-
-import java.io.File;
-import java.nio.file.Files;
-import java.util.HashMap;
-import java.util.Map;
-
-import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
-import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
 @Slf4j
 @PrepareForTest({CmdFunctions.class})
@@ -67,7 +66,7 @@ public class TestCmdSources {
     private static final String NAMESPACE = "test-namespace";
     private static final String NAME = "test";
     private static final String TOPIC_NAME = "src_topic_1";
-    private static final String SERDE_CLASS_NAME = DefaultSerDe.class.getName();
+    private static final String SERDE_CLASS_NAME = "";
     private static final FunctionConfig.ProcessingGuarantees PROCESSING_GUARANTEES
             = FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE;
     private static final Integer PARALLELISM = 1;
@@ -115,7 +114,7 @@ public class TestCmdSources {
         sourceConfig.setName(NAME);
 
         sourceConfig.setTopicName(TOPIC_NAME);
-        sourceConfig.setSerdeClassName(SERDE_CLASS_NAME);
+        sourceConfig.setSchemaTypeOrClassName(SERDE_CLASS_NAME);
         sourceConfig.setProcessingGuarantees(PROCESSING_GUARANTEES);
         sourceConfig.setParallelism(PARALLELISM);
         sourceConfig.setArchive(JAR_FILE_PATH);
@@ -223,7 +222,7 @@ public class TestCmdSources {
     @Test
     public void testMissingSerdeClassName() throws Exception {
         SourceConfig sourceConfig = getSourceConfig();
-        sourceConfig.setSerdeClassName(null);
+        sourceConfig.setSchemaTypeOrClassName(null);
         testCmdSourceCliMissingArgs(
                 TENANT,
                 NAMESPACE,
@@ -574,10 +573,10 @@ public class TestCmdSources {
     @Test
     public void testCmdSourceConfigFileMissingSerdeClassname() throws Exception {
         SourceConfig testSourceConfig = getSourceConfig();
-        testSourceConfig.setSerdeClassName(null);
+        testSourceConfig.setSchemaTypeOrClassName(null);
 
         SourceConfig expectedSourceConfig = getSourceConfig();
-        expectedSourceConfig.setSerdeClassName(null);
+        expectedSourceConfig.setSchemaTypeOrClassName(null);
         testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
     }
 
@@ -701,7 +700,7 @@ public class TestCmdSources {
         testSourceConfig.setNamespace(NAMESPACE + "-prime");
         testSourceConfig.setName(NAME + "-prime");
         testSourceConfig.setTopicName(TOPIC_NAME + "-prime");
-        testSourceConfig.setSerdeClassName(SERDE_CLASS_NAME + "-prime");
+        testSourceConfig.setSchemaTypeOrClassName(SERDE_CLASS_NAME + "-prime");
         testSourceConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE);
         testSourceConfig.setParallelism(PARALLELISM + 1);
         testSourceConfig.setArchive(JAR_FILE_PATH + "-prime");

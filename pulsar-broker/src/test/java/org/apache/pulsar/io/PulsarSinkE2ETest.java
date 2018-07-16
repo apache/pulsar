@@ -53,7 +53,6 @@ import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.instance.JavaInstanceRunnable;
 import org.apache.pulsar.functions.proto.Function;
@@ -124,7 +123,7 @@ public class PulsarSinkE2ETest {
     public Object[][] validRoleName() {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
-    
+
     @BeforeMethod
     void setup(Method method) throws Exception {
 
@@ -156,7 +155,7 @@ public class PulsarSinkE2ETest {
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         config.setTlsAllowInsecureConnection(true);
-    
+
 
         functionsWorkerService = createPulsarFunctionWorker(config);
         urlTls = new URL(brokerServiceUrl);
@@ -190,12 +189,12 @@ public class PulsarSinkE2ETest {
                     workerConfig.getClientAuthenticationParameters());
         }
         pulsarClient = clientBuilder.build();
-       
+
         TenantInfo propAdmin = new TenantInfo();
         propAdmin.getAdminRoles().add("superUser");
         propAdmin.setAllowedClusters(Sets.newHashSet(Lists.newArrayList("use")));
         admin.tenants().updateTenant(tenant, propAdmin);
-       
+
         Thread.sleep(100);
     }
 
@@ -237,7 +236,7 @@ public class PulsarSinkE2ETest {
         workerConfig.setUseTls(true);
         workerConfig.setTlsAllowInsecureConnection(true);
         workerConfig.setTlsTrustCertsFilePath(TLS_CLIENT_CERT_FILE_PATH);
-        
+
         workerConfig.setAuthenticationEnabled(true);
         workerConfig.setAuthorizationEnabled(true);
 
@@ -246,7 +245,7 @@ public class PulsarSinkE2ETest {
 
     /**
      * Validates pulsar sink e2e functionality on functions.
-     * 
+     *
      * @throws Exception
      */
     @Test(timeOut = 20000)
@@ -313,7 +312,7 @@ public class PulsarSinkE2ETest {
 
     }
 
-    
+
     @Test(timeOut = 20000)
     public void testPulsarSinkStats() throws Exception {
 
@@ -410,7 +409,7 @@ public class PulsarSinkE2ETest {
         sourceSpecBuilder.setTypeClassName(byte[].class.getName());
         sourceSpecBuilder.setTopicsPattern(sourceTopicPattern);
         sourceSpecBuilder.setSubscriptionName(subscriptionName);
-        sourceSpecBuilder.putTopicsToSerDeClassName(sourceTopicPattern, DefaultSerDe.class.getName());
+        sourceSpecBuilder.putTopicsToSerDeClassName(sourceTopicPattern, "");
         functionDetailsBuilder.setAutoAck(true);
         functionDetailsBuilder.setSource(sourceSpecBuilder);
 
@@ -425,7 +424,7 @@ public class PulsarSinkE2ETest {
 
         return functionDetailsBuilder.build();
     }
-    
+
     @Test(dataProvider = "validRoleName")
     public void testAuthorization(boolean validRoleName) throws Exception {
 

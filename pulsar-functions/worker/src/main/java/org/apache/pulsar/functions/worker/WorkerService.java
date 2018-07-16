@@ -72,11 +72,11 @@ public class WorkerService {
 
     public void start(URI dlogUri) throws InterruptedException {
         log.info("Starting worker {}...", workerConfig.getWorkerId());
-        
+
         this.admin = Utils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl(),
                 workerConfig.getClientAuthenticationPlugin(), workerConfig.getClientAuthenticationParameters(),
                 workerConfig.getTlsTrustCertsFilePath(), workerConfig.isTlsAllowInsecureConnection());
-        
+
         try {
             log.info("Worker Configs: {}", new ObjectMapper().writerWithDefaultPrettyPrinter()
                     .writeValueAsString(workerConfig));
@@ -137,7 +137,7 @@ public class WorkerService {
 
             // initialize function metadata manager
             this.functionMetaDataManager.initialize();
-            
+
             authenticationService = new AuthenticationService(PulsarConfigurationLoader.convertFrom(workerConfig));
 
             // Starting cluster services
@@ -160,7 +160,7 @@ public class WorkerService {
             this.isInitialized = true;
 
             this.connectorsManager = new ConnectorsManager(workerConfig);
-            
+
             int metricsSamplingPeriodSec = this.workerConfig.getMetricsSamplingPeriodSec();
             if (metricsSamplingPeriodSec > 0) {
                 this.statsUpdater.scheduleAtFixedRate(() -> this.functionRuntimeManager.updateRates(),
@@ -211,7 +211,7 @@ public class WorkerService {
         if (null != schedulerManager) {
             schedulerManager.close();
         }
-        
+
         if (null != this.admin) {
             this.admin.close();
         }
