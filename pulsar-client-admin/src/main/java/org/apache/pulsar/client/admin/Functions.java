@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.admin;
 
 import java.util.List;
+import java.util.Set;
 
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
@@ -26,6 +27,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedExc
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
+import org.apache.pulsar.functions.worker.WorkerInfo;
 
 /**
  * Admin interface for function management.
@@ -232,4 +234,29 @@ public interface Functions {
      *
      */
     List<ConnectorDefinition> getConnectorsList() throws PulsarAdminException;
+
+    /**
+     * Fetches a list of supported Pulsar IO sources currently running in cluster mode
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     *
+     */
+    Set<String> getSources() throws PulsarAdminException;
+
+    /**
+     * Fetches a list of supported Pulsar IO sinks currently running in cluster mode
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     *
+     */
+    Set<String> getSinks() throws PulsarAdminException;
+    
+    /**
+     * Get list of workers present under a cluster
+     * @return
+     * @throws PulsarAdminException 
+     */
+    List<WorkerInfo> getWorkers() throws PulsarAdminException;
 }

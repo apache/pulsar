@@ -82,6 +82,7 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-broker-shaded</module>
     <module>pulsar-client</module>
     <module>pulsar-client-shaded</module>
+    <module>pulsar-client-schema</module>
     <module>pulsar-client-admin</module>
     <module>pulsar-client-admin-shaded</module>
     <module>pulsar-client-tools</module>
@@ -97,8 +98,6 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-client-auth-athenz</module>
     <module>pulsar-client-kafka-compat</module>
     <module>pulsar-zookeeper</module>
-    <module>docker</module>
-    <module>tests</module>
     <module>pulsar-log4j2-appender</module>
     <module>protobuf-shaded</module>
 
@@ -108,7 +107,10 @@ flexible messaging model and an intuitive client API.</description>
     <!-- connector-related modules -->
     <module>pulsar-io</module>
 
+    <!-- all these 3 modules should be put at the end in this exact sequence -->
     <module>distribution</module>
+    <module>docker</module>
+    <module>tests</module>
   </modules>
 
   <issueManagement>
@@ -161,6 +163,7 @@ flexible messaging model and an intuitive client API.</description>
     <!-- test dependencies -->
     <arquillian-cube.version>1.15.1</arquillian-cube.version>
     <arquillian-junit.version>1.1.14.Final</arquillian-junit.version>
+    <cassandra.version>3.5.0</cassandra.version>
     <disruptor.version>3.4.0</disruptor.version>
     <testcontainers.version>1.8.0</testcontainers.version>
 
@@ -806,6 +809,11 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>arquillian-junit-standalone</artifactId>
         <version>${arquillian-junit.version}</version>
       </dependency>
+      <dependency>
+        <groupId>com.datastax.cassandra</groupId>
+        <artifactId>cassandra-driver-core</artifactId>
+        <version>${cassandra.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -946,6 +954,11 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>src/main/java/org/apache/bookkeeper/mledger/proto/MLDataFormats.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/broker/service/schema/proto/SchemaRegistryFormat.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/common/api/proto/PulsarApi.java</exclude>
+            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/CompressionType.java</exclude>
+            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/EncryptionCtx.java</exclude>
+            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/EncryptionKey.java</exclude>
+            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/KeyValue.java</exclude>
+            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/Message.java</exclude>
             <exclude>**/ByteBufCodedInputStream.java</exclude>
             <exclude>**/ByteBufCodedOutputStream.java</exclude>
             <exclude>bin/proto/*</exclude>
@@ -1050,6 +1063,13 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>src/main/java/org/apache/pulsar/common/api/proto/PulsarApi.java</exclude>
             <exclude>src/main/java/org/apache/pulsar/broker/service/schema/proto/SchemaRegistryFormat.java</exclude>
             <exclude>bin/proto/MLDataFormats_pb2.py</exclude>
+            
+            <!-- pulasr-io-connector kinesis : auto generated files from flatbuffer schema -->
+            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/CompressionType.java</exclude>
+            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/EncryptionCtx.java</exclude>
+            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/EncryptionKey.java</exclude>
+            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/KeyValue.java</exclude>
+            <exclude>src/main/java/org/apache/pulsar/io/kinesis/fbs/Message.java</exclude>
 
             <!-- These files are BSD licensed files -->
             <exclude>src/main/java/org/apache/pulsar/common/util/protobuf/ByteBufCodedInputStream.java</exclude>

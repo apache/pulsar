@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.Record;
@@ -163,6 +164,12 @@ public class TwitterFireHose extends PushSource<String> {
 
         public TwitterRecord(String tweet) {
             this.tweet = tweet;
+        }
+
+        @Override
+        public Optional<String> getKey() {
+            // TODO: Could use user or tweet ID as key here
+            return Optional.empty();
         }
 
         @Override

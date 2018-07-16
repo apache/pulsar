@@ -76,6 +76,10 @@ public class KinesisSinkConfig implements Serializable {
          * 
          * 
          */
-        FULL_MESSAGE_IN_JSON;
+        FULL_MESSAGE_IN_JSON,
+        /**
+         * Kinesis sink sends message serialized in flat-buffer.
+         */
+        FULL_MESSAGE_IN_FB;
     }
 }

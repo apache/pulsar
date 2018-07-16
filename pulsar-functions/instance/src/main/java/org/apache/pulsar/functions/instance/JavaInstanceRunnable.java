@@ -52,9 +52,9 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData.Builder;
 import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.sink.PulsarSink;
@@ -108,6 +108,14 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private Source source;
     private Sink sink;
+    
+    public static final String METRICS_TOTAL_PROCESSED = "__total_processed__";
+    public static final String METRICS_TOTAL_SUCCESS = "__total_successfully_processed__";
+    public static final String METRICS_TOTAL_SYS_EXCEPTION = "__total_system_exceptions__";
+    public static final String METRICS_TOTAL_USER_EXCEPTION = "__total_user_exceptions__";
+    public static final String METRICS_TOTAL_DESERIALIZATION_EXCEPTION = "__total_deserialization_exceptions__";
+    public static final String METRICS_TOTAL_SERIALIZATION_EXCEPTION = "__total_serialization_exceptions__";
+    public static final String METRICS_AVG_LATENCY = "__avg_latency_ms__";
 
     public JavaInstanceRunnable(InstanceConfig instanceConfig,
                                 FunctionCacheManager fnCache,
@@ -324,7 +332,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private void sendOutputMessage(Record srcRecord, Object output) {
         try {
-            this.sink.write(srcRecord, output);
+            this.sink.write(new SinkRecord<>(srcRecord, output));
         } catch (Exception e) {
             log.info("Encountered exception in sink write: ", e);
             throw new RuntimeException(e);
@@ -389,16 +397,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     public InstanceCommunication.MetricsData getAndResetMetrics() {
-        InstanceCommunication.MetricsData.Builder bldr = InstanceCommunication.MetricsData.newBuilder();
-        addSystemMetrics("__total_processed__", stats.getCurrentStats().getTotalProcessed(), bldr);
-        addSystemMetrics("__total_successfully_processed__", stats.getCurrentStats().getTotalSuccessfullyProcessed(), bldr);
-        addSystemMetrics("__total_system_exceptions__", stats.getCurrentStats().getTotalSystemExceptions(), bldr);
-        addSystemMetrics("__total_user_exceptions__", stats.getCurrentStats().getTotalUserExceptions(), bldr);
-        stats.getCurrentStats().getTotalDeserializationExceptions().forEach((topic, count) -> {
-            addSystemMetrics("__total_deserialization_exceptions__" + topic, count, bldr);
-        });
-        addSystemMetrics("__total_serialization_exceptions__", stats.getCurrentStats().getTotalSerializationExceptions(), bldr);
-        addSystemMetrics("__avg_latency_ms__", stats.getCurrentStats().computeLatency(), bldr);
+        InstanceCommunication.MetricsData.Builder bldr = createMetricsDataBuilder();
         stats.resetCurrent();
         if (javaInstance != null) {
             InstanceCommunication.MetricsData userMetrics =  javaInstance.getAndResetMetrics();
@@ -407,6 +406,38 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             }
         }
         return bldr.build();
+    }
+
+    public InstanceCommunication.MetricsData getMetrics() {
+        InstanceCommunication.MetricsData.Builder bldr = createMetricsDataBuilder();
+        if (javaInstance != null) {
+            InstanceCommunication.MetricsData userMetrics =  javaInstance.getMetrics();
+            if (userMetrics != null) {
+                bldr.putAllMetrics(userMetrics.getMetricsMap());
+            }
+        }
+        return bldr.build();
+    }
+
+    public void resetMetrics() {
+        stats.resetCurrent();
+        javaInstance.resetMetrics();
+    }
+    
+    private Builder createMetricsDataBuilder() {
+        InstanceCommunication.MetricsData.Builder bldr = InstanceCommunication.MetricsData.newBuilder();
+        addSystemMetrics(METRICS_TOTAL_PROCESSED, stats.getStats().getTotalProcessed(), bldr);
+        addSystemMetrics(METRICS_TOTAL_SUCCESS, stats.getStats().getTotalSuccessfullyProcessed(),
+                bldr);
+        addSystemMetrics(METRICS_TOTAL_SYS_EXCEPTION, stats.getStats().getTotalSystemExceptions(), bldr);
+        addSystemMetrics(METRICS_TOTAL_USER_EXCEPTION, stats.getStats().getTotalUserExceptions(), bldr);
+        stats.getStats().getTotalDeserializationExceptions().forEach((topic, count) -> {
+            addSystemMetrics(METRICS_TOTAL_DESERIALIZATION_EXCEPTION + topic, count, bldr);
+        });
+        addSystemMetrics(METRICS_TOTAL_SERIALIZATION_EXCEPTION,
+                stats.getStats().getTotalSerializationExceptions(), bldr);
+        addSystemMetrics(METRICS_AVG_LATENCY, stats.getStats().computeLatency(), bldr);
+        return bldr;
     }
 
     public InstanceCommunication.FunctionStatus.Builder getFunctionStatus() {

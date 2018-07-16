@@ -41,5 +41,9 @@ public interface Runtime {
     CompletableFuture<InstanceCommunication.FunctionStatus> getFunctionStatus();
 
     CompletableFuture<InstanceCommunication.MetricsData> getAndResetMetrics();
+    
+    CompletableFuture<Void> resetMetrics();
+    
+    CompletableFuture<InstanceCommunication.MetricsData> getMetrics();
 
 }

@@ -73,7 +73,8 @@ public class WorkerConfig implements Serializable {
     private String tlsTrustCertsFilePath = "";
     private boolean tlsAllowInsecureConnection = false;
     private boolean tlsHostnameVerificationEnable = false;
-    
+    private int metricsSamplingPeriodSec = 60;
+
     @Data
     @Setter
     @Getter

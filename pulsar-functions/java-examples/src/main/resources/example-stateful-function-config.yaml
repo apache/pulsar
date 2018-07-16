@@ -20,7 +20,7 @@
 tenant: "test"
 namespace: "test-namespace"
 name: "stateful-example"
-className: "org.apache.pulsar.functions.api.examples.CounterFunction"
+className: "org.apache.pulsar.functions.api.examples.WordCountFunction"
 inputs: ["test_stateful_src"]
 userConfig:
   "PublishTopic": "test_stateful_result"

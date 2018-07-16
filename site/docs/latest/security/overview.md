@@ -29,7 +29,7 @@ By default, there is no encryption, authentication, or authorization configured.
 It is critical that access via these plain text service urls is restricted to trusted clients only. Network segmentation and/or authorization ACLs can be used
 to restrict access to trusted IPs in such cases. If neither is used, the cluster is wide open and can be accessed by anyone.
 
-Pulsar supports a pluggable authentication mechanism that Pulsar clients can use to authenticate with {% popover brokers %} and {% popover proxies %}. Pulsar
+Pulsar supports a pluggable authentication mechanism that Pulsar clients can use to authenticate with brokers and proxies. Pulsar
 can also be configured to support multiple authentication sources.
 
 It is strongly recommended to secure the service components in your Apache Pulsar deployment.
@@ -37,7 +37,7 @@ It is strongly recommended to secure the service components in your Apache Pulsa
 ## Role Tokens
 
 In Pulsar, a *role* is a string, like `admin` or `app1`, that can represent a single client or multiple clients. Roles are used to control permission for clients
-to produce or consume from certain topics, administer the configuration for {% popover tenants %}, and more.
+to produce or consume from certain topics, administer the configuration for tenants, and more.
 
 Apache Pulsar uses a [Authentication Provider](#authentication-providers) to establish the identity of a client and then assign that client a *role token*. This
 role token is then used for [Authorization and ACLs](../authorization) to determine what the client is authorized to do.
@@ -46,8 +46,8 @@ role token is then used for [Authorization and ACLs](../authorization) to determ
 
 Currently Pulsar supports two authentication providers:
 
-* [TLS Authentication](../tls)
-* [Athenz](../athenz)
+- [TLS Authentication](../tls)
+- [Athenz](../athenz)
 
 ## Contents
 

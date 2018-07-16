@@ -48,13 +48,14 @@ public class SourceConfig {
     private String namespace;
     @NotNull
     private String name;
+    private String className;
 
     @NotNull
     @isValidTopicName
     private String topicName;
     @isImplementationOfClass(implementsClass = SerDe.class)
     private String serdeClassName;
-    private Map<String, Object> configs = new HashMap<>();
+    private Map<String, Object> configs;
     @isPositiveNumber
     private int parallelism = 1;
     private FunctionConfig.ProcessingGuarantees processingGuarantees;
