@@ -65,13 +65,20 @@ public abstract class PulsarClusterTestBase {
     }
 
     public void setupCluster(String namePrefix) throws Exception {
-        PulsarClusterSpec spec = PulsarClusterSpec.builder()
-            .clusterName(Stream.of(this.getClass().getSimpleName(), namePrefix, randomName(5))
-                .filter(s -> s != null && !s.isEmpty())
-                .collect(joining("-")))
-            .build();
+        String clusterName = Stream.of(this.getClass().getSimpleName(), namePrefix, randomName(5))
+            .filter(s -> s != null && !s.isEmpty())
+            .collect(joining("-"));
 
-        setupCluster(spec);
+        PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder = PulsarClusterSpec.builder()
+            .clusterName(clusterName);
+
+        setupCluster(beforeSetupCluster(clusterName, specBuilder).build());
+    }
+
+    protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(
+        String clusterName,
+        PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
+        return specBuilder;
     }
 
     protected void setupCluster(PulsarClusterSpec spec) throws Exception {
@@ -93,7 +100,7 @@ public abstract class PulsarClusterTestBase {
 
     protected static String randomName(int numChars) {
         StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < 8; i++) {
+        for (int i = 0; i < numChars; i++) {
             sb.append((char) (ThreadLocalRandom.current().nextInt(26) + 'a'));
         }
         return sb.toString();

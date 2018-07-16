@@ -191,7 +191,7 @@ class ProcessRuntime implements Runtime {
             if (instanceConfig.getFunctionDetails().getSource().getTypeClassName() != null
                 && !instanceConfig.getFunctionDetails().getSource().getTypeClassName().isEmpty()) {
                 args.add("--source_type_classname");
-                args.add(instanceConfig.getFunctionDetails().getSource().getTypeClassName());
+                args.add("\"" + instanceConfig.getFunctionDetails().getSource().getTypeClassName() + "\"");
             }
         }
 
@@ -222,7 +222,7 @@ class ProcessRuntime implements Runtime {
             if (instanceConfig.getFunctionDetails().getSink().getTypeClassName() != null
                     && !instanceConfig.getFunctionDetails().getSink().getTypeClassName().isEmpty()) {
                 args.add("--sink_type_classname");
-                args.add(instanceConfig.getFunctionDetails().getSink().getTypeClassName());
+                args.add("\"" + instanceConfig.getFunctionDetails().getSink().getTypeClassName() + "\"");
             }
         }
         if (instanceConfig.getFunctionDetails().getSink().getTopic() != null
