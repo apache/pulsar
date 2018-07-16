@@ -160,6 +160,12 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
             }
         }
 
+        if (!authentication_) {
+          LOG_ERROR("Invalid authentication plugin");
+          close();
+          return;
+        }
+
         AuthenticationDataPtr authData;
         if (authentication_->getAuthData(authData) == ResultOk && authData->hasDataForTls()) {
             std::string tlsCertificates = authData->getTlsCertificates();
@@ -354,6 +360,10 @@ void ClientConnection::handleSentPulsarConnect(const boost::system::error_code& 
  *
  */
 void ClientConnection::tcpConnectAsync() {
+    if (isClosed()) {
+        return;
+    }
+
     boost::system::error_code err;
     Url service_url;
     if (!Url::parse(physicalAddress_, service_url)) {
