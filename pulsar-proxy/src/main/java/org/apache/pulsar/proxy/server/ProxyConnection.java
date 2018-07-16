@@ -19,7 +19,6 @@
 package org.apache.pulsar.proxy.server;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
