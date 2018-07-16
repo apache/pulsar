@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.schemas;
+package org.apache.pulsar.client.schema;
 
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
@@ -26,16 +26,14 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.impl.schema.StringSchema;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
 
 public class DefaultSchemasTest {
     private PulsarClient client;
@@ -53,21 +51,21 @@ public class DefaultSchemasTest {
     public void testConsumerInstantiation() {
         ConsumerBuilder<String> stringConsumerBuilder = client.newConsumer(new StringSchema())
                 .topic(TEST_TOPIC);
-        assertNotNull(stringConsumerBuilder);
+        Assert.assertNotNull(stringConsumerBuilder);
     }
 
     @Test
     public void testProducerInstantiation() {
         ProducerBuilder<String> stringProducerBuilder = client.newProducer(new StringSchema())
                 .topic(TEST_TOPIC);
-        assertNotNull(stringProducerBuilder);
+        Assert.assertNotNull(stringProducerBuilder);
     }
 
     @Test
     public void testReaderInstantiation() {
         ReaderBuilder<String> stringReaderBuilder = client.newReader(new StringSchema())
                 .topic(TEST_TOPIC);
-        assertNotNull(stringReaderBuilder);
+        Assert.assertNotNull(stringReaderBuilder);
     }
 
     @Test
@@ -75,7 +73,7 @@ public class DefaultSchemasTest {
         String testString = "hello world";
         byte[] testBytes = testString.getBytes(StandardCharsets.UTF_8);
         StringSchema stringSchema = new StringSchema();
-        assertTrue(stringSchema.decode(testBytes).equals(testString));
+        Assert.assertTrue(stringSchema.decode(testBytes).equals(testString));
         assertEquals(stringSchema.encode(testString), testBytes);
 
         Message<String> msg1 = MessageBuilder.create(stringSchema)
@@ -90,7 +88,7 @@ public class DefaultSchemasTest {
 
         byte[] bytes2 = testString.getBytes(StandardCharsets.UTF_16);
         StringSchema stringSchemaUtf16 = new StringSchema(StandardCharsets.UTF_16);
-        assertTrue(stringSchemaUtf16.decode(bytes2).equals(testString));
+        Assert.assertTrue(stringSchemaUtf16.decode(bytes2).equals(testString));
         assertEquals(stringSchemaUtf16.encode(testString), bytes2);
     }
 
