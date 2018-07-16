@@ -37,6 +37,7 @@
     <module>integration-tests-topologies</module>
     <module>integration-tests-base</module>
     <module>integration</module>
+    <module>integration-tc</module>
   </modules>
   <build>
     <plugins>
