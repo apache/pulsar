@@ -25,14 +25,18 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.DefaultConsumer;
 import com.rabbitmq.client.Envelope;
+
+import java.io.IOException;
+import java.util.Map;
+import java.util.Optional;
+
+import lombok.Data;
+
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.Record;
 import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.util.Map;
 
 /**
  * A simple connector to consume messages from a RabbitMQ queue
@@ -82,20 +86,13 @@ public class RabbitMQSource extends PushSource<byte[]> {
 
         @Override
         public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
-            source.consume(new RabbitMQRecord(body));
+            source.consume(new RabbitMQRecord(Optional.ofNullable(envelope.getRoutingKey()), body));
         }
     }
 
+    @Data
     static private class RabbitMQRecord implements Record<byte[]> {
-        private final byte[] data;
-
-        public RabbitMQRecord(byte[] data) {
-            this.data = data;
-        }
-
-        @Override
-        public byte[] getValue() {
-            return data;
-        }
+        private final Optional<String> key;
+        private final byte[] value;
     }
 }

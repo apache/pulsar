@@ -20,6 +20,7 @@
 package org.apache.pulsar.io.cassandra;
 
 import org.apache.pulsar.io.core.KeyValue;
+import org.apache.pulsar.io.core.Record;
 
 /**
  * Cassandra sink that treats incoming messages on the input topic as Strings
@@ -27,7 +28,8 @@ import org.apache.pulsar.io.core.KeyValue;
  */
 public class CassandraStringSink extends CassandraAbstractSink<String, String> {
     @Override
-    public KeyValue<String, String> extractKeyValue(byte[] message) {
-        return new KeyValue<>(new String(message), new String(message));
+    public KeyValue<String, String> extractKeyValue(Record<byte[]> record) {
+        String key = record.getKey().orElseGet(() -> new String(record.getValue()));
+        return new KeyValue<>(key, new String(record.getValue()));
     }
 }

@@ -29,6 +29,7 @@ import javax.net.ssl.SSLContext;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 
+import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.AuthenticationFactory;
@@ -37,6 +38,7 @@ import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.proxy.AsyncProxyServlet;
+import org.eclipse.jetty.client.api.Request;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -162,4 +164,12 @@ class AdminProxyHandler extends AsyncProxyServlet {
         return rewrittenUrl.toString();
     }
 
+    @Override
+    protected void addProxyHeaders(HttpServletRequest clientRequest, Request proxyRequest) {
+        super.addProxyHeaders(clientRequest, proxyRequest);
+        String user = (String) clientRequest.getAttribute(AuthenticationFilter.AuthenticatedRoleAttributeName);
+        if (user != null) {
+            proxyRequest.header("X-Original-Principal", user);
+        }
+    }
 }

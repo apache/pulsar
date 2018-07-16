@@ -1,0 +1,59 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+ 
+ /**
+ * Instrunction to generate fb-source
+ * export PULSAR_HOME=<Path where you cloned the pulsar repo>
+ * export KINESIS_IO_MAIN=${PULSAR_HOME}/pulsar-io/kinesis/src/main
+ * Command to build java src:  flatc --java  -o ${KINESIS_IO_MAIN}/java ${KINESIS_IO_MAIN}/fb/KinesisMessageApi.fbs 
+ * flatc version 1.9.0 (pip install flatbuffers)
+ */
+
+namespace org.apache.pulsar.io.kinesis.fbs;
+
+table KeyValue {
+  key:string;
+  value:string;
+}
+
+table EncryptionKey {
+  key:string;
+  value:[byte];
+  metadata:[KeyValue];
+}
+
+enum CompressionType : byte { NONE, LZ4, ZLIB }
+
+table EncryptionCtx {
+  keys:[EncryptionKey];
+  param:[byte];
+  algo:string;
+  compressionType:CompressionType;
+  uncompressedMessageSize:int;
+  batchSize:int;
+  isBatchMessage:bool=false;
+}
+
+table Message {
+  encryptionCtx:EncryptionCtx;
+  properties:[KeyValue];
+  payload:[byte];
+}
+
+root_type Message;

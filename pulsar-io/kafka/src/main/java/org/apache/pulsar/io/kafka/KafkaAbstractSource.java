@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -44,7 +45,7 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
 
     private static final Logger LOG = LoggerFactory.getLogger(KafkaAbstractSource.class);
 
-    private Consumer<byte[], byte[]> consumer;
+    private Consumer<String, byte[]> consumer;
     private Properties props;
     private KafkaSourceConfig kafkaSourceConfig;
     Thread runnerThread;
@@ -98,12 +99,12 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
             consumer = new KafkaConsumer<>(props);
             consumer.subscribe(Arrays.asList(kafkaSourceConfig.getTopic()));
             LOG.info("Kafka source started.");
-            ConsumerRecords<byte[], byte[]> consumerRecords;
+            ConsumerRecords<String, byte[]> consumerRecords;
             while(true){
                 consumerRecords = consumer.poll(1000);
                 CompletableFuture<?>[] futures = new CompletableFuture<?>[consumerRecords.count()];
                 int index = 0;
-                for (ConsumerRecord<byte[], byte[]> consumerRecord : consumerRecords) {
+                for (ConsumerRecord<String, byte[]> consumerRecord : consumerRecords) {
                     LOG.debug("Record received from kafka, key: {}. value: {}", consumerRecord.key(), consumerRecord.value());
                     KafkaRecord<V> record = new KafkaRecord<>(consumerRecord, extractValue(consumerRecord));
                     consume(record);
@@ -125,27 +126,32 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         runnerThread.start();
     }
 
-    public abstract V extractValue(ConsumerRecord<byte[], byte[]> record);
+    public abstract V extractValue(ConsumerRecord<String, byte[]> record);
 
     static private class KafkaRecord<V> implements Record<V> {
-        private final ConsumerRecord<byte[], byte[]> record;
+        private final ConsumerRecord<String, byte[]> record;
         private final V value;
         @Getter
-        private final CompletableFuture<Void> completableFuture = new CompletableFuture();
+        private final CompletableFuture<Void> completableFuture = new CompletableFuture<>();
 
-        public KafkaRecord(ConsumerRecord<byte[], byte[]> record,
+        public KafkaRecord(ConsumerRecord<String, byte[]> record,
                            V value) {
             this.record = record;
             this.value = value;
         }
         @Override
-        public String getPartitionId() {
-            return Integer.toString(record.partition());
+        public Optional<String> getPartitionId() {
+            return Optional.of(Integer.toString(record.partition()));
         }
 
         @Override
-        public long getRecordSequence() {
-            return record.offset();
+        public Optional<Long> getRecordSequence() {
+            return Optional.of(record.offset());
+        }
+
+        @Override
+        public Optional<String> getKey() {
+            return Optional.ofNullable(record.key());
         }
 
         @Override

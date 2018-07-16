@@ -47,6 +47,7 @@ import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
+import org.apache.pulsar.functions.worker.WorkerInfo;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.glassfish.jersey.media.multipart.file.FileDataBodyPart;
@@ -272,6 +273,15 @@ public class FunctionsImpl extends BaseResource implements Functions {
                 .map(ConnectorDefinition::getName).collect(Collectors.toSet());
     }
 
+    public List<WorkerInfo> getWorkers() throws PulsarAdminException {
+        try {
+            return request(functions.path("workers")).get(new GenericType<List<WorkerInfo>>() {
+            });
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+    
     public static void mergeJson(String json, Builder builder) throws IOException {
         JsonFormat.parser().merge(json, builder);
     }

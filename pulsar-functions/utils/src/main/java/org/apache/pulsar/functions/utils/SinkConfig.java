@@ -48,6 +48,7 @@ public class SinkConfig {
     private String namespace;
     @NotNull
     private String name;
+    private String className;
 
     @isMapEntryCustom(keyValidatorClasses = { ValidatorImpls.TopicNameValidator.class },
             valueValidatorClasses = { ValidatorImpls.SerdeValidator.class })

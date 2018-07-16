@@ -29,7 +29,7 @@ class PublishFunction(Function):
 
   def process(self, input, context):
     publish_topic = "publishtopic"
-    if "publish-topic" in context.get_user_config_map:
+    if "publish-topic" in context.get_user_config_map():
       publish_topic = context.get_user_config_value("publish-topic")
     context.publish(publish_topic, input + '!')
     return

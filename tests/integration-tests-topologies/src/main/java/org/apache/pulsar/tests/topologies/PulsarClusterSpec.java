@@ -18,11 +18,15 @@
  */
 package org.apache.pulsar.tests.topologies;
 
+import java.util.Map;
 import lombok.Builder;
 import lombok.Builder.Default;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.tests.containers.ChaosContainer;
+import org.testcontainers.containers.GenericContainer;
+import org.testng.collections.Maps;
 
 /**
  * Spec to build a pulsar cluster.
@@ -63,6 +67,30 @@ public class PulsarClusterSpec {
      */
     @Default
     int numProxies = 1;
+
+    /**
+     * Returns number of function workers.
+     *
+     * @return number of function workers.
+     */
+    @Default
+    int numFunctionWorkers = 0;
+
+    /**
+     * Returns the function runtime type.
+     *
+     * @return the function runtime type.
+     */
+    @Default
+    FunctionRuntimeType functionRuntimeType = FunctionRuntimeType.PROCESS;
+
+    /**
+     * Returns the list of external services to start with
+     * this cluster.
+     *
+     * @return the list of external services to start with the cluster.
+     */
+    Map<String, GenericContainer<?>> externalServices = Maps.newHashMap();
 
     /**
      * Returns the flag whether to enable/disable container log.

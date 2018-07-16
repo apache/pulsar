@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.worker;
 import static org.apache.pulsar.functions.utils.Utils.FILE;
 import static org.apache.pulsar.functions.utils.Utils.HTTP;
 import static org.apache.pulsar.functions.utils.Utils.getSourceType;
+import static org.apache.pulsar.functions.utils.Utils.getSinkType;
 import static org.apache.pulsar.functions.utils.Utils.isFunctionPackageUrlSupported;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -162,6 +163,9 @@ public class FunctionActioner implements AutoCloseable {
         instanceConfig.setInstanceId(String.valueOf(instanceId));
         instanceConfig.setMaxBufferedTuples(1024);
         instanceConfig.setPort(org.apache.pulsar.functions.utils.Utils.findAvailablePort());
+
+        log.info("start process with instance config {}", instanceConfig);
+
         RuntimeSpawner runtimeSpawner = new RuntimeSpawner(instanceConfig, pkgFile.getAbsolutePath(),
                 runtimeFactory, workerConfig.getInstanceLivenessCheckFreqMs());
 
@@ -286,7 +290,7 @@ public class FunctionActioner implements AutoCloseable {
                 builder.setClassName(sourceClass);
                 functionDetails.setSource(builder);
 
-                fillSourceSinkTypeClass(functionDetails, archive, sourceClass);
+                fillSourceTypeClass(functionDetails, archive, sourceClass);
                 return archive;
             }
         }
@@ -300,7 +304,7 @@ public class FunctionActioner implements AutoCloseable {
                 builder.setClassName(sinkClass);
                 functionDetails.setSink(builder);
 
-                fillSourceSinkTypeClass(functionDetails, archive, sinkClass);
+                fillSinkTypeClass(functionDetails, archive, sinkClass);
                 return archive;
             }
         }
@@ -308,7 +312,7 @@ public class FunctionActioner implements AutoCloseable {
         throw new IOException("Could not find built in archive definition");
     }
 
-    private void fillSourceSinkTypeClass(FunctionDetails.Builder functionDetails, File archive, String className)
+    private void fillSourceTypeClass(FunctionDetails.Builder functionDetails, File archive, String className)
             throws IOException {
         try (NarClassLoader ncl = NarClassLoader.getFromArchive(archive, Collections.emptySet())) {
             String typeArg = getSourceType(className, ncl).getName();
@@ -317,9 +321,30 @@ public class FunctionActioner implements AutoCloseable {
             sourceBuilder.setTypeClassName(typeArg);
             functionDetails.setSource(sourceBuilder);
 
+            SinkSpec sinkSpec = functionDetails.getSink();
+            if (null == sinkSpec || StringUtils.isEmpty(sinkSpec.getTypeClassName())) {
+                SinkSpec.Builder sinkBuilder = SinkSpec.newBuilder(sinkSpec);
+                sinkBuilder.setTypeClassName(typeArg);
+                functionDetails.setSink(sinkBuilder);
+            }
+        }
+    }
+
+    private void fillSinkTypeClass(FunctionDetails.Builder functionDetails, File archive, String className)
+            throws IOException {
+        try (NarClassLoader ncl = NarClassLoader.getFromArchive(archive, Collections.emptySet())) {
+            String typeArg = getSinkType(className, ncl).getName();
+
             SinkSpec.Builder sinkBuilder = SinkSpec.newBuilder(functionDetails.getSink());
             sinkBuilder.setTypeClassName(typeArg);
             functionDetails.setSink(sinkBuilder);
+
+            SourceSpec sourceSpec = functionDetails.getSource();
+            if (null == sourceSpec || StringUtils.isEmpty(sourceSpec.getTypeClassName())) {
+                SourceSpec.Builder sourceBuilder = SourceSpec.newBuilder(sourceSpec);
+                sourceBuilder.setTypeClassName(typeArg);
+                functionDetails.setSource(sourceBuilder);
+            }
         }
     }
 
