@@ -136,12 +136,12 @@ public class ProcessRuntimeTest {
                 + " --pulsar_serviceurl " + pulsarServiceUrl
                 + " --max_buffered_tuples 1024 --port " + args.get(35)
                 + " --source_classname " + config.getFunctionDetails().getSource().getClassName()
-                + " --source_type_classname " + config.getFunctionDetails().getSource().getTypeClassName()
+                + " --source_type_classname \"" + config.getFunctionDetails().getSource().getTypeClassName() + "\""
                 + " --source_subscription_type " + config.getFunctionDetails().getSource().getSubscriptionType().name()
                 + " --source_topics_serde_classname " + new Gson().toJson(topicsToSerDeClassName)
                 + " --topics_pattern " + config.getFunctionDetails().getSource().getTopicsPattern()
                 + " --sink_classname " + config.getFunctionDetails().getSink().getClassName()
-                + " --sink_type_classname " + config.getFunctionDetails().getSink().getTypeClassName()
+                + " --sink_type_classname \"" + config.getFunctionDetails().getSink().getTypeClassName() + "\""
                 + " --sink_topic " + config.getFunctionDetails().getSink().getTopic()
                 + " --sink_serde_classname " + config.getFunctionDetails().getSink().getSerDeClassName()
                 + " --state_storage_serviceurl " + stateStorageServiceUrl;

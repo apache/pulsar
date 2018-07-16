@@ -178,7 +178,9 @@ public class PulsarCluster {
         Map<String, GenericContainer<?>> externalServices = spec.externalServices;
         if (null != externalServices) {
             externalServices.entrySet().forEach(service -> {
-                service.getValue().start();
+                GenericContainer<?> serviceContainer = service.getValue();
+                serviceContainer.withNetwork(network);
+                serviceContainer.start();
                 log.info("Successfully start external service {}.", service.getKey());
             });
         }

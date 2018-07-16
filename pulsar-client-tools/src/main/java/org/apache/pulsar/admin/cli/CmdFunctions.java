@@ -1058,7 +1058,7 @@ public class CmdFunctions extends CmdBase {
                 });
             for (RuntimeSpawner spawner : spawners) {
                 spawner.join();
-                log.info("RuntimeSpawner quit because of {}", spawner.getRuntime().getDeathException());
+                log.info("RuntimeSpawner quit because of", spawner.getRuntime().getDeathException());
             }
 
         }
