@@ -161,9 +161,9 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
         }
 
         if (!authentication_) {
-          LOG_ERROR("Invalid authentication plugin");
-          close();
-          return;
+            LOG_ERROR("Invalid authentication plugin");
+            close();
+            return;
         }
 
         AuthenticationDataPtr authData;
