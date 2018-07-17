@@ -152,7 +152,7 @@ For more information on Pulsar client authentication using TLS, see the followin
 You'll need to add the following authentication parameters to that file to use TLS with Pulsar's CLI tools:
 
 ```properties
-serviceUrl=https://broker.example.com:8443/
+webServiceUrl=https://broker.example.com:8443/
 authPlugin=org.apache.pulsar.client.impl.auth.AuthenticationTls
 authParams=tlsCertFile:/path/to/client-cert.pem,tlsKeyFile:/path/to/client-key.pem
 useTls=true

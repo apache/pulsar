@@ -90,7 +90,7 @@ You’ll need to add the following authentication parameters to that file to use
 
 ```properties
 # URL for the broker
-serviceUrl=https://broker.example.com:8443/
+webServiceUrl=https://broker.example.com:8443/
 
 # Set Athenz auth plugin and its parameters
 authPlugin=org.apache.pulsar.client.impl.auth.AuthenticationAthenz
