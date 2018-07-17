@@ -21,6 +21,8 @@ package org.apache.pulsar.io.core;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import org.apache.pulsar.functions.api.Record;
+
 /**
  * Pulsar's Push Source interface. PushSource read data from
  * external sources(database changes, twitter firehose, etc)

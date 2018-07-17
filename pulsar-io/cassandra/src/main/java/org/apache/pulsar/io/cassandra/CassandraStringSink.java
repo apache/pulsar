@@ -19,8 +19,8 @@
 
 package org.apache.pulsar.io.cassandra;
 
+import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.KeyValue;
-import org.apache.pulsar.io.core.Record;
 
 /**
  * Cassandra sink that treats incoming messages on the input topic as Strings
