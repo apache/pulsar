@@ -127,7 +127,7 @@
 
     <dependency>
       <groupId>com.amazonaws</groupId>
-      <artifactId>aws-java-sdk-s3</artifactId>
+      <artifactId>aws-java-sdk-core</artifactId>
     </dependency>
 
     <!-- functions related dependencies (begin) -->

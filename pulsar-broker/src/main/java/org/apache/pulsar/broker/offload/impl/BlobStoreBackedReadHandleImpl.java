@@ -40,14 +40,14 @@ import org.apache.pulsar.broker.offload.BackedInputStream;
 import org.apache.pulsar.broker.offload.OffloadIndexBlock;
 import org.apache.pulsar.broker.offload.OffloadIndexBlockBuilder;
 import org.apache.pulsar.broker.offload.OffloadIndexEntry;
-import org.apache.pulsar.broker.offload.impl.ManagedLedgerOffloader.VersionCheck;
+import org.apache.pulsar.broker.offload.impl.BlobStoreManagedLedgerOffloader.VersionCheck;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.domain.Blob;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class BackedReadHandleImpl implements ReadHandle {
-    private static final Logger log = LoggerFactory.getLogger(BackedReadHandleImpl.class);
+public class BlobStoreBackedReadHandleImpl implements ReadHandle {
+    private static final Logger log = LoggerFactory.getLogger(BlobStoreBackedReadHandleImpl.class);
 
     private final long ledgerId;
     private final OffloadIndexBlock index;
@@ -55,9 +55,9 @@ public class BackedReadHandleImpl implements ReadHandle {
     private final DataInputStream dataStream;
     private final ExecutorService executor;
 
-    private BackedReadHandleImpl(long ledgerId, OffloadIndexBlock index,
-                                 BackedInputStream inputStream,
-                                 ExecutorService executor) {
+    private BlobStoreBackedReadHandleImpl(long ledgerId, OffloadIndexBlock index,
+                                          BackedInputStream inputStream,
+                                          ExecutorService executor) {
         this.ledgerId = ledgerId;
         this.index = index;
         this.inputStream = inputStream;
@@ -196,6 +196,6 @@ public class BackedReadHandleImpl implements ReadHandle {
             versionCheck,
             index.getDataObjectLength(),
             readBufferSize);
-        return new BackedReadHandleImpl(ledgerId, index, inputStream, executor);
+        return new BlobStoreBackedReadHandleImpl(ledgerId, index, inputStream, executor);
     }
 }

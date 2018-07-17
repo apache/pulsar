@@ -23,13 +23,10 @@ import io.netty.buffer.PooledByteBufAllocator;
 import java.io.IOException;
 import java.io.InputStream;
 import org.apache.pulsar.broker.offload.BackedInputStream;
-import org.apache.pulsar.broker.offload.impl.ManagedLedgerOffloader.VersionCheck;
+import org.apache.pulsar.broker.offload.impl.BlobStoreManagedLedgerOffloader.VersionCheck;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.blobstore.options.GetOptions;
-import org.jclouds.io.Payload;
-import org.jclouds.io.PayloadSlicer;
-import org.jclouds.io.internal.BasePayloadSlicer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

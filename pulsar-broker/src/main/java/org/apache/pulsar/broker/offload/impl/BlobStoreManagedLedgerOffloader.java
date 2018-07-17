@@ -58,8 +58,8 @@ import org.jclouds.s3.reference.S3Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ManagedLedgerOffloader implements LedgerOffloader {
-    private static final Logger log = LoggerFactory.getLogger(ManagedLedgerOffloader.class);
+public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
+    private static final Logger log = LoggerFactory.getLogger(BlobStoreManagedLedgerOffloader.class);
 
     public static final String[] DRIVER_NAMES = {"S3", "aws-s3", "google-cloud-storage"};
 
@@ -100,8 +100,8 @@ public class ManagedLedgerOffloader implements LedgerOffloader {
     private BlobStore blobStore;
     Location location = null;
 
-    public static ManagedLedgerOffloader create(ServiceConfiguration conf,
-                                                OrderedScheduler scheduler)
+    public static BlobStoreManagedLedgerOffloader create(ServiceConfiguration conf,
+                                                         OrderedScheduler scheduler)
             throws PulsarServerException {
         String driver = conf.getManagedLedgerOffloadDriver();
         String region = conf.getS3ManagedLedgerOffloadRegion();
@@ -122,12 +122,12 @@ public class ManagedLedgerOffloader implements LedgerOffloader {
             throw new PulsarServerException("s3ManagedLedgerOffloadMaxBlockSizeInBytes cannot be less than 5MB");
         }
 
-        return new ManagedLedgerOffloader(driver, bucket, scheduler, maxBlockSize, readBufferSize, endpoint, region);
+        return new BlobStoreManagedLedgerOffloader(driver, bucket, scheduler, maxBlockSize, readBufferSize, endpoint, region);
     }
 
     // build context for jclouds BlobStoreContext
-    ManagedLedgerOffloader(String driver, String container, OrderedScheduler scheduler,
-                           int maxBlockSize, int readBufferSize, String endpoint, String region) {
+    BlobStoreManagedLedgerOffloader(String driver, String container, OrderedScheduler scheduler,
+                                    int maxBlockSize, int readBufferSize, String endpoint, String region) {
         this.scheduler = scheduler;
         this.readBufferSize = readBufferSize;
 
@@ -175,8 +175,8 @@ public class ManagedLedgerOffloader implements LedgerOffloader {
     }
 
     // build context for jclouds BlobStoreContext
-    ManagedLedgerOffloader(BlobStore blobStore, String container, OrderedScheduler scheduler,
-                           int maxBlockSize, int readBufferSize) {
+    BlobStoreManagedLedgerOffloader(BlobStore blobStore, String container, OrderedScheduler scheduler,
+                                    int maxBlockSize, int readBufferSize) {
         this.scheduler = scheduler;
         this.readBufferSize = readBufferSize;
         this.bucket = container;
@@ -312,7 +312,7 @@ public class ManagedLedgerOffloader implements LedgerOffloader {
         String indexKey = indexBlockOffloadKey(ledgerId, uid);
         scheduler.chooseThread(ledgerId).submit(() -> {
                 try {
-                    promise.complete(BackedReadHandleImpl.open(scheduler.chooseThread(ledgerId),
+                    promise.complete(BlobStoreBackedReadHandleImpl.open(scheduler.chooseThread(ledgerId),
                                                                  blobStore,
                                                                  bucket, key, indexKey,
                                                                  VERSION_CHECK,
