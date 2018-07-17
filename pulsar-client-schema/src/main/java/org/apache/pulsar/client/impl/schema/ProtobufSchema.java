@@ -47,9 +47,10 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> im
     @Getter
     @AllArgsConstructor
     public static class ProtoBufParsingInfo {
-        private final int index;
+        private final int number;
         private final String name;
         private final String type;
+        private final String label;
         // For future nested fields
         private final Map <String, Object> definition;
     }
@@ -83,8 +84,9 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> im
         protoMessageInstance.getDescriptorForType().getFields().forEach(new Consumer<Descriptors.FieldDescriptor>() {
             @Override
             public void accept(Descriptors.FieldDescriptor fieldDescriptor) {
-                protoBufParsingInfos.add(new ProtoBufParsingInfo(fieldDescriptor.getIndex(),
-                        fieldDescriptor.getName(), fieldDescriptor.getType().name(), null));
+                protoBufParsingInfos.add(new ProtoBufParsingInfo(fieldDescriptor.getNumber(),
+                        fieldDescriptor.getName(), fieldDescriptor.getType().name(),
+                        fieldDescriptor.toProto().getLabel().name(), null));
             }
         });
 
